@@ -53,25 +53,42 @@ const ids = {
 };
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ success: false, error: 'Ação não permitida em ambiente de produção.' }, { status: 403 });
+  }
   try {
     await dbConnect();
 
-    // 1. Drop existing data
-    await User.deleteMany({});
+    // ─────────────────────────────────────────────────────────────────────────
+    // SAFETY: only delete TEST data — never touch real user records.
+    // Test users are identified by the static ObjectIDs defined in `ids.users`
+    // and by the @clube.com e-mail domain.
+    // ─────────────────────────────────────────────────────────────────────────
+    const testUserIds = Object.values(ids.users);
+    const testProfIds = Object.values(ids.professionals);
+    const testClientIds = Object.values(ids.clients);
+
+    // Remove test users (by static ID or @clube.com email as a safety net)
+    await User.deleteMany({ $or: [{ _id: { $in: testUserIds } }, { email: /@clube\.com$/i }] });
+    // Remove test professionals, clients and all their linked clinical data
+    await Professional.deleteMany({ _id: { $in: testProfIds } });
+    await Client.deleteMany({ _id: { $in: testClientIds } });
+
+    // Plans, medications, financial and exercises are shared/global test data
     await Plan.deleteMany({});
-    await Professional.deleteMany({});
-    await Client.deleteMany({});
-    await Appointment.deleteMany({});
-    await PhysicalAssessment.deleteMany({});
-    await PhysioReport.deleteMany({});
     await Medication.deleteMany({});
     await Financial.deleteMany({});
-    await Notification.deleteMany({});
-    await ClientWorkout.deleteMany({});
-    await FixedSchedule.deleteMany({});
-    await Prontuario.deleteMany({});
-    await StrengthTest.deleteMany({});
     await Exercise.deleteMany({});
+
+    // Clinical/scheduling data linked to test clients
+    await Appointment.deleteMany({ $or: [{ profissionalId: { $in: testProfIds } }, { clienteId: { $in: testClientIds } }] });
+    await PhysicalAssessment.deleteMany({ clienteId: { $in: testClientIds } });
+    await PhysioReport.deleteMany({ clienteId: { $in: testClientIds } });
+    await Notification.deleteMany({ clienteId: { $in: testClientIds } });
+    await ClientWorkout.deleteMany({ clienteId: { $in: testClientIds } });
+    await FixedSchedule.deleteMany({ $or: [{ profissionalId: { $in: testProfIds } }, { clienteId: { $in: testClientIds } }] });
+    await Prontuario.deleteMany({ clienteId: { $in: testClientIds } });
+    await StrengthTest.deleteMany({ clienteId: { $in: testClientIds } });
 
     // 2. Insert Plans
     const plansData = [
@@ -89,13 +106,13 @@ export async function GET() {
 
     // 3. Insert Users
     const usersData = [
-      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin' },
-      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', cargo: 'Fisioterapeuta' },
-      { _id: ids.users.prof, nome: 'Profª. Camila Lima', email: 'prof@clube.com', tipo: 'professional', cargo: 'Avaliador / Instrutor' },
-      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client' },
-      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client' },
-      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client' },
-      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client' }
+      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin', cargo: 'Administrador Geral' },
+      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', cargo: 'Fisio' },
+      { _id: ids.users.prof, nome: 'Profª. Camila Lima', email: 'prof@clube.com', tipo: 'professional', cargo: 'Treino' },
+      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client', cargo: 'Aluno VIP' },
+      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client', cargo: 'Aluno' },
+      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client', cargo: 'Aluno' },
+      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client', cargo: 'Aluno' }
     ];
     await User.insertMany(usersData);
 
@@ -453,7 +470,7 @@ export async function GET() {
     ];
     await StrengthTest.insertMany(strengthTestsData);
 
-    return NextResponse.json({ success: true, message: 'Database seeded successfully with all clinical modules!' });
+    return NextResponse.json({ success: true, message: 'Dados de teste resetados e repopulados com sucesso!' });
   } catch (error: any) {
     console.error('Seeding error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { Providers } from '@/components/Providers';
 
@@ -30,6 +31,18 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <Script
+          src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+          strategy="lazyOnload"
+        />
+        <Script
+          src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"
+          strategy="lazyOnload"
+        />
+        <Script
+          src="https://cdn.jsdelivr.net/npm/chart.js"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

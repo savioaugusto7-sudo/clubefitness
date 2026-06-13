@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import Pagination from './Pagination';
+import SearchableSelect from './SearchableSelect';
+import { downloadReportPDF, downloadAssessmentPDF } from '@/utils/pdfGenerator';
 
 interface DashboardProfessionalProps {
   activeTab: string;
@@ -11,6 +14,38 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [clients, setClients] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination & UX states
+  const [pages, setPages] = useState<Record<string, number>>({});
+  const [pageSize, setPageSize] = useState<Record<string, number>>({});
+
+  const getPage = (key: string) => pages[key] || 1;
+  const setPage = (key: string, page: number) => {
+    setPages(prev => ({ ...prev, [key]: page }));
+  };
+
+  const getPageSize = (key: string) => pageSize[key] || 8;
+  const setPageSizeForKey = (key: string, size: number) => {
+    setPageSize(prev => ({ ...prev, [key]: size }));
+    setPage(key, 1);
+  };
+
+  // Close modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAptModal(false);
+        setShowFixedSchedModal(false);
+        setShowAssessmentModal(false);
+        setShowReportModal(false);
+        setShowStModal(false);
+        setShowProntuarioModal(false);
+        setShowNewExModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Clinical data states
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
@@ -93,6 +128,36 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [newExEquip, setNewExEquip] = useState('BARRA');
   const [newExInst, setNewExInst] = useState('');
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/exercises/import', {
+        method: 'POST',
+        body: formData
+      });
+      const resJson = await res.json();
+      if (resJson.success) {
+        alert(`Importação concluída! ${resJson.count} exercícios importados com sucesso.`);
+        fetchData();
+      } else {
+        alert(`Erro na importação: ${resJson.error}`);
+      }
+    } catch (err: any) {
+      alert(`Erro ao importar arquivo.`);
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -113,7 +178,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
         }
       }
 
-      if (activeTab === 'dashboard') {
+      if (activeTab === 'dashboard' || activeTab === 'resumo_dia') {
         const resApts = await fetch('/api/appointments');
         const jsonApts = await resApts.json();
         if (jsonApts.success) setAppointments(jsonApts.data);
@@ -532,6 +597,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   }
 
   // Filter lists based on search
+  const clientOptions = clients.map(c => ({
+    value: c._id,
+    label: c.dadosPessoais?.nome || 'Sem Nome'
+  }));
+
   const filteredClients = clients.filter(c =>
     c.dadosPessoais?.nome?.toLowerCase().includes(workoutSearch.toLowerCase())
   );
@@ -544,6 +614,163 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
 
   return (
     <div>
+      {/* 0. View: Resumo do Dia */}
+      {activeTab === 'resumo_dia' && (
+        <>
+          <div className="view-header">
+            <div className="view-title-group">
+              <h1>Resumo do Dia</h1>
+              <p>Visão geral e cronograma de atendimentos agendados para hoje.</p>
+            </div>
+          </div>
+
+          <div className="metrics-grid">
+            <div className="metric-card">
+              <div className="metric-info">
+                <h3>Total Agendados Hoje</h3>
+                <div className="value">
+                  {appointments.filter(a => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    return a.data === todayStr && a.status !== 'cancelado';
+                  }).length}
+                </div>
+              </div>
+              <div className="metric-icon"><i className="fa-solid fa-calendar-day"></i></div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-info">
+                <h3>Presenças Confirmadas</h3>
+                <div className="value">
+                  {appointments.filter(a => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    return a.data === todayStr && a.status === 'presenca';
+                  }).length}
+                </div>
+              </div>
+              <div className="metric-icon"><i className="fa-solid fa-user-check"></i></div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-info">
+                <h3>Atendimentos Pendentes</h3>
+                <div className="value">
+                  {appointments.filter(a => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    return a.data === todayStr && a.status === 'agendado';
+                  }).length}
+                </div>
+              </div>
+              <div className="metric-icon warning"><i className="fa-solid fa-clock"></i></div>
+            </div>
+          </div>
+
+          <div className="content-panel">
+            <div className="panel-header">
+              <h2>Cronograma de Atendimentos</h2>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('resumo_dia')} onChange={e => setPageSizeForKey('resumo_dia', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+            </div>
+            <div className="table-responsive" style={{ marginTop: '12px' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Horário</th>
+                    <th>Tipo</th>
+                    <th>Serviço</th>
+                    <th>Aluno</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const listKey = 'resumo_dia';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayApts = appointments
+                      .filter(a => a.data === todayStr && a.status !== 'cancelado')
+                      .sort((a, b) => a.horario.localeCompare(b.horario));
+
+                    const totalPages = Math.ceil(todayApts.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = todayApts.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(a => (
+                      <tr key={a._id}>
+                        <td><strong>{a.horario}</strong></td>
+                        <td>
+                          <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
+                            {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
+                          </span>
+                        </td>
+                        <td>{a.servico}</td>
+                        <td>{a.clienteId?.dadosPessoais?.nome || 'Aluno'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : 'badge-warning'}`}>
+                            {a.status === 'presenca' ? 'Presente' : 'Agendado'}
+                          </span>
+                        </td>
+                        <td>
+                          {a.status === 'agendado' && (
+                            <button className="btn btn-success btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
+                              Confirmar Presença
+                            </button>
+                          )}
+                          {a.status === 'presenca' && (
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
+                              Desmarcar Presença
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                  {(() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const count = appointments.filter(a => a.data === todayStr && a.status !== 'cancelado').length;
+                    if (count === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6}>
+                            <div className="empty-state-card">
+                              <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
+                              <div className="empty-state-title">Sem atendimentos hoje</div>
+                              <div className="empty-state-desc">Não há sessões ou aulas agendadas para o dia de hoje.</div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return null;
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            {(() => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const count = appointments.filter(a => a.data === todayStr && a.status !== 'cancelado').length;
+              if (count > 0) {
+                return (
+                  <Pagination
+                    currentPage={getPage('resumo_dia')}
+                    totalItems={count}
+                    itemsPerPage={getPageSize('resumo_dia')}
+                    onPageChange={page => setPage('resumo_dia', page)}
+                  />
+                );
+              }
+              return null;
+            })()}
+          </div>
+        </>
+      )}
+
       {/* 1. View: Agenda Completa / Dashboard */}
       {activeTab === 'dashboard' && (
         <>
@@ -552,19 +779,26 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <h1>Agenda de Atendimentos</h1>
               <p>Gerenciamento de horários, presenças e agendamentos.</p>
             </div>
-            <button className="btn btn-primary" onClick={() => {
-              setAptDate(new Date().toISOString().split('T')[0]);
-              setShowAptModal(true);
-            }}>
-              <i className="fa-solid fa-calendar-plus"></i> Novo Agendamento
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('dashboard')} onChange={e => setPageSizeForKey('dashboard', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                setAptDate(new Date().toISOString().split('T')[0]);
+                setShowAptModal(true);
+              }}>
+                <i className="fa-solid fa-calendar-plus"></i> Novo Agendamento
+              </button>
+            </div>
           </div>
 
           <div className="content-panel">
-            <div className="panel-header">
-              <h2>Lista de Agendamentos</h2>
-            </div>
-            <div className="table-responsive" style={{ marginTop: '12px' }}>
+            <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -572,60 +806,84 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     <th>Tipo</th>
                     <th>Serviço</th>
                     <th>Aluno</th>
-                    <th>Status</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {appointments.map(a => (
-                    <tr key={a._id}>
-                      <td><strong>{a.data}</strong> às {a.horario}</td>
-                      <td>
-                        <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
-                          {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
-                        </span>
-                      </td>
-                      <td>{a.servico}</td>
-                      <td>{a.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</td>
-                      <td>
-                        <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
-                          {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
-                        </span>
-                      </td>
-                      <td>
-                        {a.status === 'agendado' && (
-                          <>
-                            <button className="btn btn-success btn-sm" style={{ marginRight: '8px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                              Confirmar Presença
+                  {(() => {
+                    const listKey = 'dashboard';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const totalPages = Math.ceil(appointments.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = appointments.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(a => (
+                      <tr key={a._id}>
+                        <td><strong>{a.data}</strong> às {a.horario}</td>
+                        <td>
+                          <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
+                            {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
+                          </span>
+                        </td>
+                        <td>{a.servico}</td>
+                        <td>{a.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
+                            {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
+                          </span>
+                        </td>
+                        <td>
+                          {a.status === 'agendado' && (
+                            <>
+                              <button className="btn btn-success btn-sm" style={{ marginRight: '8px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
+                                Confirmar Presença
+                              </button>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                Cancelar
+                              </button>
+                            </>
+                          )}
+                          {a.status === 'presenca' && (
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
+                              Desmarcar Presença
                             </button>
-                            <button className="btn btn-danger btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
-                              Cancelar
+                          )}
+                          {a.status === 'cancelado' && (
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
+                              Reativar
                             </button>
-                          </>
-                        )}
-                        {a.status === 'presenca' && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
-                            Desmarcar Presença
-                          </button>
-                        )}
-                        {a.status === 'cancelado' && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
-                            Reativar
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                          )}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                   {appointments.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-                        Nenhum atendimento agendado.
+                      <td colSpan={6}>
+                        <div className="empty-state-card">
+                          <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
+                          <div className="empty-state-title">Nenhum agendamento</div>
+                          <div className="empty-state-desc">Não há registros de agendamentos no sistema.</div>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAptDate(new Date().toISOString().split('T')[0]); setShowAptModal(true); }}>
+                            <i className="fa-solid fa-calendar-plus"></i> Novo Agendamento
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            {appointments.length > 0 && (
+              <Pagination
+                currentPage={getPage('dashboard')}
+                totalItems={appointments.length}
+                itemsPerPage={getPageSize('dashboard')}
+                onPageChange={page => setPage('dashboard', page)}
+              />
+            )}
           </div>
         </>
       )}
@@ -637,6 +895,16 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
             <div className="view-title-group">
               <h1>Meus Alunos</h1>
               <p>Acompanhamento de fichas clínicas e evolução.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('clientes')} onChange={e => setPageSizeForKey('clientes', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -652,21 +920,49 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                   </tr>
                 </thead>
                 <tbody>
-                  {clients.map(c => (
-                    <tr key={c._id}>
-                      <td><strong>{c.dadosPessoais?.nome}</strong></td>
-                      <td>{c.dadosPessoais?.telefone || '-'}</td>
-                      <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
-                      <td>
-                        <em style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                          {c.dadosClinicos?.lesoes || 'Sem lesões registradas'}
-                        </em>
+                  {(() => {
+                    const listKey = 'clientes';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const totalPages = Math.ceil(clients.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = clients.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(c => (
+                      <tr key={c._id}>
+                        <td><strong>{c.dadosPessoais?.nome}</strong></td>
+                        <td>{c.dadosPessoais?.telefone || '-'}</td>
+                        <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
+                        <td>
+                          <em style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            {c.dadosClinicos?.lesoes || 'Sem lesões registradas'}
+                          </em>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                  {clients.length === 0 && (
+                    <tr>
+                      <td colSpan={4}>
+                        <div className="empty-state-card">
+                          <i className="fa-solid fa-graduation-cap empty-state-icon"></i>
+                          <div className="empty-state-title">Nenhum aluno vinculado</div>
+                          <div className="empty-state-desc">Não há alunos vinculados a você no sistema.</div>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
+            {clients.length > 0 && (
+              <Pagination
+                currentPage={getPage('clientes')}
+                totalItems={clients.length}
+                itemsPerPage={getPageSize('clientes')}
+                onPageChange={page => setPage('clientes', page)}
+              />
+            )}
           </div>
         </>
       )}
@@ -694,8 +990,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
 
               {workoutSubTab === 'clients' && (
                 <div className="content-panel">
-                  <div style={{ marginBottom: '16px', maxWidth: '400px' }}>
-                    <input type="text" className="form-control" placeholder="Buscar aluno..." value={workoutSearch} onChange={e => setWorkoutSearch(e.target.value)} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ maxWidth: '400px', flexGrow: 1 }}>
+                      <input type="text" className="form-control" placeholder="Buscar aluno..." value={workoutSearch} onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutSearch(e.target.value); }} />
+                    </div>
+                    <div className="page-size-selector">
+                      <span>Exibir:</span>
+                      <select value={getPageSize('treinos_prof_clients')} onChange={e => setPageSizeForKey('treinos_prof_clients', Number(e.target.value))}>
+                        <option value={5}>5</option>
+                        <option value={8}>8</option>
+                        <option value={15}>15</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="table-responsive">
                     <table className="data-table">
@@ -703,77 +1009,162 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                         <tr>
                           <th>Aluno</th>
                           <th>Plano</th>
-                          <th>Status da Ficha</th>
+                          <th style={{ textAlign: 'center' }}>Status da Ficha</th>
                           <th>Ações</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredClients.map(c => {
-                          const userWorkout = workouts.find(w => w.clienteId === c._id);
-                          const hasWorkout = userWorkout && userWorkout.fichasMonitorado?.some((f: any) => f.exercicios?.length > 0);
-                          return (
-                            <tr key={c._id}>
-                              <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
-                              <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
-                              <td>
-                                <span className={`badge ${hasWorkout ? 'badge-success' : 'badge-warning'}`}>
-                                  {hasWorkout ? 'Ficha Ativa' : 'Sem Ficha'}
-                                </span>
-                              </td>
-                              <td>
-                                <button className="btn btn-primary btn-sm" onClick={() => handleOpenWorkoutEditor(c)}>
-                                  <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar Ficha' : 'Criar Ficha'}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        {(() => {
+                          const listKey = 'treinos_prof_clients';
+                          const activeP = getPage(listKey);
+                          const size = getPageSize(listKey);
+                          const totalPages = Math.ceil(filteredClients.length / size);
+                          const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                          const paginated = filteredClients.slice((curP - 1) * size, curP * size);
+
+                          return paginated.map(c => {
+                            const userWorkout = workouts.find(w => w.clienteId === c._id);
+                            const hasWorkout = userWorkout && userWorkout.fichasMonitorado?.some((f: any) => f.exercicios?.length > 0);
+                            return (
+                              <tr key={c._id}>
+                                <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
+                                <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className={`badge ${hasWorkout ? 'badge-success' : 'badge-warning'}`}>
+                                    {hasWorkout ? 'Ficha Ativa' : 'Sem Ficha'}
+                                  </span>
+                                </td>
+                                <td>
+                                  <button className="btn btn-primary btn-sm" onClick={() => handleOpenWorkoutEditor(c)}>
+                                    <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar Ficha' : 'Criar Ficha'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                        {filteredClients.length === 0 && (
+                          <tr>
+                            <td colSpan={4}>
+                              <div className="empty-state-card">
+                                <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+                                <div className="empty-state-title">Nenhum aluno encontrado</div>
+                                <div className="empty-state-desc">Não há alunos correspondentes à busca ou cadastrados no sistema.</div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
+                  {filteredClients.length > 0 && (
+                    <Pagination
+                      currentPage={getPage('treinos_prof_clients')}
+                      totalItems={filteredClients.length}
+                      itemsPerPage={getPageSize('treinos_prof_clients')}
+                      onPageChange={page => setPage('treinos_prof_clients', page)}
+                    />
+                  )}
                 </div>
               )}
 
               {workoutSubTab === 'exercises' && (
                 <div className="content-panel">
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                    <input type="text" className="form-control" style={{ maxWidth: '300px' }} placeholder="Buscar exercício..." value={exerciseSearch} onChange={e => setExerciseSearch(e.target.value)} />
-                    <select className="select-custom" style={{ width: '160px' }} value={exerciseGroup} onChange={e => setExerciseGroup(e.target.value)}>
-                      <option value="">Todos os Grupos</option>
-                      <option value="PEITO">Peito</option>
-                      <option value="COSTAS">Costas</option>
-                      <option value="PERNAS">Pernas</option>
-                      <option value="OMBROS">Ombros</option>
-                      <option value="BÍCEPS">Bíceps</option>
-                      <option value="TRÍCEPS">Tríceps</option>
-                      <option value="CORE">Core</option>
-                    </select>
-                    <button className="btn btn-primary" onClick={() => setShowNewExModal(true)}>
-                      <i className="fa-solid fa-plus"></i> Novo Exercício
-                    </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flexGrow: 1 }}>
+                      <input type="text" className="form-control" style={{ maxWidth: '300px' }} placeholder="Buscar exercício..." value={exerciseSearch} onChange={e => { setPage('treinos_prof_exercises', 1); setExerciseSearch(e.target.value); }} />
+                      <select className="select-custom" style={{ width: '160px' }} value={exerciseGroup} onChange={e => { setPage('treinos_prof_exercises', 1); setExerciseGroup(e.target.value); }}>
+                        <option value="">Todos os Grupos</option>
+                        <option value="PEITO">Peito</option>
+                        <option value="COSTAS">Costas</option>
+                        <option value="PERNAS">Pernas</option>
+                        <option value="OMBROS">Ombros</option>
+                        <option value="BÍCEPS">Bíceps</option>
+                        <option value="TRÍCEPS">Tríceps</option>
+                        <option value="CORE">Core</option>
+                      </select>
+                      <button className="btn btn-primary" onClick={() => setShowNewExModal(true)}>
+                        <i className="fa-solid fa-plus"></i> Novo Exercício
+                      </button>
+                      <a href="/api/exercises/export" className="btn btn-secondary" download>
+                        <i className="fa-solid fa-file-export"></i> Exportar (.xlsx)
+                      </a>
+                      <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                        <i className="fa-solid fa-file-import"></i> Importar (.xlsx)
+                      </button>
+                      <a href="/api/exercises/template" className="btn btn-secondary" download style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-download"></i> Baixar Template
+                      </a>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        accept=".xlsx, .xls"
+                        onChange={handleImportExcel}
+                      />
+                    </div>
+                    <div className="page-size-selector">
+                      <span>Exibir:</span>
+                      <select value={getPageSize('treinos_prof_exercises')} onChange={e => setPageSizeForKey('treinos_prof_exercises', Number(e.target.value))}>
+                        <option value={5}>5</option>
+                        <option value={8}>8</option>
+                        <option value={15}>15</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="table-responsive">
                     <table className="data-table">
                       <thead>
                         <tr>
                           <th>Exercício</th>
-                          <th>Grupo</th>
+                          <th style={{ textAlign: 'center' }}>Grupo</th>
                           <th>Equipamento</th>
                           <th>Instruções</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredExercises.map(ex => (
-                          <tr key={ex._id}>
-                            <td><strong>{ex.nome}</strong></td>
-                            <td><span className="badge badge-info">{ex.grupo}</span></td>
-                            <td><code>{ex.equipamento}</code></td>
-                            <td><small style={{ color: 'var(--text-muted)' }}>{ex.instrucoes || 'Nenhuma instrução disponível.'}</small></td>
+                        {(() => {
+                          const listKey = 'treinos_prof_exercises';
+                          const activeP = getPage(listKey);
+                          const size = getPageSize(listKey);
+                          const totalPages = Math.ceil(filteredExercises.length / size);
+                          const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                          const paginated = filteredExercises.slice((curP - 1) * size, curP * size);
+
+                          return paginated.map(ex => (
+                            <tr key={ex._id}>
+                              <td><strong>{ex.nome}</strong></td>
+                              <td style={{ textAlign: 'center' }}><span className="badge badge-info">{ex.grupo}</span></td>
+                              <td><code>{ex.equipamento}</code></td>
+                              <td><small style={{ color: 'var(--text-muted)' }}>{ex.instrucoes || 'Nenhuma instrução disponível.'}</small></td>
+                            </tr>
+                          ));
+                        })()}
+                        {filteredExercises.length === 0 && (
+                          <tr>
+                            <td colSpan={4}>
+                              <div className="empty-state-card">
+                                <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+                                <div className="empty-state-title">Nenhum exercício encontrado</div>
+                                <div className="empty-state-desc">Não há exercícios correspondentes à busca ou cadastrados.</div>
+                                <button className="btn btn-primary btn-sm" onClick={() => setShowNewExModal(true)}>
+                                  <i className="fa-solid fa-plus"></i> Cadastrar Exercício
+                                </button>
+                              </div>
+                            </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
+                  {filteredExercises.length > 0 && (
+                    <Pagination
+                      currentPage={getPage('treinos_prof_exercises')}
+                      totalItems={filteredExercises.length}
+                      itemsPerPage={getPageSize('treinos_prof_exercises')}
+                      onPageChange={page => setPage('treinos_prof_exercises', page)}
+                    />
+                  )}
                 </div>
               )}
             </>
@@ -943,12 +1334,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <h1>Horários Fixos (Agenda Recorrente)</h1>
               <p>Gerencie regras de agendamento permanente semanal para os alunos.</p>
             </div>
-            <button className="btn btn-primary" onClick={() => {
-              setFsDate(new Date().toISOString().split('T')[0]);
-              setShowFixedSchedModal(true);
-            }}>
-              <i className="fa-solid fa-plus"></i> Novo Horário Fixo
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('agenda_fixa')} onChange={e => setPageSizeForKey('agenda_fixa', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                setFsDate(new Date().toISOString().split('T')[0]);
+                setShowFixedSchedModal(true);
+              }}>
+                <i className="fa-solid fa-plus"></i> Novo Horário Fixo
+              </button>
+            </div>
           </div>
 
           <div className="content-panel">
@@ -965,9 +1366,17 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                   </tr>
                 </thead>
                 <tbody>
-                  {fixedSchedules.map(fs => {
+                  {(() => {
+                    const listKey = 'agenda_fixa';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const totalPages = Math.ceil(fixedSchedules.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = fixedSchedules.slice((curP - 1) * size, curP * size);
+
                     const weekdayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-                    return (
+
+                    return paginated.map(fs => (
                       <tr key={fs._id}>
                         <td><strong>{fs.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
                         <td>{fs.profissionalId?.nome || 'Profissional'}</td>
@@ -980,18 +1389,30 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                           </button>
                         </td>
                       </tr>
-                    );
-                  })}
+                    ));
+                  })()}
                   {fixedSchedules.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-                        Nenhum horário fixo configurado.
+                      <td colSpan={6}>
+                        <div className="empty-state-card">
+                          <i className="fa-solid fa-calendar-alt empty-state-icon"></i>
+                          <div className="empty-state-title">Nenhum horário fixo</div>
+                          <div className="empty-state-desc">Não há horários fixos semanais agendados.</div>
+                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            {fixedSchedules.length > 0 && (
+              <Pagination
+                currentPage={getPage('agenda_fixa')}
+                totalItems={fixedSchedules.length}
+                itemsPerPage={getPageSize('agenda_fixa')}
+                onPageChange={page => setPage('agenda_fixa', page)}
+              />
+            )}
           </div>
         </>
       )}
@@ -1004,12 +1425,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <h1>Avaliações Físicas</h1>
               <p>Histórico de bioimpedância, dobras cutâneas e metas de saúde.</p>
             </div>
-            <button className="btn btn-primary" onClick={() => {
-              setAsDate(new Date().toISOString().split('T')[0]);
-              setShowAssessmentModal(true);
-            }}>
-              <i className="fa-solid fa-plus"></i> Nova Avaliação
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('avaliacoes')} onChange={e => setPageSizeForKey('avaliacoes', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                setAsDate(new Date().toISOString().split('T')[0]);
+                setShowAssessmentModal(true);
+              }}>
+                <i className="fa-solid fa-plus"></i> Nova Avaliação
+              </button>
+            </div>
           </div>
 
           <div className="content-panel">
@@ -1020,43 +1451,67 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     <th>Data</th>
                     <th>Aluno</th>
                     <th>Peso / Altura</th>
-                    <th>Gordura Corporal</th>
+                    <th style={{ textAlign: 'center' }}>Gordura Corporal</th>
                     <th>Massa Magra / Gorda</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {assessments.map(as => (
-                    <tr key={as._id}>
-                      <td><strong>{as.data}</strong></td>
-                      <td><strong>{as.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                      <td>{as.dadosMedidos?.peso} kg / {as.dadosMedidos?.altura} m</td>
-                      <td>
-                        <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura}% BF</span>
-                      </td>
-                      <td>
-                        MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
-                      </td>
-                      <td>
-                        <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
-                          <i className="fa-solid fa-trash"></i>
-                        </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => alert('Fazendo download do laudo PDF...')}>
-                          <i className="fa-solid fa-file-pdf"></i> Laudo PDF
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const listKey = 'avaliacoes';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const totalPages = Math.ceil(assessments.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = assessments.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(as => (
+                      <tr key={as._id}>
+                        <td><strong>{as.data}</strong></td>
+                        <td><strong>{as.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td>{as.dadosMedidos?.peso} kg / {as.dadosMedidos?.altura} m</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura}% BF</span>
+                        </td>
+                        <td>
+                          MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
+                        </td>
+                        <td>
+                          <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
+                            <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                   {assessments.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-                        Nenhuma avaliação física registrada.
+                      <td colSpan={6}>
+                        <div className="empty-state-card">
+                          <i className="fa-solid fa-weight-scale empty-state-icon"></i>
+                          <div className="empty-state-title">Nenhuma avaliação física</div>
+                          <div className="empty-state-desc">Não há registros de avaliações físicas.</div>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
+                            <i className="fa-solid fa-plus"></i> Nova Avaliação
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            {assessments.length > 0 && (
+              <Pagination
+                currentPage={getPage('avaliacoes')}
+                totalItems={assessments.length}
+                itemsPerPage={getPageSize('avaliacoes')}
+                onPageChange={page => setPage('avaliacoes', page)}
+              />
+            )}
           </div>
         </>
       )}
@@ -1069,12 +1524,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <h1>Relatórios Fisioterápicos</h1>
               <p>Laudos de evolução clínica e acompanhamento de dores do paciente.</p>
             </div>
-            <button className="btn btn-primary" onClick={() => {
-              setRepDate(new Date().toISOString().split('T')[0]);
-              setShowReportModal(true);
-            }}>
-              <i className="fa-solid fa-plus"></i> Novo Relatório
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('relatorios')} onChange={e => setPageSizeForKey('relatorios', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                setRepDate(new Date().toISOString().split('T')[0]);
+                setShowReportModal(true);
+              }}>
+                <i className="fa-solid fa-plus"></i> Novo Relatório
+              </button>
+            </div>
           </div>
 
           <div className="content-panel">
@@ -1084,42 +1549,66 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                   <tr>
                     <th>Data</th>
                     <th>Aluno / Paciente</th>
-                    <th>Escala de Dor</th>
+                    <th style={{ textAlign: 'center' }}>Escala de Dor</th>
                     <th>Queixa Principal</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {reports.map(rep => (
-                    <tr key={rep._id}>
-                      <td><strong>{rep.data}</strong></td>
-                      <td><strong>{rep.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                      <td>
-                        <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
-                          Dor: {rep.conteudo?.dorEscala} / 10
-                        </span>
-                      </td>
-                      <td><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
-                      <td>
-                        <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
-                          <i className="fa-solid fa-trash"></i>
-                        </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => alert('Gerando PDF do Relatório...')}>
-                          <i className="fa-solid fa-file-pdf"></i> PDF
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const listKey = 'relatorios';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const totalPages = Math.ceil(reports.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = reports.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(rep => (
+                      <tr key={rep._id}>
+                        <td><strong>{rep.data}</strong></td>
+                        <td><strong>{rep.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
+                            Dor: {rep.conteudo?.dorEscala} / 10
+                          </span>
+                        </td>
+                        <td><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
+                        <td>
+                          <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
+                            <i className="fa-solid fa-file-pdf"></i> PDF
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                   {reports.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-                        Nenhum relatório clínico registrado.
+                      <td colSpan={5}>
+                        <div className="empty-state-card">
+                          <i className="fa-solid fa-file-medical empty-state-icon"></i>
+                          <div className="empty-state-title">Nenhum relatório clínico</div>
+                          <div className="empty-state-desc">Não há laudos ou relatórios de evolução fisioterápica.</div>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); }}>
+                            <i className="fa-solid fa-plus"></i> Novo Relatório
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            {reports.length > 0 && (
+              <Pagination
+                currentPage={getPage('relatorios')}
+                totalItems={reports.length}
+                itemsPerPage={getPageSize('relatorios')}
+                onPageChange={page => setPage('relatorios', page)}
+              />
+            )}
           </div>
         </>
       )}
@@ -1132,12 +1621,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <h1>Avaliação de Teste de Força Muscular</h1>
               <p>Métricas de dinamarquês e risco de lesão do ombro.</p>
             </div>
-            <button className="btn btn-primary" onClick={() => {
-              setStDate(new Date().toISOString().split('T')[0]);
-              setShowStModal(true);
-            }}>
-              <i className="fa-solid fa-plus"></i> Novo Teste
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('testes_forca')} onChange={e => setPageSizeForKey('testes_forca', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                setStDate(new Date().toISOString().split('T')[0]);
+                setShowStModal(true);
+              }}>
+                <i className="fa-solid fa-plus"></i> Novo Teste
+              </button>
+            </div>
           </div>
 
           <div className="content-panel">
@@ -1148,46 +1647,70 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     <th>Data</th>
                     <th>Aluno</th>
                     <th>Cargas (Supino / Remada)</th>
-                    <th>Avaliação Risco</th>
+                    <th style={{ textAlign: 'center' }}>Avaliação Risco</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {strengthTests.map(st => {
-                    const supino = st.exercicios?.find((e: any) => e.nome === 'Supino Reto')?.carga || '-';
-                    const remada = st.exercicios?.find((e: any) => e.nome === 'Remada Curvada / Máquina')?.carga || '-';
-                    const risco = st.analise?.riscoOmbro;
-                    return (
-                      <tr key={st._id}>
-                        <td><strong>{st.data}</strong></td>
-                        <td><strong>{st.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td>Supino: {supino} kg / Remada: {remada} kg</td>
-                        <td>
-                          <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
-                            {risco ? 'Risco Elevado' : 'Seguro / Estável'}
-                          </span>
-                        </td>
-                        <td>
-                          <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
-                          <button className="btn btn-secondary btn-sm" onClick={() => alert('Download do Teste PDF...')}>
-                            <i className="fa-solid fa-file-pdf"></i> Laudo PDF
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {(() => {
+                    const listKey = 'testes_forca';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const totalPages = Math.ceil(strengthTests.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = strengthTests.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(st => {
+                      const supino = st.exercicios?.find((e: any) => e.nome === 'Supino Reto')?.carga || '-';
+                      const remada = st.exercicios?.find((e: any) => e.nome === 'Remada Curvada / Máquina')?.carga || '-';
+                      const risco = st.analise?.riscoOmbro;
+                      return (
+                        <tr key={st._id}>
+                          <td><strong>{st.data}</strong></td>
+                          <td><strong>{st.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                          <td>Supino: {supino} kg / Remada: {remada} kg</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
+                              {risco ? 'Risco Elevado' : 'Seguro / Estável'}
+                            </span>
+                          </td>
+                          <td>
+                            <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => alert('Download do Teste PDF...')}>
+                              <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                   {strengthTests.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-                        Nenhum teste de força muscular registrado.
+                      <td colSpan={5}>
+                        <div className="empty-state-card">
+                          <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+                          <div className="empty-state-title">Nenhum teste de força</div>
+                          <div className="empty-state-desc">Não há avaliações de força muscular registradas.</div>
+                          <button className="btn btn-primary btn-sm" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
+                            <i className="fa-solid fa-plus"></i> Novo Teste
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            {strengthTests.length > 0 && (
+              <Pagination
+                currentPage={getPage('testes_forca')}
+                totalItems={strengthTests.length}
+                itemsPerPage={getPageSize('testes_forca')}
+                onPageChange={page => setPage('testes_forca', page)}
+              />
+            )}
           </div>
         </>
       )}
@@ -1200,12 +1723,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <h1>Prontuários Clínicos</h1>
               <p>Histórico clínico centralizado e anotações confidenciais do fisioterapeuta.</p>
             </div>
-            <button className="btn btn-primary" onClick={() => {
-              setPrDate(new Date().toISOString().split('T')[0]);
-              setShowProntuarioModal(true);
-            }}>
-              <i className="fa-solid fa-plus"></i> Nova Anotação
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('prontuarios')} onChange={e => setPageSizeForKey('prontuarios', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                setPrDate(new Date().toISOString().split('T')[0]);
+                setShowProntuarioModal(true);
+              }}>
+                <i className="fa-solid fa-plus"></i> Nova Anotação
+              </button>
+            </div>
           </div>
 
           <div className="content-panel">
@@ -1220,28 +1753,52 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                   </tr>
                 </thead>
                 <tbody>
-                  {prontuarios.map(pr => (
-                    <tr key={pr._id}>
-                      <td><strong>{pr.data}</strong></td>
-                      <td><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                      <td><small style={{ color: 'var(--text-main)' }}>{pr.conteudo}</small></td>
-                      <td>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProntuario(pr._id)}>
-                          <i className="fa-solid fa-trash"></i> Excluir
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const listKey = 'prontuarios';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const totalPages = Math.ceil(prontuarios.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = prontuarios.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(pr => (
+                      <tr key={pr._id}>
+                        <td><strong>{pr.data}</strong></td>
+                        <td><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td><small style={{ color: 'var(--text-main)' }}>{pr.conteudo}</small></td>
+                        <td>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProntuario(pr._id)}>
+                            <i className="fa-solid fa-trash"></i> Excluir
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                   {prontuarios.length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-                        Nenhum prontuário registrado.
+                      <td colSpan={4}>
+                        <div className="empty-state-card">
+                          <i className="fa-solid fa-clipboard-question empty-state-icon"></i>
+                          <div className="empty-state-title">Nenhum prontuário</div>
+                          <div className="empty-state-desc">Não há anotações ou evoluções de prontuário registradas.</div>
+                          <button className="btn btn-primary btn-sm" onClick={() => { setPrDate(new Date().toISOString().split('T')[0]); setShowProntuarioModal(true); }}>
+                            <i className="fa-solid fa-plus"></i> Nova Anotação
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            {prontuarios.length > 0 && (
+              <Pagination
+                currentPage={getPage('prontuarios')}
+                totalItems={prontuarios.length}
+                itemsPerPage={getPageSize('prontuarios')}
+                onPageChange={page => setPage('prontuarios', page)}
+              />
+            )}
           </div>
         </>
       )}
@@ -1260,7 +1817,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 1. Appointment Modal */}
       {showAptModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAptModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
               <h3>Novo Agendamento</h3>
               <button className="modal-close" onClick={() => setShowAptModal(false)}>&times;</button>
@@ -1269,11 +1826,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <div className="modal-body">
                 <div className="form-group">
                   <label>Aluno</label>
-                  <select className="select-custom" value={selectedClient} onChange={e => setSelectedClient(e.target.value)} required>
-                    {clients.map(c => (
-                      <option key={c._id} value={c._id}>{c.dadosPessoais?.nome}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={clientOptions}
+                    value={selectedClient}
+                    onChange={setSelectedClient}
+                    required
+                  />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -1324,7 +1882,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 2. Fixed Schedule Modal */}
       {showFixedSchedModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowFixedSchedModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
               <h3>Novo Horário Fixo</h3>
               <button className="modal-close" onClick={() => setShowFixedSchedModal(false)}>&times;</button>
@@ -1333,11 +1891,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <div className="modal-body">
                 <div className="form-group">
                   <label>Aluno</label>
-                  <select className="select-custom" value={fsClient} onChange={e => setFsClient(e.target.value)} required>
-                    {clients.map(c => (
-                      <option key={c._id} value={c._id}>{c.dadosPessoais?.nome}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={clientOptions}
+                    value={fsClient}
+                    onChange={setFsClient}
+                    required
+                  />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -1383,7 +1942,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 3. Physical Assessment Modal */}
       {showAssessmentModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAssessmentModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
               <h3>Nova Avaliação Física</h3>
               <button className="modal-close" onClick={() => setShowAssessmentModal(false)}>&times;</button>
@@ -1392,11 +1951,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <div className="modal-body">
                 <div className="form-group">
                   <label>Aluno</label>
-                  <select className="select-custom" value={asClient} onChange={e => setAsClient(e.target.value)} required>
-                    {clients.map(c => (
-                      <option key={c._id} value={c._id}>{c.dadosPessoais?.nome}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={clientOptions}
+                    value={asClient}
+                    onChange={setAsClient}
+                    required
+                  />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -1445,7 +2005,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 4. Physiotherapy Report Modal */}
       {showReportModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowReportModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
               <h3>Novo Relatório Fisioterápico</h3>
               <button className="modal-close" onClick={() => setShowReportModal(false)}>&times;</button>
@@ -1454,11 +2014,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <div className="modal-body">
                 <div className="form-group">
                   <label>Paciente</label>
-                  <select className="select-custom" value={repClient} onChange={e => setRepClient(e.target.value)} required>
-                    {clients.map(c => (
-                      <option key={c._id} value={c._id}>{c.dadosPessoais?.nome}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={clientOptions}
+                    value={repClient}
+                    onChange={setRepClient}
+                    required
+                  />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -1487,7 +2048,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 5. Strength Test Modal */}
       {showStModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowStModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
               <h3>Registrar Teste de Força</h3>
               <button className="modal-close" onClick={() => setShowStModal(false)}>&times;</button>
@@ -1496,11 +2057,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 <div className="form-group">
                   <label>Paciente / Aluno</label>
-                  <select className="select-custom" value={stClient} onChange={e => setStClient(e.target.value)} required>
-                    {clients.map(c => (
-                      <option key={c._id} value={c._id}>{c.dadosPessoais?.nome}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={clientOptions}
+                    value={stClient}
+                    onChange={setStClient}
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label>Data</label>
@@ -1558,7 +2120,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 6. Prontuario Modal */}
       {showProntuarioModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowProntuarioModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
               <h3>Nova Anotação de Prontuário</h3>
               <button className="modal-close" onClick={() => setShowProntuarioModal(false)}>&times;</button>
@@ -1567,11 +2129,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <div className="modal-body">
                 <div className="form-group">
                   <label>Paciente</label>
-                  <select className="select-custom" value={prClient} onChange={e => setPrClient(e.target.value)} required>
-                    {clients.map(c => (
-                      <option key={c._id} value={c._id}>{c.dadosPessoais?.nome}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={clientOptions}
+                    value={prClient}
+                    onChange={setPrClient}
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label>Data</label>
@@ -1594,7 +2157,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 7. New Exercise Modal */}
       {showNewExModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowNewExModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
               <h3>Cadastrar Novo Exercício</h3>
               <button className="modal-close" onClick={() => setShowNewExModal(false)}>&times;</button>

@@ -14,11 +14,13 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   userName: string;
+  userCargo?: string;
 }
 
 const tabConfigs: Record<string, TabConfig[]> = {
   admin: [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
+    { id: 'usuarios', label: 'Cadastro de Usuários', icon: 'fa-user-cog' },
     { id: 'profissionais', label: 'Profissionais', icon: 'fa-user-md' },
     { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
     { id: 'controle_creditos', label: 'Controle de Créditos', icon: 'fa-coins' },
@@ -50,7 +52,7 @@ const tabConfigs: Record<string, TabConfig[]> = {
   ]
 };
 
-export default function Sidebar({ role, activeTab, setActiveTab, userName }: SidebarProps) {
+export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const tabs = tabConfigs[role] || [];
 
@@ -114,13 +116,13 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName }: Sid
               </div>
               <div className="user-info" style={{ overflow: 'hidden' }}>
                 <div className="user-name" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{userName}</div>
-                <div className="user-role" style={{ textTransform: 'capitalize', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                  {role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profissional' : 'Aluno'}
+                <div className="user-role" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {userCargo || (role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profissional' : 'Aluno')}
                 </div>
               </div>
             </div>
             <button 
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={() => signOut({ callbackUrl: '/login?from=logout' })}
               title="Sair"
               style={{
                 background: 'none',

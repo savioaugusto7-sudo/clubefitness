@@ -23,12 +23,12 @@ export default function DashboardPage() {
 
   const handleSeedDB = async () => {
     setSeeding(true);
-    setSeedMessage('Populando banco...');
+    setSeedMessage('Resetando dados de teste...');
     try {
       const res = await fetch('/api/seed');
       const data = await res.json();
       if (data.success) {
-        setSeedMessage('Banco de dados populado!');
+        setSeedMessage('Dados de teste resetados!');
         setTimeout(() => setSeedMessage(''), 3000);
         // Refresh page
         window.location.reload();
@@ -75,6 +75,7 @@ export default function DashboardPage() {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         userName={user.name || 'Usuário'}
+        userCargo={user.cargo}
       />
 
       {/* Main Content Area */}
@@ -99,9 +100,10 @@ export default function DashboardPage() {
                 fontWeight: 700,
                 fontSize: '0.75rem',
                 padding: '4px 8px',
-                borderRadius: '6px'
+                borderRadius: '6px',
+                textTransform: 'uppercase'
               }}>
-                {role === 'admin' ? 'ADMIN' : role === 'professional' ? 'PROFISSIONAL' : 'ALUNO'}
+                {user.cargo || (role === 'admin' ? 'ADMIN' : role === 'professional' ? 'PROFISSIONAL' : 'ALUNO')}
               </span>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 Logado como: <strong>{user.email}</strong>
@@ -110,7 +112,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {role === 'admin' && (
+            {role === 'admin' && process.env.NODE_ENV === 'development' && (
               <button 
                 className="btn btn-secondary btn-sm" 
                 onClick={handleSeedDB}
@@ -118,12 +120,12 @@ export default function DashboardPage() {
                 style={{ fontSize: '0.75rem' }}
               >
                 <i className="fa-solid fa-database" style={{ marginRight: '6px' }}></i>
-                {seedMessage || 'Resetar & Popular Banco (Dev)'}
+                {seedMessage || 'Resetar Dados de Teste'}
               </button>
             )}
             <button 
               className="btn btn-danger btn-sm" 
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={() => signOut({ callbackUrl: '/login?from=logout' })}
               style={{ fontSize: '0.75rem' }}
             >
               <i className="fa-solid fa-right-from-bracket" style={{ marginRight: '6px' }}></i>

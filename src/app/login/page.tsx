@@ -13,12 +13,14 @@ function LoginContent() {
   const [seedMessage, setSeedMessage] = useState('');
 
   const error = searchParams.get('error');
+  const fromLogout = searchParams.get('from') === 'logout';
 
   useEffect(() => {
-    if (session) {
+    // Skip auto-redirect if user just logged out — show the account chooser instead
+    if (session && !fromLogout) {
       router.push('/dashboard');
     }
-  }, [session, router]);
+  }, [session, fromLogout, router]);
 
   const handleGoogleLogin = () => {
     setLoading(true);
@@ -32,12 +34,12 @@ function LoginContent() {
 
   const handleSeedDB = async () => {
     setSeeding(true);
-    setSeedMessage('Populando banco...');
+    setSeedMessage('Resetando dados de teste...');
     try {
       const res = await fetch('/api/seed');
       const data = await res.json();
       if (data.success) {
-        setSeedMessage('Banco de dados populado com sucesso! Tente logar agora.');
+        setSeedMessage('Dados de teste resetados! Faça login com um perfil de teste.');
       } else {
         setSeedMessage('Erro: ' + data.error);
       }
@@ -96,13 +98,45 @@ function LoginContent() {
           </div>
         )}
 
+        {/* Banner shown when user landed here from logout but still has an active session */}
+        {fromLogout && session && (
+          <div style={{
+            background: 'rgba(99, 102, 241, 0.08)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '14px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--color-accent)' }}>
+              <i className="fa-solid fa-circle-info"></i>
+              <span>Você ainda está logado como <strong>{(session.user as any)?.name || session.user?.email}</strong>.</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => router.push('/dashboard')}
+                style={{ flex: 1, fontSize: '0.8rem' }}
+              >
+                <i className="fa-solid fa-arrow-right" style={{ marginRight: '6px' }}></i>
+                Voltar ao Dashboard
+              </button>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textAlign: 'center' }}>
+              Para trocar de conta, escolha um perfil abaixo.
+            </div>
+          </div>
+        )}
+
         <button className="btn btn-primary login-btn-google" onClick={handleGoogleLogin}>
           <i className="fa-brands fa-google"></i>
           Entrar com o Google
         </button>
 
         <div className="login-divider">
-          <span>OU SIMULE UM PERFIL DE TESTE</span>
+          <span>{fromLogout && session ? 'TROCAR PARA PERFIL DE TESTE' : 'OU SIMULE UM PERFIL DE TESTE'}</span>
         </div>
 
         <div className="demo-users-grid">
@@ -148,42 +182,44 @@ function LoginContent() {
         </div>
 
         {/* Database seed utility section */}
-        <div style={{
-          marginTop: '28px',
-          borderTop: '1px solid var(--border-color)',
-          paddingTop: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch'
-        }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handleSeedDB}
-            disabled={seeding}
-            style={{
-              padding: '10px',
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
-            <i className="fa-solid fa-database"></i>
-            {seeding ? 'Populando banco...' : 'Inicializar Banco de Dados (Dev)'}
-          </button>
-          {seedMessage && (
-            <div style={{
-              marginTop: '10px',
-              fontSize: '0.75rem',
-              color: seedMessage.startsWith('Erro') ? '#ef4444' : '#10b981',
-              fontWeight: '500',
-              textAlign: 'center'
-            }}>
-              {seedMessage}
-            </div>
-          )}
-        </div>
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{
+            marginTop: '28px',
+            borderTop: '1px solid var(--border-color)',
+            paddingTop: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'stretch'
+          }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleSeedDB}
+              disabled={seeding}
+              style={{
+                padding: '10px',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <i className="fa-solid fa-database"></i>
+              {seeding ? 'Resetando dados de teste...' : 'Inicializar / Resetar Dados de Teste'}
+            </button>
+            {seedMessage && (
+              <div style={{
+                marginTop: '10px',
+                fontSize: '0.75rem',
+                color: seedMessage.startsWith('Erro') ? '#ef4444' : '#10b981',
+                fontWeight: '500',
+                textAlign: 'center'
+              }}>
+                {seedMessage}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

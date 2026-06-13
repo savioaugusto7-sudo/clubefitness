@@ -11,6 +11,13 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      authorization: {
+        params: {
+          prompt: 'select_account',
+          access_type: 'offline',
+          response_type: 'code'
+        }
+      }
     }),
     CredentialsProvider({
       id: 'demo-credentials',
@@ -105,6 +112,7 @@ export const authOptions: NextAuthOptions = {
           if (dbUser) {
             token.id = dbUser._id.toString();
             token.role = dbUser.tipo;
+            token.cargo = dbUser.cargo || '';
             
             if (dbUser.tipo === 'client') {
               const clientProfile = await Client.findOne({ userId: dbUser._id });
@@ -128,6 +136,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
+        (session.user as any).cargo = token.cargo;
         (session.user as any).profileId = token.profileId;
       }
       return session;
