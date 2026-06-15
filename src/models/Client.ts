@@ -38,7 +38,12 @@ const DadosComerciaisSchema = new Schema({
   descontoTipo: { type: String, default: 'percentual' },
   duracao: { type: String, default: 'mensal' },
   formaPagamento: { type: String, default: 'pix' },
-  creditosUltimoReset: { type: String }
+  creditosUltimoReset: { type: String },
+  regrasCredito: {
+    permiteRolagem: { type: Boolean, default: false },
+    diasRetencaoFalta: { type: Number, default: 0 },
+    deducaoFaltaAtraso: { type: Number, default: 1 }
+  }
 }, { _id: false });
 
 const ClientSchema = new Schema({
@@ -49,3 +54,4 @@ const ClientSchema = new Schema({
 }, { timestamps: true });
 
 export default models.Client || model('Client', ClientSchema);
+

@@ -29,7 +29,8 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },
     { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' },
     { id: 'medicamentos', label: 'Medicamentos', icon: 'fa-pills' },
-    { id: 'tv_panel', label: 'Painel TV Clínica', icon: 'fa-tv' }
+    { id: 'tv_panel', label: 'Painel TV Clínica', icon: 'fa-tv' },
+    { id: 'configuracoes', label: 'Configurações', icon: 'fa-gear' }
   ],
   professional: [
     { id: 'resumo_dia', label: 'Resumo do Dia', icon: 'fa-clipboard-list' },
@@ -146,3 +147,4 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
     </>
   );
 }
+

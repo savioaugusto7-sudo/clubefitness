@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { descricao, categoria, valor, vencimento, data_pagamento, status, forma_pagamento, observacoes } = body;
+    const { descricao, categoria, valor, vencimento, data_pagamento, status, forma_pagamento, observacoes, comprovante } = body;
 
     if (!descricao || !categoria || valor === undefined || !vencimento) {
       return NextResponse.json({ success: false, error: 'Descrição, categoria, valor e vencimento são obrigatórios' }, { status: 400 });
@@ -30,7 +30,8 @@ export async function POST(request: Request) {
       data_pagamento: data_pagamento || '',
       status: status || 'Pendente',
       forma_pagamento: forma_pagamento || '',
-      observacoes: observacoes || ''
+      observacoes: observacoes || '',
+      anexo_url: comprovante || ''
     });
 
     return NextResponse.json({ success: true, data: record });
@@ -43,7 +44,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, descricao, categoria, valor, vencimento, data_pagamento, status, forma_pagamento, observacoes } = body;
+    const { id, descricao, categoria, valor, vencimento, data_pagamento, status, forma_pagamento, observacoes, comprovante } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID do registro financeiro é obrigatório' }, { status: 400 });
@@ -62,6 +63,7 @@ export async function PUT(request: Request) {
     record.status = status || record.status;
     record.forma_pagamento = forma_pagamento !== undefined ? forma_pagamento : record.forma_pagamento;
     record.observacoes = observacoes !== undefined ? observacoes : record.observacoes;
+    record.anexo_url = comprovante !== undefined ? comprovante : record.anexo_url;
 
     await record.save();
     return NextResponse.json({ success: true, data: record });
@@ -86,3 +88,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

@@ -4,7 +4,9 @@ const UserSchema = new Schema({
   nome: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   tipo: { type: String, enum: ['admin', 'professional', 'client'], required: true },
-  cargo: { type: String } // e.g. "Fisioterapeuta"
+  cargo: { type: String }, // e.g. "Fisioterapeuta"
+  isTest: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default models.User || model('User', UserSchema);
+

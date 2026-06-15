@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
-import { downloadReportPDF, downloadAssessmentPDF } from '@/utils/pdfGenerator';
+import WorkoutBuilder from './WorkoutBuilder';
+import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 
 interface DashboardProfessionalProps {
   activeTab: string;
@@ -27,6 +28,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const getPageSize = (key: string) => pageSize[key] || 8;
   const setPageSizeForKey = (key: string, size: number) => {
     setPageSize(prev => ({ ...prev, [key]: size }));
+    setPage(key, 1);
+  };
+
+  // Search states
+  const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
+  const getSearchQuery = (key: string) => searchQueries[key] || '';
+  const setSearchQueryForKey = (key: string, query: string) => {
+    setSearchQueries(prev => ({ ...prev, [key]: query }));
     setPage(key, 1);
   };
 
@@ -63,7 +72,19 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [showReportModal, setShowReportModal] = useState(false);
   const [showStModal, setShowStModal] = useState(false);
   const [showProntuarioModal, setShowProntuarioModal] = useState(false);
+  const [showClientDetailModal, setShowClientDetailModal] = useState(false);
+  const [detailClient, setDetailClient] = useState<any>(null);
+  const [clientDetailTab, setClientDetailTab] = useState('agendamentos');
   const [showNewExModal, setShowNewExModal] = useState(false);
+
+  // Emergency modal state
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [emergencyAptId, setEmergencyAptId] = useState('');
+  const [emergencyApt, setEmergencyApt] = useState<any>(null);
+  const [emergencyConduct, setEmergencyConduct] = useState<'alta' | 'remarcacao'>('alta');
+  const [emergencyReport, setEmergencyReport] = useState('');
+  const [emergencyReschedDate, setEmergencyReschedDate] = useState('');
+  const [emergencyReschedHour, setEmergencyReschedHour] = useState('08:00');
 
   // New Appointment form inputs
   const [selectedClient, setSelectedClient] = useState('');
@@ -82,6 +103,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [exerciseGroup, setExerciseGroup] = useState('');
 
+  // Workout Builder
+  const [showWorkoutBuilder, setShowWorkoutBuilder] = useState(false);
+  const [builderClient, setBuilderClient] = useState<any>(null);
+
   // Fixed Schedule form inputs
   const [fsClient, setFsClient] = useState('');
   const [fsDay, setFsDay] = useState(1); // Monday
@@ -98,6 +123,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [asMassaMagra, setAsMassaMagra] = useState('');
   const [asMassaGorda, setAsMassaGorda] = useState('');
   const [asObs, setAsObs] = useState('');
+  
+  // Wizard states
+  const [asStep, setAsStep] = useState(1);
+  const [asTermografia, setAsTermografia] = useState('');
+  const [asYTest, setAsYTest] = useState('');
+  const [asStepDown, setAsStepDown] = useState('');
+  const [asMaigne, setAsMaigne] = useState('');
 
   // Report form inputs
   const [repClient, setRepClient] = useState('');
@@ -120,6 +152,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   // Prontuario form inputs
   const [prClient, setPrClient] = useState('');
   const [prDate, setPrDate] = useState('');
+
+  // Simulated Date for Agenda
+  const [simulatedDate, setSimulatedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [prContent, setPrContent] = useState('');
 
   // New Exercise form inputs
@@ -256,6 +291,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   };
 
   const handleUpdateAptStatus = async (id: string, status: string) => {
+    // If confirming presence for an emergency appointment, open special modal
+    if (status === 'presenca') {
+      const apt = appointments.find((a: any) => a._id === id);
+      if (apt?.servico === 'Emergência') {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setEmergencyAptId(id);
+        setEmergencyApt(apt);
+        setEmergencyConduct('alta');
+        setEmergencyReport('');
+        setEmergencyReschedDate(tomorrow.toISOString().split('T')[0]);
+        setEmergencyReschedHour('08:00');
+        setShowEmergencyModal(true);
+        return;
+      }
+    }
     try {
       const res = await fetch('/api/appointments', {
         method: 'PUT',
@@ -266,6 +317,28 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       if (data.success) fetchData();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleSaveEmergencyResolution = async () => {
+    if (!emergencyReport.trim()) { alert('Por favor, preencha o relatório para o Prontuário Clínico.'); return; }
+    if (emergencyConduct === 'remarcacao' && (!emergencyReschedDate || !emergencyReschedHour)) { alert('Preencha a data e o horário para a remarcação.'); return; }
+    try {
+      // 1. Mark original appointment as present
+      await fetch('/api/appointments', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: emergencyAptId, status: 'presenca' }) });
+      // 2. Create prontuário from emergency report
+      const condutaText = emergencyConduct === 'alta' ? 'Alta do Paciente' : `Remarcado para ${emergencyReschedDate} às ${emergencyReschedHour}`;
+      const prontuarioObs = `[Atendimento de Emergência - Finalização]\nConduta: ${condutaText}\n\nRelato Clínico:\n${emergencyReport}`;
+      await fetch('/api/prontuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: emergencyApt?.clienteId?._id || emergencyApt?.clienteId, data: emergencyApt?.data, conteudo: prontuarioObs }) });
+      // 3. If rescheduling, create new appointment
+      if (emergencyConduct === 'remarcacao') {
+        await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: emergencyReschedDate, horario: emergencyReschedHour, servico: 'Emergência', clienteId: emergencyApt?.clienteId?._id || emergencyApt?.clienteId, profissionalId: emergencyApt?.profissionalId?._id || emergencyApt?.profissionalId, status: 'agendado' }) });
+      }
+      setShowEmergencyModal(false);
+      alert('Atendimento de emergência finalizado e prontuário gerado!');
+      fetchData();
+    } catch (err: any) {
+      alert('Erro ao salvar resolução: ' + err.message);
     }
   };
 
@@ -318,7 +391,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
           sexo: 'M',
           circunferencias: {},
           dobras: {},
-          saudeGeral: { queixas: asObs }
+          saudeGeral: { queixas: asObs },
+          testesEspeciais: {
+            termografia: asTermografia,
+            yTest: asYTest,
+            stepDown: asStepDown,
+            maigne: asMaigne
+          }
         },
         resultadosCalculados: {
           percentualGordura: Number(asFat),
@@ -620,7 +699,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
           <div className="view-header">
             <div className="view-title-group">
               <h1>Resumo do Dia</h1>
-              <p>Visão geral e cronograma de atendimentos agendados para hoje.</p>
+              <p>Visão geral e cronograma de atendimentos agendados para a data selecionada.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => {
+                const d = new Date(simulatedDate + 'T00:00:00');
+                d.setDate(d.getDate() - 1);
+                setSimulatedDate(d.toISOString().split('T')[0]);
+              }}><i className="fa-solid fa-chevron-left"></i></button>
+              <input type="date" className="form-control" style={{ border: 'none', background: 'transparent', width: '130px', padding: '4px' }} value={simulatedDate} onChange={e => setSimulatedDate(e.target.value)} />
+              <button className="btn btn-secondary btn-sm" onClick={() => {
+                const d = new Date(simulatedDate + 'T00:00:00');
+                d.setDate(d.getDate() + 1);
+                setSimulatedDate(d.toISOString().split('T')[0]);
+              }}><i className="fa-solid fa-chevron-right"></i></button>
+              <button className="btn btn-primary btn-sm" onClick={() => setSimulatedDate(new Date().toISOString().split('T')[0])}>Hoje</button>
             </div>
           </div>
 
@@ -630,7 +723,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                 <h3>Total Agendados Hoje</h3>
                 <div className="value">
                   {appointments.filter(a => {
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayStr = simulatedDate;
                     return a.data === todayStr && a.status !== 'cancelado';
                   }).length}
                 </div>
@@ -642,7 +735,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                 <h3>Presenças Confirmadas</h3>
                 <div className="value">
                   {appointments.filter(a => {
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayStr = simulatedDate;
                     return a.data === todayStr && a.status === 'presenca';
                   }).length}
                 </div>
@@ -654,7 +747,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                 <h3>Atendimentos Pendentes</h3>
                 <div className="value">
                   {appointments.filter(a => {
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayStr = simulatedDate;
                     return a.data === todayStr && a.status === 'agendado';
                   }).length}
                 </div>
@@ -692,7 +785,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     const listKey = 'resumo_dia';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayStr = simulatedDate;
                     const todayApts = appointments
                       .filter(a => a.data === todayStr && a.status !== 'cancelado')
                       .sort((a, b) => a.horario.localeCompare(b.horario));
@@ -779,7 +872,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <h1>Agenda de Atendimentos</h1>
               <p>Gerenciamento de horários, presenças e agendamentos.</p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => {
+                  const d = new Date(simulatedDate + 'T00:00:00');
+                  d.setDate(d.getDate() - 1);
+                  setSimulatedDate(d.toISOString().split('T')[0]);
+                }}><i className="fa-solid fa-chevron-left"></i></button>
+                <input type="date" className="form-control" style={{ border: 'none', background: 'transparent', width: '130px', padding: '4px' }} value={simulatedDate} onChange={e => setSimulatedDate(e.target.value)} />
+                <button className="btn btn-secondary btn-sm" onClick={() => {
+                  const d = new Date(simulatedDate + 'T00:00:00');
+                  d.setDate(d.getDate() + 1);
+                  setSimulatedDate(d.toISOString().split('T')[0]);
+                }}><i className="fa-solid fa-chevron-right"></i></button>
+                <button className="btn btn-primary btn-sm" onClick={() => setSimulatedDate(new Date().toISOString().split('T')[0])}>Hoje</button>
+              </div>
               <div className="page-size-selector">
                 <span>Exibir:</span>
                 <select value={getPageSize('dashboard')} onChange={e => setPageSizeForKey('dashboard', Number(e.target.value))}>
@@ -815,9 +922,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     const listKey = 'dashboard';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(appointments.length / size);
+                    const filtered = appointments.filter(a => a.data === simulatedDate);
+                    const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = appointments.slice((curP - 1) * size, curP * size);
+                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(a => (
                       <tr key={a._id}>
@@ -909,6 +1017,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
           </div>
 
           <div className="content-panel">
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <input type="text" className="form-control" placeholder="Buscar aluno por nome, email ou CPF..." value={getSearchQuery('clientes')} onChange={e => setSearchQueryForKey('clientes', e.target.value)} style={{ maxWidth: '300px' }} />
+            </div>
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
@@ -917,6 +1028,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     <th>Contato</th>
                     <th>Plano</th>
                     <th>Observações Clínicas</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -924,13 +1036,20 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     const listKey = 'clientes';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(clients.length / size);
+                    const q = getSearchQuery(listKey).toLowerCase();
+                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q) || c.dadosPessoais?.email?.toLowerCase().includes(q) || c.dadosPessoais?.cpf?.includes(q));
+                    const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = clients.slice((curP - 1) * size, curP * size);
+                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(c => (
                       <tr key={c._id}>
-                        <td><strong>{c.dadosPessoais?.nome}</strong></td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <img src={c.dadosPessoais?.sexo === 'F' ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                            <strong>{c.dadosPessoais?.nome}</strong>
+                          </div>
+                        </td>
                         <td>{c.dadosPessoais?.telefone || '-'}</td>
                         <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
                         <td>
@@ -938,12 +1057,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                             {c.dadosClinicos?.lesoes || 'Sem lesões registradas'}
                           </em>
                         </td>
+                        <td>
+                          <button className="btn btn-primary btn-sm" onClick={() => {
+                            setDetailClient(c);
+                            setClientDetailTab('agendamentos');
+                            setShowClientDetailModal(true);
+                          }}>
+                            <i className="fa-solid fa-address-card"></i> Histórico
+                          </button>
+                        </td>
                       </tr>
                     ));
                   })()}
                   {clients.length === 0 && (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={5}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-graduation-cap empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum aluno vinculado</div>
@@ -1559,9 +1687,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     const listKey = 'relatorios';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(reports.length / size);
+                    const q = getSearchQuery(listKey).toLowerCase();
+                    const filtered = reports.filter(r => r.clienteId?.nome?.toLowerCase().includes(q));
+                    const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = reports.slice((curP - 1) * size, curP * size);
+                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(rep => (
                       <tr key={rep._id}>
@@ -1656,9 +1786,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     const listKey = 'testes_forca';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(strengthTests.length / size);
+                    const q = getSearchQuery(listKey).toLowerCase();
+                    const filtered = strengthTests.filter(st => st.clienteId?.nome?.toLowerCase().includes(q));
+                    const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = strengthTests.slice((curP - 1) * size, curP * size);
+                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(st => {
                       const supino = st.exercicios?.find((e: any) => e.nome === 'Supino Reto')?.carga || '-';
@@ -1678,8 +1810,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
                               <i className="fa-solid fa-trash"></i>
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => alert('Download do Teste PDF...')}>
-                              <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                            <button className="btn btn-secondary btn-sm" onClick={() => downloadStrengthTestPDF(st, st.clienteId, st.profissionalId)}>
+                              <i className="fa-solid fa-file-pdf color-danger"></i> Análise PDF
                             </button>
                           </td>
                         </tr>
@@ -1757,16 +1889,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     const listKey = 'prontuarios';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(prontuarios.length / size);
+                    const q = getSearchQuery(listKey).toLowerCase();
+                    const filtered = prontuarios.filter(p => p.clienteId?.nome?.toLowerCase().includes(q));
+                    const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = prontuarios.slice((curP - 1) * size, curP * size);
+                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(pr => (
                       <tr key={pr._id}>
                         <td><strong>{pr.data}</strong></td>
                         <td><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td><small style={{ color: 'var(--text-main)' }}>{pr.conteudo}</small></td>
-                        <td>
+                        <td><small style={{ color: 'var(--text-main)' }}>{(pr.conteudo || '').substring(0, 120)}{(pr.conteudo || '').length > 120 ? '...' : ''}</small></td>
+                        <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button className="btn btn-secondary btn-sm" onClick={() => downloadProntuarioPDF(pr, pr.clienteId)}>
+                            <i className="fa-solid fa-file-pdf"></i> PDF
+                          </button>
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProntuario(pr._id)}>
                             <i className="fa-solid fa-trash"></i> Excluir
                           </button>
@@ -1776,7 +1913,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                   })()}
                   {prontuarios.length === 0 && (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={5}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-clipboard-question empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum prontuário</div>
@@ -1944,58 +2081,104 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAssessmentModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
-              <h3>Nova Avaliação Física</h3>
+              <h3>Nova Avaliação Física Fisioterapêutica</h3>
               <button className="modal-close" onClick={() => setShowAssessmentModal(false)}>&times;</button>
             </div>
+            
+            {/* Wizard Steps indicator */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
+              {[1, 2, 3].map(step => (
+                <div key={step} style={{ flex: 1, padding: '12px', textAlign: 'center', fontWeight: 600, color: asStep === step ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: asStep === step ? '3px solid var(--color-primary)' : '3px solid transparent' }}>
+                  Etapa {step}: {step === 1 ? 'Histórico' : step === 2 ? 'Exame Físico' : 'Testes'}
+                </div>
+              ))}
+            </div>
+
             <form onSubmit={handleCreateAssessment}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Aluno</label>
-                  <SearchableSelect
-                    options={clientOptions}
-                    value={asClient}
-                    onChange={setAsClient}
-                    required
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Data</label>
-                    <input type="date" className="form-control" value={asDate} onChange={e => setAsDate(e.target.value)} required />
-                  </div>
-                  <div className="form-group">
-                    <label>Peso (kg)</label>
-                    <input type="number" className="form-control" value={asWeight} onChange={e => setAsWeight(e.target.value)} placeholder="80" required />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Altura (m)</label>
-                    <input type="number" step="0.01" className="form-control" value={asHeight} onChange={e => setAsHeight(e.target.value)} placeholder="1.80" required />
-                  </div>
-                  <div className="form-group">
-                    <label>Gordura Corporal (% BF)</label>
-                    <input type="number" className="form-control" value={asFat} onChange={e => setAsFat(e.target.value)} placeholder="15" required />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Massa Magra (kg)</label>
-                    <input type="number" className="form-control" value={asMassaMagra} onChange={e => setAsMassaMagra(e.target.value)} placeholder="65" required />
-                  </div>
-                  <div className="form-group">
-                    <label>Massa Gorda (kg)</label>
-                    <input type="number" className="form-control" value={asMassaGorda} onChange={e => setAsMassaGorda(e.target.value)} placeholder="15" required />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Observações Clínicas / Queixas</label>
-                  <textarea className="form-control" value={asObs} onChange={e => setAsObs(e.target.value)} placeholder="Ex: Dor lombar leve" />
-                </div>
+              <div className="modal-body" style={{ minHeight: '300px' }}>
+                {asStep === 1 && (
+                  <>
+                    <div className="form-group">
+                      <label>Aluno</label>
+                      <SearchableSelect options={clientOptions} value={asClient} onChange={setAsClient} required />
+                    </div>
+                    <div className="form-group">
+                      <label>Data</label>
+                      <input type="date" className="form-control" value={asDate} onChange={e => setAsDate(e.target.value)} required />
+                    </div>
+                    <div className="form-group">
+                      <label>Histórico Clínico e Queixas</label>
+                      <textarea className="form-control" value={asObs} onChange={e => setAsObs(e.target.value)} placeholder="Histórico, dores, cirurgias..." rows={4} required />
+                    </div>
+                  </>
+                )}
+
+                {asStep === 2 && (
+                  <>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Peso (kg)</label>
+                        <input type="number" className="form-control" value={asWeight} onChange={e => setAsWeight(e.target.value)} required />
+                      </div>
+                      <div className="form-group">
+                        <label>Altura (m)</label>
+                        <input type="number" step="0.01" className="form-control" value={asHeight} onChange={e => setAsHeight(e.target.value)} required />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Gordura Corporal (% BF)</label>
+                        <input type="number" className="form-control" value={asFat} onChange={e => setAsFat(e.target.value)} required />
+                      </div>
+                      <div className="form-group">
+                        <label>Massa Magra (kg)</label>
+                        <input type="number" className="form-control" value={asMassaMagra} onChange={e => setAsMassaMagra(e.target.value)} required />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {asStep === 3 && (
+                  <>
+                    <div className="form-group">
+                      <label>Termografia</label>
+                      <input type="text" className="form-control" placeholder="Padrão hiper-radiante lombar, etc." value={asTermografia} onChange={e => setAsTermografia(e.target.value)} />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Y-Test (Equilíbrio)</label>
+                        <input type="text" className="form-control" placeholder="Alcance Anterior D: 50cm, E: 45cm..." value={asYTest} onChange={e => setAsYTest(e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label>Step Down</label>
+                        <input type="text" className="form-control" placeholder="Valgo dinâmico D..." value={asStepDown} onChange={e => setAsStepDown(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Sinal de Maigne (Junção Toracolombar)</label>
+                      <input type="text" className="form-control" placeholder="Positivo D..." value={asMaigne} onChange={e => setAsMaigne(e.target.value)} />
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAssessmentModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Salvar Avaliação</button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {asStep > 1 && (
+                    <button type="button" className="btn btn-secondary" onClick={() => setAsStep(asStep - 1)}>
+                      <i className="fa-solid fa-chevron-left"></i> Voltar
+                    </button>
+                  )}
+                  {asStep < 3 ? (
+                    <button type="button" className="btn btn-primary" onClick={() => setAsStep(asStep + 1)}>
+                      Avançar <i className="fa-solid fa-chevron-right"></i>
+                    </button>
+                  ) : (
+                    <button type="submit" className="btn btn-success">
+                      <i className="fa-solid fa-check"></i> Concluir Avaliação
+                    </button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
@@ -2206,6 +2389,83 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
           </div>
         </div>
       )}
+
+      {/* Emergency Appointment Modal */}
+      {showEmergencyModal && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowEmergencyModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '95%' }}>
+            <div className="modal-header" style={{ background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff' }}>
+              <h3><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>Finalizar Atendimento de Emergência</h3>
+              <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowEmergencyModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px', fontSize: '0.9rem' }}>
+                <p style={{ margin: '0 0 4px 0' }}><strong>Paciente:</strong> {emergencyApt?.clienteId?.dadosPessoais?.nome || 'Paciente'}</p>
+                <p style={{ margin: 0 }}><strong>Atendimento:</strong> Emergência às {emergencyApt?.horario} de {emergencyApt?.data}</p>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px' }}>Conduta Clínica / Resolução:</label>
+                <div style={{ display: 'flex', gap: '24px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: emergencyConduct === 'alta' ? 600 : 400 }}>
+                    <input type="radio" name="emgConduct" value="alta" checked={emergencyConduct === 'alta'} onChange={() => setEmergencyConduct('alta')} />
+                    <span>Dar Alta ao Aluno</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: emergencyConduct === 'remarcacao' ? 600 : 400 }}>
+                    <input type="radio" name="emgConduct" value="remarcacao" checked={emergencyConduct === 'remarcacao'} onChange={() => setEmergencyConduct('remarcacao')} />
+                    <span>Remarcar Novo Atendimento</span>
+                  </label>
+                </div>
+              </div>
+
+              {emergencyConduct === 'remarcacao' && (
+                <div style={{ background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', padding: '14px', borderRadius: '8px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--color-primary)' }}><i className="fa-solid fa-calendar-plus"></i> Dados do Novo Agendamento (Emergência)</h4>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem' }}>Data da Remarcação</label>
+                      <input type="date" className="form-control" value={emergencyReschedDate} onChange={e => setEmergencyReschedDate(e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem' }}>Horário</label>
+                      <select className="select-custom" value={emergencyReschedHour} onChange={e => setEmergencyReschedHour(e.target.value)}>
+                        {['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'].map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Relatório para Prontuário Clínico <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+                <textarea
+                  className="form-control"
+                  rows={5}
+                  required
+                  style={{ resize: 'vertical' }}
+                  placeholder="Descreva a queixa do aluno, procedimentos realizados e avaliação do estado clínico..."
+                  value={emergencyReport}
+                  onChange={e => setEmergencyReport(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowEmergencyModal(false)}>Cancelar</button>
+              <button className="btn btn-danger" onClick={handleSaveEmergencyResolution}>
+                <i className="fa-solid fa-clipboard-check"></i> Confirmar e Finalizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+
+
+
+
+
+
+

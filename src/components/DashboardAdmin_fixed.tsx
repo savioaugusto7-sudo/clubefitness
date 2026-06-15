@@ -99,54 +99,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
 
-  // F2  Ficha completa do aluno
-  // Regras Modal
-  const [showRulesModal, setShowRulesModal] = useState(false);
-  const [rulesClient, setRulesClient] = useState<any>(null);
-  const [rulesData, setRulesData] = useState({
-    permiteRolagem: false,
-    diasRetencaoFalta: 0,
-    deducaoFaltaAtraso: 1
-  });
-
-  const handleOpenRulesModal = (client: any) => {
-    setRulesClient(client);
-    setRulesData({
-      permiteRolagem: client.regrasCredito?.permiteRolagem || false,
-      diasRetencaoFalta: client.regrasCredito?.diasRetencaoFalta || 0,
-      deducaoFaltaAtraso: client.regrasCredito?.deducaoFaltaAtraso || 1
-    });
-    setShowRulesModal(true);
-  };
-
-  const handleSaveRules = async () => {
-    if (!rulesClient) return;
-    const payload = {
-      id: rulesClient._id,
-      regrasCredito: rulesData
-    };
-    const res = await fetch('/api/clients', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.success) {
-      setShowRulesModal(false);
-      fetchData();
-      alert('Regras de crédito atualizadas!');
-    } else {
-      alert('Erro ao salvar regras: ' + data.error);
-    }
-  };
-
+  // F2 � Ficha completa do aluno
   const [showClientDetailModal, setShowClientDetailModal] = useState(false);
   const [clientDetailTab, setClientDetailTab] = useState<'pessoais' | 'clinicos' | 'comerciais'>('pessoais');
   const [detailClient, setDetailClient] = useState<any>(null);
   const [dcSexo, setDcSexo] = useState('M');
   const [dcNascimento, setDcNascimento] = useState('');
   const [dcEndereco, setDcEndereco] = useState('');
-  const [dcLesãoes, setDcLesãoes] = useState('');
+  const [dcLesoes, setDcLesoes] = useState('');
   const [dcRestricoes, setDcRestricoes] = useState('');
   const [dcMedicamentos, setDcMedicamentos] = useState('');
   const [dcHistorico, setDcHistorico] = useState('');
@@ -157,18 +117,18 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcFormaPag, setDcFormaPag] = useState('pix');
   const [dcDuracao, setDcDuracao] = useState('mensal');
 
-  // F7  Simulador de Recebimentos
+  // F7 � Simulador de Recebimentos
   const [finTab, setFinTab] = useState<'contas_pagar' | 'recebimentos'>('contas_pagar');
   const [showSimuladorModal, setShowSimuladorModal] = useState(false);
   const [simClient, setSimClient] = useState<any>(null);
   const [simForma, setSimForma] = useState<'pix' | 'boleto'>('pix');
 
-  // F15/F16  Financial filters
+  // F15/F16 � Financial filters
   const [finFilterStatus, setFinFilterStatus] = useState('');
   const [finFilterCat, setFinFilterCat] = useState('');
   const [finFilterMonth, setFinFilterMonth] = useState('');
 
-  // Configuraes states
+  // Configura��es states
   const [configSpotifyId, setConfigSpotifyId] = useState('');
   const [configThemeColor, setConfigThemeColor] = useState('#2563eb');
   const [configGymName, setConfigGymName] = useState('Clube Fitness Fisio');
@@ -188,7 +148,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     
     // Apply theme changes dynamically
     document.documentElement.style.setProperty('--color-primary', configThemeColor);
-    alert('Configuraes salvas com sucesso!');
+    alert('Configura��es salvas com sucesso!');
   };
   const plansList = [
     { id: '6668ab010101010101010101', nome: 'Academia VIP', preco: 150 },
@@ -1014,7 +974,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcSexo(c.dadosPessoais?.sexo || 'M');
                               setDcNascimento(c.dadosPessoais?.dataNascimento || '');
                               setDcEndereco(c.dadosPessoais?.endereco || '');
-                              setDcLesãoes(c.dadosClinicos?.lesoes || '');
+                              setDcLesoes(c.dadosClinicos?.lesoes || '');
                               setDcRestricoes(c.dadosClinicos?.restricoes || '');
                               setDcMedicamentos(c.dadosClinicos?.medicamentos || '');
                               setDcHistorico(c.dadosClinicos?.historicoClinico || '');
@@ -1100,7 +1060,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           <div className="content-panel">
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar usurio..." value={getSearchQuery('usuarios')} onChange={e => setSearchQueryForKey('usuarios', e.target.value)} style={{ maxWidth: '300px' }} />
+              <input type="text" className="form-control" placeholder="Buscar usu�rio..." value={getSearchQuery('usuarios')} onChange={e => setSearchQueryForKey('usuarios', e.target.value)} style={{ maxWidth: '300px' }} />
             </div>
             <div className="table-responsive">
               <table className="data-table">
@@ -1627,7 +1587,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </div>
                   <button className="btn btn-secondary" onClick={() => exportToCSV(financials, 'financeiro', [
                     { key: 'vencimento', label: 'Vencimento' },
-                    { key: 'descricao', label: 'Descrio' },
+                    { key: 'descricao', label: 'Descri��o' },
                     { key: 'categoria', label: 'Categoria' },
                     { key: 'valor', label: 'Valor (R$)' },
                     { key: 'status', label: 'Status' },
@@ -2207,7 +2167,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Observaes</label>
+                      <label>Observa��es</label>
                       <textarea className="form-control" value={medObs} onChange={e => setMedObs(e.target.value)} />
                     </div>
                     <div className="form-group" style={{ background: 'rgba(59,130,246,0.05)', padding: '12px', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px' }}>
@@ -2248,7 +2208,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
              <div className="modal-body" style={{ padding: 0 }}>
                <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)' }}>
                  {(['pessoais', 'clinicos', 'comerciais'] as const).map((t) => {
-                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Clnicos', comerciais: 'Dados Comerciais' };
+                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Cl�nicos', comerciais: 'Dados Comerciais' };
                    const icons: Record<string, string> = { pessoais: 'fa-user', clinicos: 'fa-heart-pulse', comerciais: 'fa-file-contract' };
                    return (
                      <button key={t} onClick={() => setClientDetailTab(t)} style={{ flex: 1, padding: '12px', fontWeight: 600, fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', color: clientDetailTab === t ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: clientDetailTab === t ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}>
@@ -2277,16 +2237,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        </div>
                        <div className="form-group"><label>Data de Nascimento</label><input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} /></div>
                      </div>
-                     <div className="form-group"><label>Endereo</label><input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, N, Bairro, CEP" /></div>
+                     <div className="form-group"><label>Endere�o</label><input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, N�, Bairro, CEP" /></div>
                    </>
                  )}
                  {clientDetailTab === 'clinicos' && (
                    <>
-                     <div className="form-group"><label>Leses e Diagnsticos</label><textarea className="form-control" rows={3} value={dcLesãoes} onChange={e => setDcLesãoes(e.target.value)} placeholder="Ex: Leso manguito rotador grau II..." /></div>
-                     <div className="form-group"><label>Restries / Contraindicaes</label><textarea className="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
-                     <div className="form-group"><label>Medicamentos em Uso</label><input className="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="Nome, dosagem, frequncia..." /></div>
-                     <div className="form-group"><label>Histrico Clnico Relevante</label><textarea className="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doenas crnicas..." /></div>
-                     <div className="form-group"><label>Observaes Clnicas</label><textarea className="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
+                     <div className="form-group"><label>Les�es e Diagn�sticos</label><textarea className="form-control" rows={3} value={dcLesoes} onChange={e => setDcLesoes(e.target.value)} placeholder="Ex: Les�o manguito rotador grau II..." /></div>
+                     <div className="form-group"><label>Restri��es / Contraindica��es</label><textarea className="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
+                     <div className="form-group"><label>Medicamentos em Uso</label><input className="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="Nome, dosagem, frequ�ncia..." /></div>
+                     <div className="form-group"><label>Hist�rico Cl�nico Relevante</label><textarea className="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doen�as cr�nicas..." /></div>
+                     <div className="form-group"><label>Observa��es Cl�nicas</label><textarea className="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
                    </>
                  )}
                  {clientDetailTab === 'comerciais' && (
@@ -2307,7 +2267,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                      </div>
                      <div className="form-row">
                        <div className="form-group">
-                         <label>Durao</label>
+                         <label>Dura��o</label>
                          <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value)}>
                            <option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option>
                          </select>
@@ -2315,7 +2275,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        <div className="form-group">
                          <label>Forma de Pagamento</label>
                          <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)}>
-                           <option value="pix">Pix</option><option value="boleto">Boleto</option><option value="cartao">Carto</option><option value="dinheiro">Dinheiro</option>
+                           <option value="pix">Pix</option><option value="boleto">Boleto</option><option value="cartao">Cart�o</option><option value="dinheiro">Dinheiro</option>
                          </select>
                        </div>
                      </div>
@@ -2337,10 +2297,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                      <button className="btn btn-primary" onClick={async () => {
                        const payload: any = { id: detailClient._id };
                        if (clientDetailTab === 'pessoais') payload.dadosPessoais = { ...detailClient.dadosPessoais, sexo: dcSexo, dataNascimento: dcNascimento, endereco: dcEndereco };
-                       else payload.dadosClinicos = { lesoes: dcLesãoes, restricoes: dcRestricoes, medicamentos: dcMedicamentos, historicoClinico: dcHistorico, observacoes: dcObsClin };
+                       else payload.dadosClinicos = { lesoes: dcLesoes, restricoes: dcRestricoes, medicamentos: dcMedicamentos, historicoClinico: dcHistorico, observacoes: dcObsClin };
                        await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                        fetchData(); alert('Dados salvos!');
-                     }}><i className="fa-solid fa-floppy-disk"></i> Salvar Alteraes</button>
+                     }}><i className="fa-solid fa-floppy-disk"></i> Salvar Altera��es</button>
                    </div>
                  )}
                </div>
@@ -2349,7 +2309,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
          </div>
        )}
 
-       {/* F7  Simulador de Cobrana */}
+       {/* F7  Simulador de Cobran�a */}
        {showSimuladorModal && simClient && (
          <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowSimuladorModal(false)}>
            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '95%' }}>
@@ -2361,7 +2321,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', marginBottom: '14px', textAlign: 'left', fontSize: '0.875rem' }}>
                  <p style={{ margin: '0 0 4px 0' }}><strong>Aluno:</strong> {simClient.dadosPessoais?.nome}</p>
                  <p style={{ margin: '0 0 4px 0' }}><strong>Valor:</strong> R$ {(simClient.dadosComerciais?.planoId?.preco || 0).toFixed(2).replace('.', ',')}</p>
-                 <p style={{ margin: 0 }}><strong>Forma:</strong> {simForma === 'pix' ? 'Pix' : 'Boleto Bancrio'}</p>
+                 <p style={{ margin: 0 }}><strong>Forma:</strong> {simForma === 'pix' ? 'Pix' : 'Boleto Banc�rio'}</p>
                </div>
                {simForma === 'pix' ? (
                  <div style={{ margin: '0 auto 14px', width: '150px', height: '150px', background: '#fff', border: '2px solid #e5e7eb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
@@ -2372,7 +2332,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                  <div style={{ background: '#fff', border: '2px dashed #ccc', borderRadius: '8px', padding: '16px', marginBottom: '12px' }}>
                    <i className="fa-solid fa-barcode" style={{ fontSize: '55px', color: '#333' }}></i>
                    <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#555', marginTop: '4px', letterSpacing: '2px' }}>0001 9371 9999 0001 9371 9999</div>
-                   <small style={{ color: '#888', fontSize: '0.65rem' }}>Cdigo simulado</small>
+                   <small style={{ color: '#888', fontSize: '0.65rem' }}>C�digo simulado</small>
                  </div>
                )}
                <div style={{ display: 'flex', gap: '8px' }}>
@@ -2381,7 +2341,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                  </button>
                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
                    const valor = simClient.dadosComerciais?.planoId?.preco || 0;
-                   await fetch('/api/financial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ descricao: `Mensalidade  ${simClient.dadosPessoais?.nome}`, categoria: 'Mensalidade', valor, vencimento: new Date().toISOString().split('T')[0], status: 'Pago', forma_pagamento: simForma === 'pix' ? 'Pix' : 'Boleto Bancrio' }) });
+                   await fetch('/api/financial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ descricao: `Mensalidade  ${simClient.dadosPessoais?.nome}`, categoria: 'Mensalidade', valor, vencimento: new Date().toISOString().split('T')[0], status: 'Pago', forma_pagamento: simForma === 'pix' ? 'Pix' : 'Boleto Banc�rio' }) });
                    setShowSimuladorModal(false); fetchData(); alert('Pagamento registrado!');
                  }}>
                    <i className="fa-solid fa-check"></i> Confirmar
@@ -2394,7 +2354,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     </div>
   );
 }
-
 
 
 

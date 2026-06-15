@@ -112,7 +112,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {role === 'admin' && process.env.NODE_ENV === 'development' && (
+            {role === 'admin' && user.email === 'admin@clube.com' && (
               <button 
                 className="btn btn-secondary btn-sm" 
                 onClick={handleSeedDB}
@@ -140,3 +140,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+

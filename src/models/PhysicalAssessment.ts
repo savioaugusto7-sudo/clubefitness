@@ -29,7 +29,11 @@ const GoniometriaSchema = new Schema({
 const TestesEspeciaisSchema = new Schema({
   oberD: String, oberE: String, thomasD: String, thomasE: String,
   thomasIliopsoasD: Number, thomasIliopsoasE: Number,
-  thomasRetofemoralD: Number, thomasRetofemoralE: Number
+  thomasRetofemoralD: Number, thomasRetofemoralE: Number,
+  termografia: String,
+  yTest: String,
+  stepDown: String,
+  maigne: String
 }, { _id: false });
 
 const DadosMedidosSchema = new Schema({
@@ -70,3 +74,4 @@ const PhysicalAssessmentSchema = new Schema({
 }, { timestamps: true });
 
 export default models.PhysicalAssessment || model('PhysicalAssessment', PhysicalAssessmentSchema);
+

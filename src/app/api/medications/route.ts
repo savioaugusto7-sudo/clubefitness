@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { nome, categoria, quantidade, unidade, lote, validade, fabricante, fornecedor, data_compra, valor_compra, observacoes } = body;
+    const { nome, categoria, quantidade, unidade, lote, validade, fabricante, fornecedor, data_compra, valor_compra, observacoes, notaFiscal } = body;
 
     if (!nome) {
       return NextResponse.json({ success: false, error: 'Nome do medicamento é obrigatório' }, { status: 400 });
@@ -33,7 +33,8 @@ export async function POST(request: Request) {
       fornecedor: fornecedor || '',
       data_compra: data_compra || '',
       valor_compra: valor_compra !== undefined ? Number(valor_compra) : 0,
-      observacoes: observacoes || ''
+      observacoes: observacoes || '',
+      nota_fiscal_url: notaFiscal || ''
     });
 
     return NextResponse.json({ success: true, data: med });
@@ -46,7 +47,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, nome, categoria, quantidade, unidade, lote, validade, fabricante, fornecedor, data_compra, valor_compra, observacoes } = body;
+    const { id, nome, categoria, quantidade, unidade, lote, validade, fabricante, fornecedor, data_compra, valor_compra, observacoes, notaFiscal } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID do medicamento é obrigatório' }, { status: 400 });
@@ -92,3 +93,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

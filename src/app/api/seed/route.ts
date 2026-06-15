@@ -106,20 +106,20 @@ export async function GET() {
 
     // 3. Insert Users
     const usersData = [
-      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin', cargo: 'Administrador Geral' },
-      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', cargo: 'Fisio' },
-      { _id: ids.users.prof, nome: 'Profª. Camila Lima', email: 'prof@clube.com', tipo: 'professional', cargo: 'Treino' },
-      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client', cargo: 'Aluno VIP' },
-      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client', cargo: 'Aluno' },
-      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client', cargo: 'Aluno' },
-      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client', cargo: 'Aluno' }
+      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin', cargo: 'Administrador Geral', isTest: true },
+      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', cargo: 'Fisio', isTest: true },
+      { _id: ids.users.prof, nome: 'Treinadora Camila Lima', email: 'prof@clube.com', tipo: 'professional', cargo: 'Treino', isTest: true },
+      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client', cargo: 'Aluno VIP', isTest: true },
+      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client', cargo: 'Aluno', isTest: true },
+      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client', cargo: 'Aluno', isTest: true },
+      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client', cargo: 'Aluno', isTest: true }
     ];
     await User.insertMany(usersData);
 
     // 4. Insert Professionals
     const professionalsData = [
       { _id: ids.professionals.prof_1, userId: ids.users.fisio, nome: 'Dr. André Costa', especialidade: 'Fisioterapia e Quiropraxia', registro: 'CREFITO 12345-F' },
-      { _id: ids.professionals.prof_2, userId: ids.users.prof, nome: 'Profª. Camila Lima', especialidade: 'Avaliação Física e Treinamento', registro: 'CREF 54321-G' }
+      { _id: ids.professionals.prof_2, userId: ids.users.prof, nome: 'Treinadora Camila Lima', especialidade: 'Avaliação Física e Treinamento', registro: 'CREF 54321-G' }
     ];
     await Professional.insertMany(professionalsData);
 
@@ -476,3 +476,7 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+
+
+

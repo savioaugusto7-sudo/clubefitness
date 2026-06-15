@@ -1,0 +1,2222 @@
+﻿diff --git a/src/components/DashboardAdmin.tsx b/src/components/DashboardAdmin.tsx
+index 7ea4584..0238706 100644
+--- a/src/components/DashboardAdmin.tsx
++++ b/src/components/DashboardAdmin.tsx
+@@ -2,6 +2,7 @@
+ 
+ import React, { useEffect, useState } from 'react';
+ import Pagination from './Pagination';
++import { downloadContractPDF } from '@/utils/pdfGenerator';
+ 
+ interface DashboardAdminProps {
+   activeTab: string;
+@@ -30,6 +31,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+     setPage(key, 1);
+   };
+ 
++  // Search states
++  const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
++  const getSearchQuery = (key: string) => searchQueries[key] || '';
++  const setSearchQueryForKey = (key: string, query: string) => {
++    setSearchQueries(prev => ({ ...prev, [key]: query }));
++    setPage(key, 1);
++  };
++
+   // Close modal on Escape key press
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
+@@ -48,7 +57,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+ 
+   // Input states
+   const [email, setEmail] = useState('');
+-  const [nome, setNome] = useState('');
++  const [nome, setN┬║ome] = useState('');
+   const [cpf, setCpf] = useState('');
+   const [telefone, setTelefone] = useState('');
+   const [plano, setPlano] = useState('6668ab010101010101010103'); // default Clube Completo
+@@ -58,9 +67,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+   const [creditAmount, setCreditAmount] = useState(1);
+   const [creditType, setCreditType] = useState<'academia' | 'massagem'>('academia');
+ 
+-  // New states for the missing features
++  // N┬║ew states for the missing features
+   const [plans, setPlans] = useState<any[]>([]);
+-  const [planName, setPlanName] = useState('');
++  const [planN┬║ame, setPlanN┬║ame] = useState('');
+   const [planValidade, setPlanValidade] = useState(30);
+   const [planAcademia, setPlanAcademia] = useState(0);
+   const [planConsultorio, setPlanConsultorio] = useState(0);
+@@ -75,20 +84,112 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+   const [finStatus, setFinStatus] = useState<'Pendente' | 'Pago' | 'Atrasado'>('Pendente');
+   const [finForma, setFinForma] = useState('');
+   const [finObs, setFinObs] = useState('');
++  const [finComprovante, setFinComprovante] = useState('');
+ 
+   const [medications, setMedications] = useState<any[]>([]);
+-  const [medNome, setMedNome] = useState('');
++  const [medN┬║ome, setMedN┬║ome] = useState('');
+   const [medCat, setMedCat] = useState('');
+   const [medQuant, setMedQuant] = useState(0);
+   const [medUnidade, setMedUnidade] = useState('unidades');
+   const [medLote, setMedLote] = useState('');
+   const [medValidade, setMedValidade] = useState('');
+   const [medObs, setMedObs] = useState('');
++  const [medN┬║F, setMedN┬║F] = useState('');
+ 
+   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
+   const [strengthTests, setStrengthTests] = useState<any[]>([]);
+ 
+-  // Simple hardcoded configs
++  // F2  Ficha completa do aluno
++  // Regras Modal
++  const [showRulesModal, setShowRulesModal] = useState(false);
++  const [rulesClient, setRulesClient] = useState<any>(null);
++  const [rulesData, setRulesData] = useState({
++    permiteRolagem: false,
++    diasRetencaoFalta: 0,
++    deducaoFaltaAtraso: 1
++  });
++
++  const handleOpenRulesModal = (client: any) => {
++    setRulesClient(client);
++    setRulesData({
++      permiteRolagem: client.regrasCredito?.permiteRolagem || false,
++      diasRetencaoFalta: client.regrasCredito?.diasRetencaoFalta || 0,
++      deducaoFaltaAtraso: client.regrasCredito?.deducaoFaltaAtraso || 1
++    });
++    setShowRulesModal(true);
++  };
++
++  const handleSaveRules = async () => {
++    if (!rulesClient) return;
++    const payload = {
++      id: rulesClient._id,
++      regrasCredito: rulesData
++    };
++    const res = await fetch('/api/clients', {
++      method: 'PUT',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON┬║.stringify(payload)
++    });
++    const data = await res.json();
++    if (data.success) {
++      setShowRulesModal(false);
++      fetchData();
++      alert('Regras de cr├®dito atualizadas!');
++    } else {
++      alert('Erro ao salvar regras: ' + data.error);
++    }
++  };
++
++  const [showClientDetailModal, setShowClientDetailModal] = useState(false);
++  const [clientDetailTab, setClientDetailTab] = useState<'pessoais' | 'clinicos' | 'comerciais'>('pessoais');
++  const [detailClient, setDetailClient] = useState<any>(null);
++  const [dcSexo, setDcSexo] = useState('M');
++  const [dcN┬║ascimento, setDcN┬║ascimento] = useState('');
++  const [dcEndereco, setDcEndereco] = useState('');
++  const [dcLes├úoes, setDcLes├úoes] = useState('');
++  const [dcRestricoes, setDcRestricoes] = useState('');
++  const [dcMedicamentos, setDcMedicamentos] = useState('');
++  const [dcHistorico, setDcHistorico] = useState('');
++  const [dcObsClin, setDcObsClin] = useState('');
++  const [dcPlano, setDcPlano] = useState('');
++  const [dcVencimento, setDcVencimento] = useState('');
++  const [dcStatus, setDcStatus] = useState('ativo');
++  const [dcFormaPag, setDcFormaPag] = useState('pix');
++  const [dcDuracao, setDcDuracao] = useState('mensal');
++
++  // F7  Simulador de Recebimentos
++  const [finTab, setFinTab] = useState<'contas_pagar' | 'recebimentos'>('contas_pagar');
++  const [showSimuladorModal, setShowSimuladorModal] = useState(false);
++  const [simClient, setSimClient] = useState<any>(null);
++  const [simForma, setSimForma] = useState<'pix' | 'boleto'>('pix');
++
++  // F15/F16  Financial filters
++  const [finFilterStatus, setFinFilterStatus] = useState('');
++  const [finFilterCat, setFinFilterCat] = useState('');
++  const [finFilterMonth, setFinFilterMonth] = useState('');
++
++  // Configuraes states
++  const [configSpotifyId, setConfigSpotifyId] = useState('');
++  const [configThemeColor, setConfigThemeColor] = useState('#2563eb');
++  const [configGymN┬║ame, setConfigGymN┬║ame] = useState('Clube Fitness Fisio');
++
++  useEffect(() => {
++    if (activeTab === 'configuracoes') {
++      setConfigSpotifyId(localStorage.getItem('spotify_client_id') || '');
++      setConfigThemeColor(localStorage.getItem('theme_color') || '#2563eb');
++      setConfigGymN┬║ame(localStorage.getItem('gym_name') || 'Clube Fitness Fisio');
++    }
++  }, [activeTab]);
++
++  const handleSaveConfigs = () => {
++    localStorage.setItem('spotify_client_id', configSpotifyId);
++    localStorage.setItem('theme_color', configThemeColor);
++    localStorage.setItem('gym_name', configGymN┬║ame);
++    
++    // Apply theme changes dynamically
++    document.documentElement.style.setProperty('--color-primary', configThemeColor);
++    alert('Configuraes salvas com sucesso!');
++  };
+   const plansList = [
+     { id: '6668ab010101010101010101', nome: 'Academia VIP', preco: 150 },
+     { id: '6668ab010101010101010102', nome: 'Fisioterapia Individual', preco: 450 },
+@@ -139,18 +240,42 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+     fetchData();
+   }, [activeTab]);
+ 
++  const exportToCSV = (data: any[], filename: string, columns: { key: string; label: string; formatter?: (val: any) => string }[]) => {
++    let csvContent = "data:text/csv;charset=utf-8,";
++    csvContent += columns.map(c => c.label).join(";") + "\n";
++    
++    data.forEach(row => {
++      const rowData = columns.map(col => {
++        let val = col.key.split('.').reduce((o, i) => (o ? o[i] : ''), row);
++        if (col.formatter) val = col.formatter(val);
++        // Escape quotes and wrap in quotes
++        val = String(val || '').replace(/"/g, '""');
++        return " + val + ";
++      });
++      csvContent += rowData.join(";") + "\n";
++    });
++
++    const encodedUri = encodeURI(csvContent);
++    const link = document.createElement("a");
++    link.setAttribute("href", encodedUri);
++    link.setAttribute("download", filename + "_" + new Date().toISOString().split('T')[0] + ".csv");
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++  };
++
+   const handleOpenClientModal = (item: any = null) => {
+     setEditingItem(item);
+     setModalType('client');
+     if (item) {
+       setEmail(item.dadosPessoais?.email || '');
+-      setNome(item.dadosPessoais?.nome || '');
++      setN┬║ome(item.dadosPessoais?.nome || '');
+       setCpf(item.dadosPessoais?.cpf || '');
+       setTelefone(item.dadosPessoais?.telefone || '');
+       setPlano(item.dadosComerciais?.planoId?._id || item.dadosComerciais?.planoId || '');
+     } else {
+       setEmail('');
+-      setNome('');
++      setN┬║ome('');
+       setCpf('');
+       setTelefone('');
+       setPlano('6668ab010101010101010103');
+@@ -163,12 +288,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+     setModalType('professional');
+     if (item) {
+       setEmail(item.userId?.email || '');
+-      setNome(item.nome || '');
++      setN┬║ome(item.nome || '');
+       setEspecialidade(item.especialidade || '');
+       setRegistro(item.registro || '');
+     } else {
+       setEmail('');
+-      setNome('');
++      setN┬║ome('');
+       setEspecialidade('');
+       setRegistro('');
+     }
+@@ -188,7 +313,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+     setModalType('user');
+     if (item) {
+       setEmail(item.email || '');
+-      setNome(item.nome || '');
++      setN┬║ome(item.nome || '');
+       if (item.tipo === 'admin') {
+         setUserRole('admin');
+       } else if (item.tipo === 'professional') {
+@@ -200,7 +325,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       setRegistro(item.professionalDetails?.registro || '');
+     } else {
+       setEmail('');
+-      setNome('');
++      setN┬║ome('');
+       setUserRole('aluno');
+       setEspecialidade('');
+       setRegistro('');
+@@ -212,14 +337,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+     setEditingItem(item);
+     setModalType('plan');
+     if (item) {
+-      setPlanName(item.nome || '');
++      setPlanN┬║ame(item.nome || '');
+       setPlanValidade(item.validadeDias || 30);
+       setPlanAcademia(item.limiteSessoesAcademia || 0);
+       setPlanConsultorio(item.limiteSessoesConsultorio || 0);
+       setPlanPrice(item.preco || 0);
+       setPlanCreditos(item.creditosTotal || 0);
+     } else {
+-      setPlanName('');
++      setPlanN┬║ame('');
+       setPlanValidade(30);
+       setPlanAcademia(0);
+       setPlanConsultorio(0);
+@@ -240,6 +365,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       setFinStatus(item.status || 'Pendente');
+       setFinForma(item.forma_pagamento || '');
+       setFinObs(item.observacoes || '');
++      setFinComprovante(item.anexo_url || '');
+     } else {
+       setFinDesc('');
+       setFinCat('');
+@@ -248,29 +374,66 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       setFinStatus('Pendente');
+       setFinForma('');
+       setFinObs('');
++      setFinComprovante('');
+     }
+     setShowModal(true);
+   };
+ 
++  const handleFileToBase64 = (file: File): Promise<string> => {
++    return new Promise((resolve, reject) => {
++      const reader = new FileReader();
++      reader.readAsDataURL(file);
++      reader.onload = () => resolve(reader.result as string);
++      reader.onerror = error => reject(error);
++    });
++  };
++
++  const handleComprovanteUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
++    if (e.target.files && e.target.files[0]) {
++      const base64 = await handleFileToBase64(e.target.files[0]);
++      setFinComprovante(base64);
++    }
++  };
++
++  const handleN┬║FUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
++    if (e.target.files && e.target.files[0]) {
++      const base64 = await handleFileToBase64(e.target.files[0]);
++      setMedN┬║F(base64);
++    }
++  };
++
++  const viewBase64File = (base64Data: string) => {
++    const newWindow = window.open();
++    if (newWindow) {
++      if (base64Data.startsWith('data:image')) {
++        newWindow.document.write(<img src=" + base64Data + " style="max-width:100%"/>);
++      } else {
++        newWindow.document.write(<iframe src=" + base64Data + " width="100%" height="100%" style="border:none;"></iframe>);
++      }
++    }
++  };
++
+   const handleOpenMedicationModal = (item: any = null) => {
+     setEditingItem(item);
+     setModalType('medication');
+     if (item) {
+-      setMedNome(item.nome || '');
++      setMedN┬║ome(item.nome || '');
+       setMedCat(item.categoria || '');
+       setMedQuant(item.quantidade || 0);
+       setMedUnidade(item.unidade || 'unidades');
+       setMedLote(item.lote || '');
+       setMedValidade(item.validade || '');
+       setMedObs(item.observacoes || '');
++      setMedN┬║F(item.nota_fiscal_url || '');
+     } else {
+-      setMedNome('');
++      setMedN┬║ome('');
+       setMedCat('');
+       setMedQuant(0);
+       setMedUnidade('unidades');
+       setMedLote('');
+       setMedValidade('');
+       setMedObs('');
++      setMedN┬║F('');
+     }
+     setShowModal(true);
+   };
+@@ -290,7 +453,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+         const res = await fetch('/api/clients', {
+           method,
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify(payload)
++          body: JSON┬║.stringify(payload)
+         });
+         const data = await res.json();
+         if (data.success) {
+@@ -312,7 +475,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+         const res = await fetch('/api/professionals', {
+           method,
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify(payload)
++          body: JSON┬║.stringify(payload)
+         });
+         const data = await res.json();
+         if (data.success) {
+@@ -361,7 +524,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+         const res = await fetch('/api/users', {
+           method,
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify(payload)
++          body: JSON┬║.stringify(payload)
+         });
+         const data = await res.json();
+         if (data.success) {
+@@ -373,7 +536,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       } else if (modalType === 'plan') {
+         const payload = {
+           id: editingItem?._id,
+-          nome: planName,
++          nome: planN┬║ame,
+           validadeDias: planValidade,
+           limiteSessoesAcademia: planAcademia,
+           limiteSessoesConsultorio: planConsultorio,
+@@ -384,7 +547,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+         const res = await fetch('/api/plans', {
+           method,
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify(payload)
++          body: JSON┬║.stringify(payload)
+         });
+         const data = await res.json();
+         if (data.success) {
+@@ -402,13 +565,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+           vencimento: finVenc,
+           status: finStatus,
+           forma_pagamento: finForma,
+-          observacoes: finObs
++          observacoes: finObs,
++          comprovante: finComprovante
+         };
+         const method = editingItem ? 'PUT' : 'POST';
+         const res = await fetch('/api/financial', {
+           method,
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify(payload)
++          body: JSON┬║.stringify(payload)
+         });
+         const data = await res.json();
+         if (data.success) {
+@@ -420,19 +584,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       } else if (modalType === 'medication') {
+         const payload = {
+           id: editingItem?._id,
+-          nome: medNome,
++          nome: medN┬║ome,
+           categoria: medCat,
+           quantidade: medQuant,
+           unidade: medUnidade,
+           lote: medLote,
+           validade: medValidade,
+-          observacoes: medObs
++          observacoes: medObs,
++          notaFiscal: medN┬║F
+         };
+         const method = editingItem ? 'PUT' : 'POST';
+         const res = await fetch('/api/medications', {
+           method,
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify(payload)
++          body: JSON┬║.stringify(payload)
+         });
+         const data = await res.json();
+         if (data.success) {
+@@ -455,7 +620,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+         const res = await fetch('/api/clients', {
+           method: 'PUT',
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify(payload)
++          body: JSON┬║.stringify(payload)
+         });
+         const data = await res.json();
+         if (data.success) {
+@@ -523,7 +688,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+   if (loading) {
+     return (
+       <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+-        <div className="spinner"></div>
++        <div classN┬║ame="spinner"></div>
+       </div>
+     );
+   }
+@@ -542,52 +707,52 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 1. View: Dashboard Principal */}
+       {activeTab === 'dashboard' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Dashboard Administrativo</h1>
+               <p>Vis├úo geral de faturamento, alunos ativos e ocupa├º├úo di├íria.</p>
+             </div>
+           </div>
+ 
+-          <div className="metrics-grid">
+-            <div className="metric-card">
+-              <div className="metric-info">
++          <div classN┬║ame="metrics-grid">
++            <div classN┬║ame="metric-card">
++              <div classN┬║ame="metric-info">
+                 <h3>Total de Alunos</h3>
+-                <div className="value">{totalClients}</div>
++                <div classN┬║ame="value">{totalClients}</div>
+               </div>
+-              <div className="metric-icon"><i className="fa-solid fa-users"></i></div>
++              <div classN┬║ame="metric-icon"><i classN┬║ame="fa-solid fa-users"></i></div>
+             </div>
+-            <div className="metric-card">
+-              <div className="metric-info">
++            <div classN┬║ame="metric-card">
++              <div classN┬║ame="metric-info">
+                 <h3>Alunos Ativos</h3>
+-                <div className="value">{activeClients}</div>
++                <div classN┬║ame="value">{activeClients}</div>
+               </div>
+-              <div className="metric-icon"><i className="fa-solid fa-user-check"></i></div>
++              <div classN┬║ame="metric-icon"><i classN┬║ame="fa-solid fa-user-check"></i></div>
+             </div>
+-            <div className="metric-card">
+-              <div className="metric-info">
++            <div classN┬║ame="metric-card">
++              <div classN┬║ame="metric-info">
+                 <h3>Atendimentos Hoje</h3>
+-                <div className="value">{todayApts}</div>
++                <div classN┬║ame="value">{todayApts}</div>
+               </div>
+-              <div className="metric-icon indigo"><i className="fa-solid fa-calendar-day"></i></div>
++              <div classN┬║ame="metric-icon indigo"><i classN┬║ame="fa-solid fa-calendar-day"></i></div>
+             </div>
+-            <div className="metric-card">
+-              <div className="metric-info">
++            <div classN┬║ame="metric-card">
++              <div classN┬║ame="metric-info">
+                 <h3>Receita Est. Mensal</h3>
+-                <div className="value">R$ {revenueEst.toFixed(2).replace('.', ',')}</div>
++                <div classN┬║ame="value">R$ {revenueEst.toFixed(2).replace('.', ',')}</div>
+               </div>
+-              <div className="metric-icon warning"><i className="fa-solid fa-wallet"></i></div>
++              <div classN┬║ame="metric-icon warning"><i classN┬║ame="fa-solid fa-wallet"></i></div>
+             </div>
+           </div>
+ 
+           {/* Quick Frequency Monitoring Table */}
+-          <div className="content-panel" style={{ marginTop: '24px' }}>
+-            <div className="panel-header">
++          <div classN┬║ame="content-panel" style={{ marginTop: '24px' }}>
++            <div classN┬║ame="panel-header">
+               <h2>Acompanhamento de Frequ├¬ncia Contratada</h2>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-                <div className="page-size-selector">
++                <div classN┬║ame="page-size-selector">
+                   <span>Exibir:</span>
+-                  <select value={getPageSize('dashboard_freq')} onChange={e => setPageSizeForKey('dashboard_freq', Number(e.target.value))}>
++                  <select value={getPageSize('dashboard_freq')} onChange={e => setPageSizeForKey('dashboard_freq', N┬║umber(e.target.value))}>
+                     <option value={5}>5</option>
+                     <option value={8}>8</option>
+                     <option value={15}>15</option>
+@@ -598,8 +763,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                 </span>
+               </div>
+             </div>
+-            <div className="table-responsive" style={{ marginTop: '12px' }}>
+-              <table className="data-table">
++            <div classN┬║ame="table-responsive" style={{ marginTop: '12px' }}>
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+                     <th>Cliente</th>
+@@ -615,30 +780,32 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     const listKey = 'dashboard_freq';
+                     const activeP = getPage(listKey);
+                     const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(clients.length / size);
++                    const q = getSearchQuery(listKey).toLowerCase();
++                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q));
++                    const totalPages = Math.ceil(filtered.length / size);
+                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = clients.slice((curP - 1) * size, curP * size);
++                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+ 
+                     return paginated.map(c => {
+-                      const planName = c.dadosComerciais?.planoId?.nome || 'Plano Personalizado';
++                      const planN┬║ame = c.dadosComerciais?.planoId?.nome || 'Plano Personalizado';
+                       const freq = c.dadosComerciais?.frequencia || 3;
+                       const status = c.dadosComerciais?.status || 'ativo';
+                       return (
+                         <tr key={c._id}>
+                           <td><strong>{c.dadosPessoais?.nome}</strong></td>
+-                          <td>{planName}</td>
++                          <td>{planN┬║ame}</td>
+                           <td style={{ textAlign: 'center' }}>{freq}x/semana</td>
+                           <td style={{ textAlign: 'center' }}>
+                             {(c.dadosComerciais?.creditosUsados || 0)} / {(c.dadosComerciais?.creditosTotal || 0)}
+                           </td>
+                           <td style={{ textAlign: 'center' }}>
+-                            <span className={`badge ${status === 'ativo' ? 'badge-success' : 'badge-danger'}`}>
++                            <span classN┬║ame={`badge ${status === 'ativo' ? 'badge-success' : 'badge-danger'}`}>
+                               {status === 'ativo' ? 'Ativo' : 'Vencido'}
+                             </span>
+                           </td>
+                           <td style={{ textAlign: 'center' }}>
+-                            <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
+-                              <i className="fa-solid fa-coins" style={{ marginRight: '6px' }}></i> Adicionar Cr├®ditos
++                            <button classN┬║ame="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
++                              <i classN┬║ame="fa-solid fa-coins" style={{ marginRight: '6px' }}></i> Adicionar Cr├®ditos
+                             </button>
+                           </td>
+                         </tr>
+@@ -648,12 +815,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {clients.length === 0 && (
+                     <tr>
+                       <td colSpan={6}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-users-slash empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum aluno cadastrado</div>
+-                          <div className="empty-state-desc">N├úo h├í alunos registrados no sistema para acompanhamento.</div>
+-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenClientModal()}>
+-                            <i className="fa-solid fa-plus"></i> Novo Aluno
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-users-slash empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum aluno cadastrado</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í alunos registrados no sistema para acompanhamento.</div>
++                          <button type="button" classN┬║ame="btn btn-primary btn-sm" onClick={() => handleOpenClientModal()}>
++                            <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Aluno
+                           </button>
+                         </div>
+                       </td>
+@@ -677,32 +844,35 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 2. View: Profissionais */}
+       {activeTab === 'profissionais' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Gest├úo de Profissionais</h1>
+               <p>Cadastre e gerencie a equipe do Clube Fitness Fisio.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('profissionais')} onChange={e => setPageSizeForKey('profissionais', Number(e.target.value))}>
++                <select value={getPageSize('profissionais')} onChange={e => setPageSizeForKey('profissionais', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+                 </select>
+               </div>
+-              <button className="btn btn-primary" onClick={() => handleOpenProfModal()}>
+-                <i className="fa-solid fa-plus"></i> Novo Profissional
++              <button classN┬║ame="btn btn-primary" onClick={() => handleOpenProfModal()}>
++                <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Profissional
+               </button>
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
++              <input type="text" classN┬║ame="form-control" placeholder="Buscar profissional..." value={getSearchQuery('profissionais')} onChange={e => setSearchQueryForKey('profissionais', e.target.value)} style={{ maxWidth: '300px' }} />
++            </div>
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+-                    <th>Nome</th>
++                    <th>N┬║ome</th>
+                     <th>Especialidade</th>
+                     <th>Registro Profissional</th>
+                     <th>Email de Acesso</th>
+@@ -714,22 +884,24 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     const listKey = 'profissionais';
+                     const activeP = getPage(listKey);
+                     const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(professionals.length / size);
++                    const q = getSearchQuery(listKey).toLowerCase();
++                    const filtered = professionals.filter(p => p.nome?.toLowerCase().includes(q) || p.userId?.email?.toLowerCase().includes(q));
++                    const totalPages = Math.ceil(filtered.length / size);
+                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = professionals.slice((curP - 1) * size, curP * size);
++                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+ 
+                     return paginated.map(p => (
+                       <tr key={p._id}>
+                         <td><strong>{p.nome}</strong></td>
+-                        <td><span className="badge badge-info">{p.especialidade}</span></td>
++                        <td><span classN┬║ame="badge badge-info">{p.especialidade}</span></td>
+                         <td><code>{p.registro}</code></td>
+                         <td>{p.userId?.email}</td>
+                         <td>
+-                          <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenProfModal(p)}>
+-                            <i className="fa-solid fa-pen"></i>
++                          <button classN┬║ame="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenProfModal(p)}>
++                            <i classN┬║ame="fa-solid fa-pen"></i>
+                           </button>
+-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProf(p._id)}>
+-                            <i className="fa-solid fa-trash"></i>
++                          <button classN┬║ame="btn btn-danger btn-sm" onClick={() => handleDeleteProf(p._id)}>
++                            <i classN┬║ame="fa-solid fa-trash"></i>
+                           </button>
+                         </td>
+                       </tr>
+@@ -738,12 +910,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {professionals.length === 0 && (
+                     <tr>
+                       <td colSpan={5}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-user-doctor empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum profissional cadastrado</div>
+-                          <div className="empty-state-desc">N├úo h├í profissionais ou fisioterapeutas cadastrados no sistema.</div>
+-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenProfModal()}>
+-                            <i className="fa-solid fa-plus"></i> Novo Profissional
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-user-doctor empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum profissional cadastrado</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í profissionais ou fisioterapeutas cadastrados no sistema.</div>
++                          <button type="button" classN┬║ame="btn btn-primary btn-sm" onClick={() => handleOpenProfModal()}>
++                            <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Profissional
+                           </button>
+                         </div>
+                       </td>
+@@ -767,29 +939,32 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 3. View: Clientes */}
+       {activeTab === 'clientes' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Cadastro Geral de Clientes</h1>
+               <p>Gerencie dados cl├¡nicos, contratos e planos dos alunos.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('clientes')} onChange={e => setPageSizeForKey('clientes', Number(e.target.value))}>
++                <select value={getPageSize('clientes')} onChange={e => setPageSizeForKey('clientes', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+                 </select>
+               </div>
+-              <button className="btn btn-primary" onClick={() => handleOpenClientModal()}>
+-                <i className="fa-solid fa-plus"></i> Novo Aluno
++              <button classN┬║ame="btn btn-primary" onClick={() => handleOpenClientModal()}>
++                <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Aluno
+               </button>
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
++              <input type="text" classN┬║ame="form-control" placeholder="Buscar aluno..." value={getSearchQuery('clientes')} onChange={e => setSearchQueryForKey('clientes', e.target.value)} style={{ maxWidth: '300px' }} />
++            </div>
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+                     <th>Aluno</th>
+@@ -807,13 +982,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     const listKey = 'clientes';
+                     const activeP = getPage(listKey);
+                     const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(clients.length / size);
++                    const q = getSearchQuery(listKey).toLowerCase();
++                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q) || c.dadosPessoais?.email?.toLowerCase().includes(q) || c.dadosPessoais?.cpf?.includes(q));
++                    const totalPages = Math.ceil(filtered.length / size);
+                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = clients.slice((curP - 1) * size, curP * size);
++                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+ 
+                     return paginated.map(c => {
+                       const status = c.dadosComerciais?.status || 'ativo';
+-                      const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
++                      const planN┬║ame = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+                       const credTotal = c.dadosComerciais?.creditosTotal || 0;
+                       const credUsados = c.dadosComerciais?.creditosUsados || 0;
+                       const credReservados = c.dadosComerciais?.creditosReservados || 0;
+@@ -823,20 +1000,46 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                           <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
+                           <td>{c.dadosPessoais?.cpf || '-'}</td>
+                           <td>{c.dadosPessoais?.telefone || '-'}</td>
+-                          <td>{planName}</td>
++                          <td>{planN┬║ame}</td>
+                           <td>{c.dadosComerciais?.vencimento || '-'}</td>
+                           <td style={{ textAlign: 'center' }}><strong>{credDisp}</strong> <small style={{ color: 'var(--text-dim)' }}>(de {credTotal})</small></td>
+                           <td style={{ textAlign: 'center' }}>
+-                            <span className={`badge ${status === 'ativo' ? 'badge-success' : 'badge-danger'}`}>
++                            <span classN┬║ame={`badge ${status === 'ativo' ? 'badge-success' : 'badge-danger'}`}>
+                               {status === 'ativo' ? 'Ativo' : 'Vencido'}
+                             </span>
+                           </td>
+-                          <td>
+-                            <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenClientModal(c)}>
+-                              <i className="fa-solid fa-pen"></i>
++                          <td style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
++                            <button classN┬║ame="btn btn-secondary btn-sm" title="Ver Ficha Completa" onClick={() => {
++                              setDetailClient(c);
++                              setDcSexo(c.dadosPessoais?.sexo || 'M');
++                              setDcN┬║ascimento(c.dadosPessoais?.dataN┬║ascimento || '');
++                              setDcEndereco(c.dadosPessoais?.endereco || '');
++                              setDcLes├úoes(c.dadosClinicos?.lesoes || '');
++                              setDcRestricoes(c.dadosClinicos?.restricoes || '');
++                              setDcMedicamentos(c.dadosClinicos?.medicamentos || '');
++                              setDcHistorico(c.dadosClinicos?.historicoClinico || '');
++                              setDcObsClin(c.dadosClinicos?.observacoes || '');
++                              setDcPlano(c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId || '');
++                              setDcVencimento(c.dadosComerciais?.vencimento || '');
++                              setDcStatus(c.dadosComerciais?.status || 'ativo');
++                              setDcFormaPag(c.dadosComerciais?.formaPagamento || 'pix');
++                              setDcDuracao(c.dadosComerciais?.duracao || 'mensal');
++                              setClientDetailTab('pessoais');
++                              setShowClientDetailModal(true);
++                            }}>
++                              <i classN┬║ame="fa-solid fa-id-card"></i>
++                            </button>
++                            <button classN┬║ame="btn btn-secondary btn-sm" title="Editar" onClick={() => handleOpenClientModal(c)}>
++                              <i classN┬║ame="fa-solid fa-pen"></i>
++                            </button>
++                            <button classN┬║ame="btn btn-secondary btn-sm" title="Baixar Contrato PDF" onClick={() => {
++                              const plan = plans.find((p: any) => p._id === (c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId));
++                              downloadContractPDF(c, plan, contractText);
++                            }}>
++                              <i classN┬║ame="fa-solid fa-file-contract"></i>
+                             </button>
+-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteClient(c._id)}>
+-                              <i className="fa-solid fa-trash"></i>
++                            <button classN┬║ame="btn btn-danger btn-sm" title="Excluir" onClick={() => handleDeleteClient(c._id)}>
++                              <i classN┬║ame="fa-solid fa-trash"></i>
+                             </button>
+                           </td>
+                         </tr>
+@@ -846,12 +1049,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {clients.length === 0 && (
+                     <tr>
+                       <td colSpan={8}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-users-slash empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum aluno cadastrado</div>
+-                          <div className="empty-state-desc">N├úo h├í alunos registrados no sistema.</div>
+-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenClientModal()}>
+-                            <i className="fa-solid fa-plus"></i> Novo Aluno
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-users-slash empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum aluno cadastrado</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í alunos registrados no sistema.</div>
++                          <button type="button" classN┬║ame="btn btn-primary btn-sm" onClick={() => handleOpenClientModal()}>
++                            <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Aluno
+                           </button>
+                         </div>
+                       </td>
+@@ -875,32 +1078,35 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 4. View: Usu├írios */}
+       {activeTab === 'usuarios' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Cadastro de Usu├írios</h1>
+               <p>Gerencie todos os usu├írios do sistema, defina seus perfis e credenciais de acesso.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('usuarios')} onChange={e => setPageSizeForKey('usuarios', Number(e.target.value))}>
++                <select value={getPageSize('usuarios')} onChange={e => setPageSizeForKey('usuarios', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+                 </select>
+               </div>
+-              <button className="btn btn-primary" onClick={() => handleOpenUserModal()}>
+-                <i className="fa-solid fa-plus"></i> Novo Usu├írio
++              <button classN┬║ame="btn btn-primary" onClick={() => handleOpenUserModal()}>
++                <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Usu├írio
+               </button>
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
++              <input type="text" classN┬║ame="form-control" placeholder="Buscar usurio..." value={getSearchQuery('usuarios')} onChange={e => setSearchQueryForKey('usuarios', e.target.value)} style={{ maxWidth: '300px' }} />
++            </div>
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+-                    <th>Nome</th>
++                    <th>N┬║ome</th>
+                     <th>E-mail</th>
+                     <th style={{ textAlign: 'center' }}>Perfil</th>
+                     <th>Detalhes do Perfil</th>
+@@ -912,9 +1118,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     const listKey = 'usuarios';
+                     const activeP = getPage(listKey);
+                     const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(users.length / size);
++                    const q = getSearchQuery(listKey).toLowerCase();
++                    const filtered = users.filter(u => u.nome?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q));
++                    const totalPages = Math.ceil(filtered.length / size);
+                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = users.slice((curP - 1) * size, curP * size);
++                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+ 
+                     return paginated.map(u => {
+                       let roleBadgeClass = 'badge-success';
+@@ -933,9 +1141,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                       } else {
+                         roleLabel = u.cargo === 'Aluno VIP' ? 'Aluno VIP' : 'Aluno';
+                         roleBadgeClass = u.cargo === 'Aluno VIP' ? 'badge-primary' : 'badge-success';
+-                        const planoNome = u.clientDetails?.dadosComerciais?.planoId?.nome || 'Sem Plano';
++                        const planoN┬║ome = u.clientDetails?.dadosComerciais?.planoId?.nome || 'Sem Plano';
+                         const status = u.clientDetails?.dadosComerciais?.status || 'ativo';
+-                        details = `Plano: ${planoNome} (${status === 'ativo' ? 'Ativo' : 'Vencido'})`;
++                        details = `Plano: ${planoN┬║ome} (${status === 'ativo' ? 'Ativo' : 'Vencido'})`;
+                       }
+ 
+                       return (
+@@ -943,17 +1151,17 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                           <td><strong>{u.nome}</strong></td>
+                           <td>{u.email}</td>
+                           <td style={{ textAlign: 'center' }}>
+-                            <span className={`badge ${roleBadgeClass}`}>
++                            <span classN┬║ame={`badge ${roleBadgeClass}`}>
+                               {roleLabel}
+                             </span>
+                           </td>
+                           <td>{details}</td>
+                           <td>
+-                            <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenUserModal(u)}>
+-                              <i className="fa-solid fa-pen"></i>
++                            <button classN┬║ame="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenUserModal(u)}>
++                              <i classN┬║ame="fa-solid fa-pen"></i>
+                             </button>
+-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u._id)}>
+-                              <i className="fa-solid fa-trash"></i>
++                            <button classN┬║ame="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u._id)}>
++                              <i classN┬║ame="fa-solid fa-trash"></i>
+                             </button>
+                           </td>
+                         </tr>
+@@ -963,12 +1171,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {users.length === 0 && (
+                     <tr>
+                       <td colSpan={5}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-users empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum usu├írio cadastrado</div>
+-                          <div className="empty-state-desc">N├úo h├í contas de usu├írios cadastradas no sistema.</div>
+-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenUserModal()}>
+-                            <i className="fa-solid fa-plus"></i> Novo Usu├írio
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-users empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum usu├írio cadastrado</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í contas de usu├írios cadastradas no sistema.</div>
++                          <button type="button" classN┬║ame="btn btn-primary btn-sm" onClick={() => handleOpenUserModal()}>
++                            <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Usu├írio
+                           </button>
+                         </div>
+                       </td>
+@@ -992,15 +1200,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 5. View: Controle de Cr├®ditos */}
+       {activeTab === 'controle_creditos' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Controle de Cr├®ditos</h1>
+               <p>Audite e gerencie o saldo de cr├®ditos semanais e mensais dos alunos.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('controle_creditos')} onChange={e => setPageSizeForKey('controle_creditos', Number(e.target.value))}>
++                <select value={getPageSize('controle_creditos')} onChange={e => setPageSizeForKey('controle_creditos', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+@@ -1009,9 +1217,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+                     <th>Aluno</th>
+@@ -1028,12 +1236,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     const listKey = 'controle_creditos';
+                     const activeP = getPage(listKey);
+                     const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(clients.length / size);
++                    const q = getSearchQuery(listKey).toLowerCase();
++                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q) || c.dadosPessoais?.email?.toLowerCase().includes(q) || c.dadosPessoais?.cpf?.includes(q));
++                    const totalPages = Math.ceil(filtered.length / size);
+                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = clients.slice((curP - 1) * size, curP * size);
++                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+ 
+                     return paginated.map(c => {
+-                      const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
++                      const planN┬║ame = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+                       const total = c.dadosComerciais?.creditosTotal || 0;
+                       const usados = c.dadosComerciais?.creditosUsados || 0;
+                       const reservados = c.dadosComerciais?.creditosReservados || 0;
+@@ -1041,14 +1251,17 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                       return (
+                         <tr key={c._id}>
+                           <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
+-                          <td>{planName}</td>
++                          <td>{planN┬║ame}</td>
+                           <td style={{ textAlign: 'center' }}>{total}</td>
+                           <td style={{ textAlign: 'center' }}>{usados}</td>
+                           <td style={{ textAlign: 'center' }}>{reservados}</td>
+                           <td style={{ textAlign: 'center' }}><strong style={{ color: 'var(--color-primary)' }}>{saldo}</strong></td>
+-                          <td>
+-                            <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
+-                              <i className="fa-solid fa-coins"></i> Ajustar Cr├®ditos
++                          <td style={{ display: 'flex', gap: '8px' }}>
++                            <button classN┬║ame="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
++                              <i classN┬║ame="fa-solid fa-coins"></i> Ajustar Cr├®ditos
++                            </button>
++                            <button classN┬║ame="btn btn-info btn-sm" onClick={() => handleOpenRulesModal(c)}>
++                              <i classN┬║ame="fa-solid fa-scale-balanced"></i> Regras
+                             </button>
+                           </td>
+                         </tr>
+@@ -1058,10 +1271,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {clients.length === 0 && (
+                     <tr>
+                       <td colSpan={7}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-coins empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum aluno cadastrado</div>
+-                          <div className="empty-state-desc">N├úo h├í alunos dispon├¡veis para ajuste de cr├®ditos.</div>
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-coins empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum aluno cadastrado</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í alunos dispon├¡veis para ajuste de cr├®ditos.</div>
+                         </div>
+                       </td>
+                     </tr>
+@@ -1084,33 +1297,33 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 6. View: Planos & Configs */}
+       {activeTab === 'planos' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Planos & Configura├º├Áes</h1>
+               <p>Crie e gerencie as op├º├Áes de planos e mensalidades oferecidas no clube.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('planos')} onChange={e => setPageSizeForKey('planos', Number(e.target.value))}>
++                <select value={getPageSize('planos')} onChange={e => setPageSizeForKey('planos', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+                 </select>
+               </div>
+-              <button className="btn btn-primary" onClick={() => handleOpenPlanModal()}>
+-                <i className="fa-solid fa-plus"></i> Novo Plano
++              <button classN┬║ame="btn btn-primary" onClick={() => handleOpenPlanModal()}>
++                <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Plano
+               </button>
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+-                    <th>Nome do Plano</th>
+-                    <th className="text-right">Pre├ºo Mensal</th>
++                    <th>N┬║ome do Plano</th>
++                    <th classN┬║ame="text-right">Pre├ºo Mensal</th>
+                     <th style={{ textAlign: 'center' }}>Vig├¬ncia (Dias)</th>
+                     <th style={{ textAlign: 'center' }}>Limite Academia</th>
+                     <th style={{ textAlign: 'center' }}>Limite Consult├│rio</th>
+@@ -1129,16 +1342,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     return paginated.map(p => (
+                       <tr key={p._id}>
+                         <td><strong>{p.nome}</strong></td>
+-                        <td className="text-right">R$ {p.preco.toFixed(2).replace('.', ',')}</td>
++                        <td classN┬║ame="text-right">R$ {p.preco.toFixed(2).replace('.', ',')}</td>
+                         <td style={{ textAlign: 'center' }}>{p.validadeDias} dias</td>
+                         <td style={{ textAlign: 'center' }}>{p.limiteSessoesAcademia > 0 ? `${p.limiteSessoesAcademia} sess├Áes` : 'Ilimitado'}</td>
+                         <td style={{ textAlign: 'center' }}>{p.limiteSessoesConsultorio > 0 ? `${p.limiteSessoesConsultorio} sess├Áes` : 'Sem sess├Áes'}</td>
+                         <td>
+-                          <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenPlanModal(p)}>
+-                            <i className="fa-solid fa-pen"></i>
++                          <button classN┬║ame="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenPlanModal(p)}>
++                            <i classN┬║ame="fa-solid fa-pen"></i>
+                           </button>
+-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeletePlan(p._id)}>
+-                            <i className="fa-solid fa-trash"></i>
++                          <button classN┬║ame="btn btn-danger btn-sm" onClick={() => handleDeletePlan(p._id)}>
++                            <i classN┬║ame="fa-solid fa-trash"></i>
+                           </button>
+                         </td>
+                       </tr>
+@@ -1147,12 +1360,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {plans.length === 0 && (
+                     <tr>
+                       <td colSpan={6}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-folder-open empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum plano cadastrado</div>
+-                          <div className="empty-state-desc">N├úo h├í planos de assinaturas cadastrados no sistema.</div>
+-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenPlanModal()}>
+-                            <i className="fa-solid fa-plus"></i> Novo Plano
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-folder-open empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum plano cadastrado</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í planos de assinaturas cadastrados no sistema.</div>
++                          <button type="button" classN┬║ame="btn btn-primary btn-sm" onClick={() => handleOpenPlanModal()}>
++                            <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Plano
+                           </button>
+                         </div>
+                       </td>
+@@ -1176,15 +1389,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 7. View: Hor├írios Fixos */}
+       {activeTab === 'agenda_fixa' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Regras de Hor├írios Fixos</h1>
+               <p>Monitore quais alunos possuem hor├írios recorrentes reservados na agenda.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('agenda_fixa')} onChange={e => setPageSizeForKey('agenda_fixa', Number(e.target.value))}>
++                <select value={getPageSize('agenda_fixa')} onChange={e => setPageSizeForKey('agenda_fixa', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+@@ -1193,9 +1406,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
++              <input type="text" classN┬║ame="form-control" placeholder="Buscar por aluno ou profissional..." value={getSearchQuery('agenda_fixa')} onChange={e => setSearchQueryForKey('agenda_fixa', e.target.value)} style={{ maxWidth: '300px' }} />
++            </div>
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+                     <th>Aluno</th>
+@@ -1210,9 +1426,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     const listKey = 'agenda_fixa';
+                     const activeP = getPage(listKey);
+                     const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(fixedSchedules.length / size);
++                    const q = getSearchQuery(listKey).toLowerCase();
++                    const filtered = fixedSchedules.filter(fs => fs.clienteId?.nome?.toLowerCase().includes(q) || fs.profissionalId?.nome?.toLowerCase().includes(q));
++                    const totalPages = Math.ceil(filtered.length / size);
+                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = fixedSchedules.slice((curP - 1) * size, curP * size);
++                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+ 
+                     const daysMap = ['Domingo', 'Segunda-feira', 'Ter├ºa-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'S├íbado'];
+ 
+@@ -1232,10 +1450,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {fixedSchedules.length === 0 && (
+                     <tr>
+                       <td colSpan={5}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-calendar-alt empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum hor├írio fixo</div>
+-                          <div className="empty-state-desc">N├úo h├í hor├írios fixos semanais agendados no sistema.</div>
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-calendar-alt empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum hor├írio fixo</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í hor├írios fixos semanais agendados no sistema.</div>
+                         </div>
+                       </td>
+                     </tr>
+@@ -1258,15 +1476,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 8. View: Testes de For├ºa */}
+       {activeTab === 'testes_forca' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Avalia├º├Áes de For├ºa</h1>
+               <p>Consulte os testes de for├ºa muscular realizados pela equipe cl├¡nica.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('testes_forca')} onChange={e => setPageSizeForKey('testes_forca', Number(e.target.value))}>
++                <select value={getPageSize('testes_forca')} onChange={e => setPageSizeForKey('testes_forca', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+@@ -1275,9 +1493,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+                     <th>Aluno</th>
+@@ -1305,8 +1523,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                           <td>{st.data}</td>
+                           <td style={{ textAlign: 'center' }}>{ratio ? ratio.toFixed(2) : '-'}</td>
+                           <td style={{ textAlign: 'center' }}>
+-                            <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
+-                              {risco ? 'Alto Risco' : 'Normal / Seguro'}
++                            <span classN┬║ame={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
++                              {risco ? 'Alto Risco' : 'N┬║ormal / Seguro'}
+                             </span>
+                           </td>
+                           <td><small>{st.observacoes || '-'}</small></td>
+@@ -1317,10 +1535,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {strengthTests.length === 0 && (
+                     <tr>
+                       <td colSpan={5}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum teste de for├ºa</div>
+-                          <div className="empty-state-desc">Nenhum teste de for├ºa muscular cadastrado no banco.</div>
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-dumbbell empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum teste de for├ºa</div>
++                          <div classN┬║ame="empty-state-desc">N┬║enhum teste de for├ºa muscular cadastrado no banco.</div>
+                         </div>
+                       </td>
+                     </tr>
+@@ -1343,127 +1561,252 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 9. View: Financeiro */}
+       {activeTab === 'financeiro' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Controle Financeiro</h1>
+-              <p>Gerencie as despesas, receitas e fluxo de pagamentos do clube.</p>
++              <p>Gerencie as despesas, receitas e simule cobran├ºas.</p>
+             </div>
+-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
+-                <span>Exibir:</span>
+-                <select value={getPageSize('financeiro')} onChange={e => setPageSizeForKey('financeiro', Number(e.target.value))}>
+-                  <option value={5}>5</option>
+-                  <option value={8}>8</option>
+-                  <option value={15}>15</option>
++          </div>
++
++          {/* Tabs */}
++          <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--border-color)', marginBottom: '20px' }}>
++            <button
++              onClick={() => setFinTab('contas_pagar')}
++              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'contas_pagar' ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: finTab === 'contas_pagar' ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}
++            >
++              <i classN┬║ame="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i>Contas a Pagar
++            </button>
++            <button
++              onClick={() => setFinTab('recebimentos')}
++              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'recebimentos' ? 'var(--color-success)' : 'var(--text-dim)', borderBottom: finTab === 'recebimentos' ? '3px solid var(--color-success)' : '3px solid transparent', marginBottom: '-2px' }}
++            >
++              <i classN┬║ame="fa-solid fa-qrcode" style={{ marginRight: '6px' }}></i>Simulador de Recebimentos
++            </button>
++          </div>
++
++          {finTab === 'contas_pagar' && (
++            <>
++              {/* Alerts for overdue/today */}
++              {(() => {
++                const today = new Date().toISOString().split('T')[0];
++                const overdue = financials.filter(f => f.status !== 'Pago' && f.vencimento < today);
++                const dueToday = financials.filter(f => f.status !== 'Pago' && f.vencimento === today);
++                if (overdue.length === 0 && dueToday.length === 0) return null;
++                return (
++                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
++                    {overdue.length > 0 && (
++                      <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '8px', padding: '10px 16px', flex: 1, minWidth: '220px' }}>
++                        <strong style={{ color: '#ef4444' }}><i classN┬║ame="fa-solid fa-circle-exclamation" style={{ marginRight: '6px' }}></i>{overdue.length} conta(s) ATRASADA(s)</strong>
++                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>Total: R$ {overdue.reduce((s: number, f: any) => s + f.valor, 0).toFixed(2).replace('.', ',')}</div>
++                      </div>
++                    )}
++                    {dueToday.length > 0 && (
++                      <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: '8px', padding: '10px 16px', flex: 1, minWidth: '220px' }}>
++                        <strong style={{ color: '#f59e0b' }}><i classN┬║ame="fa-solid fa-clock" style={{ marginRight: '6px' }}></i>{dueToday.length} conta(s) vencem HOJE</strong>
++                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>Total: R$ {dueToday.reduce((s: number, f: any) => s + f.valor, 0).toFixed(2).replace('.', ',')}</div>
++                      </div>
++                    )}
++                  </div>
++                );
++              })()}
++
++              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
++                <input type="month" classN┬║ame="form-control" style={{ maxWidth: '160px' }} value={finFilterMonth} onChange={e => setFinFilterMonth(e.target.value)} />
++                <select classN┬║ame="select-custom" style={{ minWidth: '140px' }} value={finFilterStatus} onChange={e => setFinFilterStatus(e.target.value)}>
++                  <option value="">Todos os Status</option>
++                  <option value="Pendente">Pendente</option>
++                  <option value="Pago">Pago</option>
++                  <option value="Atrasado">Atrasado</option>
+                 </select>
++                <input type="text" classN┬║ame="form-control" style={{ maxWidth: '200px' }} placeholder="Filtrar categoria..." value={finFilterCat} onChange={e => setFinFilterCat(e.target.value)} />
++                <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
++                  <div classN┬║ame="page-size-selector"><span>Exibir:</span>
++                    <select value={getPageSize('financeiro')} onChange={e => setPageSizeForKey('financeiro', N┬║umber(e.target.value))}>
++                      <option value={5}>5</option><option value={8}>8</option><option value={15}>15</option>
++                    </select>
++                  </div>
++                  <button classN┬║ame="btn btn-secondary" onClick={() => exportToCSV(financials, 'financeiro', [
++                    { key: 'vencimento', label: 'Vencimento' },
++                    { key: 'descricao', label: 'Descrio' },
++                    { key: 'categoria', label: 'Categoria' },
++                    { key: 'valor', label: 'Valor (R$)' },
++                    { key: 'status', label: 'Status' },
++                    { key: 'forma_pagamento', label: 'Forma Pagamento' }
++                  ])}><i classN┬║ame="fa-solid fa-file-csv"></i> CSV</button>
++                  <button classN┬║ame="btn btn-primary" onClick={() => handleOpenFinancialModal()}>
++                    <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Lan├ºamento
++                  </button>
++                </div>
+               </div>
+-              <button className="btn btn-primary" onClick={() => handleOpenFinancialModal()}>
+-                <i className="fa-solid fa-plus"></i> Novo Lan├ºamento
+-              </button>
+-            </div>
+-          </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
+-                <thead>
+-                  <tr>
+-                    <th>Descri├º├úo</th>
+-                    <th>Categoria</th>
+-                    <th className="text-right">Valor</th>
+-                    <th>Vencimento</th>
+-                    <th style={{ textAlign: 'center' }}>Status</th>
+-                    <th>Pagamento</th>
+-                    <th>A├º├Áes</th>
+-                  </tr>
+-                </thead>
+-                <tbody>
+-                  {(() => {
+-                    const listKey = 'financeiro';
+-                    const activeP = getPage(listKey);
+-                    const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(financials.length / size);
+-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = financials.slice((curP - 1) * size, curP * size);
+-
+-                    return paginated.map(f => (
+-                      <tr key={f._id}>
+-                        <td><strong>{f.descricao}</strong></td>
+-                        <td><span className="badge badge-info">{f.categoria}</span></td>
+-                        <td className="text-right">R$ {f.valor.toFixed(2).replace('.', ',')}</td>
+-                        <td>{f.vencimento}</td>
+-                        <td style={{ textAlign: 'center' }}>
+-                          <span className={`badge ${f.status === 'Pago' ? 'badge-success' : f.status === 'Atrasado' ? 'badge-danger' : 'badge-warning'}`}>
+-                            {f.status}
+-                          </span>
+-                        </td>
+-                        <td>{f.forma_pagamento || '-'}</td>
+-                        <td>
+-                          <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenFinancialModal(f)}>
+-                            <i className="fa-solid fa-pen"></i>
+-                          </button>
+-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFinancial(f._id)}>
+-                            <i className="fa-solid fa-trash"></i>
+-                          </button>
+-                        </td>
++              {/* Summary cards */}
++              {(() => {
++                const filtered = financials.filter(f =>
++                  (finFilterStatus ? f.status === finFilterStatus : true) &&
++                  (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) &&
++                  (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)
++                );
++                const totalPago = filtered.filter(f => f.status === 'Pago').reduce((s: number, f: any) => s + f.valor, 0);
++                const totalPendente = filtered.filter(f => f.status !== 'Pago').reduce((s: number, f: any) => s + f.valor, 0);
++                return (
++                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
++                    <div style={{ flex: 1, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
++                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600 }}>TOTAL PAGO</div>
++                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-success)' }}>R$ {totalPago.toFixed(2).replace('.', ',')}</div>
++                    </div>
++                    <div style={{ flex: 1, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
++                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600 }}>TOTAL PEN┬║DEN┬║TE</div>
++                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f59e0b' }}>R$ {totalPendente.toFixed(2).replace('.', ',')}</div>
++                    </div>
++                  </div>
++                );
++              })()}
++
++              <div classN┬║ame="content-panel">
++                <div classN┬║ame="table-responsive">
++                  <table classN┬║ame="data-table">
++                    <thead>
++                      <tr>
++                        <th>Descri├º├úo</th><th>Categoria</th><th classN┬║ame="text-right">Valor</th>
++                        <th>Vencimento</th><th style={{ textAlign: 'center' }}>Status</th><th>Pagamento</th><th>A├º├Áes</th>
+                       </tr>
+-                    ));
+-                  })()}
+-                  {financials.length === 0 && (
+-                    <tr>
+-                      <td colSpan={7}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-wallet empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum lan├ºamento financeiro</div>
+-                          <div className="empty-state-desc">N├úo h├í despesas ou receitas cadastradas neste per├¡odo.</div>
+-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenFinancialModal()}>
+-                            <i className="fa-solid fa-plus"></i> Novo Lan├ºamento
+-                          </button>
+-                        </div>
+-                      </td>
+-                    </tr>
+-                  )}
+-                </tbody>
+-              </table>
+-            </div>
+-            {financials.length > 0 && (
+-              <Pagination
+-                currentPage={getPage('financeiro')}
+-                totalItems={financials.length}
+-                itemsPerPage={getPageSize('financeiro')}
+-                onPageChange={page => setPage('financeiro', page)}
+-              />
+-            )}
+-          </div>
++                    </thead>
++                    <tbody>
++                      {(() => {
++                        const filtered = financials.filter(f =>
++                          (finFilterStatus ? f.status === finFilterStatus : true) &&
++                          (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true)
++                        );
++                        const listKey = 'financeiro';
++                        const activeP = getPage(listKey);
++                        const size = getPageSize(listKey);
++                        const totalPages = Math.ceil(filtered.length / size);
++                        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
++                        const paginated = filtered.slice((curP - 1) * size, curP * size);
++                        return paginated.map(f => (
++                          <tr key={f._id}>
++                            <td><strong>{f.descricao}</strong></td>
++                            <td><span classN┬║ame="badge badge-info">{f.categoria}</span></td>
++                            <td classN┬║ame="text-right">R$ {f.valor.toFixed(2).replace('.', ',')}</td>
++                            <td>{f.vencimento}</td>
++                            <td style={{ textAlign: 'center' }}>
++                              <span classN┬║ame={`badge ${f.status === 'Pago' ? 'badge-success' : f.status === 'Atrasado' ? 'badge-danger' : 'badge-warning'}`}>{f.status}</span>
++                            </td>
++                            <td>{f.forma_pagamento || '-'}</td>
++                            <td>
++                              <button classN┬║ame="btn btn-secondary btn-sm" style={{ marginRight: '6px' }} onClick={() => handleOpenFinancialModal(f)}><i classN┬║ame="fa-solid fa-pen"></i></button>
++                              {f.status !== 'Pago' && (
++                                <button classN┬║ame="btn btn-sm" style={{ marginRight: '6px', background: 'var(--color-success)', color: '#fff' }} title="Marcar como Pago" onClick={async () => {
++                                  await fetch('/api/financial', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON┬║.stringify({ id: f._id, status: 'Pago' }) });
++                                  fetchData();
++                                }}><i classN┬║ame="fa-solid fa-check"></i></button>
++                              )}
++                              <button classN┬║ame="btn btn-danger btn-sm" onClick={() => handleDeleteFinancial(f._id)}><i classN┬║ame="fa-solid fa-trash"></i></button>
++                            </td>
++                          </tr>
++                        ));
++                      })()}
++                      {financials.filter(f =>
++                        (finFilterStatus ? f.status === finFilterStatus : true) &&
++                        (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true)
++                      ).length === 0 && (
++                        <tr><td colSpan={7}>
++                          <div classN┬║ame="empty-state-card">
++                            <i classN┬║ame="fa-solid fa-wallet empty-state-icon"></i>
++                            <div classN┬║ame="empty-state-title">N┬║enhum lan├ºamento encontrado</div>
++                            <div classN┬║ame="empty-state-desc">Altere os filtros ou adicione um novo lan├ºamento financeiro.</div>
++                          </div>
++                        </td></tr>
++                      )}
++                    </tbody>
++                  </table>
++                </div>
++                {financials.length > 0 && (
++                  <Pagination currentPage={getPage('financeiro')} totalItems={financials.filter(f => (finFilterStatus ? f.status === finFilterStatus : true) && (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true)).length} itemsPerPage={getPageSize('financeiro')} onPageChange={page => setPage('financeiro', page)} />
++                )}
++              </div>
++            </>
++          )}
++
++          {finTab === 'recebimentos' && (
++            <>
++              <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '0.875rem' }}>
++                <i classN┬║ame="fa-solid fa-circle-info" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
++                Este simulador permite emitir cobran├ºas PIX/Boleto e registrar pagamentos de mensalidades. As cobran├ºas s├úo <strong>simuladas</strong> (sandbox) e n├úo geram cobran├ºas reais.
++              </div>
++              <div classN┬║ame="content-panel">
++                <div classN┬║ame="table-responsive">
++                  <table classN┬║ame="data-table">
++                    <thead>
++                      <tr>
++                        <th>Aluno</th><th>Plano Atual</th><th>Status</th><th>Vencimento</th><th style={{ textAlign: 'center' }}>A├º├Áes</th>
++                      </tr>
++                    </thead>
++                    <tbody>
++                      {clients.map(c => {
++                        const status = c.dadosComerciais?.status || 'ativo';
++                        const planN┬║ame = c.dadosComerciais?.planoId?.nome || 'Personalizado';
++                        const planPreco = c.dadosComerciais?.planoId?.preco || 0;
++                        return (
++                          <tr key={c._id}>
++                            <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
++                            <td>{planN┬║ame}<br/><small style={{ color: 'var(--text-dim)' }}>R$ {planPreco.toFixed(2).replace('.', ',')}/m├¬s</small></td>
++                            <td><span classN┬║ame={`badge ${status === 'ativo' ? 'badge-success' : 'badge-danger'}`}>{status === 'ativo' ? 'Ativo' : 'Vencido'}</span></td>
++                            <td>{c.dadosComerciais?.vencimento || '-'}</td>
++                            <td style={{ textAlign: 'center' }}>
++                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
++                                <button classN┬║ame="btn btn-primary btn-sm" onClick={() => { setSimClient(c); setSimForma('pix'); setShowSimuladorModal(true); }}>
++                                  <i classN┬║ame="fa-solid fa-qrcode"></i> Emitir PIX
++                                </button>
++                                <button classN┬║ame="btn btn-secondary btn-sm" onClick={() => { setSimClient(c); setSimForma('boleto'); setShowSimuladorModal(true); }}>
++                                  <i classN┬║ame="fa-solid fa-barcode"></i> Boleto
++                                </button>
++                              </div>
++                            </td>
++                          </tr>
++                        );
++                      })}
++                      {clients.length === 0 && (
++                        <tr><td colSpan={5}><div classN┬║ame="empty-state-card"><i classN┬║ame="fa-solid fa-users empty-state-icon"></i><div classN┬║ame="empty-state-title">N┬║enhum aluno cadastrado</div></div></td></tr>
++                      )}
++                    </tbody>
++                  </table>
++                </div>
++              </div>
++            </>
++          )}
+         </>
+       )}
+ 
+       {/* 10. View: Medicamentos */}
+       {activeTab === 'medicamentos' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Farm├ícia Cl├¡nica</h1>
+               <p>Controle de estoque, lotes e validade de medicamentos de uso cl├¡nico.</p>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+-              <div className="page-size-selector">
++              <div classN┬║ame="page-size-selector">
+                 <span>Exibir:</span>
+-                <select value={getPageSize('medicamentos')} onChange={e => setPageSizeForKey('medicamentos', Number(e.target.value))}>
++                <select value={getPageSize('medicamentos')} onChange={e => setPageSizeForKey('medicamentos', N┬║umber(e.target.value))}>
+                   <option value={5}>5</option>
+                   <option value={8}>8</option>
+                   <option value={15}>15</option>
+                 </select>
+               </div>
+-              <button className="btn btn-primary" onClick={() => handleOpenMedicationModal()}>
+-                <i className="fa-solid fa-plus"></i> Novo Medicamento
++              <button classN┬║ame="btn btn-primary" onClick={() => handleOpenMedicationModal()}>
++                <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Medicamento
+               </button>
+             </div>
+           </div>
+ 
+-          <div className="content-panel">
+-            <div className="table-responsive">
+-              <table className="data-table">
++          <div classN┬║ame="content-panel">
++            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
++              <input type="text" classN┬║ame="form-control" placeholder="Buscar medicamento..." value={getSearchQuery('medicamentos')} onChange={e => setSearchQueryForKey('medicamentos', e.target.value)} style={{ maxWidth: '300px' }} />
++            </div>
++            <div classN┬║ame="table-responsive">
++              <table classN┬║ame="data-table">
+                 <thead>
+                   <tr>
+                     <th>Medicamento</th>
+@@ -1479,9 +1822,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     const listKey = 'medicamentos';
+                     const activeP = getPage(listKey);
+                     const size = getPageSize(listKey);
+-                    const totalPages = Math.ceil(medications.length / size);
++                    const q = getSearchQuery(listKey).toLowerCase();
++                    const filtered = medications.filter(m => m.nome?.toLowerCase().includes(q) || m.categoria?.toLowerCase().includes(q));
++                    const totalPages = Math.ceil(filtered.length / size);
+                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+-                    const paginated = medications.slice((curP - 1) * size, curP * size);
++                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+ 
+                     return paginated.map(m => {
+                       const isExpired = new Date(m.validade) < new Date();
+@@ -1492,16 +1837,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                           <td>{m.quantidade} {m.unidade}</td>
+                           <td><code>{m.lote}</code></td>
+                           <td style={{ textAlign: 'center' }}>
+-                            <span className={`badge ${isExpired ? 'badge-danger' : 'badge-success'}`}>
+-                              {m.validade} {isExpired && '(VENCIDO)'}
++                            <span classN┬║ame={`badge ${isExpired ? 'badge-danger' : 'badge-success'}`}>
++                              {m.validade} {isExpired && '(VEN┬║CIDO)'}
+                             </span>
+                           </td>
+                           <td>
+-                            <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenMedicationModal(m)}>
+-                              <i className="fa-solid fa-pen"></i>
++                            <button classN┬║ame="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenMedicationModal(m)}>
++                              <i classN┬║ame="fa-solid fa-pen"></i>
+                             </button>
+-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteMedication(m._id)}>
+-                              <i className="fa-solid fa-trash"></i>
++                            <button classN┬║ame="btn btn-danger btn-sm" onClick={() => handleDeleteMedication(m._id)}>
++                              <i classN┬║ame="fa-solid fa-trash"></i>
+                             </button>
+                           </td>
+                         </tr>
+@@ -1511,12 +1856,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                   {medications.length === 0 && (
+                     <tr>
+                       <td colSpan={6}>
+-                        <div className="empty-state-card">
+-                          <i className="fa-solid fa-prescription-bottle-medical empty-state-icon"></i>
+-                          <div className="empty-state-title">Nenhum medicamento registrado</div>
+-                          <div className="empty-state-desc">N├úo h├í registros de medicamentos no estoque cl├¡nico.</div>
+-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenMedicationModal()}>
+-                            <i className="fa-solid fa-plus"></i> Novo Medicamento
++                        <div classN┬║ame="empty-state-card">
++                          <i classN┬║ame="fa-solid fa-prescription-bottle-medical empty-state-icon"></i>
++                          <div classN┬║ame="empty-state-title">N┬║enhum medicamento registrado</div>
++                          <div classN┬║ame="empty-state-desc">N┬║├úo h├í registros de medicamentos no estoque cl├¡nico.</div>
++                          <button type="button" classN┬║ame="btn btn-primary btn-sm" onClick={() => handleOpenMedicationModal()}>
++                            <i classN┬║ame="fa-solid fa-plus"></i> N┬║ovo Medicamento
+                           </button>
+                         </div>
+                       </td>
+@@ -1540,8 +1885,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       {/* 11. View: Painel TV Cl├¡nica */}
+       {activeTab === 'tv_panel' && (
+         <>
+-          <div className="view-header">
+-            <div className="view-title-group">
++          <div classN┬║ame="view-header">
++            <div classN┬║ame="view-title-group">
+               <h1>Painel de Recep├º├úo (TV)</h1>
+               <p>Layout para proje├º├úo em televisores com status de atendimentos de hoje.</p>
+             </div>
+@@ -1550,8 +1895,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', background: '#090d16', padding: '32px', borderRadius: '16px', border: '1px solid #1a2438' }}>
+             <div>
+               <h2 style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-title)', marginBottom: '20px' }}>Atendimentos de Hoje</h2>
+-              <div className="table-responsive">
+-                <table className="data-table" style={{ background: 'transparent' }}>
++              <div classN┬║ame="table-responsive">
++                <table classN┬║ame="data-table" style={{ background: 'transparent' }}>
+                   <thead>
+                     <tr>
+                       <th style={{ color: 'var(--text-muted)' }}>Hor├írio</th>
+@@ -1570,7 +1915,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                         <td style={{ fontSize: '1.25rem' }}>{a.clienteId?.dadosPessoais?.nome || 'Aluno'}</td>
+                         <td>{a.servico}</td>
+                         <td>
+-                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : 'badge-warning'}`}>
++                          <span classN┬║ame={`badge ${a.status === 'presenca' ? 'badge-success' : 'badge-warning'}`}>
+                             {a.status === 'presenca' ? 'Presente' : 'Agendado'}
+                           </span>
+                         </td>
+@@ -1582,7 +1927,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                     }).length === 0 && (
+                       <tr>
+                         <td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
+-                          Nenhum atendimento agendado para hoje.
++                          N┬║enhum atendimento agendado para hoje.
+                         </td>
+                       </tr>
+                     )}
+@@ -1611,8 +1956,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+       )}
+ 
+       {/* Default Fallback for other tabs */}
+-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel'].includes(activeTab) && (
+-        <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
++      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'configuracoes'].includes(activeTab) && (
++        <div classN┬║ame="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
+           <h2>Aba em Desenvolvimento</h2>
+           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
+             A visualiza├º├úo da aba <strong>{activeTab}</strong> est├í sendo migrada. Todos os endpoints j├í est├úo no MongoDB.
+@@ -1622,42 +1967,42 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+ 
+       {/* CRUD MODAL */}
+       {showModal && (
+-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowModal(false)}>
+-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+-            <div className="modal-header">
++        <div classN┬║ame="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowModal(false)}>
++          <div classN┬║ame="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
++            <div classN┬║ame="modal-header">
+               <h3>
+                 {modalType === 'client' && (editingItem ? 'Editar Aluno' : 'Cadastrar Aluno')}
+                 {modalType === 'professional' && (editingItem ? 'Editar Profissional' : 'Cadastrar Profissional')}
+                 {modalType === 'user' && (editingItem ? 'Editar Usu├írio' : 'Cadastrar Usu├írio')}
+                 {modalType === 'credit' && `Adicionar Cr├®ditos para ${editingItem.dadosPessoais?.nome}`}
+               </h3>
+-              <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
++              <button classN┬║ame="modal-close" onClick={() => setShowModal(false)}>&times;</button>
+             </div>
+             <form onSubmit={handleSave}>
+-              <div className="modal-body">
++              <div classN┬║ame="modal-body">
+                 {modalType === 'client' && (
+                   <>
+-                    <div className="form-group">
+-                      <label>Nome Completo</label>
+-                      <input type="text" className="form-control" value={nome} onChange={e => setNome(e.target.value)} required />
++                    <div classN┬║ame="form-group">
++                      <label>N┬║ome Completo</label>
++                      <input type="text" classN┬║ame="form-control" value={nome} onChange={e => setN┬║ome(e.target.value)} required />
+                     </div>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>E-mail de Acesso (Google)</label>
+-                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
++                      <input type="email" classN┬║ame="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>CPF</label>
+-                        <input type="text" className="form-control" value={cpf} onChange={e => setCpf(e.target.value)} />
++                        <input type="text" classN┬║ame="form-control" value={cpf} onChange={e => setCpf(e.target.value)} />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Telefone</label>
+-                        <input type="text" className="form-control" value={telefone} onChange={e => setTelefone(e.target.value)} />
++                        <input type="text" classN┬║ame="form-control" value={telefone} onChange={e => setTelefone(e.target.value)} />
+                       </div>
+                     </div>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>Plano</label>
+-                      <select className="select-custom" value={plano} onChange={e => setPlano(e.target.value)}>
++                      <select classN┬║ame="select-custom" value={plano} onChange={e => setPlano(e.target.value)}>
+                         {(plans.length > 0 ? plans : plansList).map((p: any) => (
+                           <option key={p._id || p.id} value={p._id || p.id}>{p.nome} - R$ {p.preco}</option>
+                         ))}
+@@ -1668,22 +2013,22 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+ 
+                 {modalType === 'professional' && (
+                   <>
+-                    <div className="form-group">
+-                      <label>Nome Completo</label>
+-                      <input type="text" className="form-control" value={nome} onChange={e => setNome(e.target.value)} required />
++                    <div classN┬║ame="form-group">
++                      <label>N┬║ome Completo</label>
++                      <input type="text" classN┬║ame="form-control" value={nome} onChange={e => setN┬║ome(e.target.value)} required />
+                     </div>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>E-mail de Acesso (Google)</label>
+-                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
++                      <input type="email" classN┬║ame="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>Especialidade</label>
+-                        <input type="text" className="form-control" value={especialidade} onChange={e => setEspecialidade(e.target.value)} required />
++                        <input type="text" classN┬║ame="form-control" value={especialidade} onChange={e => setEspecialidade(e.target.value)} required />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Registro Profissional (Ex: CREFITO)</label>
+-                        <input type="text" className="form-control" value={registro} onChange={e => setRegistro(e.target.value)} required />
++                        <input type="text" classN┬║ame="form-control" value={registro} onChange={e => setRegistro(e.target.value)} required />
+                       </div>
+                     </div>
+                   </>
+@@ -1691,33 +2036,33 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+ 
+                 {modalType === 'credit' && (
+                   <>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>Tipo de Cr├®dito</label>
+-                      <select className="select-custom" value={creditType} onChange={e => setCreditType(e.target.value as any)}>
++                      <select classN┬║ame="select-custom" value={creditType} onChange={e => setCreditType(e.target.value as any)}>
+                         <option value="academia">Cr├®ditos de Academia</option>
+                         <option value="massagem">Cr├®ditos de Massagem</option>
+                       </select>
+                     </div>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>Quantidade a Adicionar</label>
+-                      <input type="number" className="form-control" value={creditAmount} onChange={e => setCreditAmount(Number(e.target.value))} min={1} required />
++                      <input type="number" classN┬║ame="form-control" value={creditAmount} onChange={e => setCreditAmount(N┬║umber(e.target.value))} min={1} required />
+                     </div>
+                   </>
+                 )}
+ 
+                 {modalType === 'user' && (
+                   <>
+-                    <div className="form-group">
+-                      <label>Nome Completo</label>
+-                      <input type="text" className="form-control" value={nome} onChange={e => setNome(e.target.value)} required />
++                    <div classN┬║ame="form-group">
++                      <label>N┬║ome Completo</label>
++                      <input type="text" classN┬║ame="form-control" value={nome} onChange={e => setN┬║ome(e.target.value)} required />
+                     </div>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>E-mail de Acesso (Google)</label>
+-                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
++                      <input type="email" classN┬║ame="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
+                     </div>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>Perfil do Usu├írio</label>
+-                      <select className="select-custom" value={userRole} onChange={e => setUserRole(e.target.value)}>
++                      <select classN┬║ame="select-custom" value={userRole} onChange={e => setUserRole(e.target.value)}>
+                         <option value="admin">Administrador Geral</option>
+                         <option value="fisio">Fisio</option>
+                         <option value="treino">Treino</option>
+@@ -1726,14 +2071,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+                       </select>
+                     </div>
+                     {(userRole === 'fisio' || userRole === 'treino') && (
+-                      <div className="form-row">
+-                        <div className="form-group">
++                      <div classN┬║ame="form-row">
++                        <div classN┬║ame="form-group">
+                           <label>Especialidade</label>
+-                          <input type="text" className="form-control" value={especialidade} onChange={e => setEspecialidade(e.target.value)} required />
++                          <input type="text" classN┬║ame="form-control" value={especialidade} onChange={e => setEspecialidade(e.target.value)} required />
+                         </div>
+-                        <div className="form-group">
++                        <div classN┬║ame="form-group">
+                           <label>Registro Profissional (Ex: CREFITO)</label>
+-                          <input type="text" className="form-control" value={registro} onChange={e => setRegistro(e.target.value)} required />
++                          <input type="text" classN┬║ame="form-control" value={registro} onChange={e => setRegistro(e.target.value)} required />
+                         </div>
+                       </div>
+                     )}
+@@ -1742,32 +2087,32 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+ 
+                 {modalType === 'plan' && (
+                   <>
+-                    <div className="form-group">
+-                      <label>Nome do Plano</label>
+-                      <input type="text" className="form-control" value={planName} onChange={e => setPlanName(e.target.value)} required />
++                    <div classN┬║ame="form-group">
++                      <label>N┬║ome do Plano</label>
++                      <input type="text" classN┬║ame="form-control" value={planN┬║ame} onChange={e => setPlanN┬║ame(e.target.value)} required />
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>Vig├¬ncia (Dias)</label>
+-                        <input type="number" className="form-control" value={planValidade} onChange={e => setPlanValidade(Number(e.target.value))} required />
++                        <input type="number" classN┬║ame="form-control" value={planValidade} onChange={e => setPlanValidade(N┬║umber(e.target.value))} required />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Pre├ºo Mensal (R$)</label>
+-                        <input type="number" className="form-control" value={planPrice} onChange={e => setPlanPrice(Number(e.target.value))} required />
++                        <input type="number" classN┬║ame="form-control" value={planPrice} onChange={e => setPlanPrice(N┬║umber(e.target.value))} required />
+                       </div>
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>Limite Sess├Áes Academia</label>
+-                        <input type="number" className="form-control" value={planAcademia} onChange={e => setPlanAcademia(Number(e.target.value))} required />
++                        <input type="number" classN┬║ame="form-control" value={planAcademia} onChange={e => setPlanAcademia(N┬║umber(e.target.value))} required />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Limite Sess├Áes Consult├│rio</label>
+-                        <input type="number" className="form-control" value={planConsultorio} onChange={e => setPlanConsultorio(Number(e.target.value))} required />
++                        <input type="number" classN┬║ame="form-control" value={planConsultorio} onChange={e => setPlanConsultorio(N┬║umber(e.target.value))} required />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Total de Cr├®ditos</label>
+-                        <input type="number" className="form-control" value={planCreditos} onChange={e => setPlanCreditos(Number(e.target.value))} required />
++                        <input type="number" classN┬║ame="form-control" value={planCreditos} onChange={e => setPlanCreditos(N┬║umber(e.target.value))} required />
+                       </div>
+                     </div>
+                   </>
+@@ -1775,90 +2120,295 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
+ 
+                 {modalType === 'financial' && (
+                   <>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>Descri├º├úo do Lan├ºamento</label>
+-                      <input type="text" className="form-control" value={finDesc} onChange={e => setFinDesc(e.target.value)} required />
++                      <input type="text" classN┬║ame="form-control" value={finDesc} onChange={e => setFinDesc(e.target.value)} required />
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>Categoria</label>
+-                        <input type="text" className="form-control" placeholder="Aluguel, Limpeza, etc." value={finCat} onChange={e => setFinCat(e.target.value)} required />
++                        <input type="text" classN┬║ame="form-control" placeholder="Aluguel, Limpeza, etc." value={finCat} onChange={e => setFinCat(e.target.value)} required />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Valor (R$)</label>
+-                        <input type="number" className="form-control" value={finValor} onChange={e => setFinValor(Number(e.target.value))} required />
++                        <input type="number" classN┬║ame="form-control" value={finValor} onChange={e => setFinValor(N┬║umber(e.target.value))} required />
+                       </div>
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>Vencimento</label>
+-                        <input type="date" className="form-control" value={finVenc} onChange={e => setFinVenc(e.target.value)} required />
++                        <input type="date" classN┬║ame="form-control" value={finVenc} onChange={e => setFinVenc(e.target.value)} required />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Status</label>
+-                        <select className="select-custom" value={finStatus} onChange={e => setFinStatus(e.target.value as any)}>
++                        <select classN┬║ame="select-custom" value={finStatus} onChange={e => setFinStatus(e.target.value as any)}>
+                           <option value="Pendente">Pendente</option>
+                           <option value="Pago">Pago</option>
+                           <option value="Atrasado">Atrasado</option>
+                         </select>
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Forma de Pagamento</label>
+-                        <input type="text" className="form-control" placeholder="Pix, Boleto, etc." value={finForma} onChange={e => setFinForma(e.target.value)} />
++                        <input type="text" classN┬║ame="form-control" placeholder="Pix, Boleto, etc." value={finForma} onChange={e => setFinForma(e.target.value)} />
+                       </div>
+                     </div>
+-                    <div className="form-group">
++                    <div classN┬║ame="form-group">
+                       <label>Observa├º├Áes</label>
+-                      <textarea className="form-control" value={finObs} onChange={e => setFinObs(e.target.value)} />
++                      <textarea classN┬║ame="form-control" value={finObs} onChange={e => setFinObs(e.target.value)} />
+                     </div>
++                    {finStatus === 'Pago' && (
++                      <div classN┬║ame="form-group" style={{ background: 'rgba(16,185,129,0.05)', padding: '12px', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px' }}>
++                        <label style={{ color: 'var(--color-success)' }}><i classN┬║ame="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i>Comprovante de Pagamento (PDF/Imagem)</label>
++                        <input type="file" classN┬║ame="form-control" accept="image/*,.pdf" onChange={handleComprovanteUpload} />
++                        {finComprovante && (
++                          <div style={{ marginTop: '8px' }}>
++                            <span classN┬║ame="badge badge-success"><i classN┬║ame="fa-solid fa-check"></i> Anexado</span>
++                            <button type="button" classN┬║ame="btn btn-secondary btn-sm" style={{ marginLeft: '8px' }} onClick={() => viewBase64File(finComprovante)}>
++                              <i classN┬║ame="fa-solid fa-eye"></i> Ver
++                            </button>
++                            <button type="button" classN┬║ame="btn btn-danger btn-sm" style={{ marginLeft: '4px' }} onClick={() => setFinComprovante('')}>
++                              <i classN┬║ame="fa-solid fa-trash"></i>
++                            </button>
++                          </div>
++                        )}
++                      </div>
++                    )}
+                   </>
+                 )}
+ 
+                 {modalType === 'medication' && (
+                   <>
+-                    <div className="form-group">
+-                      <label>Nome do Medicamento</label>
+-                      <input type="text" className="form-control" value={medNome} onChange={e => setMedNome(e.target.value)} required />
++                    <div classN┬║ame="form-group">
++                      <label>N┬║ome do Medicamento</label>
++                      <input type="text" classN┬║ame="form-control" value={medN┬║ome} onChange={e => setMedN┬║ome(e.target.value)} required />
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>Categoria</label>
+-                        <input type="text" className="form-control" placeholder="Analg├®sico, Anti-inflamat├│rio" value={medCat} onChange={e => setMedCat(e.target.value)} />
++                        <input type="text" classN┬║ame="form-control" placeholder="Analg├®sico, Anti-inflamat├│rio" value={medCat} onChange={e => setMedCat(e.target.value)} />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Quantidade</label>
+-                        <input type="number" className="form-control" value={medQuant} onChange={e => setMedQuant(Number(e.target.value))} required />
++                        <input type="number" classN┬║ame="form-control" value={medQuant} onChange={e => setMedQuant(N┬║umber(e.target.value))} required />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Unidade de Medida</label>
+-                        <input type="text" className="form-control" placeholder="Comprimidos, Frascos" value={medUnidade} onChange={e => setMedUnidade(e.target.value)} required />
++                        <input type="text" classN┬║ame="form-control" placeholder="Comprimidos, Frascos" value={medUnidade} onChange={e => setMedUnidade(e.target.value)} required />
+                       </div>
+                     </div>
+-                    <div className="form-row">
+-                      <div className="form-group">
++                    <div classN┬║ame="form-row">
++                      <div classN┬║ame="form-group">
+                         <label>Lote</label>
+-                        <input type="text" className="form-control" value={medLote} onChange={e => setMedLote(e.target.value)} />
++                        <input type="text" classN┬║ame="form-control" value={medLote} onChange={e => setMedLote(e.target.value)} />
+                       </div>
+-                      <div className="form-group">
++                      <div classN┬║ame="form-group">
+                         <label>Validade</label>
+-                        <input type="date" className="form-control" value={medValidade} onChange={e => setMedValidade(e.target.value)} required />
++                        <input type="date" classN┬║ame="form-control" value={medValidade} onChange={e => setMedValidade(e.target.value)} required />
+                       </div>
+                     </div>
+-                    <div className="form-group">
+-                      <label>Observa├º├Áes</label>
+-                      <textarea className="form-control" value={medObs} onChange={e => setMedObs(e.target.value)} />
++                    <div classN┬║ame="form-group">
++                      <label>Observaes</label>
++                      <textarea classN┬║ame="form-control" value={medObs} onChange={e => setMedObs(e.target.value)} />
++                    </div>
++                    <div classN┬║ame="form-group" style={{ background: 'rgba(59,130,246,0.05)', padding: '12px', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px' }}>
++                      <label style={{ color: 'var(--color-primary)' }}><i classN┬║ame="fa-solid fa-file-invoice" style={{ marginRight: '6px' }}></i>N┬║ota Fiscal (PDF/Imagem)</label>
++                      <input type="file" classN┬║ame="form-control" accept="image/*,.pdf" onChange={handleN┬║FUpload} />
++                      {medN┬║F && (
++                        <div style={{ marginTop: '8px' }}>
++                          <span classN┬║ame="badge badge-info"><i classN┬║ame="fa-solid fa-check"></i> N┬║F Anexada</span>
++                          <button type="button" classN┬║ame="btn btn-secondary btn-sm" style={{ marginLeft: '8px' }} onClick={() => viewBase64File(medN┬║F)}>
++                            <i classN┬║ame="fa-solid fa-eye"></i> Ver
++                          </button>
++                          <button type="button" classN┬║ame="btn btn-danger btn-sm" style={{ marginLeft: '4px' }} onClick={() => setMedN┬║F('')}>
++                            <i classN┬║ame="fa-solid fa-trash"></i>
++                          </button>
++                        </div>
++                      )}
+                     </div>
+                   </>
+                 )}
+               </div>
+-              <div className="modal-footer">
+-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+-                <button type="submit" className="btn btn-primary">Salvar</button>
++              <div classN┬║ame="modal-footer">
++                <button type="button" classN┬║ame="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
++                <button type="submit" classN┬║ame="btn btn-primary">Salvar</button>
+               </div>
+             </form>
+           </div>
+         </div>
+       )}
++
++       {/* F2  Ficha Completa do Aluno */}
++       {showClientDetailModal && detailClient && (
++         <div classN┬║ame="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowClientDetailModal(false)}>
++           <div classN┬║ame="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '95%' }}>
++             <div classN┬║ame="modal-header">
++               <h3><i classN┬║ame="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Ficha Completa  {detailClient.dadosPessoais?.nome}</h3>
++               <button classN┬║ame="modal-close" onClick={() => setShowClientDetailModal(false)}>&times;</button>
++             </div>
++             <div classN┬║ame="modal-body" style={{ padding: 0 }}>
++               <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)' }}>
++                 {(['pessoais', 'clinicos', 'comerciais'] as const).map((t) => {
++                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Clnicos', comerciais: 'Dados Comerciais' };
++                   const icons: Record<string, string> = { pessoais: 'fa-user', clinicos: 'fa-heart-pulse', comerciais: 'fa-file-contract' };
++                   return (
++                     <button key={t} onClick={() => setClientDetailTab(t)} style={{ flex: 1, padding: '12px', fontWeight: 600, fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', color: clientDetailTab === t ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: clientDetailTab === t ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}>
++                       <i classN┬║ame={`fa-solid ${icons[t]}`} style={{ marginRight: '5px' }}></i>{labels[t]}
++                     </button>
++                   );
++                 })}
++               </div>
++               <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
++                 {clientDetailTab === 'pessoais' && (
++                   <>
++                     <div classN┬║ame="form-row">
++                       <div classN┬║ame="form-group"><label>N┬║ome Completo</label><input classN┬║ame="form-control" defaultValue={detailClient.dadosPessoais?.nome} readOnly /></div>
++                       <div classN┬║ame="form-group"><label>E-mail</label><input classN┬║ame="form-control" defaultValue={detailClient.dadosPessoais?.email} readOnly /></div>
++                     </div>
++                     <div classN┬║ame="form-row">
++                       <div classN┬║ame="form-group"><label>CPF</label><input classN┬║ame="form-control" defaultValue={detailClient.dadosPessoais?.cpf} readOnly /></div>
++                       <div classN┬║ame="form-group"><label>Telefone</label><input classN┬║ame="form-control" defaultValue={detailClient.dadosPessoais?.telefone} readOnly /></div>
++                     </div>
++                     <div classN┬║ame="form-row">
++                       <div classN┬║ame="form-group">
++                         <label>Sexo</label>
++                         <select classN┬║ame="select-custom" value={dcSexo} onChange={e => setDcSexo(e.target.value)}>
++                           <option value="M">Masculino</option><option value="F">Feminino</option><option value="O">Outro</option>
++                         </select>
++                       </div>
++                       <div classN┬║ame="form-group"><label>Data de N┬║ascimento</label><input type="date" classN┬║ame="form-control" value={dcN┬║ascimento} onChange={e => setDcN┬║ascimento(e.target.value)} /></div>
++                     </div>
++                     <div classN┬║ame="form-group"><label>Endereo</label><input classN┬║ame="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, N┬║, Bairro, CEP" /></div>
++                   </>
++                 )}
++                 {clientDetailTab === 'clinicos' && (
++                   <>
++                     <div classN┬║ame="form-group"><label>Leses e Diagnsticos</label><textarea classN┬║ame="form-control" rows={3} value={dcLes├úoes} onChange={e => setDcLes├úoes(e.target.value)} placeholder="Ex: Leso manguito rotador grau II..." /></div>
++                     <div classN┬║ame="form-group"><label>Restries / Contraindicaes</label><textarea classN┬║ame="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
++                     <div classN┬║ame="form-group"><label>Medicamentos em Uso</label><input classN┬║ame="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="N┬║ome, dosagem, frequncia..." /></div>
++                     <div classN┬║ame="form-group"><label>Histrico Clnico Relevante</label><textarea classN┬║ame="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doenas crnicas..." /></div>
++                     <div classN┬║ame="form-group"><label>Observaes Clnicas</label><textarea classN┬║ame="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
++                   </>
++                 )}
++                 {clientDetailTab === 'comerciais' && (
++                   <>
++                     <div classN┬║ame="form-row">
++                       <div classN┬║ame="form-group">
++                         <label>Plano Contratado</label>
++                         <select classN┬║ame="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)}>
++                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}  R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
++                         </select>
++                       </div>
++                       <div classN┬║ame="form-group">
++                         <label>Status</label>
++                         <select classN┬║ame="select-custom" value={dcStatus} onChange={e => setDcStatus(e.target.value)}>
++                           <option value="ativo">Ativo</option><option value="vencido">Vencido</option><option value="suspenso">Suspenso</option>
++                         </select>
++                       </div>
++                     </div>
++                     <div classN┬║ame="form-row">
++                       <div classN┬║ame="form-group">
++                         <label>Durao</label>
++                         <select classN┬║ame="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value)}>
++                           <option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option>
++                         </select>
++                       </div>
++                       <div classN┬║ame="form-group">
++                         <label>Forma de Pagamento</label>
++                         <select classN┬║ame="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)}>
++                           <option value="pix">Pix</option><option value="boleto">Boleto</option><option value="cartao">Carto</option><option value="dinheiro">Dinheiro</option>
++                         </select>
++                       </div>
++                     </div>
++                     <div classN┬║ame="form-group"><label>Vencimento</label><input type="date" classN┬║ame="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} /></div>
++                     <div style={{ display: 'flex', gap: '10px' }}>
++                       <button classN┬║ame="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
++                         await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON┬║.stringify({ id: detailClient._id, dadosComerciais: { planoId: dcPlano, status: dcStatus, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }) });
++                         fetchData(); setShowClientDetailModal(false);
++                       }}><i classN┬║ame="fa-solid fa-floppy-disk"></i> Salvar</button>
++                       <button classN┬║ame="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
++                         const plan = plans.find((p: any) => p._id === dcPlano);
++                         downloadContractPDF({ ...detailClient, dadosComerciais: { ...detailClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }, plan, contractText);
++                       }}><i classN┬║ame="fa-solid fa-file-contract"></i> Contrato PDF</button>
++                     </div>
++                   </>
++                 )}
++                 {clientDetailTab !== 'comerciais' && (
++                   <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
++                     <button classN┬║ame="btn btn-primary" onClick={async () => {
++                       const payload: any = { id: detailClient._id };
++                       if (clientDetailTab === 'pessoais') payload.dadosPessoais = { ...detailClient.dadosPessoais, sexo: dcSexo, dataN┬║ascimento: dcN┬║ascimento, endereco: dcEndereco };
++                       else payload.dadosClinicos = { lesoes: dcLes├úoes, restricoes: dcRestricoes, medicamentos: dcMedicamentos, historicoClinico: dcHistorico, observacoes: dcObsClin };
++                       await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON┬║.stringify(payload) });
++                       fetchData(); alert('Dados salvos!');
++                     }}><i classN┬║ame="fa-solid fa-floppy-disk"></i> Salvar Alteraes</button>
++                   </div>
++                 )}
++               </div>
++             </div>
++           </div>
++         </div>
++       )}
++
++       {/* F7  Simulador de Cobrana */}
++       {showSimuladorModal && simClient && (
++         <div classN┬║ame="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowSimuladorModal(false)}>
++           <div classN┬║ame="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '95%' }}>
++             <div classN┬║ame="modal-header" style={{ background: 'linear-gradient(135deg,#10b981,#059669)', color: '#fff' }}>
++               <h3><i classN┬║ame={`fa-solid fa-${simForma === 'pix' ? 'qrcode' : 'barcode'}`} style={{ marginRight: '8px' }}></i>Simulador  {simForma === 'pix' ? 'PIX' : 'Boleto'}</h3>
++               <button classN┬║ame="modal-close" style={{ color: '#fff' }} onClick={() => setShowSimuladorModal(false)}>&times;</button>
++             </div>
++             <div classN┬║ame="modal-body" style={{ textAlign: 'center' }}>
++               <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', marginBottom: '14px', textAlign: 'left', fontSize: '0.875rem' }}>
++                 <p style={{ margin: '0 0 4px 0' }}><strong>Aluno:</strong> {simClient.dadosPessoais?.nome}</p>
++                 <p style={{ margin: '0 0 4px 0' }}><strong>Valor:</strong> R$ {(simClient.dadosComerciais?.planoId?.preco || 0).toFixed(2).replace('.', ',')}</p>
++                 <p style={{ margin: 0 }}><strong>Forma:</strong> {simForma === 'pix' ? 'Pix' : 'Boleto Bancrio'}</p>
++               </div>
++               {simForma === 'pix' ? (
++                 <div style={{ margin: '0 auto 14px', width: '150px', height: '150px', background: '#fff', border: '2px solid #e5e7eb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
++                   <i classN┬║ame="fa-solid fa-qrcode" style={{ fontSize: '80px', color: '#111' }}></i>
++                   <small style={{ color: '#888', fontSize: '0.65rem', marginTop: '4px' }}>QR Code Simulado</small>
++                 </div>
++               ) : (
++                 <div style={{ background: '#fff', border: '2px dashed #ccc', borderRadius: '8px', padding: '16px', marginBottom: '12px' }}>
++                   <i classN┬║ame="fa-solid fa-barcode" style={{ fontSize: '55px', color: '#333' }}></i>
++                   <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#555', marginTop: '4px', letterSpacing: '2px' }}>0001 9371 9999 0001 9371 9999</div>
++                   <small style={{ color: '#888', fontSize: '0.65rem' }}>Cdigo simulado</small>
++                 </div>
++               )}
++               <div style={{ display: 'flex', gap: '8px' }}>
++                 <button classN┬║ame="btn btn-secondary" style={{ flex: 1 }} onClick={() => setSimForma(simForma === 'pix' ? 'boleto' : 'pix')}>
++                   Mudar para {simForma === 'pix' ? 'Boleto' : 'PIX'}
++                 </button>
++                 <button classN┬║ame="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
++                   const valor = simClient.dadosComerciais?.planoId?.preco || 0;
++                   await fetch('/api/financial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON┬║.stringify({ descricao: `Mensalidade  ${simClient.dadosPessoais?.nome}`, categoria: 'Mensalidade', valor, vencimento: new Date().toISOString().split('T')[0], status: 'Pago', forma_pagamento: simForma === 'pix' ? 'Pix' : 'Boleto Bancrio' }) });
++                   setShowSimuladorModal(false); fetchData(); alert('Pagamento registrado!');
++                 }}>
++                   <i classN┬║ame="fa-solid fa-check"></i> Confirmar
++                 </button>
++               </div>
++             </div>
++           </div>
++         </div>
++       )}
+     </div>
+   );
+ }
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
