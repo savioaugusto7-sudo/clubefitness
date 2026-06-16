@@ -275,6 +275,20 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [simulatedDate, setSimulatedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [prContent, setPrContent] = useState('');
 
+  // Horário real em tempo real para controle de frequência no Resumo do Dia
+  const [realTime, setRealTime] = useState('');
+  useEffect(() => {
+    const updateRealTime = () => {
+      const agora = new Date();
+      const hrs = String(agora.getHours()).padStart(2, '0');
+      const mins = String(agora.getMinutes()).padStart(2, '0');
+      setRealTime(`${hrs}:${mins}`);
+    };
+    updateRealTime();
+    const interval = setInterval(updateRealTime, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // New Exercise form inputs
   const [newExNome, setNewExNome] = useState('');
   const [newExGrupo, setNewExGrupo] = useState('PEITO');
@@ -1227,171 +1241,267 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       {/* 0. View: Resumo do Dia */}
       {activeTab === 'resumo_dia' && (
         <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Resumo do Dia</h1>
-              <p>Visão geral e cronograma de atendimentos agendados para a data selecionada.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => {
-                const d = new Date(simulatedDate + 'T00:00:00');
-                d.setDate(d.getDate() - 1);
-                setSimulatedDate(d.toISOString().split('T')[0]);
-              }}><i className="fa-solid fa-chevron-left"></i></button>
-              <input type="date" className="form-control" style={{ border: 'none', background: 'transparent', width: '130px', padding: '4px' }} value={simulatedDate} onChange={e => setSimulatedDate(e.target.value)} />
-              <button className="btn btn-secondary btn-sm" onClick={() => {
-                const d = new Date(simulatedDate + 'T00:00:00');
-                d.setDate(d.getDate() + 1);
-                setSimulatedDate(d.toISOString().split('T')[0]);
-              }}><i className="fa-solid fa-chevron-right"></i></button>
-              <button className="btn btn-primary btn-sm" onClick={() => setSimulatedDate(new Date().toISOString().split('T')[0])}>Hoje</button>
-            </div>
-          </div>
+          {(() => {
+            // Lógica interna para data e hora do Resumo do Dia
+            const hojeISO = (() => {
+              const d = new Date();
+              return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            })();
 
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Total Agendados Hoje</h3>
-                <div className="value">
-                  {appointments.filter(a => {
-                    const todayStr = simulatedDate;
-                    return a.data === todayStr && a.status !== 'cancelado';
-                  }).length}
-                </div>
-              </div>
-              <div className="metric-icon"><i className="fa-solid fa-calendar-day"></i></div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Presenças Confirmadas</h3>
-                <div className="value">
-                  {appointments.filter(a => {
-                    const todayStr = simulatedDate;
-                    return a.data === todayStr && a.status === 'presenca';
-                  }).length}
-                </div>
-              </div>
-              <div className="metric-icon"><i className="fa-solid fa-user-check"></i></div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Atendimentos Pendentes</h3>
-                <div className="value">
-                  {appointments.filter(a => {
-                    const todayStr = simulatedDate;
-                    return a.data === todayStr && a.status === 'agendado';
-                  }).length}
-                </div>
-              </div>
-              <div className="metric-icon warning"><i className="fa-solid fa-clock"></i></div>
-            </div>
-          </div>
+            const formatLocalDate = (dateStr: string) => {
+              if (!dateStr) return '';
+              const parts = dateStr.split('-');
+              if (parts.length !== 3) return dateStr;
+              return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            };
 
-          <div className="content-panel">
-            <div className="panel-header">
-              <h2>Cronograma de Atendimentos</h2>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('resumo_dia')} onChange={e => setPageSizeForKey('resumo_dia', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
-              </div>
-            </div>
-            <div className="table-responsive" style={{ marginTop: '12px' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Horário</th>
-                    <th>Tipo</th>
-                    <th>Serviço</th>
-                    <th>Aluno</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'resumo_dia';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const todayStr = simulatedDate;
-                    const todayApts = appointments
-                      .filter(a => a.data === todayStr && a.status !== 'cancelado')
-                      .sort((a, b) => a.horario.localeCompare(b.horario));
-
-                    const totalPages = Math.ceil(todayApts.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = todayApts.slice((curP - 1) * size, curP * size);
-
-                    return paginated.map(a => (
-                      <tr key={a._id}>
-                        <td><strong>{a.horario}</strong></td>
-                        <td>
-                          <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
-                            {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
-                          </span>
-                        </td>
-                        <td>{a.servico}</td>
-                        <td>{a.clienteId?.dadosPessoais?.nome || 'Aluno'}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : 'badge-warning'}`}>
-                            {a.status === 'presenca' ? 'Presente' : 'Agendado'}
-                          </span>
-                        </td>
-                        <td>
-                          {a.status === 'agendado' && (
-                            <button className="btn btn-success btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                              Confirmar Presença
-                            </button>
-                          )}
-                          {a.status === 'presenca' && (
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
-                              Desmarcar Presença
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                  {(() => {
-                    const todayStr = new Date().toISOString().split('T')[0];
-                    const count = appointments.filter(a => a.data === todayStr && a.status !== 'cancelado').length;
-                    if (count === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={6}>
-                            <div className="empty-state-card">
-                              <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
-                              <div className="empty-state-title">Sem atendimentos hoje</div>
-                              <div className="empty-state-desc">Não há sessões ou aulas agendadas para o dia de hoje.</div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    }
-                    return null;
-                  })()}
-                </tbody>
-              </table>
-            </div>
-            {(() => {
-              const todayStr = new Date().toISOString().split('T')[0];
-              const count = appointments.filter(a => a.data === todayStr && a.status !== 'cancelado').length;
-              if (count > 0) {
-                return (
-                  <Pagination
-                    currentPage={getPage('resumo_dia')}
-                    totalItems={count}
-                    itemsPerPage={getPageSize('resumo_dia')}
-                    onPageChange={page => setPage('resumo_dia', page)}
-                  />
-                );
+            const getAptTimeState = (horarioStr: string, currentStr: string) => {
+              if (!horarioStr || !currentStr) return 'future';
+              const [hA, mA] = horarioStr.split(':').map(Number);
+              const [hC, mC] = currentStr.split(':').map(Number);
+              const minApt = hA * 60 + mA;
+              const minCurr = hC * 60 + mC;
+              
+              if (minCurr >= minApt && minCurr < minApt + 60) {
+                return 'current';
+              } else if (minCurr >= minApt + 60) {
+                return 'past';
+              } else {
+                return 'future';
               }
-              return null;
-            })()}
-          </div>
+            };
+
+            // Filtrar agendamentos de hoje
+            const todayApts = appointments
+              .filter(a => a.data === hojeISO)
+              .sort((a, b) => a.horario.localeCompare(b.horario));
+
+            const totalHoje = todayApts.filter(a => a.status !== 'cancelado').length;
+            const totalAcademia = todayApts.filter(a => a.tipo === 'academia' && a.status !== 'cancelado').length;
+            const totalConsultorio = todayApts.filter(a => a.tipo === 'consultorio' && a.status !== 'cancelado').length;
+
+            const urgentes: any[] = [];
+            const atuais: any[] = [];
+
+            todayApts.forEach(a => {
+              const timeState = getAptTimeState(a.horario, realTime || '00:00');
+              if (timeState === 'past' && a.status === 'agendado') {
+                urgentes.push(a);
+              } else if (timeState === 'current' && a.status !== 'cancelado') {
+                atuais.push(a);
+              }
+            });
+
+            return (
+              <>
+                <div className="view-header">
+                  <div className="view-title-group">
+                    <h1>Controle de Frequência Diária</h1>
+                    <p>Visão geral e sinalização rápida dos atendimentos de hoje, {formatLocalDate(hojeISO)}.</p>
+                  </div>
+                </div>
+
+                <div className="metrics-grid" style={{ marginBottom: '24px' }}>
+                  <div className="metric-card">
+                    <div className="metric-info">
+                      <h3>Total de Alunos Hoje</h3>
+                      <div className="value">{totalHoje}</div>
+                    </div>
+                    <div className="metric-icon"><i className="fa-solid fa-users"></i></div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-info">
+                      <h3>Academia</h3>
+                      <div className="value">{totalAcademia}</div>
+                    </div>
+                    <div className="metric-icon success"><i className="fa-solid fa-dumbbell"></i></div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-info">
+                      <h3>Consultório (Fisio)</h3>
+                      <div className="value">{totalConsultorio}</div>
+                    </div>
+                    <div className="metric-icon indigo"><i className="fa-solid fa-stethoscope"></i></div>
+                  </div>
+                </div>
+
+                {/* Bloco de Atenção: Urgentes */}
+                {urgentes.length > 0 && (
+                  <div className="content-panel" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', borderLeft: '5px solid var(--color-danger)', padding: '16px', borderRadius: '8px' }}>
+                    <div className="panel-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: '10px' }}>
+                      <h2 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ animation: 'pulse 1.5s infinite' }}></i> 
+                        🚨 ATENÇÃO: Horários Passados Sem Sinalização ({urgentes.length})
+                      </h2>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados em horários que já passaram, mas cuja presença não foi marcada. Sinalize abaixo para concluir a agenda.</p>
+                    </div>
+                    <div className="table-responsive" style={{ marginTop: '12px' }}>
+                      <table className="data-table" style={{ width: '100%' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar Frequência</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {urgentes.map(a => {
+                            const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                            return (
+                              <tr key={a._id} style={{ background: 'rgba(239, 68, 68, 0.02)' }}>
+                                <td style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <strong>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</strong><br />
+                                  <small style={{ color: 'var(--text-dim)' }}>
+                                    {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
+                                  </small>
+                                </td>
+                                <td style={{ padding: '12px 16px' }}><span className="badge badge-info">{a.servico || a.tipo}</span></td>
+                                <td style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
+                                  <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
+                                    <i className="fa-solid fa-check"></i> Presença
+                                  </button>
+                                  <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
+                                    <i className="fa-solid fa-xmark"></i> Falta
+                                  </button>
+                                  <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                    Cancelar
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Destaque do Horário Atual: Janela Ativa */}
+                <div className="content-panel" style={{ border: '2px solid var(--color-primary)', boxShadow: '0 0 15px rgba(99, 102, 241, 0.12)', marginBottom: '24px', background: 'rgba(99, 102, 241, 0.02)' }}>
+                  <div className="panel-header" style={{ borderBottom: '1px solid rgba(99, 102, 241, 0.1)', paddingBottom: '10px' }}>
+                    <h2 style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                      <i className="fa-solid fa-circle-play" style={{ color: 'var(--color-primary)' }}></i>
+                      ⭐ ATENDIMENTOS NO HORÁRIO ATUAL (Janela Ativa)
+                    </h2>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados na janela de tempo atual. Sinalize a presença assim que o aluno comparecer.</p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginTop: '16px', paddingBottom: '8px' }}>
+                    {atuais.length === 0 ? (
+                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                        Nenhum aluno agendado para o horário de hoje na janela atual ({realTime || '--:--'}).
+                      </div>
+                    ) : (
+                      atuais.map(a => {
+                        const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                        const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : 'badge-warning';
+                        const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : 'Agendado';
+                        return (
+                          <div key={a._id} className="metric-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', margin: 0, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', width: '100%' }}>
+                              <div>
+                                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>{a.horario}</span>
+                                <h3 style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</h3>
+                                <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>{a.servico || a.tipo}</span>
+                              </div>
+                              <div>
+                                <span className={`badge ${statusClass}`}>{statusText}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', width: '100%' }}>
+                              <button className="btn btn-sm" style={{ flex: 1, background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
+                                <i className="fa-solid fa-check"></i> Presença
+                              </button>
+                              <button className="btn btn-danger btn-sm" style={{ flex: 1, padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
+                                <i className="fa-solid fa-xmark"></i> Falta
+                              </button>
+                              <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                Cancelar
+                              </button>
+                            </div>
+                            <div style={{ marginTop: '8px', width: '100%' }}>
+                              {client._id && (
+                                <button className="btn btn-primary btn-sm" style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 600 }} onClick={() => { handleOpenWorkoutEditor(client); setActiveTab('treino'); }}>
+                                  <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Demais Atendimentos: Todos os Atendimentos de Hoje */}
+                <div className="content-panel">
+                  <div className="panel-header">
+                    <h2><i className="fa-solid fa-calendar-day" style={{ color: 'var(--color-primary)' }}></i> Todos os Atendimentos de Hoje</h2>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Horário</th>
+                          <th>Aluno</th>
+                          <th>Modalidade / Serviço</th>
+                          <th>Status</th>
+                          <th>Sinalizar</th>
+                          <th>Histórico</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {todayApts.length === 0 ? (
+                          <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '24px' }}>Nenhum agendamento para hoje.</td></tr>
+                        ) : (
+                          todayApts.map(a => {
+                            const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                            const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-warning' : 'badge-info';
+                            const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado';
+
+                            const actionsCell = a.status === 'agendado' ? (
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '2px 6px', fontSize: '0.75rem' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}><i className="fa-solid fa-check"></i></button>
+                                <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px', fontSize: '0.75rem' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}><i className="fa-solid fa-xmark"></i></button>
+                                <button className="btn btn-secondary btn-sm" style={{ padding: '2px 6px', fontSize: '0.75rem' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}><i className="fa-solid fa-ban"></i></button>
+                              </div>
+                            ) : (
+                              <button className="btn btn-secondary btn-sm" style={{ padding: '2px 6px', fontSize: '0.7rem' }} onClick={() => handleUpdateAptStatus(a._id, 'agendado')}><i className="fa-solid fa-rotate-left"></i> Reverter</button>
+                            );
+
+                            return (
+                              <tr key={a._id}>
+                                <td><strong>{a.horario}</strong></td>
+                                <td>
+                                  <strong>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</strong><br />
+                                  <small style={{ color: 'var(--text-dim)' }}>
+                                    {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
+                                  </small>
+                                </td>
+                                <td>
+                                  <span className="badge badge-info">{a.servico || a.tipo}</span>
+                                </td>
+                                <td><span className={`badge ${statusClass}`}>{statusText}</span></td>
+                                <td>{actionsCell}</td>
+                                <td>
+                                  {client._id ? (
+                                    <button className="btn btn-secondary btn-sm" onClick={() => { setDetailClient(client); setShowClientDetailModal(true); }}>
+                                      <i className="fa-solid fa-clock-rotate-left"></i> Histórico
+                                    </button>
+                                  ) : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </>
       )}
 
@@ -3629,7 +3739,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                   rows={5}
                   required
                   style={{ resize: 'vertical' }}
-                  placeholder="Descreva a queixa do aluno, procedimentos realizados e avaliação do estado clínico..."
+                  placeholder="Descreva a queixa do aluno, procedures realizados e avaliação do estado clínico..."
                   value={emergencyReport}
                   onChange={e => setEmergencyReport(e.target.value)}
                 />
@@ -3640,6 +3750,108 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
               <button className="btn btn-danger" onClick={handleSaveEmergencyResolution}>
                 <i className="fa-solid fa-clipboard-check"></i> Confirmar e Finalizar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Detail / History Modal */}
+      {showClientDetailModal && detailClient && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowClientDetailModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Histórico Clínico — {detailClient.dadosPessoais?.nome}</h3>
+              <button className="modal-close" onClick={() => setShowClientDetailModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>Avaliações Físicas</h4>
+              <div className="table-responsive" style={{ marginBottom: '24px' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Gordura Corporal</th>
+                      <th>IMC</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const clientAssessments = assessments.filter(as => (as.clienteId?._id || as.clienteId) === detailClient._id);
+                      if (clientAssessments.length === 0) {
+                        return <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhuma avaliação cadastrada.</td></tr>;
+                      }
+                      return clientAssessments.map(as => {
+                        const fatText = as.resultadosCalculados?.percentualGordura ? `${as.resultadosCalculados.percentualGordura.toFixed(1)}%` : '-';
+                        const imcText = as.resultadosCalculados?.imc ? `${as.resultadosCalculados.imc.toFixed(1)} (${as.resultadosCalculados.imcClassificacao || ''})` : '-';
+                        return (
+                          <tr key={as._id}>
+                            <td>{(() => {
+                              if (!as.data) return '';
+                              const parts = as.data.split('-');
+                              if (parts.length !== 3) return as.data;
+                              return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                            })()}</td>
+                            <td>{fatText}</td>
+                            <td>{imcText}</td>
+                            <td>
+                              <button className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
+                                <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+
+              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>Relatórios Fisioterápicos</h4>
+              <div className="table-responsive" style={{ marginBottom: '24px' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Queixa Principal</th>
+                      <th>Escala de Dor</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const clientReports = reports.filter(rep => (rep.clienteId?._id || rep.clienteId) === detailClient._id);
+                      if (clientReports.length === 0) {
+                        return <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhum relatório cadastrado.</td></tr>;
+                      }
+                      return clientReports.map(rep => (
+                        <tr key={rep._id}>
+                          <td>{(() => {
+                            if (!rep.data) return '';
+                            const parts = rep.data.split('-');
+                            if (parts.length !== 3) return rep.data;
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                          })()}</td>
+                          <td>{rep.conteudo?.queixaPrincipal || '-'}</td>
+                          <td>
+                            <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
+                              Dor: {rep.conteudo?.dorEscala}/10
+                            </span>
+                          </td>
+                          <td>
+                            <button className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
+                              <i className="fa-solid fa-file-pdf"></i> PDF
+                            </button>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowClientDetailModal(false)}>Fechar</button>
             </div>
           </div>
         </div>
