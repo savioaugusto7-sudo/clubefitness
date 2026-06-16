@@ -2582,7 +2582,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       )}
 
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios'].includes(activeTab) && (
+      {!['resumo_dia', 'dashboard', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
