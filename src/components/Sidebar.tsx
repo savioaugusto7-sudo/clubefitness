@@ -81,15 +81,12 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'var(--color-primary-glow)',
-            border: '1px solid var(--color-primary)',
-            color: 'var(--color-primary)',
             width: '40px',
             height: '40px',
             borderRadius: '50%',
-            fontSize: '1.2rem'
+            overflow: 'hidden'
           }}>
-            <i className="fa-solid fa-heart-pulse"></i>
+            <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div className="brand-name">CLUBE FITNESS FISIO</div>
         </div>
