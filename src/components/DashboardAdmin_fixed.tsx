@@ -117,7 +117,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcFormaPag, setDcFormaPag] = useState('pix');
   const [dcDuracao, setDcDuracao] = useState('mensal');
 
-  // F7 � Simulador de Recebimentos
+  const handleOpenRulesModal = (client: any) => {
+    alert('Regras de crédito: ' + JSON.stringify(client.regrasCredito));
+  };
+
+  // F7   Simulador de Recebimentos
   const [finTab, setFinTab] = useState<'contas_pagar' | 'recebimentos'>('contas_pagar');
   const [showSimuladorModal, setShowSimuladorModal] = useState(false);
   const [simClient, setSimClient] = useState<any>(null);
@@ -366,9 +370,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     const newWindow = window.open();
     if (newWindow) {
       if (base64Data.startsWith('data:image')) {
-        newWindow.document.write(<img src=" + base64Data + " style="max-width:100%"/>);
+        newWindow.document.write('<img src="' + base64Data + '" style="max-width:100%"/>');
       } else {
-        newWindow.document.write(<iframe src=" + base64Data + " width="100%" height="100%" style="border:none;"></iframe>);
+        newWindow.document.write('<iframe src="' + base64Data + '" width="100%" height="100%" style="border:none;"></iframe>');
       }
     }
   };
@@ -994,7 +998,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             </button>
                             <button className="btn btn-secondary btn-sm" title="Baixar Contrato PDF" onClick={() => {
                               const plan = plans.find((p: any) => p._id === (c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId));
-                              downloadContractPDF(c, plan, contractText);
+                              downloadContractPDF(c, plan, c.contrato);
                             }}>
                               <i className="fa-solid fa-file-contract"></i>
                             </button>
@@ -1060,7 +1064,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           <div className="content-panel">
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar usu�rio..." value={getSearchQuery('usuarios')} onChange={e => setSearchQueryForKey('usuarios', e.target.value)} style={{ maxWidth: '300px' }} />
+              <input type="text" className="form-control" placeholder="Buscar usurio..." value={getSearchQuery('usuarios')} onChange={e => setSearchQueryForKey('usuarios', e.target.value)} style={{ maxWidth: '300px' }} />
             </div>
             <div className="table-responsive">
               <table className="data-table">
@@ -1587,7 +1591,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </div>
                   <button className="btn btn-secondary" onClick={() => exportToCSV(financials, 'financeiro', [
                     { key: 'vencimento', label: 'Vencimento' },
-                    { key: 'descricao', label: 'Descri��o' },
+                    { key: 'descricao', label: 'Descrio' },
                     { key: 'categoria', label: 'Categoria' },
                     { key: 'valor', label: 'Valor (R$)' },
                     { key: 'status', label: 'Status' },
@@ -2167,7 +2171,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Observa��es</label>
+                      <label>Observaes</label>
                       <textarea className="form-control" value={medObs} onChange={e => setMedObs(e.target.value)} />
                     </div>
                     <div className="form-group" style={{ background: 'rgba(59,130,246,0.05)', padding: '12px', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px' }}>
@@ -2197,18 +2201,18 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </div>
       )}
 
-       {/* F2  Ficha Completa do Aluno */}
+       {/* F2   Ficha Completa do Aluno */}
        {showClientDetailModal && detailClient && (
          <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowClientDetailModal(false)}>
            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '95%' }}>
              <div className="modal-header">
-               <h3><i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Ficha Completa  {detailClient.dadosPessoais?.nome}</h3>
+               <h3><i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Ficha Completa   {detailClient.dadosPessoais?.nome}</h3>
                <button className="modal-close" onClick={() => setShowClientDetailModal(false)}>&times;</button>
              </div>
              <div className="modal-body" style={{ padding: 0 }}>
                <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)' }}>
                  {(['pessoais', 'clinicos', 'comerciais'] as const).map((t) => {
-                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Cl�nicos', comerciais: 'Dados Comerciais' };
+                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Clnicos', comerciais: 'Dados Comerciais' };
                    const icons: Record<string, string> = { pessoais: 'fa-user', clinicos: 'fa-heart-pulse', comerciais: 'fa-file-contract' };
                    return (
                      <button key={t} onClick={() => setClientDetailTab(t)} style={{ flex: 1, padding: '12px', fontWeight: 600, fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', color: clientDetailTab === t ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: clientDetailTab === t ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}>
@@ -2237,16 +2241,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        </div>
                        <div className="form-group"><label>Data de Nascimento</label><input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} /></div>
                      </div>
-                     <div className="form-group"><label>Endere�o</label><input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, N�, Bairro, CEP" /></div>
+                     <div className="form-group"><label>Endereo</label><input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, N, Bairro, CEP" /></div>
                    </>
                  )}
                  {clientDetailTab === 'clinicos' && (
                    <>
-                     <div className="form-group"><label>Les�es e Diagn�sticos</label><textarea className="form-control" rows={3} value={dcLesoes} onChange={e => setDcLesoes(e.target.value)} placeholder="Ex: Les�o manguito rotador grau II..." /></div>
-                     <div className="form-group"><label>Restri��es / Contraindica��es</label><textarea className="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
-                     <div className="form-group"><label>Medicamentos em Uso</label><input className="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="Nome, dosagem, frequ�ncia..." /></div>
-                     <div className="form-group"><label>Hist�rico Cl�nico Relevante</label><textarea className="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doen�as cr�nicas..." /></div>
-                     <div className="form-group"><label>Observa��es Cl�nicas</label><textarea className="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
+                     <div className="form-group"><label>Leses e Diagnsticos</label><textarea className="form-control" rows={3} value={dcLesoes} onChange={e => setDcLesoes(e.target.value)} placeholder="Ex: Leso manguito rotador grau II..." /></div>
+                     <div className="form-group"><label>Restries / Contraindicaes</label><textarea className="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
+                     <div className="form-group"><label>Medicamentos em Uso</label><input className="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="Nome, dosagem, frequncia..." /></div>
+                     <div className="form-group"><label>Histrico Clnico Relevante</label><textarea className="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doenas crnicas..." /></div>
+                     <div className="form-group"><label>Observaes Clnicas</label><textarea className="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
                    </>
                  )}
                  {clientDetailTab === 'comerciais' && (
@@ -2255,7 +2259,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        <div className="form-group">
                          <label>Plano Contratado</label>
                          <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)}>
-                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}  R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
+                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}   R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
                          </select>
                        </div>
                        <div className="form-group">
@@ -2267,7 +2271,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                      </div>
                      <div className="form-row">
                        <div className="form-group">
-                         <label>Dura��o</label>
+                         <label>Durao</label>
                          <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value)}>
                            <option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option>
                          </select>
@@ -2275,7 +2279,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        <div className="form-group">
                          <label>Forma de Pagamento</label>
                          <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)}>
-                           <option value="pix">Pix</option><option value="boleto">Boleto</option><option value="cartao">Cart�o</option><option value="dinheiro">Dinheiro</option>
+                           <option value="pix">Pix</option><option value="boleto">Boleto</option><option value="cartao">Carto</option><option value="dinheiro">Dinheiro</option>
                          </select>
                        </div>
                      </div>
@@ -2287,7 +2291,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        }}><i className="fa-solid fa-floppy-disk"></i> Salvar</button>
                        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
                          const plan = plans.find((p: any) => p._id === dcPlano);
-                         downloadContractPDF({ ...detailClient, dadosComerciais: { ...detailClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }, plan, contractText);
+                         downloadContractPDF({ ...detailClient, dadosComerciais: { ...detailClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }, plan, detailClient.contrato);
                        }}><i className="fa-solid fa-file-contract"></i> Contrato PDF</button>
                      </div>
                    </>

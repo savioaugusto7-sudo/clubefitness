@@ -131,6 +131,59 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [asStepDown, setAsStepDown] = useState('');
   const [asMaigne, setAsMaigne] = useState('');
 
+  // Novas variáveis de estado para o assistente de 6 etapas
+  const [asAge, setAsAge] = useState(30);
+  const [asSex, setAsSex] = useState('M');
+  const [asObjetivoPrincipal, setAsObjetivoPrincipal] = useState('');
+  const [asObjetivoMeses, setAsObjetivoMeses] = useState(3);
+  const [asTipoObjetivo, setAsTipoObjetivo] = useState('');
+  const [asFreqSemanal, setAsFreqSemanal] = useState(3);
+  
+  const [asPressao, setAsPressao] = useState('120/80 mmHg');
+  const [asSono, setAsSono] = useState('7-8 h por noite');
+  const [asNutricao, setAsNutricao] = useState('Adequada');
+  const [asAtivFisica, setAsAtivFisica] = useState('4x por semana');
+  const [asMedicamentos, setAsMedicamentos] = useState('Nenhum');
+  const [asCirurgias, setAsCirurgias] = useState('Nenhuma');
+  const [asQueixas, setAsQueixas] = useState('Nenhuma');
+
+  const [asCirc, setAsCirc] = useState({
+    pescoco: 38, ombros: 110, torax: 90, cintura: 80, abdomen: 82, quadril: 95,
+    braçoD: 32, braçoE: 32, antebraçoD: 26, antebraçoE: 26, coxaD: 55, coxaE: 55, panturrilhaD: 36, panturrilhaE: 36
+  });
+
+  const [asDobras, setAsDobras] = useState({
+    peitoral: 10, triceps: 12, subescapular: 15, subaxilar: 11, suprailiaca: 14, abdomen: 18, coxa: 12, panturrilha: 10
+  });
+
+  const [asSomaDobras, setAsSomaDobras] = useState(102);
+
+  const [asGonio, setAsGonio] = useState({
+    quadrilFlexao1D: 75, quadrilFlexao1E: 75,
+    quadrilFlexao2D: 110, quadrilFlexao2E: 110,
+    quadrilRotIntD: 40, quadrilRotIntE: 40,
+    quadrilRotExtD: 40, quadrilRotExtE: 40,
+    joelhoFlexaoD: 140, joelhoFlexaoE: 140,
+    joelhoPopliteoD: 155, joelhoPopliteoE: 155,
+    tornozeloDorsi1D: 40, tornozeloDorsi1E: 40,
+    tornozeloDorsi2D: 20, tornozeloDorsi2E: 20,
+    tornozeloFlexaoPlantarD: 45, tornozeloFlexaoPlantarE: 45,
+    ombroRotIntD: 85, ombroRotIntE: 85,
+    ombroRotExtD: 90, ombroRotExtE: 90,
+    ombroAbducaoD: 180, ombroAbducaoE: 180
+  });
+
+  const [asOberD, setAsOberD] = useState('Negativo');
+  const [asOberE, setAsOberE] = useState('Negativo');
+  const [asThomasD, setAsThomasD] = useState('Negativo');
+  const [asThomasE, setAsThomasE] = useState('Negativo');
+  const [asThomasIliopsoasD, setAsThomasIliopsoasD] = useState('');
+  const [asThomasIliopsoasE, setAsThomasIliopsoasE] = useState('');
+  const [asThomasRetofemoralD, setAsThomasRetofemoralD] = useState('');
+  const [asThomasRetofemoralE, setAsThomasRetofemoralE] = useState('');
+
+  const [asPostura, setAsPostura] = useState('Nenhum desvio importante');
+
   // Report form inputs
   const [repClient, setRepClient] = useState('');
   const [repDate, setRepDate] = useState('');
@@ -260,6 +313,226 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
     setEditingWorkoutData(null);
   }, [activeTab]);
 
+  // Carregar dados e histórico do aluno automaticamente ao selecioná-lo
+  useEffect(() => {
+    if (!asClient) return;
+    const client = clients.find(c => c._id === asClient);
+    if (client) {
+      // Calcular idade com base na data de nascimento
+      let age = 30;
+      if (client.dadosPessoais?.dataNascimento) {
+        const birthDate = new Date(client.dadosPessoais.dataNascimento);
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      }
+      setAsAge(age);
+      setAsSex(client.dadosPessoais?.sexo || 'M');
+
+      // Buscar avaliação física mais recente deste aluno
+      const past = assessments
+        .filter((a: any) => {
+          const aClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId;
+          return aClientId === asClient;
+        })
+        .sort((a: any, b: any) => b.data.localeCompare(a.data));
+
+      if (past.length > 0) {
+        const latest = past[0];
+        setAsHeight(latest.dadosMedidos?.altura?.toString() || '1.70');
+        setAsWeight(latest.dadosMedidos?.peso?.toString() || '70');
+        setAsObjetivoPrincipal(latest.dadosMedidos?.objetivoPrincipal || '');
+        setAsObjetivoMeses(latest.dadosMedidos?.objetivoMeses || 3);
+        setAsTipoObjetivo(latest.dadosMedidos?.tipoObjetivo || '');
+        setAsFreqSemanal(latest.dadosMedidos?.freqSemanal || 3);
+
+        if (latest.dadosMedidos?.saudeGeral) {
+          setAsPressao(latest.dadosMedidos.saudeGeral.pressaoArterial || '120/80 mmHg');
+          setAsSono(latest.dadosMedidos.saudeGeral.sono || '7-8 h por noite');
+          setAsNutricao(latest.dadosMedidos.saudeGeral.nutricao || 'Adequada');
+          setAsAtivFisica(latest.dadosMedidos.saudeGeral.atividadeFisica || '4x por semana');
+          setAsMedicamentos(latest.dadosMedidos.saudeGeral.medicamentos || 'Nenhum');
+          setAsCirurgias(latest.dadosMedidos.saudeGeral.cirurgias || 'Nenhuma');
+          setAsQueixas(latest.dadosMedidos.saudeGeral.queixas || 'Nenhuma');
+        }
+
+        if (latest.dadosMedidos?.circunferencias) {
+          setAsCirc({
+            pescoco: latest.dadosMedidos.circunferencias.pescoco || 0,
+            ombros: latest.dadosMedidos.circunferencias.ombros || 0,
+            torax: latest.dadosMedidos.circunferencias.torax || 0,
+            cintura: latest.dadosMedidos.circunferencias.cintura || 0,
+            abdomen: latest.dadosMedidos.circunferencias.abdomen || 0,
+            quadril: latest.dadosMedidos.circunferencias.quadril || 0,
+            braçoD: latest.dadosMedidos.circunferencias.braçoD || 0,
+            braçoE: latest.dadosMedidos.circunferencias.braçoE || 0,
+            antebraçoD: latest.dadosMedidos.circunferencias.antebraçoD || 0,
+            antebraçoE: latest.dadosMedidos.circunferencias.antebraçoE || 0,
+            coxaD: latest.dadosMedidos.circunferencias.coxaD || 0,
+            coxaE: latest.dadosMedidos.circunferencias.coxaE || 0,
+            panturrilhaD: latest.dadosMedidos.circunferencias.panturrilhaD || 0,
+            panturrilhaE: latest.dadosMedidos.circunferencias.panturrilhaE || 0
+          });
+        }
+
+        if (latest.dadosMedidos?.dobras) {
+          setAsDobras({
+            peitoral: latest.dadosMedidos.dobras.peitoral || 0,
+            triceps: latest.dadosMedidos.dobras.triceps || 0,
+            subescapular: latest.dadosMedidos.dobras.subescapular || 0,
+            subaxilar: latest.dadosMedidos.dobras.subaxilar || 0,
+            suprailiaca: latest.dadosMedidos.dobras.suprailiaca || 0,
+            abdomen: latest.dadosMedidos.dobras.abdomen || 0,
+            coxa: latest.dadosMedidos.dobras.coxa || 0,
+            panturrilha: latest.dadosMedidos.dobras.panturrilha || 0
+          });
+        }
+
+        if (latest.dadosMedidos?.goniometria) {
+          setAsGonio({
+            quadrilFlexao1D: latest.dadosMedidos.goniometria.quadrilFlexao1D || 75,
+            quadrilFlexao1E: latest.dadosMedidos.goniometria.quadrilFlexao1E || 75,
+            quadrilFlexao2D: latest.dadosMedidos.goniometria.quadrilFlexao2D || 110,
+            quadrilFlexao2E: latest.dadosMedidos.goniometria.quadrilFlexao2E || 110,
+            quadrilRotIntD: latest.dadosMedidos.goniometria.quadrilRotIntD || 40,
+            quadrilRotIntE: latest.dadosMedidos.goniometria.quadrilRotIntE || 40,
+            quadrilRotExtD: latest.dadosMedidos.goniometria.quadrilRotExtD || 40,
+            quadrilRotExtE: latest.dadosMedidos.goniometria.quadrilRotExtE || 40,
+            joelhoFlexaoD: latest.dadosMedidos.goniometria.joelhoFlexaoD || 140,
+            joelhoFlexaoE: latest.dadosMedidos.goniometria.joelhoFlexaoE || 140,
+            joelhoPopliteoD: latest.dadosMedidos.goniometria.joelhoPopliteoD || 155,
+            joelhoPopliteoE: latest.dadosMedidos.goniometria.joelhoPopliteoE || 155,
+            tornozeloDorsi1D: latest.dadosMedidos.goniometria.tornozeloDorsi1D || 40,
+            tornozeloDorsi1E: latest.dadosMedidos.goniometria.tornozeloDorsi1E || 40,
+            tornozeloDorsi2D: latest.dadosMedidos.goniometria.tornozeloDorsi2D || 20,
+            tornozeloDorsi2E: latest.dadosMedidos.goniometria.tornozeloDorsi2E || 20,
+            tornozeloFlexaoPlantarD: latest.dadosMedidos.goniometria.tornozeloFlexaoPlantarD || 45,
+            tornozeloFlexaoPlantarE: latest.dadosMedidos.goniometria.tornozeloFlexaoPlantarE || 45,
+            ombroRotIntD: latest.dadosMedidos.goniometria.ombroRotIntD || 85,
+            ombroRotIntE: latest.dadosMedidos.goniometria.ombroRotIntE || 85,
+            ombroRotExtD: latest.dadosMedidos.goniometria.ombroRotExtD || 90,
+            ombroRotExtE: latest.dadosMedidos.goniometria.ombroRotExtE || 90,
+            ombroAbducaoD: latest.dadosMedidos.goniometria.ombroAbducaoD || 180,
+            ombroAbducaoE: latest.dadosMedidos.goniometria.ombroAbducaoE || 180
+          });
+        }
+
+        if (latest.dadosMedidos?.testesEspeciais) {
+          setAsOberD(latest.dadosMedidos.testesEspeciais.oberD || 'Negativo');
+          setAsOberE(latest.dadosMedidos.testesEspeciais.oberE || 'Negativo');
+          setAsThomasD(latest.dadosMedidos.testesEspeciais.thomasD || 'Negativo');
+          setAsThomasE(latest.dadosMedidos.testesEspeciais.thomasE || 'Negativo');
+          setAsThomasIliopsoasD(latest.dadosMedidos.testesEspeciais.thomasIliopsoasD?.toString() || '');
+          setAsThomasIliopsoasE(latest.dadosMedidos.testesEspeciais.thomasIliopsoasE?.toString() || '');
+          setAsThomasRetofemoralD(latest.dadosMedidos.testesEspeciais.thomasRetofemoralD?.toString() || '');
+          setAsThomasRetofemoralE(latest.dadosMedidos.testesEspeciais.thomasRetofemoralE?.toString() || '');
+          setAsTermografia(latest.dadosMedidos.testesEspeciais.termografia || '');
+          setAsYTest(latest.dadosMedidos.testesEspeciais.yTest || '');
+          setAsStepDown(latest.dadosMedidos.testesEspeciais.stepDown || '');
+          setAsMaigne(latest.dadosMedidos.testesEspeciais.maigne || '');
+        }
+
+        setAsPostura(latest.dadosMedidos?.postura || 'Nenhum desvio importante');
+      } else {
+        // Valores iniciais padrões se não houver histórico
+        setAsHeight('1.70');
+        setAsWeight('70');
+        setAsObjetivoPrincipal('Perda de gordura e ganho de massa magra');
+        setAsObjetivoMeses(3);
+        setAsTipoObjetivo('');
+        setAsFreqSemanal(3);
+        setAsPressao('120/80 mmHg');
+        setAsSono('7-8 h por noite');
+        setAsNutricao('Adequada');
+        setAsAtivFisica('4x por semana');
+        setAsMedicamentos('Nenhum');
+        setAsCirurgias('Nenhuma');
+        setAsQueixas('Nenhuma');
+        setAsCirc({
+          pescoco: 38, ombros: 110, torax: 90, cintura: 80, abdomen: 82, quadril: 95,
+          braçoD: 32, braçoE: 32, antebraçoD: 26, antebraçoE: 26, coxaD: 55, coxaE: 55, panturrilhaD: 36, panturrilhaE: 36
+        });
+        setAsDobras({
+          peitoral: 10, triceps: 12, subescapular: 15, subaxilar: 11, suprailiaca: 14, abdomen: 18, coxa: 12, panturrilha: 10
+        });
+        setAsGonio({
+          quadrilFlexao1D: 75, quadrilFlexao1E: 75,
+          quadrilFlexao2D: 110, quadrilFlexao2E: 110,
+          quadrilRotIntD: 40, quadrilRotIntE: 40,
+          quadrilRotExtD: 40, quadrilRotExtE: 40,
+          joelhoFlexaoD: 140, joelhoFlexaoE: 140,
+          joelhoPopliteoD: 155, joelhoPopliteoE: 155,
+          tornozeloDorsi1D: 40, tornozeloDorsi1E: 40,
+          tornozeloDorsi2D: 20, tornozeloDorsi2E: 20,
+          tornozeloFlexaoPlantarD: 45, tornozeloFlexaoPlantarE: 45,
+          ombroRotIntD: 85, ombroRotIntE: 85,
+          ombroRotExtD: 90, ombroRotExtE: 90,
+          ombroAbducaoD: 180, ombroAbducaoE: 180
+        });
+        setAsOberD('Negativo');
+        setAsOberE('Negativo');
+        setAsThomasD('Negativo');
+        setAsThomasE('Negativo');
+        setAsThomasIliopsoasD('');
+        setAsThomasIliopsoasE('');
+        setAsThomasRetofemoralD('');
+        setAsThomasRetofemoralE('');
+        setAsTermografia('');
+        setAsYTest('');
+        setAsStepDown('');
+        setAsMaigne('');
+        setAsPostura('Nenhum desvio importante');
+      }
+    }
+  }, [asClient, clients, assessments]);
+
+  // Cálculo da composição corporal em tempo real (Pollock 7 dobras + Siri)
+  useEffect(() => {
+    const p = parseFloat(asWeight) || 0;
+    const a = parseFloat(asHeight) || 0;
+    const age = Number(asAge) || 30;
+    const sex = asSex || 'M';
+
+    const peitoral = parseFloat(asDobras.peitoral as any) || 0;
+    const triceps = parseFloat(asDobras.triceps as any) || 0;
+    const subescapular = parseFloat(asDobras.subescapular as any) || 0;
+    const subaxilar = parseFloat(asDobras.subaxilar as any) || 0;
+    const suprailiaca = parseFloat(asDobras.suprailiaca as any) || 0;
+    const abdomen = parseFloat(asDobras.abdomen as any) || 0;
+    const coxa = parseFloat(asDobras.coxa as any) || 0;
+
+    const sum7 = peitoral + triceps + subescapular + subaxilar + suprailiaca + abdomen + coxa;
+    setAsSomaDobras(sum7);
+
+    if (p > 0 && a > 0 && sum7 > 0) {
+      let bd = 1.0;
+      if (sex === 'M') {
+        bd = 1.112 - (0.00043499 * sum7) + (0.00000055 * sum7 * sum7) - (0.00028826 * age);
+      } else {
+        bd = 1.097 - (0.00046971 * sum7) + (0.00000056 * sum7 * sum7) - (0.00012828 * age);
+      }
+
+      let fat = ((4.95 / bd) - 4.5) * 100;
+      if (fat < 2) fat = 2;
+      if (fat > 60) fat = 60;
+
+      const fatVal = parseFloat(fat.toFixed(1));
+      const fatM = parseFloat((p * (fatVal / 100)).toFixed(1));
+      const leanM = parseFloat((p - fatM).toFixed(1));
+
+      setAsFat(fatVal.toString());
+      setAsMassaMagra(leanM.toString());
+      setAsMassaGorda(fatM.toString());
+    } else {
+      setAsFat('');
+      setAsMassaMagra('');
+      setAsMassaGorda('');
+    }
+  }, [asWeight, asHeight, asAge, asSex, asDobras]);
+
   // Handle CRUD submissions
   const handleCreateApt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -380,32 +653,186 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const handleCreateAssessment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const p = parseFloat(asWeight) || 0;
+      const a = parseFloat(asHeight) || 0;
+      
+      // IMC
+      let imc = 0;
+      let imcClass = '-';
+      if (p > 0 && a > 0) {
+        imc = parseFloat((p / (a * a)).toFixed(2));
+        if (imc < 18.5) imcClass = 'Baixo peso';
+        else if (imc < 25) imcClass = 'Normal';
+        else if (imc < 30) imcClass = 'Sobrepeso';
+        else imcClass = 'Obesidade';
+      }
+
+      // RCQ
+      const cintura = parseFloat(asCirc.cintura as any) || 0;
+      const quadril = parseFloat(asCirc.quadril as any) || 1;
+      const rcq = parseFloat((cintura / quadril).toFixed(2));
+      let rcqClass = 'Baixo Risco';
+      if (asSex === 'M') {
+        if (rcq > 0.95) rcqClass = 'Alto Risco';
+        else if (rcq >= 0.88) rcqClass = 'Risco Moderado';
+      } else {
+        if (rcq > 0.86) rcqClass = 'Alto Risco';
+        else if (rcq >= 0.78) rcqClass = 'Risco Moderado';
+      }
+
+      // Cálculo de Metas
+      let metaGorduraVal = 0;
+      let metaMassaVal = 0;
+      if (asTipoObjetivo) {
+        let min = null;
+        let max = null;
+        if (asFreqSemanal === 2) {
+          if (asSex === 'M' && asTipoObjetivo === 'Massa Magra') { min = 0.1; max = 0.25; }
+          else if (asSex === 'F' && asTipoObjetivo === 'Emagrecimento') { min = 0.3; max = 0.6; }
+        } else if (asFreqSemanal === 3) {
+          if (asSex === 'M' && asTipoObjetivo === 'Massa Magra') { min = 0.2; max = 0.4; }
+          else if (asSex === 'F' && asTipoObjetivo === 'Massa Magra') { min = 0.1; max = 0.2; }
+        } else if (asFreqSemanal === 4) {
+          if (asSex === 'M' && asTipoObjetivo === 'Emagrecimento') { min = 0.5; max = 0.8; }
+          else if (asSex === 'F' && asTipoObjetivo === 'Massa Magra') { min = 0.2; max = 0.3; }
+        } else if (asFreqSemanal === 5) {
+          if (asSex === 'M' && asTipoObjetivo === 'Massa Magra') { min = 0.3; max = 0.5; }
+          else if (asSex === 'F' && asTipoObjetivo === 'Emagrecimento') { min = 0.6; max = 1.0; }
+        }
+
+        if (min === null || max === null) {
+          if (asTipoObjetivo === 'Emagrecimento') {
+            if (asSex === 'F') { min = 0.3; max = 0.6; }
+            else { min = 0.5; max = 0.8; }
+          } else {
+            if (asSex === 'F') { min = 0.1; max = 0.2; }
+            else { min = 0.2; max = 0.4; }
+          }
+        }
+        
+        const totalSemanas = Math.round(asObjetivoMeses * 4.33);
+        const minTotal = min * totalSemanas;
+        const maxTotal = max * totalSemanas;
+        const midTotal = (minTotal + maxTotal) / 2;
+        
+        if (asTipoObjetivo === 'Emagrecimento') {
+          metaGorduraVal = parseFloat(midTotal.toFixed(1));
+        } else {
+          metaMassaVal = parseFloat(midTotal.toFixed(1));
+        }
+      }
+
       const payload = {
         clienteId: asClient,
         avaliadorId: '6668ab030303030303030302', // Camila Lima
         data: asDate,
         dadosMedidos: {
-          idade: 30,
-          peso: Number(asWeight),
-          altura: Number(asHeight),
-          sexo: 'M',
-          circunferencias: {},
-          dobras: {},
-          saudeGeral: { queixas: asObs },
+          idade: Number(asAge),
+          peso: p,
+          altura: a,
+          sexo: asSex,
+          objetivoPrincipal: asObjetivoPrincipal,
+          saudeGeral: {
+            pressaoArterial: asPressao,
+            sono: asSono,
+            nutricao: asNutricao,
+            atividadeFisica: asAtivFisica,
+            medicamentos: asMedicamentos,
+            cirurgias: asCirurgias,
+            queixas: asQueixas
+          },
+          circunferencias: {
+            pescoco: Number(asCirc.pescoco),
+            ombros: Number(asCirc.ombros),
+            torax: Number(asCirc.torax),
+            cintura: Number(asCirc.cintura),
+            abdomen: Number(asCirc.abdomen),
+            quadril: Number(asCirc.quadril),
+            braçoD: Number(asCirc.braçoD),
+            braçoE: Number(asCirc.braçoE),
+            antebraçoD: Number(asCirc.antebraçoD),
+            antebraçoE: Number(asCirc.antebraçoE),
+            coxaD: Number(asCirc.coxaD),
+            coxaE: Number(asCirc.coxaE),
+            panturrilhaD: Number(asCirc.panturrilhaD),
+            panturrilhaE: Number(asCirc.panturrilhaE)
+          },
+          dobras: {
+            peitoral: Number(asDobras.peitoral),
+            triceps: Number(asDobras.triceps),
+            subescapular: Number(asDobras.subescapular),
+            subaxilar: Number(asDobras.subaxilar),
+            suprailiaca: Number(asDobras.suprailiaca),
+            abdomen: Number(asDobras.abdomen),
+            coxa: Number(asDobras.coxa),
+            panturrilha: Number(asDobras.panturrilha)
+          },
+          somaDobras: asSomaDobras,
+          percentil: 50,
+          goniometria: {
+            quadrilFlexao1D: Number(asGonio.quadrilFlexao1D),
+            quadrilFlexao1E: Number(asGonio.quadrilFlexao1E),
+            quadrilFlexao2D: Number(asGonio.quadrilFlexao2D),
+            quadrilFlexao2E: Number(asGonio.quadrilFlexao2E),
+            quadrilRotIntD: Number(asGonio.quadrilRotIntD),
+            quadrilRotIntE: Number(asGonio.quadrilRotIntE),
+            quadrilRotExtD: Number(asGonio.quadrilRotExtD),
+            quadrilRotExtE: Number(asGonio.quadrilRotExtE),
+            joelhoFlexaoD: Number(asGonio.joelhoFlexaoD),
+            joelhoFlexaoE: Number(asGonio.joelhoFlexaoE),
+            joelhoPopliteoD: Number(asGonio.joelhoPopliteoD),
+            joelhoPopliteoE: Number(asGonio.joelhoPopliteoE),
+            tornozeloDorsi1D: Number(asGonio.tornozeloDorsi1D),
+            tornozeloDorsi1E: Number(asGonio.tornozeloDorsi1E),
+            tornozeloDorsi2D: Number(asGonio.tornozeloDorsi2D),
+            tornozeloDorsi2E: Number(asGonio.tornozeloDorsi2E),
+            tornozeloFlexaoPlantarD: Number(asGonio.tornozeloFlexaoPlantarD),
+            tornozeloFlexaoPlantarE: Number(asGonio.tornozeloFlexaoPlantarE),
+            ombroRotIntD: Number(asGonio.ombroRotIntD),
+            ombroRotIntE: Number(asGonio.ombroRotIntE),
+            ombroRotExtD: Number(asGonio.ombroRotExtD),
+            ombroRotExtE: Number(asGonio.ombroRotExtE),
+            ombroAbducaoD: Number(asGonio.ombroAbducaoD),
+            ombroAbducaoE: Number(asGonio.ombroAbducaoE)
+          },
           testesEspeciais: {
+            oberD: asOberD,
+            oberE: asOberE,
+            thomasD: asThomasD,
+            thomasE: asThomasE,
+            thomasIliopsoasD: asThomasD === 'Positivo' ? (parseFloat(asThomasIliopsoasD) || null) : null,
+            thomasIliopsoasE: asThomasE === 'Positivo' ? (parseFloat(asThomasIliopsoasE) || null) : null,
+            thomasRetofemoralD: asThomasD === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
+            thomasRetofemoralE: asThomasE === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
             termografia: asTermografia,
             yTest: asYTest,
             stepDown: asStepDown,
             maigne: asMaigne
-          }
+          },
+          flexibilidade: '',
+          postura: asPostura
         },
         resultadosCalculados: {
-          percentualGordura: Number(asFat),
-          massaMagra: Number(asMassaMagra),
-          massaGorda: Number(asMassaGorda)
+          imc,
+          imcClassificacao: imcClass,
+          rcq,
+          rcqClassificacao: rcqClass,
+          percentualGordura: Number(asFat) || 0,
+          massaMagra: Number(asMassaMagra) || 0,
+          massaGorda: Number(asMassaGorda) || 0
         },
+        metas: {
+          metaGorduraValor: metaGorduraVal,
+          metaGorduraAlvo: metaGorduraVal > 0 ? 12 : 0,
+          metaMassaValor: metaMassaVal,
+          metaMassaAlvo: metaMassaVal > 0 ? 5 : 0,
+          metaCondicionamentoProgresso: 60,
+          metaFlexibilidadeProgresso: 50
+        },
+        observacoes: asObs,
         pdfName: `Avaliacao_${asDate}.pdf`
       };
+
       const res = await fetch('/api/assessments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2086,10 +2513,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
             </div>
             
             {/* Wizard Steps indicator */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
-              {[1, 2, 3].map(step => (
-                <div key={step} style={{ flex: 1, padding: '12px', textAlign: 'center', fontWeight: 600, color: asStep === step ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: asStep === step ? '3px solid var(--color-primary)' : '3px solid transparent' }}>
-                  Etapa {step}: {step === 1 ? 'Histórico' : step === 2 ? 'Exame Físico' : 'Testes'}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)', flexWrap: 'wrap' }}>
+              {[1, 2, 3, 4, 5, 6].map(step => (
+                <div key={step} style={{ flex: '1 1 15%', padding: '10px 4px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: asStep === step ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: asStep === step ? '3px solid var(--color-primary)' : '3px solid transparent' }}>
+                  {step === 1 ? '1. Aluno' : step === 2 ? '2. Biometria' : step === 3 ? '3. Perímetros' : step === 4 ? '4. Dobras' : step === 5 ? '5. Ângulos' : '6. Metas'}
                 </div>
               ))}
             </div>
@@ -2107,9 +2534,38 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                       <input type="date" className="form-control" value={asDate} onChange={e => setAsDate(e.target.value)} required />
                     </div>
                     <div className="form-group">
-                      <label>Histórico Clínico e Queixas</label>
-                      <textarea className="form-control" value={asObs} onChange={e => setAsObs(e.target.value)} placeholder="Histórico, dores, cirurgias..." rows={4} required />
+                      <label>Objetivo Principal (ex: Perda de gordura e ganho de massa magra)</label>
+                      <input type="text" className="form-control" value={asObjetivoPrincipal} onChange={e => setAsObjetivoPrincipal(e.target.value)} placeholder="Objetivos do aluno..." required />
                     </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Meses para Adequação do Objetivo</label>
+                        <select className="form-control" value={asObjetivoMeses} onChange={e => setAsObjetivoMeses(Number(e.target.value))}>
+                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                            <option key={m} value={m}>{m} {m === 1 ? 'mês' : 'meses'}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Foco do Planejamento</label>
+                        <select className="form-control" value={asTipoObjetivo} onChange={e => setAsTipoObjetivo(e.target.value)}>
+                          <option value="">Não especificado</option>
+                          <option value="Emagrecimento">Emagrecimento / Perda de Gordura</option>
+                          <option value="Massa Magra">Ganho de Massa Magra</option>
+                        </select>
+                      </div>
+                    </div>
+                    {asTipoObjetivo && (
+                      <div className="form-group">
+                        <label>Frequência de Treino Semanal Pretendida</label>
+                        <select className="form-control" value={asFreqSemanal} onChange={e => setAsFreqSemanal(Number(e.target.value))}>
+                          <option value="2">2x por semana</option>
+                          <option value="3">3x por semana</option>
+                          <option value="4">4x por semana</option>
+                          <option value="5">5x por semana</option>
+                        </select>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -2117,29 +2573,335 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                   <>
                     <div className="form-row">
                       <div className="form-group">
+                        <label>Sexo Biológico</label>
+                        <select className="form-control" value={asSex} onChange={e => setAsSex(e.target.value)}>
+                          <option value="M">Masculino</option>
+                          <option value="F">Feminino</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Idade (anos)</label>
+                        <input type="number" className="form-control" value={asAge} onChange={e => setAsAge(Number(e.target.value))} required />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
                         <label>Peso (kg)</label>
-                        <input type="number" className="form-control" value={asWeight} onChange={e => setAsWeight(e.target.value)} required />
+                        <input type="number" step="0.1" className="form-control" value={asWeight} onChange={e => setAsWeight(e.target.value)} required />
                       </div>
                       <div className="form-group">
                         <label>Altura (m)</label>
                         <input type="number" step="0.01" className="form-control" value={asHeight} onChange={e => setAsHeight(e.target.value)} required />
                       </div>
                     </div>
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '16px', marginBottom: '12px' }}>Saúde Geral</h4>
                     <div className="form-row">
                       <div className="form-group">
-                        <label>Gordura Corporal (% BF)</label>
-                        <input type="number" className="form-control" value={asFat} onChange={e => setAsFat(e.target.value)} required />
+                        <label>Pressão Arterial</label>
+                        <input type="text" className="form-control" value={asPressao} onChange={e => setAsPressao(e.target.value)} />
                       </div>
                       <div className="form-group">
-                        <label>Massa Magra (kg)</label>
-                        <input type="number" className="form-control" value={asMassaMagra} onChange={e => setAsMassaMagra(e.target.value)} required />
+                        <label>Horas de Sono / Noite</label>
+                        <input type="text" className="form-control" value={asSono} onChange={e => setAsSono(e.target.value)} />
                       </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Nutrição</label>
+                        <input type="text" className="form-control" value={asNutricao} onChange={e => setAsNutricao(e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label>Atividade Física</label>
+                        <input type="text" className="form-control" value={asAtivFisica} onChange={e => setAsAtivFisica(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Medicamentos em Uso</label>
+                      <input type="text" className="form-control" value={asMedicamentos} onChange={e => setAsMedicamentos(e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label>Cirurgias Anteriores</label>
+                      <input type="text" className="form-control" value={asCirurgias} onChange={e => setAsCirurgias(e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label>Principais Queixas / Dores</label>
+                      <input type="text" className="form-control" value={asQueixas} onChange={e => setAsQueixas(e.target.value)} />
                     </div>
                   </>
                 )}
 
                 {asStep === 3 && (
                   <>
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Circunferências Corporais (cm)</h4>
+                    <div className="form-row">
+                      <div className="form-group"><label>Pescoço</label><input type="number" step="0.1" className="form-control" value={asCirc.pescoco} onChange={e => setAsCirc({ ...asCirc, pescoco: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Ombros</label><input type="number" step="0.1" className="form-control" value={asCirc.ombros} onChange={e => setAsCirc({ ...asCirc, ombros: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Tórax</label><input type="number" step="0.1" className="form-control" value={asCirc.torax} onChange={e => setAsCirc({ ...asCirc, torax: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Cintura</label><input type="number" step="0.1" className="form-control" value={asCirc.cintura} onChange={e => setAsCirc({ ...asCirc, cintura: Number(e.target.value) })} /></div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group"><label>Abdômen</label><input type="number" step="0.1" className="form-control" value={asCirc.abdomen} onChange={e => setAsCirc({ ...asCirc, abdomen: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Quadril</label><input type="number" step="0.1" className="form-control" value={asCirc.quadril} onChange={e => setAsCirc({ ...asCirc, quadril: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Braço Direito</label><input type="number" step="0.1" className="form-control" value={asCirc.braçoD} onChange={e => setAsCirc({ ...asCirc, braçoD: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Braço Esquerdo</label><input type="number" step="0.1" className="form-control" value={asCirc.braçoE} onChange={e => setAsCirc({ ...asCirc, braçoE: Number(e.target.value) })} /></div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group"><label>Antebraço D</label><input type="number" step="0.1" className="form-control" value={asCirc.antebraçoD} onChange={e => setAsCirc({ ...asCirc, antebraçoD: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Antebraço E</label><input type="number" step="0.1" className="form-control" value={asCirc.antebraçoE} onChange={e => setAsCirc({ ...asCirc, antebraçoE: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Coxa Direita</label><input type="number" step="0.1" className="form-control" value={asCirc.coxaD} onChange={e => setAsCirc({ ...asCirc, coxaD: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Coxa Esquerda</label><input type="number" step="0.1" className="form-control" value={asCirc.coxaE} onChange={e => setAsCirc({ ...asCirc, coxaE: Number(e.target.value) })} /></div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha D</label><input type="number" step="0.1" className="form-control" value={asCirc.panturrilhaD} onChange={e => setAsCirc({ ...asCirc, panturrilhaD: Number(e.target.value) })} /></div>
+                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha E</label><input type="number" step="0.1" className="form-control" value={asCirc.panturrilhaE} onChange={e => setAsCirc({ ...asCirc, panturrilhaE: Number(e.target.value) })} /></div>
+                    </div>
+                  </>
+                )}
+
+                {asStep === 4 && (
+                  <>
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Dobras Cutâneas (mm)</h4>
+                    <p style={{ color: 'var(--text-dim)', fontSize: '12px' }}>Fórmula de Jackson & Pollock (7 Dobras).</p>
+                    <div className="form-row">
+                      <div className="form-group"><label>Peitoral</label><input type="number" step="0.1" className="form-control" value={asDobras.peitoral} onChange={e => setAsDobras({ ...asDobras, peitoral: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Tríceps</label><input type="number" step="0.1" className="form-control" value={asDobras.triceps} onChange={e => setAsDobras({ ...asDobras, triceps: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Subescapular</label><input type="number" step="0.1" className="form-control" value={asDobras.subescapular} onChange={e => setAsDobras({ ...asDobras, subescapular: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Subaxilar</label><input type="number" step="0.1" className="form-control" value={asDobras.subaxilar} onChange={e => setAsDobras({ ...asDobras, subaxilar: Number(e.target.value) })} /></div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group"><label>Supra-ilíaca</label><input type="number" step="0.1" className="form-control" value={asDobras.suprailiaca} onChange={e => setAsDobras({ ...asDobras, suprailiaca: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Abdômen</label><input type="number" step="0.1" className="form-control" value={asDobras.abdomen} onChange={e => setAsDobras({ ...asDobras, abdomen: Number(e.target.value) })} /></div>
+                      <div className="form-group" style={{ flex: 2 }}><label>Coxa</label><input type="number" step="0.1" className="form-control" value={asDobras.coxa} onChange={e => setAsDobras({ ...asDobras, coxa: Number(e.target.value) })} /></div>
+                    </div>
+                    <div style={{ marginTop: '16px', background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', maxWidth: '250px' }}>
+                      <label style={{ fontWeight: 'bold', display: 'block', color: 'var(--color-primary)' }}>Soma das Dobras:</label>
+                      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-success)' }}>{asSomaDobras} mm</div>
+                    </div>
+                  </>
+                )}
+
+                {asStep === 5 && (
+                  <>
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Flexibilidade & Goniometria (ADM em Graus)</h4>
+                    
+                    {/* Alertas de assimetria inline */}
+                    {(() => {
+                      const warnings: string[] = [];
+                      const checkAsymmetry = (d: number, e: number, label: string) => {
+                        const max = Math.max(d, e);
+                        if (max > 0 && (Math.abs(d - e) / max) > 0.10) {
+                          warnings.push(label);
+                        }
+                      };
+                      
+                      checkAsymmetry(asGonio.quadrilFlexao1D, asGonio.quadrilFlexao1E, 'Quadril - Flexão 1');
+                      checkAsymmetry(asGonio.quadrilFlexao2D, asGonio.quadrilFlexao2E, 'Quadril - Flexão 2');
+                      checkAsymmetry(asGonio.quadrilRotIntD, asGonio.quadrilRotIntE, 'Quadril - Rotação Interna');
+                      checkAsymmetry(asGonio.quadrilRotExtD, asGonio.quadrilRotExtE, 'Quadril - Rotação Externa');
+                      checkAsymmetry(asGonio.joelhoFlexaoD, asGonio.joelhoFlexaoE, 'Joelho - Flexão');
+                      checkAsymmetry(asGonio.joelhoPopliteoD, asGonio.joelhoPopliteoE, 'Joelho - Poplíteo');
+                      checkAsymmetry(asGonio.tornozeloDorsi1D, asGonio.tornozeloDorsi1E, 'Tornozelo - Dorsi 1');
+                      checkAsymmetry(asGonio.tornozeloDorsi2D, asGonio.tornozeloDorsi2E, 'Tornozelo - Dorsi 2');
+                      checkAsymmetry(asGonio.tornozeloFlexaoPlantarD, asGonio.tornozeloFlexaoPlantarE, 'Tornozelo - Flexão Plantar');
+                      checkAsymmetry(asGonio.ombroRotIntD, asGonio.ombroRotIntE, 'Ombro - Rotação Interna');
+                      checkAsymmetry(asGonio.ombroRotExtD, asGonio.ombroRotExtE, 'Ombro - Rotação Externa');
+                      checkAsymmetry(asGonio.ombroAbducaoD, asGonio.ombroAbducaoE, 'Ombro - Abdução');
+                      
+                      const thomasIlioMax = Math.max(parseFloat(asThomasIliopsoasD) || 0, parseFloat(asThomasIliopsoasE) || 0);
+                      if (thomasIlioMax > 0 && (Math.abs((parseFloat(asThomasIliopsoasD) || 0) - (parseFloat(asThomasIliopsoasE) || 0)) / thomasIlioMax) > 0.10) {
+                        warnings.push('Teste de Thomas - Iliopsoas');
+                      }
+                      
+                      const thomasRetoMax = Math.max(parseFloat(asThomasRetofemoralD) || 0, parseFloat(asThomasRetofemoralE) || 0);
+                      if (thomasRetoMax > 0 && (Math.abs((parseFloat(asThomasRetofemoralD) || 0) - (parseFloat(asThomasRetofemoralE) || 0)) / thomasRetoMax) > 0.10) {
+                        warnings.push('Teste de Thomas - Retofemoral');
+                      }
+
+                      if (warnings.length > 0) {
+                        return (
+                          <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '12px', color: '#ef4444' }}>
+                            <strong><i className="fa-solid fa-triangle-exclamation"></i> Assimetria Significativa Detectada (&gt;10%):</strong>
+                            <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                              {warnings.map((w, idx) => <li key={idx}>{w}</li>)}
+                            </ul>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Quadril</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Flexão (1) <small style={{ color: 'var(--text-dim)' }}>(70-80°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilFlexao1D} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao1D: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilFlexao1E} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao1E: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Flexão (2) <small style={{ color: 'var(--text-dim)' }}>(100-125°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilFlexao2D} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao2D: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilFlexao2E} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao2E: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Rot. Interna <small style={{ color: 'var(--text-dim)' }}>(40-45°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilRotIntD} onChange={e => setAsGonio({ ...asGonio, quadrilRotIntD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilRotIntE} onChange={e => setAsGonio({ ...asGonio, quadrilRotIntE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Rot. Externa <small style={{ color: 'var(--text-dim)' }}>(40-45°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilRotExtD} onChange={e => setAsGonio({ ...asGonio, quadrilRotExtD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilRotExtE} onChange={e => setAsGonio({ ...asGonio, quadrilRotExtE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Joelho</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Flexão <small style={{ color: 'var(--text-dim)' }}>(135-150°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.joelhoFlexaoD} onChange={e => setAsGonio({ ...asGonio, joelhoFlexaoD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.joelhoFlexaoE} onChange={e => setAsGonio({ ...asGonio, joelhoFlexaoE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Poplíteo <small style={{ color: 'var(--text-dim)' }}>(155-160°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.joelhoPopliteoD} onChange={e => setAsGonio({ ...asGonio, joelhoPopliteoD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.joelhoPopliteoE} onChange={e => setAsGonio({ ...asGonio, joelhoPopliteoE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Tornozelo</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Dorsi (1) <small style={{ color: 'var(--text-dim)' }}>(35-45°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloDorsi1D} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi1D: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloDorsi1E} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi1E: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Dorsi (2) <small style={{ color: 'var(--text-dim)' }}>(20°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloDorsi2D} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi2D: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloDorsi2E} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi2E: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>F. Plantar <small style={{ color: 'var(--text-dim)' }}>(40-50°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloFlexaoPlantarD} onChange={e => setAsGonio({ ...asGonio, tornozeloFlexaoPlantarD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloFlexaoPlantarE} onChange={e => setAsGonio({ ...asGonio, tornozeloFlexaoPlantarE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Ombro</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Rot. Interna <small style={{ color: 'var(--text-dim)' }}>(80-90°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroRotIntD} onChange={e => setAsGonio({ ...asGonio, ombroRotIntD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroRotIntE} onChange={e => setAsGonio({ ...asGonio, ombroRotIntE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Rot. Externa <small style={{ color: 'var(--text-dim)' }}>(80-100°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroRotExtD} onChange={e => setAsGonio({ ...asGonio, ombroRotExtD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroRotExtE} onChange={e => setAsGonio({ ...asGonio, ombroRotExtE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Abdução <small style={{ color: 'var(--text-dim)' }}>(180°)</small></span>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroAbducaoD} onChange={e => setAsGonio({ ...asGonio, ombroAbducaoD: Number(e.target.value) })} />
+                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroAbducaoE} onChange={e => setAsGonio({ ...asGonio, ombroAbducaoE: Number(e.target.value) })} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '20px', marginBottom: '16px' }}>Testes Especiais Ortopédicos</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', fontSize: '12px' }}>
+                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Ober</h5>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <div style={{ flex: 1 }}>
+                            <label>Lado Direito</label>
+                            <select className="form-control form-control-sm" value={asOberD} onChange={e => setAsOberD(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label>Lado Esquerdo</label>
+                            <select className="form-control form-control-sm" value={asOberE} onChange={e => setAsOberE(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Thomas</h5>
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
+                          <div style={{ flex: 1 }}>
+                            <label>Lado Direito</label>
+                            <select className="form-control form-control-sm" value={asThomasD} onChange={e => setAsThomasD(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label>Lado Esquerdo</label>
+                            <select className="form-control form-control-sm" value={asThomasE} onChange={e => setAsThomasE(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          {asThomasD === 'Positivo' && (
+                            <div style={{ flex: 1 }}>
+                              <label>Iliopsoas D (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasIliopsoasD} onChange={e => setAsThomasIliopsoasD(e.target.value)} />
+                              <label style={{ marginTop: '4px' }}>Retofemoral D (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasRetofemoralD} onChange={e => setAsThomasRetofemoralD(e.target.value)} />
+                            </div>
+                          )}
+                          {asThomasE === 'Positivo' && (
+                            <div style={{ flex: 1 }}>
+                              <label>Iliopsoas E (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasIliopsoasE} onChange={e => setAsThomasIliopsoasE(e.target.value)} />
+                              <label style={{ marginTop: '4px' }}>Retofemoral E (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasRetofemoralE} onChange={e => setAsThomasRetofemoralE(e.target.value)} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '20px', marginBottom: '16px' }}>Termografia & Testes Funcionais</h4>
                     <div className="form-group">
                       <label>Termografia</label>
                       <input type="text" className="form-control" placeholder="Padrão hiper-radiante lombar, etc." value={asTermografia} onChange={e => setAsTermografia(e.target.value)} />
@@ -2160,6 +2922,31 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     </div>
                   </>
                 )}
+
+                {asStep === 6 && (
+                  <>
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Resultados Finais, Postura & Observações</h4>
+                    
+                    <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+                      <h5 style={{ color: 'var(--color-primary)', marginBottom: '8px' }}>Composição Corporal Calculada (Jackson-Pollock 7 dobras)</h5>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                        <div><strong>Gordura Corporal:</strong> <span style={{ color: 'var(--color-success)' }}>{asFat || '0'} %</span></div>
+                        <div><strong>Massa Magra:</strong> <span style={{ color: 'var(--color-primary)' }}>{asMassaMagra || '0'} kg</span></div>
+                        <div><strong>Massa Gorda:</strong> <span style={{ color: 'var(--text-dim)' }}>{asMassaGorda || '0'} kg</span></div>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Avaliação Postural Visual</label>
+                      <textarea className="form-control" placeholder="Ex: Escoliose leve torácica esquerda, anteriorização de pelve..." rows={2} value={asPostura} onChange={e => setAsPostura(e.target.value)} />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Considerações Finais e Conduta do Avaliador</label>
+                      <textarea className="form-control" placeholder="Observações gerais sobre a avaliação..." rows={4} value={asObs} onChange={e => setAsObs(e.target.value)} required />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAssessmentModal(false)}>Cancelar</button>
@@ -2169,7 +2956,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                       <i className="fa-solid fa-chevron-left"></i> Voltar
                     </button>
                   )}
-                  {asStep < 3 ? (
+                  {asStep < 6 ? (
                     <button type="button" className="btn btn-primary" onClick={() => setAsStep(asStep + 1)}>
                       Avançar <i className="fa-solid fa-chevron-right"></i>
                     </button>

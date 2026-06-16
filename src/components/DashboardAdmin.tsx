@@ -406,9 +406,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     const newWindow = window.open();
     if (newWindow) {
       if (base64Data.startsWith('data:image')) {
-        newWindow.document.write(<img src=" + base64Data + " style="max-width:100%"/>);
+        newWindow.document.write('<img src="' + base64Data + '" style="max-width:100%"/>');
       } else {
-        newWindow.document.write(<iframe src=" + base64Data + " width="100%" height="100%" style="border:none;"></iframe>);
+        newWindow.document.write('<iframe src="' + base64Data + '" width="100%" height="100%" style="border:none;"></iframe>');
       }
     }
   };
@@ -1034,7 +1034,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             </button>
                             <button className="btn btn-secondary btn-sm" title="Baixar Contrato PDF" onClick={() => {
                               const plan = plans.find((p: any) => p._id === (c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId));
-                              downloadContractPDF(c, plan, contractText);
+                              downloadContractPDF(c, plan, c.contrato);
                             }}>
                               <i className="fa-solid fa-file-contract"></i>
                             </button>
@@ -2237,12 +2237,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </div>
       )}
 
-       {/* F2  Ficha Completa do Aluno */}
+       {/* F2   Ficha Completa do Aluno */}
        {showClientDetailModal && detailClient && (
          <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowClientDetailModal(false)}>
            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '95%' }}>
              <div className="modal-header">
-               <h3><i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Ficha Completa  {detailClient.dadosPessoais?.nome}</h3>
+               <h3><i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Ficha Completa   {detailClient.dadosPessoais?.nome}</h3>
                <button className="modal-close" onClick={() => setShowClientDetailModal(false)}>&times;</button>
              </div>
              <div className="modal-body" style={{ padding: 0 }}>
@@ -2295,7 +2295,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        <div className="form-group">
                          <label>Plano Contratado</label>
                          <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)}>
-                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}  R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
+                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}   R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
                          </select>
                        </div>
                        <div className="form-group">
@@ -2327,7 +2327,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        }}><i className="fa-solid fa-floppy-disk"></i> Salvar</button>
                        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
                          const plan = plans.find((p: any) => p._id === dcPlano);
-                         downloadContractPDF({ ...detailClient, dadosComerciais: { ...detailClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }, plan, contractText);
+                         downloadContractPDF({ ...detailClient, dadosComerciais: { ...detailClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }, plan, detailClient.contrato);
                        }}><i className="fa-solid fa-file-contract"></i> Contrato PDF</button>
                      </div>
                    </>
