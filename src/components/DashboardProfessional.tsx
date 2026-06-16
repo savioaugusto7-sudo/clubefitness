@@ -2632,6 +2632,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     <div className="form-group">
                       <label>Aluno</label>
                       <SearchableSelect options={clientOptions} value={asClient} onChange={setAsClient} required />
+                      {asClient && (
+                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 12px', marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                          <strong>Informações do Aluno:</strong> Sexo: {asSex === 'M' ? 'Masculino' : 'Feminino'} | Idade: {asAge} anos | Altura: {asHeight} m
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Data</label>
@@ -2715,15 +2720,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                       </div>
                     </div>
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '16px', marginBottom: '12px' }}>Saúde Geral</h4>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Pressão Arterial</label>
-                        <input type="text" className="form-control" value={asPressao} onChange={e => setAsPressao(e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Horas de Sono / Noite</label>
-                        <input type="text" className="form-control" value={asSono} onChange={e => setAsSono(e.target.value)} />
-                      </div>
+                    <div className="form-group">
+                      <label>Horas de Sono / Noite</label>
+                      <input type="text" className="form-control" value={asSono} onChange={e => setAsSono(e.target.value)} />
                     </div>
                     <div className="form-row">
                       <div className="form-group">
