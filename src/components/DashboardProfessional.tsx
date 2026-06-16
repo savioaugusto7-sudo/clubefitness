@@ -130,6 +130,28 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [asYTest, setAsYTest] = useState('');
   const [asStepDown, setAsStepDown] = useState('');
   const [asMaigne, setAsMaigne] = useState('');
+  const [asMaigneData, setAsMaigneData] = useState({
+    flexao: 25, flexaoEVA: 0,
+    extensao: 25, extensaoEVA: 0,
+    inclinacaoD: 25, inclinacaoDEVA: 0,
+    inclinacaoE: 25, inclinacaoEEVA: 0,
+    rotacaoD: 25, rotacaoDEVA: 0,
+    rotacaoE: 25, rotacaoEEVA: 0
+  });
+
+  const updateMaigneField = (field: string, value: number) => {
+    setAsMaigneData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleMaigneNodeClick = (idx: number) => {
+    const fields = ['flexao', 'rotacaoD', 'inclinacaoD', 'extensao', 'inclinacaoE', 'rotacaoE'];
+    const field = fields[idx];
+    setAsMaigneData(prev => {
+      let val = prev[field as keyof typeof prev] + 5;
+      if (val > 50) val = 0;
+      return { ...prev, [field]: val };
+    });
+  };
 
   // Novas variáveis de estado para o assistente de 6 etapas
   const [asAge, setAsAge] = useState(30);
@@ -432,7 +454,38 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
           setAsTermografia(latest.dadosMedidos.testesEspeciais.termografia || '');
           setAsYTest(latest.dadosMedidos.testesEspeciais.yTest || '');
           setAsStepDown(latest.dadosMedidos.testesEspeciais.stepDown || '');
-          setAsMaigne(latest.dadosMedidos.testesEspeciais.maigne || '');
+          const maigneVal = latest.dadosMedidos.testesEspeciais.maigne || '';
+          setAsMaigne(maigneVal);
+          try {
+            if (maigneVal && maigneVal.startsWith('{')) {
+              const parsed = JSON.parse(maigneVal);
+              setAsMaigneData({
+                flexao: parsed.flexao !== undefined ? Number(parsed.flexao) : 25,
+                flexaoEVA: parsed.flexaoEVA !== undefined ? Number(parsed.flexaoEVA) : 0,
+                extensao: parsed.extensao !== undefined ? Number(parsed.extensao) : 25,
+                extensaoEVA: parsed.extensaoEVA !== undefined ? Number(parsed.extensaoEVA) : 0,
+                inclinacaoD: parsed.inclinacaoD !== undefined ? Number(parsed.inclinacaoD) : 25,
+                inclinacaoDEVA: parsed.inclinacaoDEVA !== undefined ? Number(parsed.inclinacaoDEVA) : 0,
+                inclinacaoE: parsed.inclinacaoE !== undefined ? Number(parsed.inclinacaoE) : 25,
+                inclinacaoEEVA: parsed.inclinacaoEEVA !== undefined ? Number(parsed.inclinacaoEEVA) : 0,
+                rotacaoD: parsed.rotacaoD !== undefined ? Number(parsed.rotacaoD) : 25,
+                rotacaoDEVA: parsed.rotacaoDEVA !== undefined ? Number(parsed.rotacaoDEVA) : 0,
+                rotacaoE: parsed.rotacaoE !== undefined ? Number(parsed.rotacaoE) : 25,
+                rotacaoEEVA: parsed.rotacaoEEVA !== undefined ? Number(parsed.rotacaoEEVA) : 0
+              });
+            } else {
+              setAsMaigneData({
+                flexao: 25, flexaoEVA: 0,
+                extensao: 25, extensaoEVA: 0,
+                inclinacaoD: 25, inclinacaoDEVA: 0,
+                inclinacaoE: 25, inclinacaoEEVA: 0,
+                rotacaoD: 25, rotacaoDEVA: 0,
+                rotacaoE: 25, rotacaoEEVA: 0
+              });
+            }
+          } catch (e) {
+            console.error('Error parsing Maigne:', e);
+          }
         }
 
         setAsPostura(latest.dadosMedidos?.postura || 'Nenhum desvio importante');
@@ -484,6 +537,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
         setAsYTest('');
         setAsStepDown('');
         setAsMaigne('');
+        setAsMaigneData({
+          flexao: 25, flexaoEVA: 0,
+          extensao: 25, extensaoEVA: 0,
+          inclinacaoD: 25, inclinacaoDEVA: 0,
+          inclinacaoE: 25, inclinacaoEEVA: 0,
+          rotacaoD: 25, rotacaoDEVA: 0,
+          rotacaoE: 25, rotacaoEEVA: 0
+        });
         setAsPostura('Nenhum desvio importante');
       }
     }
@@ -807,7 +868,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
             termografia: asTermografia,
             yTest: asYTest,
             stepDown: asStepDown,
-            maigne: asMaigne
+            maigne: JSON.stringify(asMaigneData)
           },
           flexibilidade: '',
           postura: asPostura
@@ -2916,10 +2977,290 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                         <input type="text" className="form-control" placeholder="Valgo dinâmico D..." value={asStepDown} onChange={e => setAsStepDown(e.target.value)} />
                       </div>
                     </div>
-                    <div className="form-group">
-                      <label>Sinal de Maigne (Junção Toracolombar)</label>
-                      <input type="text" className="form-control" placeholder="Positivo D..." value={asMaigne} onChange={e => setAsMaigne(e.target.value)} />
+                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
+                      <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>
+                        Estrela Maigne (Rosa dos Ventos Clínica de Dor)
+                      </h4>
+                      
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ background: '#ffffff', borderRadius: '8px', padding: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '300px', height: '300px' }}>
+                          <svg id="maigneSVG" width="280" height="221" viewBox="0 0 380 300">
+                            {/* Grid Circles */}
+                            {[10, 20, 30, 40, 50].map(val => (
+                              <g key={val}>
+                                <circle cx={190} cy={150} r={val * 2} className="maigne-circle" />
+                                <text x={190} y={150 - (val * 2) + 4} style={{ fontSize: '7px', fill: '#94a3b8', textAnchor: 'middle', fontWeight: 'bold' }}>{val}</text>
+                              </g>
+                            ))}
+
+                            {/* Grid Lines */}
+                            {[-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6].map((ang, idx) => {
+                              const x = 190 + 100 * Math.cos(ang);
+                              const y = 150 + 100 * Math.sin(ang);
+                              return <line key={idx} x1={190} y1={150} x2={x} y2={y} className="maigne-axis" />;
+                            })}
+
+                            {/* Labels for directions */}
+                            <text x={190} y={150 - 100 - 10} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold', textAnchor: 'middle' }}>Flexão (EVA: {asMaigneData.flexaoEVA})</text>
+                            <text x={190 + 100 * Math.cos(-Math.PI / 6) + 15} y={150 + 100 * Math.sin(-Math.PI / 6) - 5} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold', textAnchor: 'start' }}>Rot D (EVA: {asMaigneData.rotacaoDEVA})</text>
+                            <text x={190 + 100 * Math.cos(Math.PI / 6) + 15} y={150 + 100 * Math.sin(Math.PI / 6) + 10} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold', textAnchor: 'start' }}>Inc D (EVA: {asMaigneData.inclinacaoDEVA})</text>
+                            <text x={190} y={150 + 100 + 18} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold', textAnchor: 'middle' }}>Extensão (EVA: {asMaigneData.extensaoEVA})</text>
+                            <text x={190 + 100 * Math.cos(5 * Math.PI / 6) - 15} y={150 + 100 * Math.sin(5 * Math.PI / 6) + 10} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold', textAnchor: 'end' }}>Inc E (EVA: {asMaigneData.inclinacaoEEVA})</text>
+                            <text x={190 + 100 * Math.cos(7 * Math.PI / 6) - 15} y={150 + 100 * Math.sin(7 * Math.PI / 6) - 5} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold', textAnchor: 'end' }}>Rot E (EVA: {asMaigneData.rotacaoEEVA})</text>
+
+                            {/* Reference Polygon */}
+                            <polygon
+                              points={[-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6].map((ang, idx) => {
+                                const refVals = [40, 40, 30, 30, 30, 40];
+                                const x = 190 + refVals[idx] * 2 * Math.cos(ang);
+                                const y = 150 + refVals[idx] * 2 * Math.sin(ang);
+                                return `${x},${y}`;
+                              }).join(' ')}
+                              className="maigne-ref-poly"
+                            />
+
+                            {/* Value Polygon */}
+                            <polygon
+                              points={[-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6].map((ang, idx) => {
+                                const clientVals = [
+                                  asMaigneData.flexao,
+                                  asMaigneData.rotacaoD,
+                                  asMaigneData.inclinacaoD,
+                                  asMaigneData.extensao,
+                                  asMaigneData.inclinacaoE,
+                                  asMaigneData.rotacaoE
+                                ];
+                                const x = 190 + clientVals[idx] * 2 * Math.cos(ang);
+                                const y = 150 + clientVals[idx] * 2 * Math.sin(ang);
+                                return `${x},${y}`;
+                              }).join(' ')}
+                              className="maigne-val-poly"
+                            />
+
+                            {/* Value Dots/Nodes */}
+                            {[-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6].map((ang, idx) => {
+                              const clientVals = [
+                                  asMaigneData.flexao,
+                                  asMaigneData.rotacaoD,
+                                  asMaigneData.inclinacaoD,
+                                  asMaigneData.extensao,
+                                  asMaigneData.inclinacaoE,
+                                  asMaigneData.rotacaoE
+                              ];
+                              const x = 190 + clientVals[idx] * 2 * Math.cos(ang);
+                              const y = 150 + clientVals[idx] * 2 * Math.sin(ang);
+                              return (
+                                <circle
+                                  key={idx}
+                                  cx={x}
+                                  cy={y}
+                                  r="4.5"
+                                  className="maigne-node"
+                                  onClick={() => handleMaigneNodeClick(idx)}
+                                />
+                              );
+                            })}
+                          </svg>
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: '250px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          {/* Flexão */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Flexão (ADM): <span style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{asMaigneData.flexao}</span>/50
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="50"
+                              value={asMaigneData.flexao}
+                              onChange={e => updateMaigneField('flexao', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                            />
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Flexão (Dor EVA): <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{asMaigneData.flexaoEVA}</span>/10
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="10"
+                              value={asMaigneData.flexaoEVA}
+                              onChange={e => updateMaigneField('flexaoEVA', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-danger)' }}
+                            />
+                          </div>
+
+                          {/* Extensão */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Extensão (ADM): <span style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{asMaigneData.extensao}</span>/50
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="50"
+                              value={asMaigneData.extensao}
+                              onChange={e => updateMaigneField('extensao', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                            />
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Extensão (Dor EVA): <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{asMaigneData.extensaoEVA}</span>/10
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="10"
+                              value={asMaigneData.extensaoEVA}
+                              onChange={e => updateMaigneField('extensaoEVA', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-danger)' }}
+                            />
+                          </div>
+
+                          {/* Inclinação D */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Inclinação D (ADM): <span style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{asMaigneData.inclinacaoD}</span>/50
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="50"
+                              value={asMaigneData.inclinacaoD}
+                              onChange={e => updateMaigneField('inclinacaoD', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                            />
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Inclinação D (Dor EVA): <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{asMaigneData.inclinacaoDEVA}</span>/10
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="10"
+                              value={asMaigneData.inclinacaoDEVA}
+                              onChange={e => updateMaigneField('inclinacaoDEVA', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-danger)' }}
+                            />
+                          </div>
+
+                          {/* Inclinação E */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Inclinação E (ADM): <span style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{asMaigneData.inclinacaoE}</span>/50
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="50"
+                              value={asMaigneData.inclinacaoE}
+                              onChange={e => updateMaigneField('inclinacaoE', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                            />
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Inclinação E (Dor EVA): <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{asMaigneData.inclinacaoEEVA}</span>/10
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="10"
+                              value={asMaigneData.inclinacaoEEVA}
+                              onChange={e => updateMaigneField('inclinacaoEEVA', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-danger)' }}
+                            />
+                          </div>
+
+                          {/* Rotação D */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Rotação D (ADM): <span style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{asMaigneData.rotacaoD}</span>/50
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="50"
+                              value={asMaigneData.rotacaoD}
+                              onChange={e => updateMaigneField('rotacaoD', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                            />
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Rotação D (Dor EVA): <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{asMaigneData.rotacaoDEVA}</span>/10
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="10"
+                              value={asMaigneData.rotacaoDEVA}
+                              onChange={e => updateMaigneField('rotacaoDEVA', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-danger)' }}
+                            />
+                          </div>
+
+                          {/* Rotação E */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Rotação E (ADM): <span style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{asMaigneData.rotacaoE}</span>/50
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="50"
+                              value={asMaigneData.rotacaoE}
+                              onChange={e => updateMaigneField('rotacaoE', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                            />
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                              Rotação E (Dor EVA): <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{asMaigneData.rotacaoEEVA}</span>/10
+                            </label>
+                            <input
+                              type="range"
+                              className="form-control"
+                              min="0"
+                              max="10"
+                              value={asMaigneData.rotacaoEEVA}
+                              onChange={e => updateMaigneField('rotacaoEEVA', Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--color-danger)' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ marginTop: '16px' }}>
+                        <label style={{ fontSize: '0.8rem' }}>Observações do Sinal de Maigne</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Positivo D..."
+                          value={asMaigne}
+                          onChange={e => setAsMaigne(e.target.value)}
+                        />
+                      </div>
+                      <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '8px', fontStyle: 'italic' }}>
+                        * A rosa dos ventos reflete o nível de dor e limitação de movimento nas 6 direções. Você pode clicar diretamente nos pontos azuis no desenho para aumentar a amplitude (ADM) de 5 em 5.
+                      </p>
                     </div>
+
                   </>
                 )}
 

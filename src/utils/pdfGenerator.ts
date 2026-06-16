@@ -1001,6 +1001,20 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const avatarB64 = await getAvatarBase64(client.dadosPessoais?.sexo || 'M');
   const prof = assessment.avaliadorId || { nome: 'Avaliador', registro: 'CREF/CREFITO' };
 
+  let maigneObj = { flexao: 25, flexaoEVA: 0, extensao: 25, extensaoEVA: 0, inclinacaoD: 25, inclinacaoDEVA: 0, inclinacaoE: 25, inclinacaoEEVA: 0, rotacaoD: 25, rotacaoDEVA: 0, rotacaoE: 25, rotacaoEEVA: 0 };
+  let hasMaigneData = false;
+  if (assessment.dadosMedidos.testesEspeciais?.maigne) {
+    try {
+      const parsed = JSON.parse(assessment.dadosMedidos.testesEspeciais.maigne);
+      if (parsed && typeof parsed === 'object') {
+        maigneObj = { ...maigneObj, ...parsed };
+        hasMaigneData = true;
+      }
+    } catch (e) {
+      // Not JSON
+    }
+  }
+
   let assessmentsList = [];
   if (allAssessments) {
     assessmentsList = allAssessments;
@@ -1829,6 +1843,52 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   ${checkThomasPDFAsymmetry(assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralD, assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralE, 'Retofemoral')}
                 </td>
               </tr>
+              ${hasMaigneData ? `
+              <tr>
+                <td style="padding:3px 0; vertical-align: top;">Maigne ADM</td>
+                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
+                  F:${maigneObj.flexao} / E:${maigneObj.extensao} / RD:${maigneObj.rotacaoD} / RE:${maigneObj.rotacaoE} / ID:${maigneObj.inclinacaoD} / IE:${maigneObj.inclinacaoE}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:3px 0; vertical-align: top;">Maigne Dor (EVA)</td>
+                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px; color: ${[maigneObj.flexaoEVA, maigneObj.extensaoEVA, maigneObj.rotacaoDEVA, maigneObj.rotacaoEEVA, maigneObj.inclinacaoDEVA, maigneObj.inclinacaoEEVA].some(val => val > 0) ? '#ef4444' : '#1e293b'};">
+                  F:${maigneObj.flexaoEVA} / E:${maigneObj.extensaoEVA} / RD:${maigneObj.rotacaoDEVA} / RE:${maigneObj.rotacaoEEVA} / ID:${maigneObj.inclinacaoDEVA} / IE:${maigneObj.inclinacaoEEVA}
+                </td>
+              </tr>
+              ` : ''}
+              ${assessment.dadosMedidos.testesEspeciais?.maigne && !hasMaigneData ? `
+              <tr>
+                <td style="padding:3px 0; vertical-align: top;">Maigne Obs.</td>
+                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                  ${assessment.dadosMedidos.testesEspeciais.maigne}
+                </td>
+              </tr>
+              ` : ''}
+              ${assessment.dadosMedidos.testesEspeciais?.stepDown ? `
+              <tr>
+                <td style="padding:3px 0; vertical-align: top;">Step Down</td>
+                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                  ${assessment.dadosMedidos.testesEspeciais.stepDown}
+                </td>
+              </tr>
+              ` : ''}
+              ${assessment.dadosMedidos.testesEspeciais?.yTest ? `
+              <tr>
+                <td style="padding:3px 0; vertical-align: top;">Y-Test</td>
+                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                  ${assessment.dadosMedidos.testesEspeciais.yTest}
+                </td>
+              </tr>
+              ` : ''}
+              ${assessment.dadosMedidos.testesEspeciais?.termografia ? `
+              <tr>
+                <td style="padding:3px 0; vertical-align: top;">Termografia</td>
+                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                  ${assessment.dadosMedidos.testesEspeciais.termografia}
+                </td>
+              </tr>
+              ` : ''}
             </table>
           </div>
         </div>
