@@ -153,6 +153,49 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
     });
   };
 
+  const getGoalReferenceInfo = () => {
+    if (!asTipoObjetivo) return null;
+    
+    let min = null;
+    let max = null;
+    const freq = Number(asFreqSemanal) || 3;
+    const sexo = asSex || 'M';
+    const tipo = asTipoObjetivo;
+    const meses = Number(asObjetivoMeses) || 3;
+
+    if (freq === 2) {
+      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.1; max = 0.25; }
+      else if (sexo === 'F' && tipo === 'Emagrecimento') { min = 0.3; max = 0.6; }
+    } else if (freq === 3) {
+      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.2; max = 0.4; }
+      else if (sexo === 'F' && tipo === 'Massa Magra') { min = 0.1; max = 0.2; }
+    } else if (freq === 4) {
+      if (sexo === 'M' && tipo === 'Emagrecimento') { min = 0.5; max = 0.8; }
+      else if (sexo === 'F' && tipo === 'Massa Magra') { min = 0.2; max = 0.3; }
+    } else if (freq === 5) {
+      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.3; max = 0.5; }
+      else if (sexo === 'F' && tipo === 'Emagrecimento') { min = 0.6; max = 1.0; }
+    }
+
+    if (min === null || max === null) {
+      if (tipo === 'Emagrecimento') {
+        if (sexo === 'F') { min = 0.3; max = 0.6; }
+        else { min = 0.5; max = 0.8; }
+      } else {
+        if (sexo === 'F') { min = 0.1; max = 0.2; }
+        else { min = 0.2; max = 0.4; }
+      }
+    }
+
+    const totalSemanas = Math.round(meses * 4.33);
+    const minTotal = (min * totalSemanas).toFixed(1);
+    const maxTotal = (max * totalSemanas).toFixed(1);
+    const labelTipo = tipo === 'Emagrecimento' ? 'Emagrecimento / Perda de Gordura' : 'Ganho de Massa Magra';
+    const labelSexo = sexo === 'M' ? 'Masculino' : 'Feminino';
+
+    return { min, max, minTotal, maxTotal, totalSemanas, labelTipo, labelSexo, freq, meses };
+  };
+
   // Novas variáveis de estado para o assistente de 6 etapas
   const [asAge, setAsAge] = useState(30);
   const [asSex, setAsSex] = useState('M');
@@ -2617,15 +2660,31 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                       </div>
                     </div>
                     {asTipoObjetivo && (
-                      <div className="form-group">
-                        <label>Frequência de Treino Semanal Pretendida</label>
-                        <select className="form-control" value={asFreqSemanal} onChange={e => setAsFreqSemanal(Number(e.target.value))}>
-                          <option value="2">2x por semana</option>
-                          <option value="3">3x por semana</option>
-                          <option value="4">4x por semana</option>
-                          <option value="5">5x por semana</option>
-                        </select>
-                      </div>
+                      <>
+                        <div className="form-group">
+                          <label>Frequência de Treino Semanal Pretendida</label>
+                          <select className="form-control" value={asFreqSemanal} onChange={e => setAsFreqSemanal(Number(e.target.value))}>
+                            <option value="2">2x por semana</option>
+                            <option value="3">3x por semana</option>
+                            <option value="4">4x por semana</option>
+                            <option value="5">5x por semana</option>
+                          </select>
+                        </div>
+                        {(() => {
+                          const ref = getGoalReferenceInfo();
+                          if (!ref) return null;
+                          return (
+                            <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontWeight: 700, color: '#10b981' }}>
+                                <i className="fa-solid fa-calculator"></i> Tabela de Referência Baseada no Aluno
+                              </div>
+                              <p style={{ margin: '0 0 6px 0' }}>Aluno: <strong>{ref.labelSexo}</strong> | Foco: <strong>{ref.labelTipo}</strong> | Freq: <strong>{ref.freq}x/semana</strong></p>
+                              <p style={{ margin: '0 0 6px 0' }}>Taxa recomendada por semana: <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.min} kg a {ref.max} kg</span></p>
+                              <p style={{ margin: 0 }}>Estimativa sugerida para <strong>{ref.meses} {ref.meses === 1 ? 'mês' : 'meses'}</strong> ({ref.totalSemanas} semanas): <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.minTotal} kg a {ref.maxTotal} kg</span></p>
+                            </div>
+                          );
+                        })()}
+                      </>
                     )}
                   </>
                 )}
