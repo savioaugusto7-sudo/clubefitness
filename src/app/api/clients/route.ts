@@ -45,9 +45,14 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Create Client
+    // 2. Count existing clients to generate sequential code
+    const count = await Client.countDocuments();
+    const codigo = `CF-${String(count + 1).padStart(4, '0')}`;
+
+    // 3. Create Client
     const client = await Client.create({
       userId: user._id,
+      codigo,
       dadosPessoais: {
         nome: user.nome,
         email: user.email,

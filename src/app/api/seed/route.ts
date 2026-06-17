@@ -320,7 +320,7 @@ export async function GET() {
           dobras: { peitoral: 12, triceps: 14, subescapular: 16, subaxilar: 15, suprailiaca: 17, abdomen: 20, coxa: 18, panturrilha: 12 },
           somaDobras: 124, percentil: 60,
           goniometria: { quadrilFlexao1D: 80, quadrilFlexao1E: 80, quadrilFlexao2D: 110, quadrilFlexao2E: 112, quadrilRotIntD: 40, quadrilRotIntE: 42, quadrilRotExtD: 45, quadrilRotExtE: 46, joelhoFlexaoD: 142, joelhoFlexaoE: 140, joelhoPopliteoD: 155, joelhoPopliteoE: 156, tornozeloDorsi1D: 40, tornozeloDorsi1E: 40, tornozeloDorsi2D: 32, tornozeloDorsi2E: 34, tornozeloFlexaoPlantarD: 45, tornozeloFlexaoPlantarE: 46, ombroRotIntD: 85, ombroRotIntE: 86, ombroRotExtD: 90, ombroRotExtE: 92, ombroAbducaoD: 180, ombroAbducaoE: 180 },
-          testesEspeciais: { oberD: 'Negativo', oberE: 'Negativo', thomasD: 'Negativo', thomasE: 'Negativo' },
+          testesEspeciais: { oberD: 'Negativo', oberE: 'Negativo', thomasD: 'Negativo', thomasE: 'Negativo', maigne: JSON.stringify({ flexao: 40, flexaoEVA: 2, extensao: 30, extensaoEVA: 0, inclinacaoD: 30, inclinacaoDEVA: 1, inclinacaoE: 25, inclinacaoEEVA: 0, rotacaoD: 35, rotacaoDEVA: 2, rotacaoE: 35, rotacaoEEVA: 0 }) },
           flexibilidade: 'Excelente (35cm no banco de Wells)', postura: 'Melhora postural e ombros alinhados'
         },
         resultadosCalculados: { imc: 24.75, imcClassificacao: 'Normal', rcq: 0.89, rcqClassificacao: 'Risco Moderado', percentualGordura: 21.3, massaMagra: 64.9, massaGorda: 17.5 },
@@ -403,9 +403,9 @@ export async function GET() {
             ultimaAtualizacao: '2026-05-15',
             observacoesGerais: 'Cuidado extra com a lombar devido à hérnia de disco. Foco em controle de movimento.',
             exercicios: [
-              { exercicioId: 'SUPINO RETO', series: 4, repeticoes: '10', carga: '20kg', descanso: '60s', observacao: 'Manter cotovelos em 45 graus.' },
-              { exercicioId: 'PUXADA FRENTE', series: 4, repeticoes: '12', carga: '25kg', descanso: '60s', observacao: 'Contrair bem as costas.' },
-              { exercicioId: 'ROSCA DIRETA', series: 3, repeticoes: '10', carga: '10kg', descanso: '45s', observacao: 'Sem roubar com a lombar.' }
+              { exercicioId: 'SUPINO RETO', series: 4, repeticoes: '10', carga: '20kg', descanso: '60s', observacao: 'Manter cotovelos em 45 graus.', ritmo: '2-0-2-0', combinaGrupo: 'G1' },
+              { exercicioId: 'PUXADA FRENTE', series: 4, repeticoes: '12', carga: '25kg', descanso: '60s', observacao: 'Contrair bem as costas.', ritmo: '2-0-2-0', combinaGrupo: 'G1' },
+              { exercicioId: 'ROSCA DIRETA', series: 3, repeticoes: '10', carga: '10kg', descanso: '45s', observacao: 'Sem roubar com a lombar.', ritmo: '3-0-1-0', combinaGrupo: '' }
             ]
           },
           { id: 'B', nome: 'Ficha B', ultimaAtualizacao: '', observacoesGerais: '', exercicios: [] },

@@ -7,7 +7,11 @@ const PlanSchema = new Schema({
   limiteSessoesConsultorio: { type: Number, default: 0 },
   preco: { type: Number, required: true },
   creditosTotal: { type: Number, required: true },
-  servicosPermitidos: [{ type: String }]
+  servicosPermitidos: [{ type: String }],
+  tipo: { type: String, enum: ['Mensal', 'Anual'], default: 'Mensal' },
+  beneficiosInclusos: [{ type: String }],
+  unidadeAtendimento: { type: String, default: '' },
+  ativo: { type: Boolean, default: true }
 }, { timestamps: true });
 
 export default models.Plan || model('Plan', PlanSchema);

@@ -56,14 +56,20 @@ export async function downloadReportPDF(report: any) {
     return;
   }
 
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  let newWindow: Window | null = null;
+  if (isIframe) {
+    newWindow = window.open('', '_blank');
+  }
+
   const client = report.clienteId || { dadosPessoais: { nome: 'Paciente' } };
   const prof = report.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
   const logoBase64 = await getLogoBase64();
   
   const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.position = 'fixed';
+    pdfWrapper.style.position = 'absolute';
     pdfWrapper.style.left = '0px';
-    pdfWrapper.style.top = '0px';
+    pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
     pdfWrapper.style.width = '794px';
     pdfWrapper.style.opacity = '0';
     pdfWrapper.style.zIndex = '99999';
@@ -978,12 +984,35 @@ export async function downloadReportPDF(report: any) {
       pagebreak: { mode: ['avoid-all', 'css'] }
     };
 
-    html2pdf().set(options).from(pdfContainer).save().then(() => {
-      document.body.removeChild(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro na geração do PDF do relatório:', err);
-      document.body.removeChild(pdfWrapper);
-    });
+    if (isIframe) {
+      html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        if (newWindow) {
+          const doc = newWindow.document;
+          const a = doc.createElement('a');
+          a.href = blobUrl;
+          a.download = options.filename;
+          doc.body.appendChild(a);
+          a.click();
+          doc.body.removeChild(a);
+          setTimeout(() => {
+            if (newWindow) newWindow.close();
+          }, 300);
+        }
+        document.body.removeChild(pdfWrapper);
+      }).catch((err: any) => {
+        console.error('Erro na geração do PDF do relatório:', err);
+        if (newWindow) newWindow.close();
+        document.body.removeChild(pdfWrapper);
+      });
+    } else {
+      html2pdf().set(options).from(pdfContainer).save().then(() => {
+        document.body.removeChild(pdfWrapper);
+      }).catch((err: any) => {
+        console.error('Erro na geração do PDF do relatório:', err);
+        document.body.removeChild(pdfWrapper);
+      });
+    }
 }
 
 
@@ -994,6 +1023,12 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   if (!html2pdf) {
     alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
     return;
+  }
+
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  let newWindow: Window | null = null;
+  if (isIframe) {
+    newWindow = window.open('', '_blank');
   }
 
   const client = assessment.clienteId || { dadosPessoais: { nome: 'Aluno' } };
@@ -1013,6 +1048,68 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     } catch (e) {
       // Not JSON
     }
+  }
+
+  let maigneSvgHtml = '';
+  if (hasMaigneData) {
+    const m = maigneObj;
+    const cx = 190, cy = 150, maxRadius = 100, scale = 2.0;
+    const angles = [-Math.PI/2, -Math.PI/6, Math.PI/6, Math.PI/2, 5*Math.PI/6, 7*Math.PI/6];
+    const refVals = [40, 40, 30, 30, 30, 40];
+    const clientVals = [m.flexao, m.rotacaoD, m.inclinacaoD, m.extensao, m.inclinacaoE, m.rotacaoE];
+    
+    const fEVA = m.flexaoEVA !== undefined ? m.flexaoEVA : 0;
+    const extEVA = m.extensaoEVA !== undefined ? m.extensaoEVA : 0;
+    const idEVA = m.inclinacaoDEVA !== undefined ? m.inclinacaoDEVA : 0;
+    const ieEVA = m.inclinacaoEEVA !== undefined ? m.inclinacaoEEVA : 0;
+    const rdEVA = m.rotacaoDEVA !== undefined ? m.rotacaoDEVA : 0;
+    const reEVA = m.rotacaoEEVA !== undefined ? m.rotacaoEEVA : 0;
+
+    maigneSvgHtml = `
+      <svg width="180" height="142" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
+        <!-- Grid Circles -->
+        ${[10, 20, 30, 40, 50].map(val => `
+          <circle cx="${cx}" cy="${cy}" r="${val * scale}" stroke="#e2e8f0" fill="none" stroke-width="0.5" />
+          <text x="${cx}" y="${cy - (val * scale) + 3}" style="font-size:7px; fill:#94a3b8; text-anchor:middle;">${val}</text>
+        `).join('')}
+
+        <!-- Grid Lines -->
+        ${angles.map((ang, idx) => {
+          const x = cx + maxRadius * Math.cos(ang);
+          const y = cy + maxRadius * Math.sin(ang);
+          return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
+        }).join('')}
+
+        <!-- Labels for directions -->
+        <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexão (EVA: ${fEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[1]) + 15}" y="${cy + maxRadius * Math.sin(angles[1]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Rot D (EVA: ${rdEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[2]) + 15}" y="${cy + maxRadius * Math.sin(angles[2]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Inc D (EVA: ${idEVA})</text>
+        <text x="${cx}" y="${cy + maxRadius + 18}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Extensão (EVA: ${extEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[4]) - 15}" y="${cy + maxRadius * Math.sin(angles[4]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Inc E (EVA: ${ieEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[5]) - 15}" y="${cy + maxRadius * Math.sin(angles[5]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Rot E (EVA: ${reEVA})</text>
+
+        <!-- Reference Polygon -->
+        <polygon points="${angles.map((ang, idx) => {
+          const x = cx + refVals[idx] * scale * Math.cos(ang);
+          const y = cy + refVals[idx] * scale * Math.sin(ang);
+          return `${x},${y}`;
+        }).join(' ')}" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,3" />
+
+        <!-- Value Polygon -->
+        <polygon points="${angles.map((ang, idx) => {
+          const x = cx + clientVals[idx] * scale * Math.cos(ang);
+          const y = cy + clientVals[idx] * scale * Math.sin(ang);
+          return `${x},${y}`;
+        }).join(' ')}" fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" stroke-width="1.8" />
+
+        <!-- Value Dots -->
+        ${angles.map((ang, idx) => {
+          const x = cx + clientVals[idx] * scale * Math.cos(ang);
+          const y = cy + clientVals[idx] * scale * Math.sin(ang);
+          return `<circle cx="${x}" cy="${y}" r="3.5" fill="#0d9488" stroke="#ffffff" stroke-width="1" />`;
+        }).join('')}
+      </svg>
+    `;
   }
 
   let assessmentsList = [];
@@ -1219,9 +1316,9 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   }
 
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.position = 'fixed';
+  pdfWrapper.style.position = 'absolute';
   pdfWrapper.style.left = '0px';
-  pdfWrapper.style.top = '0px';
+  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
   pdfWrapper.style.width = '794px';
   pdfWrapper.style.opacity = '0';
   pdfWrapper.style.zIndex = '99999';
@@ -1704,193 +1801,201 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
         <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 8px 0; text-transform: uppercase;">Flexibilidade e Mobilidade Articular (Goniometria)</h3>
         
-        <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
-          <!-- Quadril -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
-            <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Quadril</strong>
-            <table style="width:100%; font-size:8px; border-collapse:collapse;">
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">F. Quadril (1)</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.quadrilFlexao1D || 0}°${getGonStatusDot('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1D)} / ${assessment.dadosMedidos.goniometria?.quadrilFlexao1E || 0}°${getGonStatusDot('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1E)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilFlexao1D, assessment.dadosMedidos.goniometria?.quadrilFlexao1E)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">F. Quadril (2)</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.quadrilFlexao2D || 0}°${getGonStatusDot('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2D)} / ${assessment.dadosMedidos.goniometria?.quadrilFlexao2E || 0}°${getGonStatusDot('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2E)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilFlexao2D, assessment.dadosMedidos.goniometria?.quadrilFlexao2E)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">RQI</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.quadrilRotIntD || 0}°${getGonStatusDot('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntD)} / ${assessment.dadosMedidos.goniometria?.quadrilRotIntE || 0}°${getGonStatusDot('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilRotIntD, assessment.dadosMedidos.goniometria?.quadrilRotIntE)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">RQE</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.quadrilRotExtD || 0}°${getGonStatusDot('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtD)} / ${assessment.dadosMedidos.goniometria?.quadrilRotExtE || 0}°${getGonStatusDot('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilRotExtD, assessment.dadosMedidos.goniometria?.quadrilRotExtE)}
-                </td>
-              </tr>
-            </table>
-          </div>
+        <div style="display: flex; gap: 8px; align-items: flex-start;">
+          <div style="flex: 1; display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+            <!-- Quadril -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
+              <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Quadril</strong>
+              <table style="width:100%; font-size:8px; border-collapse:collapse;">
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">F. Quadril (1)</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.quadrilFlexao1D || 0}°${getGonStatusDot('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1D)} / ${assessment.dadosMedidos.goniometria?.quadrilFlexao1E || 0}°${getGonStatusDot('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1E)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilFlexao1D, assessment.dadosMedidos.goniometria?.quadrilFlexao1E)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">F. Quadril (2)</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.quadrilFlexao2D || 0}°${getGonStatusDot('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2D)} / ${assessment.dadosMedidos.goniometria?.quadrilFlexao2E || 0}°${getGonStatusDot('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2E)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilFlexao2D, assessment.dadosMedidos.goniometria?.quadrilFlexao2E)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">RQI</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.quadrilRotIntD || 0}°${getGonStatusDot('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntD)} / ${assessment.dadosMedidos.goniometria?.quadrilRotIntE || 0}°${getGonStatusDot('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilRotIntD, assessment.dadosMedidos.goniometria?.quadrilRotIntE)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">RQE</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.quadrilRotExtD || 0}°${getGonStatusDot('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtD)} / ${assessment.dadosMedidos.goniometria?.quadrilRotExtE || 0}°${getGonStatusDot('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilRotExtD, assessment.dadosMedidos.goniometria?.quadrilRotExtE)}
+                  </td>
+                </tr>
+              </table>
+            </div>
 
-          <!-- Joelho -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
-            <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Joelho</strong>
-            <table style="width:100%; font-size:8px; border-collapse:collapse;">
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">F. Joelho</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.joelhoFlexaoD || 0}°${getGonStatusDot('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoD)} / ${assessment.dadosMedidos.goniometria?.joelhoFlexaoE || 0}°${getGonStatusDot('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.joelhoFlexaoD, assessment.dadosMedidos.goniometria?.joelhoFlexaoE)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">Poplíteo</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.joelhoPopliteoD || 0}°${getGonStatusDot('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoD)} / ${assessment.dadosMedidos.goniometria?.joelhoPopliteoE || 0}°${getGonStatusDot('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.joelhoPopliteoD, assessment.dadosMedidos.goniometria?.joelhoPopliteoE)}
-                </td>
-              </tr>
-            </table>
-          </div>
+            <!-- Joelho -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
+              <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Joelho</strong>
+              <table style="width:100%; font-size:8px; border-collapse:collapse;">
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">F. Joelho</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.joelhoFlexaoD || 0}°${getGonStatusDot('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoD)} / ${assessment.dadosMedidos.goniometria?.joelhoFlexaoE || 0}°${getGonStatusDot('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.joelhoFlexaoD, assessment.dadosMedidos.goniometria?.joelhoFlexaoE)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">Poplíteo</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.joelhoPopliteoD || 0}°${getGonStatusDot('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoD)} / ${assessment.dadosMedidos.goniometria?.joelhoPopliteoE || 0}°${getGonStatusDot('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.joelhoPopliteoD, assessment.dadosMedidos.goniometria?.joelhoPopliteoE)}
+                  </td>
+                </tr>
+              </table>
+            </div>
 
-          <!-- Tornozelo -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
-            <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Tornozelo</strong>
-            <table style="width:100%; font-size:8px; border-collapse:collapse;">
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">Dorsi (1)</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.tornozeloDorsi1D || 0}°${getGonStatusDot('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1D)} / ${assessment.dadosMedidos.goniometria?.tornozeloDorsi1E || 0}°${getGonStatusDot('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1E)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloDorsi1D, assessment.dadosMedidos.goniometria?.tornozeloDorsi1E)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">Dorsi (2)</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.tornozeloDorsi2D || 0}°${getGonStatusDot('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2D)} / ${assessment.dadosMedidos.goniometria?.tornozeloDorsi2E || 0}°${getGonStatusDot('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2E)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloDorsi2D, assessment.dadosMedidos.goniometria?.tornozeloDorsi2E)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">F. Plantar</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD || 0}°${getGonStatusDot('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD)} / ${assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE || 0}°${getGonStatusDot('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD, assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE)}
-                </td>
-              </tr>
-            </table>
-          </div>
+            <!-- Tornozelo -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
+              <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Tornozelo</strong>
+              <table style="width:100%; font-size:8px; border-collapse:collapse;">
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">Dorsi (1)</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.tornozeloDorsi1D || 0}°${getGonStatusDot('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1D)} / ${assessment.dadosMedidos.goniometria?.tornozeloDorsi1E || 0}°${getGonStatusDot('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1E)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloDorsi1D, assessment.dadosMedidos.goniometria?.tornozeloDorsi1E)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">Dorsi (2)</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.tornozeloDorsi2D || 0}°${getGonStatusDot('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2D)} / ${assessment.dadosMedidos.goniometria?.tornozeloDorsi2E || 0}°${getGonStatusDot('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2E)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloDorsi2D, assessment.dadosMedidos.goniometria?.tornozeloDorsi2E)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">F. Plantar</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD || 0}°${getGonStatusDot('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD)} / ${assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE || 0}°${getGonStatusDot('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD, assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE)}
+                  </td>
+                </tr>
+              </table>
+            </div>
 
-          <!-- Ombro -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
-            <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Ombro</strong>
-            <table style="width:100%; font-size:8px; border-collapse:collapse;">
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">ROI</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.ombroRotIntD || 0}°${getGonStatusDot('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntD)} / ${assessment.dadosMedidos.goniometria?.ombroRotIntE || 0}°${getGonStatusDot('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroRotIntD, assessment.dadosMedidos.goniometria?.ombroRotIntE)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">ROE</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.ombroRotExtD || 0}°${getGonStatusDot('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtD)} / ${assessment.dadosMedidos.goniometria?.ombroRotExtE || 0}°${getGonStatusDot('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroRotExtD, assessment.dadosMedidos.goniometria?.ombroRotExtE)}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:2px 0; vertical-align: top;">Latíssimo</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top;">
-                  ${assessment.dadosMedidos.goniometria?.ombroAbducaoD || 0}°${getGonStatusDot('ombroAbducao', assessment.dadosMedidos.goniometria?.ombroAbducaoD)} / ${assessment.dadosMedidos.goniometria?.ombroAbducaoE || 0}°${getGonStatusDot('ombroAbducao', assessment.dadosMedidos.goniometria?.ombroAbducaoE)}
-                  ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroAbducaoD, assessment.dadosMedidos.goniometria?.ombroAbducaoE)}
-                </td>
-              </tr>
-            </table>
-          </div>
+            <!-- Ombro -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
+              <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Ombro</strong>
+              <table style="width:100%; font-size:8px; border-collapse:collapse;">
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">ROI</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.ombroRotIntD || 0}°${getGonStatusDot('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntD)} / ${assessment.dadosMedidos.goniometria?.ombroRotIntE || 0}°${getGonStatusDot('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroRotIntD, assessment.dadosMedidos.goniometria?.ombroRotIntE)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">ROE</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.ombroRotExtD || 0}°${getGonStatusDot('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtD)} / ${assessment.dadosMedidos.goniometria?.ombroRotExtE || 0}°${getGonStatusDot('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroRotExtD, assessment.dadosMedidos.goniometria?.ombroRotExtE)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:2px 0; vertical-align: top;">Latíssimo</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top;">
+                    ${assessment.dadosMedidos.goniometria?.ombroAbducaoD || 0}°${getGonStatusDot('ombroAbducao', assessment.dadosMedidos.goniometria?.ombroAbducaoD)} / ${assessment.dadosMedidos.goniometria?.ombroAbducaoE || 0}°${getGonStatusDot('ombroAbducao', assessment.dadosMedidos.goniometria?.ombroAbducaoE)}
+                    ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroAbducaoD, assessment.dadosMedidos.goniometria?.ombroAbducaoE)}
+                  </td>
+                </tr>
+              </table>
+            </div>
 
-          <!-- Testes Especiais -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
-            <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Testes Especiais</strong>
-            <table style="width:100%; font-size:8px; border-collapse:collapse;">
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">OBER D/E</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.oberD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.oberE === 'Positivo' ? '#ef4444' : '#1e293b'};">
-                  ${assessment.dadosMedidos.testesEspeciais?.oberD || 'Negativo'} / ${assessment.dadosMedidos.testesEspeciais?.oberE || 'Negativo'}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Thomas Ilio.</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? '#ef4444' : '#1e293b'};">
-                  ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasIliopsoasD || 0}°` : 'Neg.'} / 
-                  ${assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasIliopsoasE || 0}°` : 'Neg.'}
-                  ${checkThomasPDFAsymmetry(assessment.dadosMedidos.testesEspeciais?.thomasIliopsoasD, assessment.dadosMedidos.testesEspeciais?.thomasIliopsoasE, 'Iliopsoas')}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Thomas Reto.</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? '#ef4444' : '#1e293b'};">
-                  ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasRetofemoralD || 0}°` : 'Neg.'} / 
-                  ${assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasRetofemoralE || 0}°` : 'Neg.'}
-                  ${checkThomasPDFAsymmetry(assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralD, assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralE, 'Retofemoral')}
-                </td>
-              </tr>
-              ${hasMaigneData ? `
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Maigne ADM</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
-                  F:${maigneObj.flexao} / E:${maigneObj.extensao} / RD:${maigneObj.rotacaoD} / RE:${maigneObj.rotacaoE} / ID:${maigneObj.inclinacaoD} / IE:${maigneObj.inclinacaoE}
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Maigne Dor (EVA)</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px; color: ${[maigneObj.flexaoEVA, maigneObj.extensaoEVA, maigneObj.rotacaoDEVA, maigneObj.rotacaoEEVA, maigneObj.inclinacaoDEVA, maigneObj.inclinacaoEEVA].some(val => val > 0) ? '#ef4444' : '#1e293b'};">
-                  F:${maigneObj.flexaoEVA} / E:${maigneObj.extensaoEVA} / RD:${maigneObj.rotacaoDEVA} / RE:${maigneObj.rotacaoEEVA} / ID:${maigneObj.inclinacaoDEVA} / IE:${maigneObj.inclinacaoEEVA}
-                </td>
-              </tr>
-              ` : ''}
-              ${assessment.dadosMedidos.testesEspeciais?.maigne && !hasMaigneData ? `
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Maigne Obs.</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
-                  ${assessment.dadosMedidos.testesEspeciais.maigne}
-                </td>
-              </tr>
-              ` : ''}
-              ${assessment.dadosMedidos.testesEspeciais?.stepDown ? `
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Step Down</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
-                  ${assessment.dadosMedidos.testesEspeciais.stepDown}
-                </td>
-              </tr>
-              ` : ''}
-              ${assessment.dadosMedidos.testesEspeciais?.yTest ? `
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Y-Test</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
-                  ${assessment.dadosMedidos.testesEspeciais.yTest}
-                </td>
-              </tr>
-              ` : ''}
-              ${assessment.dadosMedidos.testesEspeciais?.termografia ? `
-              <tr>
-                <td style="padding:3px 0; vertical-align: top;">Termografia</td>
-                <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
-                  ${assessment.dadosMedidos.testesEspeciais.termografia}
-                </td>
-              </tr>
-              ` : ''}
-            </table>
+            <!-- Testes Especiais -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px;">
+              <strong style="font-size:8.5px; color:#0f172a; display:block; border-bottom:1px solid #e2e8f0; padding-bottom:2px; margin-bottom:4px; text-transform:uppercase;">Testes Especiais</strong>
+              <table style="width:100%; font-size:8px; border-collapse:collapse;">
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">OBER D/E</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.oberD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.oberE === 'Positivo' ? '#ef4444' : '#1e293b'};">
+                    ${assessment.dadosMedidos.testesEspeciais?.oberD || 'Negativo'} / ${assessment.dadosMedidos.testesEspeciais?.oberE || 'Negativo'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Thomas Ilio.</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? '#ef4444' : '#1e293b'};">
+                    ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasIliopsoasD || 0}°` : 'Neg.'} / 
+                    ${assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasIliopsoasE || 0}°` : 'Neg.'}
+                    ${checkThomasPDFAsymmetry(assessment.dadosMedidos.testesEspeciais?.thomasIliopsoasD, assessment.dadosMedidos.testesEspeciais?.thomasIliopsoasE, 'Iliopsoas')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Thomas Reto.</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? '#ef4444' : '#1e293b'};">
+                    ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasRetofemoralD || 0}°` : 'Neg.'} / 
+                    ${assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasRetofemoralE || 0}°` : 'Neg.'}
+                    ${checkThomasPDFAsymmetry(assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralD, assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralE, 'Retofemoral')}
+                  </td>
+                </tr>
+                ${hasMaigneData ? `
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Maigne ADM</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
+                    F:${maigneObj.flexao} / E:${maigneObj.extensao} / RD:${maigneObj.rotacaoD} / RE:${maigneObj.rotacaoE} / ID:${maigneObj.inclinacaoD} / IE:${maigneObj.inclinacaoE}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Maigne Dor (EVA)</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px; color: ${[maigneObj.flexaoEVA, maigneObj.extensaoEVA, maigneObj.rotacaoDEVA, maigneObj.rotacaoEEVA, maigneObj.inclinacaoDEVA, maigneObj.inclinacaoEEVA].some(val => val > 0) ? '#ef4444' : '#1e293b'};">
+                    F:${maigneObj.flexaoEVA} / E:${maigneObj.extensaoEVA} / RD:${maigneObj.rotacaoDEVA} / RE:${maigneObj.rotacaoEEVA} / ID:${maigneObj.inclinacaoDEVA} / IE:${maigneObj.inclinacaoEEVA}
+                  </td>
+                </tr>
+                ` : ''}
+                ${assessment.dadosMedidos.testesEspeciais?.maigne && !hasMaigneData ? `
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Maigne Obs.</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                    ${assessment.dadosMedidos.testesEspeciais.maigne}
+                  </td>
+                </tr>
+                ` : ''}
+                ${assessment.dadosMedidos.testesEspeciais?.stepDown ? `
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Step Down</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                    ${assessment.dadosMedidos.testesEspeciais.stepDown}
+                  </td>
+                </tr>
+                ` : ''}
+                ${assessment.dadosMedidos.testesEspeciais?.yTest ? `
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Y-Test</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                    ${assessment.dadosMedidos.testesEspeciais.yTest}
+                  </td>
+                </tr>
+                ` : ''}
+                ${assessment.dadosMedidos.testesEspeciais?.termografia ? `
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Termografia</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                    ${assessment.dadosMedidos.testesEspeciais.termografia}
+                  </td>
+                </tr>
+                ` : ''}
+              </table>
+            </div>
           </div>
+          ${hasMaigneData ? `
+          <div style="width: 180px; border-left: 1px solid #e2e8f0; padding-left: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;">
+            <strong style="font-size: 8px; color: #0f172a; display: block; margin-bottom: 4px; text-transform: uppercase; text-align: center; font-family: 'Outfit', sans-serif;">Estrela de Maigne</strong>
+            ${maigneSvgHtml}
+          </div>
+          ` : ''}
         </div>
 
         <div style="margin-top:6px; font-size:7px; color:#64748b; display:flex; gap:10px; justify-content:center;">
@@ -2106,13 +2211,27 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           const rawBlobUrl = URL.createObjectURL(rawBlob);
           const rawFilename = `Avaliação, ${client.dadosPessoais.nome}, ${formatDate(assessment.data).replace(/\//g, '-')}.pdf`;
           
-          
-          const link = document.createElement('a');
-          link.href = rawBlobUrl;
-          link.download = rawFilename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          if (isIframe) {
+            if (newWindow) {
+              const doc = newWindow.document;
+              const a = doc.createElement('a');
+              a.href = rawBlobUrl;
+              a.download = rawFilename;
+              doc.body.appendChild(a);
+              a.click();
+              doc.body.removeChild(a);
+              setTimeout(() => {
+                if (newWindow) newWindow.close();
+              }, 300);
+            }
+          } else {
+            const link = document.createElement('a');
+            link.href = rawBlobUrl;
+            link.download = rawFilename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
   
           return;
         }
@@ -2137,31 +2256,69 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         const mergedBlobUrl = URL.createObjectURL(mergedBlob);
         const filename = `Avaliação, ${client.dadosPessoais.nome}, ${formatDate(assessment.data).replace(/\//g, '-')}.pdf`;
 
-        // Exibir no modal com visualizador iframe e botão para download unificado
-        
-        const link = document.createElement('a');
-        link.href = mergedBlobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        if (isIframe) {
+          if (newWindow) {
+            const doc = newWindow.document;
+            const a = doc.createElement('a');
+            a.href = mergedBlobUrl;
+            a.download = filename;
+            doc.body.appendChild(a);
+            a.click();
+            doc.body.removeChild(a);
+            setTimeout(() => {
+              if (newWindow) newWindow.close();
+            }, 300);
+          }
+        } else {
+          const link = document.createElement('a');
+          link.href = mergedBlobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
   
       } catch (error: any) {
         console.error('Erro na mesclagem dos PDFs:', error);
+        if (newWindow) newWindow.close();
         alert('Erro ao mesclar o PDF anexo com a avaliação do sistema: ' + error.message);
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
+      if (newWindow) newWindow.close();
       document.body.removeChild(pdfWrapper);
     });
   } else {
     // Fluxo padrão caso não exista PDF anexo
-    html2pdf().set(options).from(pdfContainer).save().then(() => {
-      document.body.removeChild(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro na geração do PDF:', err);
-      document.body.removeChild(pdfWrapper);
-    });
+    if (isIframe) {
+      html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        if (newWindow) {
+          const doc = newWindow.document;
+          const a = doc.createElement('a');
+          a.href = blobUrl;
+          a.download = options.filename;
+          doc.body.appendChild(a);
+          a.click();
+          doc.body.removeChild(a);
+          setTimeout(() => {
+            if (newWindow) newWindow.close();
+          }, 300);
+        }
+        document.body.removeChild(pdfWrapper);
+      }).catch((err: any) => {
+        console.error('Erro na geração do PDF:', err);
+        if (newWindow) newWindow.close();
+        document.body.removeChild(pdfWrapper);
+      });
+    } else {
+      html2pdf().set(options).from(pdfContainer).save().then(() => {
+        document.body.removeChild(pdfWrapper);
+      }).catch((err: any) => {
+        console.error('Erro na geração do PDF:', err);
+        document.body.removeChild(pdfWrapper);
+      });
+    }
   }
 }
 
@@ -2175,7 +2332,7 @@ export function downloadProntuarioPDF(prontuario: any, client: any, profNome = '
   const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
 
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = 'position:fixed;left:0;top:0;width:720px;opacity:0;z-index:99999;pointer-events:none;';
+  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:720px;opacity:0;z-index:99999;pointer-events:none;`;
   const pdfContainer = document.createElement('div');
   pdfContainer.style.cssText = 'background:#fff;color:#333;padding:30px;font-family:Arial,sans-serif;width:720px;box-sizing:border-box;';
   pdfWrapper.appendChild(pdfContainer);
@@ -2191,6 +2348,12 @@ export function downloadProntuarioPDF(prontuario: any, client: any, profNome = '
   const dataDoc = fmtDate(prontuario.data || prontuario.createdAt?.split('T')[0] || '');
 
   pdfContainer.innerHTML = `
+    <style>
+      p, li, tr, h2, h3, h4, table {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    </style>
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0f172a;padding-bottom:20px;margin-bottom:30px;">
       <div><h1 style="color:#0f172a;margin:0;font-size:28px;">CLUBE FITNESS FISIO</h1><p style="color:#666;margin:4px 0 0 0;font-size:12px;">Fisioterapia, Quiropraxia e Fortalecimento</p></div>
       <div style="text-align:right;"><span style="font-weight:bold;color:#0f172a;font-size:16px;">PRONTUÁRIO CLÍNICO DE ACOMPANHAMENTO</span><br><small style="color:#777">Data de Emissão: ${dataDoc}</small></div>
@@ -2204,8 +2367,38 @@ export function downloadProntuarioPDF(prontuario: any, client: any, profNome = '
     <div style="margin-top:60px;font-size:12px;text-align:center;"><div style="width:50%;margin:0 auto;"><div style="border-top:1px solid #333;padding-top:6px;">${profNome}<br><small>${profRegistro}</small></div></div></div>
   `;
 
-  const options = { margin: 10, filename: `Prontuario_${nome.replace(/\s+/g,'_')}_${dataDoc.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-  html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF prontuário:', err); document.body.removeChild(pdfWrapper); });
+  const options = { margin: 10, filename: `Prontuario_${nome.replace(/\s+/g,'_')}_${dataDoc.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
+  
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  let newWindow: Window | null = null;
+  if (isIframe) {
+    newWindow = window.open('', '_blank');
+  }
+
+  if (isIframe) {
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+      const blobUrl = URL.createObjectURL(blob);
+      if (newWindow) {
+        const doc = newWindow.document;
+        const a = doc.createElement('a');
+        a.href = blobUrl;
+        a.download = options.filename;
+        doc.body.appendChild(a);
+        a.click();
+        doc.body.removeChild(a);
+        setTimeout(() => {
+          if (newWindow) newWindow.close();
+        }, 300);
+      }
+      document.body.removeChild(pdfWrapper);
+    }).catch((err: any) => {
+      console.error('Erro PDF prontuário:', err);
+      if (newWindow) newWindow.close();
+      document.body.removeChild(pdfWrapper);
+    });
+  } else {
+    html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF prontuário:', err); document.body.removeChild(pdfWrapper); });
+  }
 }
 
 // ==========================================================
@@ -2221,13 +2414,13 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
   const nome = client?.dadosPessoais?.nome || 'Paciente';
 
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = 'position:fixed;left:0;top:0;width:720px;opacity:0;z-index:99999;pointer-events:none;';
+  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:720px;opacity:0;z-index:99999;pointer-events:none;`;
   const pdfContainer = document.createElement('div');
   pdfContainer.style.cssText = 'background:#fff;color:#333;font-family:Arial,sans-serif;width:720px;box-sizing:border-box;';
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
-  pdfContainer.innerHTML = sorted.map((p, idx) => {
+  pdfContainer.innerHTML = `<style>p, li, tr, h2, h3, h4, table { page-break-inside: avoid !important; break-inside: avoid !important; }</style>` + sorted.map((p, idx) => {
     const obs = p.conteudo || p.observacoes || '';
     const data = fmtDate(p.data || p.createdAt?.split('T')[0] || '');
     return `<div style="background:#fff;padding:30px;min-height:1100px;${idx > 0 ? 'border-top:4px solid #6366f1;margin-top:20px;' : ''}">
@@ -2240,8 +2433,38 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
     </div>`;
   }).join('');
 
-  const options = { margin: 5, filename: `Prontuarios_${nome.replace(/\s+/g,'_')}_completo.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.8, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-  html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF prontuários:', err); document.body.removeChild(pdfWrapper); });
+  const options = { margin: 5, filename: `Prontuarios_${nome.replace(/\s+/g,'_')}_completo.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.8, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
+  
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  let newWindow: Window | null = null;
+  if (isIframe) {
+    newWindow = window.open('', '_blank');
+  }
+
+  if (isIframe) {
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+      const blobUrl = URL.createObjectURL(blob);
+      if (newWindow) {
+        const doc = newWindow.document;
+        const a = doc.createElement('a');
+        a.href = blobUrl;
+        a.download = options.filename;
+        doc.body.appendChild(a);
+        a.click();
+        doc.body.removeChild(a);
+        setTimeout(() => {
+          if (newWindow) newWindow.close();
+        }, 300);
+      }
+      document.body.removeChild(pdfWrapper);
+    }).catch((err: any) => {
+      console.error('Erro PDF prontuários:', err);
+      if (newWindow) newWindow.close();
+      document.body.removeChild(pdfWrapper);
+    });
+  } else {
+    html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF prontuários:', err); document.body.removeChild(pdfWrapper); });
+  }
 }
 
 // ==========================================================
@@ -2273,7 +2496,7 @@ export function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const sc = a.riscoOmbro ? '#b91c1c' : '#0d9488';
 
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = 'position:fixed;left:0;top:0;width:720px;opacity:0;z-index:99999;pointer-events:none;';
+  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:720px;opacity:0;z-index:99999;pointer-events:none;`;
   const pdfContainer = document.createElement('div');
   pdfContainer.style.cssText = 'background:#fff;color:#333;padding:30px;font-family:Arial,sans-serif;width:720px;box-sizing:border-box;';
   pdfWrapper.appendChild(pdfContainer);
@@ -2283,6 +2506,12 @@ export function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const ratioRow = (label: string, val: number, ref: string, ok: boolean) => `<tr><td style="padding:5px;">${label}</td><td style="padding:5px;text-align:center;font-weight:bold;">${val > 0 ? val.toFixed(2) : '-'}</td><td style="padding:5px;text-align:center;">${ref}</td><td style="padding:5px;text-align:center;font-weight:bold;color:${ok?'#10b981':'#ef4444'}">${val > 0 ? (ok ? 'OK' : 'ALTERADO') : '-'}</td></tr>`;
 
   pdfContainer.innerHTML = `
+    <style>
+      p, li, tr, h2, h3, h4, table {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    </style>
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #6366f1;padding-bottom:20px;margin-bottom:30px;">
       <div><h1 style="color:#0e131f;margin:0;font-size:26px;">CLUBE FITNESS FISIO</h1><p style="color:#666;margin:4px 0 0 0;font-size:11px;">Fisioterapia, Quiropraxia e Fortalecimento</p></div>
       <div style="text-align:right;"><span style="font-weight:bold;color:#6366f1;font-size:14px;">ANÁLISE COMPARATIVA DE FORÇA</span><br><small style="color:#777">Data: ${data}</small></div>
@@ -2314,8 +2543,38 @@ export function downloadStrengthTestPDF(st: any, client: any, prof: any) {
     <div style="margin-top:50px;font-size:11px;text-align:center;"><div style="width:50%;margin:0 auto;"><div style="border-top:1px solid #333;padding-top:6px;">${profNome}<br><small>${profReg}</small></div></div></div>
   `;
 
-  const options = { margin: 10, filename: `Analise_Forca_${nome.replace(/\s+/g,'_')}_${data.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-  html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF força:', err); document.body.removeChild(pdfWrapper); });
+  const options = { margin: 10, filename: `Analise_Forca_${nome.replace(/\s+/g,'_')}_${data.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
+  
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  let newWindow: Window | null = null;
+  if (isIframe) {
+    newWindow = window.open('', '_blank');
+  }
+
+  if (isIframe) {
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+      const blobUrl = URL.createObjectURL(blob);
+      if (newWindow) {
+        const doc = newWindow.document;
+        const a = doc.createElement('a');
+        a.href = blobUrl;
+        a.download = options.filename;
+        doc.body.appendChild(a);
+        a.click();
+        doc.body.removeChild(a);
+        setTimeout(() => {
+          if (newWindow) newWindow.close();
+        }, 300);
+      }
+      document.body.removeChild(pdfWrapper);
+    }).catch((err: any) => {
+      console.error('Erro PDF força:', err);
+      if (newWindow) newWindow.close();
+      document.body.removeChild(pdfWrapper);
+    });
+  } else {
+    html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF força:', err); document.body.removeChild(pdfWrapper); });
+  }
 }
 
 // ==========================================================
@@ -2344,68 +2603,220 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
   const com = client.dadosComerciais || {};
   const pes = client.dadosPessoais || {};
+  
   const planNome = plan?.nome || 'Plano Personalizado';
-  const basePreco = plan?.preco || 0;
-  const duracao = (com.duracao || 'mensal').toLowerCase();
-  let numParcelas = parseInt(com.parcelas, 10) || 1;
-  if (duracao === 'semestral') numParcelas = 6;
-  else if (duracao === 'anual') numParcelas = 12;
-  const valorParcela = basePreco / numParcelas;
-  const formaPagText = ({pix:'Pix',boleto:'Boleto Bancário',cartao:'Cartão de Crédito/Débito',dinheiro:'Dinheiro'} as any)[com.formaPagamento] || com.formaPagamento || 'Pix';
+  const isAnual = (plan?.tipo === 'Anual' || (com.duracao || '').toLowerCase() === 'anual' || planNome.toLowerCase().includes('anual'));
+  
+  // 1. Cálculos Automáticos de Valores e Descontos
+  const basePreco = Number(plan?.preco) || 0;
+  const descVal = Number(com.descontoValor) || 0;
+  const descTipo = com.descontoTipo || 'percentual';
+  
+  let valorFinal = basePreco;
+  if (descTipo === 'percentual') {
+    valorFinal = basePreco * (1 - descVal / 100);
+  } else {
+    valorFinal = Math.max(0, basePreco - descVal);
+  }
+  
+  const numParcelas = Number(com.parcelas) || 1;
+  const valorParcela = valorFinal / numParcelas;
+  
+  // 2. Vigência e Datas
   const today = new Date().toISOString().split('T')[0];
-  const endD = new Date(today+'T00:00:00');
-  if (duracao === 'semestral') endD.setMonth(endD.getMonth()+6); else if (duracao === 'anual') endD.setMonth(endD.getMonth()+12); else endD.setMonth(endD.getMonth()+1);
+  const dataInicio = com.dataInicio || com.vencimento || today;
+  const vigMeses = isAnual ? 12 : 1;
+  
+  const endD = new Date(dataInicio + 'T00:00:00');
+  endD.setMonth(endD.getMonth() + vigMeses);
   const dataFim = endD.toISOString().split('T')[0];
-  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  
+  const formaPagText = ({pix:'Pix',boleto:'Boleto Bancário',cartao:'Cartão de Crédito/Débito',dinheiro:'Dinheiro'} as any)[com.formaPagamento] || com.formaPagamento || 'Pix';
   const now = new Date();
+  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   const diaVenc = com.vencimento ? parseInt(com.vencimento.split('-')[2]||'5',10) : now.getDate();
-  const vigMeses = duracao === 'semestral' ? 6 : (duracao === 'anual' ? 12 : 1);
 
+  // Endereço completo estruturado
+  const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
+  
+  // Serviços Inclusos do Plano
+  const servicosList = plan?.servicosPermitidos?.length > 0
+    ? plan.servicosPermitidos.join(', ')
+    : 'Treinos Monitorados, Fisioterapia, Recovery, Quiropraxia';
+    
+  // Benefícios Inclusos do Plano
+  const beneficiosList = plan?.beneficiosInclusos || [];
+  
   const contratoBody = templateOverride || `
-    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">1. PARTES</h3>
-    <p style="font-size:9.5pt;margin-bottom:4px;"><strong>CONTRATADO:</strong> CLUBE FITNESS FISIO, Belo Horizonte/MG.</p>
-    <p style="font-size:9.5pt;"><strong>CONTRATANTE:</strong> ${pes.nome||'-'}, CPF nº ${pes.cpf||'-'}, tel. ${pes.telefone||'-'}.</p>
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
+    <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
+      <strong>CONTRATADO:</strong> CLUBE FITNESS FISIO, com sede em Belo Horizonte/MG.<br>
+      <strong>CONTRATANTE:</strong> ${pes.nome || '-'}, de nacionalidade ${pes.nacionalidade || 'brasileiro(a)'}, estado civil ${pes.estadoCivil || 'solteiro(a)'}, ${pes.profissao ? `profissão ${pes.profissao}` : ''}, portador(a) do CPF nº ${pes.cpf || '-'}, nascido(a) em ${fmtDate(pes.dataNascimento)}, e-mail ${pes.email || '-'}, telefones ${pes.telefone || '-'}${pes.telefoneSecundario ? ` / ${pes.telefoneSecundario}` : ''}, residente e domiciliado em: ${enderecoCompleto}.
+    </p>
+
     <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">2. OBJETO DO CONTRATO</h3>
-    <p style="font-size:9.5pt;">Prestação de serviços de fisioterapia e atividades físicas — <strong>Plano ${planNome}</strong> — conforme créditos disponibilizados na cláusula 3.</p>
-    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">3. SERVIÇOS INCLUSOS</h3>
-    <p style="font-size:9.5pt;margin-bottom:4px;">I — Sessões de treino monitorado e/ou atendimento fisioterápico conforme plano contratado;</p>
-    <p style="font-size:9.5pt;margin-bottom:4px;">II — 01 (um) atendimento de emergência terapêutica por mês, mediante necessidade clínica comprovada;</p>
-    <p style="font-size:9.5pt;">III — Avaliações físicas e testes de força muscular, conforme disponibilidade da agenda.</p>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      O presente instrumento tem por objeto a prestação de serviços de fisioterapia e atividades físicas na modalidade <strong>Plano ${planNome}</strong>, de acordo com as regras operacionais estabelecidas neste contrato.
+    </p>
+
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">3. SERVIÇOS E BENEFÍCIOS CONTRATADOS</h3>
+    <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
+      <strong>3.1 Serviços Inclusos no Plano:</strong> O CONTRATANTE terá direito a utilizar os seguintes serviços e modalidades: ${servicosList}. Saldo total de créditos: ${plan?.creditosTotal || 0} sessões mensais.
+    </p>
+    <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
+      <strong>3.2 Benefícios Adicionais:</strong> Acesso às avaliações corporais e testes de força muscular periódicos.
+      ${isAnual ? `
+        <br>• <strong>Massagem Relaxante Mensal:</strong> Direito a 01 (uma) sessão de massagem por mês durante a vigência.
+        <br>• <strong>Atendimento Emergencial Complementar:</strong> Acesso a atendimentos emergenciais em caso de dor aguda.
+        <br>• <strong>Aulas Coletivas:</strong> Acesso prioritário a aulas coletivas e eventos integrativos do clube.
+      ` : ''}
+    </p>
+
     <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">4. VALOR E FORMA DE PAGAMENTO</h3>
-    <p style="font-size:9.5pt;margin-bottom:4px;"><strong>4.1</strong> Valor Total: <strong>R$ ${basePreco.toFixed(2).replace('.',',')} (${valorExtenso(basePreco)})</strong> — vigência de ${vigMeses} mês(es).</p>
-    <p style="font-size:9.5pt;"><strong>4.2</strong> Pagamento em <strong>${numParcelas}</strong> parcela(s) de <strong>R$ ${valorParcela.toFixed(2).replace('.',',')}</strong> via <strong>${formaPagText}</strong>, vencimento todo dia <strong>${diaVenc}</strong>.</p>
-    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">5. OBRIGAÇÕES DAS PARTES</h3>
-    <p style="font-size:9.5pt;margin-bottom:4px;">5.1 O CONTRATADO disponibilizará profissionais capacitados e espaço adequado para a prestação dos serviços.</p>
-    <p style="font-size:9.5pt;margin-bottom:4px;">5.2 O CONTRATANTE comparecerá nos horários agendados, comunicando cancelamentos com mínimo de 6 horas de antecedência.</p>
-    <p style="font-size:9.5pt;margin-bottom:4px;">5.3 Faltas não comunicadas implicarão desconto de crédito do saldo contratual.</p>
-    <p style="font-size:9.5pt;"><strong>5.4 Rescisão:</strong> Aviso prévio de 30 dias por escrito. Rescisão sem aviso: multa de 10% sobre o valor mensal vigente.</p>
-    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">6. VIGÊNCIA</h3>
-    <p style="font-size:9.5pt;">De <strong>${fmtDate(today)}</strong> a <strong>${fmtDate(dataFim)}</strong> (${vigMeses} mês(es)), renovável conforme cláusula 5.4.</p>
-    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">7. FORO</h3>
-    <p style="font-size:9.5pt;">Comarca de Belo Horizonte/MG.</p>
+    <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
+      <strong>4.1 Valor Contratado:</strong> O valor final líquido da contratação é de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>.
+    </p>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      <strong>4.2 Condições:</strong> O pagamento será efetuado em <strong>${numParcelas}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')}</strong> cada, com pagamento via <strong>${formaPagText}</strong> e primeiro vencimento em <strong>${fmtDate(com.vencimento || today)}</strong> (dia de vencimento: <strong>${diaVenc}</strong>).
+    </p>
+
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">5. REGRAS DE AGENDAMENTO E PLANILHA DE TREINO</h3>
+    <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
+      <strong>5.1 Desmarcação:</strong> O cancelamento ou alteração de sessões agendadas deverá ocorrer com no mínimo 6 (seis) horas de antecedência.
+    </p>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      <strong>5.2 Faltas:</strong> A ausência não comunicada no prazo estabelecido na cláusula 5.1 resultará na perda automática do crédito da respectiva sessão.
+    </p>
+
+    ${isAnual ? `
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">6. CLÁUSULA DE CONGELAMENTO</h3>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      O CONTRATANTE de plano anual possui o direito de suspender ("congelar") e redistribuir seus créditos por um período de até 30 (trinta) dias em razão de sua ausência, desde que a utilização ocorra estritamente dentro da vigência do plano contratado, sendo vedada a prorrogação do prazo contratual original.
+    </p>
+    <p style="font-size:9.5pt;line-height:1.4;margin-top:4px;">
+      <strong>Parágrafo Único:</strong> O período de congelamento não prorroga o término deste contrato e todos os créditos devem ser gozados até a data final estipulada na Cláusula de Vigência.
+    </p>
+
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">7. GESTÃO TERAPÊUTICA E CRÉDITOS EXCEDENTES</h3>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      <strong>7.1 Gestão Extraordinária:</strong> Planos anuais incluem acompanhamento de evolução física e clínica personalizada. Créditos excedentes acumulados poderão ser redistribuídos ou convertidos sob supervisão e indicação fisioterapêutica estritamente durante a vigência do contrato.
+    </p>
+    ` : ''}
+
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">${isAnual ? '8' : '6'}. REAJUSTE E RESCISÃO ANTECIPADA</h3>
+    <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
+      <strong>Reajuste:</strong> O valor do plano sofrerá reajuste anual com base no índice oficial do IPCA/IBGE.
+    </p>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      <strong>Rescisão Antecipada:</strong> O cancelamento deste instrumento por parte do contratante antes do prazo de vigência impõe multa rescisória equivalente a 10% (dez por cento) do saldo remanescente das parcelas em aberto, exigindo comunicação prévia de 30 dias.
+    </p>
+
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">${isAnual ? '9' : '7'}. VIGÊNCIA</h3>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      Este contrato tem vigência de <strong>${vigMeses} mês(es)</strong>, iniciando em <strong>${fmtDate(dataInicio)}</strong> e término improrrogável em <strong>${fmtDate(dataFim)}</strong>.
+    </p>
+
+    <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">${isAnual ? '10' : '8'}. FORO E LEGISLAÇÃO APLICÁVEL</h3>
+    <p style="font-size:9.5pt;line-height:1.4;">
+      Fica eleito o Foro da Comarca de Belo Horizonte/MG para dirimir quaisquer dúvidas ou litígios decorrentes do presente contrato.
+    </p>
   `;
 
+  // A4 page width in pixels at 96dpi = 794px
+  const PAGE_W = 794;
+
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = 'position:fixed;left:0;top:0;width:794px;opacity:0;z-index:99999;pointer-events:none;';
+  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:${PAGE_W}px;opacity:0;z-index:99999;pointer-events:none;overflow:hidden;`;
+
   const pdfContainer = document.createElement('div');
-  pdfContainer.style.cssText = 'width:794px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:40px 50px;';
+  // No internal padding — margin is handled by html2pdf options
+  pdfContainer.style.cssText = `width:${PAGE_W}px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:0;margin:0;`;
+
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
-  pdfContainer.innerHTML = `
-    <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:20px;">
-      <h1 style="font-size:16pt;font-weight:bold;margin:0;">CLUBE FITNESS FISIO</h1>
-      <p style="font-size:9pt;margin:4px 0 0 0;color:#444;">Fisioterapia, Quiropraxia e Fortalecimento — Belo Horizonte, MG</p>
-      <h2 style="font-size:14pt;font-weight:bold;margin:12px 0 0 0;text-transform:uppercase;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h2>
-      <p style="font-size:9pt;margin:4px 0 0 0;">Belo Horizonte, ${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}</p>
-    </div>
-    ${contratoBody}
-    <div style="margin-top:60px;display:flex;justify-content:space-between;gap:40px;font-size:10pt;">
-      <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATADO<br><small>Clube Fitness Fisio</small></div></div>
-      <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome||'-'}</small></div></div>
-    </div>
-  `;
+  // If a rich templateOverride was passed (HTML from generateContractTemplate), use it directly.
+  // Otherwise build the legacy header + body.
+  if (templateOverride) {
+    pdfContainer.innerHTML = templateOverride + `
+      <style>
+        p, li, tr, h2, h3, h4, table {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+      </style>
+    `;
+    // Clear padding and margin of the wrapper div to let html2pdf margins handle it
+    const wrapper = pdfContainer.firstElementChild as HTMLElement;
+    if (wrapper) {
+      wrapper.style.padding = '0px';
+      wrapper.style.margin = '0px';
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.width = '100%';
+    }
+  } else {
+    pdfContainer.innerHTML = `
+      <style>
+        p, li, tr, h2, h3, h4, table {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+      </style>
+      <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:18px;">
+        <h1 style="font-size:15pt;font-weight:bold;margin:0;color:#10b981;">CLUBE FITNESS FISIO</h1>
+        <p style="font-size:9pt;margin:3px 0 0 0;color:#444;">Fisioterapia, Quiropraxia e Fortalecimento — Belo Horizonte, MG</p>
+        <h2 style="font-size:13pt;font-weight:bold;margin:10px 0 0 0;text-transform:uppercase;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h2>
+        <p style="font-size:8.5pt;margin:3px 0 0 0;color:#555;">Emissão: ${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}</p>
+      </div>
+      ${contratoBody}
+      <div style="margin-top:60px;display:flex;justify-content:space-between;gap:40px;font-size:10pt;">
+        <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATADO<br><small>Clube Fitness Fisio</small></div></div>
+        <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome||'-'}</small></div></div>
+      </div>
+    `;
+  }
 
-  const options = { margin: 10, filename: `Contrato_${(pes.nome||'Aluno').replace(/\s+/g,'_')}_${today}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-  html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF contrato:', err); document.body.removeChild(pdfWrapper); });
+  // Margins in mm (15mm each side ≈ standard A4 document margins)
+  const options = {
+    margin: [15, 15, 15, 15],
+    filename: `Contrato_${(pes.nome||'Aluno').replace(/\s+/g,'_')}_${today}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: PAGE_W,
+      width: PAGE_W,
+      x: 0,
+      y: 0,
+      logging: false,
+    },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  let newWindow: Window | null = null;
+  if (isIframe) {
+    newWindow = window.open('', '_blank');
+  }
+
+  if (isIframe) {
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+      const blobUrl = URL.createObjectURL(blob);
+      if (newWindow) {
+        newWindow.location.href = blobUrl;
+      }
+      document.body.removeChild(pdfWrapper);
+    }).catch((err: any) => {
+      console.error('Erro PDF contrato:', err);
+      if (newWindow) newWindow.close();
+      document.body.removeChild(pdfWrapper);
+    });
+  } else {
+    html2pdf().set(options).from(pdfContainer).save()
+      .then(() => { document.body.removeChild(pdfWrapper); })
+      .catch((err: any) => { console.error('Erro PDF contrato:', err); document.body.removeChild(pdfWrapper); });
+  }
 }

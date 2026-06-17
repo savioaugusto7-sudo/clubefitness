@@ -21,6 +21,16 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('activeTab');
+      if (tab) {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
+
   const handleSeedDB = async () => {
     setSeeding(true);
     setSeedMessage('Resetando dados de teste...');
@@ -61,7 +71,7 @@ export default function DashboardPage() {
     if (role === 'admin') {
       return <DashboardAdmin activeTab={activeTab} setActiveTab={setActiveTab} />;
     } else if (role === 'professional') {
-      return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} />;
+      return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} professionalId={user.profileId} />;
     } else {
       return <DashboardClient activeTab={activeTab} setActiveTab={setActiveTab} />;
     }

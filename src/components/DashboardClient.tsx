@@ -27,6 +27,8 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
   const [workout, setWorkout] = useState<any>(null);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [exercises, setExercises] = useState<any[]>([]);
+  const [selectedExerciseForInstruction, setSelectedExerciseForInstruction] = useState<any>(null);
 
   // Pagination & UX states
   const [pages, setPages] = useState<Record<string, number>>({});
@@ -42,6 +44,113 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
     setPage(key, 1);
   };
 
+  const renderWorkoutCards = (sheetExercises: any[]) => {
+    const getGroupColor = (groupName: string) => {
+      if (!groupName) return '';
+      const uniqueGroups = Array.from(
+        new Set(sheetExercises.map((e: any) => e.combinaGrupo).filter(Boolean) as string[])
+      ).sort();
+      const index = uniqueGroups.indexOf(groupName);
+      if (index === -1) return '#10b981';
+      const GROUP_COLORS = [
+        '#10b981', // Green
+        '#f59e0b', // Orange
+        '#a855f7', // Purple
+        '#3b82f6', // Blue
+        '#ec4899', // Pink
+        '#06b6d4', // Cyan
+        '#f43f5e', // Rose
+        '#84cc16', // Lime
+        '#eab308', // Yellow
+        '#6366f1'  // Indigo
+      ];
+      return GROUP_COLORS[index % GROUP_COLORS.length];
+    };
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '16px' }}>
+        {sheetExercises.map((ex: any, idx: number) => {
+          const details = exercises.find((e: any) => e.nome.toLowerCase() === ex.exercicioId.toLowerCase()) || { nome: ex.exercicioId, grupo: 'Geral' };
+          const groupColor = getGroupColor(ex.combinaGrupo);
+          const groupStyle = ex.combinaGrupo ? { borderLeft: `5px solid ${groupColor}`, background: 'rgba(255,255,255,0.015)' } : {};
+
+          return (
+            <div key={idx} className="workout-card-premium" style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              boxShadow: 'var(--shadow-card)',
+              ...groupStyle
+            }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--color-primary)', background: 'var(--color-primary-glow)', padding: '2px 8px', borderRadius: '8px', fontWeight: 600, textTransform: 'uppercase' }}>
+                    {details.grupo}
+                  </span>
+                  {ex.combinaGrupo && (
+                    <span style={{ fontSize: '0.68rem', color: '#fff', background: groupColor, padding: '2px 8px', borderRadius: '8px', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Combinado {ex.combinaGrupo}
+                    </span>
+                  )}
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    #{idx + 1}
+                  </span>
+                </div>
+
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.3 }}>
+                  {details.nome}
+                </h4>
+
+                {ex.combinaGrupo && (
+                  <div style={{ fontSize: '0.72rem', color: groupColor, background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '6px', marginBottom: '12px', fontWeight: 600, border: `1px dashed ${groupColor}`, textAlign: 'center' }}>
+                    <i className="fa-solid fa-circle-nodes"></i> Executar conjugado com {ex.combinaGrupo} (Sem descanso intermediário)
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px', background: 'rgba(0,0,0,0.18)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Séries</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.series || '3'}</span>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Repetições</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.repeticoes || '10'}</span>
+                  </div>
+                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Carga</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-primary)' }}>{ex.carga || '-'}</span>
+                  </div>
+                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Descanso</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
+                  </div>
+                  <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Ritmo de Execução</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.ritmo || '2-0-2-0'}</span>
+                  </div>
+                </div>
+
+                {ex.observacao && (
+                  <div style={{ fontSize: '0.76rem', color: 'var(--color-warning)', background: 'rgba(245,158,11,0.05)', padding: '6px 10px', borderRadius: '6px', marginBottom: '12px', border: '1px solid rgba(245,158,11,0.1)' }}>
+                    <strong>Nota:</strong> {ex.observacao}
+                  </div>
+                )}
+              </div>
+
+              <button className="btn btn-primary" onClick={() => setSelectedExerciseForInstruction(details)} style={{ width: '100%', fontSize: '0.78rem', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '8px' }}>
+                <i className="fa-solid fa-circle-info"></i> Instruções
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const user = session?.user as any;
   const profileId = user?.profileId;
 
@@ -49,18 +158,20 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
     if (!profileId) return;
     try {
       setLoading(true);
-      const [resClient, resApts, resWorkout, resAs, resRep] = await Promise.all([
+      const [resClient, resApts, resWorkout, resAs, resRep, resExercises] = await Promise.all([
         fetch(`/api/clients?userId=${user.id}`),
         fetch(`/api/appointments?clientId=${profileId}`),
         fetch(`/api/workouts?clientId=${profileId}`),
         fetch('/api/assessments'),
-        fetch('/api/reports')
+        fetch('/api/reports'),
+        fetch('/api/exercises')
       ]);
       const jsonClient = await resClient.json();
       const jsonApts = await resApts.json();
       const jsonWorkout = await resWorkout.json();
       const jsonAs = await resAs.json();
       const jsonRep = await resRep.json();
+      const jsonExercises = await resExercises.json();
 
       if (jsonClient.success && jsonClient.data.length > 0) {
         setClient(jsonClient.data[0]);
@@ -77,6 +188,9 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
       if (jsonRep.success) {
         setReports(jsonRep.data.filter((r: any) => (r.clienteId?._id || r.clienteId) === profileId));
       }
+      if (jsonExercises.success) {
+        setExercises(jsonExercises.data);
+      }
     } catch (e) {
       console.error('Error fetching client dashboard:', e);
     } finally {
@@ -87,6 +201,14 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
   useEffect(() => {
     fetchData();
   }, [profileId, activeTab]);
+
+  useEffect(() => {
+    if (bookType === 'academia') {
+      setBookService('Treino Monitorado');
+    } else {
+      setBookService('Avaliação Fisioterápica');
+    }
+  }, [bookType]);
 
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,13 +244,20 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
   const handleCancelAppointment = async (id: string) => {
     if (confirm('Deseja realmente cancelar este agendamento?')) {
       try {
-        const res = await fetch(`/api/appointments?id=${id}`, { method: 'DELETE' });
+        const res = await fetch('/api/appointments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status: 'cancelado' })
+        });
         const data = await res.json();
         if (data.success) {
           fetchData();
+        } else {
+          alert('Erro ao cancelar agendamento: ' + data.error);
         }
       } catch (e) {
         console.error(e);
+        alert('Erro ao processar o cancelamento.');
       }
     }
   };
@@ -235,14 +364,17 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
                 <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)}>
                   {bookType === 'academia' ? (
                     <>
-                      <option value="Treino Monitorado">Treino Monitorado (Consome 1 Crédito)</option>
+                      <option value="Treino Monitorado">Treino Monitorado (Consome Crédito)</option>
                       <option value="Treino Livre">Treino Livre (Sem Custo)</option>
-                      <option value="Recovery">Recovery</option>
+                      <option value="Recovery">Recovery (Sem Custo)</option>
+                      <option value="Avaliação Física">Avaliação Física (Sem Custo)</option>
+                      <option value="Teste de Força">Teste de Força (Sem Custo)</option>
+                      <option value="Emergência">Atendimento de Emergência (Sem Custo)</option>
+                      <option value="Massagem">Massagem (Consome Crédito Massagem - Sábados)</option>
                     </>
                   ) : (
                     <>
                       <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                      <option value="Emergência">Emergência</option>
                     </>
                   )}
                 </select>
@@ -392,41 +524,16 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
                   <h2>Treino Monitorado (Academia)</h2>
                 </div>
                 {workout.fichasMonitorado?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '24px', background: 'rgba(255, 255, 255, 0.02)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px' }}>
+                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.25rem', fontFamily: 'var(--font-title)' }}>
                       {f.nome} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)' }}>
                         Obs: {f.observacoesGerais}
                       </p>
                     )}
-                    <div className="table-responsive" style={{ marginTop: '12px' }}>
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Exercício</th>
-                            <th>Séries</th>
-                            <th>Repetições</th>
-                            <th>Carga</th>
-                            <th>Descanso</th>
-                            <th>Instruções</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {f.exercicios.map((ex: any, idx: number) => (
-                            <tr key={idx}>
-                              <td><strong>{ex.exercicioId}</strong></td>
-                              <td>{ex.series}</td>
-                              <td>{ex.repeticoes}</td>
-                              <td>{ex.carga}</td>
-                              <td>{ex.descanso}</td>
-                              <td><small style={{ color: 'var(--text-muted)' }}>{ex.observacao || '-'}</small></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    {renderWorkoutCards(f.exercicios)}
                   </div>
                 ))}
                 {(!workout.fichasMonitorado || workout.fichasMonitorado.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
@@ -440,41 +547,16 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
                   <h2>Treino Livre</h2>
                 </div>
                 {workout.fichasLivre?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '24px', background: 'rgba(255, 255, 255, 0.02)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px' }}>
+                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.25rem', fontFamily: 'var(--font-title)' }}>
                       {f.nome} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)' }}>
                         Obs: {f.observacoesGerais}
                       </p>
                     )}
-                    <div className="table-responsive" style={{ marginTop: '12px' }}>
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Exercício</th>
-                            <th>Séries</th>
-                            <th>Repetições</th>
-                            <th>Carga</th>
-                            <th>Descanso</th>
-                            <th>Instruções</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {f.exercicios.map((ex: any, idx: number) => (
-                            <tr key={idx}>
-                              <td><strong>{ex.exercicioId}</strong></td>
-                              <td>{ex.series}</td>
-                              <td>{ex.repeticoes}</td>
-                              <td>{ex.carga}</td>
-                              <td>{ex.descanso}</td>
-                              <td><small style={{ color: 'var(--text-muted)' }}>{ex.observacao || '-'}</small></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    {renderWorkoutCards(f.exercicios)}
                   </div>
                 ))}
                 {(!workout.fichasLivre || workout.fichasLivre.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
@@ -746,6 +828,77 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
             A visualização da aba <strong>{activeTab}</strong> está sendo migrada. Seus treinos e evoluções estão salvos.
           </p>
+        </div>
+      )}
+      {/* Modal de Instruções de Exercício */}
+      {selectedExerciseForInstruction && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.75)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backdropFilter: 'blur(4px)',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-dark)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '90%',
+            maxWidth: '500px',
+            boxShadow: 'var(--shadow-card)',
+            color: 'var(--text-main)',
+            position: 'relative'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-title)', color: 'var(--color-primary)', fontSize: '1.25rem' }}>
+                Instruções - {selectedExerciseForInstruction.nome}
+              </h3>
+              <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => setSelectedExerciseForInstruction(null)}>
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)', background: 'var(--color-primary-glow)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, border: '1px solid rgba(16,185,129,0.15)' }}>
+                Foco: {selectedExerciseForInstruction.grupo}
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#3b82f6', background: 'rgba(59,130,246,0.1)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, border: '1px solid rgba(59,130,246,0.15)' }}>
+                Equipamento: {selectedExerciseForInstruction.equipamento || 'Nenhum'}
+              </span>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary)' }}>
+                <i className="fa-solid fa-list-check"></i> Como Executar Corretamente
+              </h4>
+              <div style={{
+                background: 'rgba(0,0,0,0.15)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '16px',
+                fontSize: '0.85rem',
+                lineHeight: '1.45',
+                maxHeight: '220px',
+                overflowY: 'auto',
+                color: 'var(--text-main)',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {selectedExerciseForInstruction.instrucoes || 'Sem instruções adicionais.'}
+              </div>
+            </div>
+
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setSelectedExerciseForInstruction(null)}>
+              Entendido
+            </button>
+          </div>
         </div>
       )}
     </div>

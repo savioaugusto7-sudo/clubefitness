@@ -99,26 +99,369 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
 
-  // F2 � Ficha completa do aluno
+  // F2  Ficha completa do aluno
+  // Regras Modal
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [rulesClient, setRulesClient] = useState<any>(null);
+  const [rulesData, setRulesData] = useState({
+    permiteRolagem: false,
+    diasRetencaoFalta: 0,
+    deducaoFaltaAtraso: 1
+  });
+
+  const handleOpenRulesModal = (client: any) => {
+    setRulesClient(client);
+    setRulesData({
+      permiteRolagem: client.regrasCredito?.permiteRolagem || false,
+      diasRetencaoFalta: client.regrasCredito?.diasRetencaoFalta || 0,
+      deducaoFaltaAtraso: client.regrasCredito?.deducaoFaltaAtraso || 1
+    });
+    setShowRulesModal(true);
+  };
+
+  const handleSaveRules = async () => {
+    if (!rulesClient) return;
+    const payload = {
+      id: rulesClient._id,
+      regrasCredito: rulesData
+    };
+    const res = await fetch('/api/clients', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      setShowRulesModal(false);
+      fetchData();
+      alert('Regras de crédito atualizadas!');
+    } else {
+      alert('Erro ao salvar regras: ' + data.error);
+    }
+  };
+
   const [showClientDetailModal, setShowClientDetailModal] = useState(false);
-  const [clientDetailTab, setClientDetailTab] = useState<'pessoais' | 'clinicos' | 'comerciais'>('pessoais');
+  const [clientDetailTab, setClientDetailTab] = useState<'pessoais' | 'clinicos' | 'comerciais' | 'contratos'>('pessoais');
   const [detailClient, setDetailClient] = useState<any>(null);
+
+  // Personal Details States
+  const [dcNome, setDcNome] = useState('');
+  const [dcEmail, setDcEmail] = useState('');
+  const [dcCpf, setDcCpf] = useState('');
+  const [dcTelefone, setDcTelefone] = useState('');
   const [dcSexo, setDcSexo] = useState('M');
   const [dcNascimento, setDcNascimento] = useState('');
   const [dcEndereco, setDcEndereco] = useState('');
-  const [dcLesoes, setDcLesoes] = useState('');
+  const [dcTelefoneSecundario, setDcTelefoneSecundario] = useState('');
+  const [dcEstadoCivil, setDcEstadoCivil] = useState('solteiro(a)');
+  const [dcNacionalidade, setDcNacionalidade] = useState('brasileiro(a)');
+  const [dcProfissao, setDcProfissao] = useState('autônomo(a)');
+  const [dcNumero, setDcNumero] = useState('');
+  const [dcComplemento, setDcComplemento] = useState('');
+  const [dcBairro, setDcBairro] = useState('');
+  const [dcCidade, setDcCidade] = useState('');
+  const [dcEstado, setDcEstado] = useState('');
+  const [dcCep, setDcCep] = useState('');
+
+  // Clinical Details States
+  const [dcLesãoes, setDcLesãoes] = useState('');
   const [dcRestricoes, setDcRestricoes] = useState('');
   const [dcMedicamentos, setDcMedicamentos] = useState('');
   const [dcHistorico, setDcHistorico] = useState('');
   const [dcObsClin, setDcObsClin] = useState('');
+
+  // Commercial Details States
   const [dcPlano, setDcPlano] = useState('');
   const [dcVencimento, setDcVencimento] = useState('');
   const [dcStatus, setDcStatus] = useState('ativo');
   const [dcFormaPag, setDcFormaPag] = useState('pix');
   const [dcDuracao, setDcDuracao] = useState('mensal');
+  const [dcDescontoTipo, setDcDescontoTipo] = useState('percentual');
+  const [dcDescontoValor, setDcDescontoValor] = useState(0);
+  const [dcParcelas, setDcParcelas] = useState(1);
+  const [dcDataInicio, setDcDataInicio] = useState('');
+  const [dcResponsavelVenda, setDcResponsavelVenda] = useState('');
+  const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
+  const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
 
-  const handleOpenRulesModal = (client: any) => {
-    alert('Regras de crédito: ' + JSON.stringify(client.regrasCredito));
+  // Contract Tab States
+  const [clientContracts, setClientContracts] = useState<any[]>([]);
+  const [showContractPreview, setShowContractPreview] = useState(false);
+  const [signatureName, setSignatureName] = useState('');
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
+  const [freezeContractId, setFreezeContractId] = useState('');
+  const [freezeStartDate, setFreezeStartDate] = useState('');
+  const [freezeDuration, setFreezeDuration] = useState(30);
+
+  // New states for Plan
+  const [planTipo, setPlanTipo] = useState<'Mensal' | 'Anual'>('Mensal');
+  const [planServicos, setPlanServicos] = useState<string[]>([]);
+  const [planBeneficios, setPlanBeneficios] = useState<string[]>([]);
+  const [planUnidade, setPlanUnidade] = useState('');
+  const [planAtivo, setPlanAtivo] = useState(true);
+
+  // Computed values for contract and commercial details
+  const selectedPlan = plans.find((p: any) => p._id === dcPlano);
+  const valorBruto = selectedPlan ? selectedPlan.preco : 0;
+  const isSelectedPlanAnual = selectedPlan ? selectedPlan.tipo === 'Anual' : false;
+  
+  let descontoReais = 0;
+  if (dcDescontoTipo === 'percentual') {
+    descontoReais = valorBruto * ((Number(dcDescontoValor) || 0) / 100);
+  } else {
+    descontoReais = Math.min(valorBruto, Number(dcDescontoValor) || 0);
+  }
+  const valorLiquido = Math.max(0, valorBruto - descontoReais);
+  const valorParcela = valorLiquido / (Number(dcParcelas) || 1);
+  const hasActiveSignedContract = clientContracts.some(c => c.status === 'assinado' || c.status === 'congelado');
+
+  const generateContractTemplate = () => {
+    const plan = plans.find((p: any) => p._id === dcPlano);
+    if (!plan) return 'Nenhum plano selecionado.';
+
+    const isAnual = plan.tipo === 'Anual';
+    const vigenciaText = isAnual ? '12 (doze) meses' : '1 (um) mês';
+    
+    // Computations
+    const bruto = plan.preco || 0;
+    const descVal = Number(dcDescontoValor) || 0;
+    let liquido = bruto;
+    if (dcDescontoTipo === 'percentual') {
+      liquido = bruto * (1 - descVal / 100);
+    } else {
+      liquido = Math.max(0, bruto - descVal);
+    }
+    const valorParc = liquido / (Number(dcParcelas) || 1);
+    
+    // Calculate ending date
+    let dataFimStr = '';
+    if (dcDataInicio) {
+      const start = new Date(dcDataInicio + 'T00:00:00');
+      start.setMonth(start.getMonth() + (isAnual ? 12 : 1));
+      dataFimStr = start.toLocaleDateString('pt-BR');
+    } else {
+      dataFimStr = '[Data Fim]';
+    }
+
+    const servicosText = plan.servicosPermitidos?.length > 0
+      ? plan.servicosPermitidos.join(', ')
+      : 'Serviços básicos de academia';
+
+    const beneficiosText = plan.beneficiosInclusos?.length > 0
+      ? plan.beneficiosInclusos.join(', ')
+      : 'Benefícios padrão';
+
+    let text = `
+      <h3 style="text-align: center; margin-bottom: 20px;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE CONDICIONAMENTO FÍSICO</h3>
+      <p><strong>CONTRATANTE:</strong> ${dcNome || '[Nome do Aluno]'}, portador do CPF nº ${dcCpf || '[CPF]'}, residente em ${dcEndereco || '[Endereço]'}, nº ${dcNumero || '[Número]'}, ${dcComplemento ? dcComplemento + ', ' : ''}Bairro: ${dcBairro || '[Bairro]'}, Cidade: ${dcCidade || '[Cidade]'}/${dcEstado || '[UF]'}, CEP: ${dcCep || '[CEP]'}.</p>
+      <p><strong>CONTRATADA:</strong> CLUBE FITNESS LTDA, inscrita no CNPJ sob o nº 12.345.678/0001-90, com sede na Unidade ${dcUnidadeContratada || plan.unidadeAtendimento || 'Principal'}.</p>
+      
+      <p><strong>CLÁUSULA PRIMEIRA - DO OBJETO</strong><br/>
+      O objeto do presente contrato é a prestação de serviços de condicionamento físico e bem-estar no plano <strong>${plan.nome}</strong>, abrangendo os seguintes serviços inclusos: ${servicosText}.</p>
+      
+      <p><strong>CLÁUSULA SEGUNDA - DA VIGÊNCIA</strong><br/>
+      O presente contrato terá vigência de <strong>${vigenciaText}</strong>, iniciando-se em <strong>${dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '[Data de Início]'}</strong> e encerrando-se em <strong>${dataFimStr}</strong>.</p>
+      
+      <p><strong>CLÁUSULA TERCEIRA - DOS VALORES E FORMA DE PAGAMENTO</strong><br/>
+      Pela prestação dos serviços contratados, o CONTRATANTE pagará à CONTRATADA o valor líquido total de <strong>R$ ${liquido.toFixed(2).replace('.', ',')}</strong>, parcelado em <strong>${dcParcelas}x de R$ ${valorParc.toFixed(2).replace('.', ',')}</strong>, com vencimento inicial em <strong>${dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '[Primeiro Vencimento]'}</strong>, a ser quitado via <strong>${dcFormaPag.toUpperCase()}</strong>.</p>
+    `;
+
+    if (isAnual) {
+      text += `
+        <p><strong>CLÁUSULA QUARTA - DOS BENEFÍCIOS EXCLUSIVOS DO PLANO ANUAL</strong><br/>
+        O CONTRATANTE terá direito aos seguintes benefícios adicionais inclusos em seu plano: <strong>${beneficiosText}</strong>.</p>
+        
+        <p><strong>CLÁUSULA QUINTA - DO CONGELAMENTO</strong><br/>
+        Por se tratar de plano da modalidade Anual, o CONTRATANTE terá direito a solicitar o congelamento temporário do plano por um período máximo acumulativo de até <strong>30 (trinta) dias</strong> por vigência, devendo formalizar a solicitação por escrito com antecedência mínima de 5 (cinco) dias.</p>
+      `;
+    } else {
+      text += `
+        <p><strong>CLÁUSULA QUARTA - DA AUSÊNCIA DE CONGELAMENTO E BENEFÍCIOS ANUAIS</strong><br/>
+        Por se tratar de plano da modalidade Mensal, o CONTRATANTE declara-se ciente de que <strong>NÃO</strong> possui direito a congelamento temporário do plano e nem aos benefícios exclusivos da modalidade anual (como massagem cortesia ou atendimento de emergência).</p>
+      `;
+    }
+
+    text += `
+      <p><strong>CLÁUSULA ${isAnual ? 'SEXTA' : 'QUINTA'} - DAS DISPOSIÇÕES GERAIS</strong><br/>
+      As partes elegem o foro da comarca da sede da CONTRATADA para dirimir quaisquer dúvidas oriundas deste contrato.</p>
+    `;
+
+    if (dcObservacoesContratuais) {
+      text += `<p><strong>OBSERVAÇÕES ADICIONAIS:</strong><br/>${dcObservacoesContratuais}</p>`;
+    }
+
+    return text;
+  };
+
+  const handleCreateContract = async (status: 'pendente' | 'assinado') => {
+    if (status === 'assinado' && !signatureName.trim()) {
+      alert('Por favor, informe o nome do assinante para registrar o aceite digital.');
+      return;
+    }
+
+    const plan = plans.find((p: any) => p._id === dcPlano);
+    if (!plan) {
+      alert('Plano não encontrado.');
+      return;
+    }
+
+    const payload = {
+      clientId: detailClient._id,
+      planoId: dcPlano,
+      descontoTipo: dcDescontoTipo,
+      descontoValor: dcDescontoValor,
+      parcelas: dcParcelas,
+      formaPagamento: dcFormaPag,
+      dataPrimeiroVencimento: dcVencimento,
+      dataInicio: dcDataInicio,
+      responsavelVenda: dcResponsavelVenda,
+      unidadeContratada: dcUnidadeContratada,
+      observacoesContratuais: dcObservacoesContratuais,
+      status,
+      assinaturaNome: status === 'assinado' ? signatureName : '',
+      contratoTexto: generateContractTemplate(),
+      usuarioEmissor: 'Administrador'
+    };
+
+    const res = await fetch('/api/contracts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert(status === 'assinado' ? 'Contrato assinado e ativado com sucesso!' : 'Contrato gerado como pendente!');
+      setShowContractPreview(false);
+      
+      const resContracts = await fetch(`/api/contracts?clientId=${detailClient._id}`);
+      const dataContracts = await resContracts.json();
+      if (dataContracts.success) {
+        setClientContracts(dataContracts.data);
+      }
+      
+      fetchData();
+
+      if (status === 'assinado') {
+        const clientWithComercial = {
+          ...detailClient,
+          dadosComerciais: {
+            ...detailClient.dadosComerciais,
+            planoId: plan,
+            formaPagamento: dcFormaPag,
+            duracao: plan.tipo === 'Anual' ? 'anual' : 'mensal',
+            vencimento: dcVencimento,
+            descontoTipo: dcDescontoTipo,
+            descontoValor: dcDescontoValor,
+            parcelas: dcParcelas,
+            dataInicio: dcDataInicio,
+            responsavelVenda: dcResponsavelVenda,
+            unidadeContratada: dcUnidadeContratada,
+            observacoesContratuais: dcObservacoesContratuais
+          }
+        };
+        downloadContractPDF(clientWithComercial, plan, payload.contratoTexto);
+      }
+    } else {
+      alert('Erro ao criar contrato: ' + data.error);
+    }
+  };
+
+  const handleFreezeContract = async () => {
+    if (!freezeStartDate) {
+      alert('Selecione uma data de início para o congelamento.');
+      return;
+    }
+    if (freezeDuration <= 0 || freezeDuration > 30) {
+      alert('A duração do congelamento deve ser entre 1 e 30 dias.');
+      return;
+    }
+
+    const res = await fetch('/api/contracts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: freezeContractId,
+        action: 'congelar',
+        dataInicio: freezeStartDate,
+        duracaoDias: freezeDuration
+      })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Contrato congelado com sucesso!');
+      setShowFreezeModal(false);
+      
+      const resContracts = await fetch(`/api/contracts?clientId=${detailClient._id}`);
+      const dataContracts = await resContracts.json();
+      if (dataContracts.success) {
+        setClientContracts(dataContracts.data);
+      }
+      fetchData();
+    } else {
+      alert('Erro ao congelar contrato: ' + data.error);
+    }
+  };
+
+  const handleCancelContract = async (contractId: string) => {
+    if (!confirm('Tem certeza de que deseja cancelar este contrato? Esta ação alterará o status comercial do aluno para inativo.')) {
+      return;
+    }
+
+    const res = await fetch('/api/contracts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: contractId,
+        action: 'cancel'
+      })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Contrato cancelado com sucesso!');
+      
+      const resContracts = await fetch(`/api/contracts?clientId=${detailClient._id}`);
+      const dataContracts = await resContracts.json();
+      if (dataContracts.success) {
+        setClientContracts(dataContracts.data);
+      }
+      fetchData();
+    } else {
+      alert('Erro ao cancelar contrato: ' + data.error);
+    }
+  };
+
+  const handleSignContract = async (contractId: string, signatoryName: string) => {
+    if (!signatoryName.trim()) {
+      alert('Por favor, informe o nome do assinante para assinar o contrato.');
+      return;
+    }
+
+    const res = await fetch('/api/contracts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: contractId,
+        action: 'sign',
+        assinaturaNome: signatoryName
+      })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Contrato assinado e ativado!');
+      
+      const resContracts = await fetch(`/api/contracts?clientId=${detailClient._id}`);
+      const dataContracts = await resContracts.json();
+      if (dataContracts.success) {
+        setClientContracts(dataContracts.data);
+      }
+      fetchData();
+    } else {
+      alert('Erro ao assinar contrato: ' + data.error);
+    }
   };
 
   // F7   Simulador de Recebimentos
@@ -127,12 +470,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [simClient, setSimClient] = useState<any>(null);
   const [simForma, setSimForma] = useState<'pix' | 'boleto'>('pix');
 
-  // F15/F16 � Financial filters
+  // F15/F16  Financial filters
   const [finFilterStatus, setFinFilterStatus] = useState('');
   const [finFilterCat, setFinFilterCat] = useState('');
   const [finFilterMonth, setFinFilterMonth] = useState('');
 
-  // Configura��es states
+  // Configuraes states
   const [configSpotifyId, setConfigSpotifyId] = useState('');
   const [configThemeColor, setConfigThemeColor] = useState('#2563eb');
   const [configGymName, setConfigGymName] = useState('Clube Fitness Fisio');
@@ -152,7 +495,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     
     // Apply theme changes dynamically
     document.documentElement.style.setProperty('--color-primary', configThemeColor);
-    alert('Configura��es salvas com sucesso!');
+    alert('Configuraes salvas com sucesso!');
   };
   const plansList = [
     { id: '6668ab010101010101010101', nome: 'Academia VIP', preco: 150 },
@@ -307,6 +650,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       setPlanConsultorio(item.limiteSessoesConsultorio || 0);
       setPlanPrice(item.preco || 0);
       setPlanCreditos(item.creditosTotal || 0);
+      setPlanTipo(item.tipo || 'Mensal');
+      setPlanServicos(item.servicosPermitidos || []);
+      setPlanBeneficios(item.beneficiosInclusos || []);
+      setPlanUnidade(item.unidadeAtendimento || '');
+      setPlanAtivo(item.ativo !== undefined ? item.ativo : true);
     } else {
       setPlanName('');
       setPlanValidade(30);
@@ -314,6 +662,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       setPlanConsultorio(0);
       setPlanPrice(0);
       setPlanCreditos(0);
+      setPlanTipo('Mensal');
+      setPlanServicos([]);
+      setPlanBeneficios([]);
+      setPlanUnidade('');
+      setPlanAtivo(true);
     }
     setShowModal(true);
   };
@@ -505,7 +858,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           limiteSessoesAcademia: planAcademia,
           limiteSessoesConsultorio: planConsultorio,
           preco: planPrice,
-          creditosTotal: planCreditos
+          creditosTotal: planCreditos,
+          tipo: planTipo,
+          servicosPermitidos: planServicos,
+          beneficiosInclusos: planBeneficios,
+          unidadeAtendimento: planUnidade,
+          ativo: planAtivo
         };
         const method = editingItem ? 'PUT' : 'POST';
         const res = await fetch('/api/plans', {
@@ -975,19 +1333,55 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           <td style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                             <button className="btn btn-secondary btn-sm" title="Ver Ficha Completa" onClick={() => {
                               setDetailClient(c);
+                              setDcNome(c.dadosPessoais?.nome || '');
+                              setDcEmail(c.dadosPessoais?.email || '');
+                              setDcCpf(c.dadosPessoais?.cpf || '');
+                              setDcTelefone(c.dadosPessoais?.telefone || '');
                               setDcSexo(c.dadosPessoais?.sexo || 'M');
                               setDcNascimento(c.dadosPessoais?.dataNascimento || '');
                               setDcEndereco(c.dadosPessoais?.endereco || '');
-                              setDcLesoes(c.dadosClinicos?.lesoes || '');
+                              setDcTelefoneSecundario(c.dadosPessoais?.telefoneSecundario || '');
+                              setDcEstadoCivil(c.dadosPessoais?.estadoCivil || 'solteiro(a)');
+                              setDcNacionalidade(c.dadosPessoais?.nacionalidade || 'brasileiro(a)');
+                              setDcProfissao(c.dadosPessoais?.profissao || 'autônomo(a)');
+                              setDcNumero(c.dadosPessoais?.numero || '');
+                              setDcComplemento(c.dadosPessoais?.complemento || '');
+                              setDcBairro(c.dadosPessoais?.bairro || '');
+                              setDcCidade(c.dadosPessoais?.cidade || '');
+                              setDcEstado(c.dadosPessoais?.estado || '');
+                              setDcCep(c.dadosPessoais?.cep || '');
+                              
+                              setDcLesãoes(c.dadosClinicos?.lesoes || '');
                               setDcRestricoes(c.dadosClinicos?.restricoes || '');
                               setDcMedicamentos(c.dadosClinicos?.medicamentos || '');
                               setDcHistorico(c.dadosClinicos?.historicoClinico || '');
                               setDcObsClin(c.dadosClinicos?.observacoes || '');
+                              
                               setDcPlano(c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId || '');
                               setDcVencimento(c.dadosComerciais?.vencimento || '');
                               setDcStatus(c.dadosComerciais?.status || 'ativo');
                               setDcFormaPag(c.dadosComerciais?.formaPagamento || 'pix');
                               setDcDuracao(c.dadosComerciais?.duracao || 'mensal');
+                              setDcDescontoTipo(c.dadosComerciais?.descontoTipo || 'percentual');
+                              setDcDescontoValor(c.dadosComerciais?.descontoValor || 0);
+                              setDcParcelas(c.dadosComerciais?.parcelas || 1);
+                              setDcDataInicio(c.dadosComerciais?.dataInicio || c.dadosComerciais?.vencimento || '');
+                              setDcResponsavelVenda(c.dadosComerciais?.responsavelVenda || '');
+                              setDcUnidadeContratada(c.dadosComerciais?.unidadeContratada || '');
+                              setDcObservacoesContratuais(c.dadosComerciais?.observacoesContratuais || '');
+                              
+                              setSignatureName(c.dadosPessoais?.nome || '');
+                              setShowContractPreview(false);
+                              setClientContracts([]);
+                              
+                              fetch(`/api/contracts?clientId=${c._id}`)
+                                .then(res => res.json())
+                                .then(data => {
+                                  if (data.success) {
+                                    setClientContracts(data.data);
+                                  }
+                                });
+
                               setClientDetailTab('pessoais');
                               setShowClientDetailModal(true);
                             }}>
@@ -1848,75 +2242,50 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
       {/* 11. View: Painel TV Clínica */}
       {activeTab === 'tv_panel' && (
-        <>
-          <div className="view-header">
+        <div style={{ width: '100%', height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
             <div className="view-title-group">
-              <h1>Painel de Recepção (TV)</h1>
-              <p>Layout para projeção em televisores com status de atendimentos de hoje.</p>
+              <h1 style={{ fontSize: '1.8rem', fontWeight: 700, margin: 0 }}>Painel de Recepção (TV Mode Premium)</h1>
+              <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Exibição otimizada para TVs com status do dia, pódio de presenças e feed ao vivo.</p>
             </div>
+            <a 
+              href="/tv" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="btn btn-primary"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '10px 20px', 
+                borderRadius: '8px', 
+                fontWeight: 600,
+                textDecoration: 'none',
+                backgroundColor: 'var(--color-primary)',
+                borderColor: 'var(--color-primary)',
+                color: '#fff',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <i className="fa-solid fa-up-right-from-square"></i>
+              Abrir em Tela Cheia (Nova Aba)
+            </a>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', background: '#090d16', padding: '32px', borderRadius: '16px', border: '1px solid #1a2438' }}>
-            <div>
-              <h2 style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-title)', marginBottom: '20px' }}>Atendimentos de Hoje</h2>
-              <div className="table-responsive">
-                <table className="data-table" style={{ background: 'transparent' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ color: 'var(--text-muted)' }}>Horário</th>
-                      <th style={{ color: 'var(--text-muted)' }}>Aluno / Paciente</th>
-                      <th style={{ color: 'var(--text-muted)' }}>Serviço</th>
-                      <th style={{ color: 'var(--text-muted)' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {appointments.filter(a => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      return a.data === todayStr && a.status !== 'cancelado';
-                    }).map(a => (
-                      <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                        <td style={{ fontSize: '1.25rem' }}><strong>{a.horario}</strong></td>
-                        <td style={{ fontSize: '1.25rem' }}>{a.clienteId?.dadosPessoais?.nome || 'Aluno'}</td>
-                        <td>{a.servico}</td>
-                        <td>
-                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : 'badge-warning'}`}>
-                            {a.status === 'presenca' ? 'Presente' : 'Agendado'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {appointments.filter(a => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      return a.data === todayStr && a.status !== 'cancelado';
-                    }).length === 0 && (
-                      <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
-                          Nenhum atendimento agendado para hoje.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div style={{ borderLeft: '1px solid rgba(255,255,255,0.05)', paddingLeft: '32px' }}>
-              <h2 style={{ fontFamily: 'var(--font-title)', marginBottom: '20px' }}>Informativo</h2>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
-                <h3>Check-in Automático</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '8px' }}>
-                  Ao chegar na recepção, confirme sua presença com o professor para liberar seus créditos semanais.
-                </p>
-              </div>
-              <div style={{ background: 'var(--color-primary-glow)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-primary)' }}>
-                <h3 style={{ color: 'var(--color-primary)' }}>Clube Fitness Fisio</h3>
-                <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', marginTop: '8px' }}>
-                  Saúde, Movimento e Reabilitação Integrada.
-                </p>
-              </div>
-            </div>
+          <div style={{ flex: 1, minHeight: '450px', background: '#090d16', borderRadius: '16px', border: '1px solid #1a2438', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)' }}>
+            <iframe 
+              src="/tv" 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                border: 'none',
+                background: '#090d16'
+              }}
+              title="Painel TV Clínica"
+            />
           </div>
-        </>
+        </div>
       )}
 
       {/* Default Fallback for other tabs */}
@@ -2210,101 +2579,466 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                <button className="modal-close" onClick={() => setShowClientDetailModal(false)}>&times;</button>
              </div>
              <div className="modal-body" style={{ padding: 0 }}>
-               <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)' }}>
-                 {(['pessoais', 'clinicos', 'comerciais'] as const).map((t) => {
-                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Clnicos', comerciais: 'Dados Comerciais' };
-                   const icons: Record<string, string> = { pessoais: 'fa-user', clinicos: 'fa-heart-pulse', comerciais: 'fa-file-contract' };
+               <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', overflowX: 'auto' }}>
+                 {(['pessoais', 'clinicos', 'comerciais', 'contratos'] as const).map((t) => {
+                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Clínicos', comerciais: 'Dados Comerciais', contratos: 'Contratos' };
+                   const icons: Record<string, string> = { pessoais: 'fa-user', clinicos: 'fa-heart-pulse', comerciais: 'fa-file-contract', contratos: 'fa-file-signature' };
                    return (
-                     <button key={t} onClick={() => setClientDetailTab(t)} style={{ flex: 1, padding: '12px', fontWeight: 600, fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', color: clientDetailTab === t ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: clientDetailTab === t ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}>
+                     <button key={t} onClick={() => setClientDetailTab(t)} style={{ flex: 1, padding: '12px', fontWeight: 600, fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', color: clientDetailTab === t ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: clientDetailTab === t ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px', whiteSpace: 'nowrap' }}>
                        <i className={`fa-solid ${icons[t]}`} style={{ marginRight: '5px' }}></i>{labels[t]}
                      </button>
                    );
                  })}
                </div>
-               <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+               <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '550px', overflowY: 'auto' }}>
                  {clientDetailTab === 'pessoais' && (
                    <>
                      <div className="form-row">
-                       <div className="form-group"><label>Nome Completo</label><input className="form-control" defaultValue={detailClient.dadosPessoais?.nome} readOnly /></div>
-                       <div className="form-group"><label>E-mail</label><input className="form-control" defaultValue={detailClient.dadosPessoais?.email} readOnly /></div>
+                       <div className="form-group">
+                         <label>Nome Completo</label>
+                         <input className="form-control" value={dcNome} onChange={e => setDcNome(e.target.value)} />
+                       </div>
+                       <div className="form-group">
+                         <label>E-mail</label>
+                         <input className="form-control" value={dcEmail} onChange={e => setDcEmail(e.target.value)} />
+                       </div>
                      </div>
                      <div className="form-row">
-                       <div className="form-group"><label>CPF</label><input className="form-control" defaultValue={detailClient.dadosPessoais?.cpf} readOnly /></div>
-                       <div className="form-group"><label>Telefone</label><input className="form-control" defaultValue={detailClient.dadosPessoais?.telefone} readOnly /></div>
+                       <div className="form-group">
+                         <label>CPF</label>
+                         <input className="form-control" value={dcCpf} onChange={e => setDcCpf(e.target.value)} />
+                       </div>
+                       <div className="form-group">
+                         <label>Telefone Principal</label>
+                         <input className="form-control" value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} />
+                       </div>
+                       <div className="form-group">
+                         <label>Telefone Secundário</label>
+                         <input className="form-control" value={dcTelefoneSecundario} onChange={e => setDcTelefoneSecundario(e.target.value)} />
+                       </div>
                      </div>
                      <div className="form-row">
                        <div className="form-group">
                          <label>Sexo</label>
                          <select className="select-custom" value={dcSexo} onChange={e => setDcSexo(e.target.value)}>
-                           <option value="M">Masculino</option><option value="F">Feminino</option><option value="O">Outro</option>
+                           <option value="M">Masculino</option>
+                           <option value="F">Feminino</option>
+                           <option value="O">Outro</option>
                          </select>
                        </div>
-                       <div className="form-group"><label>Data de Nascimento</label><input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} /></div>
+                       <div className="form-group">
+                         <label>Data de Nascimento</label>
+                         <input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} />
+                       </div>
                      </div>
-                     <div className="form-group"><label>Endereo</label><input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, N, Bairro, CEP" /></div>
+                     <div className="form-row">
+                       <div className="form-group">
+                         <label>Estado Civil</label>
+                         <select className="select-custom" value={dcEstadoCivil} onChange={e => setDcEstadoCivil(e.target.value)}>
+                           <option value="solteiro(a)">Solteiro(a)</option>
+                           <option value="casado(a)">Casado(a)</option>
+                           <option value="divorciado(a)">Divorciado(a)</option>
+                           <option value="viúvo(a)">Viúvo(a)</option>
+                           <option value="união estável">União Estável</option>
+                         </select>
+                       </div>
+                       <div className="form-group">
+                         <label>Nacionalidade</label>
+                         <input className="form-control" value={dcNacionalidade} onChange={e => setDcNacionalidade(e.target.value)} />
+                       </div>
+                       <div className="form-group">
+                         <label>Profissão</label>
+                         <input className="form-control" value={dcProfissao} onChange={e => setDcProfissao(e.target.value)} />
+                       </div>
+                     </div>
+                     <div className="form-row">
+                       <div className="form-group" style={{ flex: 3 }}>
+                         <label>Logradouro (Endereço)</label>
+                         <input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua / Avenida" />
+                       </div>
+                       <div className="form-group" style={{ flex: 1 }}>
+                         <label>Número</label>
+                         <input className="form-control" value={dcNumero} onChange={e => setDcNumero(e.target.value)} placeholder="Nº" />
+                       </div>
+                     </div>
+                     <div className="form-row">
+                       <div className="form-group">
+                         <label>Complemento</label>
+                         <input className="form-control" value={dcComplemento} onChange={e => setDcComplemento(e.target.value)} placeholder="Apto, Sala, etc." />
+                       </div>
+                       <div className="form-group">
+                         <label>Bairro</label>
+                         <input className="form-control" value={dcBairro} onChange={e => setDcBairro(e.target.value)} placeholder="Bairro" />
+                       </div>
+                     </div>
+                     <div className="form-row">
+                       <div className="form-group" style={{ flex: 2 }}>
+                         <label>Cidade</label>
+                         <input className="form-control" value={dcCidade} onChange={e => setDcCidade(e.target.value)} placeholder="Cidade" />
+                       </div>
+                       <div className="form-group" style={{ flex: 1 }}>
+                         <label>Estado (UF)</label>
+                         <input className="form-control" value={dcEstado} onChange={e => setDcEstado(e.target.value)} maxLength={2} placeholder="UF" />
+                       </div>
+                       <div className="form-group" style={{ flex: 2 }}>
+                         <label>CEP</label>
+                         <input className="form-control" value={dcCep} onChange={e => setDcCep(e.target.value)} placeholder="00000-000" />
+                       </div>
+                     </div>
                    </>
                  )}
                  {clientDetailTab === 'clinicos' && (
                    <>
-                     <div className="form-group"><label>Leses e Diagnsticos</label><textarea className="form-control" rows={3} value={dcLesoes} onChange={e => setDcLesoes(e.target.value)} placeholder="Ex: Leso manguito rotador grau II..." /></div>
-                     <div className="form-group"><label>Restries / Contraindicaes</label><textarea className="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
-                     <div className="form-group"><label>Medicamentos em Uso</label><input className="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="Nome, dosagem, frequncia..." /></div>
-                     <div className="form-group"><label>Histrico Clnico Relevante</label><textarea className="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doenas crnicas..." /></div>
-                     <div className="form-group"><label>Observaes Clnicas</label><textarea className="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
+                     <div className="form-group"><label>Lesões e Diagnósticos</label><textarea className="form-control" rows={3} value={dcLesãoes} onChange={e => setDcLesãoes(e.target.value)} placeholder="Ex: Lesão manguito rotador grau II..." /></div>
+                     <div className="form-group"><label>Restrições / Contraindications</label><textarea className="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
+                     <div className="form-group"><label>Medicamentos em Uso</label><input className="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="Nome, dosagem, frequência..." /></div>
+                     <div className="form-group"><label>Histórico Clínico Relevante</label><textarea className="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doenças crônicas..." /></div>
+                     <div className="form-group"><label>Observações Clínicas</label><textarea className="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
                    </>
                  )}
                  {clientDetailTab === 'comerciais' && (
                    <>
+                     {hasActiveSignedContract && (
+                       <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                         <i className="fa-solid fa-triangle-exclamation"></i>
+                         <span><strong>Contrato Ativo Assinado:</strong> As informações comerciais estão bloqueadas para edição direta. Para alterá-las, gere uma nova versão do contrato na aba <strong>Contratos</strong>.</span>
+                       </div>
+                     )}
+
+                     <div style={{ background: 'rgba(59,130,246,0.05)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '15px' }}>
+                       <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Resumo Financeiro em Tempo Real</h4>
+                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', textAlign: 'center' }}>
+                         <div>
+                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Valor Bruto</span>
+                           <strong style={{ fontSize: '0.95rem' }}>R$ {valorBruto.toFixed(2).replace('.', ',')}</strong>
+                         </div>
+                         <div>
+                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Desconto ({dcDescontoTipo === 'percentual' ? `${dcDescontoValor}%` : 'R$'})</span>
+                           <strong style={{ fontSize: '0.95rem', color: 'var(--color-danger)' }}>- R$ {descontoReais.toFixed(2).replace('.', ',')}</strong>
+                         </div>
+                         <div>
+                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Valor Líquido</span>
+                           <strong style={{ fontSize: '0.95rem', color: 'var(--color-success)' }}>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong>
+                         </div>
+                         <div>
+                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Parcelamento</span>
+                           <strong style={{ fontSize: '0.95rem' }}>{dcParcelas}x R$ {valorParcela.toFixed(2).replace('.', ',')}</strong>
+                         </div>
+                       </div>
+                     </div>
+
                      <div className="form-row">
                        <div className="form-group">
                          <label>Plano Contratado</label>
-                         <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)}>
-                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}   R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
+                         <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} disabled={hasActiveSignedContract}>
+                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
                          </select>
                        </div>
                        <div className="form-group">
                          <label>Status</label>
-                         <select className="select-custom" value={dcStatus} onChange={e => setDcStatus(e.target.value)}>
-                           <option value="ativo">Ativo</option><option value="vencido">Vencido</option><option value="suspenso">Suspenso</option>
+                         <select className="select-custom" value={dcStatus} onChange={e => setDcStatus(e.target.value)} disabled={hasActiveSignedContract}>
+                           <option value="ativo">Ativo</option>
+                           <option value="vencido">Vencido</option>
+                           <option value="suspenso">Suspenso</option>
+                           <option value="inativo">Inativo</option>
                          </select>
                        </div>
                      </div>
+
                      <div className="form-row">
                        <div className="form-group">
-                         <label>Durao</label>
-                         <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value)}>
-                           <option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option>
+                         <label>Tipo de Desconto</label>
+                         <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)} disabled={hasActiveSignedContract}>
+                           <option value="percentual">Percentual (%)</option>
+                           <option value="fixo">Fixo (R$)</option>
                          </select>
                        </div>
                        <div className="form-group">
-                         <label>Forma de Pagamento</label>
-                         <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)}>
-                           <option value="pix">Pix</option><option value="boleto">Boleto</option><option value="cartao">Carto</option><option value="dinheiro">Dinheiro</option>
-                         </select>
+                         <label>Valor do Desconto</label>
+                         <input type="number" className="form-control" value={dcDescontoValor} onChange={e => setDcDescontoValor(Number(e.target.value))} min={0} disabled={hasActiveSignedContract} />
+                       </div>
+                       <div className="form-group">
+                         <label>Parcelas</label>
+                         <input type="number" className="form-control" value={dcParcelas} onChange={e => setDcParcelas(Math.max(1, Number(e.target.value)))} min={1} disabled={hasActiveSignedContract} />
                        </div>
                      </div>
-                     <div className="form-group"><label>Vencimento</label><input type="date" className="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} /></div>
-                     <div style={{ display: 'flex', gap: '10px' }}>
-                       <button className="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
-                         await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: detailClient._id, dadosComerciais: { planoId: dcPlano, status: dcStatus, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }) });
-                         fetchData(); setShowClientDetailModal(false);
-                       }}><i className="fa-solid fa-floppy-disk"></i> Salvar</button>
+
+                     <div className="form-row">
+                       <div className="form-group">
+                         <label>Forma de Pagamento</label>
+                         <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} disabled={hasActiveSignedContract}>
+                           <option value="pix">Pix</option>
+                           <option value="boleto">Boleto Bancário</option>
+                           <option value="cartao">Cartão de Crédito/Débito</option>
+                           <option value="dinheiro">Dinheiro</option>
+                         </select>
+                       </div>
+                       <div className="form-group">
+                         <label>Data de Início</label>
+                         <input type="date" className="form-control" value={dcDataInicio} onChange={e => setDcDataInicio(e.target.value)} disabled={hasActiveSignedContract} />
+                       </div>
+                       <div className="form-group">
+                         <label>Primeiro Vencimento</label>
+                         <input type="date" className="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} disabled={hasActiveSignedContract} />
+                       </div>
+                     </div>
+
+                     <div className="form-row">
+                       <div className="form-group">
+                         <label>Responsável pela Venda</label>
+                         <input className="form-control" value={dcResponsavelVenda} onChange={e => setDcResponsavelVenda(e.target.value)} placeholder="Nome do vendedor" disabled={hasActiveSignedContract} />
+                       </div>
+                       <div className="form-group">
+                         <label>Unidade Contratada</label>
+                         <input className="form-control" value={dcUnidadeContratada} onChange={e => setDcUnidadeContratada(e.target.value)} placeholder="Unidade de atendimento" disabled={hasActiveSignedContract} />
+                       </div>
+                     </div>
+
+                     <div className="form-group">
+                       <label>Observações Contratuais</label>
+                       <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} placeholder="Notas adicionais sobre esta contratação" disabled={hasActiveSignedContract} />
+                     </div>
+
+                     <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                       {!hasActiveSignedContract && (
+                         <button className="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
+                           const payload = {
+                             id: detailClient._id,
+                             dadosComerciais: {
+                               planoId: dcPlano,
+                               status: dcStatus,
+                               formaPagamento: dcFormaPag,
+                               duracao: isSelectedPlanAnual ? 'anual' : 'mensal',
+                               vencimento: dcVencimento,
+                               descontoTipo: dcDescontoTipo,
+                               descontoValor: dcDescontoValor,
+                               parcelas: dcParcelas,
+                               dataInicio: dcDataInicio,
+                               responsavelVenda: dcResponsavelVenda,
+                               unidadeContratada: dcUnidadeContratada,
+                               observacoesContratuais: dcObservacoesContratuais
+                             }
+                           };
+                           const res = await fetch('/api/clients', {
+                             method: 'PUT',
+                             headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify(payload)
+                           });
+                           const data = await res.json();
+                           if (data.success) {
+                             fetchData();
+                             alert('Dados comerciais salvos!');
+                             setShowClientDetailModal(false);
+                           } else {
+                             alert('Erro ao salvar dados comerciais: ' + data.error);
+                           }
+                         }}><i className="fa-solid fa-floppy-disk"></i> Salvar</button>
+                       )}
                        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
                          const plan = plans.find((p: any) => p._id === dcPlano);
-                         downloadContractPDF({ ...detailClient, dadosComerciais: { ...detailClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, duracao: dcDuracao, vencimento: dcVencimento } }, plan, detailClient.contrato);
+                         const clientWithComercial = {
+                           ...detailClient,
+                           dadosComerciais: {
+                             ...detailClient.dadosComerciais,
+                             planoId: plan,
+                             formaPagamento: dcFormaPag,
+                             duracao: isSelectedPlanAnual ? 'anual' : 'mensal',
+                             vencimento: dcVencimento,
+                             descontoTipo: dcDescontoTipo,
+                             descontoValor: dcDescontoValor,
+                             parcelas: dcParcelas,
+                             dataInicio: dcDataInicio,
+                             responsavelVenda: dcResponsavelVenda,
+                             unidadeContratada: dcUnidadeContratada,
+                             observacoesContratuais: dcObservacoesContratuais
+                           }
+                         };
+                         const activeContract = clientContracts.find(c => c.status === 'assinado');
+                         downloadContractPDF(clientWithComercial, plan, activeContract?.contratoTexto || generateContractTemplate());
                        }}><i className="fa-solid fa-file-contract"></i> Contrato PDF</button>
                      </div>
                    </>
                  )}
-                 {clientDetailTab !== 'comerciais' && (
+                 {clientDetailTab === 'contratos' && (
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                     {/* Histórico de Contratos */}
+                     <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '15px', background: 'var(--bg-secondary)' }}>
+                       <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                         <i className="fa-solid fa-history" style={{ color: 'var(--color-primary)' }}></i> Histórico de Versões do Contrato
+                       </h4>
+                       
+                       {clientContracts.length === 0 ? (
+                         <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', margin: 0, textAlign: 'center', padding: '15px 0' }}>
+                           Nenhum contrato gerado para este aluno ainda.
+                         </p>
+                       ) : (
+                         <div style={{ overflowX: 'auto' }}>
+                           <table className="table-data" style={{ width: '100%', fontSize: '0.8rem' }}>
+                             <thead>
+                               <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>V.</th>
+                                 <th style={{ padding: '8px 5px' }}>Plano</th>
+                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Vigência</th>
+                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Status</th>
+                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Ações</th>
+                               </tr>
+                             </thead>
+                             <tbody>
+                               {clientContracts.map((c: any) => {
+                                 let badgeColor = 'var(--text-dim)';
+                                 let badgeBg = 'rgba(128,128,128,0.1)';
+                                 if (c.status === 'assinado') { badgeColor = 'var(--color-success)'; badgeBg = 'rgba(16,185,129,0.1)'; }
+                                 else if (c.status === 'cancelado') { badgeColor = 'var(--color-danger)'; badgeBg = 'rgba(239,68,68,0.1)'; }
+                                 else if (c.status === 'congelado') { badgeColor = 'var(--color-primary)'; badgeBg = 'rgba(59,130,246,0.1)'; }
+                                 else if (c.status === 'pendente') { badgeColor = '#f59e0b'; badgeBg = 'rgba(245,158,11,0.1)'; }
+
+                                 return (
+                                   <tr key={c._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                     <td style={{ padding: '8px 5px', textAlign: 'center', fontWeight: 'bold' }}>{c.versao}</td>
+                                     <td style={{ padding: '8px 5px' }}>{c.planoNome}</td>
+                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
+                                       {c.dataInicio ? new Date(c.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {c.dataFim ? new Date(c.dataFim + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                     </td>
+                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
+                                       <span style={{ color: badgeColor, background: badgeBg, padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                         {c.status}
+                                       </span>
+                                     </td>
+                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
+                                       <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                                         <button className="btn btn-secondary btn-sm" title="Baixar PDF" onClick={() => {
+                                           const pl = plans.find((p: any) => p._id === c.planoId?._id || p._id === c.planoId);
+                                           downloadContractPDF(detailClient, pl, c.contratoTexto);
+                                         }}><i className="fa-solid fa-file-pdf"></i></button>
+                                         
+                                         {c.status === 'pendente' && (
+                                           <>
+                                             <button className="btn btn-primary btn-sm" style={{ padding: '2px 6px' }} onClick={() => {
+                                               const sName = prompt('Nome do Assinante para Aceite Eletrônico:', detailClient.dadosPessoais?.nome || '');
+                                               if (sName !== null) handleSignContract(c._id, sName);
+                                             }}><i className="fa-solid fa-signature"></i> Assinar</button>
+                                             <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px' }} onClick={() => handleCancelContract(c._id)}><i className="fa-solid fa-xmark"></i></button>
+                                           </>
+                                         )}
+
+                                         {c.status === 'assinado' && (
+                                           <>
+                                             {c.planoTipo === 'Anual' && (
+                                               <button className="btn btn-secondary btn-sm" style={{ padding: '2px 6px', color: 'var(--color-primary)' }} onClick={() => {
+                                                 setFreezeContractId(c._id);
+                                                 setFreezeStartDate(new Date().toISOString().split('T')[0]);
+                                                 setFreezeDuration(30);
+                                                 setShowFreezeModal(true);
+                                               }}><i className="fa-solid fa-snowflake"></i> Congelar</button>
+                                             )}
+                                             <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px' }} onClick={() => handleCancelContract(c._id)}><i className="fa-solid fa-ban"></i> Cancelar</button>
+                                           </>
+                                         )}
+                                       </div>
+                                     </td>
+                                   </tr>
+                                 );
+                                })}
+                             </tbody>
+                           </table>
+                         </div>
+                       )}
+                     </div>
+
+                     {/* Simulador / Gerador de Novo Contrato */}
+                     {!showContractPreview ? (
+                       <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '15px', background: 'var(--bg-secondary)', textAlign: 'center' }}>
+                         <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Emitir Novo Contrato / Nova Versão</h4>
+                         <p style={{ color: 'var(--text-dim)', fontSize: '0.8rem', margin: '0 0 12px 0' }}>
+                           Ao emitir e assinar um novo contrato, o contrato assinado atualmente (se houver) será cancelado automaticamente e substituído pela nova versão comercial.
+                         </p>
+                         <button className="btn btn-primary" onClick={() => {
+                           setSignatureName(detailClient.dadosPessoais?.nome || '');
+                           setShowContractPreview(true);
+                         }}><i className="fa-solid fa-file-signature"></i> Abrir Simulador e Gerar Contrato</button>
+                       </div>
+                     ) : (
+                       <div style={{ border: '1.5px solid var(--color-primary)', borderRadius: '8px', padding: '15px', background: 'var(--bg-secondary)' }}>
+                         <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--color-primary)' }}>Simulador & Pré-visualização do Contrato</h4>
+                         
+                         {/* Live calculations notice */}
+                         <div style={{ background: 'rgba(59,130,246,0.05)', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid rgba(59,130,246,0.1)', marginBottom: '12px' }}>
+                           <strong>Configurações do Contrato (Definidas na aba Comercial):</strong><br/>
+                           • Plano: {selectedPlan?.nome || 'Nenhum'} | Bruto: R$ {valorBruto.toFixed(2).replace('.', ',')}<br/>
+                           • Desconto: {dcDescontoTipo === 'percentual' ? `${dcDescontoValor}%` : `R$ ${dcDescontoValor}`} | Líquido: <strong>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong><br/>
+                           • Condição: {dcParcelas}x de R$ {valorParcela.toFixed(2).replace('.', ',')} via {dcFormaPag.toUpperCase()}<br/>
+                           • Vigência: {isSelectedPlanAnual ? '12 meses (Anual)' : '1 mês (Mensal)'} | Início: {dcDataInicio || 'Hoje'}
+                         </div>
+
+                         {/* Dynamic HTML preview frame */}
+                         <div style={{ background: '#fff', color: '#000', padding: '20px', border: '1px solid #ccc', borderRadius: '6px', maxHeight: '250px', overflowY: 'auto', marginBottom: '15px', fontFamily: 'Arial, sans-serif', fontSize: '0.82rem', lineHeight: '1.4' }}>
+                           <div dangerouslySetInnerHTML={{ __html: generateContractTemplate() }} />
+                         </div>
+
+                         {/* Signature input and action buttons */}
+                         <div className="form-group" style={{ marginBottom: '15px' }}>
+                           <label>Nome do Assinante para Aceite Digital (Obrigatório para Assinar)</label>
+                           <input className="form-control" value={signatureName} onChange={e => setSignatureName(e.target.value)} placeholder="Nome completo do assinante" />
+                           <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>
+                             Ao assinar, um registro digital com data, hora e IP será atrelado a este documento.
+                           </small>
+                         </div>
+
+                         <div style={{ display: 'flex', gap: '8px' }}>
+                           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowContractPreview(false)}>Fechar</button>
+                           <button className="btn btn-secondary" style={{ flex: 1, color: '#f59e0b' }} onClick={() => handleCreateContract('pendente')}><i className="fa-solid fa-clock"></i> Emitir Pendente</button>
+                           <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => handleCreateContract('assinado')}><i className="fa-solid fa-check-double"></i> Confirmar e Assinar</button>
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                 )}
+                 {(clientDetailTab === 'pessoais' || clientDetailTab === 'clinicos') && (
                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
                      <button className="btn btn-primary" onClick={async () => {
                        const payload: any = { id: detailClient._id };
-                       if (clientDetailTab === 'pessoais') payload.dadosPessoais = { ...detailClient.dadosPessoais, sexo: dcSexo, dataNascimento: dcNascimento, endereco: dcEndereco };
-                       else payload.dadosClinicos = { lesoes: dcLesoes, restricoes: dcRestricoes, medicamentos: dcMedicamentos, historicoClinico: dcHistorico, observacoes: dcObsClin };
-                       await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                       fetchData(); alert('Dados salvos!');
-                     }}><i className="fa-solid fa-floppy-disk"></i> Salvar Altera��es</button>
+                       if (clientDetailTab === 'pessoais') {
+                         payload.dadosPessoais = {
+                           nome: dcNome,
+                           email: dcEmail,
+                           cpf: dcCpf,
+                           telefone: dcTelefone,
+                           sexo: dcSexo,
+                           dataNascimento: dcNascimento,
+                           endereco: dcEndereco,
+                           telefoneSecundario: dcTelefoneSecundario,
+                           estadoCivil: dcEstadoCivil,
+                           nacionalidade: dcNacionalidade,
+                           profissao: dcProfissao,
+                           numero: dcNumero,
+                           complemento: dcComplemento,
+                           bairro: dcBairro,
+                           cidade: dcCidade,
+                           estado: dcEstado,
+                           cep: dcCep
+                         };
+                       } else {
+                         payload.dadosClinicos = {
+                           lesoes: dcLesãoes,
+                           restricoes: dcRestricoes,
+                           medicamentos: dcMedicamentos,
+                           historicoClinico: dcHistorico,
+                           observacoes: dcObsClin
+                         };
+                       }
+                       const res = await fetch('/api/clients', {
+                         method: 'PUT',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify(payload)
+                       });
+                       const data = await res.json();
+                       if (data.success) {
+                         fetchData();
+                         alert('Dados salvos com sucesso!');
+                       } else {
+                         alert('Erro ao salvar dados: ' + data.error);
+                       }
+                     }}><i className="fa-solid fa-floppy-disk"></i> Salvar Alterações</button>
                    </div>
                  )}
                </div>
@@ -2313,7 +3047,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
          </div>
        )}
 
-       {/* F7  Simulador de Cobran�a */}
+       {/* F7  Simulador de Cobrana */}
        {showSimuladorModal && simClient && (
          <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowSimuladorModal(false)}>
            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '95%' }}>
@@ -2325,7 +3059,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', marginBottom: '14px', textAlign: 'left', fontSize: '0.875rem' }}>
                  <p style={{ margin: '0 0 4px 0' }}><strong>Aluno:</strong> {simClient.dadosPessoais?.nome}</p>
                  <p style={{ margin: '0 0 4px 0' }}><strong>Valor:</strong> R$ {(simClient.dadosComerciais?.planoId?.preco || 0).toFixed(2).replace('.', ',')}</p>
-                 <p style={{ margin: 0 }}><strong>Forma:</strong> {simForma === 'pix' ? 'Pix' : 'Boleto Banc�rio'}</p>
+                 <p style={{ margin: 0 }}><strong>Forma:</strong> {simForma === 'pix' ? 'Pix' : 'Boleto Bancrio'}</p>
                </div>
                {simForma === 'pix' ? (
                  <div style={{ margin: '0 auto 14px', width: '150px', height: '150px', background: '#fff', border: '2px solid #e5e7eb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
@@ -2336,7 +3070,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                  <div style={{ background: '#fff', border: '2px dashed #ccc', borderRadius: '8px', padding: '16px', marginBottom: '12px' }}>
                    <i className="fa-solid fa-barcode" style={{ fontSize: '55px', color: '#333' }}></i>
                    <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#555', marginTop: '4px', letterSpacing: '2px' }}>0001 9371 9999 0001 9371 9999</div>
-                   <small style={{ color: '#888', fontSize: '0.65rem' }}>C�digo simulado</small>
+                   <small style={{ color: '#888', fontSize: '0.65rem' }}>Cdigo simulado</small>
                  </div>
                )}
                <div style={{ display: 'flex', gap: '8px' }}>
@@ -2345,7 +3079,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                  </button>
                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
                    const valor = simClient.dadosComerciais?.planoId?.preco || 0;
-                   await fetch('/api/financial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ descricao: `Mensalidade  ${simClient.dadosPessoais?.nome}`, categoria: 'Mensalidade', valor, vencimento: new Date().toISOString().split('T')[0], status: 'Pago', forma_pagamento: simForma === 'pix' ? 'Pix' : 'Boleto Banc�rio' }) });
+                   await fetch('/api/financial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ descricao: `Mensalidade  ${simClient.dadosPessoais?.nome}`, categoria: 'Mensalidade', valor, vencimento: new Date().toISOString().split('T')[0], status: 'Pago', forma_pagamento: simForma === 'pix' ? 'Pix' : 'Boleto Bancrio' }) });
                    setShowSimuladorModal(false); fetchData(); alert('Pagamento registrado!');
                  }}>
                    <i className="fa-solid fa-check"></i> Confirmar
@@ -2355,14 +3089,34 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
            </div>
          </div>
        )}
+       {/* Modal de Congelamento */}
+       {showFreezeModal && (
+         <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setShowFreezeModal(false)}>
+           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '95%' }}>
+             <div className="modal-header" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff' }}>
+               <h3><i className="fa-solid fa-snowflake" style={{ marginRight: '8px' }}></i>Congelar Contrato</h3>
+               <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowFreezeModal(false)}>&times;</button>
+             </div>
+             <div className="modal-body" style={{ padding: '20px' }}>
+               <div className="form-group" style={{ marginBottom: '15px' }}>
+                 <label>Data de Início do Congelamento</label>
+                 <input type="date" className="form-control" value={freezeStartDate} onChange={e => setFreezeStartDate(e.target.value)} required />
+               </div>
+               <div className="form-group" style={{ marginBottom: '15px' }}>
+                 <label>Duração em Dias (Máximo 30)</label>
+                 <input type="number" className="form-control" value={freezeDuration} onChange={e => setFreezeDuration(Math.min(30, Math.max(1, Number(e.target.value))))} min={1} max={30} required />
+               </div>
+               <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowFreezeModal(false)}>Voltar</button>
+                 <button type="button" className="btn btn-primary" style={{ flex: 1, background: '#3b82f6' }} onClick={handleFreezeContract}>Confirmar</button>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 }
-
-
-
-
-
 
 
 

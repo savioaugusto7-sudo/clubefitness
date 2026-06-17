@@ -6,7 +6,9 @@ const WorkoutExerciseSchema = new Schema({
   repeticoes: { type: String, required: true },
   carga: { type: Schema.Types.Mixed, required: true },
   descanso: { type: String, required: true },
-  observacao: { type: String, default: '' }
+  observacao: { type: String, default: '' },
+  ritmo: { type: String, default: '2-0-2-0' },
+  combinaGrupo: { type: String, default: '' }
 });
 
 const WorkoutSheetSchema = new Schema({

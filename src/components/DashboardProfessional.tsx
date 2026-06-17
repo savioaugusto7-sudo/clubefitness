@@ -9,9 +9,10 @@ import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downlo
 interface DashboardProfessionalProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  professionalId?: string;
 }
 
-export default function DashboardProfessional({ activeTab, setActiveTab }: DashboardProfessionalProps) {
+export default function DashboardProfessional({ activeTab, setActiveTab, professionalId }: DashboardProfessionalProps) {
   const [clients, setClients] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +93,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
   const [aptTime, setAptTime] = useState('08:00');
   const [aptService, setAptService] = useState('Treino Monitorado');
   const [aptType, setAptType] = useState<'academia' | 'consultorio'>('academia');
+
+  useEffect(() => {
+    if (aptType === 'academia') {
+      setAptService('Treino Monitorado');
+    } else {
+      setAptService('Avaliação Fisioterápica');
+    }
+  }, [aptType]);
 
   // Workout editor tab states
   const [workoutSearch, setWorkoutSearch] = useState('');
@@ -607,6 +616,24 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
     }
   }, [asClient, clients, assessments]);
 
+  // Carregar último prontuário ao mudar o paciente selecionado (alinhamento com projeto original)
+  useEffect(() => {
+    if (!prClient) {
+      setPrContent('');
+      return;
+    }
+    const clientProntuarios = prontuarios.filter(p => {
+      const pClientId = typeof p.clienteId === 'object' ? p.clienteId?._id : p.clienteId;
+      return pClientId === prClient;
+    });
+    if (clientProntuarios.length > 0) {
+      const sorted = [...clientProntuarios].sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b._id || '').localeCompare(a._id || ''));
+      setPrContent(sorted[0].conteudo || '');
+    } else {
+      setPrContent('');
+    }
+  }, [prClient, prontuarios]);
+
   // Cálculo da composição corporal em tempo real (Pollock 7 dobras + Siri)
   useEffect(() => {
     const p = parseFloat(asWeight) || 0;
@@ -720,7 +747,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       // 2. Create prontuário from emergency report
       const condutaText = emergencyConduct === 'alta' ? 'Alta do Paciente' : `Remarcado para ${emergencyReschedDate} às ${emergencyReschedHour}`;
       const prontuarioObs = `[Atendimento de Emergência - Finalização]\nConduta: ${condutaText}\n\nRelato Clínico:\n${emergencyReport}`;
-      await fetch('/api/prontuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: emergencyApt?.clienteId?._id || emergencyApt?.clienteId, data: emergencyApt?.data, conteudo: prontuarioObs }) });
+      await fetch('/api/prontuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: emergencyApt?.clienteId?._id || emergencyApt?.clienteId, profissionalId: emergencyApt?.profissionalId?._id || emergencyApt?.profissionalId || professionalId || '6668ab030303030303030301', data: emergencyApt?.data, conteudo: prontuarioObs }) });
       // 3. If rescheduling, create new appointment
       if (emergencyConduct === 'remarcacao') {
         await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: emergencyReschedDate, horario: emergencyReschedHour, servico: 'Emergência', clienteId: emergencyApt?.clienteId?._id || emergencyApt?.clienteId, profissionalId: emergencyApt?.profissionalId?._id || emergencyApt?.profissionalId, status: 'agendado' }) });
@@ -1066,7 +1093,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
     try {
       const payload = {
         clienteId: prClient,
-        profissionalId: '6668ab030303030303030301', // Dr. Andre
+        profissionalId: professionalId || '6668ab030303030303030301', // Dr. Andre
         data: prDate,
         conteudo: prContent
       };
@@ -1079,6 +1106,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
       if (data.success) {
         setShowProntuarioModal(false);
         fetchData();
+        if (confirm('Deseja fazer o download do PDF do prontuário agora?')) {
+          const client = clients.find(c => c._id === prClient);
+          downloadProntuarioPDF(data.data, client);
+        }
       } else {
         alert('Erro ao salvar prontuário: ' + data.error);
       }
@@ -1137,6 +1168,19 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
     }
   };
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const queryClientId = params.get('workoutClientId');
+      if (queryClientId && clients.length > 0) {
+        const foundClient = clients.find(c => c._id === queryClientId);
+        if (foundClient) {
+          handleOpenWorkoutEditor(foundClient);
+        }
+      }
+    }
+  }, [clients]);
+
   const handleAddExerciseToWorkout = (exerciseName: string) => {
     if (!editingWorkoutData) return;
     const updated = { ...editingWorkoutData };
@@ -1149,9 +1193,28 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
         repeticoes: '12',
         carga: '10kg',
         descanso: '60s',
-        observacao: ''
+        observacao: '',
+        ritmo: '2-0-2-0',
+        combinaGrupo: ''
       });
       setEditingWorkoutData(updated);
+    }
+  };
+
+  const handleMoveExercise = (exIdx: number, direction: number) => {
+    if (!editingWorkoutData) return;
+    const updated = { ...editingWorkoutData };
+    const list = updated[activeWorkoutCategory];
+    const idx = list.findIndex((f: any) => f.id === activeWorkoutSubTab);
+    if (idx !== -1) {
+      const exercicios = list[idx].exercicios;
+      const targetIdx = exIdx + direction;
+      if (targetIdx >= 0 && targetIdx < exercicios.length) {
+        const temp = exercicios[exIdx];
+        exercicios[exIdx] = exercicios[targetIdx];
+        exercicios[targetIdx] = temp;
+        setEditingWorkoutData(updated);
+      }
     }
   };
 
@@ -1422,7 +1485,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                             </div>
                             <div style={{ marginTop: '8px', width: '100%' }}>
                               {client._id && (
-                                <button className="btn btn-primary btn-sm" style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 600 }} onClick={() => { handleOpenWorkoutEditor(client); setActiveTab('treino'); }}>
+                                <button className="btn btn-primary btn-sm" style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 600 }} onClick={() => window.open(`/dashboard?activeTab=treinos_prof&workoutClientId=${client._id}`, '_blank')}>
                                   <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
                                 </button>
                               )}
@@ -1975,6 +2038,36 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                     {(() => {
                       const list = editingWorkoutData[activeWorkoutCategory] || [];
                       const sheet = list.find((f: any) => f.id === activeWorkoutSubTab) || { nome: '', observacoesGerais: '', exercicios: [] };
+                      
+                      const getGroupColor = (groupName: string) => {
+                        if (!groupName) return '';
+                        const uniqueGroups = Array.from(
+                          new Set(sheet.exercicios?.map((e: any) => e.combinaGrupo).filter(Boolean) as string[])
+                        ).sort();
+                        const index = uniqueGroups.indexOf(groupName);
+                        if (index === -1) return '#10b981';
+                        const GROUP_COLORS = [
+                          '#10b981', // Green
+                          '#f59e0b', // Orange
+                          '#a855f7', // Purple
+                          '#3b82f6', // Blue
+                          '#ec4899', // Pink
+                          '#06b6d4', // Cyan
+                          '#f43f5e', // Rose
+                          '#84cc16', // Lime
+                          '#eab308', // Yellow
+                          '#6366f1'  // Indigo
+                        ];
+                        return GROUP_COLORS[index % GROUP_COLORS.length];
+                      };
+
+                      const groupSuggestions = Array.from(
+                        new Set([
+                          'G1', 'G2', 'G3', 'G4', 'G5',
+                          ...(sheet.exercicios?.map((e: any) => e.combinaGrupo).filter(Boolean) as string[])
+                        ])
+                      ).sort();
+
                       return (
                         <div>
                           <div className="form-group">
@@ -2003,47 +2096,87 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
 
                           <h3 style={{ fontSize: '1.1rem', margin: '20px 0 12px 0', color: 'var(--color-primary)' }}>Exercícios Adicionados</h3>
                           <div className="table-responsive">
+                            <datalist id={`group-suggestions-${activeWorkoutSubTab}`}>
+                              {groupSuggestions.map(g => (
+                                <option key={g} value={g} />
+                              ))}
+                            </datalist>
                             <table className="data-table">
                               <thead>
                                 <tr>
                                   <th>Exercício</th>
-                                  <th style={{ width: '80px' }}>Séries</th>
-                                  <th style={{ width: '100px' }}>Reps</th>
-                                  <th style={{ width: '100px' }}>Carga</th>
-                                  <th>Descanso</th>
+                                  <th style={{ width: '70px' }}>Séries</th>
+                                  <th style={{ width: '90px' }}>Reps</th>
+                                  <th style={{ width: '90px' }}>Ritmo</th>
+                                  <th style={{ width: '90px' }}>Carga</th>
+                                  <th style={{ width: '80px' }}>Descanso</th>
                                   <th>Obs</th>
-                                  <th>Remover</th>
+                                  <th style={{ width: '100px' }}>Combinar</th>
+                                  <th style={{ width: '110px', textAlign: 'center' }}>Ações</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {sheet.exercicios?.map((ex: any, idx: number) => (
-                                  <tr key={idx}>
-                                    <td><strong>{ex.exercicioId}</strong></td>
-                                    <td>
-                                      <input type="number" className="form-control" style={{ padding: '6px', height: '30px' }} value={ex.series} onChange={e => handleUpdateExerciseField(idx, 'series', Number(e.target.value))} />
-                                    </td>
-                                    <td>
-                                      <input type="text" className="form-control" style={{ padding: '6px', height: '30px' }} value={ex.repeticoes} onChange={e => handleUpdateExerciseField(idx, 'repeticoes', e.target.value)} />
-                                    </td>
-                                    <td>
-                                      <input type="text" className="form-control" style={{ padding: '6px', height: '30px' }} value={ex.carga} onChange={e => handleUpdateExerciseField(idx, 'carga', e.target.value)} />
-                                    </td>
-                                    <td>
-                                      <input type="text" className="form-control" style={{ padding: '6px', height: '30px' }} value={ex.descanso} onChange={e => handleUpdateExerciseField(idx, 'descanso', e.target.value)} />
-                                    </td>
-                                    <td>
-                                      <input type="text" className="form-control" style={{ padding: '6px', height: '30px' }} value={ex.observacao} onChange={e => handleUpdateExerciseField(idx, 'observacao', e.target.value)} />
-                                    </td>
-                                    <td>
-                                      <button className="btn btn-danger btn-sm" style={{ padding: '4px 8px' }} onClick={() => handleRemoveExerciseFromWorkout(idx)}>
-                                        <i className="fa-solid fa-trash"></i>
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {sheet.exercicios?.map((ex: any, idx: number) => {
+                                  const groupColor = getGroupColor(ex.combinaGrupo);
+                                  const rowStyle = groupColor ? { borderLeft: `4px solid ${groupColor}`, background: 'rgba(255, 255, 255, 0.015)' } : {};
+                                  return (
+                                    <tr key={idx} style={rowStyle}>
+                                      <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <strong>{ex.exercicioId}</strong>
+                                          {ex.combinaGrupo && (
+                                            <span style={{ fontSize: '0.65rem', color: '#fff', background: groupColor, padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                              {ex.combinaGrupo}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <input type="number" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.series} onChange={e => handleUpdateExerciseField(idx, 'series', Number(e.target.value))} />
+                                      </td>
+                                      <td>
+                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.repeticoes} onChange={e => handleUpdateExerciseField(idx, 'repeticoes', e.target.value)} />
+                                      </td>
+                                      <td>
+                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.ritmo || '2-0-2-0'} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="2-0-2-0" />
+                                      </td>
+                                      <td>
+                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.carga} onChange={e => handleUpdateExerciseField(idx, 'carga', e.target.value)} />
+                                      </td>
+                                      <td>
+                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.descanso} onChange={e => handleUpdateExerciseField(idx, 'descanso', e.target.value)} />
+                                      </td>
+                                      <td>
+                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px' }} value={ex.observacao} onChange={e => handleUpdateExerciseField(idx, 'observacao', e.target.value)} placeholder="Dica..." />
+                                      </td>
+                                      <td>
+                                        <input 
+                                          type="text" 
+                                          list={`group-suggestions-${activeWorkoutSubTab}`} 
+                                          className="form-control" 
+                                          style={{ padding: '4px', height: '30px', textAlign: 'center', fontSize: '0.8rem' }} 
+                                          value={ex.combinaGrupo || ''} 
+                                          onChange={e => handleUpdateExerciseField(idx, 'combinaGrupo', e.target.value)} 
+                                          placeholder="Individual" 
+                                        />
+                                      </td>
+                                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 6px', marginRight: '4px' }} disabled={idx === 0} onClick={() => handleMoveExercise(idx, -1)}>
+                                          <i className="fa-solid fa-arrow-up"></i>
+                                        </button>
+                                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 6px', marginRight: '4px' }} disabled={idx === sheet.exercicios.length - 1} onClick={() => handleMoveExercise(idx, 1)}>
+                                          <i className="fa-solid fa-arrow-down"></i>
+                                        </button>
+                                        <button className="btn btn-danger btn-sm" style={{ padding: '4px 6px' }} onClick={() => handleRemoveExerciseFromWorkout(idx)}>
+                                          <i className="fa-solid fa-trash"></i>
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                                 {(!sheet.exercicios || sheet.exercicios.length === 0) && (
                                   <tr>
-                                    <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
+                                    <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
                                       Nenhum exercício adicionado a esta ficha. Busque e adicione pelo menu lateral.
                                     </td>
                                   </tr>
@@ -2635,13 +2768,16 @@ export default function DashboardProfessional({ activeTab, setActiveTab }: Dashb
                       {aptType === 'academia' ? (
                         <>
                           <option value="Treino Monitorado">Treino Monitorado (Consome Crédito)</option>
-                          <option value="Treino Livre">Treino Livre</option>
-                          <option value="Recovery">Recovery</option>
+                          <option value="Treino Livre">Treino Livre (Sem Custo)</option>
+                          <option value="Recovery">Recovery (Sem Custo)</option>
+                          <option value="Avaliação Física">Avaliação Física (Sem Custo)</option>
+                          <option value="Teste de Força">Teste de Força (Sem Custo)</option>
+                          <option value="Emergência">Atendimento de Emergência (Sem Custo)</option>
+                          <option value="Massagem">Massagem (Consome Crédito Massagem - Sábados)</option>
                         </>
                       ) : (
                         <>
                           <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                          <option value="Emergência">Emergência</option>
                         </>
                       )}
                     </select>

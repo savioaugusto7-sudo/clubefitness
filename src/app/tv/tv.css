@@ -1,8 +1,842 @@
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #0f172a;
+/* Variáveis Temáticas Apple Fitness */
+:root {
+  --apple-bg: #050608;
+  --apple-card-bg: rgba(12, 16, 26, 0.6);
+  --apple-card-border: rgba(255, 255, 255, 0.06);
+  --apple-green: #00ff88;
+  --apple-cyan: #00f0ff;
+  --apple-pink: #ff0055;
+  --apple-yellow: #ffb700;
+  
+  --glow-green: 0 0 15px rgba(0, 255, 136, 0.35);
+  --glow-cyan: 0 0 15px rgba(0, 240, 255, 0.35);
+  --glow-pink: 0 0 15px rgba(255, 0, 85, 0.35);
+  --glow-yellow: 0 0 15px rgba(255, 183, 0, 0.35);
 }
-.tv-container {
-  /* TV-specific styles */
+
+/* Modo TV Ativo com Fundo Dinâmico Fluido */
+.tv-panel-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  padding: 24px;
+  gap: 20px;
+  background-color: var(--apple-bg);
+  background-image: radial-gradient(circle at 80% 20%, rgba(255, 0, 85, 0.07) 0%, transparent 45%),
+                    radial-gradient(circle at 15% 85%, rgba(0, 240, 255, 0.07) 0%, transparent 45%),
+                    radial-gradient(circle at 50% 50%, rgba(0, 255, 136, 0.03) 0%, transparent 60%);
+  background-size: 200% 200%;
+  animation: tvBackgroundBreathing 20s ease-in-out infinite alternate;
+  font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@keyframes tvBackgroundBreathing {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+/* Botão Sair do Modo TV */
+.tv-exit-btn {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  z-index: 9999;
+  background: rgba(255, 0, 85, 0.15);
+  border: 1px solid rgba(255, 0, 85, 0.3);
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(255, 0, 85, 0.15);
+}
+
+.tv-exit-btn:hover {
+  background: var(--apple-pink);
+  box-shadow: var(--glow-pink);
+  transform: scale(1.05);
+}
+
+/* Cabeçalho TV Apple */
+.tv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(10, 12, 18, 0.4);
+  backdrop-filter: blur(30px);
+  border: 1px solid var(--apple-card-border);
+  border-radius: 20px;
+  padding: 20px 32px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+
+.tv-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.tv-header-logo {
+  width: auto;
+  height: 70px;
+  border-radius: 12px;
+  border: 2px solid var(--apple-green);
+  background: #ffffff;
+  padding: 5px;
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+  object-fit: contain;
+}
+
+.tv-header-title-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.tv-header-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #ffffff 50%, var(--apple-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tv-header-tagline {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+/* Relógio e Data */
+.tv-header-datetime {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.tv-date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.tv-date-weekday {
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--apple-pink);
+  letter-spacing: 1px;
+}
+
+.tv-date-day {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.tv-clock {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  min-width: 180px;
+  text-align: right;
+}
+
+/* Grade de 3 Colunas Apple */
+.tv-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1.15fr 0.8fr;
+  gap: 20px;
+  flex-grow: 1;
+  height: calc(100vh - 170px);
+  min-height: 0;
+}
+
+/* Cards/Painéis de TV estilo Vidro Refrativo */
+.tv-col {
+  display: flex;
+  flex-direction: column;
+  background: var(--apple-card-bg);
+  backdrop-filter: blur(40px);
+  border: 1px solid var(--apple-card-border);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  min-height: 0;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tv-col:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Cabeçalhos dos Módulos */
+.tv-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 20px;
+}
+
+.tv-col-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tv-col-header i {
+  font-size: 1.3rem;
+}
+
+.tv-col-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Área Interna Rolável */
+.tv-col-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tv-col-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* Agenda Hora a Hora Minimalista */
+.tv-apple-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tv-apple-hour-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tv-apple-hour-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tv-apple-hour-title.now { color: var(--apple-green); }
+.tv-apple-hour-title.next { color: #94a3b8; }
+
+.tv-apple-apt-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.tv-apple-apt-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tv-apple-apt-card.presenca {
+  border-left: 3px solid var(--apple-green);
+}
+
+.tv-apple-apt-card.agendado {
+  border-left: 3px solid var(--apple-cyan);
+}
+
+.tv-apple-apt-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+.tv-apple-apt-service {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.tv-apple-status-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+
+.tv-apple-status-badge.presenca {
+  background: rgba(0, 255, 136, 0.1);
+  color: var(--apple-green);
+}
+
+.tv-apple-status-badge.agendado {
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--apple-cyan);
+}
+
+/* ==========================================
+   COLUNA 2: LEADERBOARD GYMRATS (NEON BARS)
+   ========================================== */
+
+/* Pódio Simplificado Apple */
+.tv-apple-podium {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 1fr;
+  gap: 12px;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 18px;
+  padding: 16px 12px;
+  margin-bottom: 8px;
+}
+
+.tv-apple-podium-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tv-apple-podium-medal {
+  font-size: 2.2rem;
+  margin-bottom: 4px;
+  animation: floatMedalApple 3s ease-in-out infinite alternate;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+
+@keyframes floatMedalApple {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-6px); }
+}
+
+.tv-apple-podium-bar {
+  width: 100%;
+  border-radius: 10px 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+}
+
+.tv-apple-podium-col.first .tv-apple-podium-bar {
+  height: 75px;
+  background: linear-gradient(180deg, rgba(255, 183, 0, 0.15) 0%, rgba(255, 183, 0, 0.01) 100%);
+  border: 1px solid rgba(255, 183, 0, 0.2);
+  border-bottom: none;
+}
+
+.tv-apple-podium-col.second .tv-apple-podium-bar {
+  height: 60px;
+  background: linear-gradient(180deg, rgba(203, 213, 225, 0.12) 0%, rgba(203, 213, 225, 0.01) 100%);
+  border: 1px solid rgba(203, 213, 225, 0.15);
+  border-bottom: none;
+}
+
+.tv-apple-podium-col.third .tv-apple-podium-bar {
+  height: 50px;
+  background: linear-gradient(180deg, rgba(255, 0, 85, 0.1) 0%, rgba(255, 0, 85, 0.01) 100%);
+  border: 1px solid rgba(255, 0, 85, 0.15);
+  border-bottom: none;
+}
+
+.tv-apple-podium-name {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #ffffff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+
+.tv-apple-podium-count {
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.tv-apple-podium-col.first .tv-apple-podium-count { color: var(--apple-yellow); }
+.tv-apple-podium-col.second .tv-apple-podium-count { color: #cbd5e1; }
+.tv-apple-podium-col.third .tv-apple-podium-count { color: var(--apple-pink); }
+
+/* Lista de Classificação Minimalista com Linhas de Neon */
+.tv-apple-leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tv-apple-leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tv-apple-leaderboard-rank {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #64748b;
+  width: 18px;
+  text-align: center;
+}
+
+.tv-apple-leaderboard-info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tv-apple-leaderboard-name-wrapper {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.tv-apple-leaderboard-name {
+  color: #ffffff;
+}
+
+.tv-apple-leaderboard-count {
+  color: var(--apple-green);
+  font-weight: 800;
+}
+
+/* Barra de progresso horizontal estilo neon */
+.tv-apple-leaderboard-progress-container {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.tv-apple-leaderboard-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--apple-cyan) 0%, var(--apple-green) 100%);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ==========================================
+   COLUNA 3: FEED AO VIVO & MURAL
+   ========================================== */
+
+/* Feed de Check-in Ativo */
+.tv-apple-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tv-apple-feed-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideInFeedItem 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInFeedItem {
+  0% {
+    opacity: 0;
+    transform: translateX(40px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.tv-apple-feed-avatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--apple-green) 0%, var(--apple-cyan) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #000;
+  box-shadow: var(--glow-green);
+}
+
+.tv-apple-feed-info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tv-apple-feed-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.35;
+}
+
+.tv-apple-feed-time {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Mural / Streaks */
+.tv-apple-mural-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tv-apple-mural-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--apple-pink);
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tv-apple-mural-content {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+/* Carrossel de Frases Motivacionais Marquee */
+.tv-apple-quote-box {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.05) 0%, rgba(0, 255, 136, 0.02) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 18px;
+  padding: 18px;
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.tv-apple-quote-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #ffffff;
+  line-height: 1.5;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================
+   WIDGET DO SPOTIFY (PLAYING NOW WIDGET)
+   ========================================== */
+
+.tv-spotify-widget {
+  background: rgba(30, 215, 96, 0.05);
+  border: 1px solid rgba(30, 215, 96, 0.15);
+  border-radius: 18px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.tv-spotify-widget:hover {
+  background: rgba(30, 215, 96, 0.08);
+  border-color: rgba(30, 215, 96, 0.3);
+}
+
+.tv-spotify-album-art {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.tv-spotify-info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tv-spotify-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tv-spotify-brand-icon {
+  color: #1DB954;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.tv-spotify-track-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tv-spotify-artist-name {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.tv-spotify-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 16px;
+  width: 20px;
+  margin-left: auto;
+}
+
+.tv-spotify-eq-bar {
+  width: 3px;
+  height: 100%;
+  background-color: #1DB954;
+  border-radius: 1px;
+  animation: bounceEq 1s ease-in-out infinite alternate;
+}
+
+.tv-spotify-eq-bar:nth-child(1) { animation-duration: 0.8s; }
+.tv-spotify-eq-bar:nth-child(2) { animation-duration: 1.2s; animation-delay: 0.2s; }
+.tv-spotify-eq-bar:nth-child(3) { animation-duration: 0.9s; animation-delay: 0.4s; }
+.tv-spotify-eq-bar:nth-child(4) { animation-duration: 1.1s; animation-delay: 0.1s; }
+
+@keyframes bounceEq {
+  0% { height: 20%; }
+  100% { height: 100%; }
+}
+
+/* ==========================================
+   SCALING GIGANTE PARA TV DE 40 POLEGADAS (MODO TV ATIVO)
+   ========================================== */
+
+.tv-panel-container.tv-mode-active {
+  font-size: 1.35rem;
+  padding: 30px;
+}
+
+.tv-panel-container.tv-mode-active .tv-header-logo {
+  height: 110px;
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 0 25px rgba(0, 255, 136, 0.35);
+}
+
+.tv-panel-container.tv-mode-active .tv-header-title {
+  font-size: 2.3rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-header-tagline {
+  font-size: 1.05rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-clock {
+  font-size: 4.5rem;
+  min-width: 320px;
+}
+
+.tv-panel-container.tv-mode-active .tv-date-weekday {
+  font-size: 1.4rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-date-day {
+  font-size: 1.15rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-col-header h2 {
+  font-size: 1.85rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-col-header i {
+  font-size: 1.95rem;
+}
+
+.tv-panel-container.tv-mode-active .live-indicator {
+  font-size: 1rem;
+  padding: 4px 10px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-hour-title {
+  font-size: 1.2rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-apt-card {
+  padding: 18px 24px;
+  border-radius: 18px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-apt-name {
+  font-size: 1.5rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-apt-service {
+  font-size: 1.1rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-status-badge {
+  font-size: 1rem;
+  padding: 4px 12px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-podium-medal {
+  font-size: 4.5rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-podium-name {
+  font-size: 1.25rem;
+  max-width: 140px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-podium-count {
+  font-size: 1.55rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-podium-col.first .tv-apple-podium-bar {
+  height: 130px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-podium-col.second .tv-apple-podium-bar {
+  height: 110px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-podium-col.third .tv-apple-podium-bar {
+  height: 90px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-leaderboard-rank {
+  font-size: 1.45rem;
+  width: 25px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-leaderboard-name-wrapper {
+  font-size: 1.25rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-leaderboard-progress-container {
+  height: 9px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-feed-item {
+  padding: 18px 22px;
+  border-radius: 20px;
+  gap: 18px;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-feed-avatar {
+  width: 50px;
+  height: 50px;
+  font-size: 1.3rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-feed-text {
+  font-size: 1.25rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-feed-time {
+  font-size: 1rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-mural-title {
+  font-size: 1.15rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-mural-content {
+  font-size: 1.45rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-apple-quote-text {
+  font-size: 1.6rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-spotify-widget {
+  padding: 16px 20px;
+  border-radius: 20px;
+  margin-top: 24px;
+}
+
+.tv-panel-container.tv-mode-active .tv-spotify-album-art {
+  width: 60px;
+  height: 60px;
+}
+
+.tv-panel-container.tv-mode-active .tv-spotify-track-name {
+  font-size: 1.25rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-spotify-artist-name {
+  font-size: 1.05rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-spotify-brand-icon {
+  font-size: 1.35rem;
+}
+
+.tv-panel-container.tv-mode-active .tv-spotify-equalizer {
+  height: 24px;
+  width: 28px;
+  gap: 4px;
+}
+
+.tv-panel-container.tv-mode-active .tv-spotify-eq-bar {
+  width: 4px;
 }

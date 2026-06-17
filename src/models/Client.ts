@@ -6,8 +6,15 @@ const DadosPessoaisSchema = new Schema({
   dataNascimento: { type: String },
   sexo: { type: String },
   telefone: { type: String },
+  telefoneSecundario: { type: String },
   email: { type: String },
   endereco: { type: String },
+  numero: { type: String },
+  complemento: { type: String },
+  bairro: { type: String },
+  cidade: { type: String },
+  estado: { type: String },
+  cep: { type: String },
   nacionalidade: { type: String, default: 'brasileiro(a)' },
   estadoCivil: { type: String, default: 'solteiro(a)' },
   profissao: { type: String, default: 'autônomo(a)' }
@@ -26,7 +33,7 @@ const DadosComerciaisSchema = new Schema({
   vencimento: { type: String },
   frequencia: { type: Number, default: 3 },
   parcelas: { type: Number, default: 1 },
-  status: { type: String, enum: ['ativo', 'vencido', 'inativo'], default: 'ativo' },
+  status: { type: String, enum: ['ativo', 'vencido', 'inativo', 'suspenso', 'cancelado'], default: 'ativo' },
   contrato: { type: String },
   creditosTotal: { type: Number, default: 0 },
   creditosUsados: { type: Number, default: 0 },
@@ -39,6 +46,10 @@ const DadosComerciaisSchema = new Schema({
   duracao: { type: String, default: 'mensal' },
   formaPagamento: { type: String, default: 'pix' },
   creditosUltimoReset: { type: String },
+  dataInicio: { type: String },
+  responsavelVenda: { type: String, default: '' },
+  unidadeContratada: { type: String, default: '' },
+  observacoesContratuais: { type: String, default: '' },
   regrasCredito: {
     permiteRolagem: { type: Boolean, default: false },
     diasRetencaoFalta: { type: Number, default: 0 },
@@ -48,6 +59,7 @@ const DadosComerciaisSchema = new Schema({
 
 const ClientSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  codigo: { type: String },
   dadosPessoais: { type: DadosPessoaisSchema, required: true },
   dadosClinicos: { type: DadosClinicosSchema, default: () => ({}) },
   dadosComerciais: { type: DadosComerciaisSchema, default: () => ({}) }

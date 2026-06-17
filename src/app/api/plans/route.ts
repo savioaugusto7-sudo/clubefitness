@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { nome, validadeDias, limiteSessoesAcademia, limiteSessoesConsultorio, preco, creditosTotal, servicosPermitidos } = body;
+    const { nome, validadeDias, limiteSessoesAcademia, limiteSessoesConsultorio, preco, creditosTotal, servicosPermitidos, tipo, beneficiosInclusos, unidadeAtendimento, ativo } = body;
 
     if (!nome || preco === undefined) {
       return NextResponse.json({ success: false, error: 'Nome e Preço são obrigatórios' }, { status: 400 });
@@ -29,7 +29,11 @@ export async function POST(request: Request) {
       limiteSessoesConsultorio: limiteSessoesConsultorio || 0,
       preco: Number(preco),
       creditosTotal: creditosTotal || 0,
-      servicosPermitidos: servicosPermitidos || []
+      servicosPermitidos: servicosPermitidos || [],
+      tipo: tipo || 'Mensal',
+      beneficiosInclusos: beneficiosInclusos || [],
+      unidadeAtendimento: unidadeAtendimento || '',
+      ativo: ativo !== undefined ? ativo : true
     });
 
     return NextResponse.json({ success: true, data: plan });
@@ -42,7 +46,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, nome, validadeDias, limiteSessoesAcademia, limiteSessoesConsultorio, preco, creditosTotal, servicosPermitidos } = body;
+    const { id, nome, validadeDias, limiteSessoesAcademia, limiteSessoesConsultorio, preco, creditosTotal, servicosPermitidos, tipo, beneficiosInclusos, unidadeAtendimento, ativo } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID do plano é obrigatório' }, { status: 400 });
@@ -60,6 +64,10 @@ export async function PUT(request: Request) {
     plan.preco = preco !== undefined ? Number(preco) : plan.preco;
     plan.creditosTotal = creditosTotal !== undefined ? Number(creditosTotal) : plan.creditosTotal;
     plan.servicosPermitidos = servicosPermitidos || plan.servicosPermitidos;
+    plan.tipo = tipo || plan.tipo;
+    plan.beneficiosInclusos = beneficiosInclusos || plan.beneficiosInclusos;
+    plan.unidadeAtendimento = unidadeAtendimento !== undefined ? unidadeAtendimento : plan.unidadeAtendimento;
+    plan.ativo = ativo !== undefined ? ativo : plan.ativo;
 
     await plan.save();
     return NextResponse.json({ success: true, data: plan });
