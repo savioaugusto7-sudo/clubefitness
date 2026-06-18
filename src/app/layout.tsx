@@ -40,7 +40,7 @@ export default function RootLayout({
           strategy="lazyOnload"
         />
         <Script
-          src="https://cdn.jsdelivr.net/npm/chart.js"
+          src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
           strategy="lazyOnload"
         />
       </body>

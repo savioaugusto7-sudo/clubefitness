@@ -2102,89 +2102,103 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   // Anexar temporariamente o wrapper ao body para desenhar os gráficos Chart.js
   document.body.appendChild(pdfWrapper);
 
-  // Renderizar Gráfico de Evolução de Peso
-  new Chart(document.getElementById('pdfWeightChart'), {
-    type: 'line',
-    data: {
-      labels: dates,
-      datasets: [{
-        data: weights,
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.05)',
-        tension: 0.25,
-        borderWidth: 2,
-        pointBackgroundColor: '#10b981',
-        pointRadius: 3.5,
-        fill: true
-      }]
-    },
-    options: {
-      animation: false,
-      responsive: false,
-      maintainAspectRatio: true,
-      scales: {
-        y: { display: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 7 } } },
-        x: { grid: { display: false }, ticks: { font: { size: 7 } } }
-      },
-      plugins: { legend: { display: false } }
+  // Renderizar Gráficos de Evolução de forma segura
+  if (typeof Chart !== 'undefined') {
+    try {
+      new Chart(document.getElementById('pdfWeightChart'), {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            data: weights,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.05)',
+            tension: 0.25,
+            borderWidth: 2,
+            pointBackgroundColor: '#10b981',
+            pointRadius: 3.5,
+            fill: true
+          }]
+        },
+        options: {
+          animation: false,
+          responsive: false,
+          maintainAspectRatio: true,
+          scales: {
+            y: { display: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 7 } } },
+            x: { grid: { display: false }, ticks: { font: { size: 7 } } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } catch (err) {
+      console.error('Erro ao renderizar pdfWeightChart:', err);
     }
-  });
 
-  // Renderizar Gráfico de Evolução de % Gordura
-  new Chart(document.getElementById('pdfFatChart'), {
-    type: 'line',
-    data: {
-      labels: dates,
-      datasets: [{
-        data: fatPercents,
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245, 158, 11, 0.05)',
-        tension: 0.25,
-        borderWidth: 2,
-        pointBackgroundColor: '#f59e0b',
-        pointRadius: 3.5,
-        fill: true
-      }]
-    },
-    options: {
-      animation: false,
-      responsive: false,
-      maintainAspectRatio: true,
-      scales: {
-        y: { display: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 7 } } },
-        x: { grid: { display: false }, ticks: { font: { size: 7 } } }
-      },
-      plugins: { legend: { display: false } }
+    try {
+      new Chart(document.getElementById('pdfFatChart'), {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            data: fatPercents,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.05)',
+            tension: 0.25,
+            borderWidth: 2,
+            pointBackgroundColor: '#f59e0b',
+            pointRadius: 3.5,
+            fill: true
+          }]
+        },
+        options: {
+          animation: false,
+          responsive: false,
+          maintainAspectRatio: true,
+          scales: {
+            y: { display: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 7 } } },
+            x: { grid: { display: false }, ticks: { font: { size: 7 } } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } catch (err) {
+      console.error('Erro ao renderizar pdfFatChart:', err);
     }
-  });
 
-  // Renderizar Gráfico de Evolução de Massa Magra
-  new Chart(document.getElementById('pdfMuscleChart'), {
-    type: 'line',
-    data: {
-      labels: dates,
-      datasets: [{
-        data: muscles,
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.05)',
-        tension: 0.25,
-        borderWidth: 2,
-        pointBackgroundColor: '#3b82f6',
-        pointRadius: 3.5,
-        fill: true
-      }]
-    },
-    options: {
-      animation: false,
-      responsive: false,
-      maintainAspectRatio: true,
-      scales: {
-        y: { display: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 7 } } },
-        x: { grid: { display: false }, ticks: { font: { size: 7 } } }
-      },
-      plugins: { legend: { display: false } }
+    try {
+      new Chart(document.getElementById('pdfMuscleChart'), {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            data: muscles,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+            tension: 0.25,
+            borderWidth: 2,
+            pointBackgroundColor: '#3b82f6',
+            pointRadius: 3.5,
+            fill: true
+          }]
+        },
+        options: {
+          animation: false,
+          responsive: false,
+          maintainAspectRatio: true,
+          scales: {
+            y: { display: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 7 } } },
+            x: { grid: { display: false }, ticks: { font: { size: 7 } } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } catch (err) {
+      console.error('Erro ao renderizar pdfMuscleChart:', err);
     }
-  });
+  } else {
+    console.warn('A biblioteca Chart.js não está disponível globalmente. Gráficos de evolução não serão renderizados no PDF.');
+  }
 
   const options = {
     margin: [0, 0, 0, 0], // Margem zerada para bater com as dimensões exatas em mm do layout
@@ -2285,6 +2299,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
+      alert('Erro ao gerar o PDF da avaliação: ' + err.message);
       if (newWindow) newWindow.close();
       document.body.removeChild(pdfWrapper);
     });
@@ -2308,6 +2323,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         document.body.removeChild(pdfWrapper);
       }).catch((err: any) => {
         console.error('Erro na geração do PDF:', err);
+        alert('Erro ao gerar o PDF da avaliação (sem anexo): ' + err.message);
         if (newWindow) newWindow.close();
         document.body.removeChild(pdfWrapper);
       });
@@ -2316,6 +2332,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         document.body.removeChild(pdfWrapper);
       }).catch((err: any) => {
         console.error('Erro na geração do PDF:', err);
+        alert('Erro ao salvar o PDF da avaliação: ' + err.message);
         document.body.removeChild(pdfWrapper);
       });
     }
@@ -2740,7 +2757,13 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   if (templateOverride) {
     pdfContainer.innerHTML = templateOverride + `
       <style>
-        p, li, tr, h2, h3, h4, table {
+        p, h2, h3, h4 {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          display: block !important;
+          position: relative !important;
+        }
+        li, tr, table {
           page-break-inside: avoid !important;
           break-inside: avoid !important;
         }
@@ -2757,7 +2780,13 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   } else {
     pdfContainer.innerHTML = `
       <style>
-        p, li, tr, h2, h3, h4, table {
+        p, h2, h3, h4 {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          display: block !important;
+          position: relative !important;
+        }
+        li, tr, table {
           page-break-inside: avoid !important;
           break-inside: avoid !important;
         }
@@ -2793,7 +2822,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
       logging: false,
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   };
 
   const isIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -2806,7 +2835,16 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
     html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
       const blobUrl = URL.createObjectURL(blob);
       if (newWindow) {
-        newWindow.location.href = blobUrl;
+        const doc = newWindow.document;
+        const a = doc.createElement('a');
+        a.href = blobUrl;
+        a.download = options.filename;
+        doc.body.appendChild(a);
+        a.click();
+        doc.body.removeChild(a);
+        setTimeout(() => {
+          if (newWindow) newWindow.close();
+        }, 300);
       }
       document.body.removeChild(pdfWrapper);
     }).catch((err: any) => {
