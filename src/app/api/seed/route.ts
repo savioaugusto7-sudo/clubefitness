@@ -466,6 +466,28 @@ export async function GET() {
           }
         },
         observacoes: 'Excelente equilíbrio muscular nos rotadores do ombro. Sem sinais de desalinhamento ou fraqueza patológica.'
+      },
+      {
+        clienteId: ids.clients.cli_1,
+        profissionalId: ids.professionals.prof_2,
+        data: '2026-06-15',
+        exercicios: [
+          { nome: 'Supino Reto', carga: 85, reps: 1 },
+          { nome: 'Remada Curvada / Máquina', carga: 76, reps: 1 },
+          { nome: 'Desenvolvimento de Ombros', carga: 44, reps: 1 },
+          { nome: 'Puxada Alta / Lat Pulldown', carga: 75, reps: 1 },
+          { nome: 'Rotação Externa de Ombro', carga: 16, reps: 1 },
+          { nome: 'Rotação Interna de Ombro', carga: 22, reps: 1 },
+          { nome: 'Abdução de Ombro', carga: 24, reps: 1 }
+        ],
+        analise: {
+          riscoOmbro: false,
+          ratios: {
+            'rotExternaRotInterna': 0.727,
+            'abducaoRotInterna': 1.09
+          }
+        },
+        observacoes: 'Evolução consistente de força em todos os grupos musculares, mantendo o padrão de controle motor e estabilidade.'
       }
     ];
     await StrengthTest.insertMany(strengthTestsData);
