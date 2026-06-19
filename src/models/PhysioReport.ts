@@ -16,6 +16,11 @@ const PhysioReportSchema = new Schema({
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', required: true },
   data: { type: String, required: true },
   conteudo: { type: ConteudoReportSchema, required: true },
+  anamnese: { type: Schema.Types.Mixed },
+  goniometria: { type: Schema.Types.Mixed },
+  testesEspeciais: { type: Schema.Types.Mixed },
+  termografia: { type: Schema.Types.Mixed },
+  testesOrtopedicos: { type: Schema.Types.Mixed },
   pdfName: { type: String }
 }, { timestamps: true });
 

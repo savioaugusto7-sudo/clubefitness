@@ -263,6 +263,123 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [repDate, setRepDate] = useState('');
   const [repPain, setRepPain] = useState(5);
   const [repContent, setRepContent] = useState('');
+  const [repType, setRepType] = useState<'simplificado' | 'completo'>('simplificado');
+  const [repActiveTab, setRepActiveTab] = useState<'anamnese' | 'goniometria' | 'testes'>('anamnese');
+  
+  // Full report fields
+  const [repActiveStep, setRepActiveStep] = useState(1);
+  const [repQueixas, setRepQueixas] = useState<any[]>([
+    {
+      dorOnde: '',
+      quandoComecou: '',
+      comoIniciou: '',
+      dorEvolucao: 'estavel',
+      dorIntensidade: 5,
+      dorTodoMomento: 'sim',
+      desencadeiaPiora: '',
+      melhoraDesaparece: '',
+      caracteristicaDor: 'Pontual / Aguda',
+      origens: []
+    }
+  ]);
+  const [repCirurgiasRealizou, setRepCirurgiasRealizou] = useState('nao');
+  const [repCirurgiasList, setRepCirurgiasList] = useState<any[]>([]);
+  const [repTraumas, setRepTraumas] = useState('');
+  const [repCirurgias, setRepCirurgias] = useState('');
+  const [repDoencas, setRepDoencas] = useState('');
+  const [repTraumasEmo, setRepTraumasEmo] = useState('');
+  const [repMedicao, setRepMedicao] = useState('');
+  const [repDrogas, setRepDrogas] = useState('');
+  
+  const [repSonoHoras, setRepSonoHoras] = useState(8);
+  const [repSonoTipo, setRepSonoTipo] = useState('continuo');
+  const [repSonoQualidade, setRepSonoQualidade] = useState('Bom');
+  const [repAlimentacaoDor, setRepAlimentacaoDor] = useState('');
+  const [repAtividadeFisicaQual, setRepAtividadeFisicaQual] = useState('');
+  const [repAtividadeFisicaInterfere, setRepAtividadeFisicaInterfere] = useState('');
+  const [repControleStress, setRepControleStress] = useState('');
+  const [repStress, setRepStress] = useState(5);
+  const [repSono, setRepSono] = useState(8);
+  const [repAtividadeFisica, setRepAtividadeFisica] = useState('nao');
+  
+  const [repTermografiaRealizou, setRepTermografiaRealizou] = useState('nao');
+  const [repTermografiaImgB64, setRepTermografiaImgB64] = useState('');
+  const [repExamesList, setRepExamesList] = useState<any[]>([]);
+  
+  const [repDeRealizou, setRepDeRealizou] = useState('nao');
+  const [repDeTipo, setRepDeTipo] = useState('Tipo IV');
+  const [repDeAbdBilateral, setRepDeAbdBilateral] = useState('nao');
+  const [repDeAbdUnilateral, setRepDeAbdUnilateral] = useState('nao');
+  const [repDeDorAbd, setRepDeDorAbd] = useState('nao');
+
+  // Goniometry
+  const [gQuadrilFlex1D, setGQuadrilFlex1D] = useState(75);
+  const [gQuadrilFlex1E, setGQuadrilFlex1E] = useState(75);
+  const [gQuadrilFlex2D, setGQuadrilFlex2D] = useState(100);
+  const [gQuadrilFlex2E, setGQuadrilFlex2E] = useState(102);
+  const [gQuadrilRotIntD, setGQuadrilRotIntD] = useState(35);
+  const [gQuadrilRotIntE, setGQuadrilRotIntE] = useState(36);
+  const [gQuadrilRotExtD, setGQuadrilRotExtD] = useState(40);
+  const [gQuadrilRotExtE, setGQuadrilRotExtE] = useState(40);
+  const [gJoelhoFlexD, setGJoelhoFlexD] = useState(135);
+  const [gJoelhoFlexE, setGJoelhoFlexE] = useState(135);
+  const [gJoelhoPopD, setGJoelhoPopD] = useState(148);
+  const [gJoelhoPopE, setGJoelhoPopE] = useState(148);
+  const [gTornozeloDorsi1D, setGTornozeloDorsi1D] = useState(35);
+  const [gTornozeloDorsi1E, setGTornozeloDorsi1E] = useState(35);
+  const [gTornozeloDorsi2D, setGTornozeloDorsi2D] = useState(28);
+  const [gTornozeloDorsi2E, setGTornozeloDorsi2E] = useState(28);
+  const [gTornozeloPlantarD, setGTornozeloPlantarD] = useState(40);
+  const [gTornozeloPlantarE, setGTornozeloPlantarE] = useState(40);
+  const [gOmbroRotIntD, setGOmbroRotIntD] = useState(80);
+  const [gOmbroRotIntE, setGOmbroRotIntE] = useState(80);
+  const [gOmbroRotExtD, setGOmbroRotExtD] = useState(85);
+  const [gOmbroRotExtE, setGOmbroRotExtE] = useState(85);
+  const [gOmbroAbducaoD, setGOmbroAbducaoD] = useState(170);
+  const [gOmbroAbducaoE, setGOmbroAbducaoE] = useState(170);
+
+  // Orthopedic tests
+  const [tOberD, setTOberD] = useState('Negativo');
+  const [tOberE, setTOberE] = useState('Negativo');
+  const [tThomasD, setTThomasD] = useState('Negativo');
+  const [tThomasE, setTThomasE] = useState('Negativo');
+  const [tThomasAngD, setTThomasAngD] = useState<number | ''>('');
+  const [tThomasAngE, setTThomasAngE] = useState<number | ''>('');
+  
+  // Maigne Star
+  const [mFlex, setMFlex] = useState(25);
+  const [mFlexEVA, setMFlexEVA] = useState(0);
+  const [mExt, setMExt] = useState(25);
+  const [mExtEVA, setMExtEVA] = useState(0);
+  const [mIncD, setMIncD] = useState(25);
+  const [mIncDEVA, setMIncDEVA] = useState(0);
+  const [mIncE, setMIncE] = useState(25);
+  const [mIncEEVA, setMIncEEVA] = useState(0);
+  const [mRotD, setMRotD] = useState(25);
+  const [mRotDEVA, setMRotDEVA] = useState(0);
+  const [mRotE, setMRotE] = useState(25);
+  const [mRotEEVA, setMRotEEVA] = useState(0);
+
+  // Y-Test
+  const [yRealizou, setYRealizou] = useState('nao');
+  const [yAntD, setYAntD] = useState(0);
+  const [yAntE, setYAntE] = useState(0);
+  const [yPMD, setYPMD] = useState(0);
+  const [yPME, setYPME] = useState(0);
+  const [yPLD, setYPLD] = useState(0);
+  const [yPLE, setYPLE] = useState(0);
+  const [yLenD, setYLenD] = useState(0);
+  const [yLenE, setYLenE] = useState(0);
+
+  // Step Down
+  const [sdRealizou, setSdRealizou] = useState('nao');
+  const [sdPelvica, setSdPelvica] = useState(0);
+  const [sdAducao, setSdAducao] = useState(0);
+  const [sdValgo, setSdValgo] = useState(0);
+  const [sdPrps, setSdPrps] = useState(0);
+
+  // Exercicios
+  const [repExercicios, setRepExercicios] = useState('');
 
   // Strength Test form inputs
   const [stClient, setStClient] = useState('');
@@ -1002,19 +1119,192 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
+  const [tempExameNome, setTempExameNome] = useState('');
+  const [tempExamePdfB64, setTempExamePdfB64] = useState('');
+  const [tempExamePdfName, setTempExamePdfName] = useState('');
+  
+  const handleExameFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1.5 * 1024 * 1024) {
+      alert('O arquivo PDF é muito grande! Escolha um arquivo de até 1.5 MB.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setTempExamePdfB64(event.target?.result as string);
+      setTempExamePdfName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  const handleTermoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 800 * 1024) {
+      alert('A imagem termográfica é muito grande! Escolha um arquivo de até 800 KB.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setRepTermografiaImgB64(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const downloadExame = (index: number) => {
+    const exame = repExamesList[index];
+    if (!exame || !exame.pdfB64) return;
+    const link = document.createElement('a');
+    link.href = exame.pdfB64;
+    link.download = exame.fileName || 'exame.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  const addExame = () => {
+    if (!tempExameNome.trim() || !tempExamePdfB64) {
+      alert('Por favor, digite o nome do exame e selecione o arquivo PDF.');
+      return;
+    }
+    setRepExamesList([...repExamesList, { nome: tempExameNome, pdfB64: tempExamePdfB64, fileName: tempExamePdfName }]);
+    setTempExameNome('');
+    setTempExamePdfB64('');
+    setTempExamePdfName('');
+  };
+  
+  const removeExame = (index: number) => {
+    setRepExamesList(repExamesList.filter((_, idx) => idx !== index));
+  };
+
+  const addQueixa = () => {
+    setRepQueixas([...repQueixas, { dorOnde: '', quandoComecou: '', comoIniciou: '', dorEvolucao: 'estavel', dorIntensidade: 5, dorTodoMomento: 'sim', desencadeiaPiora: '', melhoraDesaparece: '', caracteristicaDor: 'Pontual / Aguda', origens: [] }]);
+  };
+  
+  const removeQueixa = (index: number) => {
+    setRepQueixas(repQueixas.filter((_, idx) => idx !== index));
+  };
+  
+  const updateQueixa = (index: number, field: string, val: any) => {
+    setRepQueixas(repQueixas.map((q, idx) => idx === index ? { ...q, [field]: val } : q));
+  };
+
+  const addCirurgia = () => {
+    setRepCirurgiasList([...repCirurgiasList, { data: '', local: '' }]);
+  };
+  
+  const removeCirurgia = (index: number) => {
+    setRepCirurgiasList(repCirurgiasList.filter((_, idx) => idx !== index));
+  };
+  
+  const updateCirurgia = (index: number, field: string, val: any) => {
+    setRepCirurgiasList(repCirurgiasList.map((c, idx) => idx === index ? { ...c, [field]: val } : c));
+  };
+
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = {
+      let payload: any = {
         clienteId: repClient,
-        profissionalId: '6668ab030303030303030301', // Dr. Andre
+        profissionalId: professionalId || '6668ab030303030303030301', // Andre or dynamic
         data: repDate,
         conteudo: {
-          queixaPrincipal: repContent,
-          dorEscala: Number(repPain)
+          queixaPrincipal: repType === 'simplificado' ? repContent : (repQueixas[0]?.dorOnde || 'Anamnese Completa'),
+          dorEscala: repType === 'simplificado' ? Number(repPain) : Number(repQueixas[0]?.dorIntensidade || 5),
+          exercicios: repExercicios,
+          conduta: repContent
         },
-        pdfName: `Relatorio_Fisio_${repDate}.pdf`
+        pdfName: `Relatorio_Fisioterapia_${Date.now()}.pdf`
       };
+
+      if (repType === 'completo') {
+        payload.anamnese = {
+          queixas: repQueixas,
+          historico: {
+            traumas: repTraumas,
+            cirurgiasRealizou: repCirurgiasRealizou,
+            cirurgias: repCirurgiasList,
+            doencasPregressasAtuais: repDoencas,
+            traumasEmocionaisStress: repTraumasEmo,
+            medicacao: repMedicao,
+            drogasRecreativas: repDrogas
+          },
+          habitos: {
+            sonoHoras: Number(repSonoHoras),
+            sonoTipo: repSonoTipo,
+            sonoQualidade: repSonoQualidade,
+            alimentacaoDor: repAlimentacaoDor,
+            atividadeFisicaFaz: repAtividadeFisica,
+            atividadeFisicaQual: repAtividadeFisicaQual,
+            atividadeFisicaInterfere: repAtividadeFisicaInterfere,
+            stressNivel: Number(repStress),
+            controleStress: repControleStress
+          }
+        };
+
+        payload.goniometria = {
+          quadrilFlexao1D: Number(gQuadrilFlex1D), quadrilFlexao1E: Number(gQuadrilFlex1E),
+          quadrilFlexao2D: Number(gQuadrilFlex2D), quadrilFlexao2E: Number(gQuadrilFlex2E),
+          quadrilRotIntD: Number(gQuadrilRotIntD), quadrilRotIntE: Number(gQuadrilRotIntE),
+          quadrilRotExtD: Number(gQuadrilRotExtD), quadrilRotExtE: Number(gQuadrilRotExtE),
+          joelhoFlexaoD: Number(gJoelhoFlexD), joelhoFlexaoE: Number(gJoelhoFlexE),
+          joelhoPopliteoD: Number(gJoelhoPopD), joelhoPopliteoE: Number(gJoelhoPopE),
+          tornozeloDorsi1D: Number(gTornozeloDorsi1D), tornozeloDorsi1E: Number(gTornozeloDorsi1E),
+          tornozeloDorsi2D: Number(gTornozeloDorsi2D), tornozeloDorsi2E: Number(gTornozeloDorsi2E),
+          tornozeloFlexaoPlantarD: Number(gTornozeloPlantarD), tornozeloFlexaoPlantarE: Number(gTornozeloPlantarE),
+          ombroRotIntD: Number(gOmbroRotIntD), ombroRotIntE: Number(gOmbroRotIntE),
+          ombroRotExtD: Number(gOmbroRotExtD), ombroRotExtE: Number(gOmbroRotExtE),
+          ombroAbducaoD: Number(gOmbroAbducaoD), ombroAbducaoE: Number(gOmbroAbducaoE)
+        };
+
+        payload.testesEspeciais = {
+          oberD: tOberD, oberE: tOberE,
+          thomasD: tThomasD, thomasE: tThomasE,
+          thomasAnguloD: tThomasAngD !== '' ? Number(tThomasAngD) : null,
+          thomasAnguloE: tThomasAngE !== '' ? Number(tThomasAngE) : null
+        };
+
+        payload.termografia = {
+          realizou: repTermografiaRealizou,
+          imagemB64: repTermografiaImgB64
+        };
+
+        payload.examesComplementares = repExamesList;
+
+        payload.testesOrtopedicos = {
+          yTeste: {
+            realizou: yRealizou,
+            direita: { anterior: Number(yAntD), posteromedial: Number(yPMD), posterolateral: Number(yPLD), comprimentoMembro: Number(yLenD) },
+            esquerda: { anterior: Number(yAntE), posteromedial: Number(yPME), posterolateral: Number(yPLE), comprimentoMembro: Number(yLenE) }
+          },
+          estrelaMaigne: {
+            flexao: Number(mFlex), flexaoEVA: Number(mFlexEVA),
+            extensao: Number(mExt), extensaoEVA: Number(mExtEVA),
+            inclinacaoD: Number(mIncD), inclinacaoDEVA: Number(mIncDEVA),
+            inclinacaoE: Number(mIncE), inclinacaoEEVA: Number(mIncEEVA),
+            rotacaoD: Number(mRotD), rotacaoDEVA: Number(mRotDEVA),
+            rotacaoE: Number(mRotE), rotacaoEEVA: Number(mRotEEVA)
+          },
+          stepDown: {
+            realizou: sdRealizou,
+            quedaPelvica: Number(sdPelvica),
+            aducaoQuadril: Number(sdAducao),
+            valgoDinamicoJoelho: Number(sdValgo),
+            compExcentricoPrps: Number(sdPrps)
+          },
+          discinesiaEscapular: {
+            realizou: repDeRealizou,
+            tipo: repDeTipo,
+            abducaoBilateralCabecaFrente: repDeAbdBilateral,
+            abducaoUnilateralToracicaCabeca: repDeAbdUnilateral,
+            dorAbducaoUnilateralInclinacao: repDeDorAbd
+          }
+        };
+      }
+
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1023,12 +1313,59 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       const data = await res.json();
       if (data.success) {
         setShowReportModal(false);
+        // Reset states
+        setRepActiveStep(1);
+        setRepQueixas([
+          {
+            dorOnde: '',
+            quandoComecou: '',
+            comoIniciou: '',
+            dorEvolucao: 'estavel',
+            dorIntensidade: 5,
+            dorTodoMomento: 'sim',
+            desencadeiaPiora: '',
+            melhoraDesaparece: '',
+            caracteristicaDor: 'Pontual / Aguda',
+            origens: []
+          }
+        ]);
+        setRepCirurgiasRealizou('nao');
+        setRepCirurgiasList([]);
+        setRepTraumas('');
+        setRepCirurgias('');
+        setRepDoencas('');
+        setRepTraumasEmo('');
+        setRepMedicao('');
+        setRepDrogas('');
+        setRepSonoHoras(8);
+        setRepSonoTipo('continuo');
+        setRepSonoQualidade('Bom');
+        setRepAlimentacaoDor('');
+        setRepAtividadeFisicaQual('');
+        setRepAtividadeFisicaInterfere('');
+        setRepControleStress('');
+        setRepStress(5);
+        setRepSono(8);
+        setRepAtividadeFisica('nao');
+        setRepTermografiaRealizou('nao');
+        setRepTermografiaImgB64('');
+        setRepExamesList([]);
+        setRepDeRealizou('nao');
+        setRepDeTipo('Tipo IV');
+        setRepDeAbdBilateral('nao');
+        setRepDeAbdUnilateral('nao');
+        setRepDeDorAbd('nao');
+        setRepExercicios('');
+        setRepContent('');
         fetchData();
+        
+        // Trigger report PDF download
+        downloadReportPDF(data.data);
       } else {
         alert('Erro ao criar relatório: ' + data.error);
       }
-    } catch (err) {
-      alert('Erro ao enviar.');
+    } catch (err: any) {
+      alert('Erro ao enviar: ' + err.message);
     }
   };
 
@@ -3620,40 +3957,944 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       {/* 4. Physiotherapy Report Modal */}
       {showReportModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowReportModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
             <div className="modal-header">
               <h3>Novo Relatório Fisioterápico</h3>
               <button className="modal-close" onClick={() => setShowReportModal(false)}>&times;</button>
             </div>
             <form onSubmit={handleCreateReport}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Paciente</label>
-                  <SearchableSelect
-                    options={clientOptions}
-                    value={repClient}
-                    onChange={setRepClient}
-                    required
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Data</label>
-                    <input type="date" className="form-control" value={repDate} onChange={e => setRepDate(e.target.value)} required />
-                  </div>
-                  <div className="form-group">
-                    <label>Escala de Dor (0 a 10)</label>
-                    <input type="number" className="form-control" min={0} max={10} value={repPain} onChange={e => setRepPain(Number(e.target.value))} required />
+              <div className="modal-body" style={{ maxHeight: '74vh', overflowY: 'auto', padding: '20px' }}>
+                
+                {/* Tipo de Relatório */}
+                <div className="form-group" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <label style={{ fontWeight: '600', color: 'var(--color-primary)' }}>Tipo de Relatório</label>
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      <input type="radio" name="repType" checked={repType === 'simplificado'} onChange={() => { setRepType('simplificado'); setRepActiveStep(1); }} />
+                      Simplificado (1 Página)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      <input type="radio" name="repType" checked={repType === 'completo'} onChange={() => { setRepType('completo'); setRepActiveStep(1); }} />
+                      Completo (4 Páginas - Wizard 6 Etapas)
+                    </label>
                   </div>
                 </div>
-                <div className="form-group">
-                  <label>Queixa Principal e Conduta</label>
-                  <textarea className="form-control" style={{ height: '100px' }} value={repContent} onChange={e => setRepContent(e.target.value)} placeholder="Relatar estado clínico e conduta fisioterapêutica..." required />
-                </div>
+
+                {/* Wizard Progress Bar for Completo */}
+                {repType === 'completo' && (
+                  <div className="wizard-progress" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', overflowX: 'auto', gap: '10px', paddingBottom: '8px' }}>
+                    {[
+                      { step: 1, label: 'Anamnese' },
+                      { step: 2, label: 'Histórico & Hábitos' },
+                      { step: 3, label: 'Goniometria & Ober' },
+                      { step: 4, label: 'Termo & Exames' },
+                      { step: 5, label: 'Testes Avançados' },
+                      { step: 6, label: 'Conduta & Salvar' }
+                    ].map(s => {
+                      const isActive = repActiveStep === s.step;
+                      const isCompleted = repActiveStep > s.step;
+                      return (
+                        <div
+                          key={s.step}
+                          onClick={() => {
+                            if (!repClient) {
+                              alert('Selecione o cliente no Passo 1 antes de navegar.');
+                              return;
+                            }
+                            setRepActiveStep(s.step);
+                          }}
+                          style={{
+                            flex: 1,
+                            minWidth: '100px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            background: isActive ? 'var(--color-primary)' : isCompleted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.02)',
+                            border: isActive ? '1px solid var(--color-primary)' : isCompleted ? '1px solid #10b981' : '1px solid var(--border-color)',
+                            color: isActive ? '#ffffff' : isCompleted ? '#10b981' : 'var(--text-muted)',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{s.step}</div>
+                          <div style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{s.label}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* PASSO 1: IDENTIFICAÇÃO E ANAMNESE (Globais + Queixas) */}
+                {repActiveStep === 1 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px' }}>
+                      <div className="form-group">
+                        <label>Selecione o Cliente</label>
+                        <SearchableSelect
+                          options={clientOptions}
+                          value={repClient}
+                          onChange={setRepClient}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Data de Emissão</label>
+                        <input type="date" className="form-control" value={repDate} onChange={e => setRepDate(e.target.value)} required />
+                      </div>
+                    </div>
+
+                    {/* Dados pessoais resumidos se cliente selecionado */}
+                    {(() => {
+                      const selCli = clients.find(c => c._id === repClient);
+                      if (!selCli) return null;
+                      const birthDate = selCli.dadosPessoais?.dataNascimento ? new Date(selCli.dadosPessoais.dataNascimento) : null;
+                      let age = '-';
+                      if (birthDate) {
+                        const today = new Date();
+                        age = (today.getFullYear() - birthDate.getFullYear()).toString();
+                      }
+                      return (
+                        <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px 16px', borderRadius: '6px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', fontSize: '0.85rem' }}>
+                          <div><strong>CPF:</strong> {selCli.dadosPessoais?.cpf || '-'}</div>
+                          <div><strong>Idade:</strong> {age} anos</div>
+                          <div><strong>Gênero:</strong> {selCli.dadosPessoais?.sexo === 'M' ? 'Masculino' : 'Feminino'}</div>
+                          <div><strong>Profissão:</strong> {selCli.dadosPessoais?.profissao || '-'}</div>
+                          <div><strong>Telefone:</strong> {selCli.dadosPessoais?.telefone || '-'}</div>
+                        </div>
+                      );
+                    })()}
+
+                    {repType === 'simplificado' ? (
+                      <div className="form-group">
+                        <label>Escala de Dor Geral (0 a 10)</label>
+                        <input
+                          type="range"
+                          className="form-control"
+                          min="0"
+                          max="10"
+                          value={repPain}
+                          onChange={e => setRepPain(Number(e.target.value))}
+                          style={{ width: '100%', accentColor: 'var(--color-danger)', height: '32px' }}
+                        />
+                        <div style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--color-danger)', fontSize: '0.9rem', marginTop: '4px' }}>
+                          Intensidade: {repPain}/10
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <h4 style={{ margin: '16px 0 8px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                          <i className="fa-solid fa-comments" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
+                          Anamnese e Queixas (Múltiplas)
+                        </h4>
+                        
+                        {repQueixas.map((q, idx) => (
+                          <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '12px', position: 'relative' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                              <strong style={{ color: 'var(--color-primary)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                                {idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
+                              </strong>
+                              {idx > 0 && (
+                                <button type="button" className="btn btn-danger btn-sm" onClick={() => removeQueixa(idx)} style={{ padding: '3px 8px', fontSize: '0.75rem' }}>
+                                  <i className="fa-solid fa-trash" style={{ marginRight: '4px' }}></i> Remover
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Onde é a dor?</label>
+                                <input type="text" className="form-control form-control-sm" value={q.dorOnde} onChange={e => updateQueixa(idx, 'dorOnde', e.target.value)} placeholder="Ex: Joelho lateral esquerdo..." required />
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Quando começou a sentir?</label>
+                                <input type="text" className="form-control form-control-sm" value={q.quandoComecou} onChange={e => updateQueixa(idx, 'quandoComecou', e.target.value)} placeholder="Ex: Há 3 semanas..." />
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Como iniciou?</label>
+                                <input type="text" className="form-control form-control-sm" value={q.comoIniciou} onChange={e => updateQueixa(idx, 'comoIniciou', e.target.value)} placeholder="Ex: Durante agachamento..." />
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '10px' }}>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Evolução da Dor</label>
+                                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'estavel'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'estavel')} /> Sente a mesma dor</label>
+                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'aumentando'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'aumentando')} /> Foi aumentando</label>
+                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'diminuindo'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'diminuindo')} /> Foi diminuindo</label>
+                                </div>
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Intensidade da Dor (EVA: <strong>{q.dorIntensidade}</strong>/10)</label>
+                                <input type="range" className="form-control" min="0" max="10" value={q.dorIntensidade} onChange={e => updateQueixa(idx, 'dorIntensidade', Number(e.target.value))} style={{ accentColor: 'var(--color-danger)' }} />
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Sente essa dor a todo momento?</label>
+                                <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'sim'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'sim')} /> Sim</label>
+                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'nao'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'nao')} /> Não</label>
+                                </div>
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>O que piora?</label>
+                                <input type="text" className="form-control form-control-sm" value={q.desencadeiaPiora || ''} onChange={e => updateQueixa(idx, 'desencadeiaPiora', e.target.value)} placeholder="Ex: Ficar de pé prolongado..." />
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>O que melhora?</label>
+                                <input type="text" className="form-control form-control-sm" value={q.melhoraDesaparece || ''} onChange={e => updateQueixa(idx, 'melhoraDesaparece', e.target.value)} placeholder="Ex: Repouso..." />
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px' }}>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Característica da Dor</label>
+                                <select className="form-control form-control-sm" value={q.caracteristicaDor || 'Pontual / Aguda'} onChange={e => updateQueixa(idx, 'caracteristicaDor', e.target.value)}>
+                                  <option value="Queimação">Queimação</option>
+                                  <option value="Elétrica / Choque">Elétrica / Choque</option>
+                                  <option value="Pontual / Aguda">Pontual / Aguda</option>
+                                  <option value="Difusa / Surda">Difusa / Surda</option>
+                                  <option value="Latejante">Latejante</option>
+                                  <option value="Outra">Outra</option>
+                                </select>
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.75rem' }}>Origem Estimada da Dor</label>
+                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                  {['Discal', 'Ligamentar', 'Muscular', 'Nervoso', 'Facetário', 'Visceral'].map(orig => {
+                                    const hasOrig = (q.origens || []).includes(orig);
+                                    return (
+                                      <label key={orig} style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={hasOrig}
+                                          onChange={e => {
+                                            const current = q.origens || [];
+                                            const updated = e.target.checked
+                                              ? [...current, orig]
+                                              : current.filter((o: string) => o !== orig);
+                                            updateQueixa(idx, 'origens', updated);
+                                          }}
+                                        />
+                                        {orig}
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <div style={{ textAlign: 'right' }}>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={addQueixa}>
+                            <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Adicionar Outra Queixa
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* PASSO 2: HISTÓRICO CLÍNICO E HÁBITOS DE VIDA */}
+                {repType === 'completo' && repActiveStep === 2 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Histórico Clínico</h4>
+                    <div className="form-group">
+                      <label>Traumas Pregressos</label>
+                      <textarea className="form-control" rows={2} value={repTraumas} onChange={e => setRepTraumas(e.target.value)} placeholder="Possíveis lesões primárias / urgências osteopáticas..." />
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label>Realizou cirurgias?</label>
+                        <select className="form-control" value={repCirurgiasRealizou} onChange={e => setRepCirurgiasRealizou(e.target.value)}>
+                          <option value="nao">Não</option>
+                          <option value="sim">Sim</option>
+                        </select>
+                      </div>
+                      <div className="form-group" style={{ flex: 2 }}>
+                        <label>Doenças pregressas e atuais</label>
+                        <input type="text" className="form-control" value={repDoencas} onChange={e => setRepDoencas(e.target.value)} placeholder="Ex: Diabetes, labirintite, hipertensão..." />
+                      </div>
+                    </div>
+
+                    {repCirurgiasRealizou === 'sim' && (
+                      <div style={{ border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '6px', marginBottom: '10px' }}>
+                        <strong style={{ fontSize: '0.8rem', display: 'block', marginBottom: '8px' }}>Detalhamento das Cirurgias</strong>
+                        {repCirurgiasList.map((c, sIdx) => (
+                          <div key={sIdx} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                            <input type="date" className="form-control form-control-sm" style={{ width: '130px' }} value={c.data} onChange={e => updateCirurgia(sIdx, 'data', e.target.value)} />
+                            <input type="text" className="form-control form-control-sm" value={c.local} onChange={e => updateCirurgia(sIdx, 'local', e.target.value)} placeholder="Ex: Cirurgia no menisco joelho esquerdo..." />
+                            <button type="button" className="btn btn-danger btn-sm" onClick={() => removeCirurgia(sIdx)} style={{ height: '32px' }}><i className="fa-solid fa-trash"></i></button>
+                          </div>
+                        ))}
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={addCirurgia} style={{ marginTop: '4px' }}>
+                          <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Adicionar Cirurgia
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="form-group">
+                        <label>Traumas emocionais / Estresse crônico</label>
+                        <input type="text" className="form-control" value={repTraumasEmo} onChange={e => setRepTraumasEmo(e.target.value)} placeholder="Estresse severo, perdas, efeito sobre SNV..." />
+                      </div>
+                      <div className="form-group">
+                        <label>Medicação em uso</label>
+                        <input type="text" className="form-control" value={repMedicao} onChange={e => setRepMedicao(e.target.value)} placeholder="Remédios que alteram SNV, dor ou inflamação..." />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Uso de drogas recreativas / álcool / tabaco</label>
+                      <input type="text" className="form-control" value={repDrogas} onChange={e => setRepDrogas(e.target.value)} placeholder="Frequência e substâncias..." />
+                    </div>
+
+                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px' }}>Hábitos de Vida & Estilo de Vida</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                      <div className="form-group">
+                        <label>Horas sono / noite</label>
+                        <input type="number" className="form-control" min={0} max={24} value={repSonoHoras} onChange={e => setRepSonoHoras(Number(e.target.value))} />
+                      </div>
+                      <div className="form-group">
+                        <label>Tipo de sono</label>
+                        <select className="form-control" value={repSonoTipo} onChange={e => setRepSonoTipo(e.target.value)}>
+                          <option value="continuo">Contínuo</option>
+                          <option value="acorda">Acorda à noite (intermitente)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Qualidade do Sono</label>
+                        <select className="form-control" value={repSonoQualidade} onChange={e => setRepSonoQualidade(e.target.value)}>
+                          <option value="Excelente">Excelente</option>
+                          <option value="Bom">Bom</option>
+                          <option value="Regular">Regular</option>
+                          <option value="Ruim">Ruim</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Alimentação (Influência sobre inflamação/dor)</label>
+                      <input type="text" className="form-control" value={repAlimentacaoDor} onChange={e => setRepAlimentacaoDor(e.target.value)} placeholder="Hábitos, jejum, café, açúcar, queixas intestinais..." />
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label>Faz atividade física?</label>
+                        <select className="form-control" value={repAtividadeFisica} onChange={e => setRepAtividadeFisica(e.target.value)}>
+                          <option value="nao">Não</option>
+                          <option value="sim">Sim</option>
+                        </select>
+                      </div>
+                      {repAtividadeFisica === 'sim' && (
+                        <>
+                          <div className="form-group" style={{ flex: 2 }}>
+                            <label>Qual atividade e freq.?</label>
+                            <input type="text" className="form-control" value={repAtividadeFisicaQual} onChange={e => setRepAtividadeFisicaQual(e.target.value)} placeholder="Ex: Musculação 3x/sem..." />
+                          </div>
+                          <div className="form-group" style={{ flex: 2 }}>
+                            <label>Interfere na dor?</label>
+                            <input type="text" className="form-control" value={repAtividadeFisicaInterfere} onChange={e => setRepAtividadeFisicaInterfere(e.target.value)} placeholder="Ex: Dor diminui no aquecimento..." />
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px' }}>
+                      <div className="form-group">
+                        <label>Geral Estresse (EVA: <strong>{repStress}</strong>/10)</label>
+                        <input type="range" className="form-control" min={0} max={10} value={repStress} onChange={e => setRepStress(Number(e.target.value))} style={{ accentColor: 'var(--color-primary)' }} />
+                      </div>
+                      <div className="form-group">
+                        <label>Mecanismo de controle do estresse</label>
+                        <input type="text" className="form-control" value={repControleStress} onChange={e => setRepControleStress(e.target.value)} placeholder="Ex: Meditação, corrida, leitura, lazer..." />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PASSO 3: GONIOMETRIA E TESTES DE ENCURTAMENTO */}
+                {repType === 'completo' && repActiveStep === 3 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ margin: 0 }}>Goniometria & Mobilidade Articular</h4>
+                      {(() => {
+                        const hasPast = assessments.some(a => (typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId) === repClient);
+                        if (!hasPast) return null;
+                        return (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              const sorted = assessments
+                                .filter(a => (typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId) === repClient)
+                                .sort((a, b) => b.data.localeCompare(a.data));
+                              const latest = sorted[0];
+                              if (latest?.dadosMedidos?.goniometria) {
+                                const gVal = latest.dadosMedidos.goniometria;
+                                setGQuadrilFlex1D(gVal.quadrilFlexao1D || 75); setGQuadrilFlex1E(gVal.quadrilFlexao1E || 75);
+                                setGQuadrilFlex2D(gVal.quadrilFlexao2D || 100); setGQuadrilFlex2E(gVal.quadrilFlexao2E || 102);
+                                setGQuadrilRotIntD(gVal.quadrilRotIntD || 35); setGQuadrilRotIntE(gVal.quadrilRotIntE || 36);
+                                setGQuadrilRotExtD(gVal.quadrilRotExtD || 40); setGQuadrilRotExtE(gVal.quadrilRotExtE || 40);
+                                setGJoelhoFlexD(gVal.joelhoFlexaoD || 135); setGJoelhoFlexE(gVal.joelhoFlexaoE || 135);
+                                setGJoelhoPopD(gVal.joelhoPopliteoD || 148); setGJoelhoPopE(gVal.joelhoPopliteoE || 148);
+                                setGTornozeloDorsi1D(gVal.tornozeloDorsi1D || 35); setGTornozeloDorsi1E(gVal.tornozeloDorsi1E || 35);
+                                setGTornozeloDorsi2D(gVal.tornozeloDorsi2D || 28); setGTornozeloDorsi2E(gVal.tornozeloDorsi2E || 28);
+                                setGTornozeloPlantarD(gVal.tornozeloFlexaoPlantarD || 40); setGTornozeloPlantarE(gVal.tornozeloFlexaoPlantarE || 40);
+                                setGOmbroRotIntD(gVal.ombroRotIntD || 80); setGOmbroRotIntE(gVal.ombroRotIntE || 80);
+                                setGOmbroRotExtD(gVal.ombroRotExtD || 85); setGOmbroRotExtE(gVal.ombroRotExtE || 85);
+                                setGOmbroAbducaoD(gVal.ombroAbducaoD || 170); setGOmbroAbducaoE(gVal.ombroAbducaoE || 170);
+                                alert('Métricas de goniometria importadas da última avaliação do aluno!');
+                              }
+                            }}
+                          >
+                            <i className="fa-solid fa-copy" style={{ marginRight: '4px' }}></i> Importar da Última Avaliação
+                          </button>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                      <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 10 }}>
+                          <tr>
+                            <th>Movimento / Articulação</th>
+                            <th style={{ width: '25%', textAlign: 'center' }}>Direito (°)</th>
+                            <th style={{ width: '25%', textAlign: 'center' }}>Esquerdo (°)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { label: 'Quadril - Flexão J. Fletido', dVal: gQuadrilFlex1D, setD: setGQuadrilFlex1D, eVal: gQuadrilFlex1E, setE: setGQuadrilFlex1E },
+                            { label: 'Quadril - Flexão J. Estendido', dVal: gQuadrilFlex2D, setD: setGQuadrilFlex2D, eVal: gQuadrilFlex2E, setE: setGQuadrilFlex2E },
+                            { label: 'Quadril - Rotação Interna', dVal: gQuadrilRotIntD, setD: setGQuadrilRotIntD, eVal: gQuadrilRotIntE, setE: setGQuadrilRotIntE },
+                            { label: 'Quadril - Rotação Externa', dVal: gQuadrilRotExtD, setD: setGQuadrilRotExtD, eVal: gQuadrilRotExtE, setE: setGQuadrilRotExtE },
+                            { label: 'Joelho - Flexão', dVal: gJoelhoFlexD, setD: setGJoelhoFlexD, eVal: gJoelhoFlexE, setE: setGJoelhoFlexE },
+                            { label: 'Joelho - Ângulo Poplíteo', dVal: gJoelhoPopD, setD: setGJoelhoPopD, eVal: gJoelhoPopE, setE: setGJoelhoPopE },
+                            { label: 'Tornozelo - Dorsiflexão J. Estendido', dVal: gTornozeloDorsi1D, setD: setGTornozeloDorsi1D, eVal: gTornozeloDorsi1E, setE: setGQuadrilFlex1E },
+                            { label: 'Tornozelo - Dorsiflexão J. Fletido', dVal: gTornozeloDorsi2D, setD: setGTornozeloDorsi2D, eVal: gTornozeloDorsi2E, setE: setGQuadrilFlex2E },
+                            { label: 'Tornozelo - Flexão Plantar', dVal: gTornozeloPlantarD, setD: setGTornozeloPlantarD, eVal: gTornozeloPlantarE, setE: setGTornozeloPlantarE },
+                            { label: 'Ombro - Rotação Interna', dVal: gOmbroRotIntD, setD: setGOmbroRotIntD, eVal: gOmbroRotIntE, setE: setGOmbroRotIntE },
+                            { label: 'Ombro - Rotação Externa', dVal: gOmbroRotExtD, setD: setGOmbroRotExtD, eVal: gOmbroRotExtE, setE: setGOmbroRotExtE },
+                            { label: 'Ombro - Abdução', dVal: gOmbroAbducaoD, setD: setGOmbroAbducaoD, eVal: gOmbroAbducaoE, setE: setGOmbroAbducaoE }
+                          ].map((row, rIdx) => (
+                            <tr key={rIdx}>
+                              <td><strong>{row.label}</strong></td>
+                              <td><input type="number" className="form-control form-control-sm" style={{ textAlign: 'center', height: '28px' }} value={row.dVal} onChange={e => row.setD(Number(e.target.value))} /></td>
+                              <td><input type="number" className="form-control form-control-sm" style={{ textAlign: 'center', height: '28px' }} value={row.eVal} onChange={e => row.setE(Number(e.target.value))} /></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '10px' }}>Testes Clínicos Especiais de Encurtamento</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
+                        <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Teste de Ober (Banda Iliotibial)</strong>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
+                            <select className="form-control form-control-sm" value={tOberD} onChange={e => setTOberD(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
+                            <select className="form-control form-control-sm" value={tOberE} onChange={e => setTOberE(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
+                        <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Teste de Thomas (Flexores de Quadril)</strong>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
+                            <select className="form-control form-control-sm" value={tThomasD} onChange={e => setTThomasD(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
+                            <select className="form-control form-control-sm" value={tThomasE} onChange={e => setTThomasE(e.target.value)}>
+                              <option value="Negativo">Negativo</option>
+                              <option value="Positivo">Positivo</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {(tThomasD === 'Positivo' || tThomasE === 'Positivo') && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
+                        {tThomasD === 'Positivo' && (
+                          <div className="form-group">
+                            <label style={{ fontSize: '0.75rem' }}>Ângulo Encurtamento Direito (Thomas)</label>
+                            <input type="number" className="form-control form-control-sm" placeholder="Graus (°)..." value={tThomasAngD} onChange={e => setTThomasAngD(e.target.value !== '' ? Number(e.target.value) : '')} />
+                          </div>
+                        )}
+                        {tThomasE === 'Positivo' && (
+                          <div className="form-group">
+                            <label style={{ fontSize: '0.75rem' }}>Ângulo Encurtamento Esquerdo (Thomas)</label>
+                            <input type="number" className="form-control form-control-sm" placeholder="Graus (°)..." value={tThomasAngE} onChange={e => setTThomasAngE(e.target.value !== '' ? Number(e.target.value) : '')} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* PASSO 4: TERMOGRAFIA E EXAMES COMPLEMENTARES */}
+                {repType === 'completo' && repActiveStep === 4 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Termografia Clínica</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px' }}>
+                      <div className="form-group">
+                        <label>Realizou Termografia?</label>
+                        <select className="form-control" value={repTermografiaRealizou} onChange={e => setRepTermografiaRealizou(e.target.value)}>
+                          <option value="nao">Não Realizou</option>
+                          <option value="sim">Realizou</option>
+                        </select>
+                      </div>
+                      {repTermografiaRealizou === 'sim' && (
+                        <div className="form-group">
+                          <label>Upload da Imagem Termográfica (PNG/JPG)</label>
+                          <input type="file" accept="image/*" className="form-control" onChange={handleTermoFileSelect} />
+                          <small style={{ color: 'var(--text-muted)' }}>Escolha um arquivo leve de até 800 KB.</small>
+                        </div>
+                      )}
+                    </div>
+
+                    {repTermografiaRealizou === 'sim' && repTermografiaImgB64 && (
+                      <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                        <img src={repTermografiaImgB64} alt="Termografia Preview" style={{ maxHeight: '200px', display: 'block', margin: '0 auto 8px', borderRadius: '4px' }} />
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => setRepTermografiaImgB64('')}>
+                          <i className="fa-solid fa-trash" style={{ marginRight: '4px' }}></i> Remover Imagem
+                        </button>
+                      </div>
+                    )}
+
+                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px' }}>Exames Complementares (Laudos em PDF)</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr auto', gap: '12px', alignItems: 'end', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.75rem' }}>Nome do Exame</label>
+                        <input type="text" className="form-control form-control-sm" value={tempExameNome} onChange={e => setTempExameNome(e.target.value)} placeholder="Ex: Ressonância Coluna Lombar" />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.75rem' }}>Arquivo PDF</label>
+                        <input type="file" accept="application/pdf" className="form-control form-control-sm" onChange={handleExameFileSelect} />
+                      </div>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={addExame} style={{ height: '32px' }}><i className="fa-solid fa-plus"></i> Anexar</button>
+                    </div>
+
+                    {repExamesList.length > 0 && (
+                      <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                              <th>Nome do Exame</th>
+                              <th>Nome do Arquivo</th>
+                              <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {repExamesList.map((ex, exIdx) => (
+                              <tr key={exIdx}>
+                                <td><strong>{ex.nome}</strong></td>
+                                <td style={{ color: 'var(--text-muted)' }}>{ex.fileName}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadExame(exIdx)}><i className="fa-solid fa-download"></i></button>
+                                    <button type="button" className="btn btn-danger btn-sm" onClick={() => removeExame(exIdx)}><i className="fa-solid fa-trash"></i></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* PASSO 5: TESTES ORTOPÉDICOS AVANÇADOS */}
+                {repType === 'completo' && repActiveStep === 5 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    
+                    {/* Y TESTE */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h5 style={{ margin: 0 }}><i className="fa-solid fa-chevron-right" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Y Teste (Estabilidade do Membro Inferior)</h5>
+                        <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={yRealizou} onChange={e => setYRealizou(e.target.value)}>
+                          <option value="nao">Não Realizou</option>
+                          <option value="sim">Realizou</option>
+                        </select>
+                      </div>
+
+                      {yRealizou === 'sim' && (
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '12px' }}>
+                            <div>
+                              <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.8rem' }}>Membro Direito</strong>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.75rem' }}>
+                                <div>Comprimento (cm)<input type="number" className="form-control form-control-sm" value={yLenD || ''} onChange={e => setYLenD(Number(e.target.value))} /></div>
+                                <div>Anterior (cm)<input type="number" className="form-control form-control-sm" value={yAntD || ''} onChange={e => setYAntD(Number(e.target.value))} /></div>
+                                <div>PM (cm)<input type="number" className="form-control form-control-sm" value={yPMD || ''} onChange={e => setYPMD(Number(e.target.value))} /></div>
+                                <div>PL (cm)<input type="number" className="form-control form-control-sm" value={yPLD || ''} onChange={e => setYPLD(Number(e.target.value))} /></div>
+                              </div>
+                            </div>
+                            <div>
+                              <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.8rem' }}>Membro Esquerdo</strong>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.75rem' }}>
+                                <div>Comprimento (cm)<input type="number" className="form-control form-control-sm" value={yLenE || ''} onChange={e => setYLenE(Number(e.target.value))} /></div>
+                                <div>Anterior (cm)<input type="number" className="form-control form-control-sm" value={yAntE || ''} onChange={e => setYAntE(Number(e.target.value))} /></div>
+                                <div>PM (cm)<input type="number" className="form-control form-control-sm" value={yPME || ''} onChange={e => setYPME(Number(e.target.value))} /></div>
+                                <div>PL (cm)<input type="number" className="form-control form-control-sm" value={yPLE || ''} onChange={e => setYPLE(Number(e.target.value))} /></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Y TEST CALCULATIONS AND RESULTS */}
+                          {(() => {
+                            if (!yLenD || !yLenE) return <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Insira o comprimento dos membros de ambos os lados para visualizar as assimetrias e Composite Scores.</div>;
+                            const diffAnt = Math.abs(yAntD - yAntE);
+                            const diffPM = Math.abs(yPMD - yPME);
+                            const diffPL = Math.abs(yPLD - yPLE);
+                            const scoreD = ((yAntD + yPMD + yPLD) / (3 * yLenD)) * 100;
+                            const scoreE = ((yAntE + yPME + yPLE) / (3 * yLenE)) * 100;
+                            
+                            let alerts = [];
+                            if (diffAnt > 10 || diffPM > 10 || diffPL > 10) alerts.push('Assimetria significativa (> 10cm) - Risco de Lesão!');
+                            if (scoreD < 94 || scoreE < 94) alerts.push('Alto risco de lesão (Pontuação normalizada inferior a 94%)');
+                            
+                            return (
+                              <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.8rem', marginTop: '12px' }}>
+                                <div style={{ marginBottom: '8px' }}>
+                                  {alerts.length > 0 ? (
+                                    <span className="badge badge-danger" style={{ display: 'block', padding: '6px', textAlign: 'center', marginBottom: '8px' }}><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> {alerts.join(' | ')}</span>
+                                  ) : (
+                                    <span className="badge badge-success" style={{ display: 'block', padding: '6px', textAlign: 'center', marginBottom: '8px' }}><i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Sem alertas de risco detectados</span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '8px' }}>
+                                  <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}% <br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenD})</span></div>
+                                  <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}% <br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenE})</span></div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem' }}>
+                                  <div>Diferença Anterior: <strong>{diffAnt.toFixed(1)} cm</strong></div>
+                                  <div>Diferença Posteromedial: <strong>{diffPM.toFixed(1)} cm</strong></div>
+                                  <div>Diferença Posterolateral: <strong>{diffPL.toFixed(1)} cm</strong></div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ESTRELA MAIGNE */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                      <h5 style={{ marginBottom: '12px' }}><i className="fa-solid fa-chevron-right" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Estrela de Maigne (Rosa dos Ventos Clínica de Dor)</h5>
+                      
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', justifyContent: 'center' }}>
+                        
+                        {/* Interactive React SVG */}
+                        <div style={{ background: '#ffffff', borderRadius: '6px', padding: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '280px', height: '280px' }}>
+                          {(() => {
+                            const cx = 190, cy = 150, scale = 2.0;
+                            const angles = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, 5 * Math.PI / 6, 7 * Math.PI / 6];
+                            const refVals = [40, 40, 30, 30, 30, 40];
+                            const clientVals = [mFlex, mRotD, mIncD, mExt, mIncE, mRotE];
+                            const labels = [
+                              { text: `Flexão (EVA: ${mFlexEVA})`, x: cx, y: cy - 100 - 10, anchor: 'middle' as const },
+                              { text: `Rot D (EVA: ${mRotDEVA})`, x: cx + 100 * Math.cos(angles[1]) + 15, y: cy + 100 * Math.sin(angles[1]) - 5, anchor: 'start' as const },
+                              { text: `Inc D (EVA: ${mIncDEVA})`, x: cx + 100 * Math.cos(angles[2]) + 15, y: cy + 100 * Math.sin(angles[2]) + 10, anchor: 'start' as const },
+                              { text: `Extensão (EVA: ${mExtEVA})`, x: cx, y: cy + 100 + 18, anchor: 'middle' as const },
+                              { text: `Inc E (EVA: ${mIncEEVA})`, x: cx + 100 * Math.cos(angles[4]) - 15, y: cy + 100 * Math.sin(angles[4]) + 10, anchor: 'end' as const },
+                              { text: `Rot E (EVA: ${mRotEEVA})`, x: cx + 100 * Math.cos(angles[5]) - 15, y: cy + 100 * Math.sin(angles[5]) - 5, anchor: 'end' as const }
+                            ];
+                            
+                            const refPoints = angles.map((ang, idx) => `${cx + refVals[idx] * scale * Math.cos(ang)},${cy + refVals[idx] * scale * Math.sin(ang)}`).join(' ');
+                            const valPoints = angles.map((ang, idx) => `${cx + clientVals[idx] * scale * Math.cos(ang)},${cy + clientVals[idx] * scale * Math.sin(ang)}`).join(' ');
+                            
+                            const handleNodeClick = (idx: number) => {
+                              const sliderIds = [
+                                () => { let v = mFlex + 5; if (v > 50) v = 0; setMFlex(v); },
+                                () => { let v = mRotD + 5; if (v > 50) v = 0; setMRotD(v); },
+                                () => { let v = mIncD + 5; if (v > 50) v = 0; setMIncD(v); },
+                                () => { let v = mExt + 5; if (v > 50) v = 0; setMExt(v); },
+                                () => { let v = mIncE + 5; if (v > 50) v = 0; setMIncE(v); },
+                                () => { let v = mRotE + 5; if (v > 50) v = 0; setMRotE(v); }
+                              ];
+                              sliderIds[idx]();
+                            };
+
+                            return (
+                              <svg width="260" height="260" viewBox="0 0 380 300" style={{ display: 'block', margin: '0 auto', background: '#ffffff' }}>
+                                {/* Circles grid */}
+                                {[10, 20, 30, 40, 50].map(val => (
+                                  <g key={val}>
+                                    <circle cx={cx} cy={cy} r={val * scale} fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
+                                    <text x={cx} y={cy - (val * scale) + 3} style={{ fontSize: '7px', fill: '#94a3b8', textAnchor: 'middle', fontWeight: 'bold' }}>{val}</text>
+                                  </g>
+                                ))}
+                                
+                                {/* Axis lines */}
+                                {angles.map((ang, aIdx) => (
+                                  <line key={aIdx} x1={cx} y1={cy} x2={cx + 100 * Math.cos(ang)} y2={cy + 100 * Math.sin(ang)} stroke="#94a3b8" strokeWidth="0.75" />
+                                ))}
+                                
+                                {/* Directions and labels */}
+                                {labels.map((lbl, lIdx) => (
+                                  <text key={lIdx} x={lbl.x} y={lbl.y} textAnchor={lbl.anchor} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold' }}>{lbl.text}</text>
+                                ))}
+
+                                {/* Reference polygon */}
+                                <polygon points={refPoints} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="3,3" />
+
+                                {/* User values polygon */}
+                                <polygon points={valPoints} fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" strokeWidth="1.8" />
+
+                                {/* Interactive value nodes */}
+                                {angles.map((ang, idx) => (
+                                  <circle
+                                    key={idx}
+                                    cx={cx + clientVals[idx] * scale * Math.cos(ang)}
+                                    cy={cy + clientVals[idx] * scale * Math.sin(ang)}
+                                    r="5.5"
+                                    fill="#0d9488"
+                                    stroke="#ffffff"
+                                    strokeWidth="1.5"
+                                    onClick={() => handleNodeClick(idx)}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                ))}
+                              </svg>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Control Sliders */}
+                        <div style={{ flex: 1, minWidth: '250px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          {[
+                            { label: 'Flexão (ADM)', val: mFlex, setVal: setMFlex, max: 50, isEva: false },
+                            { label: 'Flexão (EVA)', val: mFlexEVA, setVal: setMFlexEVA, max: 10, isEva: true },
+                            { label: 'Extensão (ADM)', val: mExt, setVal: setMExt, max: 50, isEva: false },
+                            { label: 'Extensão (EVA)', val: mExtEVA, setVal: setMExtEVA, max: 10, isEva: true },
+                            { label: 'Rot D (ADM)', val: mRotD, setVal: setMRotD, max: 50, isEva: false },
+                            { label: 'Rot D (EVA)', val: mRotDEVA, setVal: setMRotDEVA, max: 10, isEva: true },
+                            { label: 'Rot E (ADM)', val: mRotE, setVal: setMRotE, max: 50, isEva: false },
+                            { label: 'Rot E (EVA)', val: mRotEEVA, setVal: setMRotEEVA, max: 10, isEva: true },
+                            { label: 'Inc D (ADM)', val: mIncD, setVal: setMIncD, max: 50, isEva: false },
+                            { label: 'Inc D (EVA)', val: mIncDEVA, setVal: setMIncDEVA, max: 10, isEva: true },
+                            { label: 'Inc E (ADM)', val: mIncE, setVal: setMIncE, max: 50, isEva: false },
+                            { label: 'Inc E (EVA)', val: mIncEEVA, setVal: setMIncEEVA, max: 10, isEva: true }
+                          ].map((item, keyIdx) => (
+                            <div key={keyIdx} style={{ background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                                {item.label}: <span style={{ color: item.isEva ? 'var(--color-danger)' : 'var(--color-primary)', fontWeight: 'bold' }}>{item.val}</span>/{item.max}
+                              </label>
+                              <input
+                                type="range"
+                                className="form-control"
+                                min="0"
+                                max={item.max}
+                                value={item.val}
+                                onChange={e => item.setVal(Number(e.target.value))}
+                                style={{ width: '100%', height: '18px', accentColor: item.isEva ? 'var(--color-danger)' : 'var(--color-primary)' }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic' }}>* Clique nos nós verdes do gráfico em teia ou use os controles deslizantes para alterar as amplitudes de movimento e dor.</p>
+                    </div>
+
+                    {/* STEP DOWN */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h5 style={{ margin: 0 }}><i className="fa-solid fa-chevron-right" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Step Down Test (Avaliação do Controle Dinâmico)</h5>
+                        <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={sdRealizou} onChange={e => setSdRealizou(e.target.value)}>
+                          <option value="nao">Não Realizou</option>
+                          <option value="sim">Realizou</option>
+                        </select>
+                      </div>
+
+                      {sdRealizou === 'sim' && (
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '10px' }}>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Queda Pélvica (Graus)</label>
+                              <input type="number" className="form-control form-control-sm" value={sdPelvica || ''} onChange={e => setSdPelvica(Number(e.target.value))} placeholder="Ex: 4..." />
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: normal até 5°</span>
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Adução do Quadril (Graus)</label>
+                              <input type="number" className="form-control form-control-sm" value={sdAducao || ''} onChange={e => setSdAducao(Number(e.target.value))} placeholder="Ex: 8..." />
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: normal até 10°</span>
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Valgo Dinâmico do Joelho (Graus)</label>
+                              <input type="number" className="form-control form-control-sm" value={sdValgo || ''} onChange={e => setSdValgo(Number(e.target.value))} placeholder="Ex: 9..." />
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: Homem até 10°, Mulher até 15°</span>
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Componente Excêntrico de Quadríceps / PRPS (Graus)</label>
+                              <input type="number" className="form-control form-control-sm" value={sdPrps || ''} onChange={e => setSdPrps(Number(e.target.value))} placeholder="Ex: 65..." />
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: normal acima de 60°</span>
+                            </div>
+                          </div>
+
+                          {/* Step Down Real-time Alerts */}
+                          {(() => {
+                            const selCli = clients.find(c => c._id === repClient);
+                            const sex = selCli?.dadosPessoais?.sexo || 'M';
+                            let riskFactors = [];
+                            if (sdPelvica > 5) riskFactors.push('Queda Pélvica elevada (> 5°)');
+                            if (sdAducao > 10) riskFactors.push('Adução de Quadril elevada (> 10°)');
+                            const limit = sex === 'M' ? 10 : 15;
+                            if (sdValgo > limit) riskFactors.push(`Valgo Dinâmico elevado (> ${limit}° para sexo ${sex === 'M' ? 'Masculino' : 'Feminino'})`);
+                            if (sdPrps > 0 && sdPrps < 60) riskFactors.push('Componente Excêntrico de Quadríceps reduzido ou PRPS positivo (< 60°)');
+
+                            return (
+                              <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.8rem', marginTop: '12px' }}>
+                                {riskFactors.length > 0 ? (
+                                  <>
+                                    <div className="badge badge-danger" style={{ marginBottom: '6px' }}><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> Risco Elevado de Lesão detectado</div>
+                                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}><strong>Fatores de risco identificados:</strong> {riskFactors.join(', ')}.</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="badge badge-success" style={{ marginBottom: '6px' }}><i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Controle Dinâmico Adequado</div>
+                                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Todas as métricas estão dentro das referências clínicas saudáveis.</p>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* MOVIMENTO CINTURA ESCAPULAR & DISCINESIA */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h5 style={{ margin: 0 }}><i className="fa-solid fa-chevron-right" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Movimento da Cintura Escapular & Discinesia</h5>
+                        <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={repDeRealizou} onChange={e => setRepDeRealizou(e.target.value)}>
+                          <option value="nao">Não Realizou</option>
+                          <option value="sim">Realizou</option>
+                        </select>
+                      </div>
+
+                      {repDeRealizou === 'sim' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div className="form-group">
+                            <label style={{ fontSize: '0.75rem' }}>Tipo de Discinesia Escapular</label>
+                            <select className="form-control form-control-sm" value={repDeTipo} onChange={e => setRepDeTipo(e.target.value)}>
+                              <option value="Tipo IV">Tipo IV: Normal (movimento simétrico)</option>
+                              <option value="Tipo I">Tipo I: Proeminência do ângulo ínfero-medial</option>
+                              <option value="Tipo II">Tipo II: Proeminência de toda a borda medial</option>
+                              <option value="Tipo III">Tipo III: Proeminência da borda superior</option>
+                            </select>
+                          </div>
+                          
+                          <div style={{ background: 'var(--bg-darker)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <strong style={{ fontSize: '0.75rem', display: 'block', color: 'var(--text-muted)' }}>Parâmetros Qualitativos de Movimento:</strong>
+                            <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={repDeAbdBilateral === 'sim'} onChange={e => setRepDeAbdBilateral(e.target.checked ? 'sim' : 'nao')} />
+                              Durante abdução bilateral dos braços, paciente projeta a cabeça para frente.
+                            </label>
+                            <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={repDeAbdUnilateral === 'sim'} onChange={e => setRepDeAbdUnilateral(e.target.checked ? 'sim' : 'nao')} />
+                              Durante abdução unilateral de um braço, paciente realiza inclinação torácica contralateral e desvia a cabeça.
+                            </label>
+                            <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={repDeDorAbd === 'sim'} onChange={e => setRepDeDorAbd(e.target.checked ? 'sim' : 'nao')} />
+                              Paciente relata dor ou limitação ao final da abdução unilateral com inclinação lateral da coluna.
+                            </label>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+
+                {/* PASSO 6: CONDUTA TERAPÊUTICA E PRESCRIÇÃO */}
+                {((repType === 'simplificado') || (repType === 'completo' && repActiveStep === 6)) && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Conduta & Exercícios Domiciliares</h4>
+                    <div className="form-group">
+                      <label style={{ fontWeight: '600' }}>Conduta Fisioterapêutica Aplicada (Sessão)</label>
+                      <textarea
+                        className="form-control"
+                        rows={6}
+                        value={repContent}
+                        onChange={e => setRepContent(e.target.value)}
+                        placeholder="Ex: Mobilização articular passiva da coluna lombar, liberação miofascial de quadrado lombar, aplicação de agulhamento seco..."
+                        required
+                      />
+                      <small style={{ color: 'var(--text-muted)' }}>Descreva as técnicas manuais, recursos físicos e condutas executadas em sessão.</small>
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontWeight: '600' }}>Prescrição de Autocuidado / Exercícios para Casa</label>
+                      <textarea
+                        className="form-control"
+                        rows={6}
+                        value={repExercicios}
+                        onChange={e => setRepExercicios(e.target.value)}
+                        placeholder="Ex: Ponte pélvica isométrica 3x45s, alongamento de flexores de quadril..."
+                      />
+                      <small style={{ color: 'var(--text-muted)' }}>Indique orientações ergonômicas e exercícios prescritos ao paciente.</small>
+                    </div>
+                  </div>
+                )}
+
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowReportModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Criar Relatório</button>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  {repType === 'completo' && repActiveStep > 1 && (
+                    <button type="button" className="btn btn-secondary" onClick={() => setRepActiveStep(repActiveStep - 1)}>
+                      Anterior
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowReportModal(false)}>Cancelar</button>
+                  {repType === 'completo' && repActiveStep < 6 ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        if (!repClient) {
+                          alert('Selecione o paciente antes de avançar.');
+                          return;
+                        }
+                        setRepActiveStep(repActiveStep + 1);
+                      }}
+                    >
+                      Avançar
+                    </button>
+                  ) : (
+                    <button type="submit" className="btn btn-primary">
+                      Registrar e Baixar PDF
+                    </button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
