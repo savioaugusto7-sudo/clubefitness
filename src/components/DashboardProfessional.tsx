@@ -139,6 +139,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asYTest, setAsYTest] = useState('');
   const [asStepDown, setAsStepDown] = useState('');
   const [asMaigne, setAsMaigne] = useState('');
+  const [asTermografiaRealizou, setAsTermografiaRealizou] = useState('nao');
+  const [asYTestRealizou, setAsYTestRealizou] = useState('nao');
+  const [asStepDownRealizou, setAsStepDownRealizou] = useState('nao');
+  const [asMaigneRealizou, setAsMaigneRealizou] = useState('nao');
   const [asMaigneData, setAsMaigneData] = useState({
     flexao: 25, flexaoEVA: 0,
     extensao: 25, extensaoEVA: 0,
@@ -635,13 +639,31 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setAsThomasRetofemoralD(latest.dadosMedidos.testesEspeciais.thomasRetofemoralD?.toString() || '');
           setAsThomasRetofemoralE(latest.dadosMedidos.testesEspeciais.thomasRetofemoralE?.toString() || '');
           setAsTermografia(latest.dadosMedidos.testesEspeciais.termografia || '');
+          setAsTermografiaRealizou(latest.dadosMedidos.testesEspeciais.termografia && latest.dadosMedidos.testesEspeciais.termografia.trim() !== '' ? 'sim' : 'nao');
           setAsYTest(latest.dadosMedidos.testesEspeciais.yTest || '');
+          setAsYTestRealizou(latest.dadosMedidos.testesEspeciais.yTest && latest.dadosMedidos.testesEspeciais.yTest.trim() !== '' ? 'sim' : 'nao');
           setAsStepDown(latest.dadosMedidos.testesEspeciais.stepDown || '');
+          setAsStepDownRealizou(latest.dadosMedidos.testesEspeciais.stepDown && latest.dadosMedidos.testesEspeciais.stepDown.trim() !== '' ? 'sim' : 'nao');
           const maigneVal = latest.dadosMedidos.testesEspeciais.maigne || '';
-          setAsMaigne(maigneVal);
           try {
             if (maigneVal && maigneVal.startsWith('{')) {
               const parsed = JSON.parse(maigneVal);
+              const isDefault =
+                (parsed.flexao === undefined || parsed.flexao === 25) &&
+                (parsed.flexaoEVA === undefined || parsed.flexaoEVA === 0) &&
+                (parsed.extensao === undefined || parsed.extensao === 25) &&
+                (parsed.extensaoEVA === undefined || parsed.extensaoEVA === 0) &&
+                (parsed.inclinacaoD === undefined || parsed.inclinacaoD === 25) &&
+                (parsed.inclinacaoDEVA === undefined || parsed.inclinacaoDEVA === 0) &&
+                (parsed.inclinacaoE === undefined || parsed.inclinacaoE === 25) &&
+                (parsed.inclinacaoEEVA === undefined || parsed.inclinacaoEEVA === 0) &&
+                (parsed.rotacaoD === undefined || parsed.rotacaoD === 25) &&
+                (parsed.rotacaoDEVA === undefined || parsed.rotacaoDEVA === 0) &&
+                (parsed.rotacaoE === undefined || parsed.rotacaoE === 25) &&
+                (parsed.rotacaoEEVA === undefined || parsed.rotacaoEEVA === 0) &&
+                (!parsed.observacoes || parsed.observacoes.trim() === '');
+              setAsMaigneRealizou(isDefault ? 'nao' : 'sim');
+
               setAsMaigneData({
                 flexao: parsed.flexao !== undefined ? Number(parsed.flexao) : 25,
                 flexaoEVA: parsed.flexaoEVA !== undefined ? Number(parsed.flexaoEVA) : 0,
@@ -656,7 +678,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 rotacaoE: parsed.rotacaoE !== undefined ? Number(parsed.rotacaoE) : 25,
                 rotacaoEEVA: parsed.rotacaoEEVA !== undefined ? Number(parsed.rotacaoEEVA) : 0
               });
+              setAsMaigne(parsed.observacoes || '');
             } else {
+              setAsMaigneRealizou(maigneVal.trim().length > 0 ? 'sim' : 'nao');
+              setAsMaigne(maigneVal);
               setAsMaigneData({
                 flexao: 25, flexaoEVA: 0,
                 extensao: 25, extensaoEVA: 0,
@@ -668,6 +693,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             }
           } catch (e) {
             console.error('Error parsing Maigne:', e);
+            setAsMaigneRealizou(maigneVal.trim().length > 0 ? 'sim' : 'nao');
+            setAsMaigne(maigneVal);
           }
         }
 
@@ -1066,10 +1093,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             thomasIliopsoasE: asThomasE === 'Positivo' ? (parseFloat(asThomasIliopsoasE) || null) : null,
             thomasRetofemoralD: asThomasD === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
             thomasRetofemoralE: asThomasE === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
-            termografia: asTermografia,
-            yTest: asYTest,
-            stepDown: asStepDown,
-            maigne: JSON.stringify(asMaigneData)
+            termografia: asTermografiaRealizou === 'sim' ? asTermografia : '',
+            yTest: asYTestRealizou === 'sim' ? asYTest : '',
+            stepDown: asStepDownRealizou === 'sim' ? asStepDown : '',
+            maigne: asMaigneRealizou === 'sim' ? JSON.stringify({ ...asMaigneData, observacoes: asMaigne }) : ''
           },
           flexibilidade: '',
           postura: asPostura
@@ -3604,24 +3631,73 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     </div>
 
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '20px', marginBottom: '16px' }}>Termografia & Testes Funcionais</h4>
-                    <div className="form-group">
-                      <label>Termografia</label>
-                      <input type="text" className="form-control" placeholder="Padrão hiper-radiante lombar, etc." value={asTermografia} onChange={e => setAsTermografia(e.target.value)} />
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Y-Test (Equilíbrio)</label>
-                        <input type="text" className="form-control" placeholder="Alcance Anterior D: 50cm, E: 45cm..." value={asYTest} onChange={e => setAsYTest(e.target.value)} />
+                    
+                    <div style={{ display: 'flex', gap: '16px', flexDirection: 'column', marginBottom: '20px' }}>
+                      
+                      {/* Termografia selector and inputs */}
+                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asTermografiaRealizou === 'sim' ? '12px' : '0px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Termografia</span>
+                          <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asTermografiaRealizou} onChange={e => setAsTermografiaRealizou(e.target.value)}>
+                            <option value="nao">Não se Aplica</option>
+                            <option value="sim">Realizado</option>
+                          </select>
+                        </div>
+                        {asTermografiaRealizou === 'sim' && (
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <input type="text" className="form-control" placeholder="Padrão hiper-radiante lombar, etc." value={asTermografia} onChange={e => setAsTermografia(e.target.value)} />
+                          </div>
+                        )}
                       </div>
-                      <div className="form-group">
-                        <label>Step Down</label>
-                        <input type="text" className="form-control" placeholder="Valgo dinâmico D..." value={asStepDown} onChange={e => setAsStepDown(e.target.value)} />
+
+                      {/* Y-Test selector and inputs */}
+                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asYTestRealizou === 'sim' ? '12px' : '0px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Y-Test (Equilíbrio)</span>
+                          <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asYTestRealizou} onChange={e => setAsYTestRealizou(e.target.value)}>
+                            <option value="nao">Não se Aplica</option>
+                            <option value="sim">Realizado</option>
+                          </select>
+                        </div>
+                        {asYTestRealizou === 'sim' && (
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <input type="text" className="form-control" placeholder="Alcance Anterior D: 50cm, E: 45cm..." value={asYTest} onChange={e => setAsYTest(e.target.value)} />
+                          </div>
+                        )}
                       </div>
+
+                      {/* Step Down selector and inputs */}
+                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asStepDownRealizou === 'sim' ? '12px' : '0px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Step Down</span>
+                          <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asStepDownRealizou} onChange={e => setAsStepDownRealizou(e.target.value)}>
+                            <option value="nao">Não se Aplica</option>
+                            <option value="sim">Realizado</option>
+                          </select>
+                        </div>
+                        {asStepDownRealizou === 'sim' && (
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <input type="text" className="form-control" placeholder="Valgo dinâmico D..." value={asStepDown} onChange={e => setAsStepDown(e.target.value)} />
+                          </div>
+                        )}
+                      </div>
+
                     </div>
-                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
-                      <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>
-                        Estrela Maigne (Rosa dos Ventos Clínica de Dor)
-                      </h4>
+
+                    {/* ESTRELA MAIGNE */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asMaigneRealizou === 'sim' ? '16px' : '0px' }}>
+                        <h5 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
+                          Estrela Maigne (Rosa dos Ventos Clínica de Dor)
+                        </h5>
+                        <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asMaigneRealizou} onChange={e => setAsMaigneRealizou(e.target.value)}>
+                          <option value="nao">Não se Aplica</option>
+                          <option value="sim">Realizado</option>
+                        </select>
+                      </div>
+
+                      {asMaigneRealizou === 'sim' && (
+                        <>
                       
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', alignItems: 'center', justifyContent: 'center' }}>
                         <div style={{ background: '#ffffff', borderRadius: '8px', padding: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '300px', height: '300px' }}>
@@ -3900,6 +3976,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '8px', fontStyle: 'italic' }}>
                         * A rosa dos ventos reflete o nível de dor e limitação de movimento nas 6 direções. Você pode clicar diretamente nos pontos azuis no desenho para aumentar a amplitude (ADM) de 5 em 5.
                       </p>
+                      </>
+                      )}
                     </div>
 
                   </>

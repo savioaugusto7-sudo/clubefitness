@@ -47,6 +47,37 @@ function base64ToBlob(base64: string, mime: string): Blob {
   return new Blob([byteArray], { type: mime });
 }
 
+function isMaigneFilled(maigneVal: any): boolean {
+  if (!maigneVal) return false;
+  try {
+    let parsed = maigneVal;
+    if (typeof maigneVal === 'string') {
+      if (!maigneVal.startsWith('{')) {
+        return maigneVal.trim().length > 0;
+      }
+      parsed = JSON.parse(maigneVal);
+    }
+    if (!parsed || typeof parsed !== 'object') return false;
+    const isDefault =
+      (parsed.flexao === undefined || parsed.flexao === 25) &&
+      (parsed.flexaoEVA === undefined || parsed.flexaoEVA === 0) &&
+      (parsed.extensao === undefined || parsed.extensao === 25) &&
+      (parsed.extensaoEVA === undefined || parsed.extensaoEVA === 0) &&
+      (parsed.inclinacaoD === undefined || parsed.inclinacaoD === 25) &&
+      (parsed.inclinacaoDEVA === undefined || parsed.inclinacaoDEVA === 0) &&
+      (parsed.inclinacaoE === undefined || parsed.inclinacaoE === 25) &&
+      (parsed.inclinacaoEEVA === undefined || parsed.inclinacaoEEVA === 0) &&
+      (parsed.rotacaoD === undefined || parsed.rotacaoD === 25) &&
+      (parsed.rotacaoDEVA === undefined || parsed.rotacaoDEVA === 0) &&
+      (parsed.rotacaoE === undefined || parsed.rotacaoE === 25) &&
+      (parsed.rotacaoEEVA === undefined || parsed.rotacaoEEVA === 0) &&
+      (!parsed.observacoes || parsed.observacoes.trim() === '');
+    return !isDefault;
+  } catch (e) {
+    return false;
+  }
+}
+
 
 export async function downloadReportPDF(report: any) {
   if (typeof window === 'undefined') return;
@@ -392,6 +423,13 @@ export async function downloadReportPDF(report: any) {
       const tImg = report.termografia;
       const ex = report.examesComplementares || [];
       const ort = report.testesOrtopedicos;
+
+      const hasTermografia = tImg && tImg.realizou === 'sim';
+      const hasExames = ex && ex.length > 0;
+      const hasMaigne = ort.estrelaMaigne && isMaigneFilled(ort.estrelaMaigne);
+      const hasYTest = ort.yTeste && ort.yTeste.realizou === 'sim';
+      const hasStepDown = ort.stepDown && ort.stepDown.realizou === 'sim';
+      const hasDE = ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim';
 
       let queixasHtml = report.anamnese.queixas.map((q: any, idx: number) => `
         <div class="section-card" style="margin-bottom: 10px;">
@@ -879,23 +917,29 @@ export async function downloadReportPDF(report: any) {
             </div>
           </div>
 
+          ${hasTermografia || hasExames ? `
           <div class="section-card">
             <div class="section-card-title">Termografia & Exames Complementares</div>
             <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; color: #334155;">
-              <div style="margin-bottom: 10px;">
+              ${hasTermografia ? `
+              <div style="margin-bottom: ${hasExames ? '10px' : '0px'};">
                 <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 4px;">Mapeamento por Termografia:</span>
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">
                   ${termografiaHtml}
                 </div>
               </div>
+              ` : ''}
+              ${hasExames ? `
               <div>
                 <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 4px;">Exames Complementares Anexados:</span>
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">
                   ${examesHtml}
                 </div>
               </div>
+              ` : ''}
             </div>
           </div>
+          ` : ''}
 
           <!-- Footer -->
           <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
@@ -913,9 +957,11 @@ export async function downloadReportPDF(report: any) {
             <span>Data: ${formatDate(report.data)}</span>
           </div>
 
+          ${(hasMaigne || hasYTest || hasStepDown || hasDE) ? `
           <table style="width:100%; border-collapse:collapse; font-size:9px; margin-bottom:10px;" border="0">
             <tr>
-              <td style="width:48%; vertical-align:top; padding-right:8px;">
+              ${hasMaigne ? `
+              <td style="width: ${(hasYTest || hasStepDown || hasDE) ? '48%' : '100%'}; vertical-align:top; padding-right: ${(hasYTest || hasStepDown || hasDE) ? '8px' : '0px'};">
                 <div class="section-card" style="margin-bottom: 0;">
                   <div class="section-card-title">Estrela Maigne</div>
                   <div class="section-card-content" style="padding: 6px; text-align:center;">
@@ -924,28 +970,40 @@ export async function downloadReportPDF(report: any) {
                   </div>
                 </div>
               </td>
-              <td style="width:52%; vertical-align:top; padding-left:8px; display: flex; flex-direction: column; gap: 8px;">
-                <div class="section-card" style="margin-bottom: 0;">
-                  <div class="section-card-title">Y Teste (Equilíbrio Dinâmico)</div>
-                  <div class="section-card-content" style="padding: 8px;">
-                    ${yTestHtml}
+              ` : ''}
+              ${(hasYTest || hasStepDown || hasDE) ? `
+              <td style="width: ${hasMaigne ? '52%' : '100%'}; vertical-align:top; padding-left: ${hasMaigne ? '8px' : '0px'};">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  ${hasYTest ? `
+                  <div class="section-card" style="margin-bottom: 0;">
+                    <div class="section-card-title">Y Teste (Equilíbrio Dinâmico)</div>
+                    <div class="section-card-content" style="padding: 8px;">
+                      ${yTestHtml}
+                    </div>
                   </div>
-                </div>
-                <div class="section-card" style="margin-bottom: 0;">
-                  <div class="section-card-title">Step Down Test</div>
-                  <div class="section-card-content" style="padding: 8px;">
-                    ${stepDownHtml}
+                  ` : ''}
+                  ${hasStepDown ? `
+                  <div class="section-card" style="margin-bottom: 0;">
+                    <div class="section-card-title">Step Down Test</div>
+                    <div class="section-card-content" style="padding: 8px;">
+                      ${stepDownHtml}
+                    </div>
                   </div>
-                </div>
-                <div class="section-card" style="margin-bottom: 0;">
-                  <div class="section-card-title">Cintura Escapular</div>
-                  <div class="section-card-content" style="padding: 8px;">
-                    ${deHtml}
+                  ` : ''}
+                  ${hasDE ? `
+                  <div class="section-card" style="margin-bottom: 0;">
+                    <div class="section-card-title">Cintura Escapular</div>
+                    <div class="section-card-content" style="padding: 8px;">
+                      ${deHtml}
+                    </div>
                   </div>
+                  ` : ''}
                 </div>
               </td>
+              ` : ''}
             </tr>
           </table>
+          ` : ''}
 
           <div class="section-card" style="margin-bottom: 8px;">
             <div class="section-card-title">Conduta Fisioterapêutica Aplicada</div>
@@ -1036,17 +1094,25 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const avatarB64 = await getAvatarBase64(client.dadosPessoais?.sexo || 'M');
   const prof = assessment.avaliadorId || { nome: 'Avaliador', registro: 'CREF/CREFITO' };
 
-  let maigneObj = { flexao: 25, flexaoEVA: 0, extensao: 25, extensaoEVA: 0, inclinacaoD: 25, inclinacaoDEVA: 0, inclinacaoE: 25, inclinacaoEEVA: 0, rotacaoD: 25, rotacaoDEVA: 0, rotacaoE: 25, rotacaoEEVA: 0 };
+  let maigneObj = { flexao: 25, flexaoEVA: 0, extensao: 25, extensaoEVA: 0, inclinacaoD: 25, inclinacaoDEVA: 0, inclinacaoE: 25, inclinacaoEEVA: 0, rotacaoD: 25, rotacaoDEVA: 0, rotacaoE: 25, rotacaoEEVA: 0, observacoes: '' };
   let hasMaigneData = false;
   if (assessment.dadosMedidos.testesEspeciais?.maigne) {
-    try {
-      const parsed = JSON.parse(assessment.dadosMedidos.testesEspeciais.maigne);
-      if (parsed && typeof parsed === 'object') {
-        maigneObj = { ...maigneObj, ...parsed };
+    const rawMaigne = assessment.dadosMedidos.testesEspeciais.maigne;
+    if (isMaigneFilled(rawMaigne)) {
+      if (typeof rawMaigne === 'string' && rawMaigne.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(rawMaigne);
+          if (parsed && typeof parsed === 'object') {
+            maigneObj = { ...maigneObj, ...parsed };
+            hasMaigneData = true;
+          }
+        } catch (e) {
+          // Not JSON
+        }
+      } else if (typeof rawMaigne === 'object') {
+        maigneObj = { ...maigneObj, ...rawMaigne };
         hasMaigneData = true;
       }
-    } catch (e) {
-      // Not JSON
     }
   }
 
@@ -1955,7 +2021,15 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   </td>
                 </tr>
                 ` : ''}
-                ${assessment.dadosMedidos.testesEspeciais?.maigne && !hasMaigneData ? `
+                ${hasMaigneData && maigneObj.observacoes && maigneObj.observacoes.trim() !== '' ? `
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Maigne Obs.</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
+                    ${maigneObj.observacoes}
+                  </td>
+                </tr>
+                ` : ''}
+                ${assessment.dadosMedidos.testesEspeciais?.maigne && !hasMaigneData && !assessment.dadosMedidos.testesEspeciais.maigne.startsWith('{') && assessment.dadosMedidos.testesEspeciais.maigne.trim() !== '' ? `
                 <tr>
                   <td style="padding:3px 0; vertical-align: top;">Maigne Obs.</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
@@ -1963,7 +2037,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   </td>
                 </tr>
                 ` : ''}
-                ${assessment.dadosMedidos.testesEspeciais?.stepDown ? `
+                ${assessment.dadosMedidos.testesEspeciais?.stepDown && assessment.dadosMedidos.testesEspeciais.stepDown.trim() !== '' ? `
                 <tr>
                   <td style="padding:3px 0; vertical-align: top;">Step Down</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
@@ -1971,7 +2045,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   </td>
                 </tr>
                 ` : ''}
-                ${assessment.dadosMedidos.testesEspeciais?.yTest ? `
+                ${assessment.dadosMedidos.testesEspeciais?.yTest && assessment.dadosMedidos.testesEspeciais.yTest.trim() !== '' ? `
                 <tr>
                   <td style="padding:3px 0; vertical-align: top;">Y-Test</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
@@ -1979,7 +2053,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   </td>
                 </tr>
                 ` : ''}
-                ${assessment.dadosMedidos.testesEspeciais?.termografia ? `
+                ${assessment.dadosMedidos.testesEspeciais?.termografia && assessment.dadosMedidos.testesEspeciais.termografia.trim() !== '' ? `
                 <tr>
                   <td style="padding:3px 0; vertical-align: top;">Termografia</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
