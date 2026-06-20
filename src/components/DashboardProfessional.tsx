@@ -3272,55 +3272,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <label>Data</label>
                       <input type="date" className="form-control" value={asDate} onChange={e => setAsDate(e.target.value)} required />
                     </div>
-                    <div className="form-group">
-                      <label>Objetivo Principal (ex: Perda de gordura e ganho de massa magra)</label>
-                      <input type="text" className="form-control" value={asObjetivoPrincipal} onChange={e => setAsObjetivoPrincipal(e.target.value)} placeholder="Objetivos do aluno..." required />
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Meses para Adequação do Objetivo</label>
-                        <select className="form-control" value={asObjetivoMeses} onChange={e => setAsObjetivoMeses(Number(e.target.value))}>
-                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
-                            <option key={m} value={m}>{m} {m === 1 ? 'mês' : 'meses'}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label>Foco do Planejamento</label>
-                        <select className="form-control" value={asTipoObjetivo} onChange={e => setAsTipoObjetivo(e.target.value)}>
-                          <option value="">Não especificado</option>
-                          <option value="Emagrecimento">Emagrecimento / Perda de Gordura</option>
-                          <option value="Massa Magra">Ganho de Massa Magra</option>
-                        </select>
-                      </div>
-                    </div>
-                    {asTipoObjetivo && (
-                      <>
-                        <div className="form-group">
-                          <label>Frequência de Treino Semanal Pretendida</label>
-                          <select className="form-control" value={asFreqSemanal} onChange={e => setAsFreqSemanal(Number(e.target.value))}>
-                            <option value="2">2x por semana</option>
-                            <option value="3">3x por semana</option>
-                            <option value="4">4x por semana</option>
-                            <option value="5">5x por semana</option>
-                          </select>
-                        </div>
-                        {(() => {
-                          const ref = getGoalReferenceInfo();
-                          if (!ref) return null;
-                          return (
-                            <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontWeight: 700, color: '#10b981' }}>
-                                <i className="fa-solid fa-calculator"></i> Tabela de Referência Baseada no Aluno
-                              </div>
-                              <p style={{ margin: '0 0 6px 0' }}>Aluno: <strong>{ref.labelSexo}</strong> | Foco: <strong>{ref.labelTipo}</strong> | Freq: <strong>{ref.freq}x/semana</strong></p>
-                              <p style={{ margin: '0 0 6px 0' }}>Taxa recomendada por semana: <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.min} kg a {ref.max} kg</span></p>
-                              <p style={{ margin: 0 }}>Estimativa sugerida para <strong>{ref.meses} {ref.meses === 1 ? 'mês' : 'meses'}</strong> ({ref.totalSemanas} semanas): <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.minTotal} kg a {ref.maxTotal} kg</span></p>
-                            </div>
-                          );
-                        })()}
-                      </>
-                    )}
                   </>
                 )}
 
@@ -4015,6 +3966,57 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <div><strong>Massa Gorda:</strong> <span style={{ color: 'var(--text-dim)' }}>{asMassaGorda || '0'} kg</span></div>
                       </div>
                     </div>
+
+                    {/* Foco e Metas do Planejamento */}
+                    <div className="form-group">
+                      <label>Objetivo Principal (ex: Perda de gordura e ganho de massa magra)</label>
+                      <input type="text" className="form-control" value={asObjetivoPrincipal} onChange={e => setAsObjetivoPrincipal(e.target.value)} placeholder="Objetivos do aluno..." required />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Meses para Adequação do Objetivo</label>
+                        <select className="form-control" value={asObjetivoMeses} onChange={e => setAsObjetivoMeses(Number(e.target.value))}>
+                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                            <option key={m} value={m}>{m} {m === 1 ? 'mês' : 'meses'}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Foco do Planejamento</label>
+                        <select className="form-control" value={asTipoObjetivo} onChange={e => setAsTipoObjetivo(e.target.value)}>
+                          <option value="">Não especificado</option>
+                          <option value="Emagrecimento">Emagrecimento / Perda de Gordura</option>
+                          <option value="Massa Magra">Ganho de Massa Magra</option>
+                        </select>
+                      </div>
+                    </div>
+                    {asTipoObjetivo && (
+                      <div style={{ marginBottom: '16px' }}>
+                        <div className="form-group">
+                          <label>Frequência de Treino Semanal Pretendida</label>
+                          <select className="form-control" value={asFreqSemanal} onChange={e => setAsFreqSemanal(Number(e.target.value))}>
+                            <option value="2">2x por semana</option>
+                            <option value="3">3x por semana</option>
+                            <option value="4">4x por semana</option>
+                            <option value="5">5x por semana</option>
+                          </select>
+                        </div>
+                        {(() => {
+                          const ref = getGoalReferenceInfo();
+                          if (!ref) return null;
+                          return (
+                            <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontWeight: 700, color: '#10b981' }}>
+                                <i className="fa-solid fa-calculator"></i> Tabela de Referência Baseada no Aluno
+                              </div>
+                              <p style={{ margin: '0 0 6px 0' }}>Aluno: <strong>{ref.labelSexo}</strong> | Foco: <strong>{ref.labelTipo}</strong> | Freq: <strong>{ref.freq}x/semana</strong></p>
+                              <p style={{ margin: '0 0 6px 0' }}>Taxa recomendada por semana: <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.min} kg a {ref.max} kg</span></p>
+                              <p style={{ margin: 0 }}>Estimativa sugerida para <strong>{ref.meses} {ref.meses === 1 ? 'mês' : 'meses'}</strong> ({ref.totalSemanas} semanas): <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.minTotal} kg a {ref.maxTotal} kg</span></p>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
 
                     <div className="form-group">
                       <label>Avaliação Postural Visual</label>
