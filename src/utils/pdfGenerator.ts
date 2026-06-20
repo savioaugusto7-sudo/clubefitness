@@ -78,6 +78,16 @@ function isMaigneFilled(maigneVal: any): boolean {
   }
 }
 
+function triggerDirectDownload(blob: Blob, filename: string) {
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+}
 
 export async function downloadReportPDF(report: any) {
   if (typeof window === 'undefined') return;
@@ -87,11 +97,7 @@ export async function downloadReportPDF(report: any) {
     return;
   }
 
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
-  let newWindow: Window | null = null;
-  if (isIframe) {
-    newWindow = window.open('', '_blank');
-  }
+
 
   const client = report.clienteId || { dadosPessoais: { nome: 'Paciente' } };
   const prof = report.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
@@ -1042,35 +1048,13 @@ export async function downloadReportPDF(report: any) {
       pagebreak: { mode: ['avoid-all', 'css'] }
     };
 
-    if (isIframe) {
-      html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-        const blobUrl = URL.createObjectURL(blob);
-        if (newWindow) {
-          const doc = newWindow.document;
-          const a = doc.createElement('a');
-          a.href = blobUrl;
-          a.download = options.filename;
-          doc.body.appendChild(a);
-          a.click();
-          doc.body.removeChild(a);
-          setTimeout(() => {
-            if (newWindow) newWindow.close();
-          }, 300);
-        }
-        document.body.removeChild(pdfWrapper);
-      }).catch((err: any) => {
-        console.error('Erro na geração do PDF do relatório:', err);
-        if (newWindow) newWindow.close();
-        document.body.removeChild(pdfWrapper);
-      });
-    } else {
-      html2pdf().set(options).from(pdfContainer).save().then(() => {
-        document.body.removeChild(pdfWrapper);
-      }).catch((err: any) => {
-        console.error('Erro na geração do PDF do relatório:', err);
-        document.body.removeChild(pdfWrapper);
-      });
-    }
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+      triggerDirectDownload(blob, options.filename);
+      document.body.removeChild(pdfWrapper);
+    }).catch((err: any) => {
+      console.error('Erro na geração do PDF do relatório:', err);
+      document.body.removeChild(pdfWrapper);
+    });
 }
 
 
@@ -1083,11 +1067,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     return;
   }
 
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
-  let newWindow: Window | null = null;
-  if (isIframe) {
-    newWindow = window.open('', '_blank');
-  }
+
 
   const client = assessment.clienteId || { dadosPessoais: { nome: 'Aluno' } };
   const logoBase64 = await getLogoBase64();
@@ -2274,9 +2254,12 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     console.warn('A biblioteca Chart.js não está disponível globalmente. Gráficos de evolução não serão renderizados no PDF.');
   }
 
+  const safeClientName = (client.dadosPessoais?.nome || 'Aluno').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `Avaliacao_${safeClientName}_${formatDate(assessment.data).replace(/\//g, '-')}.pdf`;
+
   const options = {
     margin: [0, 0, 0, 0], // Margem zerada para bater com as dimensões exatas em mm do layout
-    filename: `Avaliação, ${client.dadosPessoais.nome}, ${formatDate(assessment.data).replace(/\//g, '-')}.pdf`,
+    filename: filename,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -2296,31 +2279,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           alert('Aviso: A biblioteca de mesclagem (pdf-lib) não pôde ser carregada devido a restrições de rede local ou CORS. O sistema gerará e exibirá o relatório timbrado oficial da avaliação de forma individual, mas o seu PDF anexo não pôde ser mesclado (ele continua salvo no banco de dados).');
           
           const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
-          const rawBlobUrl = URL.createObjectURL(rawBlob);
-          const rawFilename = `Avaliação, ${client.dadosPessoais.nome}, ${formatDate(assessment.data).replace(/\//g, '-')}.pdf`;
-          
-          if (isIframe) {
-            if (newWindow) {
-              const doc = newWindow.document;
-              const a = doc.createElement('a');
-              a.href = rawBlobUrl;
-              a.download = rawFilename;
-              doc.body.appendChild(a);
-              a.click();
-              doc.body.removeChild(a);
-              setTimeout(() => {
-                if (newWindow) newWindow.close();
-              }, 300);
-            }
-          } else {
-            const link = document.createElement('a');
-            link.href = rawBlobUrl;
-            link.download = rawFilename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
-  
+          triggerDirectDownload(rawBlob, filename);
           return;
         }
         const { PDFDocument } = PDFLib;
@@ -2341,75 +2300,27 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         // Salvar PDF final mesclado
         const mergedPdfBytes = await mergedPdf.save();
         const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-        const mergedBlobUrl = URL.createObjectURL(mergedBlob);
-        const filename = `Avaliação, ${client.dadosPessoais.nome}, ${formatDate(assessment.data).replace(/\//g, '-')}.pdf`;
-
-        if (isIframe) {
-          if (newWindow) {
-            const doc = newWindow.document;
-            const a = doc.createElement('a');
-            a.href = mergedBlobUrl;
-            a.download = filename;
-            doc.body.appendChild(a);
-            a.click();
-            doc.body.removeChild(a);
-            setTimeout(() => {
-              if (newWindow) newWindow.close();
-            }, 300);
-          }
-        } else {
-          const link = document.createElement('a');
-          link.href = mergedBlobUrl;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
+        triggerDirectDownload(mergedBlob, filename);
   
       } catch (error: any) {
         console.error('Erro na mesclagem dos PDFs:', error);
-        if (newWindow) newWindow.close();
         alert('Erro ao mesclar o PDF anexo com a avaliação do sistema: ' + error.message);
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
       alert('Erro ao gerar o PDF da avaliação: ' + err.message);
-      if (newWindow) newWindow.close();
       document.body.removeChild(pdfWrapper);
     });
   } else {
     // Fluxo padrão caso não exista PDF anexo
-    if (isIframe) {
-      html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-        const blobUrl = URL.createObjectURL(blob);
-        if (newWindow) {
-          const doc = newWindow.document;
-          const a = doc.createElement('a');
-          a.href = blobUrl;
-          a.download = options.filename;
-          doc.body.appendChild(a);
-          a.click();
-          doc.body.removeChild(a);
-          setTimeout(() => {
-            if (newWindow) newWindow.close();
-          }, 300);
-        }
-        document.body.removeChild(pdfWrapper);
-      }).catch((err: any) => {
-        console.error('Erro na geração do PDF:', err);
-        alert('Erro ao gerar o PDF da avaliação (sem anexo): ' + err.message);
-        if (newWindow) newWindow.close();
-        document.body.removeChild(pdfWrapper);
-      });
-    } else {
-      html2pdf().set(options).from(pdfContainer).save().then(() => {
-        document.body.removeChild(pdfWrapper);
-      }).catch((err: any) => {
-        console.error('Erro na geração do PDF:', err);
-        alert('Erro ao salvar o PDF da avaliação: ' + err.message);
-        document.body.removeChild(pdfWrapper);
-      });
-    }
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+      triggerDirectDownload(blob, filename);
+      document.body.removeChild(pdfWrapper);
+    }).catch((err: any) => {
+      console.error('Erro na geração do PDF:', err);
+      alert('Erro ao gerar o PDF da avaliação (sem anexo): ' + err.message);
+      document.body.removeChild(pdfWrapper);
+    });
   }
 }
 
@@ -2460,36 +2371,15 @@ export function downloadProntuarioPDF(prontuario: any, client: any, profNome = '
 
   const options = { margin: 10, filename: `Prontuario_${nome.replace(/\s+/g,'_')}_${dataDoc.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
   
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
-  let newWindow: Window | null = null;
-  if (isIframe) {
-    newWindow = window.open('', '_blank');
-  }
 
-  if (isIframe) {
-    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-      const blobUrl = URL.createObjectURL(blob);
-      if (newWindow) {
-        const doc = newWindow.document;
-        const a = doc.createElement('a');
-        a.href = blobUrl;
-        a.download = options.filename;
-        doc.body.appendChild(a);
-        a.click();
-        doc.body.removeChild(a);
-        setTimeout(() => {
-          if (newWindow) newWindow.close();
-        }, 300);
-      }
-      document.body.removeChild(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro PDF prontuário:', err);
-      if (newWindow) newWindow.close();
-      document.body.removeChild(pdfWrapper);
-    });
-  } else {
-    html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF prontuário:', err); document.body.removeChild(pdfWrapper); });
-  }
+
+  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+    triggerDirectDownload(blob, options.filename);
+    document.body.removeChild(pdfWrapper);
+  }).catch((err: any) => {
+    console.error('Erro PDF prontuário:', err);
+    document.body.removeChild(pdfWrapper);
+  });
 }
 
 // ==========================================================
@@ -2526,36 +2416,15 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
 
   const options = { margin: 5, filename: `Prontuarios_${nome.replace(/\s+/g,'_')}_completo.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.8, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
   
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
-  let newWindow: Window | null = null;
-  if (isIframe) {
-    newWindow = window.open('', '_blank');
-  }
 
-  if (isIframe) {
-    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-      const blobUrl = URL.createObjectURL(blob);
-      if (newWindow) {
-        const doc = newWindow.document;
-        const a = doc.createElement('a');
-        a.href = blobUrl;
-        a.download = options.filename;
-        doc.body.appendChild(a);
-        a.click();
-        doc.body.removeChild(a);
-        setTimeout(() => {
-          if (newWindow) newWindow.close();
-        }, 300);
-      }
-      document.body.removeChild(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro PDF prontuários:', err);
-      if (newWindow) newWindow.close();
-      document.body.removeChild(pdfWrapper);
-    });
-  } else {
-    html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF prontuários:', err); document.body.removeChild(pdfWrapper); });
-  }
+
+  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+    triggerDirectDownload(blob, options.filename);
+    document.body.removeChild(pdfWrapper);
+  }).catch((err: any) => {
+    console.error('Erro PDF prontuários:', err);
+    document.body.removeChild(pdfWrapper);
+  });
 }
 
 // ==========================================================
@@ -2636,36 +2505,15 @@ export function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
   const options = { margin: 10, filename: `Analise_Forca_${nome.replace(/\s+/g,'_')}_${data.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
   
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
-  let newWindow: Window | null = null;
-  if (isIframe) {
-    newWindow = window.open('', '_blank');
-  }
 
-  if (isIframe) {
-    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-      const blobUrl = URL.createObjectURL(blob);
-      if (newWindow) {
-        const doc = newWindow.document;
-        const a = doc.createElement('a');
-        a.href = blobUrl;
-        a.download = options.filename;
-        doc.body.appendChild(a);
-        a.click();
-        doc.body.removeChild(a);
-        setTimeout(() => {
-          if (newWindow) newWindow.close();
-        }, 300);
-      }
-      document.body.removeChild(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro PDF força:', err);
-      if (newWindow) newWindow.close();
-      document.body.removeChild(pdfWrapper);
-    });
-  } else {
-    html2pdf().set(options).from(pdfContainer).save().then(() => { document.body.removeChild(pdfWrapper); }).catch((err: any) => { console.error('Erro PDF força:', err); document.body.removeChild(pdfWrapper); });
-  }
+
+  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+    triggerDirectDownload(blob, options.filename);
+    document.body.removeChild(pdfWrapper);
+  }).catch((err: any) => {
+    console.error('Erro PDF força:', err);
+    document.body.removeChild(pdfWrapper);
+  });
 }
 
 // ==========================================================
@@ -2899,36 +2747,13 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   };
 
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
-  let newWindow: Window | null = null;
-  if (isIframe) {
-    newWindow = window.open('', '_blank');
-  }
 
-  if (isIframe) {
-    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-      const blobUrl = URL.createObjectURL(blob);
-      if (newWindow) {
-        const doc = newWindow.document;
-        const a = doc.createElement('a');
-        a.href = blobUrl;
-        a.download = options.filename;
-        doc.body.appendChild(a);
-        a.click();
-        doc.body.removeChild(a);
-        setTimeout(() => {
-          if (newWindow) newWindow.close();
-        }, 300);
-      }
-      document.body.removeChild(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro PDF contrato:', err);
-      if (newWindow) newWindow.close();
-      document.body.removeChild(pdfWrapper);
-    });
-  } else {
-    html2pdf().set(options).from(pdfContainer).save()
-      .then(() => { document.body.removeChild(pdfWrapper); })
-      .catch((err: any) => { console.error('Erro PDF contrato:', err); document.body.removeChild(pdfWrapper); });
-  }
+
+  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+    triggerDirectDownload(blob, options.filename);
+    document.body.removeChild(pdfWrapper);
+  }).catch((err: any) => {
+    console.error('Erro PDF contrato:', err);
+    document.body.removeChild(pdfWrapper);
+  });
 }

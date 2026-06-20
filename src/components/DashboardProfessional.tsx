@@ -46,10 +46,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       if (e.key === 'Escape') {
         setShowAptModal(false);
         setShowFixedSchedModal(false);
-        setShowAssessmentModal(false);
-        setShowReportModal(false);
-        setShowStModal(false);
-        setShowProntuarioModal(false);
         setShowNewExModal(false);
       }
     };
@@ -164,6 +160,30 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       if (val > 50) val = 0;
       return { ...prev, [field]: val };
     });
+  };
+
+  const handleCloseAssessment = () => {
+    if (window.confirm("Tem certeza que deseja fechar a Avaliação Física? Todas as alterações não salvas serão perdidas.")) {
+      setShowAssessmentModal(false);
+    }
+  };
+
+  const handleCloseReport = () => {
+    if (window.confirm("Tem certeza que deseja fechar o Relatório Fisioterápico? Todas as alterações não salvas serão perdidas.")) {
+      setShowReportModal(false);
+    }
+  };
+
+  const handleCloseSt = () => {
+    if (window.confirm("Tem certeza que deseja fechar o Teste de Força? Todas as alterações não salvas serão perdidas.")) {
+      setShowStModal(false);
+    }
+  };
+
+  const handleCloseProntuario = () => {
+    if (window.confirm("Tem certeza que deseja fechar a anotação de Prontuário? Todas as alterações não salvas serão perdidas.")) {
+      setShowProntuarioModal(false);
+    }
   };
 
   const getGoalReferenceInfo = () => {
@@ -3219,11 +3239,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
       {/* 3. Physical Assessment Modal */}
       {showAssessmentModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAssessmentModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
+          <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3>Nova Avaliação Física Fisioterapêutica</h3>
-              <button className="modal-close" onClick={() => setShowAssessmentModal(false)}>&times;</button>
+              <button className="modal-close" onClick={handleCloseAssessment}>&times;</button>
             </div>
             
             {/* Wizard Steps indicator */}
@@ -4009,7 +4029,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 )}
               </div>
               <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAssessmentModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-secondary" onClick={handleCloseAssessment}>Cancelar</button>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   {asStep > 1 && (
                     <button type="button" className="btn btn-secondary" onClick={() => setAsStep(asStep - 1)}>
@@ -4034,11 +4054,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
       {/* 4. Physiotherapy Report Modal */}
       {showReportModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowReportModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
+          <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3>Novo Relatório Fisioterápico</h3>
-              <button className="modal-close" onClick={() => setShowReportModal(false)}>&times;</button>
+              <button className="modal-close" onClick={handleCloseReport}>&times;</button>
             </div>
             <form onSubmit={handleCreateReport}>
               <div className="modal-body" style={{ maxHeight: '74vh', overflowY: 'auto', padding: '20px' }}>
@@ -4952,7 +4972,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowReportModal(false)}>Cancelar</button>
+                  <button type="button" className="btn btn-secondary" onClick={handleCloseReport}>Cancelar</button>
                   {repType === 'completo' && repActiveStep < 6 ? (
                     <button
                       type="button"
@@ -4981,14 +5001,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
       {/* 5. Strength Test Modal */}
       {showStModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowStModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
+          <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3>Registrar Teste de Força</h3>
-              <button className="modal-close" onClick={() => setShowStModal(false)}>&times;</button>
+              <button className="modal-close" onClick={handleCloseSt}>&times;</button>
             </div>
             <form onSubmit={handleCreateStrengthTest}>
-              <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <div className="modal-body" style={{ padding: '20px' }}>
                 <div className="form-group">
                   <label>Paciente / Aluno</label>
                   <SearchableSelect
@@ -5043,7 +5063,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowStModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-secondary" onClick={handleCloseSt}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">Registrar Teste</button>
               </div>
             </form>
@@ -5053,14 +5073,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
       {/* 6. Prontuario Modal */}
       {showProntuarioModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowProntuarioModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
+          <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3>Nova Anotação de Prontuário</h3>
-              <button className="modal-close" onClick={() => setShowProntuarioModal(false)}>&times;</button>
+              <button className="modal-close" onClick={handleCloseProntuario}>&times;</button>
             </div>
             <form onSubmit={handleCreateProntuario}>
-              <div className="modal-body">
+              <div className="modal-body" style={{ padding: '20px' }}>
                 <div className="form-group">
                   <label>Paciente</label>
                   <SearchableSelect
@@ -5076,11 +5096,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 </div>
                 <div className="form-group">
                   <label>Evolução / Histórico Clínico</label>
-                  <textarea className="form-control" style={{ height: '120px' }} value={prContent} onChange={e => setPrContent(e.target.value)} placeholder="Registrar evolução do tratamento e condutas tomadas..." required />
+                  <textarea className="form-control" style={{ height: '240px' }} value={prContent} onChange={e => setPrContent(e.target.value)} placeholder="Registrar evolução do tratamento e condutas tomadas..." required />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowProntuarioModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-secondary" onClick={handleCloseProntuario}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">Salvar Prontuário</button>
               </div>
             </form>
