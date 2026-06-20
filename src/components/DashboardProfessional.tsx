@@ -139,6 +139,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asYTestRealizou, setAsYTestRealizou] = useState('nao');
   const [asStepDownRealizou, setAsStepDownRealizou] = useState('nao');
   const [asMaigneRealizou, setAsMaigneRealizou] = useState('nao');
+
+  // Y-Test structured states
+  const [asYLenD, setAsYLenD] = useState<number | ''>('');
+  const [asYLenE, setAsYLenE] = useState<number | ''>('');
+  const [asYAntD, setAsYAntD] = useState<number | ''>('');
+  const [asYAntE, setAsYAntE] = useState<number | ''>('');
+  const [asYPMD, setAsYPMD] = useState<number | ''>('');
+  const [asYPME, setAsYPME] = useState<number | ''>('');
+  const [asYPLD, setAsYPLD] = useState<number | ''>('');
+  const [asYPLE, setAsYPLE] = useState<number | ''>('');
+
+  // Step Down structured states
+  const [asSdPelvica, setAsSdPelvica] = useState<number | ''>('');
+  const [asSdAducao, setAsSdAducao] = useState<number | ''>('');
+  const [asSdValgo, setAsSdValgo] = useState<number | ''>('');
+  const [asSdPrps, setAsSdPrps] = useState<number | ''>('');
   const [asMaigneData, setAsMaigneData] = useState({
     flexao: 25, flexaoEVA: 0,
     extensao: 25, extensaoEVA: 0,
@@ -660,10 +676,52 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setAsThomasRetofemoralE(latest.dadosMedidos.testesEspeciais.thomasRetofemoralE?.toString() || '');
           setAsTermografia(latest.dadosMedidos.testesEspeciais.termografia || '');
           setAsTermografiaRealizou(latest.dadosMedidos.testesEspeciais.termografia && latest.dadosMedidos.testesEspeciais.termografia.trim() !== '' ? 'sim' : 'nao');
-          setAsYTest(latest.dadosMedidos.testesEspeciais.yTest || '');
-          setAsYTestRealizou(latest.dadosMedidos.testesEspeciais.yTest && latest.dadosMedidos.testesEspeciais.yTest.trim() !== '' ? 'sim' : 'nao');
-          setAsStepDown(latest.dadosMedidos.testesEspeciais.stepDown || '');
-          setAsStepDownRealizou(latest.dadosMedidos.testesEspeciais.stepDown && latest.dadosMedidos.testesEspeciais.stepDown.trim() !== '' ? 'sim' : 'nao');
+          
+          const yVal = latest.dadosMedidos.testesEspeciais.yTest || '';
+          if (yVal && yVal.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(yVal);
+              setAsYTestRealizou(parsed.realizou || 'sim');
+              setAsYLenD(parsed.direita?.comprimentoMembro ?? '');
+              setAsYLenE(parsed.esquerda?.comprimentoMembro ?? '');
+              setAsYAntD(parsed.direita?.anterior ?? '');
+              setAsYAntE(parsed.esquerda?.anterior ?? '');
+              setAsYPMD(parsed.direita?.posteromedial ?? '');
+              setAsYPME(parsed.esquerda?.posteromedial ?? '');
+              setAsYPLD(parsed.direita?.posterolateral ?? '');
+              setAsYPLE(parsed.esquerda?.posterolateral ?? '');
+              setAsYTest('');
+            } catch (err) {
+              console.error(err);
+            }
+          } else {
+            setAsYTest(yVal);
+            setAsYTestRealizou(yVal && yVal.trim() !== '' ? 'sim' : 'nao');
+            setAsYLenD(''); setAsYLenE('');
+            setAsYAntD(''); setAsYAntE('');
+            setAsYPMD(''); setAsYPME('');
+            setAsYPLD(''); setAsYPLE('');
+          }
+
+          const sdVal = latest.dadosMedidos.testesEspeciais.stepDown || '';
+          if (sdVal && sdVal.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(sdVal);
+              setAsStepDownRealizou(parsed.realizou || 'sim');
+              setAsSdPelvica(parsed.quedaPelvica ?? '');
+              setAsSdAducao(parsed.aducaoQuadril ?? '');
+              setAsSdValgo(parsed.valgoDinamicoJoelho ?? '');
+              setAsSdPrps(parsed.compExcentricoPrps ?? '');
+              setAsStepDown('');
+            } catch (err) {
+              console.error(err);
+            }
+          } else {
+            setAsStepDown(sdVal);
+            setAsStepDownRealizou(sdVal && sdVal.trim() !== '' ? 'sim' : 'nao');
+            setAsSdPelvica(''); setAsSdAducao('');
+            setAsSdValgo(''); setAsSdPrps('');
+          }
           const maigneVal = latest.dadosMedidos.testesEspeciais.maigne || '';
           try {
             if (maigneVal && maigneVal.startsWith('{')) {
@@ -766,6 +824,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setAsTermografia('');
         setAsYTest('');
         setAsStepDown('');
+        setAsTermografiaRealizou('nao');
+        setAsYTestRealizou('nao');
+        setAsStepDownRealizou('nao');
+        setAsYLenD(''); setAsYLenE('');
+        setAsYAntD(''); setAsYAntE('');
+        setAsYPMD(''); setAsYPME('');
+        setAsYPLD(''); setAsYPLE('');
+        setAsSdPelvica(''); setAsSdAducao('');
+        setAsSdValgo(''); setAsSdPrps('');
         setAsMaigne('');
         setAsMaigneData({
           flexao: 25, flexaoEVA: 0,
@@ -1114,8 +1181,26 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             thomasRetofemoralD: asThomasD === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
             thomasRetofemoralE: asThomasE === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
             termografia: asTermografiaRealizou === 'sim' ? asTermografia : '',
-            yTest: asYTestRealizou === 'sim' ? asYTest : '',
-            stepDown: asStepDownRealizou === 'sim' ? asStepDown : '',
+            yTest: asYTestRealizou === 'sim'
+              ? (asYLenD !== '' || asYAntD !== ''
+                  ? JSON.stringify({
+                      realizou: 'sim',
+                      direita: { comprimentoMembro: Number(asYLenD) || 0, anterior: Number(asYAntD) || 0, posteromedial: Number(asYPMD) || 0, posterolateral: Number(asYPLD) || 0 },
+                      esquerda: { comprimentoMembro: Number(asYLenE) || 0, anterior: Number(asYAntE) || 0, posteromedial: Number(asYPME) || 0, posterolateral: Number(asYPLE) || 0 }
+                    })
+                  : asYTest)
+              : '',
+            stepDown: asStepDownRealizou === 'sim'
+              ? (asSdPelvica !== '' || asSdAducao !== '' || asSdValgo !== '' || asSdPrps !== ''
+                  ? JSON.stringify({
+                      realizou: 'sim',
+                      quedaPelvica: Number(asSdPelvica) || 0,
+                      aducaoQuadril: Number(asSdAducao) || 0,
+                      valgoDinamicoJoelho: Number(asSdValgo) || 0,
+                      compExcentricoPrps: Number(asSdPrps) || 0
+                    })
+                  : asStepDown)
+              : '',
             maigne: asMaigneRealizou === 'sim' ? JSON.stringify({ ...asMaigneData, observacoes: asMaigne }) : ''
           },
           flexibilidade: '',
@@ -1199,6 +1284,25 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       setRepTermografiaImgB64(event.target?.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleAsTermoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1.5 * 1024 * 1024) {
+      alert('A imagem termográfica é muito grande! Escolha um arquivo de até 1.5 MB.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAsTermografia(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeAsTermoImage = () => {
+    setAsTermografia('');
   };
 
   const downloadExame = (index: number) => {
@@ -3605,7 +3709,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     
                     <div style={{ display: 'flex', gap: '16px', flexDirection: 'column', marginBottom: '20px' }}>
                       
-                      {/* Termografia selector and inputs */}
+                      {/* Termografia — Image Upload */}
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asTermografiaRealizou === 'sim' ? '12px' : '0px' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Termografia</span>
@@ -3615,13 +3719,28 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           </select>
                         </div>
                         {asTermografiaRealizou === 'sim' && (
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <input type="text" className="form-control" placeholder="Padrão hiper-radiante lombar, etc." value={asTermografia} onChange={e => setAsTermografia(e.target.value)} />
+                          <div>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-dim)', display: 'block', marginBottom: '6px' }}>Upload da Imagem Termográfica (PNG/JPG, máx 1.5 MB)</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="form-control"
+                              style={{ marginBottom: '8px' }}
+                              onChange={handleAsTermoFileSelect}
+                            />
+                            {asTermografia && asTermografia.startsWith('data:') && (
+                              <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                                <img src={asTermografia} alt="Termografia Preview" style={{ maxHeight: '200px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'block', margin: '0 auto 8px' }} />
+                                <button type="button" className="btn btn-danger btn-sm" onClick={removeAsTermoImage}>
+                                  <i className="fa-solid fa-trash"></i> Remover Imagem
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
 
-                      {/* Y-Test selector and inputs */}
+                      {/* Y-Test — Structured numeric inputs */}
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asYTestRealizou === 'sim' ? '12px' : '0px' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Y-Test (Equilíbrio)</span>
@@ -3631,13 +3750,87 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           </select>
                         </div>
                         {asYTestRealizou === 'sim' && (
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <input type="text" className="form-control" placeholder="Alcance Anterior D: 50cm, E: 45cm..." value={asYTest} onChange={e => setAsYTest(e.target.value)} />
+                          <div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                              {/* Membro Direito */}
+                              <div>
+                                <h6 style={{ color: 'var(--color-secondary)', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 700 }}>Membro Direito</h6>
+                                {([
+                                  { label: 'Comprimento do Membro (cm)', val: asYLenD, set: setAsYLenD },
+                                  { label: 'Alcance Anterior (cm)', val: asYAntD, set: setAsYAntD },
+                                  { label: 'Alcance Posteromedial (cm)', val: asYPMD, set: setAsYPMD },
+                                  { label: 'Alcance Posterolateral (cm)', val: asYPLD, set: setAsYPLD },
+                                ] as const).map(({ label, val, set }) => (
+                                  <div key={label} style={{ marginBottom: '6px' }}>
+                                    <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>{label}</label>
+                                    <input type="number" className="form-control form-control-sm" value={val} onChange={e => (set as any)(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Membro Esquerdo */}
+                              <div>
+                                <h6 style={{ color: 'var(--color-secondary)', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 700 }}>Membro Esquerdo</h6>
+                                {([
+                                  { label: 'Comprimento do Membro (cm)', val: asYLenE, set: setAsYLenE },
+                                  { label: 'Alcance Anterior (cm)', val: asYAntE, set: setAsYAntE },
+                                  { label: 'Alcance Posteromedial (cm)', val: asYPME, set: setAsYPME },
+                                  { label: 'Alcance Posterolateral (cm)', val: asYPLE, set: setAsYPLE },
+                                ] as const).map(({ label, val, set }) => (
+                                  <div key={label} style={{ marginBottom: '6px' }}>
+                                    <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>{label}</label>
+                                    <input type="number" className="form-control form-control-sm" value={val} onChange={e => (set as any)(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            {/* Composite Score results */}
+                            {(() => {
+                              const mD = Number(asYLenD) || 0;
+                              const mE = Number(asYLenE) || 0;
+                              if (mD <= 0 || mE <= 0) return (
+                                <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+                                  Insira o comprimento dos membros de ambos os lados para calcular as pontuações e assimetrias.
+                                </div>
+                              );
+                              const antD = Number(asYAntD) || 0, antE = Number(asYAntE) || 0;
+                              const pmD = Number(asYPMD) || 0, pmE = Number(asYPME) || 0;
+                              const plD = Number(asYPLD) || 0, plE = Number(asYPLE) || 0;
+                              const scoreD = ((antD + pmD + plD) / (3 * mD)) * 100;
+                              const scoreE = ((antE + pmE + plE) / (3 * mE)) * 100;
+                              const diffAnt = Math.abs(antD - antE);
+                              const diffPM = Math.abs(pmD - pmE);
+                              const diffPL = Math.abs(plD - plE);
+                              const hasAsymmetry = diffAnt > 10 || diffPM > 10 || diffPL > 10;
+                              const hasLowScore = scoreD < 94 || scoreE < 94;
+                              return (
+                                <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.78rem' }}>
+                                  {(hasAsymmetry || hasLowScore) ? (
+                                    <div style={{ marginBottom: '8px' }}>
+                                      {hasAsymmetry && <span style={{ display: 'inline-block', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', padding: '2px 8px', marginRight: '6px', marginBottom: '4px', fontSize: '0.72rem' }}>⚠ Assimetria significativa (&gt;10cm) — Risco de Lesão!</span>}
+                                      {hasLowScore && <span style={{ display: 'inline-block', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', padding: '2px 8px', fontSize: '0.72rem' }}>⚠ Alto risco (Pontuação normalizada &lt;94%)</span>}
+                                    </div>
+                                  ) : (
+                                    <div style={{ marginBottom: '8px' }}>
+                                      <span style={{ display: 'inline-block', background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid #10b981', borderRadius: '4px', padding: '2px 8px', fontSize: '0.72rem' }}>✓ Sem alertas de risco detectados</span>
+                                    </div>
+                                  )}
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                    <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}%</div>
+                                    <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}%</div>
+                                  </div>
+                                  <div style={{ marginTop: '6px', borderTop: '1px solid var(--border-color)', paddingTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                                    <div><strong>Dif. Anterior:</strong> {diffAnt.toFixed(1)} cm</div>
+                                    <div><strong>Dif. Posteromedial:</strong> {diffPM.toFixed(1)} cm</div>
+                                    <div><strong>Dif. Posterolateral:</strong> {diffPL.toFixed(1)} cm</div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
 
-                      {/* Step Down selector and inputs */}
+                      {/* Step Down — Structured numeric inputs */}
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asStepDownRealizou === 'sim' ? '12px' : '0px' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Step Down</span>
@@ -3647,8 +3840,54 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           </select>
                         </div>
                         {asStepDownRealizou === 'sim' && (
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <input type="text" className="form-control" placeholder="Valgo dinâmico D..." value={asStepDown} onChange={e => setAsStepDown(e.target.value)} />
+                          <div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                              <div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Queda Pélvica (Graus)</label>
+                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdPelvica} onChange={e => setAsSdPelvica(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 4" />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Referência: normal até 5°</span>
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Adução do Quadril (Graus)</label>
+                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdAducao} onChange={e => setAsSdAducao(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 8" />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Referência: normal até 10°</span>
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Valgo Dinâmico de Joelho (Graus)</label>
+                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdValgo} onChange={e => setAsSdValgo(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 9" />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Ref.: Homem até 10°, Mulher até 15°</span>
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Ângulo Excêntrico de Quadríceps / PRPS (Graus)</label>
+                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdPrps} onChange={e => setAsSdPrps(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 65" />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Referência: normal acima de 60°</span>
+                              </div>
+                            </div>
+                            {/* Risk alerts */}
+                            {(() => {
+                              const qPel = Number(asSdPelvica) || 0;
+                              const adQ = Number(asSdAducao) || 0;
+                              const valJo = Number(asSdValgo) || 0;
+                              const compEx = Number(asSdPrps) || 0;
+                              const valLimit = asSex === 'M' ? 10 : 15;
+                              const risks: string[] = [];
+                              if (qPel > 5) risks.push('Queda Pélvica elevada (>5°)');
+                              if (adQ > 10) risks.push('Adução de Quadril elevada (>10°)');
+                              if (valJo > valLimit) risks.push(`Valgo Dinâmico elevado (>${valLimit}° para ${asSex === 'M' ? 'Masculino' : 'Feminino'})`);
+                              if (compEx > 0 && compEx < 60) risks.push('Componente Excêntrico reduzido ou PRPS positivo (<60°)');
+                              return (
+                                <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', fontSize: '0.78rem' }}>
+                                  {risks.length > 0 ? (
+                                    <>
+                                      <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: '4px' }}>⚠ Risco Elevado de Lesão detectado</div>
+                                      <div style={{ color: 'var(--text-dim)' }}><strong>Fatores:</strong> {risks.join(', ')}.</div>
+                                    </>
+                                  ) : (
+                                    <div style={{ color: '#10b981' }}>✓ Controle Dinâmico Adequado — métricas dentro das referências.</div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>

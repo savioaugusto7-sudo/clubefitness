@@ -1158,6 +1158,104 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     `;
   }
 
+  // ===== Parse structured Y-Test, Step Down, Termografia =====
+  const rawYTest = assessment.dadosMedidos.testesEspeciais?.yTest || '';
+  let yTestObj: any = null;
+  let yTestLegacyStr = '';
+  if (rawYTest) {
+    try {
+      const parsed = JSON.parse(rawYTest);
+      if (parsed && typeof parsed === 'object' && parsed.realizou === 'sim') yTestObj = parsed;
+      else yTestLegacyStr = rawYTest;
+    } catch { yTestLegacyStr = rawYTest; }
+  }
+
+  const rawStepDown = assessment.dadosMedidos.testesEspeciais?.stepDown || '';
+  let stepDownObj: any = null;
+  let stepDownLegacyStr = '';
+  if (rawStepDown) {
+    try {
+      const parsed = JSON.parse(rawStepDown);
+      if (parsed && typeof parsed === 'object' && parsed.realizou === 'sim') stepDownObj = parsed;
+      else stepDownLegacyStr = rawStepDown;
+    } catch { stepDownLegacyStr = rawStepDown; }
+  }
+
+  const rawTermografia = assessment.dadosMedidos.testesEspeciais?.termografia || '';
+  const hasTermografiaImage = rawTermografia && rawTermografia.startsWith('data:');
+  const termografiaIsRealizado = rawTermografia && rawTermografia.trim().length > 0;
+
+  // Build Y-Test HTML row(s)
+  let yTestRowsHtml = '';
+  if (yTestObj) {
+    const yd = yTestObj.direita || {};
+    const ye = yTestObj.esquerda || {};
+    const mD = yd.comprimentoMembro || 0;
+    const mE = ye.comprimentoMembro || 0;
+    const antD = yd.anterior || 0, antE = ye.anterior || 0;
+    const pmD = yd.posteromedial || 0, pmE = ye.posteromedial || 0;
+    const plD = yd.posterolateral || 0, plE = ye.posterolateral || 0;
+    const scoreD = mD > 0 ? (((antD + pmD + plD) / (3 * mD)) * 100).toFixed(1) : '—';
+    const scoreE = mE > 0 ? (((antE + pmE + plE) / (3 * mE)) * 100).toFixed(1) : '—';
+    const diffAnt = Math.abs(antD - antE);
+    const diffPM = Math.abs(pmD - pmE);
+    const diffPL = Math.abs(plD - plE);
+    const hasAsym = diffAnt > 10 || diffPM > 10 || diffPL > 10;
+    const hasLow = (mD > 0 && parseFloat(scoreD) < 94) || (mE > 0 && parseFloat(scoreE) < 94);
+    const alertHtml = (hasAsym || hasLow)
+      ? `<div style="color:#ef4444; font-size:6px; font-weight:700; margin-top:2px;">${hasAsym ? '⚠ Assimetria &gt;10cm' : ''}${hasAsym && hasLow ? ' / ' : ''}${hasLow ? '⚠ Score &lt;94%' : ''}</div>`
+      : '';
+    yTestRowsHtml = `
+    <tr>
+      <td style="padding:3px 0; vertical-align: top;">Y-Test Score D/E</td>
+      <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px; color: ${hasAsym || hasLow ? '#ef4444' : '#1e293b'}">
+        ${scoreD}% / ${scoreE}%
+        ${alertHtml}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:3px 0; vertical-align: top; font-size:7px;">Y-Test Alcances D (cm)</td>
+      <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
+        Ant:${antD} PM:${pmD} PL:${plD}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:3px 0; vertical-align: top; font-size:7px;">Y-Test Alcances E (cm)</td>
+      <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
+        Ant:${antE} PM:${pmE} PL:${plE}
+      </td>
+    </tr>`;
+  } else if (yTestLegacyStr) {
+    yTestRowsHtml = `<tr><td style="padding:3px 0; vertical-align: top;">Y-Test</td><td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">${yTestLegacyStr}</td></tr>`;
+  }
+
+  // Build Step Down HTML row(s)
+  let stepDownRowsHtml = '';
+  if (stepDownObj) {
+    const sex = assessment.dadosMedidos?.sexo || 'M';
+    const valLim = sex === 'M' ? 10 : 15;
+    const risks: string[] = [];
+    if ((stepDownObj.quedaPelvica || 0) > 5) risks.push('Queda Pélvica &gt;5°');
+    if ((stepDownObj.aducaoQuadril || 0) > 10) risks.push('Adução &gt;10°');
+    if ((stepDownObj.valgoDinamicoJoelho || 0) > valLim) risks.push(`Valgo &gt;${valLim}°`);
+    if (stepDownObj.compExcentricoPrps > 0 && stepDownObj.compExcentricoPrps < 60) risks.push('PRPS &lt;60°');
+    const riskColor = risks.length > 0 ? '#ef4444' : '#10b981';
+    const riskLabel = risks.length > 0 ? `⚠ ${risks.join(', ')}` : '✓ Controle adequado';
+    stepDownRowsHtml = `
+    <tr>
+      <td style="padding:3px 0; vertical-align: top;">Step Down</td>
+      <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px; color:${riskColor}">${riskLabel}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 0; vertical-align: top; font-size:7px;">Step Down Métricas</td>
+      <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
+        QP:${stepDownObj.quedaPelvica || 0}° AQ:${stepDownObj.aducaoQuadril || 0}° VJ:${stepDownObj.valgoDinamicoJoelho || 0}° PRPS:${stepDownObj.compExcentricoPrps || 0}°
+      </td>
+    </tr>`;
+  } else if (stepDownLegacyStr) {
+    stepDownRowsHtml = `<tr><td style="padding:3px 0; vertical-align: top;">Step Down</td><td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">${stepDownLegacyStr}</td></tr>`;
+  }
+
   let assessmentsList = [];
   if (allAssessments) {
     assessmentsList = allAssessments;
@@ -2017,30 +2115,17 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   </td>
                 </tr>
                 ` : ''}
-                ${assessment.dadosMedidos.testesEspeciais?.stepDown && assessment.dadosMedidos.testesEspeciais.stepDown.trim() !== '' ? `
-                <tr>
-                  <td style="padding:3px 0; vertical-align: top;">Step Down</td>
-                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
-                    ${assessment.dadosMedidos.testesEspeciais.stepDown}
-                  </td>
-                </tr>
-                ` : ''}
-                ${assessment.dadosMedidos.testesEspeciais?.yTest && assessment.dadosMedidos.testesEspeciais.yTest.trim() !== '' ? `
-                <tr>
-                  <td style="padding:3px 0; vertical-align: top;">Y-Test</td>
-                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
-                    ${assessment.dadosMedidos.testesEspeciais.yTest}
-                  </td>
-                </tr>
-                ` : ''}
-                ${assessment.dadosMedidos.testesEspeciais?.termografia && assessment.dadosMedidos.testesEspeciais.termografia.trim() !== '' ? `
+                ${stepDownRowsHtml}
+                ${yTestRowsHtml}
+                ${termografiaIsRealizado && !hasTermografiaImage ? `
                 <tr>
                   <td style="padding:3px 0; vertical-align: top;">Termografia</td>
-                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">
-                    ${assessment.dadosMedidos.testesEspeciais.termografia}
-                  </td>
-                </tr>
-                ` : ''}
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px;">Realizada (imagem na pág. 3)</td>
+                </tr>` : termografiaIsRealizado ? `
+                <tr>
+                  <td style="padding:3px 0; vertical-align: top;">Termografia</td>
+                  <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px; color:#10b981;">✓ Imagem incluída (ver pág. 3)</td>
+                </tr>` : ''}
               </table>
             </div>
           </div>
@@ -2266,6 +2351,51 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     pagebreak: { mode: ['css', 'legacy'] }
   };
 
+  // ===== Helper to build Termografia page 3 as a PDF Uint8Array via PDFLib =====
+  async function buildTermografiaPagePdf(): Promise<Uint8Array | null> {
+    if (!hasTermografiaImage) return null;
+    try {
+      if (typeof PDFLib === 'undefined') return null;
+      const { PDFDocument, rgb, StandardFonts } = PDFLib;
+      const termoDoc = await PDFDocument.create();
+      const page = termoDoc.addPage([595.28, 841.89]); // A4 portrait in points
+      const font = await termoDoc.embedFont(StandardFonts.HelveticaBold);
+
+      // Title
+      page.drawText('TERMOGRAFIA', { x: 40, y: 800, size: 16, font, color: rgb(0.04, 0.51, 0.48) });
+      page.drawText(`Avaliação: ${formatDate(assessment.data)}`, { x: 40, y: 780, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
+      const clientName = client.dadosPessoais?.nome || 'Aluno';
+      page.drawText(`Aluno(a): ${clientName}`, { x: 40, y: 766, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
+
+      // Embed image
+      const imgData = rawTermografia;
+      let embeddedImg;
+      if (imgData.startsWith('data:image/png')) {
+        const b64 = imgData.split(',')[1];
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        embeddedImg = await termoDoc.embedPng(bytes);
+      } else {
+        const b64 = imgData.split(',')[1];
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        embeddedImg = await termoDoc.embedJpg(bytes);
+      }
+
+      const maxW = 515, maxH = 650;
+      const dim = embeddedImg.scaleToFit(maxW, maxH);
+      const imgX = (595.28 - dim.width) / 2;
+      const imgY = 745 - dim.height;
+      page.drawImage(embeddedImg, { x: imgX, y: Math.max(30, imgY), width: dim.width, height: dim.height });
+
+      // Footer
+      page.drawText('Página 3 de 3 — Termografia', { x: 40, y: 20, size: 7, font, color: rgb(0.4, 0.4, 0.4) });
+
+      return await termoDoc.save();
+    } catch (e) {
+      console.error('Erro ao criar página de termografia:', e);
+      return null;
+    }
+  }
+
   if (assessment.pdf_url) {
     // Se tiver anexo em PDF, gerar o PDF do sistema como arraybuffer e concatenar com o anexo
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
@@ -2290,6 +2420,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
         systemPages.forEach((page: any) => mergedPdf.addPage(page));
 
+        // Termografia page 3 if available
+        const termoBytes = await buildTermografiaPagePdf();
+        if (termoBytes) {
+          const termoDoc = await PDFDocument.load(termoBytes);
+          const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
+          termoPages.forEach((page: any) => mergedPdf.addPage(page));
+        }
+
         // Carregar e processar o PDF anexo em Base64
         const attachedBlob = base64ToBlob(assessment.pdf_url, 'application/pdf');
         const attachedPdfBuffer = await attachedBlob.arrayBuffer();
@@ -2311,8 +2449,46 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       alert('Erro ao gerar o PDF da avaliação: ' + err.message);
       document.body.removeChild(pdfWrapper);
     });
+  } else if (hasTermografiaImage) {
+    // Sem pdf_url mas com imagem de termografia — mesclar via PDFLib
+    html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
+      try {
+        document.body.removeChild(pdfWrapper);
+        if (typeof PDFLib === 'undefined') {
+          const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
+          triggerDirectDownload(rawBlob, filename);
+          return;
+        }
+        const { PDFDocument } = PDFLib;
+        const mergedPdf = await PDFDocument.create();
+
+        const systemPdfDoc = await PDFDocument.load(pdfSystemBuffer);
+        const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
+        systemPages.forEach((page: any) => mergedPdf.addPage(page));
+
+        const termoBytes = await buildTermografiaPagePdf();
+        if (termoBytes) {
+          const termoDoc = await PDFDocument.load(termoBytes);
+          const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
+          termoPages.forEach((page: any) => mergedPdf.addPage(page));
+        }
+
+        const mergedPdfBytes = await mergedPdf.save();
+        const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+        triggerDirectDownload(mergedBlob, filename);
+      } catch (error: any) {
+        console.error('Erro ao adicionar página de termografia:', error);
+        const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
+        triggerDirectDownload(rawBlob, filename);
+        document.body.removeChild(pdfWrapper);
+      }
+    }).catch((err: any) => {
+      console.error('Erro na geração do PDF:', err);
+      alert('Erro ao gerar o PDF da avaliação: ' + err.message);
+      document.body.removeChild(pdfWrapper);
+    });
   } else {
-    // Fluxo padrão caso não exista PDF anexo
+    // Fluxo padrão caso não exista PDF anexo nem imagem termografia
     html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
       triggerDirectDownload(blob, filename);
       document.body.removeChild(pdfWrapper);
