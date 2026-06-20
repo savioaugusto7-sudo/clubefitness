@@ -3438,28 +3438,28 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Flexão (1) <small style={{ color: 'var(--text-dim)' }}>(70-80°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilFlexao1D} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao1D: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilFlexao1E} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao1E: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Flexão (2) <small style={{ color: 'var(--text-dim)' }}>(100-125°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilFlexao2D} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao2D: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilFlexao2E} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao2E: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Rot. Interna <small style={{ color: 'var(--text-dim)' }}>(40-45°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilRotIntD} onChange={e => setAsGonio({ ...asGonio, quadrilRotIntD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilRotIntE} onChange={e => setAsGonio({ ...asGonio, quadrilRotIntE: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Rot. Externa <small style={{ color: 'var(--text-dim)' }}>(40-45°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilRotExtD} onChange={e => setAsGonio({ ...asGonio, quadrilRotExtD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilRotExtE} onChange={e => setAsGonio({ ...asGonio, quadrilRotExtE: Number(e.target.value) })} />
                             </div>
@@ -3472,14 +3472,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Flexão <small style={{ color: 'var(--text-dim)' }}>(135-150°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.joelhoFlexaoD} onChange={e => setAsGonio({ ...asGonio, joelhoFlexaoD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.joelhoFlexaoE} onChange={e => setAsGonio({ ...asGonio, joelhoFlexaoE: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Poplíteo <small style={{ color: 'var(--text-dim)' }}>(155-160°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.joelhoPopliteoD} onChange={e => setAsGonio({ ...asGonio, joelhoPopliteoD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.joelhoPopliteoE} onChange={e => setAsGonio({ ...asGonio, joelhoPopliteoE: Number(e.target.value) })} />
                             </div>
@@ -3492,21 +3492,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Dorsi (1) <small style={{ color: 'var(--text-dim)' }}>(35-45°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloDorsi1D} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi1D: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloDorsi1E} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi1E: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Dorsi (2) <small style={{ color: 'var(--text-dim)' }}>(20°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloDorsi2D} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi2D: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloDorsi2E} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi2E: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>F. Plantar <small style={{ color: 'var(--text-dim)' }}>(40-50°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloFlexaoPlantarD} onChange={e => setAsGonio({ ...asGonio, tornozeloFlexaoPlantarD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloFlexaoPlantarE} onChange={e => setAsGonio({ ...asGonio, tornozeloFlexaoPlantarE: Number(e.target.value) })} />
                             </div>
@@ -3519,21 +3519,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Rot. Interna <small style={{ color: 'var(--text-dim)' }}>(80-90°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroRotIntD} onChange={e => setAsGonio({ ...asGonio, ombroRotIntD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroRotIntE} onChange={e => setAsGonio({ ...asGonio, ombroRotIntE: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Rot. Externa <small style={{ color: 'var(--text-dim)' }}>(80-100°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroRotExtD} onChange={e => setAsGonio({ ...asGonio, ombroRotExtD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroRotExtE} onChange={e => setAsGonio({ ...asGonio, ombroRotExtE: Number(e.target.value) })} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Abdução <small style={{ color: 'var(--text-dim)' }}>(180°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '120px' }}>
+                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
                               <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroAbducaoD} onChange={e => setAsGonio({ ...asGonio, ombroAbducaoD: Number(e.target.value) })} />
                               <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroAbducaoE} onChange={e => setAsGonio({ ...asGonio, ombroAbducaoE: Number(e.target.value) })} />
                             </div>
