@@ -155,6 +155,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asSdAducao, setAsSdAducao] = useState<number | ''>('');
   const [asSdValgo, setAsSdValgo] = useState<number | ''>('');
   const [asSdPrps, setAsSdPrps] = useState<number | ''>('');
+
+  // PDF attachment state
+  const [asPdfUrl, setAsPdfUrl] = useState('');
+  const [asPdfAttachName, setAsPdfAttachName] = useState('');
   const [asMaigneData, setAsMaigneData] = useState({
     flexao: 25, flexaoEVA: 0,
     extensao: 25, extensaoEVA: 0,
@@ -777,6 +781,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
 
         setAsPostura(latest.dadosMedidos?.postura || 'Nenhum desvio importante');
+        // Load attached PDF if exists
+        if (latest.pdf_url) {
+          setAsPdfUrl(latest.pdf_url);
+          setAsPdfAttachName('PDF anexado anteriormente');
+        } else {
+          setAsPdfUrl('');
+          setAsPdfAttachName('');
+        }
       } else {
         // Valores iniciais padrões se não houver histórico
         setAsHeight('1.70');
@@ -843,6 +855,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           rotacaoE: 25, rotacaoEEVA: 0
         });
         setAsPostura('Nenhum desvio importante');
+        setAsPdfUrl('');
+        setAsPdfAttachName('');
       }
     }
   }, [asClient, clients, assessments]);
@@ -1224,7 +1238,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           metaFlexibilidadeProgresso: 50
         },
         observacoes: asObs,
-        pdfName: `Avaliacao_${asDate}.pdf`
+        pdfName: `Avaliacao_${asDate}.pdf`,
+        pdf_url: asPdfUrl || ''
       };
 
       const res = await fetch('/api/assessments', {
@@ -1303,6 +1318,32 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const removeAsTermoImage = () => {
     setAsTermografia('');
+  };
+
+  const handleAsPdfFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      alert('Por favor, selecione apenas arquivos PDF.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('O PDF é muito grande! Escolha um arquivo de até 10 MB.');
+      e.target.value = '';
+      return;
+    }
+    setAsPdfAttachName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAsPdfUrl(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeAsPdfAttach = () => {
+    setAsPdfUrl('');
+    setAsPdfAttachName('');
   };
 
   const downloadExame = (index: number) => {
@@ -4265,6 +4306,72 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     <div className="form-group">
                       <label>Considerações Finais e Conduta do Avaliador</label>
                       <textarea className="form-control" placeholder="Observações gerais sobre a avaliação..." rows={4} value={asObs} onChange={e => setAsObs(e.target.value)} required />
+                    </div>
+
+                    {/* PDF Attachment Section */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', marginTop: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <div style={{ background: 'rgba(13, 148, 136, 0.12)', padding: '8px', borderRadius: '8px' }}>
+                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}></i>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>PDF Complementar da Avaliação</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                            Anexe um PDF externo (imagens, laudo, etc.). Ele será incorporado integralmente ao PDF da avaliação ao baixar. Máx. 10 MB.
+                          </div>
+                        </div>
+                      </div>
+
+                      {!asPdfUrl ? (
+                        <div>
+                          <label
+                            htmlFor="asPdfUploadInput"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '10px',
+                              border: '2px dashed var(--border-color)',
+                              borderRadius: '8px',
+                              padding: '20px',
+                              cursor: 'pointer',
+                              color: 'var(--text-dim)',
+                              fontSize: '0.85rem',
+                              transition: 'border-color 0.2s, color 0.2s'
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--color-primary)'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--text-dim)'; }}
+                          >
+                            <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.4rem' }}></i>
+                            <span>Clique para selecionar um PDF ou arraste aqui</span>
+                          </label>
+                          <input
+                            id="asPdfUploadInput"
+                            type="file"
+                            accept="application/pdf"
+                            style={{ display: 'none' }}
+                            onChange={handleAsPdfFileSelect}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ background: 'rgba(13, 148, 136, 0.08)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444', fontSize: '1.5rem' }}></i>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{asPdfAttachName || 'PDF anexado'}</div>
+                              <div style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ PDF pronto para ser incluído na avaliação</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={removeAsPdfAttach}
+                            style={{ flexShrink: 0 }}
+                          >
+                            <i className="fa-solid fa-trash"></i> Remover
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

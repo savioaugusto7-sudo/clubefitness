@@ -70,7 +70,8 @@ const PhysicalAssessmentSchema = new Schema({
   resultadosCalculados: { type: ResultadosCalculadosSchema },
   metas: { type: MetasSchema },
   observacoes: { type: String, default: '' },
-  pdfName: { type: String }
+  pdfName: { type: String },
+  pdf_url: { type: String, default: '' }
 }, { timestamps: true });
 
 export default models.PhysicalAssessment || model('PhysicalAssessment', PhysicalAssessmentSchema);
