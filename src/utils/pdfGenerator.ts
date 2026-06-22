@@ -96,11 +96,31 @@ export async function downloadReportPDF(report: any) {
     alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
     return;
   }
+  if (!report) {
+    console.error('downloadReportPDF was called with null or undefined report');
+    return;
+  }
 
 
 
-  const client = report.clienteId || { dadosPessoais: { nome: 'Paciente' } };
-  const prof = report.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
+  let client = report.clienteId || { dadosPessoais: { nome: 'Paciente' } };
+  if (typeof client === 'string') {
+    client = { _id: client, dadosPessoais: { nome: 'Paciente' } };
+  }
+  if (!client.dadosPessoais) {
+    client.dadosPessoais = { nome: client.nome || 'Paciente' };
+  }
+
+  let prof = report.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
+  if (typeof prof === 'string') {
+    prof = { _id: prof, nome: 'Profissional', registro: 'CREFITO' };
+  }
+  if (!prof.nome) {
+    prof.nome = 'Profissional';
+  }
+  if (!prof.registro) {
+    prof.registro = 'CREFITO';
+  }
   const logoBase64 = await getLogoBase64();
   
   const pdfWrapper = document.createElement('div');
@@ -1066,13 +1086,34 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
     return;
   }
+  if (!assessment) {
+    console.error('downloadAssessmentPDF was called with null or undefined assessment');
+    return;
+  }
 
 
 
-  const client = assessment.clienteId || { dadosPessoais: { nome: 'Aluno' } };
+  let client = assessment.clienteId || { dadosPessoais: { nome: 'Aluno' } };
+  if (typeof client === 'string') {
+    client = { _id: client, dadosPessoais: { nome: 'Aluno' } };
+  }
+  if (!client.dadosPessoais) {
+    client.dadosPessoais = { nome: client.nome || 'Aluno' };
+  }
+
   const logoBase64 = await getLogoBase64();
   const avatarB64 = await getAvatarBase64(client.dadosPessoais?.sexo || 'M');
-  const prof = assessment.avaliadorId || { nome: 'Avaliador', registro: 'CREF/CREFITO' };
+
+  let prof = assessment.avaliadorId || { nome: 'Avaliador', registro: 'CREF/CREFITO' };
+  if (typeof prof === 'string') {
+    prof = { _id: prof, nome: 'Avaliador', registro: 'CREF/CREFITO' };
+  }
+  if (!prof.nome) {
+    prof.nome = 'Avaliador';
+  }
+  if (!prof.registro) {
+    prof.registro = 'CREF/CREFITO';
+  }
 
   let maigneObj = { flexao: 25, flexaoEVA: 0, extensao: 25, extensaoEVA: 0, inclinacaoD: 25, inclinacaoDEVA: 0, inclinacaoE: 25, inclinacaoEEVA: 0, rotacaoD: 25, rotacaoDEVA: 0, rotacaoE: 25, rotacaoEEVA: 0, observacoes: '' };
   let hasMaigneData = false;

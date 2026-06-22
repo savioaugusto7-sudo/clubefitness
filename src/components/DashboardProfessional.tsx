@@ -1396,6 +1396,77 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setRepCirurgiasList(repCirurgiasList.map((c, idx) => idx === index ? { ...c, [field]: val } : c));
   };
 
+  // ========== IMPORT FROM PHYSICAL ASSESSMENT HELPERS ==========
+  const getLatestRepAssessment = () => {
+    if (!repClient) return null;
+    const list = assessments
+      .filter((a: any) => (typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId) === repClient)
+      .sort((a: any, b: any) => b.data.localeCompare(a.data));
+    return list[0] || null;
+  };
+
+  const fmtDateBR = (d: string) => {
+    if (!d) return '';
+    const p = d.split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+  };
+
+  const importFromPhysAssessment = (sections: string[]) => {
+    const latest = getLatestRepAssessment();
+    if (!latest) return;
+    if (sections.includes('goniometria') && latest.dadosMedidos?.goniometria) {
+      const g = latest.dadosMedidos.goniometria;
+      setGQuadrilFlex1D(g.quadrilFlexao1D || 75); setGQuadrilFlex1E(g.quadrilFlexao1E || 75);
+      setGQuadrilFlex2D(g.quadrilFlexao2D || 100); setGQuadrilFlex2E(g.quadrilFlexao2E || 102);
+      setGQuadrilRotIntD(g.quadrilRotIntD || 35); setGQuadrilRotIntE(g.quadrilRotIntE || 36);
+      setGQuadrilRotExtD(g.quadrilRotExtD || 40); setGQuadrilRotExtE(g.quadrilRotExtE || 40);
+      setGJoelhoFlexD(g.joelhoFlexaoD || 135); setGJoelhoFlexE(g.joelhoFlexaoE || 135);
+      setGJoelhoPopD(g.joelhoPopliteoD || 148); setGJoelhoPopE(g.joelhoPopliteoE || 148);
+      setGTornozeloDorsi1D(g.tornozeloDorsi1D || 35); setGTornozeloDorsi1E(g.tornozeloDorsi1E || 35);
+      setGTornozeloDorsi2D(g.tornozeloDorsi2D || 28); setGTornozeloDorsi2E(g.tornozeloDorsi2E || 28);
+      setGTornozeloPlantarD(g.tornozeloFlexaoPlantarD || 40); setGTornozeloPlantarE(g.tornozeloFlexaoPlantarE || 40);
+      setGOmbroRotIntD(g.ombroRotIntD || 80); setGOmbroRotIntE(g.ombroRotIntE || 80);
+      setGOmbroRotExtD(g.ombroRotExtD || 85); setGOmbroRotExtE(g.ombroRotExtE || 85);
+      setGOmbroAbducaoD(g.ombroAbducaoD || 170); setGOmbroAbducaoE(g.ombroAbducaoE || 170);
+    }
+    if (sections.includes('testes') && latest.dadosMedidos?.testesEspeciais) {
+      const te = latest.dadosMedidos.testesEspeciais;
+      if (te.oberD) setTOberD(te.oberD);
+      if (te.oberE) setTOberE(te.oberE);
+      if (te.thomasD) setTThomasD(te.thomasD);
+      if (te.thomasE) setTThomasE(te.thomasE);
+      if (te.thomasIliopsoasD != null) setTThomasAngD(te.thomasIliopsoasD);
+      if (te.thomasIliopsoasE != null) setTThomasAngE(te.thomasIliopsoasE);
+    }
+    if (sections.includes('ytest') && latest.dadosMedidos?.testesEspeciais?.yTest) {
+      try {
+        const yd = JSON.parse(latest.dadosMedidos.testesEspeciais.yTest);
+        if (yd?.realizou === 'sim') {
+          setYRealizou('sim');
+          setYLenD(yd.direita?.comprimentoMembro || 0); setYLenE(yd.esquerda?.comprimentoMembro || 0);
+          setYAntD(yd.direita?.anterior || 0); setYAntE(yd.esquerda?.anterior || 0);
+          setYPMD(yd.direita?.posteromedial || 0); setYPME(yd.esquerda?.posteromedial || 0);
+          setYPLD(yd.direita?.posterolateral || 0); setYPLE(yd.esquerda?.posterolateral || 0);
+        }
+      } catch { /* legacy */ }
+    }
+    if (sections.includes('stepdown') && latest.dadosMedidos?.testesEspeciais?.stepDown) {
+      try {
+        const sd = JSON.parse(latest.dadosMedidos.testesEspeciais.stepDown);
+        if (sd?.realizou === 'sim') {
+          setSdRealizou('sim');
+          setSdPelvica(sd.quedaPelvica || 0); setSdAducao(sd.aducaoQuadril || 0);
+          setSdValgo(sd.valgoDinamicoJoelho || 0); setSdPrps(sd.compExcentricoPrps || 0);
+        }
+      } catch { /* legacy */ }
+    }
+    if (sections.includes('termografia') && latest.dadosMedidos?.testesEspeciais?.termografia) {
+      setRepTermografiaRealizou('sim');
+      setRepTermografiaImgB64(latest.dadosMedidos.testesEspeciais.termografia);
+    }
+  };
+  // ============================================================
+
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -2543,7 +2614,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               </div>
 
               {editingWorkoutData && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
+                <div className="resp-grid-2-1" style={{ gap: '24px' }}>
                   {/* Left Column: Worksheet details */}
                   <div>
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
@@ -3792,7 +3863,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         </div>
                         {asYTestRealizou === 'sim' && (
                           <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div className="resp-grid-1-1">
                               {/* Membro Direito */}
                               <div>
                                 <h6 style={{ color: 'var(--color-secondary)', marginBottom: '8px', fontSize: '0.8rem', fontWeight: 700 }}>Membro Direito</h6>
@@ -3855,7 +3926,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                                       <span style={{ display: 'inline-block', background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid #10b981', borderRadius: '4px', padding: '2px 8px', fontSize: '0.72rem' }}>✓ Sem alertas de risco detectados</span>
                                     </div>
                                   )}
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                  <div className="resp-grid-1-1" style={{ gap: '8px' }}>
                                     <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}%</div>
                                     <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}%</div>
                                   </div>
@@ -3882,7 +3953,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         </div>
                         {asStepDownRealizou === 'sim' && (
                           <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div className="resp-grid-1-1">
                               <div>
                                 <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Queda Pélvica (Graus)</label>
                                 <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdPelvica} onChange={e => setAsSdPelvica(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 4" />
@@ -3934,7 +4005,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       </div>
 
                     </div>
-
                     {/* ESTRELA MAIGNE */}
                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asMaigneRealizou === 'sim' ? '16px' : '0px' }}>
@@ -4031,7 +4101,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           </svg>
                         </div>
 
-                        <div style={{ flex: 1, minWidth: '250px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="resp-grid-1-1" style={{ flex: 1, minWidth: '250px' }}>
                           {/* Flexão */}
                           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
@@ -4473,7 +4543,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 {/* PASSO 1: IDENTIFICAÇÃO E ANAMNESE (Globais + Queixas) */}
                 {repActiveStep === 1 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px' }}>
+                    <div className="resp-grid-2-1" style={{ gap: '15px' }}>
                       <div className="form-group">
                         <label>Selecione o Cliente</label>
                         <SearchableSelect
@@ -4546,7 +4616,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                               )}
                             </div>
                             
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                            <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
                               <div className="form-group">
                                 <label style={{ fontSize: '0.75rem' }}>Onde é a dor?</label>
                                 <input type="text" className="form-control form-control-sm" value={q.dorOnde} onChange={e => updateQueixa(idx, 'dorOnde', e.target.value)} placeholder="Ex: Joelho lateral esquerdo..." required />
@@ -4561,7 +4631,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                               </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '10px' }}>
+                            <div className="resp-grid-1-1" style={{ marginBottom: '10px' }}>
                               <div className="form-group">
                                 <label style={{ fontSize: '0.75rem' }}>Evolução da Dor</label>
                                 <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
@@ -4576,7 +4646,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                               </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                            <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
                               <div className="form-group">
                                 <label style={{ fontSize: '0.75rem' }}>Sente essa dor a todo momento?</label>
                                 <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
@@ -4594,7 +4664,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                               </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px' }}>
+                            <div className="resp-grid-1-2">
                               <div className="form-group">
                                 <label style={{ fontSize: '0.75rem' }}>Característica da Dor</label>
                                 <select className="form-control form-control-sm" value={q.caracteristicaDor || 'Pontual / Aguda'} onChange={e => updateQueixa(idx, 'caracteristicaDor', e.target.value)}>
@@ -4683,7 +4753,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       </div>
                     )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="resp-grid-1-1">
                       <div className="form-group">
                         <label>Traumas emocionais / Estresse crônico</label>
                         <input type="text" className="form-control" value={repTraumasEmo} onChange={e => setRepTraumasEmo(e.target.value)} placeholder="Estresse severo, perdas, efeito sobre SNV..." />
@@ -4700,7 +4770,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     </div>
 
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px' }}>Hábitos de Vida & Estilo de Vida</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <div className="resp-grid-1-1-1">
                       <div className="form-group">
                         <label>Horas sono / noite</label>
                         <input type="number" className="form-control" min={0} max={24} value={repSonoHoras} onChange={e => setRepSonoHoras(Number(e.target.value))} />
@@ -4750,7 +4820,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px' }}>
+                    <div className="resp-grid-1-2">
                       <div className="form-group">
                         <label>Geral Estresse (EVA: <strong>{repStress}</strong>/10)</label>
                         <input type="range" className="form-control" min={0} max={10} value={repStress} onChange={e => setRepStress(Number(e.target.value))} style={{ accentColor: 'var(--color-primary)' }} />
@@ -4768,41 +4838,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h4 style={{ margin: 0 }}>Goniometria & Mobilidade Articular</h4>
-                      {(() => {
-                        const hasPast = assessments.some(a => (typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId) === repClient);
-                        if (!hasPast) return null;
-                        return (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              const sorted = assessments
-                                .filter(a => (typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId) === repClient)
-                                .sort((a, b) => b.data.localeCompare(a.data));
-                              const latest = sorted[0];
-                              if (latest?.dadosMedidos?.goniometria) {
-                                const gVal = latest.dadosMedidos.goniometria;
-                                setGQuadrilFlex1D(gVal.quadrilFlexao1D || 75); setGQuadrilFlex1E(gVal.quadrilFlexao1E || 75);
-                                setGQuadrilFlex2D(gVal.quadrilFlexao2D || 100); setGQuadrilFlex2E(gVal.quadrilFlexao2E || 102);
-                                setGQuadrilRotIntD(gVal.quadrilRotIntD || 35); setGQuadrilRotIntE(gVal.quadrilRotIntE || 36);
-                                setGQuadrilRotExtD(gVal.quadrilRotExtD || 40); setGQuadrilRotExtE(gVal.quadrilRotExtE || 40);
-                                setGJoelhoFlexD(gVal.joelhoFlexaoD || 135); setGJoelhoFlexE(gVal.joelhoFlexaoE || 135);
-                                setGJoelhoPopD(gVal.joelhoPopliteoD || 148); setGJoelhoPopE(gVal.joelhoPopliteoE || 148);
-                                setGTornozeloDorsi1D(gVal.tornozeloDorsi1D || 35); setGTornozeloDorsi1E(gVal.tornozeloDorsi1E || 35);
-                                setGTornozeloDorsi2D(gVal.tornozeloDorsi2D || 28); setGTornozeloDorsi2E(gVal.tornozeloDorsi2E || 28);
-                                setGTornozeloPlantarD(gVal.tornozeloFlexaoPlantarD || 40); setGTornozeloPlantarE(gVal.tornozeloFlexaoPlantarE || 40);
-                                setGOmbroRotIntD(gVal.ombroRotIntD || 80); setGOmbroRotIntE(gVal.ombroRotIntE || 80);
-                                setGOmbroRotExtD(gVal.ombroRotExtD || 85); setGOmbroRotExtE(gVal.ombroRotExtE || 85);
-                                setGOmbroAbducaoD(gVal.ombroAbducaoD || 170); setGOmbroAbducaoE(gVal.ombroAbducaoE || 170);
-                                alert('Métricas de goniometria importadas da última avaliação do aluno!');
-                              }
-                            }}
-                          >
-                            <i className="fa-solid fa-copy" style={{ marginRight: '4px' }}></i> Importar da Última Avaliação
-                          </button>
-                        );
-                      })()}
                     </div>
+                    {(() => {
+                      const latest = getLatestRepAssessment();
+                      if (!latest) return null;
+                      return (
+                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                            <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                            <span>Avaliação Física disponível: <strong>{fmtDateBR(latest.data)}</strong></span>
+                          </div>
+                          <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['goniometria'])}>
+                            <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Goniometria
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                       <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
@@ -4839,7 +4890,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     </div>
 
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '10px' }}>Testes Clínicos Especiais de Encurtamento</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    {(() => {
+                      const latest = getLatestRepAssessment();
+                      if (!latest?.dadosMedidos?.testesEspeciais) return null;
+                      return (
+                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                            <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                            <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Testes de Ober e Thomas disponíveis</span>
+                          </div>
+                          <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['testes'])}>
+                            <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Testes
+                          </button>
+                        </div>
+                      );
+                    })()}
+                    <div className="resp-grid-1-1">
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
                         <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Teste de Ober (Banda Iliotibial)</strong>
                         <div style={{ display: 'flex', gap: '10px' }}>
@@ -4882,7 +4948,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     </div>
 
                     {(tThomasD === 'Positivo' || tThomasE === 'Positivo') && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
+                      <div className="resp-grid-1-1" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
                         {tThomasD === 'Positivo' && (
                           <div className="form-group">
                             <label style={{ fontSize: '0.75rem' }}>Ângulo Encurtamento Direito (Thomas)</label>
@@ -4904,7 +4970,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 {repType === 'completo' && repActiveStep === 4 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Termografia Clínica</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px' }}>
+                    {(() => {
+                      const latest = getLatestRepAssessment();
+                      if (!latest?.dadosMedidos?.testesEspeciais?.termografia) return null;
+                      return (
+                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                            <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                            <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Termografia disponível</span>
+                          </div>
+                          <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['termografia'])}>
+                            <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Termografia
+                          </button>
+                        </div>
+                      );
+                    })()}
+                    <div className="resp-grid-1-2">
                       <div className="form-group">
                         <label>Realizou Termografia?</label>
                         <select className="form-control" value={repTermografiaRealizou} onChange={e => setRepTermografiaRealizou(e.target.value)}>
@@ -4931,7 +5012,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     )}
 
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px' }}>Exames Complementares (Laudos em PDF)</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr auto', gap: '12px', alignItems: 'end', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
+                    <div className="resp-grid-attach" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ fontSize: '0.75rem' }}>Nome do Exame</label>
                         <input type="text" className="form-control form-control-sm" value={tempExameNome} onChange={e => setTempExameNome(e.target.value)} placeholder="Ex: Ressonância Coluna Lombar" />
@@ -4944,7 +5025,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     </div>
 
                     {repExamesList.length > 0 && (
-                      <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+                      <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                         <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
                           <thead>
                             <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
@@ -4978,6 +5059,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     
                     {/* Y TESTE */}
+                    {(() => {
+                      const latest = getLatestRepAssessment();
+                      if (!latest?.dadosMedidos?.testesEspeciais?.yTest) return null;
+                      return (
+                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                            <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                            <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Y-Test disponível</span>
+                          </div>
+                          <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['ytest'])}>
+                            <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Y-Test
+                          </button>
+                        </div>
+                      );
+                    })()}
                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <h5 style={{ margin: 0 }}><i className="fa-solid fa-chevron-right" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Y Teste (Estabilidade do Membro Inferior)</h5>
@@ -4989,10 +5085,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
                       {yRealizou === 'sim' && (
                         <div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '12px' }}>
+                          <div className="resp-grid-1-1" style={{ marginBottom: '12px' }}>
                             <div>
                               <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.8rem' }}>Membro Direito</strong>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.75rem' }}>
+                              <div className="resp-grid-1-1" style={{ fontSize: '0.75rem' }}>
                                 <div>Comprimento (cm)<input type="number" className="form-control form-control-sm" value={yLenD || ''} onChange={e => setYLenD(Number(e.target.value))} /></div>
                                 <div>Anterior (cm)<input type="number" className="form-control form-control-sm" value={yAntD || ''} onChange={e => setYAntD(Number(e.target.value))} /></div>
                                 <div>PM (cm)<input type="number" className="form-control form-control-sm" value={yPMD || ''} onChange={e => setYPMD(Number(e.target.value))} /></div>
@@ -5001,7 +5097,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                             </div>
                             <div>
                               <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--color-secondary)', fontSize: '0.8rem' }}>Membro Esquerdo</strong>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.75rem' }}>
+                              <div className="resp-grid-1-1" style={{ fontSize: '0.75rem' }}>
                                 <div>Comprimento (cm)<input type="number" className="form-control form-control-sm" value={yLenE || ''} onChange={e => setYLenE(Number(e.target.value))} /></div>
                                 <div>Anterior (cm)<input type="number" className="form-control form-control-sm" value={yAntE || ''} onChange={e => setYAntE(Number(e.target.value))} /></div>
                                 <div>PM (cm)<input type="number" className="form-control form-control-sm" value={yPME || ''} onChange={e => setYPME(Number(e.target.value))} /></div>
@@ -5032,7 +5128,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                                     <span className="badge badge-success" style={{ display: 'block', padding: '6px', textAlign: 'center', marginBottom: '8px' }}><i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Sem alertas de risco detectados</span>
                                   )}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '8px' }}>
+                                <div className="resp-grid-1-1" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '8px' }}>
                                   <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}% <br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenD})</span></div>
                                   <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}% <br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenE})</span></div>
                                 </div>
@@ -5131,7 +5227,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         </div>
 
                         {/* Control Sliders */}
-                        <div style={{ flex: 1, minWidth: '250px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div className="resp-grid-1-1" style={{ flex: 1, minWidth: '250px' }}>
                           {[
                             { label: 'Flexão (ADM)', val: mFlex, setVal: setMFlex, max: 50, isEva: false },
                             { label: 'Flexão (EVA)', val: mFlexEVA, setVal: setMFlexEVA, max: 10, isEva: true },
@@ -5166,6 +5262,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic' }}>* Clique nos nós verdes do gráfico em teia ou use os controles deslizantes para alterar as amplitudes de movimento e dor.</p>
                     </div>
 
+                    {(() => {
+                      const latest = getLatestRepAssessment();
+                      if (!latest?.dadosMedidos?.testesEspeciais?.stepDown) return null;
+                      return (
+                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                            <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                            <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Step Down disponível</span>
+                          </div>
+                          <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['stepdown'])}>
+                            <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Step Down
+                          </button>
+                        </div>
+                      );
+                    })()}
+
                     {/* STEP DOWN */}
                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -5178,7 +5290,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
                       {sdRealizou === 'sim' && (
                         <div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '10px' }}>
+                          <div className="resp-grid-1-1" style={{ marginBottom: '10px' }}>
                             <div className="form-group">
                               <label style={{ fontSize: '0.75rem' }}>Queda Pélvica (Graus)</label>
                               <input type="number" className="form-control form-control-sm" value={sdPelvica || ''} onChange={e => setSdPelvica(Number(e.target.value))} placeholder="Ex: 4..." />
@@ -5191,7 +5303,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                             </div>
                           </div>
                           
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                          <div className="resp-grid-1-1">
                             <div className="form-group">
                               <label style={{ fontSize: '0.75rem' }}>Valgo Dinâmico do Joelho (Graus)</label>
                               <input type="number" className="form-control form-control-sm" value={sdValgo || ''} onChange={e => setSdValgo(Number(e.target.value))} placeholder="Ex: 9..." />

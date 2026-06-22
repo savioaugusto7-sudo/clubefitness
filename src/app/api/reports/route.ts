@@ -45,7 +45,12 @@ export async function POST(request: Request) {
       pdfName
     });
 
-    return NextResponse.json({ success: true, data: report });
+    // Populate so the PDF generator has access to client and professional names
+    const populatedReport = await PhysioReport.findById(report._id)
+      .populate('clienteId')
+      .populate('profissionalId');
+
+    return NextResponse.json({ success: true, data: populatedReport });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

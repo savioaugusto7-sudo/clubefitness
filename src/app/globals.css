@@ -2637,3 +2637,121 @@ table.data-table td.text-right {
 .btn-secondary:hover {
   border-color: var(--text-muted);
 }
+
+/* ===================================================
+   SISTEMA DE LAYOUT E GRADES RESPONSIVAS PREMIUM
+   =================================================== */
+
+/* Ajustes de escala de fontes fluida */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 250px;
+  }
+  .view-title-group h1 {
+    font-size: 1.75rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 280px;
+  }
+  html {
+    font-size: 14px; /* Diminui a escala geral das fontes do navegador */
+  }
+  main.main-content {
+    padding: 16px !important;
+    margin-left: 0 !important;
+  }
+  .view-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+    margin-top: 54px !important; /* Espaço para o botão flutuante do menu */
+    margin-bottom: 20px !important;
+  }
+  .view-title-group h1 {
+    font-size: 1.45rem !important;
+  }
+  .content-panel {
+    padding: 16px !important;
+    border-radius: var(--radius-md) !important;
+  }
+  /* Modais ocupam tela inteira ou quase inteira */
+  .modal-content {
+    width: 98% !important;
+    margin: 10px auto !important;
+    max-height: 96vh !important;
+  }
+  .modal-body {
+    padding: 16px !important;
+  }
+  .modal-header, .modal-footer {
+    padding: 12px 16px !important;
+  }
+}
+
+/* Classes de Grade Responsivas (que substituem os estilos inline) */
+.resp-grid-1-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.resp-grid-1-1-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.resp-grid-2-1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+.resp-grid-1-2 {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 16px;
+}
+.resp-grid-attach {
+  display: grid;
+  grid-template-columns: 2fr 2fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+@media (max-width: 768px) {
+  .resp-grid-1-1,
+  .resp-grid-1-1-1,
+  .resp-grid-2-1,
+  .resp-grid-1-2,
+  .resp-grid-attach {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  /* Botões de ação em anexo */
+  .resp-grid-attach button {
+    width: 100%;
+    height: 40px !important;
+  }
+}
+
+/* Correções específicas para tabelas e formulários em telas pequenas */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+table.data-table th, table.data-table td {
+  white-space: nowrap; /* Evita quebra de linha feia em cabeçalhos/células curtas */
+}
+
+/* Gráfico de teia (Estrela Maigne) responsivo */
+#maigneSVG {
+  max-width: 100%;
+  height: auto;
+}
+
