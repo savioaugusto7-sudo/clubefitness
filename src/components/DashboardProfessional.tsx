@@ -1435,8 +1435,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       if (te.oberE) setTOberE(te.oberE);
       if (te.thomasD) setTThomasD(te.thomasD);
       if (te.thomasE) setTThomasE(te.thomasE);
-      if (te.thomasIliopsoasD != null) setTThomasAngD(te.thomasIliopsoasD);
-      if (te.thomasIliopsoasE != null) setTThomasAngE(te.thomasIliopsoasE);
+      const rawAngD = te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null ? te.thomasIliopsoasD : te.thomasRetofemoralD;
+      const rawAngE = te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null ? te.thomasIliopsoasE : te.thomasRetofemoralE;
+      if (rawAngD !== undefined && rawAngD !== null && rawAngD !== '') setTThomasAngD(Number(rawAngD));
+      if (rawAngE !== undefined && rawAngE !== null && rawAngE !== '') setTThomasAngE(Number(rawAngE));
     }
     if (sections.includes('ytest') && latest.dadosMedidos?.testesEspeciais?.yTest) {
       try {
