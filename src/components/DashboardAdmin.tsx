@@ -1844,7 +1844,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = fixedSchedules.filter(fs => fs.clienteId?.nome?.toLowerCase().includes(q) || fs.profissionalId?.nome?.toLowerCase().includes(q));
+                    const filtered = fixedSchedules.filter(fs => (fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome || '').toLowerCase().includes(q) || fs.profissionalId?.nome?.toLowerCase().includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);

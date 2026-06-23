@@ -3428,7 +3428,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = reports.filter(r => r.clienteId?.nome?.toLowerCase().includes(q));
+                    const filtered = reports.filter(r => (r.clienteId?.dadosPessoais?.nome || r.clienteId?.nome || '').toLowerCase().includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -3529,7 +3529,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = strengthTests.filter(st => st.clienteId?.nome?.toLowerCase().includes(q));
+                    const filtered = strengthTests.filter(st => (st.clienteId?.dadosPessoais?.nome || st.clienteId?.nome || '').toLowerCase().includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -3663,7 +3663,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = prontuarios.filter(p => p.clienteId?.nome?.toLowerCase().includes(q));
+                    const filtered = prontuarios.filter(p => (p.clienteId?.dadosPessoais?.nome || p.clienteId?.nome || '').toLowerCase().includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
