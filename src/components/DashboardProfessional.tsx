@@ -123,6 +123,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [editingWorkoutData, setEditingWorkoutData] = useState<any>(null);
   const [activeWorkoutCategory, setActiveWorkoutCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
   const [activeWorkoutSubTab, setActiveWorkoutSubTab] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
+  const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [exerciseGroup, setExerciseGroup] = useState('');
 
@@ -1854,12 +1855,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     if (!editingWorkoutData) return;
     const currentSheets = editingWorkoutData[activeWorkoutCategory] || [];
     if (currentSheets.length <= 1) {
-      alert('Você deve manter pelo menos uma ficha de treino.');
       return;
     }
-    if (!confirm(`Tem certeza que deseja remover a Ficha ${sheetId}? Todos os exercícios nela serão apagados.`)) {
+    
+    if (sheetToDelete !== sheetId) {
+      setSheetToDelete(sheetId);
+      setTimeout(() => {
+        setSheetToDelete(prev => prev === sheetId ? null : prev);
+      }, 3000);
       return;
     }
+
+    setSheetToDelete(null);
     const updatedSheets = currentSheets.filter((s: any) => s.id !== sheetId);
     const updated = {
       ...editingWorkoutData,
@@ -2717,27 +2724,41 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', background: 'var(--bg-darker)', padding: '6px', borderRadius: '8px', alignItems: 'center' }}>
-                      {(editingWorkoutData[activeWorkoutCategory] || []).map((sheet: any) => (
-                        <div key={sheet.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', background: activeWorkoutSubTab === sheet.id ? 'var(--color-primary-glow)' : 'transparent', borderRadius: '6px', padding: '2px 4px' }}>
-                          <button 
-                            type="button"
-                            className={`btn btn-sm ${activeWorkoutSubTab === sheet.id ? 'btn-primary' : 'btn-secondary'}`} 
-                            style={{ border: 'none', background: 'transparent', color: activeWorkoutSubTab === sheet.id ? 'var(--color-primary)' : 'var(--text-muted)' }} 
-                            onClick={() => setActiveWorkoutSubTab(sheet.id)}
-                          >
-                            {sheet.nome || `Ficha ${sheet.id}`}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm text-danger"
-                            style={{ padding: '2px 6px', border: 'none', background: 'transparent' }}
-                            onClick={() => handleRemoveWorkoutSheet(sheet.id)}
-                            title="Remover esta Ficha"
-                          >
-                            <i className="fa-solid fa-trash-can" style={{ fontSize: '0.8rem' }}></i>
-                          </button>
-                        </div>
-                      ))}
+                      {(() => {
+                        const currentSheets = editingWorkoutData[activeWorkoutCategory] || [];
+                        return currentSheets.map((sheet: any) => (
+                          <div key={sheet.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', background: activeWorkoutSubTab === sheet.id ? 'var(--color-primary-glow)' : 'transparent', borderRadius: '6px', padding: '2px 4px' }}>
+                            <button 
+                              type="button"
+                              className={`btn btn-sm ${activeWorkoutSubTab === sheet.id ? 'btn-primary' : 'btn-secondary'}`} 
+                              style={{ border: 'none', background: 'transparent', color: activeWorkoutSubTab === sheet.id ? 'var(--color-primary)' : 'var(--text-muted)' }} 
+                              onClick={() => setActiveWorkoutSubTab(sheet.id)}
+                            >
+                              {sheet.nome || `Ficha ${sheet.id}`}
+                            </button>
+                            {currentSheets.length > 1 && (
+                              <button
+                                type="button"
+                                className={`btn btn-sm ${sheetToDelete === sheet.id ? 'btn-danger text-white' : 'text-danger'}`}
+                                style={{ 
+                                  padding: '2px 6px', 
+                                  border: 'none', 
+                                  background: sheetToDelete === sheet.id ? 'var(--color-danger)' : 'transparent',
+                                  borderRadius: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                onClick={() => handleRemoveWorkoutSheet(sheet.id)}
+                                title={sheetToDelete === sheet.id ? "Clique novamente para confirmar" : "Remover esta Ficha"}
+                              >
+                                <i className={sheetToDelete === sheet.id ? "fa-solid fa-check" : "fa-solid fa-trash-can"} style={{ fontSize: '0.8rem' }}></i>
+                                {sheetToDelete === sheet.id && <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Confirmar?</span>}
+                              </button>
+                            )}
+                          </div>
+                        ));
+                      })()}
                       {(editingWorkoutData[activeWorkoutCategory] || []).length < 5 && (
                         <button
                           type="button"
