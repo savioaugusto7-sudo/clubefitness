@@ -217,47 +217,139 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setShowProntuarioModal(false);
   };
 
-  const getGoalReferenceInfo = () => {
-    if (!asTipoObjetivo) return null;
-    
-    let min = null;
-    let max = null;
-    const freq = Number(asFreqSemanal) || 3;
-    const sexo = asSex || 'M';
-    const tipo = asTipoObjetivo;
-    const meses = Number(asObjetivoMeses) || 3;
+  const lookupObjectiveRef = (sexo: string, freq: number, nivel: string, tipo: string) => {
+    const s = sexo === 'F' ? 'F' : 'M';
+    const f = Number(freq) || 3;
+    const n = nivel || 'Iniciante / Retorno';
+    const t = tipo === 'Emagrecimento' ? 'Emagrecimento' : 'Massa Magra';
 
-    if (freq === 2) {
-      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.1; max = 0.25; }
-      else if (sexo === 'F' && tipo === 'Emagrecimento') { min = 0.3; max = 0.6; }
-    } else if (freq === 3) {
-      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.2; max = 0.4; }
-      else if (sexo === 'F' && tipo === 'Massa Magra') { min = 0.1; max = 0.2; }
-    } else if (freq === 4) {
-      if (sexo === 'M' && tipo === 'Emagrecimento') { min = 0.5; max = 0.8; }
-      else if (sexo === 'F' && tipo === 'Massa Magra') { min = 0.2; max = 0.3; }
-    } else if (freq === 5) {
-      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.3; max = 0.5; }
-      else if (sexo === 'F' && tipo === 'Emagrecimento') { min = 0.6; max = 1.0; }
-    }
-
-    if (min === null || max === null) {
-      if (tipo === 'Emagrecimento') {
-        if (sexo === 'F') { min = 0.3; max = 0.6; }
-        else { min = 0.5; max = 0.8; }
-      } else {
-        if (sexo === 'F') { min = 0.1; max = 0.2; }
-        else { min = 0.2; max = 0.4; }
+    if (t === 'Emagrecimento') {
+      if (s === 'M') {
+        if (f === 2) {
+          if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
+          if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
+          if (n === 'Avançado') return { min: 0.2, max: 0.4 };
+        }
+        if (f === 3) {
+          if (n === 'Iniciante / Retorno') return { min: 0.6, max: 1.0 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.6, max: 1.0 };
+          if (n === 'Intermediário') return { min: 0.4, max: 0.7 };
+          if (n === 'Avançado') return { min: 0.3, max: 0.5 };
+        }
+        if (f === 4) {
+          if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.5, max: 0.8 };
+          if (n === 'Intermediário') return { min: 0.5, max: 0.8 };
+          if (n === 'Avançado') return { min: 0.3, max: 0.5 };
+        }
+        if (f >= 5) {
+          if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
+          if (n === 'Intermediário') return { min: 0.4, max: 0.6 };
+          if (n === 'Avançado') return { min: 0.3, max: 0.5 };
+        }
+      } else { // F
+        if (f === 2) {
+          if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.5 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.4 };
+          if (n === 'Intermediário') return { min: 0.2, max: 0.35 };
+          if (n === 'Avançado') return { min: 0.15, max: 0.25 };
+        }
+        if (f === 3) {
+          if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
+          if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
+          if (n === 'Avançado') return { min: 0.2, max: 0.35 };
+        }
+        if (f === 4) {
+          if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.6 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.3, max: 0.6 };
+          if (n === 'Intermediário') return { min: 0.3, max: 0.6 };
+          if (n === 'Avançado') return { min: 0.2, max: 0.3 };
+        }
+        if (f >= 5) {
+          if (n === 'Iniciante / Retorno') return { min: 0.25, max: 0.5 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.5 };
+          if (n === 'Intermediário') return { min: 0.25, max: 0.4 };
+          if (n === 'Avançado') return { min: 0.2, max: 0.4 };
+        }
+      }
+    } else { // Massa Magra
+      if (s === 'M') {
+        if (f === 2) {
+          if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.25 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.1, max: 0.2 };
+          if (n === 'Intermediário') return { min: 0.05, max: 0.1 };
+          if (n === 'Avançado') return { min: 0.03, max: 0.07 };
+        }
+        if (f === 3) {
+          if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.35 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
+          if (n === 'Intermediário') return { min: 0.08, max: 0.14 };
+          if (n === 'Avançado') return { min: 0.04, max: 0.09 };
+        }
+        if (f === 4) {
+          if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.3 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
+          if (n === 'Intermediário') return { min: 0.1, max: 0.15 };
+          if (n === 'Avançado') return { min: 0.05, max: 0.1 };
+        }
+        if (f >= 5) {
+          if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.3 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.12, max: 0.25 };
+          if (n === 'Intermediário') return { min: 0.1, max: 0.18 };
+          if (n === 'Avançado') return { min: 0.07, max: 0.12 };
+        }
+      } else { // F
+        if (f === 2) {
+          if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.14 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.05, max: 0.1 };
+          if (n === 'Intermediário') return { min: 0.03, max: 0.06 };
+          if (n === 'Avançado') return { min: 0.02, max: 0.03 };
+        }
+        if (f === 3) {
+          if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.17 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.13 };
+          if (n === 'Intermediário') return { min: 0.04, max: 0.07 };
+          if (n === 'Avançado') return { min: 0.02, max: 0.05 };
+        }
+        if (f === 4) {
+          if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.16 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.12 };
+          if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
+          if (n === 'Avançado') return { min: 0.03, max: 0.05 };
+        }
+        if (f >= 5) {
+          if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.15 };
+          if (n === 'Iniciante a Intermediário') return { min: 0.07, max: 0.12 };
+          if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
+          if (n === 'Avançado') return { min: 0.03, max: 0.06 };
+        }
       }
     }
 
-    const totalSemanas = Math.round(meses * 4.33);
-    const minTotal = (min * totalSemanas).toFixed(1);
-    const maxTotal = (max * totalSemanas).toFixed(1);
-    const labelTipo = tipo === 'Emagrecimento' ? 'Emagrecimento / Perda de Gordura' : 'Ganho de Massa Magra';
-    const labelSexo = sexo === 'M' ? 'Masculino' : 'Feminino';
+    return { min: 0, max: 0 };
+  };
 
-    return { min, max, minTotal, maxTotal, totalSemanas, labelTipo, labelSexo, freq, meses };
+  const getGoalReferenceInfo = () => {
+    if (!asTipoObjetivo) return [];
+    
+    const objectives = asTipoObjetivo.split(',').filter(Boolean);
+    const freq = Number(asFreqSemanal) || 3;
+    const sexo = asSex || 'M';
+    const meses = Number(asObjetivoMeses) || 3;
+    const nivel = asNivelExperiencia || 'Iniciante / Retorno';
+
+    return objectives.map(tipo => {
+      const { min, max } = lookupObjectiveRef(sexo, freq, nivel, tipo);
+      const totalSemanas = Math.round(meses * 4.33);
+      const minTotal = (min * totalSemanas).toFixed(1);
+      const maxTotal = (max * totalSemanas).toFixed(1);
+      const labelTipo = tipo === 'Emagrecimento' ? 'Emagrecimento / Perda de Gordura' : 'Ganho de Massa Magra';
+      const labelSexo = sexo === 'M' ? 'Masculino' : 'Feminino';
+      return { min, max, minTotal, maxTotal, totalSemanas, labelTipo, labelSexo, freq, meses, tipo, nivel };
+    });
   };
 
   // Novas variáveis de estado para o assistente de 6 etapas
@@ -267,6 +359,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asObjetivoMeses, setAsObjetivoMeses] = useState(3);
   const [asTipoObjetivo, setAsTipoObjetivo] = useState('');
   const [asFreqSemanal, setAsFreqSemanal] = useState(3);
+  const [asNivelExperiencia, setAsNivelExperiencia] = useState('Iniciante / Retorno');
+  const [showTipoObjetivoDropdown, setShowTipoObjetivoDropdown] = useState(false);
   
   const [asPressao, setAsPressao] = useState('120/80 mmHg');
   const [asSono, setAsSono] = useState('7-8 h por noite');
@@ -621,6 +715,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setAsObjetivoMeses(latest.dadosMedidos?.objetivoMeses || 3);
         setAsTipoObjetivo(latest.dadosMedidos?.tipoObjetivo || '');
         setAsFreqSemanal(latest.dadosMedidos?.freqSemanal || 3);
+        setAsNivelExperiencia(latest.dadosMedidos?.nivelExperiencia || 'Iniciante / Retorno');
 
         if (latest.dadosMedidos?.saudeGeral) {
           setAsPressao(latest.dadosMedidos.saudeGeral.pressaoArterial || '120/80 mmHg');
@@ -821,6 +916,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setAsObjetivoMeses(3);
         setAsTipoObjetivo('');
         setAsFreqSemanal(3);
+        setAsNivelExperiencia('Iniciante / Retorno');
+        setShowTipoObjetivoDropdown(false);
         setAsPressao('120/80 mmHg');
         setAsSono('7-8 h por noite');
         setAsNutricao('Adequada');
@@ -1098,42 +1195,24 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       let metaGorduraVal = 0;
       let metaMassaVal = 0;
       if (asTipoObjetivo) {
-        let min = null;
-        let max = null;
-        if (asFreqSemanal === 2) {
-          if (asSex === 'M' && asTipoObjetivo === 'Massa Magra') { min = 0.1; max = 0.25; }
-          else if (asSex === 'F' && asTipoObjetivo === 'Emagrecimento') { min = 0.3; max = 0.6; }
-        } else if (asFreqSemanal === 3) {
-          if (asSex === 'M' && asTipoObjetivo === 'Massa Magra') { min = 0.2; max = 0.4; }
-          else if (asSex === 'F' && asTipoObjetivo === 'Massa Magra') { min = 0.1; max = 0.2; }
-        } else if (asFreqSemanal === 4) {
-          if (asSex === 'M' && asTipoObjetivo === 'Emagrecimento') { min = 0.5; max = 0.8; }
-          else if (asSex === 'F' && asTipoObjetivo === 'Massa Magra') { min = 0.2; max = 0.3; }
-        } else if (asFreqSemanal === 5) {
-          if (asSex === 'M' && asTipoObjetivo === 'Massa Magra') { min = 0.3; max = 0.5; }
-          else if (asSex === 'F' && asTipoObjetivo === 'Emagrecimento') { min = 0.6; max = 1.0; }
-        }
+        const objectives = asTipoObjetivo.split(',').filter(Boolean);
+        const freq = Number(asFreqSemanal) || 3;
+        const sexo = asSex || 'M';
+        const meses = Number(asObjetivoMeses) || 3;
+        const nivel = asNivelExperiencia || 'Iniciante / Retorno';
+        const totalSemanas = Math.round(meses * 4.33);
 
-        if (min === null || max === null) {
-          if (asTipoObjetivo === 'Emagrecimento') {
-            if (asSex === 'F') { min = 0.3; max = 0.6; }
-            else { min = 0.5; max = 0.8; }
+        objectives.forEach(tipo => {
+          const { min, max } = lookupObjectiveRef(sexo, freq, nivel, tipo);
+          const minTotal = min * totalSemanas;
+          const maxTotal = max * totalSemanas;
+          const midTotal = (minTotal + maxTotal) / 2;
+          if (tipo === 'Emagrecimento') {
+            metaGorduraVal = parseFloat(midTotal.toFixed(1));
           } else {
-            if (asSex === 'F') { min = 0.1; max = 0.2; }
-            else { min = 0.2; max = 0.4; }
+            metaMassaVal = parseFloat(midTotal.toFixed(1));
           }
-        }
-        
-        const totalSemanas = Math.round(asObjetivoMeses * 4.33);
-        const minTotal = min * totalSemanas;
-        const maxTotal = max * totalSemanas;
-        const midTotal = (minTotal + maxTotal) / 2;
-        
-        if (asTipoObjetivo === 'Emagrecimento') {
-          metaGorduraVal = parseFloat(midTotal.toFixed(1));
-        } else {
-          metaMassaVal = parseFloat(midTotal.toFixed(1));
-        }
+        });
       }
 
       const payload = {
@@ -1146,6 +1225,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           altura: a,
           sexo: asSex,
           objetivoPrincipal: asObjetivoPrincipal,
+          tipoObjetivo: asTipoObjetivo,
+          nivelExperiencia: asNivelExperiencia,
+          freqSemanal: Number(asFreqSemanal),
+          objetivoMeses: Number(asObjetivoMeses),
           saudeGeral: {
             pressaoArterial: asPressao,
             sono: asSono,
@@ -3675,18 +3758,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   <>
                     <div className="form-row">
                       <div className="form-group">
-                        <label>Sexo Biológico</label>
-                        <select className="form-control" value={asSex} onChange={e => setAsSex(e.target.value)}>
-                          <option value="M">Masculino</option>
-                          <option value="F">Feminino</option>
-                        </select>
-                      </div>
-                      <div className="form-group">
                         <label>Idade (anos)</label>
                         <input type="number" className="form-control" value={asAge} onChange={e => setAsAge(Number(e.target.value))} required />
                       </div>
-                    </div>
-                    <div className="form-row">
                       <div className="form-group">
                         <label>Peso (kg)</label>
                         <input type="number" step="0.1" className="form-control" value={asWeight} onChange={e => setAsWeight(e.target.value)} required />
@@ -4502,21 +4576,122 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <label>Objetivo Principal (ex: Perda de gordura e ganho de massa magra)</label>
                       <input type="text" className="form-control" value={asObjetivoPrincipal} onChange={e => setAsObjetivoPrincipal(e.target.value)} placeholder="Objetivos do aluno..." required />
                     </div>
-                    <div className="form-row">
+                    <div className="form-row" style={{ marginBottom: '16px' }}>
                       <div className="form-group">
-                        <label>Meses para Adequação do Objetivo</label>
+                        <label>Meses para Adequação</label>
                         <select className="form-control" value={asObjetivoMeses} onChange={e => setAsObjetivoMeses(Number(e.target.value))}>
                           {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
                             <option key={m} value={m}>{m} {m === 1 ? 'mês' : 'meses'}</option>
                           ))}
                         </select>
                       </div>
-                      <div className="form-group">
+                      <div className="form-group" style={{ position: 'relative' }}>
                         <label>Foco do Planejamento</label>
-                        <select className="form-control" value={asTipoObjetivo} onChange={e => setAsTipoObjetivo(e.target.value)}>
-                          <option value="">Não especificado</option>
-                          <option value="Emagrecimento">Emagrecimento / Perda de Gordura</option>
-                          <option value="Massa Magra">Ganho de Massa Magra</option>
+                        <div 
+                          className="form-control" 
+                          style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            cursor: 'pointer', 
+                            background: 'var(--bg-input, #1e293b)', 
+                            borderColor: 'var(--border-input, #475569)', 
+                            color: 'var(--text-main, #f8fafc)',
+                            minHeight: '38px',
+                            padding: '6px 12px'
+                          }}
+                          onClick={() => setShowTipoObjetivoDropdown(!showTipoObjetivoDropdown)}
+                        >
+                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {(() => {
+                              const current = asTipoObjetivo.split(',').filter(Boolean);
+                              if (current.length === 0) return 'Não especificado';
+                              const labels = current.map(x => x === 'Emagrecimento' ? 'Emagrecimento / Perda de Gordura' : 'Ganho de Massa Magra');
+                              return labels.join(', ');
+                            })()}
+                          </span>
+                          <i className="fa-solid fa-chevron-down" style={{ fontSize: '0.8rem', opacity: 0.7 }}></i>
+                        </div>
+                        
+                        {showTipoObjetivoDropdown && (
+                          <>
+                            <div 
+                              style={{ 
+                                position: 'fixed', 
+                                top: 0, 
+                                left: 0, 
+                                right: 0, 
+                                bottom: 0, 
+                                zIndex: 999 
+                              }} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowTipoObjetivoDropdown(false);
+                              }} 
+                            />
+                            <div 
+                              style={{ 
+                                position: 'absolute', 
+                                top: '100%', 
+                                left: 0, 
+                                right: 0, 
+                                background: 'var(--bg-card, #1e293b)', 
+                                border: '1px solid var(--border-color, #475569)', 
+                                borderRadius: '6px', 
+                                padding: '8px 12px', 
+                                zIndex: 1000, 
+                                marginTop: '4px', 
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.3)' 
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 'normal', color: 'var(--text-main, #f8fafc)', fontSize: '0.85rem' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    style={{ cursor: 'pointer' }}
+                                    checked={asTipoObjetivo.split(',').includes('Emagrecimento')} 
+                                    onChange={e => {
+                                      let current = asTipoObjetivo.split(',').filter(Boolean);
+                                      if (e.target.checked) {
+                                        if (!current.includes('Emagrecimento')) current.push('Emagrecimento');
+                                      } else {
+                                        current = current.filter(x => x !== 'Emagrecimento');
+                                      }
+                                      setAsTipoObjetivo(current.join(','));
+                                    }}
+                                  />
+                                  Emagrecimento / Perda de Gordura
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 'normal', color: 'var(--text-main, #f8fafc)', fontSize: '0.85rem' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    style={{ cursor: 'pointer' }}
+                                    checked={asTipoObjetivo.split(',').includes('Massa Magra')} 
+                                    onChange={e => {
+                                      let current = asTipoObjetivo.split(',').filter(Boolean);
+                                      if (e.target.checked) {
+                                        if (!current.includes('Massa Magra')) current.push('Massa Magra');
+                                      } else {
+                                        current = current.filter(x => x !== 'Massa Magra');
+                                      }
+                                      setAsTipoObjetivo(current.join(','));
+                                    }}
+                                  />
+                                  Ganho de Massa Magra
+                                </label>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div className="form-group">
+                        <label>Nível de Experiência</label>
+                        <select className="form-control" value={asNivelExperiencia} onChange={e => setAsNivelExperiencia(e.target.value)}>
+                          <option value="Iniciante / Retorno">Iniciante / Retorno</option>
+                          <option value="Iniciante a Intermediário">Iniciante a Intermediário</option>
+                          <option value="Intermediário">Intermediário</option>
+                          <option value="Avançado">Avançado</option>
                         </select>
                       </div>
                     </div>
@@ -4532,16 +4707,23 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           </select>
                         </div>
                         {(() => {
-                          const ref = getGoalReferenceInfo();
-                          if (!ref) return null;
+                          const refs = getGoalReferenceInfo();
+                          if (refs.length === 0) return null;
                           return (
                             <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontWeight: 700, color: '#10b981' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontWeight: 700, color: '#10b981' }}>
                                 <i className="fa-solid fa-calculator"></i> Tabela de Referência Baseada no Aluno
                               </div>
-                              <p style={{ margin: '0 0 6px 0' }}>Aluno: <strong>{ref.labelSexo}</strong> | Foco: <strong>{ref.labelTipo}</strong> | Freq: <strong>{ref.freq}x/semana</strong></p>
-                              <p style={{ margin: '0 0 6px 0' }}>Taxa recomendada por semana: <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.min} kg a {ref.max} kg</span></p>
-                              <p style={{ margin: 0 }}>Estimativa sugerida para <strong>{ref.meses} {ref.meses === 1 ? 'mês' : 'meses'}</strong> ({ref.totalSemanas} semanas): <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.minTotal} kg a {ref.maxTotal} kg</span></p>
+                              <p style={{ margin: '0 0 8px 0', borderBottom: '1px dashed rgba(16, 185, 129, 0.2)', paddingBottom: '6px' }}>
+                                Aluno: <strong>{refs[0].labelSexo}</strong> | Nível: <strong>{refs[0].nivel}</strong> | Freq: <strong>{refs[0].freq}x/semana</strong>
+                              </p>
+                              {refs.map((ref, idx) => (
+                                <div key={ref.tipo} style={{ marginTop: idx > 0 ? '10px' : '0', borderTop: idx > 0 ? '1px dashed rgba(16, 185, 129, 0.2)' : 'none', paddingTop: idx > 0 ? '10px' : '0' }}>
+                                  <p style={{ margin: '0 0 4px 0' }}>Objetivo: <strong>{ref.labelTipo}</strong></p>
+                                  <p style={{ margin: '0 0 4px 0' }}>Taxa recomendada por semana: <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.min.toString().replace('.', ',')} kg a {ref.max.toString().replace('.', ',')} kg</span></p>
+                                  <p style={{ margin: 0 }}>Estimativa sugerida para <strong>{ref.meses} {ref.meses === 1 ? 'mês' : 'meses'}</strong> ({ref.totalSemanas} semanas): <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.minTotal.replace('.', ',')} kg a {ref.maxTotal.replace('.', ',')} kg</span></p>
+                                </div>
+                              ))}
                             </div>
                           );
                         })()}

@@ -1064,6 +1064,121 @@ export async function downloadReportPDF(report: any) {
 
 
 
+function lookupObjectiveRef(sexo: string, freq: number, nivel: string, tipo: string) {
+  const s = sexo === 'F' ? 'F' : 'M';
+  const f = Number(freq) || 3;
+  const n = nivel || 'Iniciante / Retorno';
+  const t = tipo === 'Emagrecimento' ? 'Emagrecimento' : 'Massa Magra';
+
+  if (t === 'Emagrecimento') {
+    if (s === 'M') {
+      if (f === 2) {
+        if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
+        if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
+        if (n === 'Avançado') return { min: 0.2, max: 0.4 };
+      }
+      if (f === 3) {
+        if (n === 'Iniciante / Retorno') return { min: 0.6, max: 1.0 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.6, max: 1.0 };
+        if (n === 'Intermediário') return { min: 0.4, max: 0.7 };
+        if (n === 'Avançado') return { min: 0.3, max: 0.5 };
+      }
+      if (f === 4) {
+        if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.5, max: 0.8 };
+        if (n === 'Intermediário') return { min: 0.5, max: 0.8 };
+        if (n === 'Avançado') return { min: 0.3, max: 0.5 };
+      }
+      if (f >= 5) {
+        if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
+        if (n === 'Intermediário') return { min: 0.4, max: 0.6 };
+        if (n === 'Avançado') return { min: 0.3, max: 0.5 };
+      }
+    } else { // F
+      if (f === 2) {
+        if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.5 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.4 };
+        if (n === 'Intermediário') return { min: 0.2, max: 0.35 };
+        if (n === 'Avançado') return { min: 0.15, max: 0.25 };
+      }
+      if (f === 3) {
+        if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
+        if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
+        if (n === 'Avançado') return { min: 0.2, max: 0.35 };
+      }
+      if (f === 4) {
+        if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.6 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.3, max: 0.6 };
+        if (n === 'Intermediário') return { min: 0.3, max: 0.6 };
+        if (n === 'Avançado') return { min: 0.2, max: 0.3 };
+      }
+      if (f >= 5) {
+        if (n === 'Iniciante / Retorno') return { min: 0.25, max: 0.5 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.5 };
+        if (n === 'Intermediário') return { min: 0.25, max: 0.4 };
+        if (n === 'Avançado') return { min: 0.2, max: 0.4 };
+      }
+    }
+  } else { // Massa Magra
+    if (s === 'M') {
+      if (f === 2) {
+        if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.25 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.1, max: 0.2 };
+        if (n === 'Intermediário') return { min: 0.05, max: 0.1 };
+        if (n === 'Avançado') return { min: 0.03, max: 0.07 };
+      }
+      if (f === 3) {
+        if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.35 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
+        if (n === 'Intermediário') return { min: 0.08, max: 0.14 };
+        if (n === 'Avançado') return { min: 0.04, max: 0.09 };
+      }
+      if (f === 4) {
+        if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.3 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
+        if (n === 'Intermediário') return { min: 0.1, max: 0.15 };
+        if (n === 'Avançado') return { min: 0.05, max: 0.1 };
+      }
+      if (f >= 5) {
+        if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.3 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.12, max: 0.25 };
+        if (n === 'Intermediário') return { min: 0.1, max: 0.18 };
+        if (n === 'Avançado') return { min: 0.07, max: 0.12 };
+      }
+    } else { // F
+      if (f === 2) {
+        if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.14 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.05, max: 0.1 };
+        if (n === 'Intermediário') return { min: 0.03, max: 0.06 };
+        if (n === 'Avançado') return { min: 0.02, max: 0.03 };
+      }
+      if (f === 3) {
+        if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.17 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.13 };
+        if (n === 'Intermediário') return { min: 0.04, max: 0.07 };
+        if (n === 'Avançado') return { min: 0.02, max: 0.05 };
+      }
+      if (f === 4) {
+        if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.16 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.12 };
+        if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
+        if (n === 'Avançado') return { min: 0.03, max: 0.05 };
+      }
+      if (f >= 5) {
+        if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.15 };
+        if (n === 'Iniciante a Intermediário') return { min: 0.07, max: 0.12 };
+        if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
+        if (n === 'Avançado') return { min: 0.03, max: 0.06 };
+      }
+    }
+  }
+
+  return { min: 0, max: 0 };
+}
+
 export async function downloadAssessmentPDF(assessment: any, allAssessments?: any[]) {
   if (typeof window === 'undefined') return;
   const html2pdf = (window as any).html2pdf;
@@ -1436,46 +1551,26 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const refRCQ = currentSex === 'M' ? '< 0,83' : '< 0,78';
 
   // Estimativa sugerida para Foco do Planejamento
-  let minTotal = '0,0';
-  let maxTotal = '0,0';
+  let targetText = 'Não especificado';
   let totalSemanas = 0;
   const meses = assessment.dadosMedidos.objetivoMeses || 3;
   
   if (assessment.dadosMedidos.tipoObjetivo) {
     const sexo = assessment.dadosMedidos.sexo || client.dadosPessoais?.sexo || 'M';
-    const tipo = assessment.dadosMedidos.tipoObjetivo;
+    const objectives = assessment.dadosMedidos.tipoObjetivo.split(',').filter(Boolean);
     const freq = parseInt(assessment.dadosMedidos.freqSemanal) || 3;
-    
-    let min = null;
-    let max = null;
-    
-    if (freq === 2) {
-      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.1; max = 0.25; }
-      else if (sexo === 'F' && tipo === 'Emagrecimento') { min = 0.3; max = 0.6; }
-    } else if (freq === 3) {
-      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.2; max = 0.4; }
-      else if (sexo === 'F' && tipo === 'Massa Magra') { min = 0.1; max = 0.2; }
-    } else if (freq === 4) {
-      if (sexo === 'M' && tipo === 'Emagrecimento') { min = 0.5; max = 0.8; }
-      else if (sexo === 'F' && tipo === 'Massa Magra') { min = 0.2; max = 0.3; }
-    } else if (freq === 5) {
-      if (sexo === 'M' && tipo === 'Massa Magra') { min = 0.3; max = 0.5; }
-      else if (sexo === 'F' && tipo === 'Emagrecimento') { min = 0.6; max = 1.0; }
-    }
-    
-    if (min === null || max === null) {
-      if (tipo === 'Emagrecimento') {
-        if (sexo === 'F') { min = 0.3; max = 0.6; }
-        else { min = 0.5; max = 0.8; }
-      } else {
-        if (sexo === 'F') { min = 0.1; max = 0.2; }
-        else { min = 0.2; max = 0.4; }
-      }
-    }
-    
+    const nivel = assessment.dadosMedidos.nivelExperiencia || 'Iniciante / Retorno';
     totalSemanas = Math.round(meses * 4.33);
-    minTotal = (min * totalSemanas).toFixed(1).replace('.', ',');
-    maxTotal = (max * totalSemanas).toFixed(1).replace('.', ',');
+
+    const parts = objectives.map((tipo: string) => {
+      const { min, max } = lookupObjectiveRef(sexo, freq, nivel, tipo);
+      const minTotal = (min * totalSemanas).toFixed(1).replace('.', ',');
+      const maxTotal = (max * totalSemanas).toFixed(1).replace('.', ',');
+      const label = tipo === 'Emagrecimento' ? 'Perda' : 'Ganho';
+      return `${label}: ${minTotal} kg a ${maxTotal} kg`;
+    });
+    
+    targetText = `Estimativa sugerida para ${meses} ${meses === 1 ? 'mês' : 'meses'} (${totalSemanas} sem) | Nível: ${nivel} | ${parts.join(' e ')}`;
   }
   
   let diffBFText = '';
@@ -1722,7 +1817,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         </div>
         <div class="client-bar-item" style="white-space: normal; line-height: 1.2;">
           <span>Foco do Planejamento</span>
-          <strong style="font-size: 8.5px; white-space: normal;">Estimativa sugerida para ${meses} ${meses === 1 ? 'mês' : 'meses'} (${totalSemanas} semanas): ${minTotal} kg a ${maxTotal} kg</strong>
+          <strong style="font-size: 7.5px; white-space: normal; display: block; max-width: 100%; word-break: break-word;">${targetText}</strong>
         </div>
         <div class="client-bar-item" style="border-right: none;">
           <span>Frequência Semanal Estimada</span>

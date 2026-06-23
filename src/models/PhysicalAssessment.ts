@@ -39,6 +39,10 @@ const TestesEspeciaisSchema = new Schema({
 const DadosMedidosSchema = new Schema({
   idade: Number, peso: Number, altura: Number, sexo: String,
   objetivoPrincipal: String,
+  tipoObjetivo: String,
+  nivelExperiencia: String,
+  freqSemanal: Number,
+  objetivoMeses: Number,
   saudeGeral: {
     pressaoArterial: String, sono: String, nutricao: String,
     atividadeFisica: String, medicamentos: String, cirurgias: String, queixas: String
