@@ -201,27 +201,19 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const handleCloseAssessment = () => {
-    if (window.confirm("Tem certeza que deseja fechar a Avaliação Física? Todas as alterações não salvas serão perdidas.")) {
-      setShowAssessmentModal(false);
-    }
+    setShowAssessmentModal(false);
   };
 
   const handleCloseReport = () => {
-    if (window.confirm("Tem certeza que deseja fechar o Relatório Fisioterápico? Todas as alterações não salvas serão perdidas.")) {
-      setShowReportModal(false);
-    }
+    setShowReportModal(false);
   };
 
   const handleCloseSt = () => {
-    if (window.confirm("Tem certeza que deseja fechar o Teste de Força? Todas as alterações não salvas serão perdidas.")) {
-      setShowStModal(false);
-    }
+    setShowStModal(false);
   };
 
   const handleCloseProntuario = () => {
-    if (window.confirm("Tem certeza que deseja fechar a anotação de Prontuário? Todas as alterações não salvas serão perdidas.")) {
-      setShowProntuarioModal(false);
-    }
+    setShowProntuarioModal(false);
   };
 
   const getGoalReferenceInfo = () => {
