@@ -58,6 +58,9 @@ function isMaigneFilled(maigneVal: any): boolean {
       parsed = JSON.parse(maigneVal);
     }
     if (!parsed || typeof parsed !== 'object') return false;
+    if (parsed.realizou !== undefined) {
+      return parsed.realizou === 'sim';
+    }
     const isDefault =
       (parsed.flexao === undefined || parsed.flexao === 25) &&
       (parsed.flexaoEVA === undefined || parsed.flexaoEVA === 0) &&

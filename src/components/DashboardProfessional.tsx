@@ -122,7 +122,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [selectedClientForWorkout, setSelectedClientForWorkout] = useState<any>(null);
   const [editingWorkoutData, setEditingWorkoutData] = useState<any>(null);
   const [activeWorkoutCategory, setActiveWorkoutCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
-  const [activeWorkoutSubTab, setActiveWorkoutSubTab] = useState<'A' | 'B' | 'C'>('A');
+  const [activeWorkoutSubTab, setActiveWorkoutSubTab] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [exerciseGroup, setExerciseGroup] = useState('');
 
@@ -366,6 +366,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   
   const [repTermografiaRealizou, setRepTermografiaRealizou] = useState('nao');
   const [repTermografiaImgB64, setRepTermografiaImgB64] = useState('');
+  const [repMaigneRealizou, setRepMaigneRealizou] = useState('nao');
   const [repExamesList, setRepExamesList] = useState<any[]>([]);
   
   const [repDeRealizou, setRepDeRealizou] = useState('nao');
@@ -1576,6 +1577,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             esquerda: { anterior: Number(yAntE), posteromedial: Number(yPME), posterolateral: Number(yPLE), comprimentoMembro: Number(yLenE) }
           },
           estrelaMaigne: {
+            realizou: repMaigneRealizou,
             flexao: Number(mFlex), flexaoEVA: Number(mFlexEVA),
             extensao: Number(mExt), extensaoEVA: Number(mExtEVA),
             inclinacaoD: Number(mIncD), inclinacaoDEVA: Number(mIncDEVA),
@@ -1650,6 +1652,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setRepDeAbdBilateral('nao');
         setRepDeAbdUnilateral('nao');
         setRepDeDorAbd('nao');
+        setRepMaigneRealizou('nao');
+        setYRealizou('nao');
+        setSdRealizou('nao');
         setRepExercicios('');
         setRepContent('');
         fetchData();
@@ -1812,6 +1817,67 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       }
     }
   }, [clients]);
+
+  useEffect(() => {
+    if (editingWorkoutData) {
+      const currentSheets = editingWorkoutData[activeWorkoutCategory] || [];
+      const ids = currentSheets.map((s: any) => s.id);
+      if (ids.length > 0 && !ids.includes(activeWorkoutSubTab)) {
+        setActiveWorkoutSubTab(ids[0]);
+      }
+    }
+  }, [editingWorkoutData, activeWorkoutCategory, activeWorkoutSubTab]);
+
+  const handleAddWorkoutSheet = () => {
+    if (!editingWorkoutData) return;
+    const currentSheets = editingWorkoutData[activeWorkoutCategory] || [];
+    if (currentSheets.length >= 5) {
+      alert('Limite máximo de 5 fichas atingido.');
+      return;
+    }
+    const possibleIds: ('A' | 'B' | 'C' | 'D' | 'E')[] = ['A', 'B', 'C', 'D', 'E'];
+    const existingIds = currentSheets.map((s: any) => s.id);
+    const nextId = possibleIds.find(id => !existingIds.includes(id));
+    if (!nextId) {
+      alert('Não é possível adicionar mais fichas.');
+      return;
+    }
+    const newSheet = {
+      id: nextId,
+      nome: `Ficha ${nextId}`,
+      ultimaAtualizacao: new Date().toISOString().split('T')[0],
+      observacoesGerais: '',
+      exercicios: []
+    };
+    const updatedSheets = [...currentSheets, newSheet].sort((a, b) => a.id.localeCompare(b.id));
+    const updated = {
+      ...editingWorkoutData,
+      [activeWorkoutCategory]: updatedSheets
+    };
+    setEditingWorkoutData(updated);
+    setActiveWorkoutSubTab(nextId);
+  };
+
+  const handleRemoveWorkoutSheet = (sheetId: 'A' | 'B' | 'C' | 'D' | 'E') => {
+    if (!editingWorkoutData) return;
+    const currentSheets = editingWorkoutData[activeWorkoutCategory] || [];
+    if (currentSheets.length <= 1) {
+      alert('Você deve manter pelo menos uma ficha de treino.');
+      return;
+    }
+    if (!confirm(`Tem certeza que deseja remover a Ficha ${sheetId}? Todos os exercícios nela serão apagados.`)) {
+      return;
+    }
+    const updatedSheets = currentSheets.filter((s: any) => s.id !== sheetId);
+    const updated = {
+      ...editingWorkoutData,
+      [activeWorkoutCategory]: updatedSheets
+    };
+    setEditingWorkoutData(updated);
+    if (activeWorkoutSubTab === sheetId) {
+      setActiveWorkoutSubTab(updatedSheets[0].id);
+    }
+  };
 
   const handleAddExerciseToWorkout = (exerciseName: string) => {
     if (!editingWorkoutData) return;
@@ -2658,12 +2724,38 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       </button>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', background: 'var(--bg-darker)', padding: '6px', borderRadius: '8px' }}>
-                      {(['A', 'B', 'C'] as const).map(tab => (
-                        <button key={tab} className={`btn btn-sm ${activeWorkoutSubTab === tab ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setActiveWorkoutSubTab(tab)}>
-                          Ficha {tab}
-                        </button>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', background: 'var(--bg-darker)', padding: '6px', borderRadius: '8px', alignItems: 'center' }}>
+                      {(editingWorkoutData[activeWorkoutCategory] || []).map((sheet: any) => (
+                        <div key={sheet.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', background: activeWorkoutSubTab === sheet.id ? 'var(--color-primary-glow)' : 'transparent', borderRadius: '6px', padding: '2px 4px' }}>
+                          <button 
+                            type="button"
+                            className={`btn btn-sm ${activeWorkoutSubTab === sheet.id ? 'btn-primary' : 'btn-secondary'}`} 
+                            style={{ border: 'none', background: 'transparent', color: activeWorkoutSubTab === sheet.id ? 'var(--color-primary)' : 'var(--text-muted)' }} 
+                            onClick={() => setActiveWorkoutSubTab(sheet.id)}
+                          >
+                            {sheet.nome || `Ficha ${sheet.id}`}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm text-danger"
+                            style={{ padding: '2px 6px', border: 'none', background: 'transparent' }}
+                            onClick={() => handleRemoveWorkoutSheet(sheet.id)}
+                            title="Remover esta Ficha"
+                          >
+                            <i className="fa-solid fa-trash-can" style={{ fontSize: '0.8rem' }}></i>
+                          </button>
+                        </div>
                       ))}
+                      {(editingWorkoutData[activeWorkoutCategory] || []).length < 5 && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary"
+                          style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto', fontSize: '0.78rem' }}
+                          onClick={handleAddWorkoutSheet}
+                        >
+                          <i className="fa-solid fa-plus"></i> Ficha
+                        </button>
+                      )}
                     </div>
 
                     {/* Worksheet Content Editor */}
@@ -5202,9 +5294,17 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
                     {/* ESTRELA MAIGNE */}
                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
-                      <h5 style={{ marginBottom: '12px' }}><i className="fa-solid fa-chevron-right" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Estrela de Maigne (Rosa dos Ventos Clínica de Dor)</h5>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h5 style={{ margin: 0 }}><i className="fa-solid fa-chevron-right" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Estrela de Maigne (Rosa dos Ventos Clínica de Dor)</h5>
+                        <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={repMaigneRealizou} onChange={e => setRepMaigneRealizou(e.target.value)}>
+                          <option value="nao">Não Realizou</option>
+                          <option value="sim">Realizou</option>
+                        </select>
+                      </div>
                       
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', justifyContent: 'center' }}>
+                      {repMaigneRealizou === 'sim' && (
+                        <>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', justifyContent: 'center' }}>
                         
                         {/* Interactive React SVG */}
                         <div style={{ background: '#ffffff', borderRadius: '6px', padding: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '280px', height: '280px' }}>
@@ -5316,6 +5416,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         </div>
                       </div>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic' }}>* Clique nos nós verdes do gráfico em teia ou use os controles deslizantes para alterar as amplitudes de movimento e dor.</p>
+                        </>
+                      )}
                     </div>
 
                     {(() => {
