@@ -240,7 +240,7 @@ export async function downloadReportPDF(report: any) {
           border: 1px solid #e2e8f0;
           border-radius: 8px;
           display: grid;
-          grid-template-columns: 1.5fr 0.8fr 0.8fr 1.5fr 1.5fr;
+          grid-template-columns: 1.5fr 0.8fr 0.8fr;
           padding: 6px 12px;
           margin-bottom: 10px;
           font-size: 9px;
@@ -378,14 +378,6 @@ export async function downloadReportPDF(report: any) {
               <span>Sexo</span>
               <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
             </div>
-            <div class="client-bar-item">
-              <span>Profissional</span>
-              <strong>${prof.nome}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Registro</span>
-              <strong>${prof.registro || 'CREFITO'}</strong>
-            </div>
           </div>
 
           <!-- Detalhes do Evolutivo -->
@@ -425,11 +417,10 @@ export async function downloadReportPDF(report: any) {
             </div>
           </div>
 
-          <!-- Assinatura -->
+          <!-- Empresa -->
           <div style="position: absolute; bottom: 80px; left: 45px; right: 45px; text-align: center;">
-            <div style="width: 250px; margin: 0 auto; border-top: 1px solid #64748b; padding-top: 6px; font-size: 9.5px;">
-              <strong>${prof.nome}</strong><br>
-              <span style="color: #64748b; font-size: 8px;">${prof.registro}</span>
+            <div style="font-size: 14px; font-weight: 800; color: #0d9488; font-family: 'Outfit', sans-serif;">
+              Clube Fitness Fisio
             </div>
           </div>
 
@@ -764,14 +755,6 @@ export async function downloadReportPDF(report: any) {
               <span>Sexo</span>
               <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
             </div>
-            <div class="client-bar-item">
-              <span>Profissional</span>
-              <strong>${prof.nome}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Registro</span>
-              <strong>${prof.registro || 'CREFITO'}</strong>
-            </div>
           </div>
 
           <div class="section-card" style="margin-bottom: 0;">
@@ -1041,11 +1024,10 @@ export async function downloadReportPDF(report: any) {
             <div class="section-card-content" style="font-size: 8px; line-height: 1.4; white-space: pre-wrap; background: #fafafa;">${report.conteudo.exercicios || 'Nenhuma prescrição adicional.'}</div>
           </div>
 
-          <!-- Assinatura -->
-          <div style="text-align: center; margin-top: 15px;">
-            <div style="width: 250px; margin: 0 auto; border-top: 1px solid #64748b; padding-top: 6px; font-size: 9px;">
-              <strong>${prof.nome}</strong><br>
-              <span style="color: #64748b; font-size: 8px;">${prof.registro}</span>
+          <!-- Empresa -->
+          <div style="text-align: center; margin-top: 25px;">
+            <div style="font-size: 14px; font-weight: 800; color: #0d9488; font-family: 'Outfit', sans-serif;">
+              Clube Fitness Fisio
             </div>
           </div>
 
@@ -1603,7 +1585,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.5fr 1.5fr;
+        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.5fr;
         padding: 6px 12px;
         margin-bottom: 6px;
         font-size: 9px;
@@ -1721,10 +1703,6 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         <div class="client-bar-item">
           <span>Sexo</span>
           <strong>${genderText}</strong>
-        </div>
-        <div class="client-bar-item">
-          <span>Avaliador</span>
-          <strong>${prof.nome}</strong>
         </div>
         <div class="client-bar-item">
           <span>Objetivo Principal</span>
@@ -1858,7 +1836,6 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               </div>
               <!-- Saúde Geral -->
               <table style="width:100%; font-size:7.5px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Pressão Art.</td><td style="font-weight:600; text-align:right;">${assessment.dadosMedidos.saudeGeral?.pressaoArterial || '120/80'}</td></tr>
                 <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Sono</td><td style="font-weight:600; text-align:right;">${assessment.dadosMedidos.saudeGeral?.sono || '7-8h'}</td></tr>
                 <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Ativ. Física</td><td style="font-weight:600; text-align:right; color:#15803d;">${assessment.dadosMedidos.saudeGeral?.atividadeFisica || '4x/sem'} ✓</td></tr>
               </table>
@@ -2240,9 +2217,8 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 12px; background: #ffffff;">
         <h3 style="font-family: 'Outfit', sans-serif; font-size: 10px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 0 0 6px 0; text-transform: uppercase;">Referências e Padrões de Saúde</h3>
         <ul style="margin: 6px 0 0 0; padding-left: 16px; font-size: 8.5px; line-height: 1.6; color: #475569; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px;">
-          <li>% de Gordura ideal homens: <strong>12% - 18%</strong></li>
-          <li>% de Gordura ideal mulheres: <strong>18% - 24%</strong></li>
-          <li>RCQ ideal: <strong>homens < 0,83 | mulheres < 0,78</strong></li>
+          <li>% de Gordura ideal (${currentSex === 'M' ? 'homens' : 'mulheres'}, ${bfRow.ageMax === 200 ? `${bfRow.ageMin} anos ou mais` : `${bfRow.ageMin}-${bfRow.ageMax} anos`}): <strong>${idealBFRange}</strong></li>
+          <li>RCQ ideal (${currentSex === 'M' ? 'homens' : 'mulheres'}): <strong>${refRCQ}</strong></li>
           <li>IMC saudável: <strong>18,5 - 24,9</strong></li>
           <li>Sono reparador recomendado: <strong>7 - 9 h/noite</strong></li>
           <li>Atividade física: <strong>150 - 300 min/semana</strong></li>
@@ -2257,16 +2233,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         </p>
       </div>
 
-      <!-- Assinaturas e Carimbo -->
-      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; padding: 0 10px;">
-        <div style="width:40%; text-align:center; font-size:8.5px;">
-          <div style="font-weight:700; border-bottom:1px solid #475569; padding-bottom:4px; margin-bottom:4px;">${prof.nome}</div>
-          <div style="color:#64748b; font-size:8px;">Avaliador Responsável</div>
-          <div style="font-family:monospace; color:#475569; font-size:7.5px; margin-top:2px;">${prof.registro}</div>
-        </div>
-        <div style="width:40%; text-align:center; font-size:8.5px;">
-          <div style="font-weight:700; border-bottom:1px solid #475569; padding-bottom:4px; margin-bottom:4px;">${client.dadosPessoais.nome}</div>
-          <div style="color:#64748b; font-size:8px;">Assinatura do Aluno</div>
+      <!-- Empresa -->
+      <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
+        <div style="font-size: 14px; font-weight: 800; color: #0d9488; font-family: 'Outfit', sans-serif;">
+          Clube Fitness Fisio
         </div>
       </div>
 
@@ -2694,8 +2664,8 @@ export function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       <div style="text-align:right;"><span style="font-weight:bold;color:#6366f1;font-size:14px;">ANÁLISE COMPARATIVA DE FORÇA</span><br><small style="color:#777">Data: ${data}</small></div>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;" border="1" borderColor="#e2e8f0">
-      <tr style="background:#f8fafc;"><td style="padding:6px;font-weight:bold;width:15%">Paciente:</td><td style="padding:6px;width:45%">${nome}</td><td style="padding:6px;font-weight:bold;width:15%">Avaliador:</td><td style="padding:6px;width:25%">${profNome} (${profReg})</td></tr>
-      <tr><td style="padding:6px;font-weight:bold;">CPF:</td><td style="padding:6px;">${cpf}</td><td style="padding:6px;font-weight:bold;">Status de Risco:</td><td style="padding:6px;font-weight:bold;color:${sc};">${a.riscoOmbro ? 'RISCO ELEVADO DE LESÃO' : 'EQUILIBRADO / SEGURO'}</td></tr>
+      <tr style="background:#f8fafc;"><td style="padding:6px;font-weight:bold;width:15%">Paciente:</td><td style="padding:6px;width:45%">${nome}</td><td style="padding:6px;font-weight:bold;width:15%">CPF:</td><td style="padding:6px;width:25%">${cpf}</td></tr>
+      <tr><td style="padding:6px;font-weight:bold;">Status de Risco:</td><td style="padding:6px;font-weight:bold;color:${sc};" colspan="3">${a.riscoOmbro ? 'RISCO ELEVADO DE LESÃO' : 'EQUILIBRADO / SEGURO'}</td></tr>
     </table>
     <h4 style="margin:20px 0 8px 0;color:#6366f1;font-size:13px;border-bottom:1.5px solid #6366f1;padding-bottom:4px;text-transform:uppercase;">Cargas Máximas Registradas</h4>
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:24px;" border="1" borderColor="#e2e8f0">
@@ -2717,7 +2687,12 @@ export function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       ${ratioRow('Abdutores/Rotadores (Ext / Abd)', rAbd, '≥ 0.55', iA)}
     </table>
     ${warningsHtml ? `<h4 style="margin:20px 0 8px 0;color:#ef4444;font-size:12px;text-transform:uppercase;">Advertências Clínicas</h4>${warningsHtml}` : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:6px;color:#15803d;font-size:11px;font-weight:bold;">✓ Nenhum desequilíbrio muscular de risco detectado. Proporções biomecânicas adequadas.</div>`}
-    <div style="margin-top:50px;font-size:11px;text-align:center;"><div style="width:50%;margin:0 auto;"><div style="border-top:1px solid #333;padding-top:6px;">${profNome}<br><small>${profReg}</small></div></div></div>
+    <!-- Empresa -->
+    <div style="margin-top:50px;font-size:11px;text-align:center;">
+      <div style="font-size:14px;font-weight:800;color:#6366f1;font-family:'Outfit',sans-serif;">
+        Clube Fitness Fisio
+      </div>
+    </div>
   `;
 
   const options = { margin: 10, filename: `Analise_Forca_${nome.replace(/\s+/g,'_')}_${data.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };

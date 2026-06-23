@@ -1919,6 +1919,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     <th>Data do Teste</th>
                     <th style={{ textAlign: 'center' }}>Relação Rotadores</th>
                     <th style={{ textAlign: 'center' }}>Risco Articular</th>
+                    <th>Avaliador</th>
                     <th>Observações</th>
                   </tr>
                 </thead>
@@ -1944,6 +1945,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               {risco ? 'Alto Risco' : 'Normal / Seguro'}
                             </span>
                           </td>
+                          <td>{st.profissionalId?.nome || 'Não Definido'}</td>
                           <td><small>{st.observacoes || '-'}</small></td>
                         </tr>
                       );
@@ -1951,7 +1953,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   })()}
                   {strengthTests.length === 0 && (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-dumbbell empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum teste de força</div>

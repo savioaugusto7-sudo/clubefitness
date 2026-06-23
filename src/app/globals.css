@@ -958,7 +958,7 @@ table.data-table tr:hover td {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   aside.sidebar {
     transform: translateX(-100%);
   }
@@ -1045,7 +1045,7 @@ table.data-table tr:hover td {
   color: var(--color-success);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .day-tab-btn {
     min-width: 80px;
     padding: 8px 10px;
@@ -2652,7 +2652,7 @@ table.data-table td.text-right {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   :root {
     --sidebar-width: 280px;
   }
@@ -2694,32 +2694,32 @@ table.data-table td.text-right {
 /* Classes de Grade Responsivas (que substituem os estilos inline) */
 .resp-grid-1-1 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
 }
 .resp-grid-1-1-1 {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 .resp-grid-2-1 {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 16px;
 }
 .resp-grid-1-2 {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 16px;
 }
 .resp-grid-attach {
   display: grid;
-  grid-template-columns: 2fr 2fr auto;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto;
   gap: 12px;
   align-items: end;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .resp-grid-1-1,
   .resp-grid-1-1-1,
   .resp-grid-2-1,

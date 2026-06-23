@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState('');
+  const [adminViewMode, setAdminViewMode] = useState<'admin' | 'professional'>('admin');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -65,12 +66,13 @@ export default function DashboardPage() {
 
   const user = session.user as any;
   const role = user.role || 'client';
+  const effectiveRole = role === 'admin' ? adminViewMode : role;
 
   // Render the view according to active tab and role
   const renderContent = () => {
-    if (role === 'admin') {
+    if (effectiveRole === 'admin') {
       return <DashboardAdmin activeTab={activeTab} setActiveTab={setActiveTab} />;
-    } else if (role === 'professional') {
+    } else if (effectiveRole === 'professional') {
       return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} professionalId={user.profileId} />;
     } else {
       return <DashboardClient activeTab={activeTab} setActiveTab={setActiveTab} />;
@@ -81,7 +83,7 @@ export default function DashboardPage() {
     <div className="app-container">
       {/* Sidebar Navigation */}
       <Sidebar 
-        role={role} 
+        role={effectiveRole} 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         userName={user.name || 'Usuário'}
@@ -122,6 +124,19 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {role === 'admin' && (
+              <button 
+                className="btn btn-secondary btn-sm" 
+                onClick={() => {
+                  setAdminViewMode(adminViewMode === 'admin' ? 'professional' : 'admin');
+                  setActiveTab('dashboard');
+                }}
+                style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--color-accent)', border: '1px solid rgba(99, 102, 241, 0.2)' }}
+              >
+                <i className={`fa-solid ${adminViewMode === 'admin' ? 'fa-user-md' : 'fa-user-cog'}`} style={{ marginRight: '6px' }}></i>
+                {adminViewMode === 'admin' ? 'Ver Painel Profissional' : 'Ver Painel Admin'}
+              </button>
+            )}
             {role === 'admin' && user.email === 'admin@clube.com' && (
               <button 
                 className="btn btn-secondary btn-sm" 

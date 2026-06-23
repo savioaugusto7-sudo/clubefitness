@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
 import WorkoutBuilder from './WorkoutBuilder';
@@ -13,8 +14,25 @@ interface DashboardProfessionalProps {
 }
 
 export default function DashboardProfessional({ activeTab, setActiveTab, professionalId }: DashboardProfessionalProps) {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === 'admin';
+
   const [clients, setClients] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+
+  // Assessor selection state
+  const [asAvaliador, setAsAvaliador] = useState(professionalId || '6668ab030303030303030302');
+  const [repAvaliador, setRepAvaliador] = useState(professionalId || '6668ab030303030303030301');
+  const [stAvaliador, setStAvaliador] = useState(professionalId || '6668ab030303030303030302');
+  const [professionals, setProfessionals] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (professionalId) {
+      setAsAvaliador(professionalId);
+      setRepAvaliador(professionalId);
+      setStAvaliador(professionalId);
+    }
+  }, [professionalId]);
   const [loading, setLoading] = useState(true);
 
   // Pagination & UX states
@@ -512,6 +530,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setRepClient(jsonClients.data[0]._id);
           setStClient(jsonClients.data[0]._id);
           setPrClient(jsonClients.data[0]._id);
+        }
+      }
+
+      // Fetch professionals list
+      const resProfs = await fetch('/api/professionals');
+      const jsonProfs = await resProfs.json();
+      if (jsonProfs.success) {
+        setProfessionals(jsonProfs.data);
+        if (jsonProfs.data.length > 0 && !professionalId) {
+          setAsAvaliador(prev => prev || jsonProfs.data[0]._id);
+          setRepAvaliador(prev => prev || jsonProfs.data[0]._id);
+          setStAvaliador(prev => prev || jsonProfs.data[0]._id);
         }
       }
 
@@ -1114,7 +1144,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
       const payload = {
         clienteId: asClient,
-        avaliadorId: '6668ab030303030303030302', // Camila Lima
+        avaliadorId: asAvaliador || '6668ab030303030303030302',
         data: asDate,
         dadosMedidos: {
           idade: Number(asAge),
@@ -1474,7 +1504,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     try {
       let payload: any = {
         clienteId: repClient,
-        profissionalId: professionalId || '6668ab030303030303030301', // Andre or dynamic
+        profissionalId: repAvaliador || professionalId || '6668ab030303030303030301',
         data: repDate,
         conteudo: {
           queixaPrincipal: repType === 'simplificado' ? repContent : (repQueixas[0]?.dorOnde || 'Anamnese Completa'),
@@ -1646,7 +1676,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     try {
       const payload = {
         clienteId: stClient,
-        profissionalId: '6668ab030303030303030302', // Camila Lima
+        profissionalId: stAvaliador || '6668ab030303030303030302',
         data: stDate,
         exercicios: [
           { nome: 'Supino Reto', carga: Number(stSupino) || 0 },
@@ -2957,6 +2987,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     <th>Peso / Altura</th>
                     <th style={{ textAlign: 'center' }}>Gordura Corporal</th>
                     <th>Massa Magra / Gorda</th>
+                    {isAdmin && <th>Avaliador</th>}
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -2980,6 +3011,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <td>
                           MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
                         </td>
+                        {isAdmin && <td>{as.avaliadorId?.nome || 'Não Definido'}</td>}
                         <td>
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
                             <i className="fa-solid fa-trash"></i>
@@ -2993,7 +3025,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   })()}
                   {assessments.length === 0 && (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={isAdmin ? 7 : 6}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-weight-scale empty-state-icon"></i>
                           <div className="empty-state-title">Nenhuma avaliação física</div>
@@ -3055,6 +3087,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     <th>Aluno / Paciente</th>
                     <th style={{ textAlign: 'center' }}>Escala de Dor</th>
                     <th>Queixa Principal</th>
+                    {isAdmin && <th>Profissional</th>}
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -3079,6 +3112,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           </span>
                         </td>
                         <td><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
+                        {isAdmin && <td>{rep.profissionalId?.nome || 'Não Definido'}</td>}
                         <td>
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
                             <i className="fa-solid fa-trash"></i>
@@ -3092,7 +3126,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   })()}
                   {reports.length === 0 && (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={isAdmin ? 6 : 5}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-file-medical empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum relatório clínico</div>
@@ -3154,6 +3188,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     <th>Aluno</th>
                     <th>Cargas (Supino / Remada)</th>
                     <th style={{ textAlign: 'center' }}>Avaliação Risco</th>
+                    {isAdmin && <th>Avaliador</th>}
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -3182,6 +3217,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                               {risco ? 'Risco Elevado' : 'Seguro / Estável'}
                             </span>
                           </td>
+                          {isAdmin && <td>{st.profissionalId?.nome || 'Não Definido'}</td>}
                           <td>
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
                               <i className="fa-solid fa-trash"></i>
@@ -3196,7 +3232,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   })()}
                   {strengthTests.length === 0 && (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={isAdmin ? 6 : 5}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-dumbbell empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum teste de força</div>
@@ -3489,6 +3525,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     <div className="form-group">
                       <label>Data</label>
                       <input type="date" className="form-control" value={asDate} onChange={e => setAsDate(e.target.value)} required />
+                    </div>
+                    <div className="form-group">
+                      <label>Avaliador</label>
+                      <select className="form-control" value={asAvaliador} onChange={e => setAsAvaliador(e.target.value)} required>
+                        <option value="">Selecione o Avaliador</option>
+                        {professionals.map((p: any) => (
+                          <option key={p._id} value={p._id}>{p.nome}</option>
+                        ))}
+                      </select>
                     </div>
                   </>
                 )}
@@ -4560,6 +4605,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <input type="date" className="form-control" value={repDate} onChange={e => setRepDate(e.target.value)} required />
                       </div>
                     </div>
+                    <div className="form-group">
+                      <label>Avaliador / Profissional</label>
+                      <select className="form-control" value={repAvaliador} onChange={e => setRepAvaliador(e.target.value)} required>
+                        <option value="">Selecione o Profissional</option>
+                        {professionals.map((p: any) => (
+                          <option key={p._id} value={p._id}>{p.nome}</option>
+                        ))}
+                      </select>
+                    </div>
 
                     {/* Dados pessoais resumidos se cliente selecionado */}
                     {(() => {
@@ -5484,6 +5538,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   <label>Data</label>
                   <input type="date" className="form-control" value={stDate} onChange={e => setStDate(e.target.value)} required />
                 </div>
+                <div className="form-group">
+                  <label>Avaliador / Profissional</label>
+                  <select className="form-control" value={stAvaliador} onChange={e => setStAvaliador(e.target.value)} required>
+                    <option value="">Selecione o Profissional</option>
+                    {professionals.map((p: any) => (
+                      <option key={p._id} value={p._id}>{p.nome}</option>
+                    ))}
+                  </select>
+                </div>
                 <h5 style={{ margin: '16px 0 8px 0', color: 'var(--color-primary)' }}>Cargas Máximas (kg)</h5>
                 <div className="form-row">
                   <div className="form-group">
@@ -5709,6 +5772,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <th>Data</th>
                       <th>Gordura Corporal</th>
                       <th>IMC</th>
+                      {isAdmin && <th>Avaliador</th>}
                       <th>Ações</th>
                     </tr>
                   </thead>
@@ -5716,7 +5780,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     {(() => {
                       const clientAssessments = assessments.filter(as => (as.clienteId?._id || as.clienteId) === detailClient._id);
                       if (clientAssessments.length === 0) {
-                        return <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhuma avaliação cadastrada.</td></tr>;
+                        return <tr><td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhuma avaliação cadastrada.</td></tr>;
                       }
                       return clientAssessments.map(as => {
                         const fatText = as.resultadosCalculados?.percentualGordura ? `${as.resultadosCalculados.percentualGordura.toFixed(1)}%` : '-';
@@ -5731,6 +5795,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                             })()}</td>
                             <td>{fatText}</td>
                             <td>{imcText}</td>
+                            {isAdmin && <td>{as.avaliadorId?.nome || 'Não Definido'}</td>}
                             <td>
                               <button className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
                                 <i className="fa-solid fa-file-pdf"></i> Laudo PDF
@@ -5752,6 +5817,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <th>Data</th>
                       <th>Queixa Principal</th>
                       <th>Escala de Dor</th>
+                      {isAdmin && <th>Profissional</th>}
                       <th>Ações</th>
                     </tr>
                   </thead>
@@ -5759,7 +5825,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     {(() => {
                       const clientReports = reports.filter(rep => (rep.clienteId?._id || rep.clienteId) === detailClient._id);
                       if (clientReports.length === 0) {
-                        return <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhum relatório cadastrado.</td></tr>;
+                        return <tr><td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhum relatório cadastrado.</td></tr>;
                       }
                       return clientReports.map(rep => (
                         <tr key={rep._id}>
@@ -5775,6 +5841,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                               Dor: {rep.conteudo?.dorEscala}/10
                             </span>
                           </td>
+                          {isAdmin && <td>{rep.profissionalId?.nome || 'Não Definido'}</td>}
                           <td>
                             <button className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
                               <i className="fa-solid fa-file-pdf"></i> PDF
