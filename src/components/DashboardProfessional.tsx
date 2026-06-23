@@ -1867,14 +1867,42 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
 
     setSheetToDelete(null);
+
+    // Calculate index shifts before removing
+    const activeIndex = currentSheets.findIndex((s: any) => s.id === activeWorkoutSubTab);
+    let nextIndex = activeIndex;
+    if (sheetId === activeWorkoutSubTab) {
+      if (activeIndex >= currentSheets.length - 1) {
+        nextIndex = currentSheets.length - 2;
+      }
+    } else {
+      const deletedIndex = currentSheets.findIndex((s: any) => s.id === sheetId);
+      if (deletedIndex < activeIndex) {
+        nextIndex = activeIndex - 1;
+      }
+    }
+
     const updatedSheets = currentSheets.filter((s: any) => s.id !== sheetId);
+    
+    // Reorder alphabetically and rename A, B, C, D, E
+    const reorderedSheets = updatedSheets.map((sheet: any, index: number) => {
+      const newLetter = ['A', 'B', 'C', 'D', 'E'][index];
+      return {
+        ...sheet,
+        id: newLetter,
+        nome: `Ficha ${newLetter}`
+      };
+    });
+
     const updated = {
       ...editingWorkoutData,
-      [activeWorkoutCategory]: updatedSheets
+      [activeWorkoutCategory]: reorderedSheets
     };
     setEditingWorkoutData(updated);
-    if (activeWorkoutSubTab === sheetId) {
-      setActiveWorkoutSubTab(updatedSheets[0].id);
+
+    const finalNextIndex = Math.max(0, Math.min(nextIndex, reorderedSheets.length - 1));
+    if (reorderedSheets[finalNextIndex]) {
+      setActiveWorkoutSubTab(reorderedSheets[finalNextIndex].id as any);
     }
   };
 
