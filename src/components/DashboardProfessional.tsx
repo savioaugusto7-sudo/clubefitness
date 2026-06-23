@@ -217,119 +217,46 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setShowProntuarioModal(false);
   };
 
-  const lookupObjectiveRef = (sexo: string, freq: number, nivel: string, tipo: string) => {
+  const calculateObjectiveWeeklyRate = (peso: number, sexo: string, freq: number, nivel: string, tipo: string) => {
+    const p = Number(peso) || 70;
     const s = sexo === 'F' ? 'F' : 'M';
     const f = Number(freq) || 3;
     const n = nivel || 'Iniciante / Retorno';
     const t = tipo === 'Emagrecimento' ? 'Emagrecimento' : 'Massa Magra';
 
-    if (t === 'Emagrecimento') {
-      if (s === 'M') {
-        if (f === 2) {
-          if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
-          if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
-          if (n === 'Avançado') return { min: 0.2, max: 0.4 };
-        }
-        if (f === 3) {
-          if (n === 'Iniciante / Retorno') return { min: 0.6, max: 1.0 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.6, max: 1.0 };
-          if (n === 'Intermediário') return { min: 0.4, max: 0.7 };
-          if (n === 'Avançado') return { min: 0.3, max: 0.5 };
-        }
-        if (f === 4) {
-          if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.5, max: 0.8 };
-          if (n === 'Intermediário') return { min: 0.5, max: 0.8 };
-          if (n === 'Avançado') return { min: 0.3, max: 0.5 };
-        }
-        if (f >= 5) {
-          if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
-          if (n === 'Intermediário') return { min: 0.4, max: 0.6 };
-          if (n === 'Avançado') return { min: 0.3, max: 0.5 };
-        }
-      } else { // F
-        if (f === 2) {
-          if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.5 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.4 };
-          if (n === 'Intermediário') return { min: 0.2, max: 0.35 };
-          if (n === 'Avançado') return { min: 0.15, max: 0.25 };
-        }
-        if (f === 3) {
-          if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
-          if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
-          if (n === 'Avançado') return { min: 0.2, max: 0.35 };
-        }
-        if (f === 4) {
-          if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.6 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.3, max: 0.6 };
-          if (n === 'Intermediário') return { min: 0.3, max: 0.6 };
-          if (n === 'Avançado') return { min: 0.2, max: 0.3 };
-        }
-        if (f >= 5) {
-          if (n === 'Iniciante / Retorno') return { min: 0.25, max: 0.5 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.5 };
-          if (n === 'Intermediário') return { min: 0.25, max: 0.4 };
-          if (n === 'Avançado') return { min: 0.2, max: 0.4 };
-        }
-      }
-    } else { // Massa Magra
-      if (s === 'M') {
-        if (f === 2) {
-          if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.25 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.1, max: 0.2 };
-          if (n === 'Intermediário') return { min: 0.05, max: 0.1 };
-          if (n === 'Avançado') return { min: 0.03, max: 0.07 };
-        }
-        if (f === 3) {
-          if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.35 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
-          if (n === 'Intermediário') return { min: 0.08, max: 0.14 };
-          if (n === 'Avançado') return { min: 0.04, max: 0.09 };
-        }
-        if (f === 4) {
-          if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.3 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
-          if (n === 'Intermediário') return { min: 0.1, max: 0.15 };
-          if (n === 'Avançado') return { min: 0.05, max: 0.1 };
-        }
-        if (f >= 5) {
-          if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.3 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.12, max: 0.25 };
-          if (n === 'Intermediário') return { min: 0.1, max: 0.18 };
-          if (n === 'Avançado') return { min: 0.07, max: 0.12 };
-        }
-      } else { // F
-        if (f === 2) {
-          if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.14 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.05, max: 0.1 };
-          if (n === 'Intermediário') return { min: 0.03, max: 0.06 };
-          if (n === 'Avançado') return { min: 0.02, max: 0.03 };
-        }
-        if (f === 3) {
-          if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.17 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.13 };
-          if (n === 'Intermediário') return { min: 0.04, max: 0.07 };
-          if (n === 'Avançado') return { min: 0.02, max: 0.05 };
-        }
-        if (f === 4) {
-          if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.16 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.12 };
-          if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
-          if (n === 'Avançado') return { min: 0.03, max: 0.05 };
-        }
-        if (f >= 5) {
-          if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.15 };
-          if (n === 'Iniciante a Intermediário') return { min: 0.07, max: 0.12 };
-          if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
-          if (n === 'Avançado') return { min: 0.03, max: 0.06 };
-        }
-      }
+    let taxaBase = 0;
+    let fatorSexo = 1.00;
+    let fatorFreq = 1.00;
+
+    if (t === 'Massa Magra') {
+      // Hypertrofia
+      if (n === 'Iniciante / Retorno') taxaBase = 0.0030;
+      else if (n === 'Iniciante a Intermediário') taxaBase = 0.0022;
+      else if (n === 'Intermediário') taxaBase = 0.0015;
+      else if (n === 'Avançado') taxaBase = 0.0008;
+
+      if (s === 'F') fatorSexo = 0.80;
+
+      if (f === 2) fatorFreq = 0.80;
+      else if (f === 3) fatorFreq = 0.90;
+      else if (f === 4) fatorFreq = 1.00;
+      else if (f >= 5) fatorFreq = 1.05;
+    } else {
+      // Emagrecimento
+      if (n === 'Iniciante / Retorno') taxaBase = 0.0055;
+      else if (n === 'Iniciante a Intermediário') taxaBase = 0.0065;
+      else if (n === 'Intermediário') taxaBase = 0.0075;
+      else if (n === 'Avançado') taxaBase = 0.0085;
+
+      if (s === 'F') fatorSexo = 0.85;
+
+      if (f === 2) fatorFreq = 0.85;
+      else if (f === 3) fatorFreq = 0.95;
+      else if (f === 4) fatorFreq = 1.00;
+      else if (f >= 5) fatorFreq = 1.05;
     }
 
-    return { min: 0, max: 0 };
+    return p * taxaBase * fatorSexo * fatorFreq;
   };
 
   const getGoalReferenceInfo = () => {
@@ -340,15 +267,33 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const sexo = asSex || 'M';
     const meses = Number(asObjetivoMeses) || 3;
     const nivel = asNivelExperiencia || 'Iniciante / Retorno';
+    const peso = Number(asWeight) || 70;
+    const totalSemanas = Math.round(meses * 4.33);
 
     return objectives.map(tipo => {
-      const { min, max } = lookupObjectiveRef(sexo, freq, nivel, tipo);
-      const totalSemanas = Math.round(meses * 4.33);
-      const minTotal = (min * totalSemanas).toFixed(1);
-      const maxTotal = (max * totalSemanas).toFixed(1);
+      const weeklyRate = calculateObjectiveWeeklyRate(peso, sexo, freq, nivel, tipo);
       const labelTipo = tipo === 'Emagrecimento' ? 'Emagrecimento / Perda de Gordura' : 'Ganho de Massa Magra';
       const labelSexo = sexo === 'M' ? 'Masculino' : 'Feminino';
-      return { min, max, minTotal, maxTotal, totalSemanas, labelTipo, labelSexo, freq, meses, tipo, nivel };
+
+      return {
+        tipo,
+        labelTipo,
+        labelSexo,
+        freq,
+        meses,
+        nivel,
+        totalSemanas,
+        weekly: {
+          conservador: (weeklyRate * 0.50).toFixed(2),
+          esperado: (weeklyRate * 1.00).toFixed(2),
+          excelente: (weeklyRate * 1.20).toFixed(2)
+        },
+        total: {
+          conservador: (weeklyRate * 0.50 * totalSemanas).toFixed(2),
+          esperado: (weeklyRate * 1.00 * totalSemanas).toFixed(2),
+          excelente: (weeklyRate * 1.20 * totalSemanas).toFixed(2)
+        }
+      };
     });
   };
 
@@ -1203,14 +1148,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         const totalSemanas = Math.round(meses * 4.33);
 
         objectives.forEach(tipo => {
-          const { min, max } = lookupObjectiveRef(sexo, freq, nivel, tipo);
-          const minTotal = min * totalSemanas;
-          const maxTotal = max * totalSemanas;
-          const midTotal = (minTotal + maxTotal) / 2;
+          const weeklyRate = calculateObjectiveWeeklyRate(p, sexo, freq, nivel, tipo);
+          const expectedTotal = weeklyRate * 1.00 * totalSemanas;
           if (tipo === 'Emagrecimento') {
-            metaGorduraVal = parseFloat(midTotal.toFixed(1));
+            metaGorduraVal = parseFloat(expectedTotal.toFixed(2));
           } else {
-            metaMassaVal = parseFloat(midTotal.toFixed(1));
+            metaMassaVal = parseFloat(expectedTotal.toFixed(2));
           }
         });
       }
@@ -4712,16 +4655,42 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           return (
                             <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontWeight: 700, color: '#10b981' }}>
-                                <i className="fa-solid fa-calculator"></i> Tabela de Referência Baseada no Aluno
+                                <i className="fa-solid fa-calculator"></i> Projeção Automática Baseada no Aluno
                               </div>
-                              <p style={{ margin: '0 0 8px 0', borderBottom: '1px dashed rgba(16, 185, 129, 0.2)', paddingBottom: '6px' }}>
-                                Aluno: <strong>{refs[0].labelSexo}</strong> | Nível: <strong>{refs[0].nivel}</strong> | Freq: <strong>{refs[0].freq}x/semana</strong>
+                              <p style={{ margin: '0 0 8px 0', borderBottom: '1px dashed rgba(16, 185, 129, 0.2)', paddingBottom: '6px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                                Aluno: <strong>{refs[0].labelSexo}</strong> | Nível: <strong>{refs[0].nivel}</strong> | Freq: <strong>{refs[0].freq}x/semana</strong> | Peso: <strong>{asWeight || '70'} kg</strong>
                               </p>
                               {refs.map((ref, idx) => (
-                                <div key={ref.tipo} style={{ marginTop: idx > 0 ? '10px' : '0', borderTop: idx > 0 ? '1px dashed rgba(16, 185, 129, 0.2)' : 'none', paddingTop: idx > 0 ? '10px' : '0' }}>
-                                  <p style={{ margin: '0 0 4px 0' }}>Objetivo: <strong>{ref.labelTipo}</strong></p>
-                                  <p style={{ margin: '0 0 4px 0' }}>Taxa recomendada por semana: <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.min.toString().replace('.', ',')} kg a {ref.max.toString().replace('.', ',')} kg</span></p>
-                                  <p style={{ margin: 0 }}>Estimativa sugerida para <strong>{ref.meses} {ref.meses === 1 ? 'mês' : 'meses'}</strong> ({ref.totalSemanas} semanas): <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{ref.minTotal.replace('.', ',')} kg a {ref.maxTotal.replace('.', ',')} kg</span></p>
+                                <div key={ref.tipo} style={{ marginTop: idx > 0 ? '16px' : '0', borderTop: idx > 0 ? '1px dashed rgba(16, 185, 129, 0.2)' : 'none', paddingTop: idx > 0 ? '16px' : '0' }}>
+                                  <div style={{ fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '6px' }}>
+                                    Objetivo: <span style={{ color: '#10b981' }}>{ref.labelTipo}</span>
+                                  </div>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                                    <thead>
+                                      <tr style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderBottom: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                        <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 'bold' }}>Cenário</th>
+                                        <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold' }}>Semanal</th>
+                                        <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold' }}>Projeção ({ref.meses} {ref.meses === 1 ? 'mês' : 'meses'})</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                                        <td style={{ padding: '6px 10px', color: 'var(--text-dim)' }}>Conservador (50%)</td>
+                                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '500' }}>{ref.weekly.conservador.replace('.', ',')} kg/sem</td>
+                                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '600', color: 'var(--text-main)' }}>{ref.total.conservador.replace('.', ',')} kg</td>
+                                      </tr>
+                                      <tr style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.1)', background: 'rgba(16, 185, 129, 0.03)' }}>
+                                        <td style={{ padding: '6px 10px', fontWeight: 'bold', color: 'var(--text-main)' }}>Esperado (100%)</td>
+                                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold' }}>{ref.weekly.esperado.replace('.', ',')} kg/sem</td>
+                                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', color: '#10b981' }}>{ref.total.esperado.replace('.', ',')} kg</td>
+                                      </tr>
+                                      <tr>
+                                        <td style={{ padding: '6px 10px', color: 'var(--text-dim)' }}>Excelente (120%)</td>
+                                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '500' }}>{ref.weekly.excelente.replace('.', ',')} kg/sem</td>
+                                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '600', color: 'var(--text-main)' }}>{ref.total.excelente.replace('.', ',')} kg</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
                                 </div>
                               ))}
                             </div>

@@ -1064,119 +1064,46 @@ export async function downloadReportPDF(report: any) {
 
 
 
-function lookupObjectiveRef(sexo: string, freq: number, nivel: string, tipo: string) {
+function calculateObjectiveWeeklyRate(peso: number, sexo: string, freq: number, nivel: string, tipo: string) {
+  const p = Number(peso) || 70;
   const s = sexo === 'F' ? 'F' : 'M';
   const f = Number(freq) || 3;
   const n = nivel || 'Iniciante / Retorno';
   const t = tipo === 'Emagrecimento' ? 'Emagrecimento' : 'Massa Magra';
 
-  if (t === 'Emagrecimento') {
-    if (s === 'M') {
-      if (f === 2) {
-        if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
-        if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
-        if (n === 'Avançado') return { min: 0.2, max: 0.4 };
-      }
-      if (f === 3) {
-        if (n === 'Iniciante / Retorno') return { min: 0.6, max: 1.0 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.6, max: 1.0 };
-        if (n === 'Intermediário') return { min: 0.4, max: 0.7 };
-        if (n === 'Avançado') return { min: 0.3, max: 0.5 };
-      }
-      if (f === 4) {
-        if (n === 'Iniciante / Retorno') return { min: 0.5, max: 0.8 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.5, max: 0.8 };
-        if (n === 'Intermediário') return { min: 0.5, max: 0.8 };
-        if (n === 'Avançado') return { min: 0.3, max: 0.5 };
-      }
-      if (f >= 5) {
-        if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
-        if (n === 'Intermediário') return { min: 0.4, max: 0.6 };
-        if (n === 'Avançado') return { min: 0.3, max: 0.5 };
-      }
-    } else { // F
-      if (f === 2) {
-        if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.5 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.4 };
-        if (n === 'Intermediário') return { min: 0.2, max: 0.35 };
-        if (n === 'Avançado') return { min: 0.15, max: 0.25 };
-      }
-      if (f === 3) {
-        if (n === 'Iniciante / Retorno') return { min: 0.4, max: 0.7 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.4, max: 0.7 };
-        if (n === 'Intermediário') return { min: 0.3, max: 0.5 };
-        if (n === 'Avançado') return { min: 0.2, max: 0.35 };
-      }
-      if (f === 4) {
-        if (n === 'Iniciante / Retorno') return { min: 0.3, max: 0.6 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.3, max: 0.6 };
-        if (n === 'Intermediário') return { min: 0.3, max: 0.6 };
-        if (n === 'Avançado') return { min: 0.2, max: 0.3 };
-      }
-      if (f >= 5) {
-        if (n === 'Iniciante / Retorno') return { min: 0.25, max: 0.5 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.25, max: 0.5 };
-        if (n === 'Intermediário') return { min: 0.25, max: 0.4 };
-        if (n === 'Avançado') return { min: 0.2, max: 0.4 };
-      }
-    }
-  } else { // Massa Magra
-    if (s === 'M') {
-      if (f === 2) {
-        if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.25 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.1, max: 0.2 };
-        if (n === 'Intermediário') return { min: 0.05, max: 0.1 };
-        if (n === 'Avançado') return { min: 0.03, max: 0.07 };
-      }
-      if (f === 3) {
-        if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.35 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
-        if (n === 'Intermediário') return { min: 0.08, max: 0.14 };
-        if (n === 'Avançado') return { min: 0.04, max: 0.09 };
-      }
-      if (f === 4) {
-        if (n === 'Iniciante / Retorno') return { min: 0.2, max: 0.3 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.15, max: 0.25 };
-        if (n === 'Intermediário') return { min: 0.1, max: 0.15 };
-        if (n === 'Avançado') return { min: 0.05, max: 0.1 };
-      }
-      if (f >= 5) {
-        if (n === 'Iniciante / Retorno') return { min: 0.15, max: 0.3 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.12, max: 0.25 };
-        if (n === 'Intermediário') return { min: 0.1, max: 0.18 };
-        if (n === 'Avançado') return { min: 0.07, max: 0.12 };
-      }
-    } else { // F
-      if (f === 2) {
-        if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.14 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.05, max: 0.1 };
-        if (n === 'Intermediário') return { min: 0.03, max: 0.06 };
-        if (n === 'Avançado') return { min: 0.02, max: 0.03 };
-      }
-      if (f === 3) {
-        if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.17 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.13 };
-        if (n === 'Intermediário') return { min: 0.04, max: 0.07 };
-        if (n === 'Avançado') return { min: 0.02, max: 0.05 };
-      }
-      if (f === 4) {
-        if (n === 'Iniciante / Retorno') return { min: 0.1, max: 0.16 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.08, max: 0.12 };
-        if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
-        if (n === 'Avançado') return { min: 0.03, max: 0.05 };
-      }
-      if (f >= 5) {
-        if (n === 'Iniciante / Retorno') return { min: 0.08, max: 0.15 };
-        if (n === 'Iniciante a Intermediário') return { min: 0.07, max: 0.12 };
-        if (n === 'Intermediário') return { min: 0.05, max: 0.08 };
-        if (n === 'Avançado') return { min: 0.03, max: 0.06 };
-      }
-    }
+  let taxaBase = 0;
+  let fatorSexo = 1.00;
+  let fatorFreq = 1.00;
+
+  if (t === 'Massa Magra') {
+    // Hypertrofia
+    if (n === 'Iniciante / Retorno') taxaBase = 0.0030;
+    else if (n === 'Iniciante a Intermediário') taxaBase = 0.0022;
+    else if (n === 'Intermediário') taxaBase = 0.0015;
+    else if (n === 'Avançado') taxaBase = 0.0008;
+
+    if (s === 'F') fatorSexo = 0.80;
+
+    if (f === 2) fatorFreq = 0.80;
+    else if (f === 3) fatorFreq = 0.90;
+    else if (f === 4) fatorFreq = 1.00;
+    else if (f >= 5) fatorFreq = 1.05;
+  } else {
+    // Emagrecimento
+    if (n === 'Iniciante / Retorno') taxaBase = 0.0055;
+    else if (n === 'Iniciante a Intermediário') taxaBase = 0.0065;
+    else if (n === 'Intermediário') taxaBase = 0.0075;
+    else if (n === 'Avançado') taxaBase = 0.0085;
+
+    if (s === 'F') fatorSexo = 0.85;
+
+    if (f === 2) fatorFreq = 0.85;
+    else if (f === 3) fatorFreq = 0.95;
+    else if (f === 4) fatorFreq = 1.00;
+    else if (f >= 5) fatorFreq = 1.05;
   }
 
-  return { min: 0, max: 0 };
+  return p * taxaBase * fatorSexo * fatorFreq;
 }
 
 export async function downloadAssessmentPDF(assessment: any, allAssessments?: any[]) {
@@ -1560,17 +1487,19 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     const objectives = assessment.dadosMedidos.tipoObjetivo.split(',').filter(Boolean);
     const freq = parseInt(assessment.dadosMedidos.freqSemanal) || 3;
     const nivel = assessment.dadosMedidos.nivelExperiencia || 'Iniciante / Retorno';
+    const peso = Number(assessment.dadosMedidos.peso) || 70;
     totalSemanas = Math.round(meses * 4.33);
 
     const parts = objectives.map((tipo: string) => {
-      const { min, max } = lookupObjectiveRef(sexo, freq, nivel, tipo);
-      const minTotal = (min * totalSemanas).toFixed(1).replace('.', ',');
-      const maxTotal = (max * totalSemanas).toFixed(1).replace('.', ',');
+      const weeklyRate = calculateObjectiveWeeklyRate(peso, sexo, freq, nivel, tipo);
+      const consTotal = (weeklyRate * 0.50 * totalSemanas).toFixed(2).replace('.', ',');
+      const espTotal = (weeklyRate * 1.00 * totalSemanas).toFixed(2).replace('.', ',');
+      const excTotal = (weeklyRate * 1.20 * totalSemanas).toFixed(2).replace('.', ',');
       const label = tipo === 'Emagrecimento' ? 'Perda' : 'Ganho';
-      return `${label}: ${minTotal} kg a ${maxTotal} kg`;
+      return `${label} (Cons/Esp/Excel): ${consTotal} / ${espTotal} / ${excTotal} kg`;
     });
     
-    targetText = `Estimativa sugerida para ${meses} ${meses === 1 ? 'mês' : 'meses'} (${totalSemanas} sem) | Nível: ${nivel} | ${parts.join(' e ')}`;
+    targetText = `Projeção para ${meses} ${meses === 1 ? 'mês' : 'meses'} (${totalSemanas} sem) | Nível: ${nivel} | ${parts.join(' e ')}`;
   }
   
   let diffBFText = '';
