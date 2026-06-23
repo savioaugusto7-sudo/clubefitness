@@ -104,8 +104,6 @@ export async function downloadReportPDF(report: any) {
     return;
   }
 
-
-
   let client = report.clienteId || { dadosPessoais: { nome: 'Paciente' } };
   if (typeof client === 'string') {
     client = { _id: client, dadosPessoais: { nome: 'Paciente' } };
@@ -127,939 +125,868 @@ export async function downloadReportPDF(report: any) {
   const logoBase64 = await getLogoBase64();
   
   const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.position = 'absolute';
-    pdfWrapper.style.left = '0px';
-    pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
-    pdfWrapper.style.width = '794px';
-    pdfWrapper.style.opacity = '0';
-    pdfWrapper.style.zIndex = '99999';
-    pdfWrapper.style.pointerEvents = 'none';
-    pdfWrapper.style.display = 'block';
+  pdfWrapper.style.position = 'absolute';
+  pdfWrapper.style.left = '0px';
+  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
+  pdfWrapper.style.width = '794px';
+  pdfWrapper.style.opacity = '0';
+  pdfWrapper.style.zIndex = '99999';
+  pdfWrapper.style.pointerEvents = 'none';
+  pdfWrapper.style.display = 'block';
 
-    const pdfContainer = document.createElement('div');
-    pdfContainer.style.background = '#ffffff';
-    pdfContainer.style.color = '#333333';
-    pdfContainer.style.padding = '0';
-    pdfContainer.style.margin = '0';
-    pdfContainer.style.width = '794px';
-    pdfContainer.style.boxSizing = 'border-box';
+  const pdfContainer = document.createElement('div');
+  pdfContainer.style.background = '#ffffff';
+  pdfContainer.style.color = '#333333';
+  pdfContainer.style.padding = '0';
+  pdfContainer.style.margin = '0';
+  pdfContainer.style.width = '794px';
+  pdfContainer.style.boxSizing = 'border-box';
 
-    pdfWrapper.appendChild(pdfContainer);
-    document.body.appendChild(pdfWrapper);
+  pdfWrapper.appendChild(pdfContainer);
+  document.body.appendChild(pdfWrapper);
 
-    const birthDate = client.dadosPessoais.dataNascimento ? new Date(client.dadosPessoais.dataNascimento) : null;
-    let ageText = '-';
-    if (birthDate) {
-      const reportDate = new Date(report.data);
-      let age = reportDate.getFullYear() - birthDate.getFullYear();
-      const m = reportDate.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && reportDate.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      ageText = `${age} anos`;
+  const birthDate = client.dadosPessoais.dataNascimento ? new Date(client.dadosPessoais.dataNascimento) : null;
+  let ageText = '-';
+  if (birthDate) {
+    const reportDate = new Date(report.data);
+    let age = reportDate.getFullYear() - birthDate.getFullYear();
+    const m = reportDate.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && reportDate.getDate() < birthDate.getDate())) {
+      age--;
     }
+    ageText = `${age} anos`;
+  }
 
-    const pdfStyles = `
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
-        html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          background: #ffffff;
-        }
-        .pdf-page {
-          background: #ffffff;
-          color: #1e293b;
-          font-family: 'Inter', sans-serif;
-          box-sizing: border-box;
-          width: 794px;
-          height: 1110px;
-          padding: 35px 40px;
-          position: relative;
-          overflow: hidden;
-          page-break-inside: avoid;
-          page-break-after: always;
-        }
-        .pdf-page:last-child {
-          page-break-after: avoid;
-        }
-        .font-outfit {
-          font-family: 'Outfit', sans-serif;
-        }
-        .grid-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 2px solid #e2e8f0;
-          padding-bottom: 10px;
-          margin-bottom: 10px;
-        }
-        .logo-box {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .logo-img {
-          width: 50px;
-          height: 50px;
-          border-radius: 8px;
-          object-fit: cover;
-        }
-        .logo-title {
-          font-size: 20px;
-          font-weight: 800;
-          color: #0e131f;
-          margin: 0;
-          letter-spacing: -0.5px;
-        }
-        .logo-subtitle {
-          font-size: 8px;
-          color: #64748b;
-          margin: 2px 0 0 0;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        .date-box {
-          background: #f1f5f9;
-          border-radius: 6px;
-          padding: 6px 12px;
-          text-align: center;
-          border: 1px solid #cbd5e1;
-        }
-        .date-box span {
-          font-size: 8px;
-          color: #64748b;
-          font-weight: 600;
-          display: block;
-          text-transform: uppercase;
-        }
-        .date-box strong {
-          font-size: 13px;
-          color: #0f172a;
-          font-family: 'Outfit', sans-serif;
-        }
-        .client-bar {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          display: grid;
-          grid-template-columns: 1.5fr 0.8fr 0.8fr;
-          padding: 6px 12px;
-          margin-bottom: 10px;
-          font-size: 9px;
-        }
-        .client-bar-item {
-          border-right: 1px solid #e2e8f0;
-          padding: 0 8px;
-        }
-        .client-bar-item:last-child {
-          border-right: none;
-        }
-        .client-bar-item span {
-          color: #64748b;
-          font-weight: 500;
-          display: block;
-          font-size: 8px;
-          text-transform: uppercase;
-          margin-bottom: 2px;
-        }
-        .client-bar-item strong {
-          color: #0f172a;
-          font-size: 10px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: block;
-        }
-        .pdf-mini-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 2px solid #e2e8f0;
-          padding-bottom: 6px;
-          margin-bottom: 12px;
-        }
-        .pdf-mini-header span {
-          font-weight: 600;
-          font-size: 8px;
-          color: #64748b;
-          text-transform: uppercase;
-        }
-        .table-data {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 8px;
-        }
-        .table-data th {
-          background: #f8fafc;
-          color: #475569;
-          font-weight: 600;
-          text-align: left;
-          padding: 4px 6px;
-          border-bottom: 1px solid #e2e8f0;
-          text-transform: uppercase;
-          font-size: 7.5px;
-        }
-        .table-data td {
-          padding: 4px 6px;
-          border-bottom: 1px solid #f1f5f9;
-          color: #334155;
-        }
-        .table-data tr:last-child td {
-          border-bottom: none;
-        }
-        .section-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          overflow: hidden;
-          margin-bottom: 10px;
-          background: #ffffff;
-        }
-        .section-card-title {
-          background: #0f172a;
-          color: #ffffff;
-          padding: 6px 12px;
-          font-family: 'Outfit', sans-serif;
-          font-size: 9px;
-          font-weight: 700;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-        }
-        .section-card-content {
-          padding: 8px 10px;
-          background: #ffffff;
-        }
-        .metric-badge {
-          font-size: 7px;
-          font-weight: 700;
-          text-transform: uppercase;
-          padding: 2px 6px;
-          border-radius: 4px;
-          display: inline-block;
-        }
-        .badge-green { background: #dcfce7; color: #15803d; }
-        .badge-orange { background: #ffedd5; color: #c2410c; }
-        .badge-blue { background: #dbeafe; color: #1d4ed8; }
-        .badge-red { background: #fee2e2; color: #b91c1c; }
-      </style>
-    `;
+  const pdfStyles = `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff;
+      }
+      .pdf-page {
+        background: #ffffff;
+        color: #1e293b;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+        width: 794px;
+        padding: 20px 30px;
+      }
+      .font-outfit {
+        font-family: 'Outfit', sans-serif;
+      }
+      .grid-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+      }
+      .logo-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo-img {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        object-fit: cover;
+      }
+      .logo-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #0e131f;
+        margin: 0;
+        letter-spacing: -0.5px;
+      }
+      .logo-subtitle {
+        font-size: 8px;
+        color: #64748b;
+        margin: 2px 0 0 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .date-box {
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 6px 12px;
+        text-align: center;
+        border: 1px solid #cbd5e1;
+      }
+      .date-box span {
+        font-size: 8px;
+        color: #64748b;
+        font-weight: 600;
+        display: block;
+        text-transform: uppercase;
+      }
+      .date-box strong {
+        font-size: 13px;
+        color: #0f172a;
+        font-family: 'Outfit', sans-serif;
+      }
+      .client-bar {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 1.5fr 0.8fr 0.8fr;
+        padding: 6px 12px;
+        margin-bottom: 12px;
+        font-size: 9px;
+      }
+      .client-bar-item {
+        border-right: 1px solid #e2e8f0;
+        padding: 0 8px;
+      }
+      .client-bar-item:last-child {
+        border-right: none;
+      }
+      .client-bar-item span {
+        color: #64748b;
+        font-weight: 500;
+        display: block;
+        font-size: 8px;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+      }
+      .client-bar-item strong {
+        color: #0f172a;
+        font-size: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+      }
+      .table-data {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8px;
+      }
+      .table-data th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        text-align: left;
+        padding: 4px 6px;
+        border-bottom: 1px solid #e2e8f0;
+        text-transform: uppercase;
+        font-size: 7.5px;
+      }
+      .table-data td {
+        padding: 4px 6px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+      }
+      .table-data tr:last-child td {
+        border-bottom: none;
+      }
+      .section-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 12px;
+        background: #ffffff;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .section-card-title {
+        background: #0f172a;
+        color: #ffffff;
+        padding: 6px 12px;
+        font-family: 'Outfit', sans-serif;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .section-card-content {
+        padding: 8px 10px;
+        background: #ffffff;
+      }
+      .metric-badge {
+        font-size: 7px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      .badge-green { background: #dcfce7; color: #15803d; }
+      .badge-orange { background: #ffedd5; color: #c2410c; }
+      .badge-blue { background: #dbeafe; color: #1d4ed8; }
+      .badge-red { background: #fee2e2; color: #b91c1c; }
 
-    if (!report.anamnese) {
-      pdfContainer.innerHTML = `
-        ${pdfStyles}
-        <!-- PAGE 1 -->
-        <div class="pdf-page">
-          <!-- Header -->
-          <div class="grid-header">
-            <div class="logo-box">
-              ${logoBase64 
-                ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-                : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-              }
-              <div>
-                <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
-                <p class="logo-subtitle">Fisioterapia, Quiropraxia e Fortalecimento</p>
-              </div>
-            </div>
-            <div class="date-box">
-              <span>Data de Atendimento</span>
-              <strong>${formatDate(report.data)}</strong>
+      p, li, tr, h2, h3, h4, table, tbody {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    </style>
+  `;
+
+  if (!report.anamnese) {
+    pdfContainer.innerHTML = `
+      ${pdfStyles}
+      <div class="pdf-page">
+        <!-- Header -->
+        <div class="grid-header">
+          <div class="logo-box">
+            ${logoBase64 
+              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+            }
+            <div>
+              <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+              <p class="logo-subtitle">Fisioterapia, Quiropraxia e Fortalecimento</p>
             </div>
           </div>
-
-          <!-- Barra do Cliente -->
-          <div class="client-bar">
-            <div class="client-bar-item">
-              <span>Paciente</span>
-              <strong>${client.dadosPessoais.nome}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Idade</span>
-              <strong>${ageText}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Sexo</span>
-              <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
-            </div>
-          </div>
-
-          <!-- Detalhes do Evolutivo -->
-          <div class="section-card">
-            <div class="section-card-title">Relatório Clínico Evolutivo Simplificado</div>
-            <div class="section-card-content" style="font-size: 9px; line-height: 1.5; color: #334155;">
-              <div style="margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                  <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Queixa Principal Relatada:</span>
-                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.queixaPrincipal}</div>
-                </div>
-                <div>
-                  <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Dor Estimada (Escala EVA):</span>
-                  <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-weight: 800; color: #b91c1c; font-size: 11px;">${report.conteudo.dorEscala} / 10</div>
-                </div>
-              </div>
-
-              <div style="margin-bottom: 10px;">
-                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Amplitude de Movimento (ADM):</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.adm || 'Não mensurada.'}</div>
-              </div>
-
-              <div style="margin-bottom: 10px;">
-                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Testes Clínicos Realizados:</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.testes || 'Sem testes aplicados.'}</div>
-              </div>
-
-              <div style="margin-bottom: 10px;">
-                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Conduta / Intervenção Realizada em Sessão:</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.conduta}</div>
-              </div>
-
-              <div style="margin-bottom: 10px;">
-                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Prescrição de Autocuidado / Exercícios domiciliares:</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.exercicios || 'Sem prescrições adicionais.'}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Empresa -->
-          <div style="position: absolute; bottom: 80px; left: 45px; right: 45px; text-align: center;">
-            <div style="font-size: 14px; font-weight: 800; color: #0d9488; font-family: 'Outfit', sans-serif;">
-              Clube Fitness Fisio
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
-            <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia e Quiropraxia</span>
-            <span>Relatório Clínico Evolutivo Simplificado</span>
-            <span>Página 1 de 1</span>
+          <div class="date-box">
+            <span>Data de Atendimento</span>
+            <strong>${formatDate(report.data)}</strong>
           </div>
         </div>
-      `;
-    } else {
-      const h = report.anamnese.historico;
-      const hb = report.anamnese.habitos;
-      const g = report.goniometria;
-      const te = report.testesEspeciais;
-      const tImg = report.termografia;
-      const ex = report.examesComplementares || [];
-      const ort = report.testesOrtopedicos;
 
-      const hasTermografia = tImg && tImg.realizou === 'sim';
-      const hasExames = ex && ex.length > 0;
-      const hasMaigne = ort.estrelaMaigne && isMaigneFilled(ort.estrelaMaigne);
-      const hasYTest = ort.yTeste && ort.yTeste.realizou === 'sim';
-      const hasStepDown = ort.stepDown && ort.stepDown.realizou === 'sim';
-      const hasDE = ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim';
-
-      let queixasHtml = report.anamnese.queixas.map((q: any, idx: number) => `
-        <div class="section-card" style="margin-bottom: 10px;">
-          <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-family: 'Outfit', sans-serif; font-size: 9.5px; font-weight: 700; color: #0d9488; text-transform: uppercase;">
-              ${idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
-            </span>
-            <span class="metric-badge badge-red" style="font-size: 7.5px;">Dor EVA: ${q.dorIntensidade || 0}/10</span>
+        <!-- Barra do Cliente -->
+        <div class="client-bar">
+          <div class="client-bar-item">
+            <span>Paciente</span>
+            <strong>${client.dadosPessoais.nome}</strong>
           </div>
-          <div class="section-card-content" style="padding: 8px 10px;">
+          <div class="client-bar-item">
+            <span>Idade</span>
+            <strong>${ageText}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Sexo</span>
+            <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
+          </div>
+        </div>
+
+        <!-- Detalhes do Evolutivo -->
+        <div class="section-card">
+          <div class="section-card-title">Relatório Clínico Evolutivo Simplificado</div>
+          <div class="section-card-content" style="font-size: 9px; line-height: 1.5; color: #334155;">
+            <div style="margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div>
+                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Queixa Principal Relatada:</span>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.queixaPrincipal}</div>
+              </div>
+              <div>
+                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Dor Estimada (Escala EVA):</span>
+                <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-weight: 800; color: #b91c1c; font-size: 11px;">${report.conteudo.dorEscala} / 10</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+              <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Amplitude de Movimento (ADM):</span>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.adm || 'Não mensurada.'}</div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+              <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Testes Clínicos Realizados:</span>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.testes || 'Sem testes aplicados.'}</div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+              <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Conduta / Intervenção Realizada em Sessão:</span>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.conduta}</div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+              <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Prescrição de Autocuidado / Exercícios domiciliares:</span>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.exercicios || 'Sem prescrições adicionais.'}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assinatura Profissional -->
+        <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #475569;">
+          <div style="width: 250px; margin: 0 auto; border-top: 1px solid #cbd5e1; padding-top: 6px;">
+            <strong>${prof.nome}</strong><br>
+            <span>${prof.registro}</span>
+          </div>
+        </div>
+
+        <!-- Footer Empresa -->
+        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+          <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
+        </div>
+      </div>
+    `;
+  } else {
+    const h = report.anamnese.historico;
+    const hb = report.anamnese.habitos;
+    const g = report.goniometria;
+    const te = report.testesEspeciais;
+    const tImg = report.termografia;
+    const ex = report.examesComplementares || [];
+    const ort = report.testesOrtopedicos;
+
+    const hasTermografia = tImg && tImg.realizou === 'sim';
+    const hasExames = ex && ex.length > 0;
+    const hasMaigne = ort.estrelaMaigne && isMaigneFilled(ort.estrelaMaigne);
+    const hasYTest = ort.yTeste && ort.yTeste.realizou === 'sim';
+    const hasStepDown = ort.stepDown && ort.stepDown.realizou === 'sim';
+    const hasDE = ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim';
+
+    let queixasHtml = report.anamnese.queixas.map((q: any, idx: number) => `
+      <div class="section-card" style="margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;">
+        <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-family: 'Outfit', sans-serif; font-size: 9.5px; font-weight: 700; color: #0d9488; text-transform: uppercase;">
+            ${idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
+          </span>
+          <span class="metric-badge badge-red" style="font-size: 7.5px;">Dor EVA: ${q.dorIntensidade || 0}/10</span>
+        </div>
+        <div class="section-card-content" style="padding: 8px 10px;">
+          <table class="table-data">
+            <tbody>
+              <tr>
+                <td style="font-weight: 700; width: 25%;">Onde é a dor:</td>
+                <td>${q.dorOnde || '-'}</td>
+                <td style="font-weight: 700; width: 25%;">Quando começou:</td>
+                <td>${q.quandoComecou || '-'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: 700;">Como iniciou:</td>
+                <td>${q.comoIniciou || '-'}</td>
+                <td style="font-weight: 700;">Evolução da dor:</td>
+                <td>${q.dorEvolucao === 'estavel' ? 'Estável (Mesma dor)' : (q.dorEvolucao === 'aumentando' ? 'Aumentando' : 'Diminuindo')}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: 700;">Frequência:</td>
+                <td>${q.dorTodoMomento === 'sim' ? 'Dor a todo momento' : 'Dor intermitente'}</td>
+                <td style="font-weight: 700;">Origem estimada:</td>
+                <td>${q.origens.join(', ') || 'Não especificada'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: 700;">Piora com:</td>
+                <td colspan="3">${q.desencadeiaPiora || '-'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: 700;">Melhora com:</td>
+                <td colspan="3">${q.melhoraDesaparece || '-'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: 700;">Característica:</td>
+                <td colspan="3">${q.caracteristicaDor || '-'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `).join('');
+
+    let cirurgiasHtml = '-';
+    if (h.cirurgiasRealizou === 'sim' && h.cirurgias && h.cirurgias.length > 0) {
+      cirurgiasHtml = h.cirurgias.map((c: any) => `${formatDate(c.data)}: ${c.local}`).join('<br>');
+    }
+
+    let examesHtml = 'Nenhum exame complementar anexado.';
+    if (ex && ex.length > 0) {
+      examesHtml = ex.map((e: any) => `• ${e.nome} (Laudo em PDF)`).join('<br>');
+    }
+
+    let termografiaHtml = 'Não realizada.';
+    if (tImg && tImg.realizou === 'sim') {
+      termografiaHtml = 'Realizada.';
+      if (tImg.imagemB64) {
+        termografiaHtml += `<br><img src="${tImg.imagemB64}" style="max-height:160px; margin-top:8px; border-radius:4px; border:1px solid #cbd5e1; display:block;">`;
+      }
+    }
+
+    let yTestHtml = 'Não realizado.';
+    if (ort.yTeste && ort.yTeste.realizou === 'sim') {
+      const yd = ort.yTeste.direita;
+      const ye = ort.yTeste.esquerda;
+      const compD = yd.comprimentoMembro || 1;
+      const compE = ye.comprimentoMembro || 1;
+      const scoreD = ((yd.anterior + yd.posteromedial + yd.posterolateral) / (3 * compD)) * 100;
+      const scoreE = ((ye.anterior + ye.posteromedial + ye.posterolateral) / (3 * compE)) * 100;
+      const diffAnt = Math.abs(yd.anterior - ye.anterior);
+      const diffPM = Math.abs(yd.posteromedial - ye.posteromedial);
+      const diffPL = Math.abs(yd.posterolateral - ye.posterolateral);
+
+      let alerts = [];
+      if (diffAnt > 10 || diffPM > 10 || diffPL > 10) alerts.push('Assimetria significativa (> 10cm) - Risco de Lesão!');
+      if (scoreD < 94 || scoreE < 94) alerts.push('Alto risco de lesão (Composite Score < 94%)');
+
+      yTestHtml = `
+        <table class="table-data">
+          <thead>
+            <tr style="background:#f8fafc; font-weight:bold;">
+              <th>Direção</th>
+              <th style="text-align:center;">Direito</th>
+              <th style="text-align:center;">Esquerdo</th>
+              <th style="text-align:center;">Diferença</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600;">Comprimento</td>
+              <td style="text-align:center;">${yd.comprimentoMembro} cm</td>
+              <td style="text-align:center;">${ye.comprimentoMembro} cm</td>
+              <td style="text-align:center;">-</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Alcance Ant</td>
+              <td style="text-align:center;">${yd.anterior} cm</td>
+              <td style="text-align:center;">${ye.anterior} cm</td>
+              <td style="text-align:center;">${diffAnt.toFixed(1)} cm</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Alcance PM</td>
+              <td style="text-align:center;">${yd.posteromedial} cm</td>
+              <td style="text-align:center;">${ye.posteromedial} cm</td>
+              <td style="text-align:center;">${diffPM.toFixed(1)} cm</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Alcance PL</td>
+              <td style="text-align:center;">${yd.posterolateral} cm</td>
+              <td style="text-align:center;">${ye.posterolateral} cm</td>
+              <td style="text-align:center;">${diffPL.toFixed(1)} cm</td>
+            </tr>
+            <tr style="font-weight:bold; background:#f8fafc;">
+              <td>Composite Score</td>
+              <td style="text-align:center;">${scoreD.toFixed(1)}%</td>
+              <td style="text-align:center;">${scoreE.toFixed(1)}%</td>
+              <td style="text-align:center;">-</td>
+            </tr>
+          </tbody>
+        </table>
+        ${alerts.length > 0 ? `<div style="margin-top:6px; color:#ef4444; font-weight:bold; font-size:7.5px;">⚠️ Alertas: ${alerts.join(' | ')}</div>` : ''}
+      `;
+    }
+
+    let stepDownHtml = 'Não realizado.';
+    if (ort.stepDown && ort.stepDown.realizou === 'sim') {
+      const sdVal = ort.stepDown;
+      const sex = client.dadosPessoais.sexo || 'M';
+      let rFactors = [];
+      if (sdVal.quedaPelvica > 5) rFactors.push('Queda Pélvica (>5°)');
+      if (sdVal.aducaoQuadril > 10) rFactors.push('Adução de Quadril (>10°)');
+      const limit = sex === 'M' ? 10 : 15;
+      if (sdVal.valgoDinamicoJoelho > limit) rFactors.push(`Valgo Dinâmico (${sdVal.valgoDinamicoJoelho}° > ${limit}°)`);
+      if (sdVal.compExcentricoPrps > 0 && sdVal.compExcentricoPrps < 60) rFactors.push('Comp. Excêntrico reduzido (<60°)');
+
+      stepDownHtml = `
+        <div style="font-size:8px; line-height:1.4; color: #334155;">
+          Queda Pélvica: <strong>${sdVal.quedaPelvica}°</strong> | 
+          Adução Quadril: <strong>${sdVal.aducaoQuadril}°</strong> <br>
+          Valgo Dinâmico: <strong>${sdVal.valgoDinamicoJoelho}°</strong> | 
+          Excêntrico/PRPS: <strong>${sdVal.compExcentricoPrps}°</strong>
+          ${rFactors.length > 0 ? `<div style="margin-top:4px; color:#ef4444; font-weight:bold;">⚠️ Risco: ${rFactors.join(', ')}</div>` : '<div style="margin-top:4px; color:#10b981; font-weight:bold;">✓ Controle Seguro</div>'}
+        </div>
+      `;
+    }
+
+    let deHtml = 'Não realizada.';
+    if (ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim') {
+      const deVal = ort.discinesiaEscapular;
+      deHtml = `
+        <div style="font-size:8px; line-height:1.4; color: #334155;">
+          Tipo: <strong>${deVal.tipo}</strong> <br>
+          • Projeta cabeça para frente: <strong>${deVal.abducaoBilateralCabecaFrente === 'sim' ? 'Sim' : 'Não'}</strong> <br>
+          • Desvio na abdução unilateral: <strong>${deVal.abducaoUnilateralToracicaCabeca === 'sim' ? 'Sim' : 'Não'}</strong> <br>
+          • Dor na abdução com inclinação: <strong>${deVal.dorAbducaoUnilateralInclinacao === 'sim' ? 'Sim' : 'Não'}</strong>
+        </div>
+      `;
+    }
+
+    let maigneSvgHtml = '';
+    let maigneTableHtml = '';
+    if (ort.estrelaMaigne) {
+      const m = ort.estrelaMaigne;
+      const cx = 190, cy = 150, maxRadius = 100, scale = 2.0;
+      const angles = [-Math.PI/2, -Math.PI/6, Math.PI/6, Math.PI/2, 5*Math.PI/6, 7*Math.PI/6];
+      const refVals = [40, 40, 30, 30, 30, 40];
+      const clientVals = [m.flexao, m.rotacaoD, m.inclinacaoD, m.extensao, m.inclinacaoE, m.rotacaoE];
+      
+      const fEVA = m.flexaoEVA !== undefined ? m.flexaoEVA : 0;
+      const extEVA = m.extensaoEVA !== undefined ? m.extensaoEVA : 0;
+      const idEVA = m.inclinacaoDEVA !== undefined ? m.inclinacaoDEVA : 0;
+      const ieEVA = m.inclinacaoEEVA !== undefined ? m.inclinacaoEEVA : 0;
+      const rdEVA = m.rotacaoDEVA !== undefined ? m.rotacaoDEVA : 0;
+      const reEVA = m.rotacaoEEVA !== undefined ? m.rotacaoEEVA : 0;
+
+      maigneSvgHtml = `
+        <svg width="200" height="158" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
+          <!-- Grid Circles -->
+          ${[10, 20, 30, 40, 50].map(val => `
+            <circle cx="${cx}" cy="${cy}" r="${val * scale}" stroke="#e2e8f0" fill="none" stroke-width="0.5" />
+            <text x="${cx}" y="${cy - (val * scale) + 3}" style="font-size:7px; fill:#94a3b8; text-anchor:middle;">${val}</text>
+          `).join('')}
+
+          <!-- Grid Lines -->
+          ${angles.map((ang, idx) => {
+            const x = cx + maxRadius * Math.cos(ang);
+            const y = cy + maxRadius * Math.sin(ang);
+            return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
+          }).join('')}
+
+          <!-- Labels for directions -->
+          <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexão (EVA: ${fEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[1]) + 15}" y="${cy + maxRadius * Math.sin(angles[1]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Rot D (EVA: ${rdEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[2]) + 15}" y="${cy + maxRadius * Math.sin(angles[2]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Inc D (EVA: ${idEVA})</text>
+          <text x="${cx}" y="${cy + maxRadius + 18}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Extensão (EVA: ${extEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[4]) - 15}" y="${cy + maxRadius * Math.sin(angles[4]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Inc E (EVA: ${ieEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[5]) - 15}" y="${cy + maxRadius * Math.sin(angles[5]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Rot E (EVA: ${reEVA})</text>
+
+          <!-- Reference Polygon -->
+          <polygon points="${angles.map((ang, idx) => {
+            const x = cx + refVals[idx] * scale * Math.cos(ang);
+            const y = cy + refVals[idx] * scale * Math.sin(ang);
+            return `${x},${y}`;
+          }).join(' ')}" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,3" />
+
+          <!-- Value Polygon -->
+          <polygon points="${angles.map((ang, idx) => {
+            const x = cx + clientVals[idx] * scale * Math.cos(ang);
+            const y = cy + clientVals[idx] * scale * Math.sin(ang);
+            return `${x},${y}`;
+          }).join(' ')}" fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" stroke-width="1.8" />
+
+          <!-- Value Dots -->
+          ${angles.map((ang, idx) => {
+            const x = cx + clientVals[idx] * scale * Math.cos(ang);
+            const y = cy + clientVals[idx] * scale * Math.sin(ang);
+            return `<circle cx="${x}" cy="${y}" r="3.5" fill="#0d9488" stroke="#ffffff" stroke-width="1" />`;
+          }).join('')}
+        </svg>
+      `;
+
+      maigneTableHtml = `
+        <table class="table-data" style="font-size: 7.5px; margin-top: 4px;">
+          <thead>
+            <tr style="background:#f8fafc; font-weight:bold;">
+              <th style="padding: 2px 4px;">Direção</th>
+              <th style="padding: 2px 4px; text-align:center;">ADM</th>
+              <th style="padding: 2px 4px; text-align:center;">Dor (EVA)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:bold; padding: 2px 4px;">Flexão</td>
+              <td style="text-align:center; padding: 2px 4px;">${m.flexao}/50</td>
+              <td style="text-align:center; padding: 2px 4px;">${fEVA}/10</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding: 2px 4px;">Extensão</td>
+              <td style="text-align:center; padding: 2px 4px;">${m.extensao}/50</td>
+              <td style="text-align:center; padding: 2px 4px;">${extEVA}/10</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding: 2px 4px;">Rot D</td>
+              <td style="text-align:center; padding: 2px 4px;">${m.rotacaoD}/50</td>
+              <td style="text-align:center; padding: 2px 4px;">${rdEVA}/10</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding: 2px 4px;">Rot E</td>
+              <td style="text-align:center; padding: 2px 4px;">${m.rotacaoE}/50</td>
+              <td style="text-align:center; padding: 2px 4px;">${reEVA}/10</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding: 2px 4px;">Inc D</td>
+              <td style="text-align:center; padding: 2px 4px;">${m.inclinacaoD}/50</td>
+              <td style="text-align:center; padding: 2px 4px;">${idEVA}/10</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding: 2px 4px;">Inc E</td>
+              <td style="text-align:center; padding: 2px 4px;">${m.inclinacaoE}/50</td>
+              <td style="text-align:center; padding: 2px 4px;">${ieEVA}/10</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+    }
+
+    pdfContainer.innerHTML = `
+      ${pdfStyles}
+      <div class="pdf-page">
+        <!-- Header -->
+        <div class="grid-header">
+          <div class="logo-box">
+            ${logoBase64 
+              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+            }
+            <div>
+              <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+              <p class="logo-subtitle">Fisioterapia, Quiropraxia e Fortalecimento</p>
+            </div>
+          </div>
+          <div class="date-box">
+            <span>Data do Relatório</span>
+            <strong>${formatDate(report.data)}</strong>
+          </div>
+        </div>
+
+        <!-- Barra do Cliente -->
+        <div class="client-bar">
+          <div class="client-bar-item">
+            <span>Paciente</span>
+            <strong>${client.dadosPessoais.nome}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Idade</span>
+            <strong>${ageText}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Sexo</span>
+            <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-title">Anamnese & Queixas Frequentes</div>
+          <div class="section-card-content" style="padding: 10px 10px 2px 10px;">
+            ${queixasHtml}
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-title">Histórico Clínico Detalhado</div>
+          <div class="section-card-content">
             <table class="table-data">
               <tbody>
                 <tr>
-                  <td style="font-weight: 700; width: 25%;">Onde é a dor:</td>
-                  <td>${q.dorOnde || '-'}</td>
-                  <td style="font-weight: 700; width: 25%;">Quando começou:</td>
-                  <td>${q.quandoComecou || '-'}</td>
+                  <td style="font-weight:700; width:30%;">Traumas pregressos:</td>
+                  <td>${h.traumas || 'Nenhum relatado.'}</td>
                 </tr>
                 <tr>
-                  <td style="font-weight: 700;">Como iniciou:</td>
-                  <td>${q.comoIniciou || '-'}</td>
-                  <td style="font-weight: 700;">Evolução da dor:</td>
-                  <td>${q.dorEvolucao === 'estavel' ? 'Estável (Mesma dor)' : (q.dorEvolucao === 'aumentando' ? 'Aumentando' : 'Diminuindo')}</td>
+                  <td style="font-weight:700;">Cirurgias:</td>
+                  <td>${cirurgiasHtml}</td>
                 </tr>
                 <tr>
-                  <td style="font-weight: 700;">Frequência:</td>
-                  <td>${q.dorTodoMomento === 'sim' ? 'Dor a todo momento' : 'Dor intermitente'}</td>
-                  <td style="font-weight: 700;">Origem estimada:</td>
-                  <td>${q.origens.join(', ') || 'Não especificada'}</td>
+                  <td style="font-weight:700;">Doenças pregressas/atuais:</td>
+                  <td>${h.doencasPregressasAtuais || 'Nenhuma.'}</td>
                 </tr>
                 <tr>
-                  <td style="font-weight: 700;">Piora com:</td>
-                  <td colspan="3">${q.desencadeiaPiora || '-'}</td>
+                  <td style="font-weight:700;">Traumas emocionais/estresse:</td>
+                  <td>${h.traumasEmocionaisStress || 'Nenhum.'}</td>
                 </tr>
                 <tr>
-                  <td style="font-weight: 700;">Melhora com:</td>
-                  <td colspan="3">${q.melhoraDesaparece || '-'}</td>
+                  <td style="font-weight:700;">Medicação em uso:</td>
+                  <td>${h.medicacao || 'Nenhuma.'}</td>
                 </tr>
                 <tr>
-                  <td style="font-weight: 700;">Característica:</td>
-                  <td colspan="3">${q.caracteristicaDor || '-'}</td>
+                  <td style="font-weight:700;">Álcool/Tabaco/Drogas:</td>
+                  <td>${h.drogasRecreativas || 'Nenhum.'}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-      `).join('');
 
-      let cirurgiasHtml = '-';
-      if (h.cirurgiasRealizou === 'sim' && h.cirurgias && h.cirurgias.length > 0) {
-        cirurgiasHtml = h.cirurgias.map((c: any) => `${formatDate(c.data)}: ${c.local}`).join('<br>');
-      }
-
-      let examesHtml = 'Nenhum exame complementar anexado.';
-      if (ex && ex.length > 0) {
-        examesHtml = ex.map((e: any) => `• ${e.nome} (Laudo em PDF)`).join('<br>');
-      }
-
-      let termografiaHtml = 'Não realizada.';
-      if (tImg && tImg.realizou === 'sim') {
-        termografiaHtml = 'Realizada.';
-        if (tImg.imagemB64) {
-          termografiaHtml += `<br><img src="${tImg.imagemB64}" style="max-height:160px; margin-top:8px; border-radius:4px; border:1px solid #cbd5e1; display:block;">`;
-        }
-      }
-
-      let yTestHtml = 'Não realizado.';
-      if (ort.yTeste && ort.yTeste.realizou === 'sim') {
-        const yd = ort.yTeste.direita;
-        const ye = ort.yTeste.esquerda;
-        const compD = yd.comprimentoMembro || 1;
-        const compE = ye.comprimentoMembro || 1;
-        const scoreD = ((yd.anterior + yd.posteromedial + yd.posterolateral) / (3 * compD)) * 100;
-        const scoreE = ((ye.anterior + ye.posteromedial + ye.posterolateral) / (3 * compE)) * 100;
-        const diffAnt = Math.abs(yd.anterior - ye.anterior);
-        const diffPM = Math.abs(yd.posteromedial - ye.posteromedial);
-        const diffPL = Math.abs(yd.posterolateral - ye.posterolateral);
-
-        let alerts = [];
-        if (diffAnt > 10 || diffPM > 10 || diffPL > 10) alerts.push('Assimetria significativa (> 10cm) - Risco de Lesão!');
-        if (scoreD < 94 || scoreE < 94) alerts.push('Alto risco de lesão (Composite Score < 94%)');
-
-        yTestHtml = `
-          <table class="table-data">
-            <thead>
-              <tr style="background:#f8fafc; font-weight:bold;">
-                <th>Direção</th>
-                <th style="text-align:center;">Direito</th>
-                <th style="text-align:center;">Esquerdo</th>
-                <th style="text-align:center;">Diferença</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style="font-weight:600;">Comprimento</td>
-                <td style="text-align:center;">${yd.comprimentoMembro} cm</td>
-                <td style="text-align:center;">${ye.comprimentoMembro} cm</td>
-                <td style="text-align:center;">-</td>
-              </tr>
-              <tr>
-                <td style="font-weight:600;">Alcance Ant</td>
-                <td style="text-align:center;">${yd.anterior} cm</td>
-                <td style="text-align:center;">${ye.anterior} cm</td>
-                <td style="text-align:center;">${diffAnt.toFixed(1)} cm</td>
-              </tr>
-              <tr>
-                <td style="font-weight:600;">Alcance PM</td>
-                <td style="text-align:center;">${yd.posteromedial} cm</td>
-                <td style="text-align:center;">${ye.posteromedial} cm</td>
-                <td style="text-align:center;">${diffPM.toFixed(1)} cm</td>
-              </tr>
-              <tr>
-                <td style="font-weight:600;">Alcance PL</td>
-                <td style="text-align:center;">${yd.posterolateral} cm</td>
-                <td style="text-align:center;">${ye.posterolateral} cm</td>
-                <td style="text-align:center;">${diffPL.toFixed(1)} cm</td>
-              </tr>
-              <tr style="font-weight:bold; background:#f8fafc;">
-                <td>Composite Score</td>
-                <td style="text-align:center;">${scoreD.toFixed(1)}%</td>
-                <td style="text-align:center;">${scoreE.toFixed(1)}%</td>
-                <td style="text-align:center;">-</td>
-              </tr>
-            </tbody>
-          </table>
-          ${alerts.length > 0 ? `<div style="margin-top:6px; color:#ef4444; font-weight:bold; font-size:7.5px;">⚠️ Alertas: ${alerts.join(' | ')}</div>` : ''}
-        `;
-      }
-
-      let stepDownHtml = 'Não realizado.';
-      if (ort.stepDown && ort.stepDown.realizou === 'sim') {
-        const sdVal = ort.stepDown;
-        const sex = client.dadosPessoais.sexo || 'M';
-        let rFactors = [];
-        if (sdVal.quedaPelvica > 5) rFactors.push('Queda Pélvica (>5°)');
-        if (sdVal.aducaoQuadril > 10) rFactors.push('Adução de Quadril (>10°)');
-        const limit = sex === 'M' ? 10 : 15;
-        if (sdVal.valgoDinamicoJoelho > limit) rFactors.push(`Valgo Dinâmico (${sdVal.valgoDinamicoJoelho}° > ${limit}°)`);
-        if (sdVal.compExcentricoPrps > 0 && sdVal.compExcentricoPrps < 60) rFactors.push('Comp. Excêntrico reduzido (<60°)');
-
-        stepDownHtml = `
-          <div style="font-size:8px; line-height:1.4; color: #334155;">
-            Queda Pélvica: <strong>${sdVal.quedaPelvica}°</strong> | 
-            Adução Quadril: <strong>${sdVal.aducaoQuadril}°</strong> <br>
-            Valgo Dinâmico: <strong>${sdVal.valgoDinamicoJoelho}°</strong> | 
-            Excêntrico/PRPS: <strong>${sdVal.compExcentricoPrps}°</strong>
-            ${rFactors.length > 0 ? `<div style="margin-top:4px; color:#ef4444; font-weight:bold;">⚠️ Risco: ${rFactors.join(', ')}</div>` : '<div style="margin-top:4px; color:#10b981; font-weight:bold;">✓ Controle Seguro</div>'}
-          </div>
-        `;
-      }
-
-      let deHtml = 'Não realizada.';
-      if (ort.discinesiaEscapular && ort.discinesiaEscapular.realizou === 'sim') {
-        const deVal = ort.discinesiaEscapular;
-        deHtml = `
-          <div style="font-size:8px; line-height:1.4; color: #334155;">
-            Tipo: <strong>${deVal.tipo}</strong> <br>
-            • Projeta cabeça para frente: <strong>${deVal.abducaoBilateralCabecaFrente === 'sim' ? 'Sim' : 'Não'}</strong> <br>
-            • Desvio na abdução unilateral: <strong>${deVal.abducaoUnilateralToracicaCabeca === 'sim' ? 'Sim' : 'Não'}</strong> <br>
-            • Dor na abdução com inclinação: <strong>${deVal.dorAbducaoUnilateralInclinacao === 'sim' ? 'Sim' : 'Não'}</strong>
-          </div>
-        `;
-      }
-
-      let maigneSvgHtml = '';
-      let maigneTableHtml = '';
-      if (ort.estrelaMaigne) {
-        const m = ort.estrelaMaigne;
-        const cx = 190, cy = 150, maxRadius = 100, scale = 2.0;
-        const angles = [-Math.PI/2, -Math.PI/6, Math.PI/6, Math.PI/2, 5*Math.PI/6, 7*Math.PI/6];
-        const refVals = [40, 40, 30, 30, 30, 40];
-        const clientVals = [m.flexao, m.rotacaoD, m.inclinacaoD, m.extensao, m.inclinacaoE, m.rotacaoE];
-        
-        const fEVA = m.flexaoEVA !== undefined ? m.flexaoEVA : 0;
-        const extEVA = m.extensaoEVA !== undefined ? m.extensaoEVA : 0;
-        const idEVA = m.inclinacaoDEVA !== undefined ? m.inclinacaoDEVA : 0;
-        const ieEVA = m.inclinacaoEEVA !== undefined ? m.inclinacaoEEVA : 0;
-        const rdEVA = m.rotacaoDEVA !== undefined ? m.rotacaoDEVA : 0;
-        const reEVA = m.rotacaoEEVA !== undefined ? m.rotacaoEEVA : 0;
-
-        maigneSvgHtml = `
-          <svg width="200" height="158" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
-            <!-- Grid Circles -->
-            ${[10, 20, 30, 40, 50].map(val => `
-              <circle cx="${cx}" cy="${cy}" r="${val * scale}" stroke="#e2e8f0" fill="none" stroke-width="0.5" />
-              <text x="${cx}" y="${cy - (val * scale) + 3}" style="font-size:7px; fill:#94a3b8; text-anchor:middle;">${val}</text>
-            `).join('')}
-
-            <!-- Grid Lines -->
-            ${angles.map((ang, idx) => {
-              const x = cx + maxRadius * Math.cos(ang);
-              const y = cy + maxRadius * Math.sin(ang);
-              return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#94a3b8" stroke-width="0.75" />`;
-            }).join('')}
-
-            <!-- Labels for directions -->
-            <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexão (EVA: ${fEVA})</text>
-            <text x="${cx + maxRadius * Math.cos(angles[1]) + 15}" y="${cy + maxRadius * Math.sin(angles[1]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Rot D (EVA: ${rdEVA})</text>
-            <text x="${cx + maxRadius * Math.cos(angles[2]) + 15}" y="${cy + maxRadius * Math.sin(angles[2]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Inc D (EVA: ${idEVA})</text>
-            <text x="${cx}" y="${cy + maxRadius + 18}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Extensão (EVA: ${extEVA})</text>
-            <text x="${cx + maxRadius * Math.cos(angles[4]) - 15}" y="${cy + maxRadius * Math.sin(angles[4]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Inc E (EVA: ${ieEVA})</text>
-            <text x="${cx + maxRadius * Math.cos(angles[5]) - 15}" y="${cy + maxRadius * Math.sin(angles[5]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Rot E (EVA: ${reEVA})</text>
-
-            <!-- Reference Polygon -->
-            <polygon points="${angles.map((ang, idx) => {
-              const x = cx + refVals[idx] * scale * Math.cos(ang);
-              const y = cy + refVals[idx] * scale * Math.sin(ang);
-              return `${x},${y}`;
-            }).join(' ')}" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,3" />
-
-            <!-- Value Polygon -->
-            <polygon points="${angles.map((ang, idx) => {
-              const x = cx + clientVals[idx] * scale * Math.cos(ang);
-              const y = cy + clientVals[idx] * scale * Math.sin(ang);
-              return `${x},${y}`;
-            }).join(' ')}" fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" stroke-width="1.8" />
-
-            <!-- Value Dots -->
-            ${angles.map((ang, idx) => {
-              const x = cx + clientVals[idx] * scale * Math.cos(ang);
-              const y = cy + clientVals[idx] * scale * Math.sin(ang);
-              return `<circle cx="${x}" cy="${y}" r="3.5" fill="#0d9488" stroke="#ffffff" stroke-width="1" />`;
-            }).join('')}
-          </svg>
-        `;
-
-        maigneTableHtml = `
-          <table class="table-data" style="font-size: 7.5px; margin-top: 4px;">
-            <thead>
-              <tr style="background:#f8fafc; font-weight:bold;">
-                <th style="padding: 2px 4px;">Direção</th>
-                <th style="padding: 2px 4px; text-align:center;">ADM</th>
-                <th style="padding: 2px 4px; text-align:center;">Dor (EVA)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style="font-weight:bold; padding: 2px 4px;">Flexão</td>
-                <td style="text-align:center; padding: 2px 4px;">${m.flexao}/50</td>
-                <td style="text-align:center; padding: 2px 4px;">${fEVA}/10</td>
-              </tr>
-              <tr>
-                <td style="font-weight:bold; padding: 2px 4px;">Extensão</td>
-                <td style="text-align:center; padding: 2px 4px;">${m.extensao}/50</td>
-                <td style="text-align:center; padding: 2px 4px;">${extEVA}/10</td>
-              </tr>
-              <tr>
-                <td style="font-weight:bold; padding: 2px 4px;">Rot D</td>
-                <td style="text-align:center; padding: 2px 4px;">${m.rotacaoD}/50</td>
-                <td style="text-align:center; padding: 2px 4px;">${rdEVA}/10</td>
-              </tr>
-              <tr>
-                <td style="font-weight:bold; padding: 2px 4px;">Rot E</td>
-                <td style="text-align:center; padding: 2px 4px;">${m.rotacaoE}/50</td>
-                <td style="text-align:center; padding: 2px 4px;">${reEVA}/10</td>
-              </tr>
-              <tr>
-                <td style="font-weight:bold; padding: 2px 4px;">Inc D</td>
-                <td style="text-align:center; padding: 2px 4px;">${m.inclinacaoD}/50</td>
-                <td style="text-align:center; padding: 2px 4px;">${idEVA}/10</td>
-              </tr>
-              <tr>
-                <td style="font-weight:bold; padding: 2px 4px;">Inc E</td>
-                <td style="text-align:center; padding: 2px 4px;">${m.inclinacaoE}/50</td>
-                <td style="text-align:center; padding: 2px 4px;">${ieEVA}/10</td>
-              </tr>
-            </tbody>
-          </table>
-        `;
-      }
-
-      pdfContainer.innerHTML = `
-        ${pdfStyles}
-
-        <!-- PAGE 1 -->
-        <div class="pdf-page">
-          <!-- Header -->
-          <div class="grid-header">
-            <div class="logo-box">
-              ${logoBase64 
-                ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-                : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
-              }
-              <div>
-                <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
-                <p class="logo-subtitle">Fisioterapia, Quiropraxia e Fortalecimento</p>
-              </div>
-            </div>
-            <div class="date-box">
-              <span>Data do Relatório</span>
-              <strong>${formatDate(report.data)}</strong>
-            </div>
-          </div>
-
-          <!-- Barra do Cliente -->
-          <div class="client-bar">
-            <div class="client-bar-item">
-              <span>Paciente</span>
-              <strong>${client.dadosPessoais.nome}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Idade</span>
-              <strong>${ageText}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Sexo</span>
-              <strong>${(client.dadosPessoais.sexo || 'M') === 'M' ? 'Masculino' : 'Feminino'}</strong>
-            </div>
-          </div>
-
-          <div class="section-card" style="margin-bottom: 0;">
-            <div class="section-card-title">Anamnese & Queixas Frequentes</div>
-            <div class="section-card-content" style="padding: 10px 10px 2px 10px;">
-              ${queixasHtml}
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
-            <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia e Quiropraxia</span>
-            <span>Relatório Clínico Evolutivo Completo</span>
-            <span>Página 1 de 4</span>
+        <div class="section-card">
+          <div class="section-card-title">Estilo de Vida & Hábitos</div>
+          <div class="section-card-content">
+            <table class="table-data">
+              <tbody>
+                <tr>
+                  <td style="font-weight:700; width:30%;">Qualidade do Sono:</td>
+                  <td>Dorme ${hb.sonoHoras}h por noite (${hb.sonoTipo === 'continuo' ? 'Sono contínuo' : 'Acorda à noite'}), Qualidade: ${hb.sonoQualidade}.</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:700;">Alimentação / Dor:</td>
+                  <td>${hb.alimentacaoDor || 'Sem observações.'}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:700;">Atividade Física:</td>
+                  <td>
+                    ${hb.atividadeFisicaFaz === 'sim' ? `Faz atividade física regular: ${hb.atividadeFisicaQual || ''}. Interfere na dor: ${hb.atividadeFisicaInterfere || ''}` : 'Não pratica atividade física regularmente.'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-weight:700;">Nível de Estresse:</td>
+                  <td>Nível ${hb.stressNivel}/10 | Mecanismo de controle: ${hb.controleStress || 'Nenhum.'}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <!-- PAGE 2 -->
-        <div class="pdf-page">
-          <div class="pdf-mini-header">
-            <span>Paciente: ${client.dadosPessoais.nome}</span>
-            <span>Histórico & Goniometria</span>
-            <span>Data: ${formatDate(report.data)}</span>
-          </div>
-
-          <div class="section-card">
-            <div class="section-card-title">Histórico Clínico Detalhado</div>
-            <div class="section-card-content">
-              <table class="table-data">
-                <tbody>
+        <div class="section-card">
+          <div class="section-card-title">Amplitude de Movimento (Goniometria)</div>
+          <div class="section-card-content">
+            <table class="table-data">
+              <thead>
+                <tr style="font-weight:bold;">
+                  <th>Articulação / Movimento</th>
+                  <th style="text-align:center; width:25%;">Direito</th>
+                  <th style="text-align:center; width:25%;">Esquerdo</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${[
+                  { key: 'quadrilFlexao1', label: 'Quadril - Flexão com Joelho Fletido' },
+                  { key: 'quadrilFlexao2', label: 'Quadril - Flexão com Joelho Estendido' },
+                  { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna' },
+                  { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa' },
+                  { key: 'joelhoFlexao', label: 'Joelho - Flexão' },
+                  { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo' },
+                  { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão Joelho Estendido' },
+                  { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão Joelho Fletido' },
+                  { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar' },
+                  { key: 'ombroRotInt', label: 'Ombro - Rotação Interna' },
+                  { key: 'ombroRotExt', label: 'Ombro - Rotação Externa' },
+                  { key: 'ombroAbducao', label: 'Ombro - Abdução' }
+                ].map(row => `
                   <tr>
-                    <td style="font-weight:700; width:30%;">Traumas pregressos:</td>
-                    <td>${h.traumas || 'Nenhum relatado.'}</td>
+                    <td style="font-weight:600;">${row.label}</td>
+                    <td style="text-align:center;">${g[row.key + 'D'] || '0'}°</td>
+                    <td style="text-align:center;">${g[row.key + 'E'] || '0'}°</td>
                   </tr>
-                  <tr>
-                    <td style="font-weight:700;">Cirurgias:</td>
-                    <td>${cirurgiasHtml}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Doenças pregressas/atuais:</td>
-                    <td>${h.doencasPregressasAtuais || 'Nenhuma.'}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Traumas emocionais/estresse:</td>
-                    <td>${h.traumasEmocionaisStress || 'Nenhum.'}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Medicação em uso:</td>
-                    <td>${h.medicacao || 'Nenhuma.'}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Álcool/Tabaco/Drogas:</td>
-                    <td>${h.drogasRecreativas || 'Nenhum.'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="section-card">
-            <div class="section-card-title">Estilo de Vida & Hábitos</div>
-            <div class="section-card-content">
-              <table class="table-data">
-                <tbody>
-                  <tr>
-                    <td style="font-weight:700; width:30%;">Qualidade do Sono:</td>
-                    <td>Dorme ${hb.sonoHoras}h por noite (${hb.sonoTipo === 'continuo' ? 'Sono contínuo' : 'Acorda à noite'}), Qualidade: ${hb.sonoQualidade}.</td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Alimentação / Dor:</td>
-                    <td>${hb.alimentacaoDor || 'Sem observações.'}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Atividade Física:</td>
-                    <td>
-                      ${hb.atividadeFisicaFaz === 'sim' ? `Faz atividade física regular: ${hb.atividadeFisicaQual || ''}. Interfere na dor: ${hb.atividadeFisicaInterfere || ''}` : 'Não pratica atividade física regularmente.'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Nível de Estresse:</td>
-                    <td>Nível ${hb.stressNivel}/10 | Mecanismo de controle: ${hb.controleStress || 'Nenhum.'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="section-card">
-            <div class="section-card-title">Amplitude de Movimento (Goniometria)</div>
-            <div class="section-card-content">
-              <table class="table-data">
-                <thead>
-                  <tr style="font-weight:bold;">
-                    <th>Articulação / Movimento</th>
-                    <th style="text-align:center; width:25%;">Direito</th>
-                    <th style="text-align:center; width:25%;">Esquerdo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${[
-                    { key: 'quadrilFlexao1', label: 'Quadril - Flexão com Joelho Fletido' },
-                    { key: 'quadrilFlexao2', label: 'Quadril - Flexão com Joelho Estendido' },
-                    { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna' },
-                    { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa' },
-                    { key: 'joelhoFlexao', label: 'Joelho - Flexão' },
-                    { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo' },
-                    { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão Joelho Estendido' },
-                    { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão Joelho Fletido' },
-                    { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar' },
-                    { key: 'ombroRotInt', label: 'Ombro - Rotação Interna' },
-                    { key: 'ombroRotExt', label: 'Ombro - Rotação Externa' },
-                    { key: 'ombroAbducao', label: 'Ombro - Abdução' }
-                  ].map(row => `
-                    <tr>
-                      <td style="font-weight:600;">${row.label}</td>
-                      <td style="text-align:center;">${g[row.key + 'D'] || '0'}°</td>
-                      <td style="text-align:center;">${g[row.key + 'E'] || '0'}°</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
-            <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia e Quiropraxia</span>
-            <span>Relatório Clínico Evolutivo Completo</span>
-            <span>Página 2 de 4</span>
+                `).join('')}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <!-- PAGE 3 -->
-        <div class="pdf-page">
-          <div class="pdf-mini-header">
-            <span>Paciente: ${client.dadosPessoais.nome}</span>
-            <span>Testes Especiais & Exames</span>
-            <span>Data: ${formatDate(report.data)}</span>
-          </div>
-
-          <div class="section-card">
-            <div class="section-card-title">Testes Ortopédicos Especiais</div>
-            <div class="section-card-content">
-              <table class="table-data">
-                <thead>
-                  <tr style="font-weight:bold;">
-                    <th>Teste Clínico</th>
-                    <th style="text-align:center; width:35%;">Direito</th>
-                    <th style="text-align:center; width:35%;">Esquerdo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style="font-weight:700;">Teste de Ober</td>
-                    <td style="text-align:center; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${te.oberD}</td>
-                    <td style="text-align:center; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${te.oberE}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-weight:700;">Teste de Thomas</td>
-                    <td style="text-align:center; color:${te.thomasD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasD === 'Positivo' ? '700' : 'normal'};">
-                      ${te.thomasD} ${te.thomasD === 'Positivo' && te.thomasAnguloD ? `(${te.thomasAnguloD}°)` : ''}
-                    </td>
-                    <td style="text-align:center; color:${te.thomasE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasE === 'Positivo' ? '700' : 'normal'};">
-                      ${te.thomasE} ${te.thomasE === 'Positivo' && te.thomasAnguloE ? `(${te.thomasAnguloE}°)` : ''}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          ${hasTermografia || hasExames ? `
-          <div class="section-card">
-            <div class="section-card-title">Termografia & Exames Complementares</div>
-            <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; color: #334155;">
-              ${hasTermografia ? `
-              <div style="margin-bottom: ${hasExames ? '10px' : '0px'};">
-                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 4px;">Mapeamento por Termografia:</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">
-                  ${termografiaHtml}
-                </div>
-              </div>
-              ` : ''}
-              ${hasExames ? `
-              <div>
-                <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 4px;">Exames Complementares Anexados:</span>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">
-                  ${examesHtml}
-                </div>
-              </div>
-              ` : ''}
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- Footer -->
-          <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
-            <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia e Quiropraxia</span>
-            <span>Relatório Clínico Evolutivo Completo</span>
-            <span>Página 3 de 4</span>
+        <div class="section-card">
+          <div class="section-card-title">Testes Ortopédicos Especiais</div>
+          <div class="section-card-content">
+            <table class="table-data">
+              <thead>
+                <tr style="font-weight:bold;">
+                  <th>Teste Clínico</th>
+                  <th style="text-align:center; width:35%;">Direito</th>
+                  <th style="text-align:center; width:35%;">Esquerdo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="font-weight:700;">Teste de Ober</td>
+                  <td style="text-align:center; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${te.oberD}</td>
+                  <td style="text-align:center; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${te.oberE}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:700;">Teste de Thomas</td>
+                  <td style="text-align:center; color:${te.thomasD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasD === 'Positivo' ? '700' : 'normal'};">
+                    ${te.thomasD} ${te.thomasD === 'Positivo' && te.thomasAnguloD ? `(${te.thomasAnguloD}°)` : ''}
+                  </td>
+                  <td style="text-align:center; color:${te.thomasE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasE === 'Positivo' ? '700' : 'normal'};">
+                    ${te.thomasE} ${te.thomasE === 'Positivo' && te.thomasAnguloE ? `(${te.thomasAnguloE}°)` : ''}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <!-- PAGE 4 -->
-        <div class="pdf-page">
-          <div class="pdf-mini-header">
-            <span>Paciente: ${client.dadosPessoais.nome}</span>
-            <span>Testes Avançados & Conduta</span>
-            <span>Data: ${formatDate(report.data)}</span>
+        ${hasTermografia || hasExames ? `
+        <div class="section-card">
+          <div class="section-card-title">Termografia & Exames Complementares</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; color: #334155;">
+            ${hasTermografia ? `
+            <div style="margin-bottom: ${hasExames ? '10px' : '0px'};">
+              <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 4px;">Mapeamento por Termografia:</span>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">
+                ${termografiaHtml}
+              </div>
+            </div>
+            ` : ''}
+            ${hasExames ? `
+            <div>
+              <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 4px;">Exames Complementares Anexados:</span>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">
+                ${examesHtml}
+              </div>
+            </div>
+            ` : ''}
           </div>
+        </div>
+        ` : ''}
 
-          ${(hasMaigne || hasYTest || hasStepDown || hasDE) ? `
-          <table style="width:100%; border-collapse:collapse; font-size:9px; margin-bottom:10px;" border="0">
-            <tr>
-              ${hasMaigne ? `
-              <td style="width: ${(hasYTest || hasStepDown || hasDE) ? '48%' : '100%'}; vertical-align:top; padding-right: ${(hasYTest || hasStepDown || hasDE) ? '8px' : '0px'};">
-                <div class="section-card" style="margin-bottom: 0;">
-                  <div class="section-card-title">Estrela Maigne</div>
-                  <div class="section-card-content" style="padding: 6px; text-align:center;">
+        ${(hasMaigne || hasYTest || hasStepDown || hasDE) ? `
+        <div class="section-card">
+          <div class="section-card-title">Testes Avançados & Avaliação Funcional</div>
+          <div class="section-card-content" style="padding: 10px;">
+            <table style="width:100%; border-collapse:collapse; font-size:9px;" border="0">
+              <tr>
+                ${hasMaigne ? `
+                <td style="width: ${(hasYTest || hasStepDown || hasDE) ? '48%' : '100%'}; vertical-align:top; padding-right: ${(hasYTest || hasStepDown || hasDE) ? '8px' : '0px'};">
+                  <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #ffffff;">
+                    <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 6px; text-align:center;">Estrela Maigne</span>
                     ${maigneSvgHtml}
                     ${maigneTableHtml}
                   </div>
-                </div>
-              </td>
-              ` : ''}
-              ${(hasYTest || hasStepDown || hasDE) ? `
-              <td style="width: ${hasMaigne ? '52%' : '100%'}; vertical-align:top; padding-left: ${hasMaigne ? '8px' : '0px'};">
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  ${hasYTest ? `
-                  <div class="section-card" style="margin-bottom: 0;">
-                    <div class="section-card-title">Y Teste (Equilíbrio Dinâmico)</div>
-                    <div class="section-card-content" style="padding: 8px;">
+                </td>
+                ` : ''}
+                ${(hasYTest || hasStepDown || hasDE) ? `
+                <td style="width: ${hasMaigne ? '52%' : '100%'}; vertical-align:top; padding-left: ${hasMaigne ? '8px' : '0px'};">
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    ${hasYTest ? `
+                    <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #ffffff;">
+                      <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 6px;">Y Teste (Equilíbrio Dinâmico)</span>
                       ${yTestHtml}
                     </div>
-                  </div>
-                  ` : ''}
-                  ${hasStepDown ? `
-                  <div class="section-card" style="margin-bottom: 0;">
-                    <div class="section-card-title">Step Down Test</div>
-                    <div class="section-card-content" style="padding: 8px;">
+                    ` : ''}
+                    ${hasStepDown ? `
+                    <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #ffffff;">
+                      <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 6px;">Step Down Test</span>
                       ${stepDownHtml}
                     </div>
-                  </div>
-                  ` : ''}
-                  ${hasDE ? `
-                  <div class="section-card" style="margin-bottom: 0;">
-                    <div class="section-card-title">Cintura Escapular</div>
-                    <div class="section-card-content" style="padding: 8px;">
+                    ` : ''}
+                    ${hasDE ? `
+                    <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #ffffff;">
+                      <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 6px;">Cintura Escapular</span>
                       ${deHtml}
                     </div>
+                    ` : ''}
                   </div>
-                  ` : ''}
-                </div>
-              </td>
-              ` : ''}
-            </tr>
-          </table>
-          ` : ''}
-
-          <div class="section-card" style="margin-bottom: 8px;">
-            <div class="section-card-title">Conduta Fisioterapêutica Aplicada</div>
-            <div class="section-card-content" style="font-size: 8px; line-height: 1.4; white-space: pre-wrap; background: #fafafa;">${report.conteudo.conduta}</div>
-          </div>
-
-          <div class="section-card" style="margin-bottom: 8px;">
-            <div class="section-card-title">Prescrição de Autocuidado / Domiciliar</div>
-            <div class="section-card-content" style="font-size: 8px; line-height: 1.4; white-space: pre-wrap; background: #fafafa;">${report.conteudo.exercicios || 'Nenhuma prescrição adicional.'}</div>
-          </div>
-
-          <!-- Empresa -->
-          <div style="text-align: center; margin-top: 25px;">
-            <div style="font-size: 14px; font-weight: 800; color: #0d9488; font-family: 'Outfit', sans-serif;">
-              Clube Fitness Fisio
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
-            <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia e Quiropraxia</span>
-            <span>Relatório Clínico Evolutivo Completo</span>
-            <span>Página 4 de 4</span>
+                </td>
+                ` : ''}
+              </tr>
+            </table>
           </div>
         </div>
-      `;
-    }
+        ` : ''}
 
-    const options = {
-      margin: 10,
-      filename: `Relatorio_Fisioterapia_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_${formatDate(report.data).replace(/\//g, '-')}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css'] }
-    };
+        <div class="section-card">
+          <div class="section-card-title">Conduta Fisioterapêutica Aplicada</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.conduta}</div>
+        </div>
 
-    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-      triggerDirectDownload(blob, options.filename);
-      document.body.removeChild(pdfWrapper);
-    }).catch((err: any) => {
-      console.error('Erro na geração do PDF do relatório:', err);
-      document.body.removeChild(pdfWrapper);
-    });
+        <div class="section-card">
+          <div class="section-card-title">Prescrição de Autocuidado / Domiciliar</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.exercicios || 'Nenhuma prescrição adicional.'}</div>
+        </div>
+
+        <!-- Assinatura Profissional -->
+        <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #475569;">
+          <div style="width: 250px; margin: 0 auto; border-top: 1px solid #cbd5e1; padding-top: 6px;">
+            <strong>${prof.nome}</strong><br>
+            <span>${prof.registro}</span>
+          </div>
+        </div>
+
+        <!-- Footer Empresa -->
+        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+          <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const options = {
+    margin: 10,
+    filename: `Relatorio_Fisioterapia_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_${formatDate(report.data).replace(/\//g, '-')}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+
+  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+    triggerDirectDownload(blob, options.filename);
+    document.body.removeChild(pdfWrapper);
+  }).catch((err: any) => {
+    console.error('Erro na geração do PDF do relatório:', err);
+    document.body.removeChild(pdfWrapper);
+  });
 }
 
 
