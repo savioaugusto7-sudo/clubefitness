@@ -1110,8 +1110,9 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
 
                 // 4. FORÇA E CARGAS
                 if (evoSubTab === 'forca') {
-                  const sortedSt = [...strengthTests].sort((a, b) => a.data.localeCompare(a.data));
+                  const sortedSt = [...strengthTests].sort((a, b) => a.data.localeCompare(b.data));
                   const latestSt = sortedSt[sortedSt.length - 1];
+                  const isNew = latestSt?.testesRealizados && latestSt.testesRealizados.length > 0;
 
                   const renderStrengthChart = () => {
                     if (sortedSt.length === 0) {
@@ -1177,6 +1178,124 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
                       </div>
                     );
                   };
+
+                  if (isNew) {
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* Banner de informações da avaliação */}
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data da última avaliação:</span>
+                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{latestSt.data}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Peso Corporal registrado:</span>
+                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{latestSt.pesoCliente} kg</div>
+                          </div>
+                        </div>
+
+                        {/* Testes de Força Individual */}
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+                          <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
+                            <i className="fa-solid fa-gauge-simple-high" style={{ color: 'var(--color-accent)', marginRight: '6px' }}></i> Força Muscular Individual por Movimento
+                          </h4>
+                          <div className="table-responsive">
+                            <table className="data-table">
+                              <thead>
+                                <tr>
+                                  <th>Articulação</th>
+                                  <th>Movimento</th>
+                                  <th style={{ textAlign: 'center' }}>Lado</th>
+                                  <th style={{ textAlign: 'right' }}>Valor Obtido</th>
+                                  <th style={{ textAlign: 'right' }}>Força (N)</th>
+                                  <th style={{ textAlign: 'right' }}>Normalização (%PC)</th>
+                                  <th style={{ textAlign: 'center' }}>Classificação</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {latestSt.testesRealizados.map((t: any, idx: number) => {
+                                  let badgeClass = 'badge-success';
+                                  if (t.classificacao === 'DÉFICIT LEVE') badgeClass = 'badge-info';
+                                  else if (t.classificacao === 'DÉFICIT MODERADO') badgeClass = 'badge-warning';
+                                  else if (t.classificacao === 'DÉFICIT GRAVE') badgeClass = 'badge-danger';
+                                  return (
+                                    <tr key={idx}>
+                                      <td><strong>{t.articulacao}</strong></td>
+                                      <td>{t.movimento}</td>
+                                      <td style={{ textAlign: 'center' }}>{t.lado}</td>
+                                      <td style={{ textAlign: 'right' }}>{t.valorObtido} {t.unidade}</td>
+                                      <td style={{ textAlign: 'right' }}>{t.forcaN?.toFixed(1)} N</td>
+                                      <td style={{ textAlign: 'right' }}>{t.pcPercent?.toFixed(1)}%</td>
+                                      <td style={{ textAlign: 'center' }}>
+                                        <span className={`badge ${badgeClass}`}>{t.classificacao || 'FORÇA NORMAL'}</span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Análise de Simetria e Déficits */}
+                        {latestSt.comparativos && latestSt.comparativos.length > 0 && (
+                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+                            <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
+                              <i className="fa-solid fa-arrows-left-right" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Índice de Simetria e Déficits Bilaterais
+                            </h4>
+                            <div className="table-responsive">
+                              <table className="data-table">
+                                <thead>
+                                  <tr>
+                                    <th>Articulação</th>
+                                    <th>Movimento</th>
+                                    <th style={{ textAlign: 'right' }}>Lado Direito (N)</th>
+                                    <th style={{ textAlign: 'right' }}>Lado Esquerdo (N)</th>
+                                    <th style={{ textAlign: 'right' }}>Déficit Lateral (%)</th>
+                                    <th style={{ textAlign: 'right' }}>Simetria (%)</th>
+                                    <th style={{ textAlign: 'center' }}>Classificação</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {latestSt.comparativos.map((c: any, idx: number) => {
+                                    let badgeClass = 'badge-success';
+                                    if (c.classificacaoSimetria === 'Aceitável') badgeClass = 'badge-info';
+                                    else if (c.classificacaoSimetria === 'Atenção') badgeClass = 'badge-warning';
+                                    else if (c.classificacaoSimetria === 'Assimetria Relevante') badgeClass = 'badge-danger';
+                                    return (
+                                      <tr key={idx}>
+                                        <td><strong>{c.articulacao}</strong></td>
+                                        <td>{c.movimento}</td>
+                                        <td style={{ textAlign: 'right' }}>{c.valorD?.toFixed(1)} N</td>
+                                        <td style={{ textAlign: 'right' }}>{c.valorE?.toFixed(1)} N</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: c.deficit > 15 ? 'var(--color-danger)' : 'inherit' }}>{c.deficit?.toFixed(1)}%</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: c.simetria < 85 ? 'var(--color-danger)' : 'var(--color-success)' }}>{c.simetria?.toFixed(1)}%</td>
+                                        <td style={{ textAlign: 'center' }}>
+                                          <span className={`badge ${badgeClass}`}>{c.classificacaoSimetria || 'Excelente'}</span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Observações do Fisioterapeuta */}
+                        {latestSt.observacoes && (
+                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+                            <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '8px' }}>
+                              <i className="fa-solid fa-comment-medical" style={{ color: 'var(--color-success)', marginRight: '6px' }}></i> Observações do Fisioterapeuta
+                            </h4>
+                            <p style={{ fontSize: '0.875rem', lineHeight: '1.6', color: 'var(--text-dim)', whiteSpace: 'pre-wrap', margin: 0 }}>
+                              {latestSt.observacoes}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
 
                   const extOmbro = latestSt?.exercicios?.find((e: any) => e.nome.includes('Rotação Externa'))?.carga || 0;
                   const intOmbro = latestSt?.exercicios?.find((e: any) => e.nome.includes('Rotação Interna'))?.carga || 0;

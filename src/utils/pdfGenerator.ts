@@ -2556,8 +2556,6 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
   }).join('');
 
   const options = { margin: 5, filename: `Prontuarios_${nome.replace(/\s+/g,'_')}_completo.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.8, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
-  
-
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
@@ -2568,90 +2566,518 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
   });
 }
 
-// ==========================================================
-// PDF — ANÁLISE COMPARATIVA DE FORÇA MUSCULAR
-// ==========================================================
-export function downloadStrengthTestPDF(st: any, client: any, prof: any) {
+const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number, max: number }, F: { min: number, max: number } }>> = {
+  "Ombro": {
+    "Abdução": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
+    "Rotação Externa Neutro": { M: { min: 12, max: 16 }, F: { min: 12, max: 16 } },
+    "Rotação Externa 90° de Abdução": { M: { min: 14, max: 18 }, F: { min: 14, max: 18 } }
+  },
+  "Cotovelo": {
+    "Flexão": { M: { min: 20, max: 30 }, F: { min: 15, max: 22 } },
+    "Extensão": { M: { min: 15, max: 22 }, F: { min: 10, max: 16 } }
+  },
+  "Punho": {
+    "Flexão": { M: { min: 10, max: 18 }, F: { min: 7, max: 13 } },
+    "Extensão": { M: { min: 8, max: 15 }, F: { min: 6, max: 11 } }
+  },
+  "Tornozelo": {
+    "Inversão": { M: { min: 15, max: 22 }, F: { min: 12, max: 18 } },
+    "Eversão": { M: { min: 12, max: 18 }, F: { min: 10, max: 15 } },
+    "Flexão Plantar": { M: { min: 40, max: 55 }, F: { min: 30, max: 45 } }
+  },
+  "Joelho": {
+    "Extensão": { M: { min: 45, max: 60 }, F: { min: 35, max: 50 } },
+    "Flexão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } }
+  },
+  "Quadril": {
+    "Flexão": { M: { min: 30, max: 42 }, F: { min: 25, max: 36 } },
+    "Abdução": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Adução": { M: { min: 15, max: 20 }, F: { min: 15, max: 20 } },
+    "Extensão": { M: { min: 25, max: 30 }, F: { min: 25, max: 30 } }
+  }
+};
+
+export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const html2pdf = (window as any).html2pdf;
   if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
 
   const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
-  let v: any = st.valores || {};
-  if (!v.supino && st.exercicios?.length) {
-    const ex = st.exercicios;
-    v = { supino: ex.find((e: any) => /supino/i.test(e.nome))?.carga || 0, remada: ex.find((e: any) => /remada/i.test(e.nome))?.carga || 0, desenvolvimento: ex.find((e: any) => /desenvolvim/i.test(e.nome))?.carga || 0, puxada: ex.find((e: any) => /puxada/i.test(e.nome))?.carga || 0, rotacaoExternaOmbro: ex.find((e: any) => /externa/i.test(e.nome))?.carga || 0, rotacaoInternaOmbro: ex.find((e: any) => /interna/i.test(e.nome))?.carga || 0, abducaoOmbro: ex.find((e: any) => /abdu/i.test(e.nome))?.carga || 0 };
-  }
-
-  const rHor = v.remada && v.supino ? v.remada / v.supino : 0;
-  const rVer = v.desenvolvimento && v.puxada ? v.desenvolvimento / v.puxada : 0;
-  const rRot = v.rotacaoExternaOmbro && v.rotacaoInternaOmbro ? v.rotacaoExternaOmbro / v.rotacaoInternaOmbro : 0;
-  const rAbd = v.rotacaoExternaOmbro && v.abducaoOmbro ? v.rotacaoExternaOmbro / v.abducaoOmbro : 0;
-  const [iH, iV, iR, iA] = [rHor >= 0.80, rVer >= 1.50, rRot >= 0.70, rAbd >= 0.55];
-  const a = st.analise || { razaoHorizontal: rHor, razaoVertical: rVer, razaoRotadores: rRot, razaoAbdRotadores: rAbd, riscoOmbro: !iH || !iV || !iR || !iA, alertas: [...(!iH ? ['Risco: razão horizontal (Remada/Supino) deve ser ≥ 0.80'] : []), ...(!iV ? ['Risco: razão vertical (Desenvolvimento/Puxada) deve ser ≥ 1.50'] : []), ...(!iR ? ['Risco: razão rotadores (Ext/Int) deve ser ≥ 0.70'] : []), ...(!iA ? ['Risco: razão abdutores (Ext/Abd) deve ser ≥ 0.55'] : [])] };
-
   const nome = client?.dadosPessoais?.nome || 'Paciente';
   const cpf = client?.dadosPessoais?.cpf || '-';
-  const profNome = prof?.nome || prof?.dadosPessoais?.nome || 'Profissional';
-  const profReg = prof?.registro || '';
+  const sex = client?.dadosPessoais?.sexo || 'M';
   const data = fmtDate(st.data || st.createdAt?.split('T')[0] || '');
-  const sc = a.riscoOmbro ? '#b91c1c' : '#0d9488';
+  const peso = st.pesoCliente || client?.dadosMedidos?.peso || '-';
+
+  const logoBase64 = await getLogoBase64();
 
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:720px;opacity:0;z-index:99999;pointer-events:none;`;
+  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:794px;opacity:0;z-index:99999;pointer-events:none;display:block;`;
   const pdfContainer = document.createElement('div');
-  pdfContainer.style.cssText = 'background:#fff;color:#333;padding:30px;font-family:Arial,sans-serif;width:720px;box-sizing:border-box;';
+  pdfContainer.style.cssText = 'background:#ffffff;color:#1e293b;padding:0;margin:0;width:794px;box-sizing:border-box;';
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
-  const warningsHtml = (a.alertas || []).map((t: string) => `<div style="background:#fef2f2;border:1px solid #fca5a5;padding:12px;border-radius:6px;margin-bottom:12px;color:#b91c1c;font-size:11px;font-weight:bold;">⚠️ ${t}</div>`).join('');
-  const ratioRow = (label: string, val: number, ref: string, ok: boolean) => `<tr><td style="padding:5px;">${label}</td><td style="padding:5px;text-align:center;font-weight:bold;">${val > 0 ? val.toFixed(2) : '-'}</td><td style="padding:5px;text-align:center;">${ref}</td><td style="padding:5px;text-align:center;font-weight:bold;color:${ok?'#10b981':'#ef4444'}">${val > 0 ? (ok ? 'OK' : 'ALTERADO') : '-'}</td></tr>`;
+  const isNew = st.testesRealizados && st.testesRealizados.length > 0;
 
-  pdfContainer.innerHTML = `
+  const pdfStyles = `
     <style>
-      p, li, tr, h2, h3, h4, table {
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff;
+      }
+      .pdf-page {
+        background: #ffffff;
+        color: #1e293b;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+        width: 794px;
+        padding: 25px 35px;
+      }
+      .font-outfit {
+        font-family: 'Outfit', sans-serif;
+      }
+      .grid-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+      }
+      .logo-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo-img {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        object-fit: cover;
+      }
+      .logo-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #0e131f;
+        margin: 0;
+        letter-spacing: -0.5px;
+      }
+      .logo-subtitle {
+        font-size: 8px;
+        color: #64748b;
+        margin: 2px 0 0 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .date-box {
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 6px 12px;
+        text-align: center;
+        border: 1px solid #cbd5e1;
+      }
+      .date-box span {
+        font-size: 8px;
+        color: #64748b;
+        font-weight: 600;
+        display: block;
+        text-transform: uppercase;
+      }
+      .date-box strong {
+        font-size: 13px;
+        color: #0f172a;
+        font-family: 'Outfit', sans-serif;
+      }
+      .client-bar {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr 1fr;
+        padding: 6px 12px;
+        margin-bottom: 12px;
+        font-size: 9px;
+      }
+      .client-bar-item {
+        border-right: 1px solid #e2e8f0;
+        padding: 0 8px;
+      }
+      .client-bar-item:last-child {
+        border-right: none;
+      }
+      .client-bar-item span {
+        color: #64748b;
+        font-weight: 500;
+        display: block;
+        font-size: 8px;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+      }
+      .client-bar-item strong {
+        color: #0f172a;
+        font-size: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+      }
+      .table-data {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9px;
+      }
+      .table-data th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid #e2e8f0;
+        text-transform: uppercase;
+        font-size: 8px;
+      }
+      .table-data td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+      }
+      .table-data tr:last-child td {
+        border-bottom: none;
+      }
+      .section-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 12px;
+        background: #ffffff;
+      }
+      .section-card-title {
+        background: #0f172a;
+        color: #ffffff;
+        padding: 6px 12px;
+        font-family: 'Outfit', sans-serif;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .section-card-content {
+        padding: 8px 10px;
+        background: #ffffff;
+      }
+      .metric-badge {
+        font-size: 7.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      .badge-green { background: #dcfce7; color: #15803d; }
+      .badge-orange { background: #ffedd5; color: #c2410c; }
+      .badge-blue { background: #dbeafe; color: #1d4ed8; }
+      .badge-red { background: #fee2e2; color: #b91c1c; }
+      p, li, tr, h2, h3, h4, table, tbody {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
     </style>
-    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #6366f1;padding-bottom:20px;margin-bottom:30px;">
-      <div><h1 style="color:#0e131f;margin:0;font-size:26px;">CLUBE FITNESS FISIO</h1><p style="color:#666;margin:4px 0 0 0;font-size:11px;">Fisioterapia, Quiropraxia e Fortalecimento</p></div>
-      <div style="text-align:right;"><span style="font-weight:bold;color:#6366f1;font-size:14px;">ANÁLISE COMPARATIVA DE FORÇA</span><br><small style="color:#777">Data: ${data}</small></div>
-    </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;" border="1" borderColor="#e2e8f0">
-      <tr style="background:#f8fafc;"><td style="padding:6px;font-weight:bold;width:15%">Paciente:</td><td style="padding:6px;width:45%">${nome}</td><td style="padding:6px;font-weight:bold;width:15%">CPF:</td><td style="padding:6px;width:25%">${cpf}</td></tr>
-      <tr><td style="padding:6px;font-weight:bold;">Status de Risco:</td><td style="padding:6px;font-weight:bold;color:${sc};" colspan="3">${a.riscoOmbro ? 'RISCO ELEVADO DE LESÃO' : 'EQUILIBRADO / SEGURO'}</td></tr>
-    </table>
-    <h4 style="margin:20px 0 8px 0;color:#6366f1;font-size:13px;border-bottom:1.5px solid #6366f1;padding-bottom:4px;text-transform:uppercase;">Cargas Máximas Registradas</h4>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:24px;" border="1" borderColor="#e2e8f0">
-      <tr style="background:#f4f6f8;font-weight:bold;"><th style="padding:6px;text-align:left;">Exercício</th><th style="padding:6px;text-align:center;width:30%;">Carga</th></tr>
-      <tr><td style="padding:5px;">Supino Reto</td><td style="padding:5px;text-align:center;"><strong>${v.supino||0} kg</strong></td></tr>
-      <tr><td style="padding:5px;">Remada Curvada / Máquina</td><td style="padding:5px;text-align:center;"><strong>${v.remada||0} kg</strong></td></tr>
-      <tr><td style="padding:5px;">Desenvolvimento de Ombros</td><td style="padding:5px;text-align:center;"><strong>${v.desenvolvimento||0} kg</strong></td></tr>
-      <tr><td style="padding:5px;">Puxada Alta (Lat Pulldown)</td><td style="padding:5px;text-align:center;"><strong>${v.puxada||0} kg</strong></td></tr>
-      <tr><td style="padding:5px;">Rotação Externa de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoExternaOmbro||0} kg</strong></td></tr>
-      <tr><td style="padding:5px;">Rotação Interna de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoInternaOmbro||0} kg</strong></td></tr>
-      <tr><td style="padding:5px;">Abdução de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.abducaoOmbro||0} kg</strong></td></tr>
-    </table>
-    <h4 style="margin:20px 0 8px 0;color:#6366f1;font-size:13px;border-bottom:1.5px solid #6366f1;padding-bottom:4px;text-transform:uppercase;">Razões de Equilíbrio Muscular</h4>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:24px;" border="1" borderColor="#e2e8f0">
-      <tr style="background:#f4f6f8;font-weight:bold;"><th style="padding:6px;text-align:left;">Métrica</th><th style="padding:6px;text-align:center;width:20%;">Resultado</th><th style="padding:6px;text-align:center;width:25%;">Referência</th><th style="padding:6px;text-align:center;width:20%;">Status</th></tr>
-      ${ratioRow('Horizontal (Remada / Supino)', rHor, '≥ 0.80', iH)}
-      ${ratioRow('Vertical (Desenvolvimento / Puxada)', rVer, '≥ 1.50', iV)}
-      ${ratioRow('Rotadores (Ext / Int)', rRot, '≥ 0.70', iR)}
-      ${ratioRow('Abdutores/Rotadores (Ext / Abd)', rAbd, '≥ 0.55', iA)}
-    </table>
-    ${warningsHtml ? `<h4 style="margin:20px 0 8px 0;color:#ef4444;font-size:12px;text-transform:uppercase;">Advertências Clínicas</h4>${warningsHtml}` : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:6px;color:#15803d;font-size:11px;font-weight:bold;">✓ Nenhum desequilíbrio muscular de risco detectado. Proporções biomecânicas adequadas.</div>`}
-    <!-- Empresa -->
-    <div style="margin-top:50px;font-size:11px;text-align:center;">
-      <div style="font-size:14px;font-weight:800;color:#6366f1;font-family:'Outfit',sans-serif;">
-        Clube Fitness Fisio
-      </div>
-    </div>
   `;
 
-  const options = { margin: 10, filename: `Analise_Forca_${nome.replace(/\s+/g,'_')}_${data.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
-  
+  if (isNew) {
+    // Individual tests logic
+    const testsHtml = st.testesRealizados.map((t: any) => {
+      // Look up reference in table
+      const refData = STRENGTH_REFERENCE_TABLE[t.articulacao]?.[t.movimento]?.[sex === 'F' ? 'F' : 'M'] || { min: 0, max: 0 };
+      const refText = refData.min > 0 ? `${refData.min}-${refData.max} %PC` : '-';
+      
+      let badgeClass = 'badge-green';
+      if (t.classificacao === 'DÉFICIT LEVE') badgeClass = 'badge-blue';
+      else if (t.classificacao === 'DÉFICIT MODERADO') badgeClass = 'badge-orange';
+      else if (t.classificacao === 'DÉFICIT GRAVE') badgeClass = 'badge-red';
 
+      return `
+        <tr>
+          <td><strong>${t.articulacao}</strong></td>
+          <td>${t.movimento}</td>
+          <td style="text-align:center;">${t.lado}</td>
+          <td style="text-align:right;">${t.valorObtido} ${t.unidade}</td>
+          <td style="text-align:right; font-weight:600;">${t.forcaN?.toFixed(1)} N</td>
+          <td style="text-align:right; font-weight:600;">${t.pcPercent?.toFixed(1)}%</td>
+          <td style="text-align:center; color:#64748b;">${refText}</td>
+          <td style="text-align:right; font-weight:700;">${t.pctRef?.toFixed(1)}%</td>
+          <td style="text-align:center;"><span class="metric-badge ${badgeClass}">${t.classificacao || 'FORÇA NORMAL'}</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    // Bilateral comparisons logic
+    const compsHtml = (st.comparativos || []).map((c: any) => {
+      let badgeClass = 'badge-green';
+      if (c.classificacaoSimetria === 'Aceitável') badgeClass = 'badge-blue';
+      else if (c.classificacaoSimetria === 'Atenção') badgeClass = 'badge-orange';
+      else if (c.classificacaoSimetria === 'Assimetria Relevante') badgeClass = 'badge-red';
+
+      return `
+        <tr>
+          <td><strong>${c.articulacao}</strong></td>
+          <td>${c.movimento}</td>
+          <td style="text-align:right; font-weight:600;">${c.valorD?.toFixed(1)} N</td>
+          <td style="text-align:right; font-weight:600;">${c.valorE?.toFixed(1)} N</td>
+          <td style="text-align:right; font-weight:700; color:${c.deficit > 15 ? '#b91c1c' : '#1e293b'}">${c.deficit?.toFixed(1)}%</td>
+          <td style="text-align:right; font-weight:700; color:${c.simetria < 85 ? '#b91c1c' : '#15803d'}">${c.simetria?.toFixed(1)}%</td>
+          <td style="text-align:center;"><span class="metric-badge ${badgeClass}">${c.classificacaoSimetria || 'Excelente'}</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    const observationHtml = st.observacoes 
+      ? `<div class="section-card">
+          <div class="section-card-title">Observações Clínicas / Recomendações</div>
+          <div class="section-card-content" style="font-size:9.5px; line-height:1.5; white-space:pre-wrap; background:#fafafa;">${st.observacoes}</div>
+         </div>`
+      : '';
+
+    pdfContainer.innerHTML = `
+      ${pdfStyles}
+      <div class="pdf-page">
+        <!-- Header -->
+        <div class="grid-header">
+          <div class="logo-box">
+            ${logoBase64 
+              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+            }
+            <div>
+              <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+              <p class="logo-subtitle">Avaliação Clínico-Funcional de Força Muscular</p>
+            </div>
+          </div>
+          <div class="date-box">
+            <span>Data do Teste</span>
+            <strong>${data}</strong>
+          </div>
+        </div>
+
+        <!-- Paciente / Info -->
+        <div class="client-bar">
+          <div class="client-bar-item">
+            <span>Paciente</span>
+            <strong>${nome}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>CPF</span>
+            <strong>${cpf}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Peso Corporal</span>
+            <strong>${peso} kg</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Sexo</span>
+            <strong>${sex === 'F' ? 'Feminino' : 'Masculino'}</strong>
+          </div>
+        </div>
+
+        <!-- Tabela de Testes Individuais -->
+        <div class="section-card">
+          <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
+          <div class="section-card-content" style="padding:0;">
+            <table class="table-data">
+              <thead>
+                <tr>
+                  <th>Articulação</th>
+                  <th>Movimento</th>
+                  <th style="text-align:center;">Lado</th>
+                  <th style="text-align:right;">Valor</th>
+                  <th style="text-align:right;">Força (N)</th>
+                  <th style="text-align:right;">%PC</th>
+                  <th style="text-align:center;">Ref. Média</th>
+                  <th style="text-align:right;">% Ref.</th>
+                  <th style="text-align:center;">Classificação</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${testsHtml}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tabela de Comparação Bilateral -->
+        ${st.comparativos && st.comparativos.length > 0 ? `
+          <div class="section-card">
+            <div class="section-card-title">Análise de Simetria e Déficit Lateral</div>
+            <div class="section-card-content" style="padding:0;">
+              <table class="table-data">
+                <thead>
+                  <tr>
+                    <th>Articulação</th>
+                    <th>Movimento</th>
+                    <th style="text-align:right;">Dir (N)</th>
+                    <th style="text-align:right;">Esq (N)</th>
+                    <th style="text-align:right;">Déficit (%)</th>
+                    <th style="text-align:right;">Simetria (%)</th>
+                    <th style="text-align:center;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${compsHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Observações -->
+        ${observationHtml}
+
+        <!-- Footer Empresa -->
+        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+          <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
+        </div>
+      </div>
+    `;
+  } else {
+    // Legacy single-exercise fallback
+    let v: any = st.valores || {};
+    if (!v.supino && st.exercicios?.length) {
+      const ex = st.exercicios;
+      v = {
+        supino: ex.find((e: any) => /supino/i.test(e.nome))?.carga || 0,
+        remada: ex.find((e: any) => /remada/i.test(e.nome))?.carga || 0,
+        desenvolvimento: ex.find((e: any) => /desenvolvim/i.test(e.nome))?.carga || 0,
+        puxada: ex.find((e: any) => /puxada/i.test(e.nome))?.carga || 0,
+        rotacaoExternaOmbro: ex.find((e: any) => /externa/i.test(e.nome))?.carga || 0,
+        rotacaoInternaOmbro: ex.find((e: any) => /interna/i.test(e.nome))?.carga || 0,
+        abducaoOmbro: ex.find((e: any) => /abdu/i.test(e.nome))?.carga || 0
+      };
+    }
+
+    const rHor = v.remada && v.supino ? v.remada / v.supino : 0;
+    const rVer = v.desenvolvimento && v.puxada ? v.desenvolvimento / v.puxada : 0;
+    const rRot = v.rotacaoExternaOmbro && v.rotacaoInternaOmbro ? v.rotacaoExternaOmbro / v.rotacaoInternaOmbro : 0;
+    const rAbd = v.rotacaoExternaOmbro && v.abducaoOmbro ? v.rotacaoExternaOmbro / v.abducaoOmbro : 0;
+    const [iH, iV, iR, iA] = [rHor >= 0.80, rVer >= 1.50, rRot >= 0.70, rAbd >= 0.55];
+    const a = st.analise || {
+      razaoHorizontal: rHor,
+      razaoVertical: rVer,
+      razaoRotadores: rRot,
+      razaoAbdRotadores: rAbd,
+      riscoOmbro: !iH || !iV || !iR || !iA,
+      alertas: [
+        ...(!iH ? ['Risco: razão horizontal (Remada/Supino) deve ser ≥ 0.80'] : []),
+        ...(!iV ? ['Risco: razão vertical (Desenvolvimento/Puxada) deve ser ≥ 1.50'] : []),
+        ...(!iR ? ['Risco: razão rotadores (Ext/Int) deve ser ≥ 0.70'] : []),
+        ...(!iA ? ['Risco: razão abdutores (Ext/Abd) deve ser ≥ 0.55'] : [])
+      ]
+    };
+
+    const sc = a.riscoOmbro ? '#b91c1c' : '#0d9488';
+    const warningsHtml = (a.alertas || []).map((t: string) => `<div style="background:#fef2f2;border:1px solid #fca5a5;padding:12px;border-radius:6px;margin-bottom:12px;color:#b91c1c;font-size:11px;font-weight:bold;">⚠️ ${t}</div>`).join('');
+    const ratioRow = (label: string, val: number, ref: string, ok: boolean) => `<tr><td style="padding:6px;">${label}</td><td style="padding:6px;text-align:center;font-weight:bold;">${val > 0 ? val.toFixed(2) : '-'}</td><td style="padding:6px;text-align:center;">${ref}</td><td style="padding:6px;text-align:center;font-weight:bold;color:${ok ? '#10b981' : '#ef4444'}">${val > 0 ? (ok ? 'OK' : 'ALTERADO') : '-'}</td></tr>`;
+
+    pdfContainer.innerHTML = `
+      ${pdfStyles}
+      <div class="pdf-page">
+        <!-- Header -->
+        <div class="grid-header">
+          <div class="logo-box">
+            ${logoBase64 
+              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+            }
+            <div>
+              <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+              <p class="logo-subtitle">Análise Comparativa de Força Muscular Máxima (1RM)</p>
+            </div>
+          </div>
+          <div class="date-box">
+            <span>Data do Teste</span>
+            <strong>${data}</strong>
+          </div>
+        </div>
+
+        <!-- Paciente / Info -->
+        <div class="client-bar" style="grid-template-columns: 2fr 1fr 1fr;">
+          <div class="client-bar-item">
+            <span>Paciente</span>
+            <strong>${nome}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>CPF</span>
+            <strong>${cpf}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Status de Risco</span>
+            <strong style="color:${sc};">${a.riscoOmbro ? 'RISCO ELEVADO' : 'EQUILIBRADO / SEGURO'}</strong>
+          </div>
+        </div>
+
+        <!-- Cargas Máximas -->
+        <div class="section-card">
+          <div class="section-card-title">Cargas Máximas Registradas</div>
+          <div class="section-card-content" style="padding:0;">
+            <table class="table-data">
+              <thead>
+                <tr style="background:#f4f6f8;"><th style="padding:6px;text-align:left;">Exercício</th><th style="padding:6px;text-align:center;width:30%;">Carga</th></tr>
+              </thead>
+              <tbody>
+                <tr><td style="padding:5px;">Supino Reto</td><td style="padding:5px;text-align:center;"><strong>${v.supino || 0} kg</strong></td></tr>
+                <tr><td style="padding:5px;">Remada Curvada / Máquina</td><td style="padding:5px;text-align:center;"><strong>${v.remada || 0} kg</strong></td></tr>
+                <tr><td style="padding:5px;">Desenvolvimento de Ombros</td><td style="padding:5px;text-align:center;"><strong>${v.desenvolvimento || 0} kg</strong></td></tr>
+                <tr><td style="padding:5px;">Puxada Alta (Lat Pulldown)</td><td style="padding:5px;text-align:center;"><strong>${v.puxada || 0} kg</strong></td></tr>
+                <tr><td style="padding:5px;">Rotação Externa de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoExternaOmbro || 0} kg</strong></td></tr>
+                <tr><td style="padding:5px;">Rotação Interna de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoInternaOmbro || 0} kg</strong></td></tr>
+                <tr><td style="padding:5px;">Abdução de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.abducaoOmbro || 0} kg</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Razões de Equilíbrio -->
+        <div class="section-card">
+          <div class="section-card-title">Razões de Equilíbrio Muscular</div>
+          <div class="section-card-content" style="padding:0;">
+            <table class="table-data">
+              <thead>
+                <tr style="background:#f4f6f8;font-weight:bold;"><th style="padding:6px;text-align:left;">Métrica</th><th style="padding:6px;text-align:center;width:20%;">Resultado</th><th style="padding:6px;text-align:center;width:25%;">Referência</th><th style="padding:6px;text-align:center;width:20%;">Status</th></tr>
+              </thead>
+              <tbody>
+                ${ratioRow('Horizontal (Remada / Supino)', rHor, '≥ 0.80', iH)}
+                ${ratioRow('Vertical (Desenvolvimento / Puxada)', rVer, '≥ 1.50', iV)}
+                ${ratioRow('Rotadores (Ext / Int)', rRot, '≥ 0.70', iR)}
+                ${ratioRow('Abdutores/Rotadores (Ext / Abd)', rAbd, '≥ 0.55', iA)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Advertências -->
+        ${warningsHtml ? `<h4 style="margin:15px 0 6px 0;color:#ef4444;font-size:11px;text-transform:uppercase;">Advertências Clínicas</h4>${warningsHtml}` : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:10px;border-radius:6px;color:#15803d;font-size:10px;font-weight:bold;margin-top:10px;">✓ Nenhum desequilíbrio muscular de risco detectado. Proporções biomecânicas adequadas.</div>`}
+        
+        <!-- Observações -->
+        ${st.observacoes ? `<div class="section-card" style="margin-top:12px;"><div class="section-card-title">Observações</div><div class="section-card-content" style="font-size:9px;">${st.observacoes}</div></div>` : ''}
+
+        <!-- Footer Empresa -->
+        <div style="margin-top: 40px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+          <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const filename = `Analise_Forca_${nome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
+  const options = {
+    margin: 10,
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);

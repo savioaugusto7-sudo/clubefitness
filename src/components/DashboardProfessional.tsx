@@ -7,6 +7,37 @@ import SearchableSelect from './SearchableSelect';
 import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 
+export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number, max: number }, F: { min: number, max: number } }>> = {
+  "Ombro": {
+    "Abdução": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
+    "Rotação Externa Neutro": { M: { min: 12, max: 16 }, F: { min: 12, max: 16 } },
+    "Rotação Externa 90° de Abdução": { M: { min: 14, max: 18 }, F: { min: 14, max: 18 } }
+  },
+  "Cotovelo": {
+    "Flexão": { M: { min: 20, max: 30 }, F: { min: 15, max: 22 } },
+    "Extensão": { M: { min: 15, max: 22 }, F: { min: 10, max: 16 } }
+  },
+  "Punho": {
+    "Flexão": { M: { min: 10, max: 18 }, F: { min: 7, max: 13 } },
+    "Extensão": { M: { min: 8, max: 15 }, F: { min: 6, max: 11 } }
+  },
+  "Tornozelo": {
+    "Inversão": { M: { min: 15, max: 22 }, F: { min: 12, max: 18 } },
+    "Eversão": { M: { min: 12, max: 18 }, F: { min: 10, max: 15 } },
+    "Flexão Plantar": { M: { min: 40, max: 55 }, F: { min: 30, max: 45 } }
+  },
+  "Joelho": {
+    "Extensão": { M: { min: 45, max: 60 }, F: { min: 35, max: 50 } },
+    "Flexão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } }
+  },
+  "Quadril": {
+    "Flexão": { M: { min: 30, max: 42 }, F: { min: 25, max: 36 } },
+    "Abdução": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Adução": { M: { min: 15, max: 20 }, F: { min: 15, max: 20 } },
+    "Extensão": { M: { min: 25, max: 30 }, F: { min: 25, max: 30 } }
+  }
+};
+
 interface DashboardProfessionalProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -33,6 +64,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       setStAvaliador(professionalId);
     }
   }, [professionalId]);
+
+
   const [loading, setLoading] = useState(true);
 
   // Pagination & UX states
@@ -479,14 +512,35 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Strength Test form inputs
   const [stClient, setStClient] = useState('');
   const [stDate, setStDate] = useState('');
-  const [stSupino, setStSupino] = useState('');
-  const [stRemada, setStRemada] = useState('');
-  const [stDesenvolvimento, setStDesenvolvimento] = useState('');
-  const [stPuxada, setStPuxada] = useState('');
-  const [stRotExterna, setStRotExterna] = useState('');
-  const [stRotInterna, setStRotInterna] = useState('');
-  const [stAbducao, setStAbducao] = useState('');
+  const [stPeso, setStPeso] = useState('');
+  const [stTestesList, setStTestesList] = useState<any[]>([]);
   const [stObs, setStObs] = useState('');
+  // Current edited test item inputs
+  const [stArticulacao, setStArticulacao] = useState('Ombro');
+  const [stMovimento, setStMovimento] = useState('Abdução');
+  const [stLado, setStLado] = useState('Direito');
+  const [stUnidade, setStUnidade] = useState('kgf');
+  const [stValorObtido, setStValorObtido] = useState('');
+  const [stTentativas, setStTentativas] = useState('1');
+  const [stMelhorTentativa, setStMelhorTentativa] = useState('');
+  const [stMediaTentativas, setStMediaTentativas] = useState('');
+
+  useEffect(() => {
+    if (stClient) {
+      const clientAssessments = assessments.filter(a => {
+        const cid = typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId;
+        return cid === stClient;
+      });
+      if (clientAssessments.length > 0) {
+        const sorted = [...clientAssessments].sort((a, b) => b.data.localeCompare(a.data));
+        setStPeso(sorted[0]?.dadosMedidos?.peso?.toString() || '');
+      } else {
+        setStPeso('');
+      }
+    } else {
+      setStPeso('');
+    }
+  }, [stClient, assessments]);
 
   // Prontuario form inputs
   const [prClient, setPrClient] = useState('');
@@ -1695,31 +1749,146 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
+  const selectedClientObj = clients.find(c => c._id === stClient);
+  const clientSex = selectedClientObj?.dadosPessoais?.sexo || 'M';
+
+  const calculateTestMetrics = (art: string, mov: string, lado: string, uni: string, valObtido: number, tent: number, melhor: number, media: number, peso: number, sex: string) => {
+    const forcaN = uni === 'kgf' ? valObtido * 9.81 : valObtido;
+    const pesoCorporalN = peso * 9.81;
+    const pcPercent = pesoCorporalN > 0 ? (forcaN / pesoCorporalN) * 100 : 0;
+
+    // Get reference
+    const refData = STRENGTH_REFERENCE_TABLE[art]?.[mov]?.[sex === 'F' ? 'F' : 'M'] || { min: 0, max: 0 };
+    const refMin = refData.min;
+    const refMax = refData.max;
+    const refMed = (refMin + refMax) / 2;
+
+    const pctRef = refMed > 0 ? (pcPercent / refMed) * 100 : 0;
+
+    // Classificação clínica
+    let classificacao = '';
+    if (pctRef >= 90) classificacao = 'FORÇA NORMAL';
+    else if (pctRef >= 75) classificacao = 'DÉFICIT LEVE';
+    else if (pctRef >= 50) classificacao = 'DÉFICIT MODERADO';
+    else classificacao = 'DÉFICIT GRAVE';
+
+    return {
+      articulacao: art,
+      movimento: mov,
+      lado,
+      unidade: uni,
+      valorObtido: valObtido,
+      tentativas: tent,
+      melhorTentativa: melhor,
+      mediaTentativas: media,
+      forcaN,
+      pesoCorporalN,
+      pcPercent,
+      pctRef,
+      classificacao
+    };
+  };
+
+  const calculateComparativos = (testList: any[]) => {
+    const comps: any[] = [];
+    // Group tests by articulation and movement
+    const groups: Record<string, { Direito?: any, Esquerdo?: any }> = {};
+    testList.forEach(t => {
+      const key = `${t.articulacao}_${t.movimento}`;
+      if (!groups[key]) groups[key] = {};
+      if (t.lado === 'Direito') groups[key].Direito = t;
+      if (t.lado === 'Esquerdo') groups[key].Esquerdo = t;
+    });
+
+    Object.keys(groups).forEach(key => {
+      const { Direito, Esquerdo } = groups[key];
+      if (Direito && Esquerdo) {
+        const valD = Direito.forcaN;
+        const valE = Esquerdo.forcaN;
+        const minVal = Math.min(valD, valE);
+        const maxVal = Math.max(valD, valE);
+
+        const simetria = maxVal > 0 ? (minVal / maxVal) * 100 : 0;
+        const deficit = maxVal > 0 ? ((maxVal - minVal) / maxVal) * 100 : 0;
+
+        let classificacaoSimetria = '';
+        if (simetria >= 90) classificacaoSimetria = 'Excelente';
+        else if (simetria >= 85) classificacaoSimetria = 'Aceitável';
+        else if (simetria >= 80) classificacaoSimetria = 'Atenção';
+        else classificacaoSimetria = 'Assimetria Relevante';
+
+        const [art, mov] = key.split('_');
+        comps.push({
+          articulacao: art,
+          movimento: mov,
+          valorD: valD,
+          valorE: valE,
+          simetria,
+          deficit,
+          classificacaoSimetria
+        });
+      }
+    });
+
+    return comps;
+  };
+
+  const handleAddTestItem = () => {
+    if (!stArticulacao || !stMovimento || !stValorObtido || !stPeso) {
+      alert('Por favor, preencha todos os campos obrigatórios (Articulação, Movimento, Valor e Peso do Paciente).');
+      return;
+    }
+
+    const testItem = calculateTestMetrics(
+      stArticulacao,
+      stMovimento,
+      stLado,
+      stUnidade,
+      Number(stValorObtido),
+      Number(stTentativas) || 1,
+      Number(stMelhorTentativa) || Number(stValorObtido),
+      Number(stMediaTentativas) || Number(stValorObtido),
+      Number(stPeso),
+      clientSex
+    );
+
+    // Overwrite if same movement + articulation + side already exists
+    const filtered = stTestesList.filter(t => !(t.articulacao === stArticulacao && t.movimento === stMovimento && t.lado === stLado));
+    const newList = [...filtered, testItem];
+    setStTestesList(newList);
+
+    // Clean current inputs for ease of next input
+    setStValorObtido('');
+    setStMelhorTentativa('');
+    setStMediaTentativas('');
+    setStTentativas('1');
+    // Auto-toggle side to make bilateral logging faster
+    setStLado(stLado === 'Direito' ? 'Esquerdo' : 'Direito');
+  };
+
+  const handleRemoveTestItem = (index: number) => {
+    const newList = stTestesList.filter((_, idx) => idx !== index);
+    setStTestesList(newList);
+  };
+
   const handleCreateStrengthTest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (stTestesList.length === 0) {
+      alert('Por favor, adicione pelo menos um teste de movimento.');
+      return;
+    }
     try {
       const payload = {
         clienteId: stClient,
         profissionalId: stAvaliador || '6668ab030303030303030302',
         data: stDate,
-        exercicios: [
-          { nome: 'Supino Reto', carga: Number(stSupino) || 0 },
-          { nome: 'Remada Curvada / Máquina', carga: Number(stRemada) || 0 },
-          { nome: 'Desenvolvimento de Ombros', carga: Number(stDesenvolvimento) || 0 },
-          { nome: 'Puxada Alta / Lat Pulldown', carga: Number(stPuxada) || 0 },
-          { nome: 'Rotação Externa de Ombro', carga: Number(stRotExterna) || 0 },
-          { nome: 'Rotação Interna de Ombro', carga: Number(stRotInterna) || 0 },
-          { nome: 'Abdução de Ombro', carga: Number(stAbducao) || 0 }
-        ],
-        analise: {
-          riscoOmbro: Number(stRotExterna) / Number(stRotInterna) < 0.66,
-          ratios: {
-            rotExternaRotInterna: Number(stRotExterna) / Number(stRotInterna)
-          }
-        },
+        pesoCliente: Number(stPeso),
+        testesRealizados: stTestesList,
+        comparativos: calculateComparativos(stTestesList),
         observacoes: stObs,
         pdfName: `TesteForca_${stDate}.pdf`
       };
+      
       const res = await fetch('/api/strength-tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1729,11 +1898,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       if (data.success) {
         setShowStModal(false);
         fetchData();
+        // Reset states
+        setStTestesList([]);
+        setStObs('');
       } else {
         alert('Erro ao criar teste de força: ' + data.error);
       }
     } catch (err) {
-      alert('Erro.');
+      alert('Erro ao registrar o teste de força.');
     }
   };
 
@@ -3345,8 +3517,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                   <tr>
                     <th>Data</th>
                     <th>Aluno</th>
-                    <th>Cargas (Supino / Remada)</th>
-                    <th style={{ textAlign: 'center' }}>Avaliação Risco</th>
+                    <th>Métricas de Força / Cargas</th>
+                    <th style={{ textAlign: 'center' }}>Avaliação / Risco</th>
                     {isAdmin && <th>Avaliador</th>}
                     <th>Ações</th>
                   </tr>
@@ -3363,18 +3535,48 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(st => {
-                      const supino = st.exercicios?.find((e: any) => e.nome === 'Supino Reto')?.carga || '-';
-                      const remada = st.exercicios?.find((e: any) => e.nome === 'Remada Curvada / Máquina')?.carga || '-';
-                      const risco = st.analise?.riscoOmbro;
+                      const isNew = st.testesRealizados && st.testesRealizados.length > 0;
+                      let metricaText = '';
+                      let statusBadge = null;
+
+                      if (isNew) {
+                        const movs = st.testesRealizados.map((t: any) => `${t.articulacao} ${t.movimento} (${t.lado[0]})`);
+                        const uniqueMovs = Array.from(new Set(movs)).join(', ');
+                        metricaText = uniqueMovs.length > 50 ? uniqueMovs.substring(0, 47) + '...' : uniqueMovs;
+                        
+                        const hasSevere = st.testesRealizados.some((t: any) => t.classificacao === 'DÉFICIT GRAVE');
+                        const hasModerate = st.testesRealizados.some((t: any) => t.classificacao === 'DÉFICIT MODERADO');
+                        const hasAsym = st.comparativos?.some((c: any) => c.deficit > 20);
+                        
+                        if (hasSevere) {
+                          statusBadge = <span className="badge badge-danger">Déficit Grave</span>;
+                        } else if (hasAsym) {
+                          statusBadge = <span className="badge badge-danger">Assimetria</span>;
+                        } else if (hasModerate) {
+                          statusBadge = <span className="badge badge-warning">Déficit Mod.</span>;
+                        } else {
+                          statusBadge = <span className="badge badge-success">Equilibrado</span>;
+                        }
+                      } else {
+                        const supino = st.exercicios?.find((e: any) => e.nome === 'Supino Reto')?.carga || '-';
+                        const remada = st.exercicios?.find((e: any) => e.nome === 'Remada Curvada / Máquina')?.carga || '-';
+                        metricaText = `Supino: ${supino} kg / Remada: ${remada} kg`;
+                        
+                        const risco = st.analise?.riscoOmbro;
+                        statusBadge = (
+                          <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
+                            {risco ? 'Risco Elevado' : 'Seguro / Estável'}
+                          </span>
+                        );
+                      }
+
                       return (
                         <tr key={st._id}>
                           <td><strong>{st.data}</strong></td>
                           <td><strong>{st.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                          <td>Supino: {supino} kg / Remada: {remada} kg</td>
+                          <td>{metricaText}</td>
                           <td style={{ textAlign: 'center' }}>
-                            <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
-                              {risco ? 'Risco Elevado' : 'Seguro / Estável'}
-                            </span>
+                            {statusBadge}
                           </td>
                           {isAdmin && <td>{st.profissionalId?.nome || 'Não Definido'}</td>}
                           <td>
@@ -5814,76 +6016,216 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
           <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
-              <h3>Registrar Teste de Força</h3>
+              <h3>Registrar Teste de Força Muscular</h3>
               <button className="modal-close" onClick={handleCloseSt}>&times;</button>
             </div>
             <form onSubmit={handleCreateStrengthTest}>
               <div className="modal-body" style={{ padding: '20px' }}>
-                <div className="form-group">
-                  <label>Paciente / Aluno</label>
-                  <SearchableSelect
-                    options={clientOptions}
-                    value={stClient}
-                    onChange={setStClient}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Data</label>
-                  <input type="date" className="form-control" value={stDate} onChange={e => setStDate(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                  <label>Avaliador / Profissional</label>
-                  <select className="form-control" value={stAvaliador} onChange={e => setStAvaliador(e.target.value)} required>
-                    <option value="">Selecione o Profissional</option>
-                    {professionals.map((p: any) => (
-                      <option key={p._id} value={p._id}>{p.nome}</option>
-                    ))}
-                  </select>
-                </div>
-                <h5 style={{ margin: '16px 0 8px 0', color: 'var(--color-primary)' }}>Cargas Máximas (kg)</h5>
-                <div className="form-row">
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '15px' }}>
                   <div className="form-group">
-                    <label>Supino Reto</label>
-                    <input type="number" className="form-control" value={stSupino} onChange={e => setStSupino(e.target.value)} placeholder="kg" required />
+                    <label>Paciente / Aluno</label>
+                    <SearchableSelect
+                      options={clientOptions}
+                      value={stClient}
+                      onChange={setStClient}
+                      required
+                    />
                   </div>
                   <div className="form-group">
-                    <label>Remada Curvada</label>
-                    <input type="number" className="form-control" value={stRemada} onChange={e => setStRemada(e.target.value)} placeholder="kg" required />
+                    <label>Data</label>
+                    <input type="date" className="form-control" value={stDate} onChange={e => setStDate(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Avaliador / Profissional</label>
+                    <select className="form-control" value={stAvaliador} onChange={e => setStAvaliador(e.target.value)} required>
+                      <option value="">Selecione o Avaliador</option>
+                      {professionals.map((p: any) => (
+                        <option key={p._id} value={p._id}>{p.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Peso Corporal (kg)</label>
+                    <input type="number" step="any" className="form-control" value={stPeso} onChange={e => setStPeso(e.target.value)} placeholder="Peso em kg" required />
                   </div>
                 </div>
-                <div className="form-row">
+
+                <h5 style={{ margin: '16px 0 8px 0', color: 'var(--color-primary)' }}>Adicionar Novo Movimento Avaliado</h5>
+                
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                   <div className="form-group">
-                    <label>Desenvolvimento</label>
-                    <input type="number" className="form-control" value={stDesenvolvimento} onChange={e => setStDesenvolvimento(e.target.value)} placeholder="kg" required />
+                    <label>Articulação</label>
+                    <select className="form-control" value={stArticulacao} onChange={e => {
+                      const art = e.target.value;
+                      setStArticulacao(art);
+                      const movs = Object.keys(STRENGTH_REFERENCE_TABLE[art] || {});
+                      setStMovimento(movs[0] || '');
+                    }} required>
+                      {Object.keys(STRENGTH_REFERENCE_TABLE).map(art => (
+                        <option key={art} value={art}>{art}</option>
+                      ))}
+                    </select>
                   </div>
+                  
                   <div className="form-group">
-                    <label>Puxada Alta</label>
-                    <input type="number" className="form-control" value={stPuxada} onChange={e => setStPuxada(e.target.value)} placeholder="kg" required />
+                    <label>Movimento Avaliado</label>
+                    <select className="form-control" value={stMovimento} onChange={e => setStMovimento(e.target.value)} required>
+                      {Object.keys(STRENGTH_REFERENCE_TABLE[stArticulacao] || {}).map(mov => (
+                        <option key={mov} value={mov}>{mov}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Lado Avaliado</label>
+                    <select className="form-control" value={stLado} onChange={e => setStLado(e.target.value)} required>
+                      <option value="Direito">Direito</option>
+                      <option value="Esquerdo">Esquerdo</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Unidade de Medida</label>
+                    <select className="form-control" value={stUnidade} onChange={e => setStUnidade(e.target.value)} required>
+                      <option value="kgf">kgf</option>
+                      <option value="N">Newton (N)</option>
+                    </select>
                   </div>
                 </div>
-                <div className="form-row">
+
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '16px', alignItems: 'end' }}>
                   <div className="form-group">
-                    <label>Rot. Externa</label>
-                    <input type="number" className="form-control" value={stRotExterna} onChange={e => setStRotExterna(e.target.value)} placeholder="kg" required />
+                    <label>Valor Obtido</label>
+                    <input type="number" step="any" className="form-control" value={stValorObtido} onChange={e => setStValorObtido(e.target.value)} placeholder="0.0" />
                   </div>
+                  
                   <div className="form-group">
-                    <label>Rot. Interna</label>
-                    <input type="number" className="form-control" value={stRotInterna} onChange={e => setStRotInterna(e.target.value)} placeholder="kg" required />
+                    <label>Nº de Tentativas</label>
+                    <input type="number" className="form-control" value={stTentativas} onChange={e => setStTentativas(e.target.value)} placeholder="1" />
                   </div>
+
                   <div className="form-group">
-                    <label>Abdução</label>
-                    <input type="number" className="form-control" value={stAbducao} onChange={e => setStAbducao(e.target.value)} placeholder="kg" required />
+                    <label>Melhor Tentativa</label>
+                    <input type="number" step="any" className="form-control" value={stMelhorTentativa} onChange={e => setStMelhorTentativa(e.target.value)} placeholder="Opcional" />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Média Tentativas</label>
+                    <input type="number" step="any" className="form-control" value={stMediaTentativas} onChange={e => setStMediaTentativas(e.target.value)} placeholder="Opcional" />
+                  </div>
+
+                  <div className="form-group">
+                    <button type="button" className="btn btn-primary" onClick={handleAddTestItem} style={{ width: '100%' }}>
+                      <i className="fa-solid fa-plus"></i> Adicionar
+                    </button>
                   </div>
                 </div>
-                <div className="form-group">
-                  <label>Observações / Análise Clínica</label>
-                  <textarea className="form-control" value={stObs} onChange={e => setStObs(e.target.value)} placeholder="Anotações sobre desequilíbrios musculares..." />
+
+                {stTestesList.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h5 style={{ margin: '16px 0 8px 0', color: 'var(--color-primary)' }}>Movimentos Adicionados</h5>
+                    <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                      <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr>
+                            <th>Articulação</th>
+                            <th>Movimento</th>
+                            <th>Lado</th>
+                            <th>Valor</th>
+                            <th>Força (N)</th>
+                            <th>%PC</th>
+                            <th>% Ref</th>
+                            <th>Classificação</th>
+                            <th>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stTestesList.map((t, idx) => (
+                            <tr key={idx}>
+                              <td>{t.articulacao}</td>
+                              <td>{t.movimento}</td>
+                              <td>{t.lado}</td>
+                              <td>{t.valorObtido} {t.unidade}</td>
+                              <td>{t.forcaN.toFixed(1)} N</td>
+                              <td>{t.pcPercent.toFixed(1)}%</td>
+                              <td>{t.pctRef.toFixed(1)}%</td>
+                              <td>
+                                <span className={`badge ${
+                                  t.classificacao === 'FORÇA NORMAL' ? 'badge-success' : 
+                                  t.classificacao === 'DÉFICIT LEVE' ? 'badge-warning' : 
+                                  t.classificacao === 'DÉFICIT MODERADO' ? 'badge-warning' : 'badge-danger'
+                                }`} style={{ fontSize: '0.7rem' }}>
+                                  {t.classificacao}
+                                </span>
+                              </td>
+                              <td>
+                                <button type="button" className="btn btn-danger btn-sm" onClick={() => handleRemoveTestItem(idx)}>
+                                  <i className="fa-solid fa-trash"></i>
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bilateral comparisons table */}
+                {(() => {
+                  const comps = calculateComparativos(stTestesList);
+                  if (comps.length === 0) return null;
+                  return (
+                    <div style={{ marginBottom: '20px' }}>
+                      <h5 style={{ margin: '16px 0 8px 0', color: 'var(--color-primary)' }}>Análise Comparativa de Simetria (Bilateral)</h5>
+                      <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                        <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                          <thead>
+                            <tr>
+                              <th>Articulação</th>
+                              <th>Movimento</th>
+                              <th>Dir (N)</th>
+                              <th>Esq (N)</th>
+                              <th>Symmetry (%)</th>
+                              <th>Déficit (%)</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {comps.map((c, idx) => (
+                              <tr key={idx}>
+                                <td>{c.articulacao}</td>
+                                <td>{c.movimento}</td>
+                                <td>{c.valorD.toFixed(1)} N</td>
+                                <td>{c.valorE.toFixed(1)} N</td>
+                                <td>{c.simetria.toFixed(1)}%</td>
+                                <td>{c.deficit.toFixed(1)}%</td>
+                                <td>
+                                  <span className={`badge ${
+                                    c.classificacaoSimetria === 'Excelente' ? 'badge-success' : 
+                                    c.classificacaoSimetria === 'Aceitável' ? 'badge-success' : 
+                                    c.classificacaoSimetria === 'Atenção' ? 'badge-warning' : 'badge-danger'
+                                  }`} style={{ fontSize: '0.7rem' }}>
+                                    {c.classificacaoSimetria}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="form-group" style={{ marginTop: '15px' }}>
+                  <label>Observações / Análise Clínica Geral</label>
+                  <textarea className="form-control" value={stObs} onChange={e => setStObs(e.target.value)} placeholder="Anotações gerais sobre o padrão motor, dor ou progresso do teste..." />
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={handleCloseSt}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Registrar Teste</button>
+                <button type="submit" className="btn btn-primary">Registrar Teste de Força</button>
               </div>
             </form>
           </div>

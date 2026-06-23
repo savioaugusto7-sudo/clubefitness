@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
-import { downloadContractPDF } from '@/utils/pdfGenerator';
+import { downloadContractPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 
 interface DashboardAdminProps {
   activeTab: string;
@@ -1917,10 +1917,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   <tr>
                     <th>Aluno</th>
                     <th>Data do Teste</th>
-                    <th style={{ textAlign: 'center' }}>Relação Rotadores</th>
-                    <th style={{ textAlign: 'center' }}>Risco Articular</th>
+                    <th>Movimentos / Cargas</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
                     <th>Avaliador</th>
                     <th>Observações</th>
+                    <th style={{ textAlign: 'center' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1933,27 +1934,61 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const paginated = strengthTests.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(st => {
-                      const ratio = st.analise?.ratios?.rotExternaRotInterna;
-                      const risco = st.analise?.riscoOmbro;
+                      const isNew = st.testesRealizados && st.testesRealizados.length > 0;
+                      let metricaText = '';
+                      let statusBadge = null;
+
+                      if (isNew) {
+                        const movs = st.testesRealizados.map((t: any) => `${t.articulacao} ${t.movimento} (${t.lado[0]})`);
+                        const uniqueMovs = Array.from(new Set(movs)).join(', ');
+                        metricaText = uniqueMovs.length > 50 ? uniqueMovs.substring(0, 47) + '...' : uniqueMovs;
+                        
+                        const hasSevere = st.testesRealizados.some((t: any) => t.classificacao === 'DÉFICIT GRAVE');
+                        const hasModerate = st.testesRealizados.some((t: any) => t.classificacao === 'DÉFICIT MODERADO');
+                        const hasAsym = st.comparativos?.some((c: any) => c.deficit > 20);
+                        
+                        if (hasSevere) {
+                          statusBadge = <span className="badge badge-danger">Déficit Grave</span>;
+                        } else if (hasAsym) {
+                          statusBadge = <span className="badge badge-danger">Assimetria</span>;
+                        } else if (hasModerate) {
+                          statusBadge = <span className="badge badge-warning">Déficit Mod.</span>;
+                        } else {
+                          statusBadge = <span className="badge badge-success">Equilibrado</span>;
+                        }
+                      } else {
+                        const ratio = st.analise?.ratios?.rotExternaRotInterna;
+                        metricaText = ratio ? `Razão Rotadores: ${ratio.toFixed(2)}` : '-';
+                        const risco = st.analise?.riscoOmbro;
+                        statusBadge = (
+                          <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
+                            {risco ? 'Alto Risco' : 'Normal / Seguro'}
+                          </span>
+                        );
+                      }
+
                       return (
                         <tr key={st._id}>
                           <td><strong>{st.clienteId?.dadosPessoais?.nome || 'Aluno'}</strong></td>
                           <td>{st.data}</td>
-                          <td style={{ textAlign: 'center' }}>{ratio ? ratio.toFixed(2) : '-'}</td>
+                          <td>{metricaText}</td>
                           <td style={{ textAlign: 'center' }}>
-                            <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
-                              {risco ? 'Alto Risco' : 'Normal / Seguro'}
-                            </span>
+                            {statusBadge}
                           </td>
                           <td>{st.profissionalId?.nome || 'Não Definido'}</td>
                           <td><small>{st.observacoes || '-'}</small></td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => downloadStrengthTestPDF(st, st.clienteId, st.profissionalId)}>
+                              <i className="fa-solid fa-download"></i> PDF
+                            </button>
+                          </td>
                         </tr>
                       );
                     });
                   })()}
                   {strengthTests.length === 0 && (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-dumbbell empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum teste de força</div>

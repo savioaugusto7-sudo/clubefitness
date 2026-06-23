@@ -21,6 +21,33 @@ const StrengthTestSchema = new Schema({
     ratios: { type: Map, of: Number } // hold computed ratios for clinical evaluation
   },
   
+  // New structured clinical strength tests
+  pesoCliente: { type: Number },
+  testesRealizados: [{
+    articulacao: { type: String, required: true },
+    movimento: { type: String, required: true },
+    lado: { type: String, required: true }, // "Direito" | "Esquerdo"
+    unidade: { type: String, required: true }, // "kgf" | "N"
+    valorObtido: { type: Number, required: true },
+    tentativas: { type: Number },
+    melhorTentativa: { type: Number },
+    mediaTentativas: { type: Number },
+    forcaN: { type: Number },
+    pesoCorporalN: { type: Number },
+    pcPercent: { type: Number },
+    pctRef: { type: Number },
+    classificacao: { type: String }
+  }],
+  comparativos: [{
+    articulacao: { type: String, required: true },
+    movimento: { type: String, required: true },
+    valorD: { type: Number },
+    valorE: { type: Number },
+    simetria: { type: Number }, // Índice de Simetria (%)
+    deficit: { type: Number }, // Déficit Lateral (%)
+    classificacaoSimetria: { type: String } // Excelente, Aceitável, Atenção, Assimetria Relevante
+  }],
+  
   observacoes: { type: String, default: '' },
   pdfName: { type: String },
   pdfB64: { type: String } // support binary/b64 exam PDF attachment
