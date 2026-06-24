@@ -135,51 +135,55 @@ function LoginContent() {
           Entrar com o Google
         </button>
 
-        <div className="login-divider">
-          <span>{fromLogout && session ? 'TROCAR PARA PERFIL DE TESTE' : 'OU SIMULE UM PERFIL DE TESTE'}</span>
-        </div>
-
-        <div className="demo-users-grid">
-          <button className="demo-user-btn" onClick={() => handleDemoLogin('admin@clube.com')}>
-            <i className="fa-solid fa-shield-halved color-warning"></i>
-            <div className="demo-info">
-              <strong>Administrador Geral</strong>
-              <span>admin@clube.com</span>
+        {process.env.NODE_ENV === 'development' && (
+          <>
+            <div className="login-divider">
+              <span>{fromLogout && session ? 'TROCAR PARA PERFIL DE TESTE' : 'OU SIMULE UM PERFIL DE TESTE'}</span>
             </div>
-          </button>
 
-          <button className="demo-user-btn" onClick={() => handleDemoLogin('fisio@clube.com')}>
-            <i className="fa-solid fa-user-md color-accent"></i>
-            <div className="demo-info">
-              <strong>Dr. André (Fisio)</strong>
-              <span>fisio@clube.com</span>
-            </div>
-          </button>
+            <div className="demo-users-grid">
+              <button className="demo-user-btn" onClick={() => handleDemoLogin('admin@clube.com')}>
+                <i className="fa-solid fa-shield-halved color-warning"></i>
+                <div className="demo-info">
+                  <strong>Administrador Geral</strong>
+                  <span>admin@clube.com</span>
+                </div>
+              </button>
 
-          <button className="demo-user-btn" onClick={() => handleDemoLogin('prof@clube.com')}>
-            <i className="fa-solid fa-dumbbell color-primary"></i>
-            <div className="demo-info">
-              <strong>Profª. Camila (Treino)</strong>
-              <span>prof@clube.com</span>
-            </div>
-          </button>
+              <button className="demo-user-btn" onClick={() => handleDemoLogin('fisio@clube.com')}>
+                <i className="fa-solid fa-user-md color-accent"></i>
+                <div className="demo-info">
+                  <strong>Dr. André (Fisio)</strong>
+                  <span>fisio@clube.com</span>
+                </div>
+              </button>
 
-          <button className="demo-user-btn" onClick={() => handleDemoLogin('aluno1@clube.com')}>
-            <i className="fa-solid fa-user color-success"></i>
-            <div className="demo-info">
-              <strong>Sávio Silva (Aluno VIP)</strong>
-              <span>aluno1@clube.com</span>
-            </div>
-          </button>
+              <button className="demo-user-btn" onClick={() => handleDemoLogin('prof@clube.com')}>
+                <i className="fa-solid fa-dumbbell color-primary"></i>
+                <div className="demo-info">
+                  <strong>Profª. Camila (Treino)</strong>
+                  <span>prof@clube.com</span>
+                </div>
+              </button>
 
-          <button className="demo-user-btn" onClick={() => handleDemoLogin('aluno2@clube.com')}>
-            <i className="fa-solid fa-user color-info"></i>
-            <div className="demo-info">
-              <strong>Maria Santos (Aluno)</strong>
-              <span>aluno2@clube.com</span>
+              <button className="demo-user-btn" onClick={() => handleDemoLogin('aluno1@clube.com')}>
+                <i className="fa-solid fa-user color-success"></i>
+                <div className="demo-info">
+                  <strong>Sávio Silva (Aluno VIP)</strong>
+                  <span>aluno1@clube.com</span>
+                </div>
+              </button>
+
+              <button className="demo-user-btn" onClick={() => handleDemoLogin('aluno2@clube.com')}>
+                <i className="fa-solid fa-user color-info"></i>
+                <div className="demo-info">
+                  <strong>Maria Santos (Aluno)</strong>
+                  <span>aluno2@clube.com</span>
+                </div>
+              </button>
             </div>
-          </button>
-        </div>
+          </>
+        )}
 
         {/* Database seed utility section */}
         {process.env.NODE_ENV === 'development' && (

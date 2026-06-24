@@ -19,31 +19,33 @@ export const authOptions: NextAuthOptions = {
         }
       }
     }),
-    CredentialsProvider({
-      id: 'demo-credentials',
-      name: 'Demo Credentials',
-      credentials: {
-        email: { label: "Email", type: "text" }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email) return null;
-        try {
-          await dbConnect();
-          const dbUser = await User.findOne({ email: credentials.email.toLowerCase() });
-          if (dbUser) {
-            return {
-              id: dbUser._id.toString(),
-              name: dbUser.nome,
-              email: dbUser.email,
-              image: null
-            };
+    ...(process.env.NODE_ENV === 'development' ? [
+      CredentialsProvider({
+        id: 'demo-credentials',
+        name: 'Demo Credentials',
+        credentials: {
+          email: { label: "Email", type: "text" }
+        },
+        async authorize(credentials) {
+          if (!credentials?.email) return null;
+          try {
+            await dbConnect();
+            const dbUser = await User.findOne({ email: credentials.email.toLowerCase() });
+            if (dbUser) {
+              return {
+                id: dbUser._id.toString(),
+                name: dbUser.nome,
+                email: dbUser.email,
+                image: null
+              };
+            }
+          } catch (err) {
+            console.error('NextAuth authorize error:', err);
           }
-        } catch (err) {
-          console.error('NextAuth authorize error:', err);
+          return null;
         }
-        return null;
-      }
-    })
+      })
+    ] : [])
   ],
   callbacks: {
     async signIn({ user, account }) {
