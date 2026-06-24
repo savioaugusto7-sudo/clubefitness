@@ -1834,8 +1834,30 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const handleAddTestItem = () => {
-    if (!stArticulacao || !stMovimento || !stValorObtido || !stPeso) {
-      alert('Por favor, preencha todos os campos obrigatórios (Articulação, Movimento, Valor e Peso do Paciente).');
+    if (!stPeso) {
+      alert('Por favor, informe o Peso Corporal do aluno no topo do formulário.');
+      const el = document.querySelector('input[placeholder="Peso em kg"]') as HTMLInputElement;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+        el.style.border = '2px solid var(--color-danger)';
+        setTimeout(() => el.style.border = '', 3000);
+      }
+      return;
+    }
+    if (!stValorObtido) {
+      alert('Por favor, informe o Valor Obtido do teste.');
+      const el = document.querySelector('input[placeholder="0.0"]') as HTMLInputElement;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+        el.style.border = '2px solid var(--color-danger)';
+        setTimeout(() => el.style.border = '', 3000);
+      }
+      return;
+    }
+    if (!stArticulacao || !stMovimento) {
+      alert('Por favor, selecione a Articulação e o Movimento.');
       return;
     }
 
