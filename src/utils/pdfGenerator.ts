@@ -82,14 +82,32 @@ function isMaigneFilled(maigneVal: any): boolean {
 }
 
 function triggerDirectDownload(blob: Blob, filename: string) {
-  const blobUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = blobUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+  const reader = new FileReader();
+  reader.onloadend = function() {
+    const base64data = (reader.result as string).split(',')[1];
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/download-pdf';
+    form.style.display = 'none';
+    
+    const inputB64 = document.createElement('input');
+    inputB64.type = 'hidden';
+    inputB64.name = 'pdfB64';
+    inputB64.value = base64data;
+    form.appendChild(inputB64);
+    
+    const inputName = document.createElement('input');
+    inputName.type = 'hidden';
+    inputName.name = 'filename';
+    inputName.value = filename;
+    form.appendChild(inputName);
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  };
+  reader.readAsDataURL(blob);
 }
 
 export async function downloadReportPDF(report: any) {
