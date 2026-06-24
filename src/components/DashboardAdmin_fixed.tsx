@@ -52,7 +52,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   // Form states for CRUD
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState<'client' | 'professional' | 'credit' | 'user' | 'plan' | 'financial' | 'medication'>('client');
+  const [modalType, setModalType] = useState<'client' | 'professional' | 'credit' | 'user' | 'plan' | 'financial' | 'medication' | 'exercise_request'>('client');
   const [editingItem, setEditingItem] = useState<any>(null);
 
   // Input states
@@ -98,6 +98,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
+  const [exerciseRequests, setExerciseRequests] = useState<any[]>([]);
+  const [exNome, setExNome] = useState('');
+  const [exGrupo, setExGrupo] = useState('PEITO');
+  const [exEquip, setExEquip] = useState('');
+  const [exInst, setExInst] = useState('');
 
   // F2  Ficha completa do aluno
   // Regras Modal
@@ -506,7 +511,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt] = await Promise.all([
+      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/professionals'),
         fetch('/api/appointments'),
@@ -515,7 +520,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         fetch('/api/financial'),
         fetch('/api/medications'),
         fetch('/api/fixed-schedules'),
-        fetch('/api/strength-tests')
+        fetch('/api/strength-tests'),
+        fetch('/api/exercises?status=pending')
       ]);
       const jsonClients = await resClients.json();
       const jsonProfs = await resProfs.json();
@@ -526,6 +532,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const jsonMed = await resMed.json();
       const jsonFs = await resFs.json();
       const jsonSt = await resSt.json();
+      const jsonExs = await resExs.json();
 
       if (jsonClients.success) setClients(jsonClients.data);
       if (jsonProfs.success) setProfessionals(jsonProfs.data);
@@ -536,6 +543,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       if (jsonMed.success) setMedications(jsonMed.data);
       if (jsonFs.success) setFixedSchedules(jsonFs.data);
       if (jsonSt.success) setStrengthTests(jsonSt.data);
+      if (jsonExs.success) setExerciseRequests(jsonExs.data);
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
     } finally {
@@ -755,6 +763,59 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setShowModal(true);
   };
 
+  const handleOpenExerciseRequestModal = (item: any) => {
+    setEditingItem(item);
+    setModalType('exercise_request');
+    setExNome(item.nome || '');
+    setExGrupo(item.grupo || 'PEITO');
+    setExEquip(item.equipamento || '');
+    setExInst(item.instrucoes || '');
+    setShowModal(true);
+  };
+
+  const handleApproveExercise = async (ex: any) => {
+    if (!confirm(`Aprovar o cadastro do exercício "${ex.nome}"?`)) return;
+    try {
+      const res = await fetch('/api/exercises', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: ex._id,
+          nome: ex.nome,
+          grupo: ex.grupo,
+          equipamento: ex.equipamento,
+          instrucoes: ex.instrucoes,
+          status: 'approved'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Exercício aprovado com sucesso!');
+        fetchData();
+      } else {
+        alert('Erro ao aprovar exercício: ' + data.error);
+      }
+    } catch (e) {
+      alert('Erro ao aprovar exercício.');
+    }
+  };
+
+  const handleRejectExerciseRequest = async (id: string) => {
+    if (!confirm('Rejeitar e excluir esta solicitação de exercício?')) return;
+    try {
+      const res = await fetch(`/api/exercises?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert('Solicitação rejeitada e excluída!');
+        fetchData();
+      } else {
+        alert('Erro ao rejeitar solicitação: ' + data.error);
+      }
+    } catch (e) {
+      alert('Erro ao rejeitar solicitação.');
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -927,6 +988,28 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           fetchData();
         } else {
           alert('Erro ao salvar medicamento: ' + data.error);
+        }
+      } else if (modalType === 'exercise_request') {
+        const payload = {
+          id: editingItem?._id,
+          nome: exNome.toUpperCase(),
+          grupo: exGrupo,
+          equipamento: exEquip,
+          instrucoes: exInst,
+          status: 'approved'
+        };
+        const res = await fetch('/api/exercises', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          setShowModal(false);
+          fetchData();
+          alert('Exercício editado e aprovado com sucesso!');
+        } else {
+          alert('Erro ao salvar e aprovar exercício: ' + data.error);
         }
       } else if (modalType === 'credit') {
         // Update client credits
@@ -2323,8 +2406,84 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </div>
       )}
 
+      {/* 12. View: Exercícios Solicitados */}
+      {activeTab === 'solicitacoes_exercicios' && (
+        <>
+          <div className="view-header">
+            <div className="view-title-group">
+              <h1>Exercícios Solicitados</h1>
+              <p>Revise e modere os novos exercícios propostos pelos profissionais de treino.</p>
+            </div>
+          </div>
+
+          <div className="content-panel">
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Grupo Muscular</th>
+                    <th>Equipamento</th>
+                    <th>Instruções</th>
+                    <th>Solicitado Por</th>
+                    <th style={{ textAlign: 'center', width: '280px' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exerciseRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                        Nenhuma solicitação de exercício pendente.
+                      </td>
+                    </tr>
+                  ) : (
+                    exerciseRequests.map((ex: any) => (
+                      <tr key={ex._id}>
+                        <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{ex.nome}</td>
+                        <td>{ex.grupo}</td>
+                        <td>{ex.equipamento}</td>
+                        <td style={{ maxWidth: '250px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={ex.instrucoes}>
+                          {ex.instrucoes || '-'}
+                        </td>
+                        <td>{ex.solicitadoPorNome || 'Profissional'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn btn-sm"
+                            style={{ backgroundColor: 'var(--color-success)', color: '#fff', marginRight: '6px' }}
+                            onClick={() => handleApproveExercise(ex)}
+                            title="Aprovar Diretamente"
+                          >
+                            <i className="fa-solid fa-check"></i> Aprovar
+                          </button>
+                          <button
+                            className="btn btn-sm"
+                            style={{ backgroundColor: 'var(--color-info)', color: '#fff', marginRight: '6px' }}
+                            onClick={() => handleOpenExerciseRequestModal(ex)}
+                            title="Editar e Aprovar"
+                          >
+                            <i className="fa-solid fa-edit"></i> Editar
+                          </button>
+                          <button
+                            className="btn btn-sm"
+                            style={{ backgroundColor: 'var(--color-danger)', color: '#fff' }}
+                            onClick={() => handleRejectExerciseRequest(ex._id)}
+                            title="Rejeitar e Excluir"
+                          >
+                            <i className="fa-solid fa-trash"></i> Rejeitar
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'configuracoes'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -2343,6 +2502,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 {modalType === 'professional' && (editingItem ? 'Editar Profissional' : 'Cadastrar Profissional')}
                 {modalType === 'user' && (editingItem ? 'Editar Usuário' : 'Cadastrar Usuário')}
                 {modalType === 'credit' && `Adicionar Créditos para ${editingItem.dadosPessoais?.nome}`}
+                {modalType === 'exercise_request' && 'Revisar & Aprovar Exercício'}
               </h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
             </div>
@@ -2592,6 +2752,37 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </button>
                         </div>
                       )}
+                    </div>
+                  </>
+                )}
+
+                {modalType === 'exercise_request' && (
+                  <>
+                    <div className="form-group">
+                      <label>Nome do Exercício</label>
+                      <input type="text" className="form-control" value={exNome} onChange={e => setExNome(e.target.value)} required />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Grupo Muscular</label>
+                        <select className="select-custom" value={exGrupo} onChange={e => setExGrupo(e.target.value)} required>
+                          <option value="PEITO">Peito</option>
+                          <option value="COSTAS">Costas</option>
+                          <option value="PERNAS">Pernas</option>
+                          <option value="OMBROS">Ombros</option>
+                          <option value="BÍCEPS">Bíceps</option>
+                          <option value="TRÍCEPS">Tríceps</option>
+                          <option value="CORE">Core</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Equipamento</label>
+                        <input type="text" className="form-control" value={exEquip} onChange={e => setExEquip(e.target.value)} placeholder="Ex: Halteres, Barra, Máquina..." required />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Instruções de Execução</label>
+                      <textarea className="form-control" style={{ minHeight: '100px' }} value={exInst} onChange={e => setExInst(e.target.value)} placeholder="Instruções para o aluno realizar o movimento corretamente..." />
                     </div>
                   </>
                 )}

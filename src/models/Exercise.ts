@@ -5,7 +5,9 @@ const ExerciseSchema = new Schema({
   grupo: { type: String, required: true },
   equipamento: { type: String, required: true },
   instrucoes: { type: String, default: '' },
-  gifUrl: { type: String, default: '' }
+  gifUrl: { type: String, default: '' },
+  status: { type: String, enum: ['pending', 'approved'], default: 'approved' },
+  solicitadoPorNome: { type: String, default: '' }
 });
 
 export default models.Exercise || model('Exercise', ExerciseSchema);

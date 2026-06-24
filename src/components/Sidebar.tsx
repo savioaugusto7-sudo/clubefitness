@@ -29,6 +29,7 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },
     { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' },
     { id: 'medicamentos', label: 'Medicamentos', icon: 'fa-pills' },
+    { id: 'solicitacoes_exercicios', label: 'Exercícios Solicitados', icon: 'fa-clipboard-question' },
     { id: 'tv_panel', label: 'Painel TV Clínica', icon: 'fa-tv' },
     { id: 'configuracoes', label: 'Configurações', icon: 'fa-gear' }
   ],

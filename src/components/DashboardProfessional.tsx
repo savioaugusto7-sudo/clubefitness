@@ -1992,7 +1992,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         nome: newExNome.toUpperCase(),
         grupo: newExGrupo,
         equipamento: newExEquip,
-        instrucoes: newExInst
+        instrucoes: newExInst,
+        status: 'pending',
+        solicitadoPorNome: (session?.user as any)?.name || session?.user?.email || 'Profissional'
       };
       const res = await fetch('/api/exercises', {
         method: 'POST',
@@ -2004,6 +2006,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setShowNewExModal(false);
         setNewExNome('');
         setNewExInst('');
+        alert('Solicitação de cadastro de exercício enviada para aprovação do administrador!');
         fetchData();
       }
     } catch (err) {
@@ -2249,6 +2252,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   );
 
   const filteredExercises = exercises.filter(ex => {
+    if (ex.status === 'pending') return false;
     const matchesSearch = ex.nome?.toLowerCase().includes(exerciseSearch.toLowerCase());
     const matchesGroup = exerciseGroup ? ex.grupo === exerciseGroup : true;
     return matchesSearch && matchesGroup;
