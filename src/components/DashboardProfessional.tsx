@@ -654,13 +654,23 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         const jsonAs = await resAs.json();
         if (jsonAs.success) setAssessments(jsonAs.data);
       } else if (activeTab === 'relatorios') {
-        const resRep = await fetch('/api/reports');
+        const [resRep, resAs] = await Promise.all([
+          fetch('/api/reports'),
+          fetch('/api/assessments')
+        ]);
         const jsonRep = await resRep.json();
+        const jsonAs = await resAs.json();
         if (jsonRep.success) setReports(jsonRep.data);
+        if (jsonAs.success) setAssessments(jsonAs.data);
       } else if (activeTab === 'testes_forca') {
-        const resSt = await fetch('/api/strength-tests');
+        const [resSt, resAs] = await Promise.all([
+          fetch('/api/strength-tests'),
+          fetch('/api/assessments')
+        ]);
         const jsonSt = await resSt.json();
+        const jsonAs = await resAs.json();
         if (jsonSt.success) setStrengthTests(jsonSt.data);
+        if (jsonAs.success) setAssessments(jsonAs.data);
       } else if (activeTab === 'prontuarios') {
         const resPr = await fetch('/api/prontuarios');
         const jsonPr = await resPr.json();
