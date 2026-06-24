@@ -54,6 +54,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'client' | 'professional' | 'credit' | 'user' | 'plan' | 'financial' | 'medication' | 'exercise_request'>('client');
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [simulatedDate, setSimulatedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   // Input states
   const [email, setEmail] = useState('');
@@ -623,6 +624,30 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setShowModal(true);
   };
 
+  const sendPreventiveAlert = (client: any) => {
+    const metrics = getWeeklyFrequencyMetrics(client, appointments, simulatedDate);
+    if (!metrics) return;
+
+    const diasRestantesNomes: Record<number, string> = {
+      4: '(terça a sexta)',
+      3: '(quarta a sexta)',
+      2: '(quinta e sexta)',
+      1: '(sexta-feira)'
+    };
+
+    const diasRestantesTexto = diasRestantesNomes[metrics.diasRestantes] || '';
+    const msg = `Olá, ${client.dadosPessoais.nome}! Notamos que você realizou ${metrics.realizados} de seus ${metrics.frequenciaSemanal} treinos contratados esta semana. Para garantir que você cumpra a sua meta semanal, restam ${metrics.diasRestantes} dia(s) útil(eis) na semana ${diasRestantesTexto} e você ainda tem ${metrics.pendentes} treino(s) pendente(s). Vamos agendar seu próximo treino? 💪`;
+
+    const cleanPhone = client.dadosPessoais?.telefone?.replace(/\D/g, '');
+    if (cleanPhone) {
+      const formattedPhone = cleanPhone.length <= 11 ? '55' + cleanPhone : cleanPhone;
+      const url = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    } else {
+      alert(`Mensagem preventiva de WhatsApp para ${client.dadosPessoais.nome}:\n\n"${msg}"`);
+    }
+  };
+
   const handleOpenUserModal = (item: any = null) => {
     setEditingItem(item);
     setModalType('user');
@@ -1112,10 +1137,30 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       {/* 1. View: Dashboard Principal */}
       {activeTab === 'dashboard' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div className="view-title-group">
               <h1>Dashboard Administrativo</h1>
               <p>Visão geral de faturamento, alunos ativos e ocupação diária.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <label htmlFor="simDateInput" style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600 }}>Simular Dia de Hoje:</label>
+              <input 
+                type="date" 
+                id="simDateInput" 
+                className="form-control" 
+                style={{ border: 'none', background: 'transparent', color: '#fff', fontSize: '0.75rem', width: '130px', padding: '0 4px', height: 'auto' }} 
+                value={simulatedDate} 
+                onChange={e => setSimulatedDate(e.target.value)} 
+              />
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-sm" 
+                style={{ padding: '2px 8px', fontSize: '0.7rem' }} 
+                onClick={() => setSimulatedDate(new Date().toISOString().split('T')[0])} 
+                title="Resetar para hoje"
+              >
+                Hoje
+              </button>
             </div>
           </div>
 
@@ -1150,6 +1195,67 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             </div>
           </div>
 
+          {/* Alertas de Notificação do Sistema */}
+          {(() => {
+            const expiredClients = clients.filter(c => c.dadosComerciais?.status === 'vencido');
+            const alertClients = clients.filter(c => {
+              if (c.dadosComerciais?.status !== 'ativo') return false;
+              const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
+              return metrics?.alerta;
+            });
+
+            if (expiredClients.length === 0 && alertClients.length === 0) return null;
+
+            return (
+              <div className="content-panel" style={{ marginTop: '24px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.02)' }}>
+                <div className="panel-header">
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171' }}>
+                    <i className="fa-solid fa-triangle-exclamation"></i> Alertas do Sistema
+                  </h2>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                  {expiredClients.map(c => (
+                    <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444' }}></i>
+                        <span style={{ fontSize: '0.85rem' }}>
+                          O plano de <strong>{c.dadosPessoais?.nome}</strong> venceu em <strong>{c.dadosComerciais?.vencimento ? new Date(c.dadosComerciais.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</strong>. Status atual: <strong>Vencido</strong>.
+                        </span>
+                      </div>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => alert('Notificação enviada ao aluno!')}>
+                        Notificar
+                      </button>
+                    </div>
+                  ))}
+                  {alertClients.map(c => {
+                    const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
+                    if (!metrics) return null;
+                    const diasRestantesNomes: Record<number, string> = {
+                      4: '(terça a sexta)',
+                      3: '(quarta a sexta)',
+                      2: '(quinta e sexta)',
+                      1: '(sexta-feira)'
+                    };
+                    const diasRestantesTexto = diasRestantesNomes[metrics.diasRestantes] || '';
+                    return (
+                      <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(245, 158, 11, 0.1)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <i className="fa-solid fa-clock-rotate-left" style={{ color: '#f59e0b' }}></i>
+                          <span style={{ fontSize: '0.85rem' }}>
+                            <strong>Risco de Evasão Semanal</strong>: <strong>{c.dadosPessoais?.nome}</strong> contratou <strong>{metrics.frequenciaSemanal}x/sem</strong>, mas realizou <strong>{metrics.realizados}</strong> e agendou <strong>{metrics.agendados}</strong> treinos. Restam apenas <strong>{metrics.diasRestantes}</strong> dias úteis na semana {diasRestantesTexto} para <strong>{metrics.pendentes}</strong> treino(s) pendente(s).
+                          </span>
+                        </div>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => sendPreventiveAlert(c)} style={{ background: '#10b981', borderColor: '#10b981' }}>
+                          <i className="fa-brands fa-whatsapp" style={{ marginRight: '6px' }}></i> Engajar
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Quick Frequency Monitoring Table */}
           <div className="content-panel" style={{ marginTop: '24px' }}>
             <div className="panel-header">
@@ -1164,7 +1270,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </select>
                 </div>
                 <span style={{ fontSize: '0.75rem', background: 'var(--color-primary)', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
-                  Frequência Semanal (Seg-Sáb)
+                  Frequência Semanal (Seg-Sex)
                 </span>
               </div>
             </div>
@@ -1175,7 +1281,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     <th>Cliente</th>
                     <th>Plano</th>
                     <th style={{ textAlign: 'center' }}>Freq. Contratada</th>
-                    <th style={{ textAlign: 'center' }}>Agendados/Realizados</th>
+                    <th style={{ textAlign: 'center' }}>Treinos Feitos</th>
+                    <th style={{ textAlign: 'center' }}>Treinos Agendados</th>
+                    <th style={{ textAlign: 'center' }}>Pendentes</th>
+                    <th style={{ textAlign: 'center' }}>Dias Restantes</th>
                     <th style={{ textAlign: 'center' }}>Status</th>
                     <th style={{ textAlign: 'center' }}>Ações</th>
                   </tr>
@@ -1193,25 +1302,62 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
                     return paginated.map(c => {
                       const planName = c.dadosComerciais?.planoId?.nome || 'Plano Personalizado';
-                      const freq = c.dadosComerciais?.frequencia || 3;
+                      const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
                       const status = c.dadosComerciais?.status || 'ativo';
+
+                      if (!metrics) {
+                        return (
+                          <tr key={c._id}>
+                            <td><strong>{c.dadosPessoais?.nome}</strong></td>
+                            <td>{planName}</td>
+                            <td style={{ textAlign: 'center' }}>-</td>
+                            <td style={{ textAlign: 'center' }}>-</td>
+                            <td style={{ textAlign: 'center' }}>-</td>
+                            <td style={{ textAlign: 'center' }}>-</td>
+                            <td style={{ textAlign: 'center' }}>-</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)' }}>
+                                Sem Meta
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
+                                <i className="fa-solid fa-coins" style={{ marginRight: '6px' }}></i> Adicionar Créditos
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const statusBadge = metrics.alerta 
+                        ? <span className="badge badge-danger"><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i> Zona Crítica</span>
+                        : <span className="badge badge-success"><i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i> Seguro</span>;
+
                       return (
                         <tr key={c._id}>
                           <td><strong>{c.dadosPessoais?.nome}</strong></td>
                           <td>{planName}</td>
-                          <td style={{ textAlign: 'center' }}>{freq}x/semana</td>
+                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{metrics.frequenciaSemanal}x/semana</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-success)' }}>{metrics.realizados}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-info)' }}>{metrics.agendados}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: metrics.pendentes > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{metrics.pendentes}</td>
+                          <td style={{ textAlign: 'center' }}>{metrics.diasRestantes} dias</td>
                           <td style={{ textAlign: 'center' }}>
-                            {(c.dadosComerciais?.creditosUsados || 0)} / {(c.dadosComerciais?.creditosTotal || 0)}
+                            {status === 'ativo' ? statusBadge : (
+                              <span className="badge badge-danger">Vencido</span>
+                            )}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <span className={`badge ${status === 'ativo' ? 'badge-success' : 'badge-danger'}`}>
-                              {status === 'ativo' ? 'Ativo' : 'Vencido'}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
-                              <i className="fa-solid fa-coins" style={{ marginRight: '6px' }}></i> Adicionar Créditos
-                            </button>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)} title="Adicionar Créditos">
+                                <i className="fa-solid fa-coins"></i>
+                              </button>
+                              {metrics.alerta && status === 'ativo' && (
+                                <button className="btn btn-primary btn-sm" onClick={() => sendPreventiveAlert(c)} style={{ background: '#10b981', borderColor: '#10b981' }} title="Engajar WhatsApp">
+                                  <i className="fa-brands fa-whatsapp"></i> Engajar
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1219,7 +1365,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   })()}
                   {clients.length === 0 && (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={9}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-users-slash empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum aluno cadastrado</div>
@@ -3342,6 +3488,118 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
        )}
     </div>
   );
+}
+
+// Helper functions for Churn / Evasão monitoring (Segunda a Sexta)
+function dateToISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getWeekDates(baseDate: Date): Date[] {
+  const d = new Date(baseDate);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay(); // 0=Dom
+  // Primeira da semana = segunda (1), se dom retrocede 6
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMon);
+  const dates: Date[] = [];
+  for (let i = 0; i < 5; i++) { // Segunda a Sexta
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + i);
+    dates.push(day);
+  }
+  return dates;
+}
+
+function parseFrequenciaSemanal(freqStr: any): number {
+  if (freqStr === undefined || freqStr === null) return 0;
+  if (typeof freqStr === 'number') return freqStr;
+  const str = String(freqStr);
+  const match = str.match(/(\d+)/);
+  if (match) {
+    return parseInt(match[1]);
+  }
+  const lower = str.toLowerCase();
+  if (lower.includes('diár') || lower.includes('diar')) {
+    return 5;
+  }
+  return 0;
+}
+
+function getWeeklyFrequencyMetrics(client: any, appointments: any[], simulatedDateStr: string) {
+  const freqStr = client.dadosComerciais?.frequencia;
+  const freqSemanal = typeof freqStr === 'number' ? freqStr : parseFrequenciaSemanal(freqStr);
+  if (freqSemanal === 0) return null;
+
+  const baseDate = new Date(simulatedDateStr + 'T00:00:00');
+  const dayOfWeek = baseDate.getDay(); // 0=Dom, 1=Seg, ..., 6=Sáb
+
+  // dias_restantes_semana (Segunda a Sexta = 1 a 5)
+  let diasRestantes = 0;
+  if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+    diasRestantes = 5 - dayOfWeek;
+  } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+    diasRestantes = 0;
+  }
+
+  // Obter datas da semana atual baseada na data base
+  const weekDates = getWeekDates(baseDate);
+  
+  // Encontrar a data correspondente ao dia simulado/atual da semana
+  let simulatedTodayISO = dateToISO(baseDate);
+
+  // Filtrar agendamentos da semana atual (segunda a sexta)
+  const mondayISO = dateToISO(weekDates[0]);
+  const fridayISO = dateToISO(weekDates[weekDates.length - 1]);
+
+  const weekApts = appointments.filter(a => {
+    const cid = a.clienteId && typeof a.clienteId === 'object' ? a.clienteId._id?.toString() : a.clienteId?.toString();
+    return (
+      cid === client._id?.toString() &&
+      a.data >= mondayISO &&
+      a.data <= fridayISO &&
+      a.status !== 'cancelado'
+    );
+  });
+
+  let realizados = 0;
+  let agendados = 0;
+
+  weekApts.forEach(apt => {
+    if (apt.data < simulatedTodayISO) {
+      if (apt.status === 'presenca') {
+        realizados++;
+      }
+    } else if (apt.data > simulatedTodayISO) {
+      if (apt.status === 'agendado') {
+        agendados++;
+      }
+    } else { // apt.data === simulatedTodayISO
+      if (apt.status === 'presenca') {
+        realizados++;
+      } else if (apt.status === 'agendado') {
+        agendados++;
+      }
+    }
+  });
+
+  const pendentes = Math.max(0, freqSemanal - realizados - agendados);
+  const alerta = diasRestantes <= pendentes && pendentes > 0;
+
+  return {
+    frequenciaSemanal: freqSemanal,
+    realizados,
+    agendados,
+    pendentes,
+    diasRestantes,
+    alerta,
+    simulatedTodayISO,
+    dayOfWeek
+  };
 }
 
 
