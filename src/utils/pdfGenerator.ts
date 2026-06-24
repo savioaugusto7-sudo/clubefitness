@@ -990,7 +990,7 @@ export async function downloadReportPDF(report: any) {
   }
 
   const options = {
-    margin: 10,
+    margin: 0,
     filename: `Relatorio_Fisioterapia_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_${formatDate(report.data).replace(/\//g, '-')}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
@@ -3089,7 +3089,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
   const filename = `Analise_Forca_${nome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
   const options = {
-    margin: 10,
+    margin: 0,
     filename: filename,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
