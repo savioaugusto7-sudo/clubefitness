@@ -2110,7 +2110,7 @@ body.tv-mode-active .tv-spotify-eq-bar {
 /* ==========================================================================
    Estilos do Wizard do Relatório Fisioterápico e Teste de Força
    ========================================================================== */
-.wizard-progress {
+.physio-wizard-progress {
   display: flex;
   justify-content: space-between;
   margin-bottom: 24px;

@@ -5053,7 +5053,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
                 {/* Wizard Progress Bar for Completo */}
                 {repType === 'completo' && (
-                  <div className="wizard-progress" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', overflowX: 'auto', gap: '10px', paddingBottom: '8px' }}>
+                  <div className="physio-wizard-progress" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', overflowX: 'auto', gap: '10px', paddingBottom: '8px' }}>
                     {[
                       { step: 1, label: 'Anamnese' },
                       { step: 2, label: 'Histórico & Hábitos' },
