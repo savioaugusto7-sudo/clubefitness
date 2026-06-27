@@ -8,50 +8,57 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const payload = await request.json();
-    console.log('Received Clicksign Webhook payload:', JSON.stringify(payload));
+    console.log('Clicksign Webhook received:', JSON.stringify(payload));
 
     // Clicksign API v3 webhook payload:
-    // { "event": { "type": "envelope.finished", "data": { "envelope": { "id": "...", "status": "..." } } } }
-    // Clicksign API v1 webhook payload (fallback):
-    // { "event": { "name": "sign", "data": { "document": { "key": "...", "status": "..." } } } }
+    // { "event": { "type": "envelope.finished", "data": { "envelope": { "id": "uuid" } } } }
+    // Clicksign API v1 webhook payload (legacy):
+    // { "event": { "name": "sign", "data": { "document": { "key": "uuid" } } } }
 
-    // Suportar ambas as versões da API
-    const eventType = payload.event?.type || payload.event?.name || '';
-    const docKey =
-      payload.event?.data?.envelope?.id ||    // API v3
-      payload.event?.data?.document?.key ||   // API v1
-      payload.data?.id ||                     // formato alternativo v3
+    const eventType: string = payload.event?.type || payload.event?.name || '';
+
+    const docKey: string | null =
+      payload.event?.data?.envelope?.id ||
+      payload.event?.data?.document?.key ||
+      payload.data?.id ||
       null;
 
-    const isSignEvent = ['envelope.finished', 'signatory.signed', 'sign', 'close'].some(e => eventType.includes(e));
-    const isCancelEvent = ['envelope.canceled', 'cancel'].some(e => eventType.includes(e));
-
+    // Retornar 200 para qualquer evento sem docKey para evitar reenvios desnecessários
     if (!docKey) {
-      console.log('Webhook: no document key found, ignoring event:', eventType);
-      return NextResponse.json({ success: true }); // retornar 200 para Clicksign não reenviar
+      console.log('Webhook: no envelope/document key found in payload, ignoring event:', eventType);
+      return NextResponse.json({ success: true });
     }
 
+    const isSignEvent = ['envelope.finished', 'signatory.signed', 'sign', 'close']
+      .some(e => eventType.includes(e));
+
+    const isCancelEvent = ['envelope.canceled', 'cancel']
+      .some(e => eventType.includes(e));
+
+    if (isSignEvent) {
+      // ── EVENTO DE ASSINATURA / CONCLUSÃO ──────────────────
       const contract = await Contract.findOne({ clicksignDocKey: docKey });
+
       if (!contract) {
-        console.log(`Contract with Clicksign key ${docKey} not found.`);
-        return NextResponse.json({ success: false, error: 'Contract not found' }, { status: 404 });
+        console.log(`Webhook: Contract with Clicksign key ${docKey} not found.`);
+        return NextResponse.json({ success: true }); // 200 para não re-tentar
       }
 
       if (contract.status !== 'assinado') {
-        // Cancelar qualquer outro contrato assinado anterior
+        // Cancelar qualquer outro contrato assinado anterior do mesmo cliente
         await Contract.updateMany(
           { clientId: contract.clientId, _id: { $ne: contract._id }, status: 'assinado' },
           { status: 'cancelado' }
         );
 
-        // Atualizar contrato
+        // Marcar contrato como assinado
         contract.status = 'assinado';
         contract.clicksignStatus = 'assinado';
         contract.assinaturaNome = contract.assinaturaNome || 'Assinatura Eletrônica Clicksign';
         contract.assinaturaData = new Date();
         await contract.save();
 
-        // Atualizar cadastro comercial do cliente
+        // Ativar cadastro comercial do cliente
         const client = await Client.findById(contract.clientId);
         if (client) {
           const plan = await Plan.findById(contract.planoId);
@@ -79,33 +86,33 @@ export async function POST(request: Request) {
             creditosMassagemReservados: 0
           };
           await client.save();
-          console.log(`Client ${client.dadosPessoais?.nome} activated successfully via Clicksign webhook.`);
+          console.log(`Webhook: Client ${client.dadosPessoais?.nome} activated via Clicksign.`);
         }
       }
-    } else if (eventName === 'cancel') {
-      // Tratar cancelamento de documento feito diretamente pelo painel da Clicksign
+    } else if (isCancelEvent) {
+      // ── EVENTO DE CANCELAMENTO ────────────────────────────
       const contract = await Contract.findOne({ clicksignDocKey: docKey });
+
       if (contract) {
         contract.status = 'cancelado';
         contract.clicksignStatus = 'cancelado';
         await contract.save();
 
         const client = await Client.findById(contract.clientId);
-        if (client && client.dadosComerciais?.planoId?.toString() === contract.planoId.toString()) {
+        if (client && client.dadosComerciais?.planoId?.toString() === contract.planoId?.toString()) {
           client.dadosComerciais.status = 'inativo';
           await client.save();
-          console.log(`Client ${client.dadosPessoais?.nome} inactivated via Clicksign cancel webhook.`);
+          console.log(`Webhook: Client ${client.dadosPessoais?.nome} inactivated via Clicksign cancel.`);
         }
       }
     } else {
-      // Outros eventos informativos (ex: document_created, signer_created, list_created)
-      // Apenas registrar nos logs do servidor sem precisar alterar dados
-      console.log(`Webhook received event: ${eventName}. No commercial state action needed.`);
+      // ── EVENTOS INFORMATIVOS (sem ação necessária) ────────
+      console.log(`Webhook: informational event "${eventType}" received — no action needed.`);
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Webhook error:', error);
+    console.error('Clicksign Webhook error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
