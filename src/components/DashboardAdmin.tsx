@@ -373,10 +373,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>CONTRATANTE</strong><br/>' + nomeCompleto + '<br/><small>CPF: ' + cpfVal + '</small></div></div>' +
         '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>CONTRATADO</strong><br/>' + contratadaNome + '<br/><small>CNPJ: ' + cnpj + '</small></div></div>' +
       '</div>' +
-      '<div style="display:flex;justify-content:space-between;margin-top:24px;gap:30px;">' +
-        '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>Testemunha 1</strong></div></div>' +
-        '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>Testemunha 2</strong></div></div>' +
-      '</div>' +
       '<p style="margin-top:20px;text-align:center;">Local e data: _________________________, ' + dataContrato + '</p>' +
       '</div>' +
       '</div>';
