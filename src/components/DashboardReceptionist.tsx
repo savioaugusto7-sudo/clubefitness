@@ -139,80 +139,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    if (dcPlano) {
-      const plan = plans.find((p: any) => p._id === dcPlano);
-      if (plan) {
-        let sugDur = 'mensal';
-        let sugQtd = 1;
-        if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
-          sugDur = 'anual';
-          sugQtd = 1;
-        } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
-          sugDur = 'semana';
-          sugQtd = plan.validadeDias === 14 ? 2 : 1;
-        } else {
-          sugDur = 'mensal';
-          sugQtd = Math.round(plan.validadeDias / 30) || 1;
-        }
-        setDcDuracao(sugDur);
-        setDcVigenciaQtd(sugQtd);
-        setDcValorUnitario(plan.preco || 0);
-        if (sugDur === 'anual') {
-          setDcParcelas(12);
-        } else if (sugDur === 'mensal') {
-          setDcParcelas(sugQtd);
-        } else {
-          setDcParcelas(1);
-        }
-      }
-    }
-  }, [dcPlano, plans]);
 
-  useEffect(() => {
-    if (dcPlano) {
-      const plan = plans.find((p: any) => p._id === dcPlano);
-      if (plan) {
-        let sugDur = 'mensal';
-        let sugQtd = 1;
-        if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
-          sugDur = 'anual';
-          sugQtd = 1;
-        } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
-          sugDur = 'semana';
-          sugQtd = plan.validadeDias === 14 ? 2 : 1;
-        } else {
-          sugDur = 'mensal';
-          sugQtd = Math.round(plan.validadeDias / 30) || 1;
-        }
-        setDcDuracao(sugDur);
-        setDcVigenciaQtd(sugQtd);
-        setDcValorUnitario(plan.preco || 0); // Sugere o preço do plano
-        if (sugDur === 'anual') {
-          setDcParcelas(12);
-        } else if (sugDur === 'mensal') {
-          setDcParcelas(sugQtd);
-        } else {
-          setDcParcelas(1);
-        }
-      }
-    }
-  }, [dcPlano, plans]);
-
-  useEffect(() => {
-    if (dcPlano) {
-      const plan = plans.find((p: any) => p._id === dcPlano);
-      if (plan) {
-        const suggestedDuracao = plan.tipo === 'Anual' || plan.validadeDias > 180 ? 'anual' : 'mensal';
-        setDcDuracao(suggestedDuracao);
-        if (suggestedDuracao === 'anual') {
-          setDcParcelas(12);
-        } else {
-          setDcParcelas(1);
-        }
-      }
-    }
-  }, [dcPlano, plans]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1003,7 +930,35 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
                         <label className="comercial-field-label"><i className="fa-solid fa-signature"></i> Plano Contratado</label>
-                        <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)}>
+                        <select className="select-custom" value={dcPlano} onChange={e => {
+                          const newPlanoId = e.target.value;
+                          setDcPlano(newPlanoId);
+                          const plan = plans.find((p: any) => p._id === newPlanoId);
+                          if (plan) {
+                            let sugDur = 'mensal';
+                            let sugQtd = 1;
+                            if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
+                              sugDur = 'anual';
+                              sugQtd = 1;
+                            } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
+                              sugDur = 'semana';
+                              sugQtd = plan.validadeDias === 14 ? 2 : 1;
+                            } else {
+                              sugDur = 'mensal';
+                              sugQtd = Math.round(plan.validadeDias / 30) || 1;
+                            }
+                            setDcDuracao(sugDur);
+                            setDcVigenciaQtd(sugQtd);
+                            setDcValorUnitario(plan.preco || 0);
+                            if (sugDur === 'anual') {
+                              setDcParcelas(12);
+                            } else if (sugDur === 'mensal') {
+                              setDcParcelas(sugQtd);
+                            } else {
+                              setDcParcelas(1);
+                            }
+                          }
+                        }}>
                           <option value="">Selecione...</option>
                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} — {fmt(p.preco)}</option>)}
                         </select>
@@ -1640,7 +1595,35 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
                         <label style={labelStyle}>Plano</label>
-                        <select style={inputStyle} value={dcPlano} onChange={e => setDcPlano(e.target.value)}>
+                        <select style={inputStyle} value={dcPlano} onChange={e => {
+                          const newPlanoId = e.target.value;
+                          setDcPlano(newPlanoId);
+                          const plan = plans.find((p: any) => p._id === newPlanoId);
+                          if (plan) {
+                            let sugDur = 'mensal';
+                            let sugQtd = 1;
+                            if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
+                              sugDur = 'anual';
+                              sugQtd = 1;
+                            } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
+                              sugDur = 'semana';
+                              sugQtd = plan.validadeDias === 14 ? 2 : 1;
+                            } else {
+                              sugDur = 'mensal';
+                              sugQtd = Math.round(plan.validadeDias / 30) || 1;
+                            }
+                            setDcDuracao(sugDur);
+                            setDcVigenciaQtd(sugQtd);
+                            setDcValorUnitario(plan.preco || 0);
+                            if (sugDur === 'anual') {
+                              setDcParcelas(12);
+                            } else if (sugDur === 'mensal') {
+                              setDcParcelas(sugQtd);
+                            } else {
+                              setDcParcelas(1);
+                            }
+                          }
+                        }}>
                           <option value="">Selecione...</option>
                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} — {fmt(p.preco)}</option>)}
                         </select>

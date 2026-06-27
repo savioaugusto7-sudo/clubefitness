@@ -615,35 +615,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    if (dcPlano) {
-      const plan = plans.find((p: any) => p._id === dcPlano);
-      if (plan) {
-        let sugDur = 'mensal';
-        let sugQtd = 1;
-        if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
-          sugDur = 'anual';
-          sugQtd = 1;
-        } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
-          sugDur = 'semana';
-          sugQtd = plan.validadeDias === 14 ? 2 : 1;
-        } else {
-          sugDur = 'mensal';
-          sugQtd = Math.round(plan.validadeDias / 30) || 1;
-        }
-        setDcDuracao(sugDur);
-        setDcVigenciaQtd(sugQtd);
-        setDcValorUnitario(plan.preco || 0);
-        if (sugDur === 'anual') {
-          setDcParcelas(12);
-        } else if (sugDur === 'mensal') {
-          setDcParcelas(sugQtd);
-        } else {
-          setDcParcelas(1);
-        }
-      }
-    }
-  }, [dcPlano, plans]);
+
 
   const handleSaveConfigs = () => {
     localStorage.setItem('spotify_client_id', configSpotifyId);
@@ -3282,7 +3254,35 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         <div className="form-row">
                           <div className="form-group">
                             <label className="comercial-field-label"><i className="fa-solid fa-signature"></i> Plano Contratado</label>
-                            <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} disabled={hasActiveSignedContract}>
+                            <select className="select-custom" value={dcPlano} onChange={e => {
+                              const newPlanoId = e.target.value;
+                              setDcPlano(newPlanoId);
+                              const plan = plans.find((p: any) => p._id === newPlanoId);
+                              if (plan) {
+                                let sugDur = 'mensal';
+                                let sugQtd = 1;
+                                if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
+                                  sugDur = 'anual';
+                                  sugQtd = 1;
+                                } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
+                                  sugDur = 'semana';
+                                  sugQtd = plan.validadeDias === 14 ? 2 : 1;
+                                } else {
+                                  sugDur = 'mensal';
+                                  sugQtd = Math.round(plan.validadeDias / 30) || 1;
+                                }
+                                setDcDuracao(sugDur);
+                                setDcVigenciaQtd(sugQtd);
+                                setDcValorUnitario(plan.preco || 0);
+                                if (sugDur === 'anual') {
+                                  setDcParcelas(12);
+                                } else if (sugDur === 'mensal') {
+                                  setDcParcelas(sugQtd);
+                                } else {
+                                  setDcParcelas(1);
+                                }
+                              }
+                            }} disabled={hasActiveSignedContract}>
                               {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
                             </select>
                           </div>

@@ -97,6 +97,7 @@ export async function PUT(request: Request) {
         updatedPessoais.sexo = normalizedSexo;
       }
       Object.assign(client.dadosPessoais, updatedPessoais);
+      client.markModified('dadosPessoais');
       // Sync user name if updated
       if (dadosPessoais.nome) {
         await User.findByIdAndUpdate(client.userId, { nome: dadosPessoais.nome });
@@ -104,9 +105,11 @@ export async function PUT(request: Request) {
     }
     if (dadosClinicos) {
       Object.assign(client.dadosClinicos, dadosClinicos);
+      client.markModified('dadosClinicos');
     }
     if (dadosComerciais) {
       Object.assign(client.dadosComerciais, dadosComerciais);
+      client.markModified('dadosComerciais');
     }
 
     await client.save();
