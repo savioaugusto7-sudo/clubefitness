@@ -3178,108 +3178,159 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                    </>
                  )}
                  {clientDetailTab === 'comerciais' && (
-                   <>
-                     {hasActiveSignedContract && (
-                       <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                         <i className="fa-solid fa-triangle-exclamation"></i>
-                         <span><strong>Contrato Ativo Assinado:</strong> As informações comerciais estão bloqueadas para edição direta. Para alterá-las, gere uma nova versão do contrato na aba <strong>Contratos</strong>.</span>
-                       </div>
-                     )}
+                    <>
+                      {hasActiveSignedContract && (
+                        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <i className="fa-solid fa-triangle-exclamation"></i>
+                          <span><strong>Contrato Ativo Assinado:</strong> As informações comerciais estão bloqueadas para edição direta. Para alterá-las, gere uma nova versão do contrato na aba <strong>Contratos</strong>.</span>
+                        </div>
+                      )}
 
-                     <div style={{ background: 'rgba(59,130,246,0.05)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '15px' }}>
-                       <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Resumo Financeiro em Tempo Real</h4>
-                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', textAlign: 'center' }}>
-                         <div>
-                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Valor Bruto</span>
-                           <strong style={{ fontSize: '0.95rem' }}>R$ {valorBruto.toFixed(2).replace('.', ',')}</strong>
-                         </div>
-                         <div>
-                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Desconto ({dcDescontoTipo === 'percentual' ? `${dcDescontoValor}%` : 'R$'})</span>
-                           <strong style={{ fontSize: '0.95rem', color: 'var(--color-danger)' }}>- R$ {descontoReais.toFixed(2).replace('.', ',')}</strong>
-                         </div>
-                         <div>
-                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Valor Líquido</span>
-                           <strong style={{ fontSize: '0.95rem', color: 'var(--color-success)' }}>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong>
-                         </div>
-                         <div>
-                           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block' }}>Parcelamento</span>
-                           <strong style={{ fontSize: '0.95rem' }}>{dcParcelas}x R$ {valorParcela.toFixed(2).replace('.', ',')}</strong>
-                         </div>
-                       </div>
-                     </div>
+                      <div className="comercial-summary-card">
+                        <div className="comercial-summary-header">
+                          <span><i className="fa-solid fa-calculator" style={{ marginRight: '8px' }}></i> Resumo Financeiro em Tempo Real</span>
+                        </div>
+                        <div className="comercial-summary-grid">
+                          <div className="comercial-summary-box">
+                            <span className="comercial-summary-label">Subtotal Bruto</span>
+                            <strong className="comercial-summary-val">R$ {valorBruto.toFixed(2).replace('.', ',')}</strong>
+                            <small className="comercial-summary-desc">
+                              {dcDuracao === 'semana' 
+                                ? `${dcVigenciaQtd} sem. x R$ ${dcValorUnitario.toFixed(2)}` 
+                                : dcDuracao === 'mensal' 
+                                ? `${dcVigenciaQtd} meses x R$ ${dcValorUnitario.toFixed(2)}` 
+                                : `${dcVigenciaQtd} ano(s) x R$ ${dcValorUnitario.toFixed(2)}`}
+                            </small>
+                          </div>
+                          <div className="comercial-summary-box" style={{ background: 'rgba(239, 68, 68, 0.015)', borderColor: 'rgba(239, 68, 68, 0.08)' }}>
+                            <span className="comercial-summary-label" style={{ color: 'var(--color-danger)' }}>Desconto Aplicado</span>
+                            <strong className="comercial-summary-val" style={{ color: 'var(--color-danger)' }}>- R$ {descontoReais.toFixed(2).replace('.', ',')}</strong>
+                            <small className="comercial-summary-desc">
+                              {dcDescontoTipo === 'percentual' ? `${dcDescontoValor}% de desconto` : 'Valor fixo deduzido'}
+                            </small>
+                          </div>
+                          <div className="comercial-summary-box" style={{ background: 'rgba(16, 185, 129, 0.015)', borderColor: 'rgba(16, 185, 129, 0.08)' }}>
+                            <span className="comercial-summary-label" style={{ color: 'var(--color-success)' }}>Total Líquido</span>
+                            <strong className="comercial-summary-val" style={{ color: 'var(--color-success)' }}>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong>
+                            <small className="comercial-summary-desc">Valor final do contrato</small>
+                          </div>
+                          <div className="comercial-summary-box">
+                            <span className="comercial-summary-label">Parcelamento ({dcFormaPag.toUpperCase()})</span>
+                            <strong className="comercial-summary-val">{dcParcelas}x R$ {valorParcela.toFixed(2).replace('.', ',')}</strong>
+                            <small className="comercial-summary-desc">
+                              {dcParcelas > 1 ? 'Mensalidades' : 'À vista'}
+                            </small>
+                          </div>
+                        </div>
+                      </div>
 
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Plano Contratado</label>
-                         <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} disabled={hasActiveSignedContract}>
-                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
-                         </select>
-                       </div>
-                       <div className="form-group">
-                         <label>Status</label>
-                         <select className="select-custom" value={dcStatus} onChange={e => setDcStatus(e.target.value)} disabled={hasActiveSignedContract}>
-                           <option value="ativo">Ativo</option>
-                           <option value="vencido">Vencido</option>
-                           <option value="suspenso">Suspenso</option>
-                           <option value="inativo">Inativo</option>
-                         </select>
-                       </div>
-                     </div>
+                      <div className="comercial-section-card">
+                        <div className="comercial-section-title">
+                          <i className="fa-solid fa-file-invoice-dollar"></i> Plano Contratado & Vigência
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-signature"></i> Plano Contratado</label>
+                            <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} disabled={hasActiveSignedContract}>
+                              {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-circle-info"></i> Status</label>
+                            <select className="select-custom" value={dcStatus} onChange={e => setDcStatus(e.target.value)} disabled={hasActiveSignedContract}>
+                              <option value="ativo">Ativo</option>
+                              <option value="vencido">Vencido</option>
+                              <option value="suspenso">Suspenso</option>
+                              <option value="inativo">Inativo</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-row" style={{ marginTop: '10px' }}>
+                          <div className="form-group" style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                              <label className="comercial-field-label"><i className="fa-solid fa-calendar-days"></i> Vigência do Contrato</label>
+                              <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value)} disabled={hasActiveSignedContract}>
+                                <option value="semana">Semana(s)</option>
+                                <option value="mensal">Mensal</option>
+                                <option value="anual">Anual (12 Meses)</option>
+                              </select>
+                            </div>
+                            <div style={{ width: '80px' }}>
+                              <label className="comercial-field-label"><i className="fa-solid fa-list-numeric"></i> Qtd</label>
+                              <input type="number" className="form-control" value={dcVigenciaQtd} onChange={e => setDcVigenciaQtd(Math.max(1, Number(e.target.value)))} min={1} disabled={hasActiveSignedContract} />
+                            </div>
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-money-bill-wave"></i> {dcDuracao === 'semana' ? 'Valor Semanal (R$)' : dcDuracao === 'anual' ? 'Valor Anual (R$)' : 'Valor Mensal (R$)'}</label>
+                            <input type="number" className="form-control" value={dcValorUnitario} onChange={e => setDcValorUnitario(Number(e.target.value))} min={0} disabled={hasActiveSignedContract} />
+                          </div>
+                        </div>
+                      </div>
 
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Tipo de Desconto</label>
-                         <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)} disabled={hasActiveSignedContract}>
-                           <option value="percentual">Percentual (%)</option>
-                           <option value="fixo">Fixo (R$)</option>
-                         </select>
-                       </div>
-                       <div className="form-group">
-                         <label>Valor do Desconto</label>
-                         <input type="number" className="form-control" value={dcDescontoValor} onChange={e => setDcDescontoValor(Number(e.target.value))} min={0} disabled={hasActiveSignedContract} />
-                       </div>
-                       <div className="form-group">
-                         <label>Parcelas</label>
-                         <input type="number" className="form-control" value={dcParcelas} onChange={e => setDcParcelas(Math.max(1, Number(e.target.value)))} min={1} disabled={hasActiveSignedContract} />
-                       </div>
-                     </div>
+                      <div className="comercial-section-card">
+                        <div className="comercial-section-title">
+                          <i className="fa-solid fa-percent"></i> Descontos & Parcelamento
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-tag"></i> Tipo de Desconto</label>
+                            <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)} disabled={hasActiveSignedContract}>
+                              <option value="percentual">Percentual (%)</option>
+                              <option value="fixo">Fixo (R$)</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-tags"></i> Valor do Desconto</label>
+                            <input type="number" className="form-control" value={dcDescontoValor} onChange={e => setDcDescontoValor(Number(e.target.value))} min={0} disabled={hasActiveSignedContract} />
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-credit-card"></i> Parcelas</label>
+                            <input type="number" className="form-control" value={dcParcelas} onChange={e => setDcParcelas(Math.max(1, Number(e.target.value)))} min={1} disabled={hasActiveSignedContract} />
+                          </div>
+                        </div>
+                      </div>
 
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Forma de Pagamento</label>
-                         <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} disabled={hasActiveSignedContract}>
-                           <option value="pix">Pix</option>
-                           <option value="boleto">Boleto Bancário</option>
-                           <option value="cartao">Cartão de Crédito/Débito</option>
-                           <option value="dinheiro">Dinheiro</option>
-                         </select>
-                       </div>
-                       <div className="form-group">
-                         <label>Data de Início</label>
-                         <input type="date" className="form-control" value={dcDataInicio} onChange={e => setDcDataInicio(e.target.value)} disabled={hasActiveSignedContract} />
-                       </div>
-                       <div className="form-group">
-                         <label>Primeiro Vencimento</label>
-                         <input type="date" className="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} disabled={hasActiveSignedContract} />
-                       </div>
-                     </div>
+                      <div className="comercial-section-card">
+                        <div className="comercial-section-title">
+                          <i className="fa-solid fa-calendar-check"></i> Fechamento & Emissão
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-receipt"></i> Forma de Pagamento</label>
+                            <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} disabled={hasActiveSignedContract}>
+                              <option value="pix">Pix</option>
+                              <option value="boleto">Boleto Bancário</option>
+                              <option value="cartao">Cartão de Crédito/Débito</option>
+                              <option value="dinheiro">Dinheiro</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-calendar-plus"></i> Data de Início</label>
+                            <input type="date" className="form-control" value={dcDataInicio} onChange={e => setDcDataInicio(e.target.value)} disabled={hasActiveSignedContract} />
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-calendar-day"></i> Primeiro Vencimento</label>
+                            <input type="date" className="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} disabled={hasActiveSignedContract} />
+                          </div>
+                        </div>
 
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Responsável pela Venda</label>
-                         <input className="form-control" value={dcResponsavelVenda} onChange={e => setDcResponsavelVenda(e.target.value)} placeholder="Nome do vendedor" disabled={hasActiveSignedContract} />
-                       </div>
-                       <div className="form-group">
-                         <label>Unidade Contratada</label>
-                         <input className="form-control" value={dcUnidadeContratada} onChange={e => setDcUnidadeContratada(e.target.value)} placeholder="Unidade de atendimento" disabled={hasActiveSignedContract} />
-                       </div>
-                     </div>
+                        <div className="form-row" style={{ marginTop: '10px' }}>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-user-tie"></i> Responsável pela Venda</label>
+                            <input className="form-control" value={dcResponsavelVenda} onChange={e => setDcResponsavelVenda(e.target.value)} placeholder="Nome do vendedor" disabled={hasActiveSignedContract} />
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-shop"></i> Unidade Contratada</label>
+                            <input className="form-control" value={dcUnidadeContratada} onChange={e => setDcUnidadeContratada(e.target.value)} placeholder="Unidade de atendimento" disabled={hasActiveSignedContract} />
+                          </div>
+                        </div>
 
-                     <div className="form-group">
-                       <label>Observações Contratuais</label>
-                       <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} placeholder="Notas adicionais sobre esta contratação" disabled={hasActiveSignedContract} />
-                     </div>
-
+                        <div className="form-group" style={{ marginTop: '10px' }}>
+                          <label className="comercial-field-label"><i className="fa-solid fa-file-lines"></i> Observações Contratuais</label>
+                          <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} placeholder="Notas adicionais sobre esta contratação" disabled={hasActiveSignedContract} />
+                        </div>
+                      </div>
+                      
                      <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                        {!hasActiveSignedContract && (
                          <button className="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
