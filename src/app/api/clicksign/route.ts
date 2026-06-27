@@ -2,6 +2,109 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
 import Client from '@/models/Client';
+import Plan from '@/models/Plan';
+
+async function syncContractStatus(contract: any, token: string, baseUrl: string) {
+  const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
+  const actualEnvelopeId = envelopeId;
+  const actualDocumentId = documentId || envelopeId;
+
+  try {
+    let clicksignStatus = 'pendente';
+    let finishedAt = null;
+
+    if (actualEnvelopeId && actualEnvelopeId.length === 36) {
+      const res = await fetch(`${baseUrl}/api/v3/envelopes/${actualEnvelopeId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': token,
+          'Content-Type': 'application/vnd.api+json',
+          'Accept': 'application/vnd.api+json'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const status = data.data?.attributes?.status;
+        if (status === 'finished') {
+          clicksignStatus = 'assinado';
+          finishedAt = data.data?.attributes?.finished_at || new Date();
+        } else if (status === 'canceled') {
+          clicksignStatus = 'cancelado';
+        }
+      } else {
+        const fallbackRes = await fetch(`${baseUrl}/api/v1/documents/${actualDocumentId}?access_token=${token}`);
+        if (fallbackRes.ok) {
+          const data = await fallbackRes.json();
+          const status = data.document?.status;
+          if (status === 'finished') {
+            clicksignStatus = 'assinado';
+            finishedAt = data.document?.finished_at || new Date();
+          } else if (status === 'canceled') {
+            clicksignStatus = 'cancelado';
+          }
+        }
+      }
+    }
+
+    if (clicksignStatus !== contract.clicksignStatus) {
+      // Cancelar qualquer outro contrato assinado anterior do mesmo cliente se esse foi assinado
+      if (clicksignStatus === 'assinado') {
+        await Contract.updateMany(
+          { clientId: contract.clientId, _id: { $ne: contract._id }, status: 'assinado' },
+          { status: 'cancelado' }
+        );
+      }
+
+      contract.clicksignStatus = clicksignStatus;
+      contract.status = clicksignStatus;
+
+      if (clicksignStatus === 'assinado') {
+        contract.assinaturaNome = contract.assinaturaNome || 'Assinatura Eletrônica Clicksign';
+        contract.assinaturaData = finishedAt ? new Date(finishedAt) : new Date();
+
+        const client = await Client.findById(contract.clientId);
+        if (client) {
+          const plan = await Plan.findById(contract.planoId);
+          const isAnual = contract.planoTipo === 'Anual';
+
+          Object.assign(client.dadosComerciais, {
+            planoId: contract.planoId,
+            vencimento: contract.dataPrimeiroVencimento || contract.dataInicio,
+            status: 'ativo',
+            parcelas: contract.parcelas,
+            descontoValor: contract.descontoValor,
+            descontoTipo: contract.descontoTipo,
+            duracao: isAnual ? 'anual' : 'mensal',
+            formaPagamento: contract.formaPagamento,
+            dataInicio: contract.dataInicio,
+            responsavelVenda: contract.responsavelVenda || '',
+            unidadeContratada: contract.unidadeContratada || '',
+            observacoesContratuais: contract.observacoesContratuais || '',
+            creditosTotal: plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0),
+            creditosUsados: 0,
+            creditosReservados: 0,
+            creditosMassagemTotal: isAnual ? 1 : 0,
+            creditosMassagemUsados: 0,
+            creditosMassagemReservados: 0
+          });
+          await client.save();
+          console.log(`Sync status: Client ${client.dadosPessoais?.nome} activated via clicksign sync.`);
+        }
+      } else if (clicksignStatus === 'cancelado') {
+        const client = await Client.findById(contract.clientId);
+        if (client && client.dadosComerciais?.planoId?.toString() === contract.planoId?.toString()) {
+          client.dadosComerciais.status = 'inativo';
+          await client.save();
+          console.log(`Sync status: Client ${client.dadosPessoais?.nome} inactivated via clicksign cancel sync.`);
+        }
+      }
+      await contract.save();
+    }
+  } catch (error) {
+    console.error(`Erro ao sincronizar contrato ${contract._id}:`, error);
+  }
+}
+
 
 export async function GET(request: Request) {
   try {
@@ -18,6 +121,14 @@ export async function GET(request: Request) {
     const contracts = await Contract.find(query)
       .sort({ createdAt: -1 })
       .limit(200);
+
+    const token = process.env.CLICKSIGN_ACCESS_TOKEN;
+    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+
+    if (token) {
+      const pendingContracts = contracts.filter((c: any) => c.status === 'pendente' || c.clicksignStatus === 'pendente');
+      await Promise.all(pendingContracts.map(c => syncContractStatus(c, token, baseUrl)));
+    }
 
     // Enrich with client data
     const enriched = await Promise.all(contracts.map(async (c: any) => {
