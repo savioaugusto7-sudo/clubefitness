@@ -342,7 +342,7 @@ async function createClicksignDocument(
     `${baseUrl}/sign/${signerId}` ||
     '';
 
-  return { docKey: envelopeId, signerKey: signerId, signatureUrl };
+  return { docKey: `${envelopeId}:${documentId}`, signerKey: signerId, signatureUrl };
 }
 
 

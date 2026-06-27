@@ -42,7 +42,12 @@ export async function POST(request: Request) {
 
     if (isSignEvent) {
       // ── EVENTO DE ASSINATURA / CONCLUSÃO ──────────────────
-      const contract = await Contract.findOne({ clicksignDocKey: docKey });
+      const contract = await Contract.findOne({
+        $or: [
+          { clicksignDocKey: docKey },
+          { clicksignDocKey: new RegExp(docKey) }
+        ]
+      });
 
       if (!contract) {
         console.log(`Webhook: Contract with Clicksign key ${docKey} not found.`);
@@ -95,7 +100,12 @@ export async function POST(request: Request) {
       }
     } else if (isCancelEvent) {
       // ── EVENTO DE CANCELAMENTO ────────────────────────────
-      const contract = await Contract.findOne({ clicksignDocKey: docKey });
+      const contract = await Contract.findOne({
+        $or: [
+          { clicksignDocKey: docKey },
+          { clicksignDocKey: new RegExp(docKey) }
+        ]
+      });
 
       if (contract) {
         contract.status = 'cancelado';

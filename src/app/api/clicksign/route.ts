@@ -86,8 +86,12 @@ export async function DELETE(request: Request) {
     const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
 
     if (contract.clicksignDocKey && token) {
+      const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
+      const actualEnvelopeId = envelopeId;
+      const actualDocumentId = documentId || envelopeId;
+
       // Tenta o cancelamento via API v3 (Envelope)
-      const docsRes = await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/documents`, {
+      const docsRes = await fetch(`${baseUrl}/api/v3/envelopes/${actualEnvelopeId}/documents`, {
         method: 'GET',
         headers: {
           'Authorization': token,
@@ -101,7 +105,7 @@ export async function DELETE(request: Request) {
         const docs = docsData.data || [];
         for (const doc of docs) {
           if (doc.id) {
-            await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/documents/${doc.id}`, {
+            await fetch(`${baseUrl}/api/v3/envelopes/${actualEnvelopeId}/documents/${doc.id}`, {
               method: 'PATCH',
               headers: {
                 'Authorization': token,
@@ -122,7 +126,7 @@ export async function DELETE(request: Request) {
         }
       } else {
         // Fallback para API v1 (Documentos diretos)
-        await fetch(`${baseUrl}/api/v1/documents/${contract.clicksignDocKey}/cancel?access_token=${token}`, {
+        await fetch(`${baseUrl}/api/v1/documents/${actualDocumentId}/cancel?access_token=${token}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -158,8 +162,11 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'CLICKSIGN_ACCESS_TOKEN não configurado' }, { status: 500 });
     }
 
+    const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
+    const actualDocumentId = documentId || envelopeId;
+
     // Fetch document list to get signature request key
-    const docRes = await fetch(`${baseUrl}/api/v1/documents/${contract.clicksignDocKey}?access_token=${token}`);
+    const docRes = await fetch(`${baseUrl}/api/v1/documents/${actualDocumentId}?access_token=${token}`);
     const docData = await docRes.json();
 
     if (!docRes.ok) {
