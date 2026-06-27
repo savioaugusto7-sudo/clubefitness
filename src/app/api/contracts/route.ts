@@ -194,12 +194,15 @@ async function createClicksignDocument(
 
   // ──────────────────────────────────────────────────────────
   // PASSO 4c — Adicionar Signatário da Clínica (Contratado)
-  // Com Assinatura Automática (auth: "auto_signature")
+  // Com Assinatura Automática (auth: "auto_signature") e Fallback
   // ──────────────────────────────────────────────────────────
   const clinicEmail = process.env.CLICKSIGN_CLINIC_EMAIL || 'clubefitnessbh@gmail.com';
   const clinicName = process.env.CLICKSIGN_CLINIC_NAME || 'Albert Nunes Queiroz dos Santos LTDA';
-  const clinicCnpj = '52883492000104'; // CNPJ da Clínica (apenas números)
-  const clinicBirthday = process.env.CLICKSIGN_CLINIC_BIRTHDAY || '2023-11-14'; // Data de abertura do CNPJ (14/11/2023)
+  const clinicCnpj = '52883492000104';
+  const clinicBirthday = process.env.CLICKSIGN_CLINIC_BIRTHDAY || '2023-11-14';
+
+  let clinicSignerId = '';
+  let isFallback = false;
 
   const clinicSignerBody: any = {
     data: {
@@ -219,8 +222,39 @@ async function createClicksignDocument(
     headers,
     body: JSON.stringify(clinicSignerBody)
   });
-  const clinicSignerData = await handleError(clinicSignerRes, 'Adicionar Signatário da Clínica');
-  const clinicSignerId: string = clinicSignerData.data?.id;
+
+  if (clinicSignerRes.ok) {
+    const clinicSignerData = await clinicSignerRes.json();
+    clinicSignerId = clinicSignerData.data?.id;
+  } else {
+    let errData: any = {};
+    try { errData = await clinicSignerRes.json(); } catch {}
+    const detail = (Array.isArray(errData?.errors) && errData.errors[0]?.detail) || errData?.error || errData?.message || '';
+
+    if (detail.includes('auth') || detail.includes('disponível') || detail.includes('auto_signature') || clinicSignerRes.status === 422) {
+      console.warn('Auto-signature não disponível no ambiente de testes, usando assinatura normal.');
+      isFallback = true;
+
+      const fallbackRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: 'signers',
+            attributes: {
+              name: clinicName,
+              email: clinicEmail
+            }
+          }
+        })
+      });
+      const fallbackData = await handleError(fallbackRes, 'Adicionar Signatário da Clínica (Fallback)');
+      clinicSignerId = fallbackData.data?.id;
+    } else {
+      throw new Error(`Clicksign – Adicionar Signatário da Clínica: ${detail}`);
+    }
+  }
+
   if (!clinicSignerId) throw new Error('Clicksign não retornou o ID do Signatário da Clínica.');
 
   // ──────────────────────────────────────────────────────────
@@ -245,6 +279,28 @@ async function createClicksignDocument(
     })
   });
   await handleError(clinicReqQualRes, 'Criar Requisito de Qualificação da Clínica');
+
+  // Se auto_signature falhou e fizemos o fallback, precisamos do requisito de envio de e-mail tradicional
+  if (isFallback) {
+    const clinicReqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          type: 'requirements',
+          attributes: {
+            action: 'provide_evidence',
+            auth: 'email'
+          },
+          relationships: {
+            document: { data: { type: 'documents', id: documentId } },
+            signer: { data: { type: 'signers', id: clinicSignerId } }
+          }
+        }
+      })
+    });
+    await handleError(clinicReqAuthRes, 'Criar Requisito de Autenticação da Clínica');
+  }
 
   // ──────────────────────────────────────────────────────────
   // PASSO 5 — Ativar Envelope (draft → running)
