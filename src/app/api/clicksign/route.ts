@@ -86,10 +86,47 @@ export async function DELETE(request: Request) {
     const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
 
     if (contract.clicksignDocKey && token) {
-      await fetch(`${baseUrl}/api/v1/documents/${contract.clicksignDocKey}/cancel?access_token=${token}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      // Tenta o cancelamento via API v3 (Envelope)
+      const docsRes = await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/documents`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/vnd.api+json',
+          'Accept': 'application/vnd.api+json'
+        }
       });
+
+      if (docsRes.ok) {
+        const docsData = await docsRes.json();
+        const docs = docsData.data || [];
+        for (const doc of docs) {
+          if (doc.id) {
+            await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/documents/${doc.id}`, {
+              method: 'PATCH',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/vnd.api+json',
+                'Accept': 'application/vnd.api+json'
+              },
+              body: JSON.stringify({
+                data: {
+                  id: doc.id,
+                  type: 'documents',
+                  attributes: {
+                    status: 'canceled'
+                  }
+                }
+              })
+            });
+          }
+        }
+      } else {
+        // Fallback para API v1 (Documentos diretos)
+        await fetch(`${baseUrl}/api/v1/documents/${contract.clicksignDocKey}/cancel?access_token=${token}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     contract.status = 'cancelado';
