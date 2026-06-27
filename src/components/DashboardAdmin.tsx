@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
+import ClicksignPanel from './ClicksignPanel';
 
 interface DashboardAdminProps {
   activeTab: string;
@@ -394,10 +395,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     }
 
     const isClicksign = status === 'clicksign';
-    if (!plan) {
-      alert('Plano não encontrado.');
-      return;
-    }
 
     const payload = {
       clientId: detailClient._id,
@@ -2758,8 +2755,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </>
       )}
 
+      {/* ======================== CLICKSIGN MANAGEMENT TAB ======================== */}
+      {activeTab === 'clicksign' && (
+        <ClicksignPanel />
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -3591,11 +3593,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                            </small>
                          </div>
 
-                         <div style={{ display: 'flex', gap: '8px' }}>
-                           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowContractPreview(false)}>Fechar</button>
-                           <button className="btn btn-secondary" style={{ flex: 1, color: '#f59e0b' }} onClick={() => handleCreateContract('pendente')}><i className="fa-solid fa-clock"></i> Emitir Pendente</button>
-                           <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => handleCreateContract('assinado')}><i className="fa-solid fa-check-double"></i> Confirmar e Assinar</button>
-                         </div>
+                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button className="btn btn-secondary" style={{ flex: '1 1 auto' }} onClick={() => setShowContractPreview(false)}>Fechar</button>
+                            <button className="btn btn-secondary" style={{ flex: '1 1 auto', color: '#f59e0b' }} onClick={() => handleCreateContract('pendente')}><i className="fa-solid fa-clock"></i> Emitir Pendente</button>
+                            <button className="btn btn-secondary" style={{ flex: '1 1 auto', color: '#818cf8', borderColor: 'rgba(129,140,248,0.4)', background: 'rgba(129,140,248,0.08)' }} onClick={() => handleCreateContract('clicksign')}><i className="fa-solid fa-file-signature"></i> Enviar p/ Clicksign</button>
+                            <button className="btn btn-primary" style={{ flex: '1 1 auto' }} onClick={() => handleCreateContract('assinado')}><i className="fa-solid fa-check-double"></i> Confirmar e Assinar</button>
+                          </div>
                        </div>
                      )}
                    </div>

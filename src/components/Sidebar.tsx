@@ -10,7 +10,7 @@ interface TabConfig {
 }
 
 interface SidebarProps {
-  role: 'admin' | 'professional' | 'client';
+  role: 'admin' | 'receptionist' | 'professional' | 'client';
   activeTab: string;
   setActiveTab: (tab: string) => void;
   userName: string;
@@ -26,8 +26,8 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'controle_creditos', label: 'Controle de Créditos', icon: 'fa-coins' },
     { id: 'planos', label: 'Planos & Configs', icon: 'fa-tags' },
     { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' },
-    { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },
     { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' },
+    { id: 'clicksign', label: 'Clicksign', icon: 'fa-file-signature' },
     { id: 'medicamentos', label: 'Medicamentos', icon: 'fa-pills' },
     { id: 'solicitacoes_exercicios', label: 'Exercícios Solicitados', icon: 'fa-clipboard-question' },
     { id: 'tv_panel', label: 'Painel TV Clínica', icon: 'fa-tv' },
@@ -37,12 +37,21 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'resumo_dia', label: 'Resumo do Dia', icon: 'fa-clipboard-list' },
     { id: 'dashboard', label: 'Agenda Completa', icon: 'fa-calendar-alt' },
     { id: 'clientes', label: 'Clientes Vinculados', icon: 'fa-user-friends' },
+    { id: 'frequencia_alunos', label: 'Frequência dos Alunos', icon: 'fa-chart-bar' },
     { id: 'treinos_prof', label: 'Fichas de Treino', icon: 'fa-dumbbell' },
     { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' },
     { id: 'avaliacoes', label: 'Avaliações Físicas', icon: 'fa-heartbeat' },
     { id: 'relatorios', label: 'Relatórios Fisioterápicos', icon: 'fa-file-medical' },
     { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },
     { id: 'prontuarios', label: 'Prontuários', icon: 'fa-notes-medical' }
+  ],
+  receptionist: [
+    { id: 'dashboard', label: 'Painel da Recepção', icon: 'fa-chart-pie' },
+    { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
+    { id: 'agendamentos', label: 'Agendamentos', icon: 'fa-calendar-alt' },
+    { id: 'frequencia', label: 'Frequência & Evasão', icon: 'fa-chart-bar' },
+    { id: 'mensalidades', label: 'Mensalidades', icon: 'fa-money-bill-wave' },
+    { id: 'contratos', label: 'Contratos', icon: 'fa-file-contract' }
   ],
   client: [
     { id: 'dashboard', label: 'Painel do Aluno', icon: 'fa-home' },
@@ -116,7 +125,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
               <div className="user-info" style={{ overflow: 'hidden' }}>
                 <div className="user-name" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{userName}</div>
                 <div className="user-role" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                  {userCargo || (role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profissional' : 'Aluno')}
+                  {userCargo || (role === 'admin' ? 'Administrador' : role === 'receptionist' ? 'Recepção' : role === 'professional' ? 'Profissional' : 'Aluno')}
                 </div>
               </div>
             </div>
