@@ -182,6 +182,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcStatus, setDcStatus] = useState('ativo');
   const [dcFormaPag, setDcFormaPag] = useState('pix');
   const [dcDuracao, setDcDuracao] = useState('mensal');
+  const [dcVigenciaQtd, setDcVigenciaQtd] = useState(1);
+  const [dcValorUnitario, setDcValorUnitario] = useState(0);
   const [dcDescontoTipo, setDcDescontoTipo] = useState('percentual');
   const [dcDescontoValor, setDcDescontoValor] = useState(0);
   const [dcParcelas, setDcParcelas] = useState(1);
@@ -208,8 +210,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   // Computed values for contract and commercial details
   const selectedPlan = plans.find((p: any) => p._id === dcPlano);
-  const valorBruto = selectedPlan ? selectedPlan.preco : 0;
-  const isSelectedPlanAnual = selectedPlan ? selectedPlan.tipo === 'Anual' : false;
+  const valorBruto = dcValorUnitario * dcVigenciaQtd;
+  const isSelectedPlanAnual = dcDuracao === 'anual';
   
   let descontoReais = 0;
   if (dcDescontoTipo === 'percentual') {
@@ -225,11 +227,17 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     const plan = plans.find((p: any) => p._id === dcPlano);
     if (!plan) return 'Nenhum plano selecionado.';
 
-    const isAnual = plan.tipo === 'Anual';
-    const mesesVigencia = isAnual ? 12 : 1;
-    const vigenciaText = isAnual ? '12 (doze) meses' : '1 (um) mês';
+    const isAnual = dcDuracao === 'anual';
+    let vigenciaText = '1 (um) mês';
+    if (dcDuracao === 'semana') {
+      vigenciaText = `${dcVigenciaQtd} semana(s)`;
+    } else if (dcDuracao === 'mensal') {
+      vigenciaText = dcVigenciaQtd === 1 ? '1 (um) mês' : `${dcVigenciaQtd} meses`;
+    } else if (dcDuracao === 'anual') {
+      vigenciaText = dcVigenciaQtd === 1 ? '12 (doze) meses (1 ano)' : `${dcVigenciaQtd * 12} meses (${dcVigenciaQtd} anos)`;
+    }
 
-    const bruto = plan.preco || 0;
+    const bruto = dcValorUnitario * dcVigenciaQtd;
     const descVal = Number(dcDescontoValor) || 0;
     let liquido = bruto;
     if (dcDescontoTipo === 'percentual') {
@@ -244,7 +252,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     let dataFimStr = '[Data Fim]';
     if (dcDataInicio) {
       const start = new Date(dcDataInicio + 'T00:00:00');
-      start.setMonth(start.getMonth() + mesesVigencia);
+      if (dcDuracao === 'semana') {
+        start.setDate(start.getDate() + (Number(dcVigenciaQtd) || 1) * 7);
+      } else if (dcDuracao === 'mensal') {
+        start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1));
+      } else {
+        start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1) * 12);
+      }
       dataFimStr = start.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
     }
     const fmtDate = (d: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '[data]';
@@ -414,7 +428,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             ...detailClient.dadosComerciais,
             planoId: plan,
             formaPagamento: dcFormaPag,
-            duracao: plan.tipo === 'Anual' ? 'anual' : 'mensal',
+            duracao: dcDuracao,
+            duracaoQtd: dcVigenciaQtd,
+            valorUnitario: dcValorUnitario,
             vencimento: dcVencimento,
             descontoTipo: dcDescontoTipo,
             descontoValor: dcDescontoValor,
@@ -552,6 +568,36 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       setConfigGymName(localStorage.getItem('gym_name') || 'Clube Fitness Fisio');
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (dcPlano) {
+      const plan = plans.find((p: any) => p._id === dcPlano);
+      if (plan) {
+        let sugDur = 'mensal';
+        let sugQtd = 1;
+        if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
+          sugDur = 'anual';
+          sugQtd = 1;
+        } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
+          sugDur = 'semana';
+          sugQtd = plan.validadeDias === 14 ? 2 : 1;
+        } else {
+          sugDur = 'mensal';
+          sugQtd = Math.round(plan.validadeDias / 30) || 1;
+        }
+        setDcDuracao(sugDur);
+        setDcVigenciaQtd(sugQtd);
+        setDcValorUnitario(plan.preco || 0);
+        if (sugDur === 'anual') {
+          setDcParcelas(12);
+        } else if (sugDur === 'mensal') {
+          setDcParcelas(sugQtd);
+        } else {
+          setDcParcelas(1);
+        }
+      }
+    }
+  }, [dcPlano, plans]);
 
   const handleSaveConfigs = () => {
     localStorage.setItem('spotify_client_id', configSpotifyId);
@@ -1650,6 +1696,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcStatus(c.dadosComerciais?.status || 'ativo');
                               setDcFormaPag(c.dadosComerciais?.formaPagamento || 'pix');
                               setDcDuracao(c.dadosComerciais?.duracao || 'mensal');
+                              setDcVigenciaQtd(c.dadosComerciais?.duracaoQtd || 1);
+                              setDcValorUnitario(c.dadosComerciais?.valorUnitario || 0);
                               setDcDescontoTipo(c.dadosComerciais?.descontoTipo || 'percentual');
                               setDcDescontoValor(c.dadosComerciais?.descontoValor || 0);
                               setDcParcelas(c.dadosComerciais?.parcelas || 1);
@@ -3241,7 +3289,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                planoId: dcPlano,
                                status: dcStatus,
                                formaPagamento: dcFormaPag,
-                               duracao: isSelectedPlanAnual ? 'anual' : 'mensal',
+                               duracao: dcDuracao,
+                             duracaoQtd: dcVigenciaQtd,
+                             valorUnitario: dcValorUnitario,
                                vencimento: dcVencimento,
                                descontoTipo: dcDescontoTipo,
                                descontoValor: dcDescontoValor,
@@ -3400,7 +3450,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                            • Plano: {selectedPlan?.nome || 'Nenhum'} | Bruto: R$ {valorBruto.toFixed(2).replace('.', ',')}<br/>
                            • Desconto: {dcDescontoTipo === 'percentual' ? `${dcDescontoValor}%` : `R$ ${dcDescontoValor}`} | Líquido: <strong>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong><br/>
                            • Condição: {dcParcelas}x de R$ {valorParcela.toFixed(2).replace('.', ',')} via {dcFormaPag.toUpperCase()}<br/>
-                           • Vigência: {isSelectedPlanAnual ? '12 meses (Anual)' : '1 mês (Mensal)'} | Início: {dcDataInicio || 'Hoje'}
+                           • Vigência: {dcDuracao === 'anual' ? `${dcVigenciaQtd} ano(s)` : dcDuracao === 'semana' ? `${dcVigenciaQtd} semana(s)` : `${dcVigenciaQtd} mês(es)`} (a R$ {dcValorUnitario.toFixed(2)}/unid) | Início: {dcDataInicio || 'Hoje'}
                          </div>
 
                          {/* Dynamic HTML preview frame */}

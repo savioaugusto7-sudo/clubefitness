@@ -33,7 +33,7 @@ const DadosComerciaisSchema = new Schema({
   vencimento: { type: String },
   frequencia: { type: Number, default: 3 },
   parcelas: { type: Number, default: 1 },
-  status: { type: String, enum: ['ativo', 'vencido', 'inativo', 'suspenso', 'cancelado'], default: 'ativo' },
+  status: { type: String, enum: ['ativo', 'vencido', 'inativo', 'suspenso', 'cancelado', 'pendente'], default: 'pendente' },
   contrato: { type: String },
   creditosTotal: { type: Number, default: 0 },
   creditosUsados: { type: Number, default: 0 },
@@ -44,6 +44,8 @@ const DadosComerciaisSchema = new Schema({
   descontoValor: { type: Number, default: 0 },
   descontoTipo: { type: String, default: 'percentual' },
   duracao: { type: String, default: 'mensal' },
+  duracaoQtd: { type: Number, default: 1 },
+  valorUnitario: { type: Number, default: 0 },
   formaPagamento: { type: String, default: 'pix' },
   creditosUltimoReset: { type: String },
   dataInicio: { type: String },
@@ -60,6 +62,7 @@ const DadosComerciaisSchema = new Schema({
 const ClientSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   codigo: { type: String },
+  cadastroConcluido: { type: Boolean, default: false },
   dadosPessoais: { type: DadosPessoaisSchema, required: true },
   dadosClinicos: { type: DadosClinicosSchema, default: () => ({}) },
   dadosComerciais: { type: DadosComerciaisSchema, default: () => ({}) }
