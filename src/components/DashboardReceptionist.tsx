@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { downloadContractPDF } from '@/utils/pdfGenerator';
+import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 
 interface DashboardReceptionistProps {
   activeTab: string;
@@ -533,7 +533,36 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     const plan = plans.find((p: any) => p._id === dcPlano);
     if (!plan) { alert('Plano não encontrado.'); return; }
     const isClicksign = status === 'clicksign';
-    if (!plan) { alert('Plano não encontrado.'); return; }
+
+    let pdfBase64 = '';
+    if (isClicksign) {
+      try {
+        pdfBase64 = await getContractPDFBase64(
+          {
+            ...selectedClient,
+            dadosComerciais: {
+              planoId: dcPlano,
+              formaPagamento: dcFormaPag,
+              duracao: dcDuracao,
+              vencimento: dcVencimento,
+              descontoTipo: dcDescontoTipo,
+              descontoValor: dcDescontoValor,
+              parcelas: dcParcelas,
+              dataInicio: dcDataInicio,
+              responsavelVenda: dcResponsavelVenda,
+              unidadeContratada: dcUnidadeContratada,
+              observacoesContratuais: dcObservacoesContratuais
+            }
+          },
+          plan,
+          generateContractTemplate()
+        );
+      } catch (err: any) {
+        alert('Erro ao gerar o PDF para a Clicksign: ' + err.message);
+        return;
+      }
+    }
+
     const payload = {
       clientId: selectedClient._id, planoId: dcPlano,
       descontoTipo: dcDescontoTipo, descontoValor: dcDescontoValor,
@@ -541,14 +570,21 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       dataPrimeiroVencimento: dcVencimento, dataInicio: dcDataInicio,
       responsavelVenda: dcResponsavelVenda, unidadeContratada: dcUnidadeContratada,
       observacoesContratuais: dcObservacoesContratuais,
-      status, assinaturaNome: status === 'assinado' ? signatureName : '',
+      status: isClicksign ? 'pendente' : status, 
+      assinaturaNome: status === 'assinado' ? signatureName : '',
       contratoTexto: generateContractTemplate(), usuarioEmissor: 'Recepção',
-      duracao: dcDuracao, duracaoQtd: dcVigenciaQtd, valorUnitario: dcValorUnitario
+      duracao: dcDuracao, duracaoQtd: dcVigenciaQtd, valorUnitario: dcValorUnitario,
+      enviarClicksign: isClicksign,
+      contratoPdfBase64: pdfBase64
     };
     const res = await fetch('/api/contracts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json();
     if (data.success) {
-      alert(status === 'assinado' ? 'Contrato assinado!' : 'Contrato gerado como pendente!');
+      if (isClicksign) {
+        alert('Contrato gerado e enviado para a Clicksign com sucesso! O link para assinatura foi enviado por e-mail.');
+      } else {
+        alert(status === 'assinado' ? 'Contrato assinado!' : 'Contrato gerado como pendente!');
+      }
       setShowContractPreview(false);
       const resContracts = await fetch(`/api/contracts?clientId=${selectedClient._id}`);
       const dc = await resContracts.json();

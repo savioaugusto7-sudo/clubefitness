@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
-import { downloadContractPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
+import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 import ClicksignPanel from './ClicksignPanel';
 
 interface DashboardAdminProps {
@@ -395,6 +395,34 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     }
 
     const isClicksign = status === 'clicksign';
+    let pdfBase64 = '';
+    if (isClicksign) {
+      try {
+        pdfBase64 = await getContractPDFBase64(
+          {
+            ...detailClient,
+            dadosComerciais: {
+              planoId: dcPlano,
+              formaPagamento: dcFormaPag,
+              duracao: dcDuracao,
+              vencimento: dcVencimento,
+              descontoTipo: dcDescontoTipo,
+              descontoValor: dcDescontoValor,
+              parcelas: dcParcelas,
+              dataInicio: dcDataInicio,
+              responsavelVenda: dcResponsavelVenda,
+              unidadeContratada: dcUnidadeContratada,
+              observacoesContratuais: dcObservacoesContratuais
+            }
+          },
+          plan,
+          generateContractTemplate()
+        );
+      } catch (err: any) {
+        alert('Erro ao gerar o PDF para a Clicksign: ' + err.message);
+        return;
+      }
+    }
 
     const payload = {
       clientId: detailClient._id,
@@ -413,7 +441,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       contratoTexto: generateContractTemplate(),
       usuarioEmissor: 'Administrador',
       enviarClicksign: isClicksign,
-      contratoHtmlBase64: 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(generateContractTemplate())))
+      contratoPdfBase64: pdfBase64
     };
 
     const res = await fetch('/api/contracts', {
@@ -3416,8 +3444,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                status: dcStatus,
                                formaPagamento: dcFormaPag,
                                duracao: dcDuracao,
-                             duracaoQtd: dcVigenciaQtd,
-                             valorUnitario: dcValorUnitario,
+                               duracaoQtd: dcVigenciaQtd,
+                               valorUnitario: dcValorUnitario,
                                vencimento: dcVencimento,
                                descontoTipo: dcDescontoTipo,
                                descontoValor: dcDescontoValor,

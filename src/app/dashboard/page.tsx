@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import DashboardAdmin from '@/components/DashboardAdmin';
+import DashboardReceptionist from '@/components/DashboardReceptionist';
 import DashboardProfessional from '@/components/DashboardProfessional';
 import DashboardClient from '@/components/DashboardClient';
 
@@ -20,7 +21,14 @@ export default function DashboardPage() {
     if (status === 'unauthenticated') {
       router.push('/login');
     }
-  }, [status, router]);
+    // Redirecionar cliente novo para o onboarding se cadastro não concluído
+    if (status === 'authenticated') {
+      const u = session?.user as any;
+      if (u?.role === 'client' && u?.cadastroConcluido === false) {
+        router.push('/onboarding');
+      }
+    }
+  }, [status, session, router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -72,6 +80,8 @@ export default function DashboardPage() {
   const renderContent = () => {
     if (effectiveRole === 'admin') {
       return <DashboardAdmin activeTab={activeTab} setActiveTab={setActiveTab} />;
+    } else if (effectiveRole === 'receptionist') {
+      return <DashboardReceptionist activeTab={activeTab} setActiveTab={setActiveTab} />;
     } else if (effectiveRole === 'professional') {
       return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} professionalId={user.profileId} />;
     } else {
@@ -107,15 +117,15 @@ export default function DashboardPage() {
             </h4>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="badge" style={{ 
-                background: role === 'admin' ? 'rgba(245, 158, 11, 0.1)' : role === 'professional' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                color: role === 'admin' ? 'var(--color-warning)' : role === 'professional' ? 'var(--color-accent)' : 'var(--color-primary)',
+                background: role === 'admin' ? 'rgba(245, 158, 11, 0.1)' : role === 'receptionist' ? 'rgba(236, 72, 153, 0.1)' : role === 'professional' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                color: role === 'admin' ? 'var(--color-warning)' : role === 'receptionist' ? '#ec4899' : role === 'professional' ? 'var(--color-accent)' : 'var(--color-primary)',
                 fontWeight: 700,
                 fontSize: '0.75rem',
                 padding: '4px 8px',
                 borderRadius: '6px',
                 textTransform: 'uppercase'
               }}>
-                {user.cargo || (role === 'admin' ? 'ADMIN' : role === 'professional' ? 'PROFISSIONAL' : 'ALUNO')}
+                {user.cargo || (role === 'admin' ? 'ADMIN' : role === 'receptionist' ? 'RECEPÇÃO' : role === 'professional' ? 'PROFISSIONAL' : 'ALUNO')}
               </span>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 Logado como: <strong>{user.email}</strong>

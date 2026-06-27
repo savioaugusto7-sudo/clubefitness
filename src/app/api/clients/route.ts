@@ -49,6 +49,8 @@ export async function POST(request: Request) {
     const count = await Client.countDocuments();
     const codigo = `CF-${String(count + 1).padStart(4, '0')}`;
 
+    const normalizedSexo = dadosPessoais?.sexo ? (dadosPessoais.sexo.trim().toUpperCase().startsWith('F') ? 'F' : (dadosPessoais.sexo.trim().toUpperCase().startsWith('M') ? 'M' : 'O')) : 'M';
+
     // 3. Create Client
     const client = await Client.create({
       userId: user._id,
@@ -56,7 +58,8 @@ export async function POST(request: Request) {
       dadosPessoais: {
         nome: user.nome,
         email: user.email,
-        ...dadosPessoais
+        ...dadosPessoais,
+        sexo: normalizedSexo
       },
       dadosClinicos: dadosClinicos || {},
       dadosComerciais: {
@@ -88,17 +91,22 @@ export async function PUT(request: Request) {
     }
 
     if (dadosPessoais) {
-      client.dadosPessoais = { ...client.dadosPessoais, ...dadosPessoais };
+      const normalizedSexo = dadosPessoais.sexo ? (dadosPessoais.sexo.trim().toUpperCase().startsWith('F') ? 'F' : (dadosPessoais.sexo.trim().toUpperCase().startsWith('M') ? 'M' : 'O')) : undefined;
+      const updatedPessoais = { ...dadosPessoais };
+      if (normalizedSexo !== undefined) {
+        updatedPessoais.sexo = normalizedSexo;
+      }
+      Object.assign(client.dadosPessoais, updatedPessoais);
       // Sync user name if updated
       if (dadosPessoais.nome) {
         await User.findByIdAndUpdate(client.userId, { nome: dadosPessoais.nome });
       }
     }
     if (dadosClinicos) {
-      client.dadosClinicos = { ...client.dadosClinicos, ...dadosClinicos };
+      Object.assign(client.dadosClinicos, dadosClinicos);
     }
     if (dadosComerciais) {
-      client.dadosComerciais = { ...client.dadosComerciais, ...dadosComerciais };
+      Object.assign(client.dadosComerciais, dadosComerciais);
     }
 
     await client.save();

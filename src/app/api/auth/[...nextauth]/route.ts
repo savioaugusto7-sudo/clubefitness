@@ -69,12 +69,13 @@ export const authOptions: NextAuthOptions = {
 
           await Client.create({
             userId: dbUser._id,
+            cadastroConcluido: false,
             dadosPessoais: {
               nome: dbUser.nome,
               email: dbUser.email,
               nacionalidade: 'brasileiro(a)',
               estadoCivil: 'solteiro(a)',
-              profissao: 'autônomo(a)'
+              profissao: ''
             },
             dadosClinicos: {
               lesoes: '',
@@ -84,13 +85,13 @@ export const authOptions: NextAuthOptions = {
               observacoes: ''
             },
             dadosComerciais: {
-              status: 'ativo',
-              frequencia: 3,
+              status: 'pendente',
+              frequencia: 0,
               parcelas: 1,
-              creditosTotal: 12,
+              creditosTotal: 0,
               creditosUsados: 0,
               creditosReservados: 0,
-              creditosMassagemTotal: 1,
+              creditosMassagemTotal: 0,
               creditosMassagemUsados: 0,
               creditosMassagemReservados: 0,
               descontoValor: 0,
@@ -120,6 +121,7 @@ export const authOptions: NextAuthOptions = {
               const clientProfile = await Client.findOne({ userId: dbUser._id });
               if (clientProfile) {
                 token.profileId = clientProfile._id.toString();
+                token.cadastroConcluido = clientProfile.cadastroConcluido === true;
               }
             } else if (dbUser.tipo === 'professional') {
               const profProfile = await Professional.findOne({ userId: dbUser._id });
@@ -140,6 +142,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token.role;
         (session.user as any).cargo = token.cargo;
         (session.user as any).profileId = token.profileId;
+        (session.user as any).cadastroConcluido = token.cadastroConcluido;
       }
       return session;
     }

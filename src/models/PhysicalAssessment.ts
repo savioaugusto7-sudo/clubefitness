@@ -1,7 +1,7 @@
 import mongoose, { Schema, model, models } from 'mongoose';
 
 const CircunferenciasSchema = new Schema({
-  ombros: Number, torax: Number, cintura: Number, abdomen: Number, quadril: Number,
+  pescoco: Number, ombros: Number, torax: Number, cintura: Number, abdomen: Number, quadril: Number,
   braçoD: Number, braçoE: Number, antebraçoD: Number, antebraçoE: Number,
   coxaD: Number, coxaE: Number, panturrilhaD: Number, panturrilhaE: Number
 }, { _id: false });

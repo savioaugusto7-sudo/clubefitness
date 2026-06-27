@@ -302,10 +302,25 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
           <div className="view-header">
             <div className="view-title-group">
               <h1>Olá, {client.dadosPessoais?.nome}!</h1>
-              <p>Confira seu plano, créditos e próximos treinos.</p>
+              <p>{client.dadosComerciais?.status === 'pendente' ? 'Seu cadastro foi recebido. Aguarde a ativação do seu plano.' : 'Confira seu plano, créditos e próximos treinos.'}</p>
             </div>
           </div>
 
+          {/* Painel pendente: sem plano ativo */}
+          {client.dadosComerciais?.status === 'pendente' ? (
+            <div className="content-panel" style={{ marginTop: '24px', textAlign: 'center', padding: '48px 32px' }}>
+              <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                <i className="fa-solid fa-clock" style={{ fontSize: '28px', color: 'var(--color-warning)' }}></i>
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-title)', color: 'var(--color-warning)', marginBottom: '12px' }}>Aguardando Ativação do Plano</h2>
+              <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto', lineHeight: 1.7 }}>
+                Seu cadastro foi recebido com sucesso! A equipe irá analisar seus dados e ativar seu plano em breve.
+                <br /><br />
+                <strong style={{ color: 'var(--text-main)' }}>Em caso de dúvidas, entre em contato com a recepção.</strong>
+              </p>
+            </div>
+          ) : (
+            <>
           <div className="metrics-grid">
             <div className="metric-card">
               <div className="metric-info">
@@ -328,7 +343,7 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
                 <div className="value" style={{ 
                   color: client.dadosComerciais?.status === 'ativo' ? 'var(--color-success)' : 'var(--color-danger)' 
                 }}>
-                  {client.dadosComerciais?.status === 'ativo' ? 'Ativo' : 'Vencido'}
+                  {client.dadosComerciais?.status === 'ativo' ? 'Ativo' : client.dadosComerciais?.status === 'pendente' ? 'Pendente' : 'Vencido'}
                 </div>
               </div>
               <div className="metric-icon"><i className="fa-solid fa-calendar-check"></i></div>
@@ -345,6 +360,8 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
               <p>Vencimento do Plano: <strong>{client.dadosComerciais?.vencimento}</strong></p>
             </div>
           </div>
+            </>
+          )}
         </>
       )}
 

@@ -64,8 +64,7 @@ export async function POST(request: Request) {
           const plan = await Plan.findById(contract.planoId);
           const isAnual = contract.planoTipo === 'Anual';
 
-          client.dadosComerciais = {
-            ...client.dadosComerciais,
+          Object.assign(client.dadosComerciais, {
             planoId: contract.planoId,
             vencimento: contract.dataPrimeiroVencimento || contract.dataInicio,
             status: 'ativo',
@@ -84,7 +83,7 @@ export async function POST(request: Request) {
             creditosMassagemTotal: isAnual ? 1 : 0,
             creditosMassagemUsados: 0,
             creditosMassagemReservados: 0
-          };
+          });
           await client.save();
           console.log(`Webhook: Client ${client.dadosPessoais?.nome} activated via Clicksign.`);
         }

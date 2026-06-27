@@ -255,7 +255,8 @@ export async function POST(request: Request) {
       contratoAnexo,
       dataFim: manualDataFim,
       enviarClicksign,
-      contratoHtmlBase64
+      contratoHtmlBase64,
+      contratoPdfBase64
     } = body;
 
     if (!clientId || !planoId || !dataInicio) {
@@ -320,8 +321,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'O aluno precisa de um CPF cadastrado para assinar pela Clicksign.' }, { status: 400 });
       }
 
-      const fileName = `Contrato_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_V${versao}.html`;
-      const base64File = contratoHtmlBase64 || `data:text/html;base64,${Buffer.from(contratoTexto || '').toString('base64')}`;
+      const fileName = `Contrato_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_V${versao}.pdf`;
+      const base64File = contratoPdfBase64 || contratoHtmlBase64 || `data:text/html;base64,${Buffer.from(contratoTexto || '').toString('base64')}`;
 
       try {
         const cSignResult = await createClicksignDocument(
@@ -379,8 +380,7 @@ export async function POST(request: Request) {
 
     // 5. Se o contrato for emitido como ASSINADO, atualizar o cadastro do cliente
     if (status === 'assinado') {
-      client.dadosComerciais = {
-        ...client.dadosComerciais,
+      Object.assign(client.dadosComerciais, {
         planoId: planoId,
         vencimento: dataPrimeiroVencimento || dataFim,
         status: 'ativo',
@@ -399,7 +399,7 @@ export async function POST(request: Request) {
         creditosMassagemTotal: isAnual ? 1 : 0,
         creditosMassagemUsados: 0,
         creditosMassagemReservados: 0
-      };
+      });
       await client.save();
     }
 
@@ -445,8 +445,7 @@ export async function PUT(request: Request) {
       const plan = await Plan.findById(contract.planoId);
       const isAnual = contract.planoTipo === 'Anual';
 
-      client.dadosComerciais = {
-        ...client.dadosComerciais,
+      Object.assign(client.dadosComerciais, {
         planoId: contract.planoId,
         vencimento: contract.dataPrimeiroVencimento || contract.dataInicio,
         status: 'ativo',
@@ -459,13 +458,13 @@ export async function PUT(request: Request) {
         responsavelVenda: contract.responsavelVenda || '',
         unidadeContratada: contract.unidadeContratada || '',
         observacoesContratuais: contract.observacoesContratuais || '',
-        creditosTotal: plan?.creditosTotal || contract.valorBruto > 0 ? 12 : 0, // Fallback se plan inexistente
+        creditosTotal: plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0), // Fallback se plan inexistente
         creditosUsados: 0,
         creditosReservados: 0,
         creditosMassagemTotal: isAnual ? 1 : 0,
         creditosMassagemUsados: 0,
         creditosMassagemReservados: 0
-      };
+      });
       await client.save();
 
       return NextResponse.json({ success: true, data: contract });

@@ -706,7 +706,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
       }
       setAsAge(age);
-      setAsSex(client.dadosPessoais?.sexo || 'M');
+      setAsSex(client.dadosPessoais?.sexo ? (client.dadosPessoais.sexo.trim().toUpperCase().startsWith('F') ? 'F' : 'M') : 'M');
 
       // Buscar avaliação física mais recente deste aluno
       const past = assessments
@@ -1760,7 +1760,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const selectedClientObj = clients.find(c => c._id === stClient);
-  const clientSex = selectedClientObj?.dadosPessoais?.sexo || 'M';
+  const clientSex = selectedClientObj?.dadosPessoais?.sexo ? (selectedClientObj.dadosPessoais.sexo.trim().toUpperCase().startsWith('F') ? 'F' : 'M') : 'M';
 
   const calculateTestMetrics = (art: string, mov: string, lado: string, uni: string, valObtido: number, tent: number, melhor: number, media: number, peso: number, sex: string) => {
     const forcaN = uni === 'kgf' ? valObtido * 9.81 : valObtido;
@@ -3519,6 +3519,108 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           </div>
         </>
       )}
+
+      {/* Frequência dos Alunos */}
+      {activeTab === 'frequencia_alunos' && (() => {
+        const today = new Date();
+        const getDaysSince = (clientId: string) => {
+          const clientApts = appointments.filter((a: any) =>
+            (a.clientId === clientId || a.clientId?._id === clientId) &&
+            (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
+          );
+          if (clientApts.length === 0) return 999;
+          const dates = clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime());
+          return Math.floor((Date.now() - Math.max(...dates)) / (1000 * 60 * 60 * 24));
+        };
+        const getMonthSessions = (clientId: string) => {
+          return appointments.filter((a: any) => {
+            const d = new Date(a.date || a.createdAt);
+            return (a.clientId === clientId || a.clientId?._id === clientId) &&
+              d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+          }).length;
+        };
+        const getRisk = (days: number) => {
+          if (days <= 7) return { level: 'Baixo', color: 'var(--color-primary)' };
+          if (days <= 20) return { level: 'Médio', color: 'var(--color-warning)' };
+          return { level: 'Alto', color: 'var(--color-danger)' };
+        };
+        const sorted = [...clients].sort((a: any, b: any) => getDaysSince(b._id) - getDaysSince(a._id));
+        const highRisk = sorted.filter((c: any) => getDaysSince(c._id) > 20).length;
+        const medRisk = sorted.filter((c: any) => { const d = getDaysSince(c._id); return d > 7 && d <= 20; }).length;
+        const lowRisk = sorted.filter((c: any) => getDaysSince(c._id) <= 7).length;
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Frequência dos Alunos</h1>
+                <p>Monitore a assiduidade e identifique riscos de evasão.</p>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              {[
+                { label: 'Risco Baixo (≤7 dias)', value: lowRisk, color: 'var(--color-primary)' },
+                { label: 'Risco Médio (8–20 dias)', value: medRisk, color: 'var(--color-warning)' },
+                { label: 'Risco Alto (>20 dias)', value: highRisk, color: 'var(--color-danger)' },
+              ].map(s => (
+                <div key={s.label} className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '10px', background: s.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <i className="fa-solid fa-chart-bar" style={{ color: s.color }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Aluno</th>
+                    <th>Sessões (mês)</th>
+                    <th>Último Atendimento</th>
+                    <th>Dias Sem Vir</th>
+                    <th>Risco de Evasão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>Nenhum cliente vinculado.</td></tr>
+                  ) : sorted.map((c: any) => {
+                    const days = getDaysSince(c._id);
+                    const risk = getRisk(days);
+                    const sessions = getMonthSessions(c._id);
+                    const clientApts = appointments.filter((a: any) =>
+                      (a.clientId === c._id || a.clientId?._id === c._id) &&
+                      (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
+                    );
+                    const lastDate = clientApts.length > 0
+                      ? new Date(Math.max(...clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime()))).toLocaleDateString('pt-BR')
+                      : 'Sem histórico';
+                    return (
+                      <tr key={c._id}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{c.dadosPessoais?.telefone || ''}</div>
+                        </td>
+                        <td style={{ fontWeight: 600, color: sessions > 0 ? 'var(--color-primary)' : 'var(--text-dim)' }}>{sessions}</td>
+                        <td style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{lastDate}</td>
+                        <td style={{ fontWeight: 600 }}>{days === 999 ? '—' : days}</td>
+                        <td>
+                          <span className="badge" style={{ background: risk.color + '22', color: risk.color, fontWeight: 700 }}>
+                            {risk.level}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        );
+      })()}
 
       {/* 7. View: Testes de Força */}
       {activeTab === 'testes_forca' && (
@@ -5907,7 +6009,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           {/* Step Down Real-time Alerts */}
                           {(() => {
                             const selCli = clients.find(c => c._id === repClient);
-                            const sex = selCli?.dadosPessoais?.sexo || 'M';
+                            const rawSex = selCli?.dadosPessoais?.sexo || 'M';
+                            const sex = rawSex === 'masculino' ? 'M' : rawSex === 'feminino' ? 'F' : rawSex === 'outro' ? 'O' : rawSex;
                             let riskFactors = [];
                             if (sdPelvica > 5) riskFactors.push('Queda Pélvica elevada (> 5°)');
                             if (sdAducao > 10) riskFactors.push('Adução de Quadril elevada (> 10°)');

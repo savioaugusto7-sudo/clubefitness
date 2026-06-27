@@ -26,7 +26,7 @@ async function getLogoBase64(): Promise<string | null> {
 async function getAvatarBase64(sex: string): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   try {
-    const filename = sex === 'F' ? '/avatar_feminino_b64.txt' : '/avatar_masculino_b64.txt';
+    const filename = sex?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino_b64.txt' : '/avatar_masculino_b64.txt';
     const res = await fetch(filename);
     if (!res.ok) throw new Error(`Failed to fetch ${filename}`);
     const text = await res.text();
@@ -82,32 +82,47 @@ function isMaigneFilled(maigneVal: any): boolean {
 }
 
 function triggerDirectDownload(blob: Blob, filename: string) {
-  const reader = new FileReader();
-  reader.onloadend = function() {
-    const base64data = (reader.result as string).split(',')[1];
-    
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/api/download-pdf';
-    form.style.display = 'none';
-    
-    const inputB64 = document.createElement('input');
-    inputB64.type = 'hidden';
-    inputB64.name = 'pdfB64';
-    inputB64.value = base64data;
-    form.appendChild(inputB64);
-    
-    const inputName = document.createElement('input');
-    inputName.type = 'hidden';
-    inputName.name = 'filename';
-    inputName.value = filename;
-    form.appendChild(inputName);
-    
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-  };
-  reader.readAsDataURL(blob);
+  if (typeof window === 'undefined') return;
+
+  try {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Erro no download direto via client-side, usando fallback do servidor:', error);
+    const reader = new FileReader();
+    reader.onloadend = function() {
+      const base64data = (reader.result as string).split(',')[1];
+      
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/download-pdf';
+      form.style.display = 'none';
+      
+      const inputB64 = document.createElement('input');
+      inputB64.type = 'hidden';
+      inputB64.name = 'pdfB64';
+      inputB64.value = base64data;
+      form.appendChild(inputB64);
+      
+      const inputName = document.createElement('input');
+      inputName.type = 'hidden';
+      inputName.name = 'filename';
+      inputName.value = filename;
+      form.appendChild(inputName);
+      
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    };
+    reader.readAsDataURL(blob);
+  }
 }
 
 export async function downloadReportPDF(report: any) {
@@ -1684,14 +1699,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
       <!-- Barra de Metas e Planejamento -->
       ${assessment.dadosMedidos.tipoObjetivo ? `
-      <div class="client-bar" style="border-radius: 0 0 8px 8px; grid-template-columns: 1fr 2fr 1fr; margin-bottom: 8px;">
+      <div class="client-bar" style="border-radius: 0 0 8px 8px; grid-template-columns: 1fr 1fr; margin-bottom: 8px;">
         <div class="client-bar-item">
           <span>Prazo do Objetivo</span>
           <strong>${assessment.dadosMedidos.objetivoMeses || 3} meses</strong>
-        </div>
-        <div class="client-bar-item" style="white-space: normal; line-height: 1.2;">
-          <span>Foco do Planejamento</span>
-          <strong style="font-size: 7.5px; white-space: normal; display: block; max-width: 100%; word-break: break-word;">${targetText}</strong>
         </div>
         <div class="client-bar-item" style="border-right: none;">
           <span>Frequência Semanal Estimada</span>
@@ -3345,5 +3356,131 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   }).catch((err: any) => {
     console.error('Erro PDF contrato:', err);
     document.body.removeChild(pdfWrapper);
+  });
+}
+
+export function getContractPDFBase64(client: any, plan: any, templateOverride?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const html2pdf = (window as any).html2pdf;
+    if (!html2pdf) { reject(new Error('html2pdf.js não está carregado.')); return; }
+    if (!client) { reject(new Error('Cliente não encontrado.')); return; }
+
+    const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
+    const com = client.dadosComerciais || {};
+    const pes = client.dadosPessoais || {};
+    
+    const planNome = plan?.nome || 'Plano Personalizado';
+    const isAnual = (plan?.tipo === 'Anual' || (com.duracao || '').toLowerCase() === 'anual' || planNome.toLowerCase().includes('anual'));
+    
+    const basePreco = Number(plan?.preco) || 0;
+    const descVal = Number(com.descontoValor) || 0;
+    const descTipo = com.descontoTipo || 'percentual';
+    
+    let valorFinal = basePreco;
+    if (descTipo === 'percentual') {
+      valorFinal = basePreco * (1 - descVal / 100);
+    } else {
+      valorFinal = Math.max(0, basePreco - descVal);
+    }
+    
+    const numParcelas = Number(com.parcelas) || 1;
+    const valorParcela = valorFinal / numParcelas;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const dataInicio = com.dataInicio || com.vencimento || today;
+    const vigMeses = isAnual ? 12 : 1;
+    
+    const endD = new Date(dataInicio + 'T00:00:00');
+    endD.setMonth(endD.getMonth() + vigMeses);
+    const dataFim = endD.toISOString().split('T')[0];
+    
+    const formaPagText = ({pix:'Pix',boleto:'Boleto Bancário',cartao:'Cartão de Crédito/Débito',dinheiro:'Dinheiro'} as any)[com.formaPagamento] || com.formaPagamento || 'Pix';
+    const now = new Date();
+    const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const diaVenc = com.vencimento ? parseInt(com.vencimento.split('-')[2]||'5',10) : now.getDate();
+
+    const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
+    const servicosList = plan?.servicosPermitidos?.length > 0 ? plan.servicosPermitidos.join(', ') : 'Treinos Monitorados, Fisioterapia, Recovery, Quiropraxia';
+    
+    const contratoBody = templateOverride || `
+      <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
+      <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
+        <strong>CONTRATADO:</strong> CLUBE FITNESS FISIO, com sede em Belo Horizonte/MG.<br>
+        <strong>CONTRATANTE:</strong> ${pes.nome || '-'}, de nacionalidade ${pes.nacionalidade || 'brasileiro(a)'}, estado civil ${pes.estadoCivil || 'solteiro(a)'}, ${pes.profissao ? `profissão ${pes.profissao}` : ''}, portador(a) do CPF nº ${pes.cpf || '-'}, nascido(a) em ${fmtDate(pes.dataNascimento)}, e-mail ${pes.email || '-'}, telefones ${pes.telefone || '-'}${pes.telefoneSecundario ? ` / ${pes.telefoneSecundario}` : ''}, residente e domiciliado em: ${enderecoCompleto}.
+      </p>
+      <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">2. OBJETO DO CONTRATO</h3>
+      <p style="font-size:9.5pt;line-height:1.4;">
+        O presente instrumento tem por objeto a prestação de serviços de fisioterapia e atividades físicas na modalidade <strong>Plano ${planNome}</strong>, de acordo com as regras operacionais estabelecidas neste contrato.
+      </p>
+    `;
+
+    const PAGE_W = 794;
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:${PAGE_W}px;opacity:0;z-index:99999;pointer-events:none;overflow:hidden;`;
+    const pdfContainer = document.createElement('div');
+    pdfContainer.style.cssText = `width:${PAGE_W}px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:0;margin:0;`;
+    pdfWrapper.appendChild(pdfContainer);
+    document.body.appendChild(pdfWrapper);
+
+    if (templateOverride) {
+      pdfContainer.innerHTML = templateOverride + `
+        <style>
+          p, h2, h3, h4 { page-break-inside: avoid !important; break-inside: avoid !important; display: block !important; position: relative !important; }
+          li, tr, table { page-break-inside: avoid !important; break-inside: avoid !important; }
+        </style>
+      `;
+      const wrapper = pdfContainer.firstElementChild as HTMLElement;
+      if (wrapper) {
+        wrapper.style.padding = '0px';
+        wrapper.style.margin = '0px';
+        wrapper.style.maxWidth = '100%';
+        wrapper.style.width = '100%';
+      }
+    } else {
+      pdfContainer.innerHTML = `
+        <style>
+          p, h2, h3, h4 { page-break-inside: avoid !important; break-inside: avoid !important; display: block !important; position: relative !important; }
+          li, tr, table { page-break-inside: avoid !important; break-inside: avoid !important; }
+        </style>
+        <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:18px;">
+          <h1 style="font-size:15pt;font-weight:bold;margin:0;color:#10b981;">CLUBE FITNESS FISIO</h1>
+          <p style="font-size:9pt;margin:3px 0 0 0;color:#444;">Fisioterapia, Quiropraxia e Fortalecimento — Belo Horizonte, MG</p>
+          <h2 style="font-size:13pt;font-weight:bold;margin:10px 0 0 0;text-transform:uppercase;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h2>
+          <p style="font-size:8.5pt;margin:3px 0 0 0;color:#555;">Emissão: ${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}</p>
+        </div>
+        ${contratoBody}
+        <div style="margin-top:60px;display:flex;justify-content:space-between;gap:40px;font-size:10pt;">
+          <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATADO<br><small>Clube Fitness Fisio</small></div></div>
+          <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome||'-'}</small></div></div>
+        </div>
+      `;
+    }
+
+    const options = {
+      margin: [15, 15, 15, 15],
+      filename: `Contrato_${(pes.nome||'Aluno').replace(/\s+/g,'_')}_${today}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: PAGE_W,
+        width: PAGE_W,
+        x: 0,
+        y: 0,
+        logging: false,
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(options).from(pdfContainer).outputPdf('datauristring').then((pdfBase64: string) => {
+      document.body.removeChild(pdfWrapper);
+      resolve(pdfBase64);
+    }).catch((err: any) => {
+      document.body.removeChild(pdfWrapper);
+      reject(err);
+    });
   });
 }
