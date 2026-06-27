@@ -25,94 +25,212 @@ export async function GET(request: Request) {
 }
 
 
-// Função auxiliar de envio para a Clicksign
+// ============================================================
+// Integração Clicksign API v3 (Envelope) — documentação oficial
+// https://developers.clicksign.com
+// ============================================================
 async function createClicksignDocument(
   fileName: string,
   base64File: string,
   signerEmail: string,
   signerName: string,
   signerCpf: string,
-  signerBirthday: string
+  _signerBirthday: string  // reservado para uso futuro
 ) {
   const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-  const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+  const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com').replace(/\/$/, '');
 
   if (!token) {
     throw new Error('CLICKSIGN_ACCESS_TOKEN não configurado nas variáveis de ambiente.');
   }
 
-  // 1. Criar Documento na Clicksign
-  // O arquivo de texto/html ou pdf precisa estar no formato base64 completo
-  const docRes = await fetch(`${baseUrl}/api/v1/documents?access_token=${token}`, {
+  const headers = {
+    'Content-Type': 'application/vnd.api+json',
+    'Accept': 'application/vnd.api+json',
+    'Authorization': token
+  };
+
+  // Helper: lança erro legível com detalhes da API
+  const handleError = async (res: Response, label: string) => {
+    if (!res.ok) {
+      let errData: any = {};
+      try { errData = await res.json(); } catch {}
+      const detail =
+        (Array.isArray(errData?.errors) && errData.errors[0]?.detail) ||
+        errData?.error ||
+        errData?.message ||
+        `HTTP ${res.status}`;
+      throw new Error(`Clicksign – ${label}: ${detail}`);
+    }
+    return res.json();
+  };
+
+  // ──────────────────────────────────────────────────────────
+  // PASSO 1 — Criar Envelope (status draft)
+  // POST /api/v3/envelopes
+  // ──────────────────────────────────────────────────────────
+  const envelopeRes = await fetch(`${baseUrl}/api/v3/envelopes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    headers,
     body: JSON.stringify({
-      document: {
-        path: `/Contratos/${fileName}`,
-        file: base64File
+      data: {
+        type: 'envelopes',
+        attributes: {
+          name: fileName.replace(/\.[^/.]+$/, ''),
+          locale: 'pt-BR',
+          auto_close: true
+        }
       }
     })
   });
-  const docData = await docRes.json();
-  if (!docRes.ok || !docData.document) {
-    throw new Error(docData.errors ? docData.errors.join(', ') : 'Erro ao criar documento na Clicksign');
-  }
-  const docKey = docData.document.key;
+  const envelopeData = await handleError(envelopeRes, 'Criar Envelope');
+  const envelopeId: string = envelopeData.data?.id;
+  if (!envelopeId) throw new Error('Clicksign não retornou o ID do Envelope.');
 
-  // 2. Criar Assinante na Clicksign
+  // ──────────────────────────────────────────────────────────
+  // PASSO 2 — Adicionar Documento ao Envelope
+  // POST /api/v3/envelopes/:envelope_id/documents
+  // content_base64 deve incluir o prefixo "data:...;base64,"
+  // ──────────────────────────────────────────────────────────
+  const b64Raw = base64File.includes(',') ? base64File.split(',')[1] : base64File;
+  const mimeType = base64File.startsWith('data:text/html') ? 'text/html' : 'application/pdf';
+  const ext = mimeType === 'text/html' ? 'html' : 'pdf';
+  const safeName = fileName.replace(/\.[^/.]+$/, '');
+
+  const docRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/documents`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      data: {
+        type: 'documents',
+        attributes: {
+          filename: `${safeName}.${ext}`,
+          content_base64: `data:${mimeType};base64,${b64Raw}`
+        }
+      }
+    })
+  });
+  const docData = await handleError(docRes, 'Adicionar Documento');
+  const documentId: string = docData.data?.id;
+  if (!documentId) throw new Error('Clicksign não retornou o ID do Documento.');
+
+  // ──────────────────────────────────────────────────────────
+  // PASSO 3 — Adicionar Signatário ao Envelope
+  // POST /api/v3/envelopes/:envelope_id/signers
+  // ──────────────────────────────────────────────────────────
   const cleanCpf = signerCpf.replace(/\D/g, '');
-  const signerRes = await fetch(`${baseUrl}/api/v1/signers?access_token=${token}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({
-      signer: {
-        email: signerEmail,
-        auth_type: 'email',
+  const signerBody: any = {
+    data: {
+      type: 'signers',
+      attributes: {
         name: signerName,
-        documentation: cleanCpf || undefined,
-        birthday: signerBirthday || undefined,
-        has_documentation: !!cleanCpf,
-        delivery: 'email'
+        email: signerEmail
+      }
+    }
+  };
+  if (cleanCpf) signerBody.data.attributes.documentation = cleanCpf;
+
+  const signerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(signerBody)
+  });
+  const signerData = await handleError(signerRes, 'Adicionar Signatário');
+  const signerId: string = signerData.data?.id;
+  if (!signerId) throw new Error('Clicksign não retornou o ID do Signatário.');
+
+  // ──────────────────────────────────────────────────────────
+  // PASSO 4a — Requisito de Qualificação (obrigatório)
+  // action: "agree", role: "sign"
+  // POST /api/v3/envelopes/:envelope_id/requirements
+  // Usa relationships para vincular signer e document
+  // ──────────────────────────────────────────────────────────
+  const reqQualRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      data: {
+        type: 'requirements',
+        attributes: {
+          action: 'agree',
+          role: 'sign'
+        },
+        relationships: {
+          document: { data: { type: 'documents', id: documentId } },
+          signer: { data: { type: 'signers', id: signerId } }
+        }
       }
     })
   });
-  const signerData = await signerRes.json();
-  if (!signerRes.ok || !signerData.signer) {
-    throw new Error(signerData.errors ? signerData.errors.join(', ') : 'Erro ao criar assinante na Clicksign');
-  }
-  const signerKey = signerData.signer.key;
+  await handleError(reqQualRes, 'Criar Requisito de Qualificação');
 
-  // 3. Vincular Assinante ao Documento (List)
-  const listRes = await fetch(`${baseUrl}/api/v1/lists?access_token=${token}`, {
+  // ──────────────────────────────────────────────────────────
+  // PASSO 4b — Requisito de Autenticação (obrigatório)
+  // action: "provide_evidence", auth: "email"
+  // POST /api/v3/envelopes/:envelope_id/requirements
+  // ──────────────────────────────────────────────────────────
+  const reqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    headers,
     body: JSON.stringify({
-      list: {
-        document_key: docKey,
-        signer_key: signerKey,
-        sign_as: 'contractor'
+      data: {
+        type: 'requirements',
+        attributes: {
+          action: 'provide_evidence',
+          auth: 'email'
+        },
+        relationships: {
+          document: { data: { type: 'documents', id: documentId } },
+          signer: { data: { type: 'signers', id: signerId } }
+        }
       }
     })
   });
-  const listData = await listRes.json();
-  if (!listRes.ok || !listData.list) {
-    throw new Error(listData.errors ? listData.errors.join(', ') : 'Erro ao vincular assinante ao contrato na Clicksign');
-  }
-  const signatureKey = listData.list.request_signature_key;
-  const signatureUrl = listData.list.url;
+  await handleError(reqAuthRes, 'Criar Requisito de Autenticação');
 
-  // 4. Disparar Notificação por e-mail automaticamente
-  await fetch(`${baseUrl}/api/v1/notifications?access_token=${token}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+  // ──────────────────────────────────────────────────────────
+  // PASSO 5 — Ativar Envelope (draft → running)
+  // PATCH /api/v3/envelopes/:envelope_id
+  // ──────────────────────────────────────────────────────────
+  const activateRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}`, {
+    method: 'PATCH',
+    headers,
     body: JSON.stringify({
-      request_signature_key: signatureKey,
-      message: 'Por favor, assine o contrato da clínica Clube Fitness.'
+      data: {
+        id: envelopeId,
+        type: 'envelopes',
+        attributes: { status: 'running' }
+      }
     })
   });
+  await handleError(activateRes, 'Ativar Envelope');
 
-  return { docKey, signerKey, signatureUrl };
+  // ──────────────────────────────────────────────────────────
+  // PASSO 6 — Notificar Signatários
+  // POST /api/v3/envelopes/:envelope_id/notifications
+  // ──────────────────────────────────────────────────────────
+  await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/notifications`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      data: {
+        type: 'notifications',
+        attributes: {}
+      }
+    })
+  });
+  // Nota: ignoramos erro de notificação propositalmente — o envelope já está ativo
+
+  // A URL de assinatura pode vir no objeto do signatário ou ser construída manualmente
+  const signatureUrl =
+    signerData.data?.attributes?.link ||
+    signerData.data?.attributes?.signature_url ||
+    `${baseUrl}/sign/${signerId}` ||
+    '';
+
+  return { docKey: envelopeId, signerKey: signerId, signatureUrl };
 }
+
 
 export async function POST(request: Request) {
   try {

@@ -10,17 +10,27 @@ export async function POST(request: Request) {
     const payload = await request.json();
     console.log('Received Clicksign Webhook payload:', JSON.stringify(payload));
 
-    // Clicksign webhook payload standard:
+    // Clicksign API v3 webhook payload:
+    // { "event": { "type": "envelope.finished", "data": { "envelope": { "id": "...", "status": "..." } } } }
+    // Clicksign API v1 webhook payload (fallback):
     // { "event": { "name": "sign", "data": { "document": { "key": "...", "status": "..." } } } }
-    const eventName = payload.event?.name;
-    const docKey = payload.event?.data?.document?.key;
+
+    // Suportar ambas as versões da API
+    const eventType = payload.event?.type || payload.event?.name || '';
+    const docKey =
+      payload.event?.data?.envelope?.id ||    // API v3
+      payload.event?.data?.document?.key ||   // API v1
+      payload.data?.id ||                     // formato alternativo v3
+      null;
+
+    const isSignEvent = ['envelope.finished', 'signatory.signed', 'sign', 'close'].some(e => eventType.includes(e));
+    const isCancelEvent = ['envelope.canceled', 'cancel'].some(e => eventType.includes(e));
 
     if (!docKey) {
-      return NextResponse.json({ success: false, error: 'Document key not found in payload' }, { status: 400 });
+      console.log('Webhook: no document key found, ignoring event:', eventType);
+      return NextResponse.json({ success: true }); // retornar 200 para Clicksign não reenviar
     }
 
-    // Tratamento robusto para múltiplos eventos da Clicksign
-    if (eventName === 'sign' || eventName === 'close') {
       const contract = await Contract.findOne({ clicksignDocKey: docKey });
       if (!contract) {
         console.log(`Contract with Clicksign key ${docKey} not found.`);
