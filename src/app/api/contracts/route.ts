@@ -118,7 +118,13 @@ async function createClicksignDocument(
   // PASSO 3 — Adicionar Signatário ao Envelope
   // POST /api/v3/envelopes/:envelope_id/signers
   // ──────────────────────────────────────────────────────────
-  const cleanCpf = signerCpf.replace(/\D/g, '');
+  let formattedCpf = '';
+  const digits = signerCpf.replace(/\D/g, '');
+  if (digits.length === 11) {
+    formattedCpf = `${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9, 11)}`;
+  } else {
+    formattedCpf = signerCpf;
+  }
   const signerBody: any = {
     data: {
       type: 'signers',
@@ -128,7 +134,7 @@ async function createClicksignDocument(
       }
     }
   };
-  if (cleanCpf) signerBody.data.attributes.documentation = cleanCpf;
+  if (formattedCpf) signerBody.data.attributes.documentation = formattedCpf;
 
   const signerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
     method: 'POST',
