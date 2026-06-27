@@ -19,8 +19,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Document key not found in payload' }, { status: 400 });
     }
 
+    // Tratamento robusto para múltiplos eventos da Clicksign
     if (eventName === 'sign' || eventName === 'close') {
-      // 1. Achar contrato associado
       const contract = await Contract.findOne({ clicksignDocKey: docKey });
       if (!contract) {
         console.log(`Contract with Clicksign key ${docKey} not found.`);
@@ -34,14 +34,14 @@ export async function POST(request: Request) {
           { status: 'cancelado' }
         );
 
-        // 2. Atualizar contrato
+        // Atualizar contrato
         contract.status = 'assinado';
         contract.clicksignStatus = 'assinado';
         contract.assinaturaNome = contract.assinaturaNome || 'Assinatura Eletrônica Clicksign';
         contract.assinaturaData = new Date();
         await contract.save();
 
-        // 3. Atualizar cadastro comercial do cliente
+        // Atualizar cadastro comercial do cliente
         const client = await Client.findById(contract.clientId);
         if (client) {
           const plan = await Plan.findById(contract.planoId);
@@ -72,6 +72,25 @@ export async function POST(request: Request) {
           console.log(`Client ${client.dadosPessoais?.nome} activated successfully via Clicksign webhook.`);
         }
       }
+    } else if (eventName === 'cancel') {
+      // Tratar cancelamento de documento feito diretamente pelo painel da Clicksign
+      const contract = await Contract.findOne({ clicksignDocKey: docKey });
+      if (contract) {
+        contract.status = 'cancelado';
+        contract.clicksignStatus = 'cancelado';
+        await contract.save();
+
+        const client = await Client.findById(contract.clientId);
+        if (client && client.dadosComerciais?.planoId?.toString() === contract.planoId.toString()) {
+          client.dadosComerciais.status = 'inativo';
+          await client.save();
+          console.log(`Client ${client.dadosPessoais?.nome} inactivated via Clicksign cancel webhook.`);
+        }
+      }
+    } else {
+      // Outros eventos informativos (ex: document_created, signer_created, list_created)
+      // Apenas registrar nos logs do servidor sem precisar alterar dados
+      console.log(`Webhook received event: ${eventName}. No commercial state action needed.`);
     }
 
     return NextResponse.json({ success: true });
