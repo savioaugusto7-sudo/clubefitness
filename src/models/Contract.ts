@@ -35,6 +35,11 @@ const ContractSchema = new Schema({
   assinaturaNome: { type: String, default: '' },
   assinaturaData: { type: Date },
   contratoTexto: { type: String, default: '' },
+  contratoAnexo: { type: String, default: '' },
+  clicksignDocKey: { type: String, default: '' },
+  clicksignSignerKey: { type: String, default: '' },
+  clicksignUrl: { type: String, default: '' },
+  clicksignStatus: { type: String, default: 'pendente' },
   congelamento: { type: CongelamentoSchema, default: null }
 }, { timestamps: true });
 

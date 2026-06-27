@@ -381,13 +381,19 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   };
 
 
-  const handleCreateContract = async (status: 'pendente' | 'assinado') => {
+  const handleCreateContract = async (status: 'pendente' | 'assinado' | 'clicksign') => {
     if (status === 'assinado' && !signatureName.trim()) {
       alert('Por favor, informe o nome do assinante para registrar o aceite digital.');
       return;
     }
 
     const plan = plans.find((p: any) => p._id === dcPlano);
+    if (!plan) {
+      alert('Plano não encontrado.');
+      return;
+    }
+
+    const isClicksign = status === 'clicksign';
     if (!plan) {
       alert('Plano não encontrado.');
       return;
@@ -405,10 +411,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       responsavelVenda: dcResponsavelVenda,
       unidadeContratada: dcUnidadeContratada,
       observacoesContratuais: dcObservacoesContratuais,
-      status,
+      status: isClicksign ? 'pendente' : status,
       assinaturaNome: status === 'assinado' ? signatureName : '',
       contratoTexto: generateContractTemplate(),
-      usuarioEmissor: 'Administrador'
+      usuarioEmissor: 'Administrador',
+      enviarClicksign: isClicksign,
+      contratoHtmlBase64: 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(generateContractTemplate())))
     };
 
     const res = await fetch('/api/contracts', {
@@ -419,7 +427,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     const data = await res.json();
 
     if (data.success) {
-      alert(status === 'assinado' ? 'Contrato assinado e ativado com sucesso!' : 'Contrato gerado como pendente!');
+      if (isClicksign) {
+        alert('Contrato gerado e enviado para a Clicksign com sucesso! O link para assinatura foi enviado por e-mail.');
+      } else {
+        alert(status === 'assinado' ? 'Contrato assinado e ativado com sucesso!' : 'Contrato gerado como pendente!');
+      }
       setShowContractPreview(false);
       
       const resContracts = await fetch(`/api/contracts?clientId=${detailClient._id}`);

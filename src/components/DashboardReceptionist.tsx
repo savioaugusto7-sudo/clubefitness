@@ -528,9 +528,11 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       '</div><p style="margin-top:20px;text-align:center;">Local e data: _________________________, ' + dataContrato + '</p></div>';
   };
 
-  const handleCreateContract = async (status: 'pendente' | 'assinado') => {
+  const handleCreateContract = async (status: 'pendente' | 'assinado' | 'clicksign') => {
     if (status === 'assinado' && !signatureName.trim()) { alert('Informe o nome do assinante.'); return; }
     const plan = plans.find((p: any) => p._id === dcPlano);
+    if (!plan) { alert('Plano não encontrado.'); return; }
+    const isClicksign = status === 'clicksign';
     if (!plan) { alert('Plano não encontrado.'); return; }
     const payload = {
       clientId: selectedClient._id, planoId: dcPlano,
@@ -1150,7 +1152,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '20px', background: ct.status === 'assinado' ? '#10b98122' : ct.status === 'congelado' ? '#3b82f622' : '#f59e0b22', color: ct.status === 'assinado' ? '#10b981' : ct.status === 'congelado' ? '#3b82f6' : '#f59e0b', fontWeight: 600 }}>
-                            {ct.status}
+                            {ct.clicksignDocKey && ct.status === 'pendente' ? 'Aguardando Clicksign' : ct.status}
                           </span>
                           {ct.status === 'assinado' && (
                             <button style={{ ...btnSecondary, fontSize: '0.75rem', padding: '4px 8px' }} onClick={() => { setFreezeContractId(ct._id); setShowFreezeModal(true); }}>Congelar</button>
@@ -1188,8 +1190,11 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                 <label style={labelStyle}>Nome do Assinante (para aceite digital)</label>
                 <input style={inputStyle} value={signatureName} onChange={e => setSignatureName(e.target.value)} placeholder="Nome completo do assinante" />
               </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <button style={btnSecondary} onClick={() => handleCreateContract('pendente')}>Salvar como Pendente</button>
+                <button style={{ ...btnPrimary, background: '#6366f1', borderColor: '#6366f1' }} onClick={() => handleCreateContract('clicksign')}>
+                  <i className="fa-solid fa-file-signature" style={{ marginRight: '6px' }} />Enviar p/ Clicksign
+                </button>
                 <button style={btnPrimary} onClick={() => handleCreateContract('assinado')}>
                   <i className="fa-solid fa-signature" style={{ marginRight: '6px' }} />Assinar e Ativar
                 </button>
@@ -1676,8 +1681,11 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                   <label style={labelStyle}>Nome do Assinante</label>
                   <input style={inputStyle} value={signatureName} onChange={e => setSignatureName(e.target.value)} placeholder="Nome completo" />
                 </div>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button style={btnSecondary} onClick={() => handleCreateContract('pendente')}>Salvar como Pendente</button>
+                  <button style={{ ...btnPrimary, background: '#6366f1', borderColor: '#6366f1' }} onClick={() => handleCreateContract('clicksign')}>
+                    <i className="fa-solid fa-file-signature" style={{ marginRight: '6px' }} />Enviar p/ Clicksign
+                  </button>
                   <button style={btnPrimary} onClick={() => handleCreateContract('assinado')}>
                     <i className="fa-solid fa-signature" style={{ marginRight: '6px' }} />Assinar e Ativar
                   </button>

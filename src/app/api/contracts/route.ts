@@ -24,6 +24,96 @@ export async function GET(request: Request) {
   }
 }
 
+
+// Função auxiliar de envio para a Clicksign
+async function createClicksignDocument(
+  fileName: string,
+  base64File: string,
+  signerEmail: string,
+  signerName: string,
+  signerCpf: string,
+  signerBirthday: string
+) {
+  const token = process.env.CLICKSIGN_ACCESS_TOKEN;
+  const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+
+  if (!token) {
+    throw new Error('CLICKSIGN_ACCESS_TOKEN não configurado nas variáveis de ambiente.');
+  }
+
+  // 1. Criar Documento na Clicksign
+  // O arquivo de texto/html ou pdf precisa estar no formato base64 completo
+  const docRes = await fetch(`${baseUrl}/api/v1/documents?access_token=${token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      document: {
+        path: `/Contratos/${fileName}`,
+        file: base64File
+      }
+    })
+  });
+  const docData = await docRes.json();
+  if (!docRes.ok || !docData.document) {
+    throw new Error(docData.errors ? docData.errors.join(', ') : 'Erro ao criar documento na Clicksign');
+  }
+  const docKey = docData.document.key;
+
+  // 2. Criar Assinante na Clicksign
+  const cleanCpf = signerCpf.replace(/\D/g, '');
+  const signerRes = await fetch(`${baseUrl}/api/v1/signers?access_token=${token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      signer: {
+        email: signerEmail,
+        auth_type: 'email',
+        name: signerName,
+        documentation: cleanCpf || undefined,
+        birthday: signerBirthday || undefined,
+        has_documentation: !!cleanCpf,
+        delivery: 'email'
+      }
+    })
+  });
+  const signerData = await signerRes.json();
+  if (!signerRes.ok || !signerData.signer) {
+    throw new Error(signerData.errors ? signerData.errors.join(', ') : 'Erro ao criar assinante na Clicksign');
+  }
+  const signerKey = signerData.signer.key;
+
+  // 3. Vincular Assinante ao Documento (List)
+  const listRes = await fetch(`${baseUrl}/api/v1/lists?access_token=${token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      list: {
+        document_key: docKey,
+        signer_key: signerKey,
+        sign_as: 'contractor'
+      }
+    })
+  });
+  const listData = await listRes.json();
+  if (!listRes.ok || !listData.list) {
+    throw new Error(listData.errors ? listData.errors.join(', ') : 'Erro ao vincular assinante ao contrato na Clicksign');
+  }
+  const signatureKey = listData.list.request_signature_key;
+  const signatureUrl = listData.list.url;
+
+  // 4. Disparar Notificação por e-mail automaticamente
+  await fetch(`${baseUrl}/api/v1/notifications?access_token=${token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      request_signature_key: signatureKey,
+      message: 'Por favor, assine o contrato da clínica Clube Fitness.'
+    })
+  });
+
+  return { docKey, signerKey, signatureUrl };
+}
+
 export async function POST(request: Request) {
   try {
     await dbConnect();
@@ -43,7 +133,11 @@ export async function POST(request: Request) {
       status,
       assinaturaNome,
       contratoTexto,
-      usuarioEmissor
+      usuarioEmissor,
+      contratoAnexo,
+      dataFim: manualDataFim,
+      enviarClicksign,
+      contratoHtmlBase64
     } = body;
 
     if (!clientId || !planoId || !dataInicio) {
@@ -69,9 +163,12 @@ export async function POST(request: Request) {
     const vigenciaMeses = isAnual ? 12 : 1;
 
     // Calcular data de fim de vigência
-    const startD = new Date(dataInicio + 'T00:00:00');
-    startD.setMonth(startD.getMonth() + vigenciaMeses);
-    const dataFim = startD.toISOString().split('T')[0];
+    let dataFim = manualDataFim;
+    if (!dataFim) {
+      const startD = new Date(dataInicio + 'T00:00:00');
+      startD.setMonth(startD.getMonth() + vigenciaMeses);
+      dataFim = startD.toISOString().split('T')[0];
+    }
 
     // 3. Cálculos de Descontos e Valores
     const valorBruto = plan.preco;
@@ -91,8 +188,48 @@ export async function POST(request: Request) {
       await Contract.updateMany({ clientId, status: 'assinado' }, { status: 'cancelado' });
     }
 
+    // Se enviar para clicksign estiver ativo, disparar fluxos da Clicksign API
+    let clicksignDocKey = '';
+    let clicksignSignerKey = '';
+    let clicksignUrl = '';
+    let clicksignStatus = 'pendente';
+
+    if (enviarClicksign) {
+      if (!client.dadosPessoais?.email) {
+        return NextResponse.json({ success: false, error: 'O aluno precisa de um e-mail cadastrado para assinar pela Clicksign.' }, { status: 400 });
+      }
+      if (!client.dadosPessoais?.cpf) {
+        return NextResponse.json({ success: false, error: 'O aluno precisa de um CPF cadastrado para assinar pela Clicksign.' }, { status: 400 });
+      }
+
+      const fileName = `Contrato_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_V${versao}.html`;
+      const base64File = contratoHtmlBase64 || `data:text/html;base64,${Buffer.from(contratoTexto || '').toString('base64')}`;
+
+      try {
+        const cSignResult = await createClicksignDocument(
+          fileName,
+          base64File,
+          client.dadosPessoais.email,
+          client.dadosPessoais.nome,
+          client.dadosPessoais.cpf,
+          client.dadosPessoais.nascimento || ''
+        );
+        clicksignDocKey = cSignResult.docKey;
+        clicksignSignerKey = cSignResult.signerKey;
+        clicksignUrl = cSignResult.signatureUrl;
+        clicksignStatus = 'pendente';
+      } catch (err: any) {
+        console.error('Clicksign API Error:', err);
+        return NextResponse.json({ success: false, error: `Falha na Clicksign: ${err.message}` }, { status: 500 });
+      }
+    }
+
     // 4. Criar o Contrato
     const newContract = await Contract.create({
+      clicksignDocKey,
+      clicksignSignerKey,
+      clicksignUrl,
+      clicksignStatus,
       clientId,
       planoId,
       planoNome: plan.nome,
@@ -118,6 +255,7 @@ export async function POST(request: Request) {
       assinaturaNome: status === 'assinado' ? (assinaturaNome || client.dadosPessoais.nome) : '',
       assinaturaData: status === 'assinado' ? new Date() : undefined,
       contratoTexto: contratoTexto || '',
+      contratoAnexo: contratoAnexo || '',
       usuarioEmissor: usuarioEmissor || ''
     });
 
@@ -126,7 +264,7 @@ export async function POST(request: Request) {
       client.dadosComerciais = {
         ...client.dadosComerciais,
         planoId: planoId,
-        vencimento: dataPrimeiroVencimento || dataInicio,
+        vencimento: dataPrimeiroVencimento || dataFim,
         status: 'ativo',
         parcelas: numParcelas,
         descontoValor: descVal,
