@@ -195,6 +195,74 @@ async function createClicksignDocument(
   await handleError(reqAuthRes, 'Criar Requisito de Autenticação');
 
   // ──────────────────────────────────────────────────────────
+  // PASSO 4c — Adicionar Signatário da Clínica (Contratado)
+  // ──────────────────────────────────────────────────────────
+  const clinicEmail = process.env.CLICKSIGN_CLINIC_EMAIL || 'clubefitnessbh@gmail.com';
+  const clinicName = process.env.CLICKSIGN_CLINIC_NAME || 'Albert Nunes Queiroz dos Santos LTDA';
+  const clinicCnpj = '52.883.492/0001-04';
+
+  const clinicSignerBody: any = {
+    data: {
+      type: 'signers',
+      attributes: {
+        name: clinicName,
+        email: clinicEmail,
+        documentation: clinicCnpj
+      }
+    }
+  };
+
+  const clinicSignerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(clinicSignerBody)
+  });
+  const clinicSignerData = await handleError(clinicSignerRes, 'Adicionar Signatário da Clínica');
+  const clinicSignerId: string = clinicSignerData.data?.id;
+  if (!clinicSignerId) throw new Error('Clicksign não retornou o ID do Signatário da Clínica.');
+
+  // ──────────────────────────────────────────────────────────
+  // PASSO 4d — Requisitos do Signatário da Clínica
+  // ──────────────────────────────────────────────────────────
+  const clinicReqQualRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      data: {
+        type: 'requirements',
+        attributes: {
+          action: 'agree',
+          role: 'sign'
+        },
+        relationships: {
+          document: { data: { type: 'documents', id: documentId } },
+          signer: { data: { type: 'signers', id: clinicSignerId } }
+        }
+      }
+    })
+  });
+  await handleError(clinicReqQualRes, 'Criar Requisito de Qualificação da Clínica');
+
+  const clinicReqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      data: {
+        type: 'requirements',
+        attributes: {
+          action: 'provide_evidence',
+          auth: 'email'
+        },
+        relationships: {
+          document: { data: { type: 'documents', id: documentId } },
+          signer: { data: { type: 'signers', id: clinicSignerId } }
+        }
+      }
+    })
+  });
+  await handleError(clinicReqAuthRes, 'Criar Requisito de Autenticação da Clínica');
+
+  // ──────────────────────────────────────────────────────────
   // PASSO 5 — Ativar Envelope (draft → running)
   // PATCH /api/v3/envelopes/:envelope_id
   // ──────────────────────────────────────────────────────────

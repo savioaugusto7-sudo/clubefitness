@@ -3269,8 +3269,8 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:${PAGE_W}px;opacity:0;z-index:99999;pointer-events:none;overflow:hidden;`;
 
   const pdfContainer = document.createElement('div');
-  // No internal padding — margin is handled by html2pdf options
-  pdfContainer.style.cssText = `width:${PAGE_W}px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:0;margin:0;`;
+  // Use internal padding of 56px (~15mm) as margins and set options.margin to 0 to prevent right-edge clipping
+  pdfContainer.style.cssText = `width:${PAGE_W}px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:56px;margin:0;`;
 
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
@@ -3292,7 +3292,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
         }
       </style>
     `;
-    // Clear padding and margin of the wrapper div to let html2pdf margins handle it
+    // Clear padding and margin of the wrapper div to let our internal padding handle it
     const wrapper = pdfContainer.firstElementChild as HTMLElement;
     if (wrapper) {
       wrapper.style.padding = '0px';
@@ -3328,9 +3328,9 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
     `;
   }
 
-  // Margins in mm (15mm each side ≈ standard A4 document margins)
+  // Margins in mm (set to 0 since we use internal 56px padding to prevent right-edge cropping)
   const options = {
-    margin: [15, 15, 15, 15],
+    margin: 0,
     filename: `Contrato_${(pes.nome||'Aluno').replace(/\s+/g,'_')}_${today}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: {
@@ -3418,7 +3418,8 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     const pdfWrapper = document.createElement('div');
     pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:${PAGE_W}px;opacity:0;z-index:99999;pointer-events:none;overflow:hidden;`;
     const pdfContainer = document.createElement('div');
-    pdfContainer.style.cssText = `width:${PAGE_W}px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:0;margin:0;`;
+    // Use internal padding of 56px (~15mm) as margins and set options.margin to 0 to prevent right-edge clipping
+    pdfContainer.style.cssText = `width:${PAGE_W}px;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:9.5pt;box-sizing:border-box;padding:56px;margin:0;`;
     pdfWrapper.appendChild(pdfContainer);
     document.body.appendChild(pdfWrapper);
 
@@ -3429,6 +3430,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
           li, tr, table { page-break-inside: avoid !important; break-inside: avoid !important; }
         </style>
       `;
+      // Clear padding and margin of the wrapper div to let our internal padding handle it
       const wrapper = pdfContainer.firstElementChild as HTMLElement;
       if (wrapper) {
         wrapper.style.padding = '0px';
@@ -3457,7 +3459,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     }
 
     const options = {
-      margin: [15, 15, 15, 15],
+      margin: 0,
       filename: `Contrato_${(pes.nome||'Aluno').replace(/\s+/g,'_')}_${today}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
