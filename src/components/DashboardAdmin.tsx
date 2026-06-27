@@ -213,6 +213,19 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const valorBruto = dcValorUnitario * dcVigenciaQtd;
   const isSelectedPlanAnual = dcDuracao === 'anual';
   
+  let dataFimStr = '—';
+  if (dcDataInicio) {
+    const start = new Date(dcDataInicio + 'T00:00:00');
+    if (dcDuracao === 'semana') {
+      start.setDate(start.getDate() + (Number(dcVigenciaQtd) || 1) * 7);
+    } else if (dcDuracao === 'mensal') {
+      start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1));
+    } else {
+      start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1) * 12);
+    }
+    dataFimStr = start.toLocaleDateString('pt-BR');
+  }
+  
   let descontoReais = 0;
   if (dcDescontoTipo === 'percentual') {
     descontoReais = valorBruto * ((Number(dcDescontoValor) || 0) / 100);
@@ -3328,6 +3341,58 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         <div className="form-group" style={{ marginTop: '10px' }}>
                           <label className="comercial-field-label"><i className="fa-solid fa-file-lines"></i> Observações Contratuais</label>
                           <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} placeholder="Notas adicionais sobre esta contratação" disabled={hasActiveSignedContract} />
+                        </div>
+                      </div>
+
+                      {/* Ficha de Resumo Prático para o Cliente */}
+                      <div style={{
+                        marginTop: '20px',
+                        padding: '18px',
+                        background: 'rgba(16, 185, 129, 0.03)',
+                        border: '1px dashed rgba(16, 185, 129, 0.3)',
+                        borderRadius: '12px',
+                        color: 'var(--text-main)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                          <h4 style={{ margin: 0, color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            <i className="fa-solid fa-receipt" style={{ marginRight: '6px' }}></i> Resumo de Venda & Fechamento (Apresentação ao Cliente)
+                          </h4>
+                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', color: 'var(--color-primary)', fontWeight: 'bold' }}>
+                            Fechamento
+                          </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Período de Vigência</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-calendar-week" style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}></i>
+                              {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} até {dataFimStr}
+                            </div>
+                            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
+                              Duração: {dcDuracao === 'semana' ? `${dcVigenciaQtd} semana(s)` : dcDuracao === 'mensal' ? `${dcVigenciaQtd} mês(es)` : `${dcVigenciaQtd} ano(s)`}
+                            </small>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Valor Total (Líquido)</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-circle-check" style={{ color: 'var(--color-success)', fontSize: '0.9rem' }}></i>
+                              R$ {valorLiquido.toFixed(2).replace('.', ',')}
+                            </div>
+                            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
+                              Bruto: R$ {valorBruto.toFixed(2).replace('.', ',')} (Desc: R$ {descontoReais.toFixed(2).replace('.', ',')})
+                            </small>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Condição de Pagamento</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-credit-card" style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}></i>
+                              {dcParcelas}x de R$ {valorParcela.toFixed(2).replace('.', ',')}
+                            </div>
+                            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
+                              Forma: {dcFormaPag.toUpperCase()}
+                            </small>
+                          </div>
                         </div>
                       </div>
                       
