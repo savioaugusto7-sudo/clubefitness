@@ -90,7 +90,7 @@ export async function DELETE(request: Request) {
       const docsRes = await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/documents`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token,
           'Content-Type': 'application/vnd.api+json',
           'Accept': 'application/vnd.api+json'
         }
@@ -104,7 +104,7 @@ export async function DELETE(request: Request) {
             await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/documents/${doc.id}`, {
               method: 'PATCH',
               headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': token,
                 'Content-Type': 'application/vnd.api+json',
                 'Accept': 'application/vnd.api+json'
               },

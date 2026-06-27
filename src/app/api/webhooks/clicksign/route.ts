@@ -15,12 +15,17 @@ export async function POST(request: Request) {
     // Clicksign API v1 webhook payload (legacy):
     // { "event": { "name": "sign", "data": { "document": { "key": "uuid" } } } }
 
-    const eventType: string = payload.event?.type || payload.event?.name || '';
+    const eventType: string =
+      payload.data?.attributes?.event ||     // evento v3 JSON:API
+      payload.event?.type ||                  // alternativa v3 / sandbox
+      payload.event?.name ||                  // legado / v1
+      '';
 
     const docKey: string | null =
-      payload.event?.data?.envelope?.id ||
-      payload.event?.data?.document?.key ||
-      payload.data?.id ||
+      payload.data?.attributes?.data?.envelope_id ||  // ID do envelope v3
+      payload.data?.attributes?.data?.document_id ||  // ID do documento v3
+      payload.event?.data?.envelope?.id ||            // alternativa v3
+      payload.event?.data?.document?.key ||           // legado / v1
       null;
 
     // Retornar 200 para qualquer evento sem docKey para evitar reenvios desnecessários
