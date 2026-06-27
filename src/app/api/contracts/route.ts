@@ -118,13 +118,7 @@ async function createClicksignDocument(
   // PASSO 3 — Adicionar Signatário ao Envelope
   // POST /api/v3/envelopes/:envelope_id/signers
   // ──────────────────────────────────────────────────────────
-  let formattedCpf = '';
-  const digits = signerCpf.replace(/\D/g, '');
-  if (digits.length === 11) {
-    formattedCpf = `${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9, 11)}`;
-  } else {
-    formattedCpf = signerCpf;
-  }
+  const cleanCpf = signerCpf.replace(/\D/g, '');
   const signerBody: any = {
     data: {
       type: 'signers',
@@ -134,7 +128,7 @@ async function createClicksignDocument(
       }
     }
   };
-  if (formattedCpf) signerBody.data.attributes.documentation = formattedCpf;
+  if (cleanCpf) signerBody.data.attributes.documentation = cleanCpf;
 
   const signerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
     method: 'POST',
@@ -200,6 +194,7 @@ async function createClicksignDocument(
   const clinicEmail = process.env.CLICKSIGN_CLINIC_EMAIL || 'clubefitnessbh@gmail.com';
   const clinicName = process.env.CLICKSIGN_CLINIC_NAME || 'Albert Nunes Queiroz dos Santos LTDA';
   const clinicCnpj = '52.883.492/0001-04';
+  const cleanCnpj = clinicCnpj.replace(/\D/g, '');
 
   const clinicSignerBody: any = {
     data: {
@@ -207,7 +202,7 @@ async function createClicksignDocument(
       attributes: {
         name: clinicName,
         email: clinicEmail,
-        documentation: clinicCnpj
+        documentation: cleanCnpj
       }
     }
   };
