@@ -4,6 +4,8 @@ import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 
+export const dynamic = 'force-dynamic';
+
 async function syncContractStatus(contract: any, token: string, baseUrl: string) {
   const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
   const actualEnvelopeId = envelopeId;
@@ -14,17 +16,21 @@ async function syncContractStatus(contract: any, token: string, baseUrl: string)
     let finishedAt = null;
 
     if (actualEnvelopeId && actualEnvelopeId.length === 36) {
+      console.log(`Sync status: Fetching clicksign v3 for envelope ${actualEnvelopeId}`);
       const res = await fetch(`${baseUrl}/api/v3/envelopes/${actualEnvelopeId}`, {
         method: 'GET',
         headers: {
           'Authorization': token,
           'Content-Type': 'application/vnd.api+json',
           'Accept': 'application/vnd.api+json'
-        }
+        },
+        cache: 'no-store'
       });
+      console.log(`Sync status: Fetch clicksign v3 response status: ${res.status}`);
       if (res.ok) {
         const data = await res.json();
         const status = data.data?.attributes?.status;
+        console.log(`Sync status: Envelope ${actualEnvelopeId} status: ${status}`);
         if (status === 'finished') {
           clicksignStatus = 'assinado';
           finishedAt = data.data?.attributes?.finished_at || new Date();
@@ -32,10 +38,15 @@ async function syncContractStatus(contract: any, token: string, baseUrl: string)
           clicksignStatus = 'cancelado';
         }
       } else {
-        const fallbackRes = await fetch(`${baseUrl}/api/v1/documents/${actualDocumentId}?access_token=${token}`);
+        console.log(`Sync status: Fallback to clicksign v1 for document ${actualDocumentId}`);
+        const fallbackRes = await fetch(`${baseUrl}/api/v1/documents/${actualDocumentId}?access_token=${token}`, {
+          cache: 'no-store'
+        });
+        console.log(`Sync status: Fetch clicksign v1 response status: ${fallbackRes.status}`);
         if (fallbackRes.ok) {
           const data = await fallbackRes.json();
           const status = data.document?.status;
+          console.log(`Sync status: Document ${actualDocumentId} status: ${status}`);
           if (status === 'finished') {
             clicksignStatus = 'assinado';
             finishedAt = data.document?.finished_at || new Date();
