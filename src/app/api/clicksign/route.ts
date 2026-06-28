@@ -31,7 +31,7 @@ async function syncContractStatus(contract: any, token: string, baseUrl: string)
         const data = await res.json();
         const status = data.data?.attributes?.status;
         console.log(`Sync status: Envelope ${actualEnvelopeId} status: ${status}`);
-        if (status === 'finished') {
+        if (status === 'finished' || status === 'closed') {
           clicksignStatus = 'assinado';
           finishedAt = data.data?.attributes?.finished_at || new Date();
         } else if (status === 'canceled') {
@@ -47,7 +47,7 @@ async function syncContractStatus(contract: any, token: string, baseUrl: string)
           const data = await fallbackRes.json();
           const status = data.document?.status;
           console.log(`Sync status: Document ${actualDocumentId} status: ${status}`);
-          if (status === 'finished') {
+          if (status === 'finished' || status === 'closed') {
             clicksignStatus = 'assinado';
             finishedAt = data.document?.finished_at || new Date();
           } else if (status === 'canceled') {
