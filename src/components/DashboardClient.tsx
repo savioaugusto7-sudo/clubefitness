@@ -1310,6 +1310,39 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
                             </p>
                           </div>
                         )}
+
+                        {/* Interpretação Clínica dos Resultados */}
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', marginTop: '16px' }}>
+                          <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
+                            <i className="fa-solid fa-square-poll-vertical" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Interpretação Clínica dos Resultados
+                          </h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.04)' }}>
+                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>&ge; 90% do Valor de Referência</strong>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
+                                <strong>Força normal:</strong> o paciente apresenta força muscular dentro dos parâmetros normativos para sua faixa demográfica. Liberação para progressão de carga ou retorno ao esporte/atividades.
+                              </span>
+                            </div>
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #3b82f6', background: 'rgba(59, 130, 246, 0.04)' }}>
+                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>75-89% do Valor de Referência</strong>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
+                                <strong>Déficit leve:</strong> força levemente reduzida. Indica necessidade de fortalecimento direcionado, porém funcionalidade preservada para a maioria das atividades de vida diária.
+                              </span>
+                            </div>
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #f97316', background: 'rgba(249, 115, 22, 0.04)' }}>
+                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>50-74% do Valor de Referência</strong>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
+                                <strong>Déficit moderado:</strong> comprometimento funcional relevante. Requer programa de reabilitação estruturado com reavaliação periódica. Restrição de atividades de maior demanda.
+                              </span>
+                            </div>
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #ef4444', background: 'rgba(239, 68, 68, 0.04)' }}>
+                              <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>&lt; 50% do Valor de Referência</strong>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
+                                <strong>Déficit grave:</strong> fraqueza muscular importante com alto impacto funcional. Investigação de causas subjacentes, possível encaminhamento médico e reabilitação intensiva são indicados.
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     );
                   }

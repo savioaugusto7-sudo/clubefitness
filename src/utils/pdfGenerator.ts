@@ -2963,6 +2963,39 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         <!-- Observações -->
         ${observationHtml}
 
+        <!-- Interpretação Clínica dos Resultados -->
+        <div class="section-card" style="margin-top: 15px;">
+          <div class="section-card-title">Interpretação Clínica dos Resultados</div>
+          <div class="section-card-content" style="padding: 10px; background: #ffffff;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #10b981; background: #fafafa;">
+                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">&ge; 90% do Valor de Referência</strong>
+                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
+                  <strong>Força normal:</strong> o paciente apresenta força muscular dentro dos parâmetros normativos para sua faixa demográfica. Liberação para progressão de carga ou retorno ao esporte/atividades.
+                </span>
+              </div>
+              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #3b82f6; background: #fafafa;">
+                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">75-89% do Valor de Referência</strong>
+                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
+                  <strong>Déficit leve:</strong> força levemente reduzida. Indica necessidade de fortalecimento direcionado, porém funcionalidade preservada para a maioria das atividades de vida diária.
+                </span>
+              </div>
+              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #f97316; background: #fafafa;">
+                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">50-74% do Valor de Referência</strong>
+                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
+                  <strong>Déficit moderado:</strong> comprometimento funcional relevante. Requer programa de reabilitação estruturado com reavaliação periódica. Restrição de atividades de maior demanda.
+                </span>
+              </div>
+              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #ef4444; background: #fafafa;">
+                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">&lt; 50% do Valor de Referência</strong>
+                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
+                  <strong>Déficit grave:</strong> fraqueza muscular importante com alto impacto funcional. Investigação de causas subjacentes, possível encaminhamento médico e reabilitação intensiva são indicados.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Footer Empresa -->
         <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
           <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
