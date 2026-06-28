@@ -1026,7 +1026,7 @@ export async function downloadReportPDF(report: any) {
 
 function calculateObjectiveWeeklyRate(peso: number, sexo: string, freq: number, nivel: string, tipo: string) {
   const p = Number(peso) || 70;
-  const s = sexo === 'F' ? 'F' : 'M';
+  const s = (sexo || '').trim().toUpperCase().startsWith('F') ? 'F' : 'M';
   const f = Number(freq) || 3;
   const n = nivel || 'Iniciante / Retorno';
   const t = tipo === 'Emagrecimento' ? 'Emagrecimento' : 'Massa Magra';
@@ -1311,7 +1311,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const fatPercents = history.map((h: any) => h.resultadosCalculados.percentualGordura);
   const muscles = history.map((h: any) => h.resultadosCalculados.massaMagra);
 
-  const genderText = assessment.dadosMedidos.sexo === 'M' ? 'Masculino' : 'Feminino';
+  const genderText = assessment.dadosMedidos.sexo?.trim().toUpperCase().startsWith('M') ? 'Masculino' : 'Feminino';
 
   // Helper para verificar assimetria no PDF
   function checkPDFAsymmetry(valD: any, valE: any) {

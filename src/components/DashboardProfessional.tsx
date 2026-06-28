@@ -252,7 +252,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const calculateObjectiveWeeklyRate = (peso: number, sexo: string, freq: number, nivel: string, tipo: string) => {
     const p = Number(peso) || 70;
-    const s = sexo === 'F' ? 'F' : 'M';
+    const s = (sexo || '').trim().toUpperCase().startsWith('F') ? 'F' : 'M';
     const f = Number(freq) || 3;
     const n = nivel || 'Iniciante / Retorno';
     const t = tipo === 'Emagrecimento' ? 'Emagrecimento' : 'Massa Magra';
@@ -306,7 +306,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     return objectives.map(tipo => {
       const weeklyRate = calculateObjectiveWeeklyRate(peso, sexo, freq, nivel, tipo);
       const labelTipo = tipo === 'Emagrecimento' ? 'Emagrecimento / Perda de Gordura' : 'Ganho de Massa Magra';
-      const labelSexo = sexo === 'M' ? 'Masculino' : 'Feminino';
+      const labelSexo = (sexo || '').trim().toUpperCase().startsWith('M') ? 'Masculino' : 'Feminino';
 
       return {
         tipo,
@@ -2709,7 +2709,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <tr key={c._id}>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <img src={c.dadosPessoais?.sexo === 'F' ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                            <img src={c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
                             <strong>{c.dadosPessoais?.nome}</strong>
                           </div>
                         </td>
@@ -5253,7 +5253,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px 16px', borderRadius: '6px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', fontSize: '0.85rem' }}>
                           <div><strong>CPF:</strong> {selCli.dadosPessoais?.cpf || '-'}</div>
                           <div><strong>Idade:</strong> {age} anos</div>
-                          <div><strong>Gênero:</strong> {selCli.dadosPessoais?.sexo === 'M' ? 'Masculino' : 'Feminino'}</div>
+                          <div><strong>Gênero:</strong> {selCli.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('M') ? 'Masculino' : 'Feminino'}</div>
                           <div><strong>Profissão:</strong> {selCli.dadosPessoais?.profissao || '-'}</div>
                           <div><strong>Telefone:</strong> {selCli.dadosPessoais?.telefone || '-'}</div>
                         </div>
