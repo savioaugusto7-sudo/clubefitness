@@ -83,6 +83,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   // Contract modal
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [signatureName, setSignatureName] = useState('');
+  const [gerarAsaas, setGerarAsaas] = useState(false);
   const [showFreezeModal, setShowFreezeModal] = useState(false);
   const [freezeContractId, setFreezeContractId] = useState('');
   const [freezeStartDate, setFreezeStartDate] = useState('');
@@ -502,6 +503,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       contratoTexto: generateContractTemplate(), usuarioEmissor: 'Recepção',
       duracao: dcDuracao, duracaoQtd: dcVigenciaQtd, valorUnitario: dcValorUnitario,
       enviarClicksign: isClicksign,
+      enviarAsaas: gerarAsaas,
       contratoPdfBase64: pdfBase64
     };
     const res = await fetch('/api/contracts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1177,6 +1179,21 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
             </div>
             <div style={{ padding: '24px' }}>
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px', maxHeight: '40vh', overflow: 'auto', marginBottom: '20px', background: '#fff', color: '#111' }} dangerouslySetInnerHTML={{ __html: generateContractTemplate() }} />
+              
+              {/* Opção Asaas */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.05)', padding: '10px 12px', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '8px', marginBottom: '15px' }}>
+                <input
+                  type="checkbox"
+                  id="cffGerarAsaasRec"
+                  checked={gerarAsaas}
+                  onChange={e => setGerarAsaas(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="cffGerarAsaasRec" style={{ margin: 0, fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                  <i className="fa-solid fa-credit-card" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Gerar Cobrança automática no Asaas (Pix/Boleto/Cartão)
+                </label>
+              </div>
+
               <div style={{ marginBottom: '16px' }}>
                 <label style={labelStyle}>Nome do Assinante (para aceite digital)</label>
                 <input style={inputStyle} value={signatureName} onChange={e => setSignatureName(e.target.value)} placeholder="Nome completo do assinante" />
@@ -1696,6 +1713,21 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
               </div>
               <div style={{ padding: '24px' }}>
                 <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px', maxHeight: '40vh', overflow: 'auto', marginBottom: '20px', background: '#fff', color: '#111' }} dangerouslySetInnerHTML={{ __html: generateContractTemplate() }} />
+                
+                {/* Opção Asaas */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.05)', padding: '10px 12px', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '8px', marginBottom: '15px' }}>
+                  <input
+                    type="checkbox"
+                    id="cffGerarAsaasRec2"
+                    checked={gerarAsaas}
+                    onChange={e => setGerarAsaas(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="cffGerarAsaasRec2" style={{ margin: 0, fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                    <i className="fa-solid fa-credit-card" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Gerar Cobrança automática no Asaas (Pix/Boleto/Cartão)
+                  </label>
+                </div>
+
                 <div style={{ marginBottom: '16px' }}>
                   <label style={labelStyle}>Nome do Assinante</label>
                   <input style={inputStyle} value={signatureName} onChange={e => setSignatureName(e.target.value)} placeholder="Nome completo" />

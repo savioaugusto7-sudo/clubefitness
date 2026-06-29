@@ -29,6 +29,7 @@ const DadosClinicosSchema = new Schema({
 }, { _id: false });
 
 const DadosComerciaisSchema = new Schema({
+  asaasCustomerId: { type: String, default: '' },
   planoId: { type: Schema.Types.ObjectId, ref: 'Plan' },
   vencimento: { type: String },
   frequencia: { type: Number, default: 3 },

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 import ClicksignPanel from './ClicksignPanel';
+import AsaasPanel from './AsaasPanel';
 
 interface DashboardAdminProps {
   activeTab: string;
@@ -197,6 +198,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [clientContracts, setClientContracts] = useState<any[]>([]);
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [signatureName, setSignatureName] = useState('');
+  const [gerarAsaas, setGerarAsaas] = useState(false);
   const [showFreezeModal, setShowFreezeModal] = useState(false);
   const [freezeContractId, setFreezeContractId] = useState('');
   const [freezeStartDate, setFreezeStartDate] = useState('');
@@ -441,6 +443,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       contratoTexto: generateContractTemplate(),
       usuarioEmissor: 'Administrador',
       enviarClicksign: isClicksign,
+      enviarAsaas: gerarAsaas,
       contratoPdfBase64: pdfBase64
     };
 
@@ -2760,8 +2763,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         <ClicksignPanel />
       )}
 
+      {/* ======================== ASAAS MANAGEMENT TAB ======================== */}
+      {activeTab === 'asaas' && (
+        <AsaasPanel />
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign', 'asaas'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -3605,6 +3613,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                            • Desconto: {dcDescontoTipo === 'percentual' ? `${dcDescontoValor}%` : `R$ ${dcDescontoValor}`} | Líquido: <strong>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong><br/>
                            • Condição: {dcParcelas}x de R$ {valorParcela.toFixed(2).replace('.', ',')} via {dcFormaPag.toUpperCase()}<br/>
                            • Vigência: {dcDuracao === 'anual' ? `${dcVigenciaQtd} ano(s)` : dcDuracao === 'semana' ? `${dcVigenciaQtd} semana(s)` : `${dcVigenciaQtd} mês(es)`} (a R$ {dcValorUnitario.toFixed(2)}/unid) | Início: {dcDataInicio || 'Hoje'}
+                         </div>
+
+                         {/* Opção Asaas */}
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.05)', padding: '10px 12px', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '8px', marginBottom: '15px' }}>
+                           <input
+                             type="checkbox"
+                             id="cffGerarAsaas"
+                             checked={gerarAsaas}
+                             onChange={e => setGerarAsaas(e.target.checked)}
+                             style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                           />
+                           <label htmlFor="cffGerarAsaas" style={{ margin: 0, fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                             <i className="fa-solid fa-credit-card" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Gerar Cobrança automática no Asaas (Pix/Boleto/Cartão)
+                           </label>
                          </div>
 
                          {/* Dynamic HTML preview frame */}

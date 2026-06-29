@@ -40,6 +40,12 @@ const ContractSchema = new Schema({
   clicksignSignerKey: { type: String, default: '' },
   clicksignUrl: { type: String, default: '' },
   clicksignStatus: { type: String, default: 'pendente' },
+  asaasPaymentId: { type: String, default: '' },
+  asaasInvoiceUrl: { type: String, default: '' },
+  asaasBoletoPdf: { type: String, default: '' },
+  asaasPixCopyPaste: { type: String, default: '' },
+  asaasPixQrCode: { type: String, default: '' },
+  asaasBillingStatus: { type: String, default: 'pendente' },
   congelamento: { type: CongelamentoSchema, default: null }
 }, { timestamps: true });
 

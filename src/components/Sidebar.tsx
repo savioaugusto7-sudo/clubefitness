@@ -28,6 +28,7 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' },
     { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' },
     { id: 'clicksign', label: 'Clicksign', icon: 'fa-file-signature' },
+    { id: 'asaas', label: 'Asaas', icon: 'fa-credit-card' },
     { id: 'medicamentos', label: 'Medicamentos', icon: 'fa-pills' },
     { id: 'solicitacoes_exercicios', label: 'Exercícios Solicitados', icon: 'fa-clipboard-question' },
     { id: 'tv_panel', label: 'Painel TV Clínica', icon: 'fa-tv' },

@@ -3,6 +3,7 @@ import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
+import { createAsaasCustomer, createAsaasPayment, getAsaasPixQrCode } from '@/utils/asaas';
 
 export async function GET(request: Request) {
   try {
@@ -369,6 +370,7 @@ export async function POST(request: Request) {
       contratoAnexo,
       dataFim: manualDataFim,
       enviarClicksign,
+      enviarAsaas,
       contratoHtmlBase64,
       contratoPdfBase64
     } = body;
@@ -457,12 +459,64 @@ export async function POST(request: Request) {
       }
     }
 
+    // Asaas integration
+    let asaasPaymentId = '';
+    let asaasInvoiceUrl = '';
+    let asaasBoletoPdf = '';
+    let asaasPixCopyPaste = '';
+    let asaasPixQrCode = '';
+    let asaasBillingStatus = 'pendente';
+
+    if (enviarAsaas) {
+      try {
+        let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
+        if (!asaasCustomerId) {
+          console.log('Criando cliente no Asaas...');
+          asaasCustomerId = await createAsaasCustomer(client);
+          client.dadosComerciais.asaasCustomerId = asaasCustomerId;
+          await client.save();
+        }
+
+        console.log('Gerando cobrança no Asaas...');
+        const paymentResult = await createAsaasPayment({
+          customerId: asaasCustomerId,
+          formaPagamento,
+          value: valorLiquido,
+          dueDate: dataPrimeiroVencimento || dataInicio,
+          description: `Contrato de Plano: ${plan.nome}`,
+          parcelas: numParcelas
+        });
+
+        asaasPaymentId = paymentResult.paymentId;
+        asaasInvoiceUrl = paymentResult.invoiceUrl;
+        asaasBoletoPdf = paymentResult.bankSlipUrl;
+        asaasBillingStatus = paymentResult.billingStatus;
+
+        if (formaPagamento === 'pix') {
+          const pixDetails = await getAsaasPixQrCode(asaasPaymentId);
+          if (pixDetails) {
+            asaasPixQrCode = pixDetails.encodedImage;
+            asaasPixCopyPaste = pixDetails.payload;
+          }
+        }
+      } catch (err: any) {
+        console.error('Asaas API Error:', err);
+        return NextResponse.json({ success: false, error: `Falha no Asaas: ${err.message}` }, { status: 500 });
+      }
+    }
+
     // 4. Criar o Contrato
     const newContract = await Contract.create({
       clicksignDocKey,
       clicksignSignerKey,
       clicksignUrl,
       clicksignStatus,
+      asaasPaymentId,
+      asaasInvoiceUrl,
+      asaasBoletoPdf,
+      asaasPixCopyPaste,
+      asaasPixQrCode,
+      asaasBillingStatus,
       clientId,
       planoId,
       planoNome: plan.nome,

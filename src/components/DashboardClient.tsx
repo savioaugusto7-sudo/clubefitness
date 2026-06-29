@@ -28,6 +28,7 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
   const [assessments, setAssessments] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [exercises, setExercises] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
   const [selectedExerciseForInstruction, setSelectedExerciseForInstruction] = useState<any>(null);
 
@@ -162,14 +163,15 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
     if (!profileId) return;
     try {
       setLoading(true);
-      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt] = await Promise.all([
+      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts] = await Promise.all([
         fetch(`/api/clients?userId=${user.id}`),
         fetch(`/api/appointments?clientId=${profileId}`),
         fetch(`/api/workouts?clientId=${profileId}`),
         fetch('/api/assessments'),
         fetch('/api/reports'),
         fetch('/api/exercises'),
-        fetch('/api/strength-tests')
+        fetch('/api/strength-tests'),
+        fetch(`/api/contracts?clientId=${profileId}`)
       ]);
       const jsonClient = await resClient.json();
       const jsonApts = await resApts.json();
@@ -178,9 +180,13 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
       const jsonRep = await resRep.json();
       const jsonExercises = await resExercises.json();
       const jsonSt = await resSt.json();
+      const jsonContracts = await resContracts.json();
 
       if (jsonClient.success && jsonClient.data.length > 0) {
         setClient(jsonClient.data[0]);
+      }
+      if (jsonContracts.success) {
+        setContracts(jsonContracts.data || []);
       }
       if (jsonApts.success) {
         setAppointments(jsonApts.data);
@@ -288,6 +294,9 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
     );
   }
 
+  // Find pending Asaas contract
+  const pendingAsaasContract = contracts.find(c => c.asaasPaymentId && c.status === 'pendente');
+
   // Calculate credits
   const credTotal = client.dadosComerciais?.creditosTotal || 0;
   const credUsados = client.dadosComerciais?.creditosUsados || 0;
@@ -306,8 +315,74 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
             </div>
           </div>
 
-          {/* Painel pendente: sem plano ativo */}
-          {client.dadosComerciais?.status === 'pendente' ? (
+          {/* Painel pendente ou aguardando pagamento */}
+          {pendingAsaasContract ? (
+            <div className="content-panel" style={{ marginTop: '24px', padding: '32px 24px', background: 'var(--bg-secondary)', border: '2.5px solid var(--color-primary)', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <i className="fa-solid fa-file-invoice-dollar" style={{ fontSize: '24px', color: 'var(--color-primary)' }}></i>
+                </div>
+                <div style={{ flexGrow: 1 }}>
+                  <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-main)' }}>Seu plano está aguardando pagamento</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                    Identificamos uma cobrança pendente para ativação do seu plano <strong>{pendingAsaasContract.planoNome}</strong>.
+                  </p>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', textAlign: 'right' }}>
+                  R$ {pendingAsaasContract.valorLiquido?.toFixed(2).replace('.', ',')}
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-dim)' }}>
+                    vencimento: {pendingAsaasContract.dataPrimeiroVencimento ? new Date(pendingAsaasContract.dataPrimeiroVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}
+                  </div>
+                </div>
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
+
+              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                {pendingAsaasContract.formaPagamento === 'pix' && pendingAsaasContract.asaasPixCopyPaste && (
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', flexGrow: 1 }}>
+                    {pendingAsaasContract.asaasPixQrCode && (
+                      <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '120px', height: '120px' }}>
+                        <img src={`data:image/png;base64,${pendingAsaasContract.asaasPixQrCode}`} alt="QR Code Pix" style={{ width: '100%', height: '100%' }} />
+                      </div>
+                    )}
+                    <div style={{ flexGrow: 1, maxWidth: '400px' }}>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>PIX COPIA E COLA</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="text"
+                          readOnly
+                          className="form-control"
+                          value={pendingAsaasContract.asaasPixCopyPaste}
+                          style={{ fontSize: '0.75rem', background: 'var(--bg-darker)' }}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => {
+                            navigator.clipboard.writeText(pendingAsaasContract.asaasPixCopyPaste);
+                            alert('Copiado para a área de transferência!');
+                          }}
+                        >
+                          <i className="fa-solid fa-copy"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginLeft: 'auto' }}>
+                  {pendingAsaasContract.asaasBoletoPdf && (
+                    <a href={pendingAsaasContract.asaasBoletoPdf} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i> Baixar Boleto PDF
+                    </a>
+                  )}
+                  <a href={pendingAsaasContract.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-arrow-up-right-from-square"></i> Pagar no Asaas
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : client.dadosComerciais?.status === 'pendente' ? (
             <div className="content-panel" style={{ marginTop: '24px', textAlign: 'center', padding: '48px 32px' }}>
               <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                 <i className="fa-solid fa-clock" style={{ fontSize: '28px', color: 'var(--color-warning)' }}></i>
