@@ -2,32 +2,32 @@
 
 import React, { useEffect, useState } from 'react';
 
-interface AsaasPayment {
-  _id: string;
-  clientId?: {
-    dadosPessoais?: {
-      nome: string;
-      email: string;
-      cpf: string;
-    };
-  };
-  planoNome: string;
-  valorLiquido: number;
-  formaPagamento: string;
+interface AsaasClientInfo {
+  clientId: string;
+  nome: string;
+  email: string;
+  cpf: string;
+  asaasCustomerId?: string;
+  status: 'gerado' | 'nao_gerado' | 'sem_contrato';
+  contractId?: string;
+  planoNome?: string;
+  valorLiquido?: number;
+  formaPagamento?: string;
   dataPrimeiroVencimento?: string;
-  status: string;
-  asaasPaymentId: string;
-  asaasInvoiceUrl: string;
+  asaasPaymentId?: string;
+  asaasInvoiceUrl?: string;
   asaasBoletoPdf?: string;
   asaasPixCopyPaste?: string;
   asaasPixQrCode?: string;
-  asaasBillingStatus: string;
+  asaasBillingStatus?: string;
+  contractStatus?: string;
 }
 
 export default function AsaasPanel() {
-  const [payments, setPayments] = useState<AsaasPayment[]>([]);
+  const [clients, setClients] = useState<AsaasClientInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showPixModal, setShowPixModal] = useState(false);
   const [selectedPix, setSelectedPix] = useState<{ qrCode: string; payload: string; name: string } | null>(null);
@@ -49,9 +49,9 @@ export default function AsaasPanel() {
       const res = await fetch('/api/admin/asaas');
       const data = await res.json();
       if (data.success) {
-        setPayments(data.data || []);
+        setClients(data.data || []);
       } else {
-        showFeedback(data.error || 'Erro ao carregar cobranças', 'danger');
+        showFeedback(data.error || 'Erro ao carregar faturas', 'danger');
       }
     } catch (e) {
       showFeedback('Erro de rede ao carregar faturas.', 'danger');
@@ -87,16 +87,40 @@ export default function AsaasPanel() {
     }
   };
 
+  const handleGenerateAsaasCharge = async (contractId: string) => {
+    setGeneratingId(contractId);
+    try {
+      const res = await fetch('/api/admin/asaas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showFeedback('Cobrança Asaas gerada com sucesso! Boleto e Pix gerados.', 'success');
+        fetchPayments(); // Recarrega lista
+      } else {
+        showFeedback(data.error || 'Erro ao gerar cobrança no Asaas', 'danger');
+      }
+    } catch (err: any) {
+      showFeedback('Erro de rede: ' + err.message, 'danger');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
   const handleCopyClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     alert('Copiado para a área de transferência!');
   };
 
-  const filteredPayments = payments.filter(p => {
-    const name = p.clientId?.dadosPessoais?.nome || '';
-    const plan = p.planoNome || '';
+  const filteredClients = clients.filter(c => {
+    const name = c.nome || '';
+    const email = c.email || '';
+    const cpf = c.cpf || '';
+    const plan = c.planoNome || '';
     const q = searchQuery.toLowerCase();
-    return name.toLowerCase().includes(q) || plan.toLowerCase().includes(q) || p.asaasPaymentId.toLowerCase().includes(q);
+    return name.toLowerCase().includes(q) || email.toLowerCase().includes(q) || cpf.includes(q) || plan.toLowerCase().includes(q);
   });
 
   return (
@@ -170,12 +194,12 @@ export default function AsaasPanel() {
           <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
           <p style={{ color: 'var(--text-dim)' }}>Carregando faturas do Asaas...</p>
         </div>
-      ) : filteredPayments.length === 0 ? (
+      ) : filteredClients.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', border: '1.5px dashed var(--border-color)', borderRadius: '12px' }}>
-          <i className="fa-solid fa-file-invoice" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-          <h4 style={{ margin: '0 0 6px 0' }}>Nenhuma fatura encontrada</h4>
+          <i className="fa-solid fa-users" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+          <h4 style={{ margin: '0 0 6px 0' }}>Nenhum aluno encontrado</h4>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '400px', margin: '0 auto' }}>
-            Nenhum contrato foi gerado utilizando a integração do Asaas até o momento.
+            Nenhum registro corresponde aos critérios de pesquisa.
           </p>
         </div>
       ) : (
@@ -184,26 +208,26 @@ export default function AsaasPanel() {
             <thead>
               <tr>
                 <th>Aluno</th>
+                <th style={{ textAlign: 'center' }}>Integração Asaas</th>
                 <th>Plano</th>
                 <th style={{ textAlign: 'right' }}>Valor Líquido</th>
                 <th style={{ textAlign: 'center' }}>Forma</th>
                 <th style={{ textAlign: 'center' }}>Vencimento</th>
-                <th style={{ textAlign: 'center' }}>Status Local</th>
                 <th style={{ textAlign: 'center' }}>Status Asaas</th>
                 <th style={{ textAlign: 'center' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {filteredPayments.map(p => {
-                let localColor = 'var(--text-dim)';
-                let localBg = 'rgba(128,128,128,0.1)';
-                if (p.status === 'assinado') { localColor = 'var(--color-success)'; localBg = 'rgba(16,185,129,0.1)'; }
-                else if (p.status === 'cancelado') { localColor = 'var(--color-danger)'; localBg = 'rgba(239,68,68,0.1)'; }
-                else if (p.status === 'pendente') { localColor = '#f59e0b'; localBg = 'rgba(245,158,11,0.1)'; }
+              {filteredClients.map(c => {
+                let statusColor = 'var(--text-dim)';
+                let statusBg = 'rgba(128,128,128,0.1)';
+                let statusLabel = 'SEM CONTRATO';
+                if (c.status === 'gerado') { statusColor = 'var(--color-success)'; statusBg = 'rgba(16,185,129,0.1)'; statusLabel = 'GERADO'; }
+                else if (c.status === 'nao_gerado') { statusColor = '#f59e0b'; statusBg = 'rgba(245,158,11,0.1)'; statusLabel = 'NÃO GERADO'; }
 
                 let asaasColor = '#94a3b8';
                 let asaasBg = 'rgba(148,163,184,0.1)';
-                const statusUpper = (p.asaasBillingStatus || '').toUpperCase();
+                const statusUpper = (c.asaasBillingStatus || '').toUpperCase();
                 if (statusUpper === 'CONFIRMED' || statusUpper === 'RECEIVED' || statusUpper === 'PAGO') {
                   asaasColor = 'var(--color-success)';
                   asaasBg = 'rgba(16,185,129,0.1)';
@@ -216,69 +240,99 @@ export default function AsaasPanel() {
                 }
 
                 return (
-                  <tr key={p._id}>
+                  <tr key={c.clientId}>
                     <td>
-                      <strong>{p.clientId?.dadosPessoais?.nome || 'Aluno Removido'}</strong>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ID: {p.asaasPaymentId}</div>
+                      <strong>{c.nome}</strong>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        CPF: {c.cpf || '—'} · Email: {c.email || '—'}
+                      </div>
+                      {c.asaasCustomerId && (
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                          Customer ID: {c.asaasCustomerId}
+                        </div>
+                      )}
                     </td>
-                    <td>{p.planoNome}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold' }}>R$ {p.valorLiquido?.toFixed(2).replace('.', ',')}</td>
-                    <td style={{ textAlign: 'center', textTransform: 'uppercase' }}>{p.formaPagamento}</td>
                     <td style={{ textAlign: 'center' }}>
-                      {p.dataPrimeiroVencimento ? new Date(p.dataPrimeiroVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span style={{ color: localColor, background: localBg, padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                        {p.status}
+                      <span style={{ color: statusColor, background: statusBg, padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        {statusLabel}
                       </span>
                     </td>
+                    <td>{c.planoNome || '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: c.valorLiquido ? 'bold' : 'normal' }}>
+                      {c.valorLiquido ? `R$ ${c.valorLiquido.toFixed(2).replace('.', ',')}` : '—'}
+                    </td>
+                    <td style={{ textAlign: 'center', textTransform: 'uppercase' }}>{c.formaPagamento || '—'}</td>
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{ color: asaasColor, background: asaasBg, padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                        {p.asaasBillingStatus || 'pendente'}
-                      </span>
+                      {c.dataPrimeiroVencimento ? new Date(c.dataPrimeiroVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          title="Sincronizar Status"
-                          onClick={() => handleSyncPayment(p._id)}
-                          disabled={syncingId === p._id}
-                        >
-                          {syncingId === p._id ? (
-                            <i className="fa-solid fa-spinner fa-spin"></i>
-                          ) : (
-                            <i className="fa-solid fa-rotate"></i>
-                          )}
-                        </button>
-
-                        <a href={p.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" title="Abrir Fatura Asaas">
-                          <i className="fa-solid fa-file-invoice"></i>
-                        </a>
-
-                        {p.formaPagamento === 'pix' && p.asaasPixCopyPaste && (
+                      {c.status === 'gerado' ? (
+                        <span style={{ color: asaasColor, background: asaasBg, padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                          {c.asaasBillingStatus || 'pendente'}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {c.status === 'gerado' ? (
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                           <button
                             className="btn btn-secondary btn-sm"
-                            title="Ver QR Code Pix"
-                            onClick={() => {
-                              setSelectedPix({
-                                qrCode: p.asaasPixQrCode || '',
-                                payload: p.asaasPixCopyPaste || '',
-                                name: p.clientId?.dadosPessoais?.nome || ''
-                              });
-                              setShowPixModal(true);
-                            }}
+                            title="Sincronizar Status"
+                            onClick={() => handleSyncPayment(c.contractId || '')}
+                            disabled={syncingId === c.contractId}
                           >
-                            <i className="fa-solid fa-qrcode" style={{ color: 'var(--color-primary)' }}></i>
+                            {syncingId === c.contractId ? (
+                              <i className="fa-solid fa-spinner fa-spin"></i>
+                            ) : (
+                              <i className="fa-solid fa-rotate"></i>
+                            )}
                           </button>
-                        )}
 
-                        {p.asaasBoletoPdf && (
-                          <a href={p.asaasBoletoPdf} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" title="Baixar Boleto PDF">
-                            <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i>
-                          </a>
-                        )}
-                      </div>
+                          {c.asaasInvoiceUrl && (
+                            <a href={c.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" title="Abrir Fatura Asaas">
+                              <i className="fa-solid fa-file-invoice"></i>
+                            </a>
+                          )}
+
+                          {c.formaPagamento === 'pix' && c.asaasPixCopyPaste && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              title="Ver QR Code Pix"
+                              onClick={() => {
+                                setSelectedPix({
+                                  qrCode: c.asaasPixQrCode || '',
+                                  payload: c.asaasPixCopyPaste || '',
+                                  name: c.nome
+                                });
+                                setShowPixModal(true);
+                              }}
+                            >
+                              <i className="fa-solid fa-qrcode" style={{ color: 'var(--color-primary)' }}></i>
+                            </button>
+                          )}
+
+                          {c.asaasBoletoPdf && (
+                            <a href={c.asaasBoletoPdf} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" title="Baixar Boleto PDF">
+                              <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i>
+                            </a>
+                          )}
+                        </div>
+                      ) : c.status === 'nao_gerado' ? (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => handleGenerateAsaasCharge(c.contractId || '')}
+                          disabled={generatingId === c.contractId}
+                        >
+                          {generatingId === c.contractId ? (
+                            <><i className="fa-solid fa-spinner fa-spin"></i> Gerando...</>
+                          ) : (
+                            <><i className="fa-solid fa-plus-circle"></i> Gerar Cobrança</>
+                          )}
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>—</span>
+                      )}
                     </td>
                   </tr>
                 );

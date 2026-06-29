@@ -84,6 +84,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [signatureName, setSignatureName] = useState('');
   const [gerarAsaas, setGerarAsaas] = useState(false);
+  const [generatingAsaasId, setGeneratingAsaasId] = useState<string | null>(null);
   const [showFreezeModal, setShowFreezeModal] = useState(false);
   const [freezeContractId, setFreezeContractId] = useState('');
   const [freezeStartDate, setFreezeStartDate] = useState('');
@@ -550,6 +551,31 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       if (dc.success) setClientContracts(dc.data);
       fetchData();
     } else alert('Erro: ' + data.error);
+  };
+
+  const handleGenerateAsaasCharge = async (contractId: string) => {
+    setGeneratingAsaasId(contractId);
+    try {
+      const res = await fetch('/api/admin/asaas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Cobrança Asaas gerada com sucesso! Boleto e Pix gerados.');
+        const resContracts = await fetch(`/api/contracts?clientId=${selectedClient._id}`);
+        const dc = await resContracts.json();
+        if (dc.success) setClientContracts(dc.data);
+        fetchData();
+      } else {
+        alert('Erro ao gerar cobrança no Asaas: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de rede: ' + err.message);
+    } finally {
+      setGeneratingAsaasId(null);
+    }
   };
 
   // ─── Derived Data ─────────────────────────────────────────────────────────────
@@ -1158,6 +1184,48 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                           </button>
                         </div>
                       </div>
+
+                      {/* Asaas integration info block */}
+                        <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-credit-card" style={{ fontSize: '0.8rem', color: ct.asaasPaymentId ? 'var(--color-primary)' : 'var(--text-dim)' }}></i>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            Asaas: {ct.asaasPaymentId ? (
+                              <span>
+                                <strong style={{ color: '#10b981' }}>Gerada</strong> (Status: <strong style={{ textTransform: 'uppercase' }}>{ct.asaasBillingStatus || 'pendente'}</strong>)
+                              </span>
+                            ) : (
+                              <strong style={{ color: 'var(--text-dim)' }}>Não Gerada</strong>
+                            )}
+                          </span>
+                        </div>
+                        {!ct.asaasPaymentId && ct.status === 'pendente' && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.72rem', padding: '3px 8px', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                            onClick={() => handleGenerateAsaasCharge(ct._id)}
+                            disabled={generatingAsaasId === ct._id}
+                          >
+                            {generatingAsaasId === ct._id ? (
+                              <i className="fa-solid fa-spinner fa-spin" />
+                            ) : (
+                              <><i className="fa-solid fa-plus-circle" style={{ marginRight: '4px' }} />Gerar Cobrança</>
+                            )}
+                          </button>
+                        )}
+                        {ct.asaasPaymentId && (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <a href={ct.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
+                              Ver Fatura
+                            </a>
+                            {ct.asaasBoletoPdf && (
+                              <a href={ct.asaasBoletoPdf} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', padding: '3px 8px', color: 'var(--color-danger)' }}>
+                                Boleto PDF
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1603,10 +1671,52 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                             </button>
                           </div>
                         </div>
+
+                        {/* Asaas integration info block */}
+                        <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fa-solid fa-credit-card" style={{ fontSize: '0.8rem', color: ct.asaasPaymentId ? 'var(--color-primary)' : 'var(--text-dim)' }}></i>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              Asaas: {ct.asaasPaymentId ? (
+                                <span>
+                                  <strong style={{ color: '#10b981' }}>Gerada</strong> (Status: <strong style={{ textTransform: 'uppercase' }}>{ct.asaasBillingStatus || 'pendente'}</strong>)
+                                </span>
+                              ) : (
+                                <strong style={{ color: 'var(--text-dim)' }}>Não Gerada</strong>
+                              )}
+                            </span>
+                          </div>
+                          {!ct.asaasPaymentId && ct.status === 'pendente' && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.72rem', padding: '3px 8px', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                              onClick={() => handleGenerateAsaasCharge(ct._id)}
+                              disabled={generatingAsaasId === ct._id}
+                            >
+                              {generatingAsaasId === ct._id ? (
+                                <i className="fa-solid fa-spinner fa-spin" />
+                              ) : (
+                                <><i className="fa-solid fa-plus-circle" style={{ marginRight: '4px' }} />Gerar Cobrança</>
+                              )}
+                            </button>
+                          )}
+                          {ct.asaasPaymentId && (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <a href={ct.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
+                                Ver Fatura
+                              </a>
+                              {ct.asaasBoletoPdf && (
+                                <a href={ct.asaasBoletoPdf} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', padding: '3px 8px', color: 'var(--color-danger)' }}>
+                                  Boleto PDF
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
-                  </div>
-                )}
+                </div>
+              )}
                 {clientModalTab === 'comerciais' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

@@ -3,18 +3,83 @@ import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
-import { getAsaasPaymentDetails, getAsaasPixQrCode } from '@/utils/asaas';
+import { getAsaasPaymentDetails, getAsaasPixQrCode, createAsaasCustomer, createAsaasPayment } from '@/utils/asaas';
 
 export async function GET(request: Request) {
   try {
     await dbConnect();
 
-    // Buscar todos os contratos que foram enviados para o Asaas (que possuem ID de cobrança)
-    const contracts = await Contract.find({ asaasPaymentId: { $ne: '' } })
-      .populate('clientId')
-      .sort({ createdAt: -1 });
+    // Buscar todos os clientes
+    const clients = await Client.find().sort({ 'dadosPessoais.nome': 1 });
 
-    return NextResponse.json({ success: true, data: contracts });
+    const clientGroupedData = [];
+
+    for (const client of clients) {
+      // Buscar contratos desse cliente
+      const contracts = await Contract.find({ clientId: client._id }).sort({ createdAt: -1 });
+
+      const clientInfo = {
+        clientId: client._id.toString(),
+        nome: client.dadosPessoais?.nome || 'Sem Nome',
+        email: client.dadosPessoais?.email || '',
+        cpf: client.dadosPessoais?.cpf || '',
+        asaasCustomerId: client.dadosComerciais?.asaasCustomerId || '',
+        status: 'sem_contrato', // default
+        contractId: '',
+        planoNome: '',
+        valorLiquido: 0,
+        formaPagamento: '',
+        dataPrimeiroVencimento: '',
+        asaasPaymentId: '',
+        asaasInvoiceUrl: '',
+        asaasBoletoPdf: '',
+        asaasPixCopyPaste: '',
+        asaasPixQrCode: '',
+        asaasBillingStatus: '',
+        contractStatus: ''
+      };
+
+      // 1. Procurar contrato com cobrança gerada no Asaas
+      const asaasContract = contracts.find(c => c.asaasPaymentId);
+      // 2. Procurar contrato pendente de cobrança
+      const pendingContract = contracts.find(c => c.status === 'pendente' && !c.asaasPaymentId);
+
+      if (asaasContract) {
+        clientInfo.status = 'gerado';
+        clientInfo.contractId = asaasContract._id.toString();
+        clientInfo.planoNome = asaasContract.planoNome;
+        clientInfo.valorLiquido = asaasContract.valorLiquido;
+        clientInfo.formaPagamento = asaasContract.formaPagamento;
+        clientInfo.dataPrimeiroVencimento = asaasContract.dataPrimeiroVencimento || asaasContract.dataInicio || '';
+        clientInfo.asaasPaymentId = asaasContract.asaasPaymentId;
+        clientInfo.asaasInvoiceUrl = asaasContract.asaasInvoiceUrl;
+        clientInfo.asaasBoletoPdf = asaasContract.asaasBoletoPdf || '';
+        clientInfo.asaasPixCopyPaste = asaasContract.asaasPixCopyPaste || '';
+        clientInfo.asaasPixQrCode = asaasContract.asaasPixQrCode || '';
+        clientInfo.asaasBillingStatus = asaasContract.asaasBillingStatus || 'pendente';
+        clientInfo.contractStatus = asaasContract.status;
+      } else if (pendingContract) {
+        clientInfo.status = 'nao_gerado';
+        clientInfo.contractId = pendingContract._id.toString();
+        clientInfo.planoNome = pendingContract.planoNome;
+        clientInfo.valorLiquido = pendingContract.valorLiquido;
+        clientInfo.formaPagamento = pendingContract.formaPagamento;
+        clientInfo.dataPrimeiroVencimento = pendingContract.dataPrimeiroVencimento || pendingContract.dataInicio || '';
+        clientInfo.contractStatus = pendingContract.status;
+      } else if (contracts.length > 0) {
+        // Possui contratos assinados ou cancelados
+        const latestContract = contracts[0];
+        clientInfo.contractId = latestContract._id.toString();
+        clientInfo.planoNome = latestContract.planoNome;
+        clientInfo.valorLiquido = latestContract.valorLiquido;
+        clientInfo.formaPagamento = latestContract.formaPagamento;
+        clientInfo.contractStatus = latestContract.status;
+      }
+
+      clientGroupedData.push(clientInfo);
+    }
+
+    return NextResponse.json({ success: true, data: clientGroupedData });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -118,6 +183,74 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: true, data: contract });
   } catch (error: any) {
     console.error('Erro na sincronização manual com Asaas:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    await dbConnect();
+    const body = await request.json();
+    const { contractId } = body;
+
+    if (!contractId) {
+      return NextResponse.json({ success: false, error: 'contractId é obrigatório' }, { status: 400 });
+    }
+
+    const contract = await Contract.findById(contractId);
+    if (!contract) {
+      return NextResponse.json({ success: false, error: 'Contrato não encontrado' }, { status: 404 });
+    }
+
+    if (contract.asaasPaymentId) {
+      return NextResponse.json({ success: false, error: 'Este contrato já possui uma cobrança Asaas gerada' }, { status: 400 });
+    }
+
+    const client = await Client.findById(contract.clientId);
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
+    }
+
+    const plan = await Plan.findById(contract.planoId);
+    if (!plan) {
+      return NextResponse.json({ success: false, error: 'Plano não encontrado' }, { status: 404 });
+    }
+
+    let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
+    if (!asaasCustomerId) {
+      console.log('Criando cliente no Asaas para cobrança retroativa...');
+      asaasCustomerId = await createAsaasCustomer(client);
+      client.dadosComerciais.asaasCustomerId = asaasCustomerId;
+      await client.save();
+    }
+
+    console.log('Gerando cobrança retroativa no Asaas...');
+    const paymentResult = await createAsaasPayment({
+      customerId: asaasCustomerId,
+      formaPagamento: contract.formaPagamento,
+      value: contract.valorLiquido,
+      dueDate: contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0],
+      description: `Contrato de Plano: ${plan.nome}`,
+      parcelas: contract.parcelas
+    });
+
+    contract.asaasPaymentId = paymentResult.paymentId;
+    contract.asaasInvoiceUrl = paymentResult.invoiceUrl;
+    contract.asaasBoletoPdf = paymentResult.bankSlipUrl;
+    contract.asaasBillingStatus = paymentResult.billingStatus;
+
+    if (contract.formaPagamento === 'pix') {
+      const pixDetails = await getAsaasPixQrCode(contract.asaasPaymentId);
+      if (pixDetails) {
+        contract.asaasPixQrCode = pixDetails.encodedImage;
+        contract.asaasPixCopyPaste = pixDetails.payload;
+      }
+    }
+
+    await contract.save();
+    return NextResponse.json({ success: true, data: contract });
+  } catch (error: any) {
+    console.error('Erro ao gerar cobrança manual do Asaas:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -199,6 +199,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [signatureName, setSignatureName] = useState('');
   const [gerarAsaas, setGerarAsaas] = useState(false);
+  const [generatingAsaasId, setGeneratingAsaasId] = useState<string | null>(null);
   const [showFreezeModal, setShowFreezeModal] = useState(false);
   const [freezeContractId, setFreezeContractId] = useState('');
   const [freezeStartDate, setFreezeStartDate] = useState('');
@@ -560,6 +561,33 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       fetchData();
     } else {
       alert('Erro ao cancelar contrato: ' + data.error);
+    }
+  };
+
+  const handleGenerateAsaasCharge = async (contractId: string) => {
+    setGeneratingAsaasId(contractId);
+    try {
+      const res = await fetch('/api/admin/asaas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Cobrança Asaas gerada com sucesso! Boleto e Pix gerados.');
+        const resContracts = await fetch(`/api/contracts?clientId=${detailClient._id}`);
+        const dataContracts = await resContracts.json();
+        if (dataContracts.success) {
+          setClientContracts(dataContracts.data);
+        }
+        fetchData();
+      } else {
+        alert('Erro ao gerar cobrança no Asaas: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de rede: ' + err.message);
+    } finally {
+      setGeneratingAsaasId(null);
     }
   };
 
@@ -3525,6 +3553,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                  <th style={{ padding: '8px 5px' }}>Plano</th>
                                  <th style={{ padding: '8px 5px', textAlign: 'center' }}>Vigência</th>
                                  <th style={{ padding: '8px 5px', textAlign: 'center' }}>Status</th>
+                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Asaas</th>
                                  <th style={{ padding: '8px 5px', textAlign: 'center' }}>Ações</th>
                                </tr>
                              </thead>
@@ -3549,6 +3578,38 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                          {c.status}
                                        </span>
                                      </td>
+                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
+                                        {c.asaasPaymentId ? (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+                                            <span style={{ color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold' }}>
+                                              GERADO
+                                            </span>
+                                            <small style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                              {c.asaasBillingStatus || 'pendente'}
+                                            </small>
+                                          </div>
+                                        ) : (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+                                            <span style={{ color: 'var(--text-dim)', background: 'rgba(128,128,128,0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold' }}>
+                                              NÃO GERADO
+                                            </span>
+                                            {c.status === 'pendente' && (
+                                              <button
+                                                className="btn btn-secondary btn-sm"
+                                                style={{ fontSize: '0.65rem', padding: '2px 6px', marginTop: '3px', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                                                onClick={() => handleGenerateAsaasCharge(c._id)}
+                                                disabled={generatingAsaasId === c._id}
+                                              >
+                                                {generatingAsaasId === c._id ? (
+                                                  <i className="fa-solid fa-spinner fa-spin"></i>
+                                                ) : (
+                                                  <>Gerar Cobrança</>
+                                                )}
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </td>
                                      <td style={{ padding: '8px 5px', textAlign: 'center' }}>
                                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
                                          <button className="btn btn-secondary btn-sm" title="Baixar PDF" onClick={() => {
