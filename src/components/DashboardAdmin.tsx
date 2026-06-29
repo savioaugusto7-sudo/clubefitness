@@ -5,6 +5,8 @@ import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 import ClicksignPanel from './ClicksignPanel';
 import AsaasPanel from './AsaasPanel';
+import AgendaCompletaPanel from './AgendaCompletaPanel';
+
 
 interface DashboardAdminProps {
   activeTab: string;
@@ -2796,8 +2798,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         <AsaasPanel />
       )}
 
+      {/* ======================== AGENDA COMPLETA TAB ======================== */}
+      {activeTab === 'agenda_completa' && (
+        <AgendaCompletaPanel clients={clients} professionals={professionals} />
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign', 'asaas'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign', 'asaas'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>

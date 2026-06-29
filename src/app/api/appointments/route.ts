@@ -3,6 +3,7 @@ import dbConnect from '@/utils/dbConnect';
 import Appointment from '@/models/Appointment';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
+import AgendaConfig from '@/models/AgendaConfig';
 
 // Configuração de Serviços — Regras de Crédito e Capacidade do Projeto Original
 const SERVICOS_CONFIG: Record<string, { consumeCredito: boolean, consumeCreditoMassagem?: boolean, vagasOcupadas: number, exclusivoPorProfissional: boolean, tipo: 'academia' | 'consultorio' }> = {
@@ -78,34 +79,56 @@ export async function POST(request: Request) {
     // --- Regras de Dias de Semana e Sábado ---
     const dayOfWeek = dataAgendamentoObj.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
 
-    if (dayOfWeek === 0) {
-      return NextResponse.json({ success: false, error: 'O clube está fechado aos domingos.' }, { status: 400 });
-    } else if (dayOfWeek === 6) {
-      // Sábado
-      const validSaturdays = ['09:50', '10:40', '11:30', '12:25'];
-      if (!validSaturdays.includes(horario)) {
-        return NextResponse.json({ success: false, error: `Os horários de atendimento aos sábados são: ${validSaturdays.join(', ')}.` }, { status: 400 });
-      }
-      
-      // Exclusivamente no sábado: apenas 1 vaga por horário no geral
-      const slotsNoHorario = await Appointment.countDocuments({
-        data,
-        horario,
-        status: { $ne: 'cancelado' }
-      });
-      if (slotsNoHorario >= 1) {
-        return NextResponse.json({ success: false, error: 'Horário lotado. Apenas 1 vaga por horário aos sábados.' }, { status: 400 });
-      }
-    } else {
-      // Segunda a Sexta
-      if (servico === 'Massagem') {
-        return NextResponse.json({ success: false, error: 'Massagem é oferecida exclusivamente aos sábados.' }, { status: 400 });
-      }
-      const validWeekdays = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
-      if (!validWeekdays.includes(horario)) {
-        return NextResponse.json({ success: false, error: 'Os horários de atendimento de segunda a sexta são das 06:00 às 20:00 (último horário às 20:00).' }, { status: 400 });
+    // Verificar se há regras customizadas para este horário e data
+    const customRule = await AgendaConfig.findOne({
+      tipo,
+      horario,
+      $or: [
+        { dataEspecifica: data },
+        { diaSemana: dayOfWeek, dataEspecifica: null }
+      ]
+    }).sort({ dataEspecifica: -1 }); // Data específica tem precedência
+
+    if (customRule && customRule.acao === 'bloquear') {
+      return NextResponse.json({ success: false, error: 'Este horário está suspenso ou indisponível.' }, { status: 400 });
+    }
+
+    // Se não há regra de "adicionar", valida os limites de dia de semana / sábado normais
+    if (!customRule || customRule.acao !== 'adicionar') {
+      if (dayOfWeek === 0) {
+        return NextResponse.json({ success: false, error: 'O clube está fechado aos domingos.' }, { status: 400 });
+      } else if (dayOfWeek === 6) {
+        // Sábado
+        const validSaturdays = ['09:50', '10:40', '11:30', '12:25'];
+        if (!validSaturdays.includes(horario)) {
+          return NextResponse.json({ success: false, error: `Os horários de atendimento aos sábados são: ${validSaturdays.join(', ')}.` }, { status: 400 });
+        }
+        
+        // Exclusivamente no sábado: apenas 1 vaga por horário no geral (ou capacidade personalizada)
+        let maxSábado = 1;
+        if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
+          maxSábado = customRule.capacidadePersonalizada;
+        }
+        const slotsNoHorario = await Appointment.countDocuments({
+          data,
+          horario,
+          status: { $ne: 'cancelado' }
+        });
+        if (slotsNoHorario >= maxSábado) {
+          return NextResponse.json({ success: false, error: `Horário lotado. Apenas ${maxSábado} vaga(s) por horário aos sábados.` }, { status: 400 });
+        }
+      } else {
+        // Segunda a Sexta
+        if (servico === 'Massagem') {
+          return NextResponse.json({ success: false, error: 'Massagem é oferecida exclusivamente aos sábados.' }, { status: 400 });
+        }
+        const validWeekdays = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+        if (!validWeekdays.includes(horario)) {
+          return NextResponse.json({ success: false, error: 'Os horários de atendimento de segunda a sexta são das 06:00 às 20:00 (último horário às 20:00).' }, { status: 400 });
+        }
       }
     }
+
 
     // --- Antecedência mínima de 2h (apenas para hoje) ---
     if (!bypassRestrictions) {
@@ -236,7 +259,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: `Capacidade do profissional esgotada neste horário (máx. ${CAPACIDADE_POR_PROFISSIONAL} vagas por profissional ou profissional possui agendamento exclusivo).` }, { status: 400 });
       }
 
-      // Validação total da academia: max 6 vagas totais por horário
+      // Validação total da academia: max 6 vagas (ou capacidade personalizada) por horário
+      let maxVagasAcademia = 6;
+      if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
+        maxVagasAcademia = customRule.capacidadePersonalizada;
+      }
+
       const allGymApts = await Appointment.find({
         data,
         horario,
@@ -247,8 +275,8 @@ export async function POST(request: Request) {
         const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
         return sum + cfg.vagasOcupadas;
       }, 0);
-      if (vagasTotais + servicoConfig.vagasOcupadas > 6 && !bypassRestrictions) {
-        return NextResponse.json({ success: false, error: 'Horário na academia lotado! Máximo de 6 vagas (2 profissionais × 3).' }, { status: 400 });
+      if (vagasTotais + servicoConfig.vagasOcupadas > maxVagasAcademia && !bypassRestrictions) {
+        return NextResponse.json({ success: false, error: `Horário na academia lotado! Máximo de ${maxVagasAcademia} vagas.` }, { status: 400 });
       }
 
       // Treino Livre max 3 por horário

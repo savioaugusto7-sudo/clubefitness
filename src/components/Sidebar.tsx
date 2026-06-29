@@ -20,6 +20,7 @@ interface SidebarProps {
 const tabConfigs: Record<string, TabConfig[]> = {
   admin: [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
+    { id: 'agenda_completa', label: 'Agenda Geral', icon: 'fa-calendar-alt' },
     { id: 'usuarios', label: 'Cadastro de Usuários', icon: 'fa-user-cog' },
     { id: 'profissionais', label: 'Profissionais', icon: 'fa-user-md' },
     { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
