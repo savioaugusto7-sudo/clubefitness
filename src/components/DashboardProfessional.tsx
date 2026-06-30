@@ -6,6 +6,7 @@ import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
 import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
+import AgendaCompletaPanel from './AgendaCompletaPanel';
 
 export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number, max: number }, F: { min: number, max: number } }>> = {
   "Ombro": {
@@ -2529,134 +2530,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
       {/* 1. View: Agenda Completa / Dashboard */}
       {activeTab === 'dashboard' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Agenda de Atendimentos</h1>
-              <p>Gerenciamento de horários, presenças e agendamentos.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => {
-                  const d = new Date(simulatedDate + 'T00:00:00');
-                  d.setDate(d.getDate() - 1);
-                  setSimulatedDate(d.toISOString().split('T')[0]);
-                }}><i className="fa-solid fa-chevron-left"></i></button>
-                <input type="date" className="form-control" style={{ border: 'none', background: 'transparent', width: '130px', padding: '4px' }} value={simulatedDate} onChange={e => setSimulatedDate(e.target.value)} />
-                <button className="btn btn-secondary btn-sm" onClick={() => {
-                  const d = new Date(simulatedDate + 'T00:00:00');
-                  d.setDate(d.getDate() + 1);
-                  setSimulatedDate(d.toISOString().split('T')[0]);
-                }}><i className="fa-solid fa-chevron-right"></i></button>
-                <button className="btn btn-primary btn-sm" onClick={() => setSimulatedDate(new Date().toISOString().split('T')[0])}>Hoje</button>
-              </div>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('dashboard')} onChange={e => setPageSizeForKey('dashboard', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
-              </div>
-              <button className="btn btn-primary" onClick={() => {
-                setAptDate(new Date().toISOString().split('T')[0]);
-                setShowAptModal(true);
-              }}>
-                <i className="fa-solid fa-calendar-plus"></i> Novo Agendamento
-              </button>
-            </div>
-          </div>
-
-          <div className="content-panel">
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data / Hora</th>
-                    <th>Tipo</th>
-                    <th>Serviço</th>
-                    <th>Aluno</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'dashboard';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const filtered = appointments.filter(a => a.data === simulatedDate);
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                    return paginated.map(a => (
-                      <tr key={a._id}>
-                        <td><strong>{a.data}</strong> às {a.horario}</td>
-                        <td>
-                          <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
-                            {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
-                          </span>
-                        </td>
-                        <td>{a.servico}</td>
-                        <td>{a.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
-                            {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
-                          </span>
-                        </td>
-                        <td>
-                          {a.status === 'agendado' && (
-                            <>
-                              <button className="btn btn-success btn-sm" style={{ marginRight: '8px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                                Confirmar Presença
-                              </button>
-                              <button className="btn btn-danger btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
-                                Cancelar
-                              </button>
-                            </>
-                          )}
-                          {a.status === 'presenca' && (
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
-                              Desmarcar Presença
-                            </button>
-                          )}
-                          {a.status === 'cancelado' && (
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateAptStatus(a._id, 'agendado')}>
-                              Reativar
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                  {appointments.length === 0 && (
-                    <tr>
-                      <td colSpan={6}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum agendamento</div>
-                          <div className="empty-state-desc">Não há registros de agendamentos no sistema.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAptDate(new Date().toISOString().split('T')[0]); setShowAptModal(true); }}>
-                            <i className="fa-solid fa-calendar-plus"></i> Novo Agendamento
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {appointments.length > 0 && (
-              <Pagination
-                currentPage={getPage('dashboard')}
-                totalItems={appointments.length}
-                itemsPerPage={getPageSize('dashboard')}
-                onPageChange={page => setPage('dashboard', page)}
-              />
-            )}
-          </div>
-        </>
+        <AgendaCompletaPanel 
+          clients={clients} 
+          professionals={professionals.filter(p => p._id === professionalId)} 
+        />
       )}
 
       {/* 2. View: Clientes Vinculados */}
