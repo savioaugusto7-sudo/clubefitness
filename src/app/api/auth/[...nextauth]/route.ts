@@ -116,7 +116,11 @@ export const authOptions: NextAuthOptions = {
             token.id = dbUser._id.toString();
             token.role = dbUser.tipo;
             token.cargo = dbUser.cargo || '';
-            token.activeRoles = dbUser.roles && dbUser.roles.length > 0 ? dbUser.roles : [dbUser.tipo];
+            let roles = dbUser.roles && dbUser.roles.length > 0 ? dbUser.roles : [dbUser.tipo];
+            if (!roles.includes(dbUser.tipo)) {
+              roles = [dbUser.tipo, ...roles];
+            }
+            token.activeRoles = roles;
             
             const [clientProfile, profProfile] = await Promise.all([
               Client.findOne({ userId: dbUser._id }),
