@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState('');
-  const [adminViewMode, setAdminViewMode] = useState<'admin' | 'professional'>('admin');
+  const [adminViewMode, setAdminViewMode] = useState<'admin' | 'receptionist' | 'professional' | 'client'>('admin');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -83,9 +83,9 @@ export default function DashboardPage() {
     } else if (effectiveRole === 'receptionist') {
       return <DashboardReceptionist activeTab={activeTab} setActiveTab={setActiveTab} />;
     } else if (effectiveRole === 'professional') {
-      return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} professionalId={user.profileId} />;
+      return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} professionalId={user.profileId || '6668ab030303030303030301'} />;
     } else {
-      return <DashboardClient activeTab={activeTab} setActiveTab={setActiveTab} />;
+      return <DashboardClient activeTab={activeTab} setActiveTab={setActiveTab} clientId={user.profileId || '6668ab040404040404040401'} />;
     }
   };
 
@@ -135,17 +135,31 @@ export default function DashboardPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {role === 'admin' && (
-              <button 
-                className="btn btn-secondary btn-sm" 
-                onClick={() => {
-                  setAdminViewMode(adminViewMode === 'admin' ? 'professional' : 'admin');
-                  setActiveTab('dashboard');
-                }}
-                style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--color-accent)', border: '1px solid rgba(99, 102, 241, 0.2)' }}
-              >
-                <i className={`fa-solid ${adminViewMode === 'admin' ? 'fa-user-md' : 'fa-user-cog'}`} style={{ marginRight: '6px' }}></i>
-                {adminViewMode === 'admin' ? 'Ver Painel Profissional' : 'Ver Painel Admin'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600 }}>Visualizar como:</span>
+                <select 
+                  value={adminViewMode} 
+                  onChange={(e) => {
+                    setAdminViewMode(e.target.value as any);
+                    setActiveTab('dashboard');
+                  }}
+                  style={{ 
+                    fontSize: '0.78rem', 
+                    padding: '6px 12px', 
+                    background: 'var(--bg-secondary)', 
+                    color: 'var(--text-main)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="admin">Administrador Geral</option>
+                  <option value="receptionist">Recepção</option>
+                  <option value="professional">Profissional (Dr. André)</option>
+                  <option value="client">Aluno (Sávio Silva)</option>
+                </select>
+              </div>
             )}
             {role === 'admin' && user.email === 'admin@clube.com' && (
               <button 

@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
     const userId = searchParams.get('userId');
 
     // Force registration of models for population
@@ -15,7 +16,9 @@ export async function GET(request: Request) {
     const _user = User;
 
     let query = {};
-    if (userId) {
+    if (id) {
+      query = { _id: id };
+    } else if (userId) {
       query = { userId };
     }
 

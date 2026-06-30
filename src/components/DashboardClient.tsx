@@ -8,9 +8,10 @@ import { downloadReportPDF, downloadAssessmentPDF } from '@/utils/pdfGenerator';
 interface DashboardClientProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  clientId?: string;
 }
 
-export default function DashboardClient({ activeTab, setActiveTab }: DashboardClientProps) {
+export default function DashboardClient({ activeTab, setActiveTab, clientId }: DashboardClientProps) {
   const { data: session } = useSession();
   const [client, setClient] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -164,7 +165,7 @@ export default function DashboardClient({ activeTab, setActiveTab }: DashboardCl
     try {
       setLoading(true);
       const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts] = await Promise.all([
-        fetch(`/api/clients?userId=${user.id}`),
+        clientId ? fetch(`/api/clients?id=${clientId}`) : fetch(`/api/clients?userId=${user.id}`),
         fetch(`/api/appointments?clientId=${profileId}`),
         fetch(`/api/workouts?clientId=${profileId}`),
         fetch('/api/assessments'),
