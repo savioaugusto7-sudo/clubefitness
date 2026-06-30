@@ -69,6 +69,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [especialidade, setEspecialidade] = useState('');
   const [registro, setRegistro] = useState('');
   const [userRole, setUserRole] = useState<string>('aluno');
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(['client']);
   const [creditAmount, setCreditAmount] = useState(1);
   const [creditType, setCreditType] = useState<'academia' | 'massagem'>('academia');
 
@@ -817,12 +818,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       } else {
         setUserRole(item.cargo === 'Aluno VIP' ? 'aluno_vip' : 'aluno');
       }
+      setSelectedRoles(item.roles && item.roles.length > 0 ? item.roles : [item.tipo]);
       setEspecialidade(item.professionalDetails?.especialidade || '');
       setRegistro(item.professionalDetails?.registro || '');
     } else {
       setEmail('');
       setNome('');
       setUserRole('aluno');
+      setSelectedRoles(['client']);
       setEspecialidade('');
       setRegistro('');
     }
@@ -1049,23 +1052,18 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         let esp = undefined;
         let reg = undefined;
 
-        if (userRole === 'admin') {
+        if (selectedRoles.includes('admin')) {
           tipo = 'admin';
           cargo = 'Administrador Geral';
-        } else if (userRole === 'fisio') {
+        } else if (selectedRoles.includes('receptionist')) {
+          tipo = 'receptionist';
+          cargo = 'Recepção';
+        } else if (selectedRoles.includes('professional')) {
           tipo = 'professional';
-          cargo = 'Fisio';
+          cargo = 'Profissional';
           esp = especialidade || 'Fisioterapia';
           reg = registro || 'CREFITO/00000-F';
-        } else if (userRole === 'treino') {
-          tipo = 'professional';
-          cargo = 'Treino';
-          esp = especialidade || 'Educação Física';
-          reg = registro || 'CREF/00000-G';
-        } else if (userRole === 'aluno_vip') {
-          tipo = 'client';
-          cargo = 'Aluno VIP';
-        } else if (userRole === 'aluno') {
+        } else if (selectedRoles.includes('client')) {
           tipo = 'client';
           cargo = 'Aluno';
         }
@@ -1075,6 +1073,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           email,
           nome,
           tipo,
+          roles: selectedRoles,
           cargo,
           especialidade: esp,
           registro: reg
@@ -1870,35 +1869,47 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(u => {
-                      let roleBadgeClass = 'badge-success';
-                      let roleLabel = 'Aluno';
-                      let details = '-';
+                      const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.tipo];
+                      const roleBadges = userRoles.map((r: string) => {
+                        let badgeClass = 'badge-success';
+                        let label = 'Aluno';
+                        if (r === 'admin') {
+                          badgeClass = 'badge-warning';
+                          label = 'Admin';
+                        } else if (r === 'receptionist') {
+                          badgeClass = 'badge-primary';
+                          label = 'Recepção';
+                        } else if (r === 'professional') {
+                          badgeClass = 'badge-info';
+                          label = 'Profissional';
+                        }
+                        return (
+                          <span key={r} className={`badge ${badgeClass}`} style={{ marginRight: '4px', textTransform: 'uppercase', fontSize: '0.68rem', display: 'inline-block' }}>
+                            {label}
+                          </span>
+                        );
+                      });
 
-                      if (u.tipo === 'admin') {
-                        roleBadgeClass = 'badge-warning';
-                        roleLabel = 'Administrador Geral';
-                      } else if (u.tipo === 'professional') {
-                        roleBadgeClass = 'badge-info';
-                        roleLabel = u.cargo === 'Fisio' ? 'Fisio' : 'Treino';
-                        const espec = u.professionalDetails?.especialidade || u.cargo || 'Profissional';
-                        const reg = u.professionalDetails?.registro || '';
-                        details = `${espec} ${reg ? `(${reg})` : ''}`;
-                      } else {
-                        roleLabel = u.cargo === 'Aluno VIP' ? 'Aluno VIP' : 'Aluno';
-                        roleBadgeClass = u.cargo === 'Aluno VIP' ? 'badge-primary' : 'badge-success';
+                      let detailsList = [];
+                      if (userRoles.includes('client')) {
                         const planoNome = u.clientDetails?.dadosComerciais?.planoId?.nome || 'Sem Plano';
-                        const status = u.clientDetails?.dadosComerciais?.status || 'ativo';
-                        details = `Plano: ${planoNome} (${status === 'ativo' ? 'Ativo' : 'Vencido'})`;
+                        detailsList.push(`Aluno (${planoNome})`);
                       }
+                      if (userRoles.includes('professional')) {
+                        const espec = u.professionalDetails?.especialidade || 'Fisio/Treino';
+                        detailsList.push(`Prof (${espec})`);
+                      }
+                      if (detailsList.length === 0) {
+                        detailsList.push('-');
+                      }
+                      const details = detailsList.join(' | ');
 
                       return (
                         <tr key={u._id}>
                           <td><strong>{u.nome}</strong></td>
                           <td>{u.email}</td>
                           <td style={{ textAlign: 'center' }}>
-                            <span className={`badge ${roleBadgeClass}`}>
-                              {roleLabel}
-                            </span>
+                            {roleBadges}
                           </td>
                           <td>{details}</td>
                           <td>
@@ -2910,16 +2921,39 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
                     </div>
                     <div className="form-group">
-                      <label>Perfil do Usuário</label>
-                      <select className="select-custom" value={userRole} onChange={e => setUserRole(e.target.value)}>
-                        <option value="admin">Administrador Geral</option>
-                        <option value="fisio">Fisio</option>
-                        <option value="treino">Treino</option>
-                        <option value="aluno_vip">Aluno VIP</option>
-                        <option value="aluno">Aluno</option>
-                      </select>
+                      <label style={{ display: 'block', marginBottom: '8px' }}>Papéis / Classes de Uso (Múltiplos Permitidos)</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        {[
+                          { id: 'admin', label: 'Administrador Geral' },
+                          { id: 'receptionist', label: 'Recepção' },
+                          { id: 'professional', label: 'Profissional (Fisio/Treino)' },
+                          { id: 'client', label: 'Aluno (Cliente)' }
+                        ].map(roleItem => {
+                          const isChecked = selectedRoles.includes(roleItem.id);
+                          return (
+                            <label key={roleItem.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)', margin: 0 }}>
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedRoles([...selectedRoles, roleItem.id]);
+                                  } else {
+                                    if (selectedRoles.length > 1) {
+                                      setSelectedRoles(selectedRoles.filter(r => r !== roleItem.id));
+                                    } else {
+                                      alert('O usuário deve possuir pelo menos 1 papel ativo.');
+                                    }
+                                  }
+                                }}
+                              />
+                              <span>{roleItem.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                    {(userRole === 'fisio' || userRole === 'treino') && (
+                    {selectedRoles.includes('professional') && (
                       <div className="form-row">
                         <div className="form-group">
                           <label>Especialidade</label>

@@ -22,8 +22,10 @@ export async function GET() {
 
     const mergedData = users.map(u => {
       const userIdStr = u._id.toString();
+      const userObj = u.toObject();
       return {
-        ...u.toObject(),
+        ...userObj,
+        roles: userObj.roles && userObj.roles.length > 0 ? userObj.roles : [userObj.tipo],
         clientDetails: clientsMap.get(userIdStr) || null,
         professionalDetails: professionalsMap.get(userIdStr) || null
       };
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { nome, email, tipo, cargo, especialidade, registro } = body;
+    const { nome, email, tipo, cargo, especialidade, registro, roles } = body;
 
     if (!nome || !email || !tipo) {
       return NextResponse.json({ success: false, error: 'Nome, email e perfil são obrigatórios' }, { status: 400 });
@@ -57,16 +59,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Um usuário com este e-mail já está cadastrado' }, { status: 400 });
     }
 
+    const activeRoles = roles && roles.length > 0 ? roles : [tipo];
+
     // 1. Create User
     const user = await User.create({
       nome,
       email: emailLower,
-      tipo,
-      cargo: cargo || (tipo === 'professional' ? (especialidade || 'Profissional') : undefined)
+      tipo: activeRoles[0] || tipo,
+      roles: activeRoles,
+      cargo: cargo || (activeRoles.includes('professional') ? (especialidade || 'Profissional') : undefined)
     });
 
-    // 2. Create sub-document based on selected role
-    if (tipo === 'client') {
+    // 2. Create sub-documents based on active roles
+    if (activeRoles.includes('client')) {
       await Client.create({
         userId: user._id,
         dadosPessoais: {
@@ -99,7 +104,9 @@ export async function POST(request: Request) {
           formaPagamento: 'pix'
         }
       });
-    } else if (tipo === 'professional') {
+    }
+
+    if (activeRoles.includes('professional')) {
       await Professional.create({
         userId: user._id,
         nome: user.nome,
@@ -118,7 +125,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, nome, email, tipo, cargo, especialidade, registro } = body;
+    const { id, nome, email, tipo, cargo, especialidade, registro, roles } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID do usuário não fornecido' }, { status: 400 });
@@ -143,26 +150,20 @@ export async function PUT(request: Request) {
       }
     }
 
-    const oldTipo = user.tipo;
-
     // 1. Update User base fields
     user.nome = nome || user.nome;
     user.email = emailLower;
-    user.tipo = tipo || user.tipo;
+    if (tipo) user.tipo = tipo;
+    if (roles) user.roles = roles;
     user.cargo = cargo || user.cargo;
     await user.save();
 
-    // 2. Manage role mapping change
-    if (oldTipo !== user.tipo) {
-      // Clean up old sub-documents
-      if (oldTipo === 'client') {
-        await Client.deleteOne({ userId: user._id });
-      } else if (oldTipo === 'professional') {
-        await Professional.deleteOne({ userId: user._id });
-      }
+    const activeRoles = user.roles && user.roles.length > 0 ? user.roles : [user.tipo];
 
-      // Create new sub-documents
-      if (user.tipo === 'client') {
+    // 2. Synchronize Client profile (create or delete)
+    const clientExists = await Client.findOne({ userId: user._id });
+    if (activeRoles.includes('client')) {
+      if (!clientExists) {
         await Client.create({
           userId: user._id,
           dadosPessoais: {
@@ -195,17 +196,7 @@ export async function PUT(request: Request) {
             formaPagamento: 'pix'
           }
         });
-      } else if (user.tipo === 'professional') {
-        await Professional.create({
-          userId: user._id,
-          nome: user.nome,
-          especialidade: especialidade || 'Fisioterapia',
-          registro: registro || 'CREFITO/00000-F'
-        });
-      }
-    } else {
-      // Sync names/details if type didn't change
-      if (user.tipo === 'client') {
+      } else {
         await Client.updateOne(
           { userId: user._id },
           { 
@@ -215,7 +206,24 @@ export async function PUT(request: Request) {
             } 
           }
         );
-      } else if (user.tipo === 'professional') {
+      }
+    } else {
+      if (clientExists) {
+        await Client.deleteOne({ userId: user._id });
+      }
+    }
+
+    // 3. Synchronize Professional profile (create or delete)
+    const profExists = await Professional.findOne({ userId: user._id });
+    if (activeRoles.includes('professional')) {
+      if (!profExists) {
+        await Professional.create({
+          userId: user._id,
+          nome: user.nome,
+          especialidade: especialidade || 'Fisioterapia',
+          registro: registro || 'CREFITO/00000-F'
+        });
+      } else {
         await Professional.updateOne(
           { userId: user._id },
           { 
@@ -226,6 +234,10 @@ export async function PUT(request: Request) {
             } 
           }
         );
+      }
+    } else {
+      if (profExists) {
+        await Professional.deleteOne({ userId: user._id });
       }
     }
 
@@ -266,6 +278,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-
-
-

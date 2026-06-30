@@ -18,6 +18,16 @@ export default function DashboardPage() {
   const [adminViewMode, setAdminViewMode] = useState<'admin' | 'receptionist' | 'professional' | 'client'>('admin');
 
   useEffect(() => {
+    if (session?.user) {
+      const u = session.user as any;
+      const roles = u.activeRoles || [u.role || 'client'];
+      if (roles.length > 0) {
+        setAdminViewMode(roles[0]);
+      }
+    }
+  }, [session]);
+
+  useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
     }
@@ -73,8 +83,8 @@ export default function DashboardPage() {
   if (!session) return null;
 
   const user = session.user as any;
-  const role = user.role || 'client';
-  const effectiveRole = role === 'admin' ? adminViewMode : role;
+  const activeRoles = user.activeRoles || [user.role || 'client'];
+  const effectiveRole = activeRoles.length > 1 ? adminViewMode : (activeRoles[0] || 'client');
 
   // Render the view according to active tab and role
   const renderContent = () => {
@@ -83,9 +93,9 @@ export default function DashboardPage() {
     } else if (effectiveRole === 'receptionist') {
       return <DashboardReceptionist activeTab={activeTab} setActiveTab={setActiveTab} />;
     } else if (effectiveRole === 'professional') {
-      return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} professionalId={user.profileId || '6668ab030303030303030301'} />;
+      return <DashboardProfessional activeTab={activeTab} setActiveTab={setActiveTab} professionalId={user.professionalProfileId || user.profileId || '6668ab030303030303030301'} />;
     } else {
-      return <DashboardClient activeTab={activeTab} setActiveTab={setActiveTab} clientId={user.profileId || '6668ab040404040404040401'} />;
+      return <DashboardClient activeTab={activeTab} setActiveTab={setActiveTab} clientId={user.clientProfileId || user.profileId || '6668ab040404040404040401'} />;
     }
   };
 
@@ -117,15 +127,15 @@ export default function DashboardPage() {
             </h4>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="badge" style={{ 
-                background: role === 'admin' ? 'rgba(245, 158, 11, 0.1)' : role === 'receptionist' ? 'rgba(236, 72, 153, 0.1)' : role === 'professional' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                color: role === 'admin' ? 'var(--color-warning)' : role === 'receptionist' ? '#ec4899' : role === 'professional' ? 'var(--color-accent)' : 'var(--color-primary)',
+                background: user.role === 'admin' ? 'rgba(245, 158, 11, 0.1)' : user.role === 'receptionist' ? 'rgba(236, 72, 153, 0.1)' : user.role === 'professional' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                color: user.role === 'admin' ? 'var(--color-warning)' : user.role === 'receptionist' ? '#ec4899' : user.role === 'professional' ? 'var(--color-accent)' : 'var(--color-primary)',
                 fontWeight: 700,
                 fontSize: '0.75rem',
                 padding: '4px 8px',
                 borderRadius: '6px',
                 textTransform: 'uppercase'
               }}>
-                {user.cargo || (role === 'admin' ? 'ADMIN' : role === 'receptionist' ? 'RECEPÇÃO' : role === 'professional' ? 'PROFISSIONAL' : 'ALUNO')}
+                {user.cargo || (user.role === 'admin' ? 'ADMIN' : user.role === 'receptionist' ? 'RECEPÇÃO' : user.role === 'professional' ? 'PROFISSIONAL' : 'ALUNO')}
               </span>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 Logado como: <strong>{user.email}</strong>
@@ -134,7 +144,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {role === 'admin' && (
+            {activeRoles.length > 1 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600 }}>Visualizar como:</span>
                 <select 
@@ -154,14 +164,14 @@ export default function DashboardPage() {
                     outline: 'none'
                   }}
                 >
-                  <option value="admin">Administrador Geral</option>
-                  <option value="receptionist">Recepção</option>
-                  <option value="professional">Profissional (Dr. André)</option>
-                  <option value="client">Aluno (Sávio Silva)</option>
+                  {activeRoles.includes('admin') && <option value="admin">Administrador Geral</option>}
+                  {activeRoles.includes('receptionist') && <option value="receptionist">Recepção</option>}
+                  {activeRoles.includes('professional') && <option value="professional">Profissional</option>}
+                  {activeRoles.includes('client') && <option value="client">Aluno</option>}
                 </select>
               </div>
             )}
-            {role === 'admin' && user.email === 'admin@clube.com' && (
+            {user.role === 'admin' && user.email === 'admin@clube.com' && (
               <button 
                 className="btn btn-secondary btn-sm" 
                 onClick={handleSeedDB}

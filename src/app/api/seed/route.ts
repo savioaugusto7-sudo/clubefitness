@@ -106,13 +106,13 @@ export async function GET() {
 
     // 3. Insert Users
     const usersData = [
-      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin', cargo: 'Administrador Geral', isTest: true },
-      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', cargo: 'Fisio', isTest: true },
-      { _id: ids.users.prof, nome: 'Treinadora Camila Lima', email: 'prof@clube.com', tipo: 'professional', cargo: 'Treino', isTest: true },
-      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client', cargo: 'Aluno VIP', isTest: true },
-      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client', cargo: 'Aluno', isTest: true },
-      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client', cargo: 'Aluno', isTest: true },
-      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client', cargo: 'Aluno', isTest: true }
+      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin', roles: ['admin'], cargo: 'Administrador Geral', isTest: true },
+      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', roles: ['professional'], cargo: 'Fisio', isTest: true },
+      { _id: ids.users.prof, nome: 'Treinadora Camila Lima', email: 'prof@clube.com', tipo: 'professional', roles: ['professional'], cargo: 'Treino', isTest: true },
+      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno VIP', isTest: true },
+      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', isTest: true },
+      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', isTest: true },
+      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', isTest: true }
     ];
     await User.insertMany(usersData);
 

@@ -116,19 +116,22 @@ export const authOptions: NextAuthOptions = {
             token.id = dbUser._id.toString();
             token.role = dbUser.tipo;
             token.cargo = dbUser.cargo || '';
+            token.activeRoles = dbUser.roles && dbUser.roles.length > 0 ? dbUser.roles : [dbUser.tipo];
             
-            if (dbUser.tipo === 'client') {
-              const clientProfile = await Client.findOne({ userId: dbUser._id });
-              if (clientProfile) {
-                token.profileId = clientProfile._id.toString();
-                token.cadastroConcluido = clientProfile.cadastroConcluido === true;
-              }
-            } else if (dbUser.tipo === 'professional') {
-              const profProfile = await Professional.findOne({ userId: dbUser._id });
-              if (profProfile) {
-                token.profileId = profProfile._id.toString();
-              }
+            const [clientProfile, profProfile] = await Promise.all([
+              Client.findOne({ userId: dbUser._id }),
+              Professional.findOne({ userId: dbUser._id })
+            ]);
+
+            if (clientProfile) {
+              token.clientProfileId = clientProfile._id.toString();
+              token.cadastroConcluido = clientProfile.cadastroConcluido === true;
             }
+            if (profProfile) {
+              token.professionalProfileId = profProfile._id.toString();
+            }
+
+            token.profileId = token.clientProfileId || token.professionalProfileId || '';
           }
         } catch (err) {
           console.error('NextAuth jwt callback error:', err);
@@ -142,6 +145,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token.role;
         (session.user as any).cargo = token.cargo;
         (session.user as any).profileId = token.profileId;
+        (session.user as any).clientProfileId = token.clientProfileId || '';
+        (session.user as any).professionalProfileId = token.professionalProfileId || '';
+        (session.user as any).activeRoles = token.activeRoles || [token.role];
         (session.user as any).cadastroConcluido = token.cadastroConcluido;
       }
       return session;
