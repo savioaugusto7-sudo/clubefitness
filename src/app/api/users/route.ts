@@ -5,6 +5,7 @@ import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import Plan from '@/models/Plan';
 import { isRestrictedForTestAdmin } from '@/utils/authCheck';
+import { hashPassword } from '@/utils/auth';
 
 export async function GET() {
   try {
@@ -61,12 +62,17 @@ export async function POST(request: Request) {
 
     const activeRoles = roles && roles.length > 0 ? roles : [tipo];
 
+    const defaultPassword = '123456';
+    const hashedPassword = hashPassword(defaultPassword);
+
     // 1. Create User
     const user = await User.create({
       nome,
       email: emailLower,
       tipo: activeRoles[0] || tipo,
       roles: activeRoles,
+      password: hashedPassword,
+      needPasswordChange: true,
       cargo: cargo || (activeRoles.includes('professional') ? (especialidade || 'Profissional') : undefined)
     });
 
@@ -156,6 +162,12 @@ export async function PUT(request: Request) {
     if (tipo) user.tipo = tipo;
     if (roles) user.roles = roles;
     user.cargo = cargo || user.cargo;
+
+    if (body.resetPassword) {
+      user.password = hashPassword('123456');
+      user.needPasswordChange = true;
+    }
+
     await user.save();
 
     const activeRoles = user.roles && user.roles.length > 0 ? user.roles : [user.tipo];

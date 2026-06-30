@@ -6,7 +6,9 @@ const UserSchema = new Schema({
   tipo: { type: String, enum: ['admin', 'receptionist', 'professional', 'client'], required: true },
   roles: { type: [String], enum: ['admin', 'receptionist', 'professional', 'client'], default: ['client'] },
   cargo: { type: String }, // e.g. "Fisioterapeuta"
-  isTest: { type: Boolean, default: false }
+  isTest: { type: Boolean, default: false },
+  password: { type: String },
+  needPasswordChange: { type: Boolean, default: false }
 }, { timestamps: true });
 
 if (models.User) {

@@ -12,6 +12,12 @@ function LoginContent() {
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState('');
 
+  // Credentials States
+  const [loginMethod, setLoginMethod] = useState<'google' | 'email'>('google');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginErrorMsg, setLoginErrorMsg] = useState('');
+
   const error = searchParams.get('error');
   const fromLogout = searchParams.get('from') === 'logout';
 
@@ -25,6 +31,32 @@ function LoginContent() {
   const handleGoogleLogin = () => {
     setLoading(true);
     signIn('google');
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailInput || !passwordInput) {
+      setLoginErrorMsg('Preencha todos os campos.');
+      return;
+    }
+    setLoading(true);
+    setLoginErrorMsg('');
+    try {
+      const res = await signIn('credentials', {
+        email: emailInput,
+        password: passwordInput,
+        redirect: false
+      });
+      if (res?.error) {
+        setLoginErrorMsg('E-mail ou senha incorretos.');
+        setLoading(false);
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setLoginErrorMsg('Erro ao tentar fazer login.');
+      setLoading(false);
+    }
   };
 
   const handleDemoLogin = (email: string) => {
@@ -130,10 +162,110 @@ function LoginContent() {
           </div>
         )}
 
-        <button className="btn btn-primary login-btn-google" onClick={handleGoogleLogin}>
-          <i className="fa-brands fa-google"></i>
-          Entrar com o Google
-        </button>
+        {/* Login Method Toggle Tabs */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          marginBottom: '24px', 
+          background: 'rgba(255,255,255,0.03)', 
+          padding: '4px', 
+          borderRadius: '8px', 
+          border: '1px solid var(--border-color)' 
+        }}>
+          <button 
+            type="button" 
+            onClick={() => {
+              setLoginMethod('google');
+              setLoginErrorMsg('');
+            }}
+            style={{ 
+              flex: 1, 
+              padding: '10px', 
+              fontSize: '0.82rem', 
+              fontWeight: 600, 
+              borderRadius: '6px', 
+              border: 'none', 
+              cursor: 'pointer', 
+              background: loginMethod === 'google' ? 'var(--color-primary)' : 'transparent', 
+              color: 'var(--text-main)', 
+              transition: 'var(--transition-fast)' 
+            }}
+          >
+            <i className="fa-brands fa-google" style={{ marginRight: '6px' }}></i> Google
+          </button>
+          <button 
+            type="button" 
+            onClick={() => {
+              setLoginMethod('email');
+              setLoginErrorMsg('');
+            }}
+            style={{ 
+              flex: 1, 
+              padding: '10px', 
+              fontSize: '0.82rem', 
+              fontWeight: 600, 
+              borderRadius: '6px', 
+              border: 'none', 
+              cursor: 'pointer', 
+              background: loginMethod === 'email' ? 'var(--color-primary)' : 'transparent', 
+              color: 'var(--text-main)', 
+              transition: 'var(--transition-fast)' 
+            }}
+          >
+            <i className="fa-solid fa-envelope" style={{ marginRight: '6px' }}></i> E-mail/Senha
+          </button>
+        </div>
+
+        {loginMethod === 'google' ? (
+          <button className="btn btn-primary login-btn-google" onClick={handleGoogleLogin}>
+            <i className="fa-brands fa-google"></i>
+            Entrar com o Google
+          </button>
+        ) : (
+          <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+            {loginErrorMsg && (
+              <div style={{ 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                border: '1px solid var(--color-danger)', 
+                color: '#f87171', 
+                padding: '10px 14px', 
+                borderRadius: '6px', 
+                fontSize: '0.78rem', 
+                marginBottom: '4px' 
+              }}>
+                <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px' }}></i>
+                {loginErrorMsg}
+              </div>
+            )}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>E-mail</label>
+              <input 
+                type="email" 
+                className="form-control" 
+                placeholder="seu-email@provedor.com" 
+                value={emailInput} 
+                onChange={e => setEmailInput(e.target.value)} 
+                required 
+                style={{ fontSize: '0.85rem', padding: '10px 12px' }} 
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>Senha</label>
+              <input 
+                type="password" 
+                className="form-control" 
+                placeholder="Sua senha" 
+                value={passwordInput} 
+                onChange={e => setPasswordInput(e.target.value)} 
+                required 
+                style={{ fontSize: '0.85rem', padding: '10px 12px' }} 
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px', padding: '11px' }}>
+              Entrar
+            </button>
+          </form>
+        )}
 
         {process.env.NODE_ENV === 'development' && (
           <>

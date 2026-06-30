@@ -71,6 +71,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [userRole, setUserRole] = useState<string>('aluno');
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['client']);
   const [creditAmount, setCreditAmount] = useState(1);
+  const [resetPassword, setResetPassword] = useState(false);
   const [creditType, setCreditType] = useState<'academia' | 'massagem'>('academia');
 
   // New states for the missing features
@@ -829,6 +830,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       setEspecialidade('');
       setRegistro('');
     }
+    setResetPassword(false);
     setShowModal(true);
   };
 
@@ -1076,7 +1078,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           roles: selectedRoles,
           cargo,
           especialidade: esp,
-          registro: reg
+          registro: reg,
+          resetPassword
         };
         const method = editingItem ? 'PUT' : 'POST';
         const res = await fetch('/api/users', {
@@ -2952,6 +2955,50 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           );
                         })}
                       </div>
+                    </div>
+                    
+                    <div className="form-group" style={{ marginTop: '16px' }}>
+                      {!editingItem ? (
+                        <div style={{ 
+                          background: 'rgba(99, 102, 241, 0.05)', 
+                          border: '1px solid rgba(99, 102, 241, 0.1)', 
+                          padding: '10px 14px', 
+                          borderRadius: '6px', 
+                          fontSize: '0.78rem', 
+                          color: 'var(--text-dim)', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px' 
+                        }}>
+                          <i className="fa-solid fa-lock" style={{ color: 'var(--color-primary)' }}></i>
+                          <span>Senha inicial padrão será <strong>123456</strong> (exigirá alteração no primeiro login).</span>
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between', 
+                          background: 'rgba(255,255,255,0.02)', 
+                          padding: '10px 14px', 
+                          borderRadius: '6px', 
+                          border: '1px solid var(--border-color)' 
+                        }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Segurança da Conta</span>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setResetPassword(true);
+                              alert('A senha deste usuário será resetada para a padrão "123456" ao clicar em Salvar.');
+                            }}
+                            disabled={resetPassword}
+                            className={`btn ${resetPassword ? 'btn-secondary' : 'btn-danger'} btn-sm`}
+                            style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                          >
+                            <i className="fa-solid fa-key" style={{ marginRight: '6px' }}></i>
+                            {resetPassword ? 'Senha será Resetada' : 'Resetar Senha para 123456'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                     {selectedRoles.includes('professional') && (
                       <div className="form-row">

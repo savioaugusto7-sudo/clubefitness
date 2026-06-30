@@ -5,6 +5,7 @@ import dbConnect from '@/utils/dbConnect';
 import User from '@/models/User';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
+import { verifyPassword } from '@/utils/auth';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,6 +18,35 @@ export const authOptions: NextAuthOptions = {
           access_type: 'offline',
           response_type: 'code'
         }
+      }
+    }),
+    CredentialsProvider({
+      id: 'credentials',
+      name: 'Credentials',
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+        try {
+          await dbConnect();
+          const dbUser = await User.findOne({ email: credentials.email.toLowerCase() });
+          if (dbUser && dbUser.password) {
+            const isValid = verifyPassword(credentials.password, dbUser.password);
+            if (isValid) {
+              return {
+                id: dbUser._id.toString(),
+                name: dbUser.nome,
+                email: dbUser.email,
+                image: null
+              };
+            }
+          }
+        } catch (err) {
+          console.error('NextAuth credentials authorize error:', err);
+        }
+        return null;
       }
     }),
     ...(process.env.NODE_ENV === 'development' ? [
@@ -51,8 +81,8 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (!user.email) return false;
       
-      // If logging in via demo credentials, allow immediately (assumes user already exists)
-      if (account?.provider === 'demo-credentials') {
+      // If logging in via demo credentials or standard credentials, allow immediately
+      if (account?.provider === 'demo-credentials' || account?.provider === 'credentials') {
         return true;
       }
 
@@ -116,6 +146,8 @@ export const authOptions: NextAuthOptions = {
             token.id = dbUser._id.toString();
             token.role = dbUser.tipo;
             token.cargo = dbUser.cargo || '';
+            token.needPasswordChange = dbUser.needPasswordChange === true;
+            
             let roles = dbUser.roles && dbUser.roles.length > 0 ? dbUser.roles : [dbUser.tipo];
             if (!roles.includes(dbUser.tipo)) {
               roles = [dbUser.tipo, ...roles];
@@ -152,6 +184,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).clientProfileId = token.clientProfileId || '';
         (session.user as any).professionalProfileId = token.professionalProfileId || '';
         (session.user as any).activeRoles = token.activeRoles || [token.role];
+        (session.user as any).needPasswordChange = token.needPasswordChange === true;
         (session.user as any).cadastroConcluido = token.cadastroConcluido;
       }
       return session;
@@ -159,8 +192,8 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/login',
-  },
-  secret: process.env.NEXTAUTH_SECRET,
+    error: '/login'
+  }
 };
 
 const handler = NextAuth(authOptions);

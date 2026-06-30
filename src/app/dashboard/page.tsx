@@ -83,6 +83,15 @@ export default function DashboardPage() {
   if (!session) return null;
 
   const user = session.user as any;
+
+  if (user.needPasswordChange) {
+    return (
+      <div className="login-page-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-main)' }}>
+        <div className="login-card-glow"></div>
+        <ChangePasswordCard userEmail={user.email} />
+      </div>
+    );
+  }
   const activeRoles = user.activeRoles || [user.role || 'client'];
   const effectiveRole = activeRoles.length > 1 ? adminViewMode : (activeRoles[0] || 'client');
 
@@ -196,6 +205,127 @@ export default function DashboardPage() {
         {/* Dynamic page content */}
         {renderContent()}
       </main>
+    </div>
+  );
+}
+
+function ChangePasswordCard({ userEmail }: { userEmail: string }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setErrorMsg('A senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('As senhas não coincidem.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg('Senha cadastrada com sucesso!');
+      } else {
+        setErrorMsg(data.error || 'Erro ao atualizar a senha.');
+        setLoading(false);
+      }
+    } catch (err) {
+      setErrorMsg('Erro de conexão. Tente novamente.');
+      setLoading(false);
+    }
+  };
+
+  if (successMsg) {
+    return (
+      <div className="login-card" style={{ width: '100%', maxWidth: '420px', padding: '32px' }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ fontSize: '3rem', color: 'var(--color-primary)' }}>
+            <i className="fa-solid fa-circle-check"></i>
+          </div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Senha Cadastrada!</h2>
+          <p style={{ fontSize: '0.88rem', color: 'var(--text-dim)', margin: 0 }}>
+            Sua senha inicial foi atualizada com segurança. Por favor, faça login novamente usando a sua nova senha.
+          </p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => signOut({ callbackUrl: '/login?from=logout' })}
+            style={{ width: '100%', padding: '12px', marginTop: '8px' }}
+          >
+            Fazer Login Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="login-card" style={{ width: '100%', maxWidth: '420px', padding: '32px' }}>
+      <div className="login-brand" style={{ marginBottom: '24px' }}>
+        <div className="login-logo-circle" style={{ overflow: 'hidden', margin: '0 auto 16px auto' }}>
+          <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px', margin: 0 }}>Cadastrar Nova Senha</h2>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-dim)', margin: 0 }}>
+          Este é o seu primeiro acesso como <strong>{userEmail}</strong>. Por segurança, defina uma senha pessoal de acesso.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+        {errorMsg && (
+          <div style={{ 
+            background: 'rgba(239, 68, 68, 0.1)', 
+            border: '1px solid var(--color-danger)', 
+            color: '#f87171', 
+            padding: '10px 14px', 
+            borderRadius: '6px', 
+            fontSize: '0.78rem' 
+          }}>
+            <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px' }}></i>
+            {errorMsg}
+          </div>
+        )}
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>Nova Senha</label>
+          <input 
+            type="password" 
+            className="form-control" 
+            placeholder="Mínimo 6 caracteres" 
+            value={newPassword} 
+            onChange={e => setNewPassword(e.target.value)} 
+            required 
+            disabled={loading}
+            style={{ fontSize: '0.85rem', padding: '10px 12px' }} 
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>Confirmar Nova Senha</label>
+          <input 
+            type="password" 
+            className="form-control" 
+            placeholder="Repita a senha" 
+            value={confirmPassword} 
+            onChange={e => setConfirmPassword(e.target.value)} 
+            required 
+            disabled={loading}
+            style={{ fontSize: '0.85rem', padding: '10px 12px' }} 
+          />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', marginTop: '8px', padding: '11px' }}>
+          {loading ? 'Salvando...' : 'Salvar e Acessar'}
+        </button>
+      </form>
     </div>
   );
 }
