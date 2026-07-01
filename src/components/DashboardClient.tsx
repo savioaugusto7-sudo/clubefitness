@@ -33,6 +33,14 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
   const [selectedExerciseForInstruction, setSelectedExerciseForInstruction] = useState<any>(null);
 
+  // Trancamento States
+  const [trancamentosList, setTrancamentosList] = useState<any[]>([]);
+  const [trancamentoSemanas, setTrancamentoSemanas] = useState<number>(1);
+  const [trancamentoDataInicio, setTrancamentoDataInicio] = useState<string>('');
+  const [trancamentoRedistribuicao, setTrancamentoRedistribuicao] = useState<Record<string, number>>({});
+  const [trancamentoSuccessMsg, setTrancamentoSuccessMsg] = useState<string>('');
+  const [trancamentoErrorMsg, setTrancamentoErrorMsg] = useState<string>('');
+
   // Sub-tabs for evolution
   const [evoSubTab, setEvoSubTab] = useState<'composicao' | 'perimetros' | 'mobilidade' | 'forca'>('composicao');
 
@@ -172,7 +180,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         fetch('/api/reports'),
         fetch('/api/exercises'),
         fetch('/api/strength-tests'),
-        fetch(`/api/contracts?clientId=${profileId}`)
+        fetch(`/api/contracts?clientId=${profileId}`),
+        fetch(`/api/trancamentos?clientId=${profileId}`)
       ]);
       const jsonClient = await resClient.json();
       const jsonApts = await resApts.json();
@@ -182,6 +191,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       const jsonExercises = await resExercises.json();
       const jsonSt = await resSt.json();
       const jsonContracts = await resContracts.json();
+      const jsonTrancamentos = await resTrancamentos.json();
 
       if (jsonClient.success && jsonClient.data.length > 0) {
         setClient(jsonClient.data[0]);
@@ -207,6 +217,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       if (jsonSt.success) {
         setStrengthTests(jsonSt.data.filter((t: any) => (t.clienteId?._id || t.clienteId) === profileId));
       }
+      if (jsonTrancamentos.success) {
+        setTrancamentosList(jsonTrancamentos.data || []);
+      }
     } catch (e) {
       console.error('Error fetching client dashboard:', e);
     } finally {
@@ -225,6 +238,83 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       setBookService('Avaliação Fisioterápica');
     }
   }, [bookType]);
+
+  const activeContract = contracts.find(c => c.status === 'assinado' || c.status === 'congelado');
+
+  const getRemainingMonthsList = () => {
+    if (!activeContract || !trancamentoDataInicio) return [];
+    const start = trancamentoDataInicio;
+    const end = activeContract.dataFim;
+    const startDate = new Date(start + 'T00:00:00');
+    const endDate = new Date(end + 'T00:00:00');
+    const months = [];
+    
+    let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    
+    while (current <= last) {
+      const label = current.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const value = current.toISOString().slice(0, 7); // YYYY-MM
+      months.push({ label, value });
+      current.setMonth(current.getMonth() + 1);
+    }
+    return months;
+  };
+
+  const handleRequestTrancamento = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTrancamentoErrorMsg('');
+    setTrancamentoSuccessMsg('');
+
+    if (!activeContract) {
+      setTrancamentoErrorMsg('Você não possui nenhum contrato ativo.');
+      return;
+    }
+    if (!trancamentoDataInicio) {
+      setTrancamentoErrorMsg('Selecione a data de início do trancamento.');
+      return;
+    }
+
+    const frequencia = activeContract.frequencia || 3;
+    const totalCreditos = trancamentoSemanas * frequencia;
+    
+    const redistList = getRemainingMonthsList().map(m => ({
+      mesAno: m.value,
+      creditos: trancamentoRedistribuicao[m.value] || 0
+    }));
+
+    const totalRedist = redistList.reduce((sum, r) => sum + r.creditos, 0);
+    if (totalRedist !== totalCreditos) {
+      setTrancamentoErrorMsg(`A soma da redistribuição (${totalRedist}) deve ser igual a ${totalCreditos} créditos.`);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/trancamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: client._id,
+          contractId: activeContract._id,
+          dataInicio: trancamentoDataInicio,
+          semanas: trancamentoSemanas,
+          redistribuicao: redistList
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTrancamentoSuccessMsg('Trancamento realizado e créditos redistribuídos com sucesso!');
+        setTrancamentoDataInicio('');
+        setTrancamentoRedistribuicao({});
+        setTrancamentoSemanas(1);
+        fetchData();
+      } else {
+        setTrancamentoErrorMsg('Erro ao solicitar trancamento: ' + data.error);
+      }
+    } catch (err: any) {
+      setTrancamentoErrorMsg('Erro de rede.');
+    }
+  };
 
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1629,8 +1719,238 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         </>
       )}
 
+      {activeTab === 'trancamento' && (
+        <>
+          <div className="view-header">
+            <div className="view-title-group">
+              <h1>Trancamento de Plano</h1>
+              <p>Tranque semanas do seu plano e redistribua os créditos para os meses restantes.</p>
+            </div>
+          </div>
+
+          {!activeContract ? (
+            <div className="content-panel" style={{ textAlign: 'center', padding: '40px' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '24px', color: 'var(--color-danger)' }}></i>
+              </div>
+              <h3>Nenhum Contrato Ativo</h3>
+              <p style={{ color: 'var(--text-muted)' }}>Você não possui nenhum contrato assinado ou ativo no momento para realizar trancamentos.</p>
+            </div>
+          ) : (
+            (() => {
+              const totalSemanasTrancadas = trancamentosList.reduce((sum, t) => sum + t.semanas, 0);
+              const semanasDisponiveis = Math.max(0, 4 - totalSemanasTrancadas);
+              const frequencia = activeContract.frequencia || 3;
+              const creditosCongelados = trancamentoSemanas * frequencia;
+
+              const remainingMonths = getRemainingMonthsList();
+              const sumRedist = remainingMonths.reduce((sum, m) => sum + (trancamentoRedistribuicao[m.value] || 0), 0);
+              const isDistributionPerfect = sumRedist === creditosCongelados;
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+                  {/* Form de Trancamento */}
+                  <div className="content-panel">
+                    <div className="panel-header">
+                      <h2>Solicitar Trancamento</h2>
+                    </div>
+
+                    {trancamentoErrorMsg && (
+                      <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-danger)', color: '#f87171', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '16px' }}>
+                        <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px' }}></i>
+                        {trancamentoErrorMsg}
+                      </div>
+                    )}
+                    {trancamentoSuccessMsg && (
+                      <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--color-success)', color: '#34d399', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '16px' }}>
+                        <i className="fa-solid fa-circle-check" style={{ marginRight: '6px' }}></i>
+                        {trancamentoSuccessMsg}
+                      </div>
+                    )}
+
+                    <div style={{ background: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Plano: <strong>{activeContract.planoNome}</strong></p>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Vigência: de <strong>{activeContract.dataInicio}</strong> até <strong>{activeContract.dataFim}</strong></p>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Frequência contratada: <strong>{frequencia}x por semana</strong></p>
+                      <p style={{ margin: '0', fontSize: '0.9rem', color: semanasDisponiveis > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>
+                        Semanas já trancadas: <strong>{totalSemanasTrancadas} de 4</strong> (Restam <strong>{semanasDisponiveis}</strong> semanas disponíveis)
+                      </p>
+                    </div>
+
+                    {semanasDisponiveis <= 0 ? (
+                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        Você já atingiu o limite máximo de 4 semanas trancadas para este contrato.
+                      </div>
+                    ) : (
+                      <form onSubmit={handleRequestTrancamento}>
+                        <div className="form-group">
+                          <label>Data de Início do Trancamento (Selecione no calendário)</label>
+                          <input
+                            type="date"
+                            className="form-control"
+                            value={trancamentoDataInicio}
+                            onChange={e => setTrancamentoDataInicio(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Quantidade de Semanas a Trancar</label>
+                          <select
+                            className="select-custom"
+                            value={trancamentoSemanas}
+                            onChange={e => {
+                              setTrancamentoSemanas(Number(e.target.value));
+                              setTrancamentoRedistribuicao({});
+                            }}
+                          >
+                            {Array.from({ length: semanasDisponiveis }, (_, i) => i + 1).map(n => (
+                              <option key={n} value={n}>{n} {n === 1 ? 'semana' : 'semanas'}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div style={{ fontSize: '1rem', fontWeight: 'bold', margin: '15px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)' }}></i>
+                          Créditos a Redistribuir: {creditosCongelados} créditos
+                        </div>
+
+                        {trancamentoDataInicio && (
+                          <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '12px' }}>Redistribuição de Créditos</h3>
+                            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                              Escolha como distribuir os {creditosCongelados} créditos entre os meses restantes de vigência do seu contrato:
+                            </p>
+
+                            {remainingMonths.map(m => (
+                              <div key={m.value} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>{m.label}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '2px 8px', minWidth: '28px' }}
+                                    onClick={() => {
+                                      const currentVal = trancamentoRedistribuicao[m.value] || 0;
+                                      if (currentVal > 0) {
+                                        setTrancamentoRedistribuicao({
+                                          ...trancamentoRedistribuicao,
+                                          [m.value]: currentVal - 1
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    -
+                                  </button>
+                                  <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>
+                                    {trancamentoRedistribuicao[m.value] || 0}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '2px 8px', minWidth: '28px' }}
+                                    onClick={() => {
+                                      const currentVal = trancamentoRedistribuicao[m.value] || 0;
+                                      if (sumRedist < creditosCongelados) {
+                                        setTrancamentoRedistribuicao({
+                                          ...trancamentoRedistribuicao,
+                                          [m.value]: currentVal + 1
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Total Distribuído:</span>
+                              <span style={{ 
+                                fontSize: '0.9rem', 
+                                fontWeight: 700, 
+                                color: isDistributionPerfect ? 'var(--color-success)' : 'var(--color-danger)'
+                              }}>
+                                {sumRedist} de {creditosCongelados}
+                              </span>
+                            </div>
+                            {isDistributionPerfect ? (
+                              <small style={{ color: 'var(--color-success)', display: 'block', marginTop: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                <i className="fa-solid fa-circle-check"></i> Distribuição perfeita dos créditos!
+                              </small>
+                            ) : (
+                              <small style={{ color: 'var(--color-warning)', display: 'block', marginTop: '4px', fontSize: '0.75rem' }}>
+                                Distribua exatamente os {creditosCongelados} créditos para habilitar o envio.
+                              </small>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={!isDistributionPerfect || !trancamentoDataInicio}
+                          style={{ width: '100%', marginTop: '20px' }}
+                        >
+                          Confirmar Trancamento e Redistribuir
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                  {/* Histórico de Trancamentos */}
+                  <div className="content-panel">
+                    <div className="panel-header">
+                      <h2>Histórico de Trancamentos</h2>
+                    </div>
+
+                    <div className="table-responsive">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Data Início</th>
+                            <th>Semanas</th>
+                            <th>Créditos</th>
+                            <th>Redistribuição</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {trancamentosList.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                                Nenhum trancamento solicitado ou realizado ainda.
+                              </td>
+                            </tr>
+                          ) : (
+                            trancamentosList.map(t => (
+                              <tr key={t._id}>
+                                <td><strong>{t.dataInicio}</strong></td>
+                                <td>{t.semanas} {t.semanas === 1 ? 'semana' : 'semanas'}</td>
+                                <td><span className="badge badge-info">{t.creditosTrancados} créditos</span></td>
+                                <td style={{ fontSize: '0.8rem' }}>
+                                  {t.redistribuicao?.map((r: any) => (
+                                    <div key={r.mesAno}>
+                                      {r.mesAno}: <strong>+{r.creditos}</strong> créditos
+                                    </div>
+                                  ))}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          )}
+        </>
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'agendar', 'agendamentos', 'treino', 'evolucao', 'documentos'].includes(activeTab) && (
+      {!['dashboard', 'agendar', 'agendamentos', 'treino', 'evolucao', 'documentos', 'trancamento'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>

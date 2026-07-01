@@ -189,6 +189,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcResponsavelVenda, setDcResponsavelVenda] = useState('');
   const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
+  const [dcFrequencia, setDcFrequencia] = useState<number>(3);
 
   // Contract Tab States
   const [clientContracts, setClientContracts] = useState<any[]>([]);
@@ -326,7 +327,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       status,
       assinaturaNome: status === 'assinado' ? signatureName : '',
       contratoTexto: generateContractTemplate(),
-      usuarioEmissor: 'Administrador'
+      usuarioEmissor: 'Administrador',
+      frequencia: dcFrequencia,
+      creditosTotal: dcFrequencia * 4 + 1
     };
 
     const res = await fetch('/api/contracts', {
@@ -363,7 +366,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             dataInicio: dcDataInicio,
             responsavelVenda: dcResponsavelVenda,
             unidadeContratada: dcUnidadeContratada,
-            observacoesContratuais: dcObservacoesContratuais
+            observacoesContratuais: dcObservacoesContratuais,
+            frequencia: dcFrequencia,
+            creditosTotal: dcFrequencia * 4 + 1
           }
         };
         downloadContractPDF(clientWithComercial, plan, payload.contratoTexto);
@@ -1598,6 +1603,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcResponsavelVenda(c.dadosComerciais?.responsavelVenda || '');
                               setDcUnidadeContratada(c.dadosComerciais?.unidadeContratada || '');
                               setDcObservacoesContratuais(c.dadosComerciais?.observacoesContratuais || '');
+                              setDcFrequencia(c.dadosComerciais?.frequencia || 3);
                               
                               setSignatureName(c.dadosPessoais?.nome || '');
                               setShowContractPreview(false);
@@ -3161,8 +3167,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                          <input className="form-control" value={dcResponsavelVenda} onChange={e => setDcResponsavelVenda(e.target.value)} placeholder="Nome do vendedor" disabled={hasActiveSignedContract} />
                        </div>
                        <div className="form-group">
-                         <label>Unidade Contratada</label>
-                         <input className="form-control" value={dcUnidadeContratada} onChange={e => setDcUnidadeContratada(e.target.value)} placeholder="Unidade de atendimento" disabled={hasActiveSignedContract} />
+                         <label>Frequência Semanal</label>
+                         <select className="select-custom" value={dcFrequencia} onChange={e => setDcFrequencia(Number(e.target.value))} disabled={hasActiveSignedContract}>
+                           <option value={1}>1x por semana (5 créditos/mês)</option>
+                           <option value={2}>2x por semana (9 créditos/mês)</option>
+                           <option value={3}>3x por semana (13 créditos/mês)</option>
+                           <option value={4}>4x por semana (17 créditos/mês)</option>
+                           <option value={5}>5x por semana (21 créditos/mês)</option>
+                         </select>
                        </div>
                      </div>
 
@@ -3187,8 +3199,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                parcelas: dcParcelas,
                                dataInicio: dcDataInicio,
                                responsavelVenda: dcResponsavelVenda,
-                               unidadeContratada: dcUnidadeContratada,
-                               observacoesContratuais: dcObservacoesContratuais
+                               observacoesContratuais: dcObservacoesContratuais,
+                               frequencia: dcFrequencia,
+                               creditosTotal: dcFrequencia * 4 + 1
                              }
                            };
                            const res = await fetch('/api/clients', {
@@ -3222,6 +3235,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                              dataInicio: dcDataInicio,
                              responsavelVenda: dcResponsavelVenda,
                              unidadeContratada: dcUnidadeContratada,
+                             frequencia: dcFrequencia,
+                             creditosTotal: dcFrequencia * 4 + 1,
                              observacoesContratuais: dcObservacoesContratuais
                            }
                          };

@@ -11,11 +11,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get('clientId');
 
-    if (!clientId) {
-      return NextResponse.json({ success: false, error: 'clientId é obrigatório' }, { status: 400 });
+    let query = {};
+    if (clientId) {
+      query = { clientId };
     }
 
-    const contracts = await Contract.find({ clientId })
+    const contracts = await Contract.find(query)
       .populate('planoId')
       .sort({ versao: -1 });
 
@@ -372,7 +373,9 @@ export async function POST(request: Request) {
       enviarClicksign,
       enviarAsaas,
       contratoHtmlBase64,
-      contratoPdfBase64
+      contratoPdfBase64,
+      frequencia,
+      creditosTotal
     } = body;
 
     if (!clientId || !planoId || !dataInicio) {
@@ -506,6 +509,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Criar o Contrato
+    const calcCreditos = creditosTotal !== undefined ? Number(creditosTotal) : (typeof frequencia === 'number' ? (frequencia * 4 + 1) : (plan.creditosTotal || 0));
     const newContract = await Contract.create({
       clicksignDocKey,
       clicksignSignerKey,
@@ -535,6 +539,8 @@ export async function POST(request: Request) {
       responsavelVenda: responsavelVenda || '',
       unidadeContratada: unidadeContratada || plan.unidadeAtendimento || '',
       observacoesContratuais: observacoesContratuais || '',
+      frequencia: frequencia !== undefined ? Number(frequencia) : 3,
+      creditosTotal: calcCreditos,
       servicosInclusos: plan.servicosPermitidos || [],
       beneficiosInclusos: plan.beneficiosInclusos || [],
       status: status || 'pendente',
@@ -561,7 +567,8 @@ export async function POST(request: Request) {
         responsavelVenda: responsavelVenda || '',
         unidadeContratada: unidadeContratada || plan.unidadeAtendimento || '',
         observacoesContratuais: observacoesContratuais || '',
-        creditosTotal: plan.creditosTotal || 0,
+        frequencia: frequencia !== undefined ? Number(frequencia) : client.dadosComerciais.frequencia,
+        creditosTotal: calcCreditos,
         creditosUsados: 0,
         creditosReservados: 0,
         creditosMassagemTotal: isAnual ? 1 : 0,
@@ -626,7 +633,8 @@ export async function PUT(request: Request) {
         responsavelVenda: contract.responsavelVenda || '',
         unidadeContratada: contract.unidadeContratada || '',
         observacoesContratuais: contract.observacoesContratuais || '',
-        creditosTotal: plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0), // Fallback se plan inexistente
+        frequencia: contract.frequencia !== undefined ? contract.frequencia : client.dadosComerciais.frequencia,
+        creditosTotal: contract.creditosTotal || plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0),
         creditosUsados: 0,
         creditosReservados: 0,
         creditosMassagemTotal: isAnual ? 1 : 0,

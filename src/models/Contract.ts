@@ -26,6 +26,8 @@ const ContractSchema = new Schema({
   responsavelVenda: { type: String, default: '' },
   unidadeContratada: { type: String, default: '' },
   observacoesContratuais: { type: String, default: '' },
+  frequencia: { type: Number, default: 3 },
+  creditosTotal: { type: Number, default: 0 },
   servicosInclusos: [{ type: String }],
   beneficiosInclusos: [{ type: String }],
   dataEmissao: { type: Date, default: Date.now },

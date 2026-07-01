@@ -33,6 +33,7 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'medicamentos', label: 'Medicamentos', icon: 'fa-pills' },
     { id: 'solicitacoes_exercicios', label: 'Exercícios Solicitados', icon: 'fa-clipboard-question' },
     { id: 'tv_panel', label: 'Painel TV Clínica', icon: 'fa-tv' },
+    { id: 'trancamentos_admin', label: 'Acompanhar Trancamentos', icon: 'fa-snowflake' },
     { id: 'configuracoes', label: 'Configurações', icon: 'fa-gear' }
   ],
   professional: [
@@ -61,7 +62,8 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'agendamentos', label: 'Meus Agendamentos', icon: 'fa-clock' },
     { id: 'evolucao', label: 'Minha Evolução', icon: 'fa-chart-line' },
     { id: 'treino', label: 'Ficha de Treino', icon: 'fa-dumbbell' },
-    { id: 'documentos', label: 'Meus Documentos', icon: 'fa-file-pdf' }
+    { id: 'documentos', label: 'Meus Documentos', icon: 'fa-file-pdf' },
+    { id: 'trancamento', label: 'Trancar Plano', icon: 'fa-snowflake' }
   ]
 };
 

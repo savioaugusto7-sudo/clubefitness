@@ -55,6 +55,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [dcResponsavelVenda, setDcResponsavelVenda] = useState('');
   const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
+  const [dcFrequencia, setDcFrequencia] = useState<number>(3);
 
   // New client modal
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -238,6 +239,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     setDcResponsavelVenda(client.dadosComerciais?.responsavelVenda || '');
     setDcUnidadeContratada(client.dadosComerciais?.unidadeContratada || '');
     setDcObservacoesContratuais(client.dadosComerciais?.observacoesContratuais || '');
+    setDcFrequencia(client.dadosComerciais?.frequencia || 3);
 
     const res = await fetch(`/api/contracts?clientId=${client._id}`);
     const data = await res.json();
@@ -272,8 +274,10 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         planoId: dcPlano, vencimento: dcVencimento, dataInicio: dcDataInicio,
         status: dcStatus, formaPagamento: dcFormaPag, duracao: dcDuracao, duracaoQtd: dcVigenciaQtd, valorUnitario: dcValorUnitario,
         descontoTipo: dcDescontoTipo, descontoValor: dcDescontoValor, parcelas: dcParcelas,
-        responsavelVenda: dcResponsavelVenda, unidadeContratada: dcUnidadeContratada,
-        observacoesContratuais: dcObservacoesContratuais
+        responsavelVenda: dcResponsavelVenda,
+        observacoesContratuais: dcObservacoesContratuais,
+        frequencia: dcFrequencia,
+        creditosTotal: dcFrequencia * 4 + 1
       }
     };
     const res = await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -408,8 +412,8 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     const dataContrato = dcDataInicio ? fmtDate(dcDataInicio) : fmtDate(new Date().toISOString().split('T')[0]);
     const vencimentoFormatado = dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '[Primeiro Vencimento]';
 
-    const creditosMensais = plan.limiteSessoesAcademia || plan.creditosTotal || 9;
-    const numeraisExtenso: Record<number, string> = { 1: 'um', 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito', 9: 'nove', 10: 'dez', 11: 'onze', 12: 'doze' };
+    const creditosMensais = dcFrequencia * 4 + 1;
+    const numeraisExtenso: Record<number, string> = { 1: 'um', 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito', 9: 'nove', 10: 'dez', 11: 'onze', 12: 'doze', 13: 'treze', 17: 'dezessete', 21: 'vinte e um' };
     const creditosPorExtenso = numeraisExtenso[creditosMensais] || String(creditosMensais);
     const servicosPadrao = ['Liberação Miofascial', 'Quiropraxia', 'Recuperação (Recovery)', 'Hidrogênioterapia', 'Laserterapia', 'Bota pneumática', 'Eletroterapia', 'Treinos monitorados'];
     const servicosLista = (plan.servicosPermitidos?.length > 0 ? plan.servicosPermitidos : servicosPadrao)
@@ -480,7 +484,9 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
               dataInicio: dcDataInicio,
               responsavelVenda: dcResponsavelVenda,
               unidadeContratada: dcUnidadeContratada,
-              observacoesContratuais: dcObservacoesContratuais
+              observacoesContratuais: dcObservacoesContratuais,
+              frequencia: dcFrequencia,
+              creditosTotal: dcFrequencia * 4 + 1
             }
           },
           plan,
@@ -505,7 +511,9 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       duracao: dcDuracao, duracaoQtd: dcVigenciaQtd, valorUnitario: dcValorUnitario,
       enviarClicksign: isClicksign,
       enviarAsaas: gerarAsaas,
-      contratoPdfBase64: pdfBase64
+      contratoPdfBase64: pdfBase64,
+      frequencia: dcFrequencia,
+      creditosTotal: dcFrequencia * 4 + 1
     };
     const res = await fetch('/api/contracts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json();
@@ -521,7 +529,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       if (dc.success) setClientContracts(dc.data);
       fetchData();
       if (status === 'assinado') {
-        const clientWithComercial = { ...selectedClient, dadosComerciais: { ...selectedClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, vencimento: dcVencimento, descontoTipo: dcDescontoTipo, descontoValor: dcDescontoValor, parcelas: dcParcelas, dataInicio: dcDataInicio } };
+        const clientWithComercial = { ...selectedClient, dadosComerciais: { ...selectedClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, vencimento: dcVencimento, descontoTipo: dcDescontoTipo, descontoValor: dcDescontoValor, parcelas: dcParcelas, dataInicio: dcDataInicio, frequencia: dcFrequencia, creditosTotal: dcFrequencia * 4 + 1 } };
         downloadContractPDF(clientWithComercial, plan, payload.contratoTexto);
       }
     } else alert('Erro ao criar contrato: ' + data.error);
@@ -1076,8 +1084,14 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                         <input className="form-control" value={dcResponsavelVenda} onChange={e => setDcResponsavelVenda(e.target.value)} />
                       </div>
                       <div>
-                        <label className="comercial-field-label"><i className="fa-solid fa-shop"></i> Unidade</label>
-                        <input className="form-control" value={dcUnidadeContratada} onChange={e => setDcUnidadeContratada(e.target.value)} />
+                        <label className="comercial-field-label"><i className="fa-solid fa-calendar-week"></i> Frequência Semanal</label>
+                        <select className="select-custom" value={dcFrequencia} onChange={e => setDcFrequencia(Number(e.target.value))}>
+                          <option value={1}>1x por semana (5 créditos/mês)</option>
+                          <option value={2}>2x por semana (9 créditos/mês)</option>
+                          <option value={3}>3x por semana (13 créditos/mês)</option>
+                          <option value={4}>4x por semana (17 créditos/mês)</option>
+                          <option value={5}>5x por semana (21 créditos/mês)</option>
+                        </select>
                       </div>
                     </div>
                     <div style={{ marginTop: '10px' }}>

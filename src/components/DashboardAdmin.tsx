@@ -106,6 +106,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
   const [exerciseRequests, setExerciseRequests] = useState<any[]>([]);
+  const [trancamentosAdminList, setTrancamentosAdminList] = useState<any[]>([]);
+  const [contractsAdminList, setContractsAdminList] = useState<any[]>([]);
   const [exNome, setExNome] = useState('');
   const [exGrupo, setExGrupo] = useState('PEITO');
   const [exEquip, setExEquip] = useState('');
@@ -197,6 +199,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcResponsavelVenda, setDcResponsavelVenda] = useState('');
   const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
+  const [dcFrequencia, setDcFrequencia] = useState<number>(3);
 
   // Contract Tab States
   const [clientContracts, setClientContracts] = useState<any[]>([]);
@@ -287,8 +290,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     const dataContrato = dcDataInicio ? fmtDate(dcDataInicio) : fmtDate(new Date().toISOString().split('T')[0]);
     const vencimentoFormatado = dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '[Primeiro Vencimento]';
 
-    const creditosMensais = plan.limiteSessoesAcademia || plan.creditosTotal || 9;
-    const numeraisExtenso: Record<number,string> = {1:'um',2:'dois',3:'três',4:'quatro',5:'cinco',6:'seis',7:'sete',8:'oito',9:'nove',10:'dez',11:'onze',12:'doze'};
+    const creditosMensais = dcFrequencia * 4 + 1;
+    const numeraisExtenso: Record<number,string> = {1:'um',2:'dois',3:'três',4:'quatro',5:'cinco',6:'seis',7:'sete',8:'oito',9:'nove',10:'dez',11:'onze',12:'doze',13:'treze',17:'dezessete',21:'vinte e um'};
     const creditosPorExtenso = numeraisExtenso[creditosMensais] || String(creditosMensais);
 
     const servicosPadrao = ['Liberação Miofascial','Quiropraxia','Recuperação (Recovery)','Hidrogênioterapia','Laserterapia','Bota pneumática','Eletroterapia','Treinos monitorados'];
@@ -449,7 +452,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       usuarioEmissor: 'Administrador',
       enviarClicksign: isClicksign,
       enviarAsaas: gerarAsaas,
-      contratoPdfBase64: pdfBase64
+      contratoPdfBase64: pdfBase64,
+      frequencia: dcFrequencia,
+      creditosTotal: dcFrequencia * 4 + 1
     };
 
     const res = await fetch('/api/contracts', {
@@ -670,7 +675,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs] = await Promise.all([
+      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs, resTranc, resContracts] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/professionals'),
         fetch('/api/appointments'),
@@ -680,7 +685,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         fetch('/api/medications'),
         fetch('/api/fixed-schedules'),
         fetch('/api/strength-tests'),
-        fetch('/api/exercises?status=pending')
+        fetch('/api/exercises?status=pending'),
+        fetch('/api/trancamentos'),
+        fetch('/api/contracts')
       ]);
       const jsonClients = await resClients.json();
       const jsonProfs = await resProfs.json();
@@ -692,6 +699,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const jsonFs = await resFs.json();
       const jsonSt = await resSt.json();
       const jsonExs = await resExs.json();
+      const jsonTranc = await resTranc.json();
+      const jsonContracts = await resContracts.json();
 
       if (jsonClients.success) setClients(jsonClients.data);
       if (jsonProfs.success) setProfessionals(jsonProfs.data);
@@ -703,6 +712,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       if (jsonFs.success) setFixedSchedules(jsonFs.data);
       if (jsonSt.success) setStrengthTests(jsonSt.data);
       if (jsonExs.success) setExerciseRequests(jsonExs.data);
+      if (jsonTranc.success) setTrancamentosAdminList(jsonTranc.data);
+      if (jsonContracts.success) setContractsAdminList(jsonContracts.data);
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
     } finally {
@@ -1758,6 +1769,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcResponsavelVenda(c.dadosComerciais?.responsavelVenda || '');
                               setDcUnidadeContratada(c.dadosComerciais?.unidadeContratada || '');
                               setDcObservacoesContratuais(c.dadosComerciais?.observacoesContratuais || '');
+                              setDcFrequencia(c.dadosComerciais?.frequencia || 3);
                               
                               setSignatureName(c.dadosPessoais?.nome || '');
                               setShowContractPreview(false);
@@ -2817,8 +2829,150 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         <AgendaCompletaPanel clients={clients} professionals={professionals} />
       )}
 
+      {/* ======================== TRANCAMENTOS ADMIN TAB ======================== */}
+      {activeTab === 'trancamentos_admin' && (() => {
+        // Build: map contractId -> list of trancamentos
+        const trancByContract: Record<string, any[]> = {};
+        trancamentosAdminList.forEach((t: any) => {
+          const cid = t.contractId?._id || t.contractId;
+          if (cid) {
+            if (!trancByContract[cid]) trancByContract[cid] = [];
+            trancByContract[cid].push(t);
+          }
+        });
+
+        // Active contracts list
+        const activeContracts = contractsAdminList.filter((c: any) => c.status === 'assinado');
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Acompanhar Trancamentos</h1>
+                <p>Histórico de trancamentos solicitados e controle de saldo de semanas por aluno.</p>
+              </div>
+            </div>
+
+            {/* ---- Histórico de Trancamentos ---- */}
+            <div className="content-panel" style={{ marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-clock-rotate-left" style={{ color: 'var(--color-accent)' }}></i>
+                Histórico de Trancamentos
+              </h2>
+              {trancamentosAdminList.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Nenhum trancamento registrado ainda.</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Aluno</th>
+                        <th>Início do Trancamento</th>
+                        <th>Semanas</th>
+                        <th>Créditos Congelados</th>
+                        <th>Redistribuição por Mês</th>
+                        <th>Data Solicitação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trancamentosAdminList.map((t: any) => (
+                        <tr key={t._id}>
+                          <td style={{ fontWeight: 600 }}>
+                            {t.clientId?.dadosPessoais?.nome || t.clientId?.nome || '—'}
+                          </td>
+                          <td>{t.dataInicio}</td>
+                          <td>
+                            <span className="badge" style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--color-accent)', padding: '2px 8px', borderRadius: '4px' }}>
+                              {t.semanas} {t.semanas === 1 ? 'semana' : 'semanas'}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 700, color: 'var(--color-warning)' }}>
+                            {t.creditosTrancados} crédito{t.creditosTrancados !== 1 ? 's' : ''}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {(t.redistribuicao || []).map((r: any, idx: number) => (
+                                <span key={idx} style={{ fontSize: '0.75rem', background: 'rgba(16,185,129,0.12)', color: 'var(--color-primary)', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                                  {r.mesAno}: +{r.creditos}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td style={{ color: 'var(--text-muted)' }}>
+                            {t.createdAt ? new Date(t.createdAt).toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ---- Controle de Direito ao Congelamento ---- */}
+            <div className="content-panel">
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-snowflake" style={{ color: 'var(--color-accent)' }}></i>
+                Controle de Direito ao Congelamento
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '16px' }}>
+                Alunos com contrato ativo. Limite: 4 semanas de trancamento por contrato.
+              </p>
+              {activeContracts.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Nenhum contrato ativo encontrado.</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Aluno</th>
+                        <th>Vigência do Contrato</th>
+                        <th>Semanas Usadas</th>
+                        <th>Semanas Restantes</th>
+                        <th>Créditos Congelados</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeContracts.map((contract: any) => {
+                        const contratoTrancs = trancByContract[contract._id] || [];
+                        const semanasUsadas = contratoTrancs.reduce((s: number, t: any) => s + t.semanas, 0);
+                        const semanasRestantes = Math.max(0, 4 - semanasUsadas);
+                        const creditosCongelados = contratoTrancs.reduce((s: number, t: any) => s + t.creditosTrancados, 0);
+                        const clientName = contract.clientId?.dadosPessoais?.nome || contract.clientId?.nome || contract.nomeCliente || '—';
+                        const alerta = semanasRestantes === 0;
+                        return (
+                          <tr key={contract._id}>
+                            <td style={{ fontWeight: 600 }}>{clientName}</td>
+                            <td style={{ color: 'var(--text-muted)' }}>
+                              {contract.dataInicio || '—'} → {contract.dataFim || contract.dataTermino || '—'}
+                            </td>
+                            <td>
+                              <span className="badge" style={{ background: semanasUsadas > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)', color: semanasUsadas > 0 ? 'var(--color-warning)' : 'var(--text-muted)', padding: '2px 8px', borderRadius: '4px' }}>
+                                {semanasUsadas} / 4
+                              </span>
+                            </td>
+                            <td>
+                              <span className="badge" style={{ background: alerta ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: alerta ? 'var(--color-danger)' : 'var(--color-primary)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                                {semanasRestantes} semana{semanasRestantes !== 1 ? 's' : ''}
+                              </span>
+                            </td>
+                            <td style={{ color: creditosCongelados > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
+                              {creditosCongelados > 0 ? `${creditosCongelados} crédito${creditosCongelados !== 1 ? 's' : ''}` : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign', 'asaas'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign', 'asaas', 'trancamentos_admin'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -3495,8 +3649,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             <input className="form-control" value={dcResponsavelVenda} onChange={e => setDcResponsavelVenda(e.target.value)} placeholder="Nome do vendedor" disabled={hasActiveSignedContract} />
                           </div>
                           <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-shop"></i> Unidade Contratada</label>
-                            <input className="form-control" value={dcUnidadeContratada} onChange={e => setDcUnidadeContratada(e.target.value)} placeholder="Unidade de atendimento" disabled={hasActiveSignedContract} />
+                            <label className="comercial-field-label"><i className="fa-solid fa-calendar-week"></i> Frequência Semanal</label>
+                            <select className="select-custom" value={dcFrequencia} onChange={e => setDcFrequencia(Number(e.target.value))} disabled={hasActiveSignedContract}>
+                              <option value={1}>1x por semana (5 créditos/mês)</option>
+                              <option value={2}>2x por semana (9 créditos/mês)</option>
+                              <option value={3}>3x por semana (13 créditos/mês)</option>
+                              <option value={4}>4x por semana (17 créditos/mês)</option>
+                              <option value={5}>5x por semana (21 créditos/mês)</option>
+                            </select>
                           </div>
                         </div>
 
@@ -3576,8 +3736,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                parcelas: dcParcelas,
                                dataInicio: dcDataInicio,
                                responsavelVenda: dcResponsavelVenda,
-                               unidadeContratada: dcUnidadeContratada,
-                               observacoesContratuais: dcObservacoesContratuais
+                               observacoesContratuais: dcObservacoesContratuais,
+                               frequencia: dcFrequencia,
+                               creditosTotal: dcFrequencia * 4 + 1
                              }
                            };
                            const res = await fetch('/api/clients', {
@@ -3611,6 +3772,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                              dataInicio: dcDataInicio,
                              responsavelVenda: dcResponsavelVenda,
                              unidadeContratada: dcUnidadeContratada,
+                             frequencia: dcFrequencia,
+                             creditosTotal: dcFrequencia * 4 + 1,
                              observacoesContratuais: dcObservacoesContratuais
                            }
                          };
