@@ -172,7 +172,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     if (!profileId) return;
     try {
       setLoading(true);
-      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts] = await Promise.all([
+      const [resClient, resApts, resWorkout, resAs, resRep, resExercises, resSt, resContracts, resTrancamentos] = await Promise.all([
         clientId ? fetch(`/api/clients?id=${clientId}`) : fetch(`/api/clients?userId=${user.id}`),
         fetch(`/api/appointments?clientId=${profileId}`),
         fetch(`/api/workouts?clientId=${profileId}`),
