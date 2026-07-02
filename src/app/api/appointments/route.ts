@@ -5,17 +5,24 @@ import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import AgendaConfig from '@/models/AgendaConfig';
 
-// Configuração de Serviços — Regras de Crédito e Capacidade do Projeto Original
-const SERVICOS_CONFIG: Record<string, { consumeCredito: boolean, consumeCreditoMassagem?: boolean, vagasOcupadas: number, exclusivoPorProfissional: boolean, tipo: 'academia' | 'consultorio' }> = {
-  'Treino Monitorado': { consumeCredito: true,  vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia' },
-  'Treino Livre':      { consumeCredito: false, vagasOcupadas: 0, exclusivoPorProfissional: false, tipo: 'academia' },
-  'Recovery':          { consumeCredito: false, vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia' },
-  'Avaliação Física':  { consumeCredito: false, vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia' },
-  'Teste de Força':    { consumeCredito: false, vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia' },
-  'Avaliação Fisioterápica': { consumeCredito: false, vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'consultorio' },
-  'Emergência':              { consumeCredito: false, vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia' },
-  'Massagem':          { consumeCredito: false, consumeCreditoMassagem: true, vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia' }
+// Configuração de Serviços — Regras de Crédito e Capacidade
+const SERVICOS_CONFIG: Record<string, {
+  tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum';
+  vagasOcupadas: number;
+  exclusivoPorProfissional: boolean;
+  tipo: 'academia' | 'consultorio';
+}> = {
+  'Treino Monitorado':        { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Treino Livre':             { tipoCredito: 'nenhum',     vagasOcupadas: 0, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Recovery':                 { tipoCredito: 'nenhum',     vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Avaliação Física':         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
+  'Teste de Força':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
+  'Avaliação Fisioterápica':  { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'consultorio' },
+  'Emergência':               { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
+  'Massagem':                 { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
 };
+
+export { SERVICOS_CONFIG };
 
 const CAPACIDADE_POR_PROFISSIONAL = 3;
 const CANCELAMENTO_JANELAS = {
@@ -23,6 +30,58 @@ const CANCELAMENTO_JANELAS = {
   consultorio: 2
 };
 const AGENDAMENTO_ANTECEDENCIA_MIN = 2;
+
+// Helper: decrementar reservados e mover para usados (ou consumir em cancelamento tardio)
+function applyStatusTransition(
+  client: any,
+  tipo: 'academia' | 'massagem' | 'emergencia' | 'nenhum',
+  oldStatus: string,
+  newStatus: string,
+  diffHoras: number,
+  janelaHoras: number
+) {
+  if (tipo === 'nenhum') return;
+
+  const fields = {
+    academia:   { total: 'creditosTotal',            usados: 'creditosUsados',            reservados: 'creditosReservados'            },
+    massagem:   { total: 'creditosMassagemTotal',     usados: 'creditosMassagemUsados',    reservados: 'creditosMassagemReservados'    },
+    emergencia: { total: 'creditosEmergenciaTotal',   usados: 'creditosEmergenciaUsados',  reservados: 'creditosEmergenciaReservados'  },
+  }[tipo] as { total: string; usados: string; reservados: string };
+
+  const com = client.dadosComerciais;
+
+  // 1. agendado → presenca
+  if (oldStatus === 'agendado' && newStatus === 'presenca') {
+    com[fields.reservados] = Math.max(0, (com[fields.reservados] || 0) - 1);
+    com[fields.usados] = (com[fields.usados] || 0) + 1;
+  }
+  // 2. agendado → cancelado
+  else if (oldStatus === 'agendado' && newStatus === 'cancelado') {
+    com[fields.reservados] = Math.max(0, (com[fields.reservados] || 0) - 1);
+    if (diffHoras < janelaHoras) {
+      com[fields.usados] = (com[fields.usados] || 0) + 1; // cancelamento tardio consome crédito
+    }
+  }
+  // 3. presenca → agendado
+  else if (oldStatus === 'presenca' && newStatus === 'agendado') {
+    com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
+    com[fields.reservados] = (com[fields.reservados] || 0) + 1;
+  }
+  // 4. cancelado → agendado
+  else if (oldStatus === 'cancelado' && newStatus === 'agendado') {
+    com[fields.reservados] = (com[fields.reservados] || 0) + 1;
+    if (diffHoras < janelaHoras) {
+      com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
+    }
+  }
+  // 5. presenca → cancelado
+  else if (oldStatus === 'presenca' && newStatus === 'cancelado') {
+    com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
+    if (diffHoras < janelaHoras) {
+      com[fields.usados] = (com[fields.usados] || 0) + 1;
+    }
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -62,8 +121,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: `Serviço desconhecido: ${servico}` }, { status: 400 });
     }
 
-    const consumeCredito = servicoConfig.consumeCredito;
-    const consumeCreditoMassagem = servicoConfig.consumeCreditoMassagem || false;
+    const tipoCredito = servicoConfig.tipoCredito;
     const tipo = servicoConfig.tipo;
 
     // --- Bloquear datas passadas ---
@@ -77,7 +135,7 @@ export async function POST(request: Request) {
     }
 
     // --- Regras de Dias de Semana e Sábado ---
-    const dayOfWeek = dataAgendamentoObj.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+    const dayOfWeek = dataAgendamentoObj.getDay(); // 0=Dom, 6=Sáb
 
     // Verificar se há regras customizadas para este horário e data
     const customRule = await AgendaConfig.findOne({
@@ -87,24 +145,25 @@ export async function POST(request: Request) {
         { dataEspecifica: data },
         { diaSemana: dayOfWeek, dataEspecifica: null }
       ]
-    }).sort({ dataEspecifica: -1 }); // Data específica tem precedência
+    }).sort({ dataEspecifica: -1 });
 
     if (customRule && customRule.acao === 'bloquear') {
       return NextResponse.json({ success: false, error: 'Este horário está suspenso ou indisponível.' }, { status: 400 });
     }
 
-    // Se não há regra de "adicionar", valida os limites de dia de semana / sábado normais
     if (!customRule || customRule.acao !== 'adicionar') {
       if (dayOfWeek === 0) {
         return NextResponse.json({ success: false, error: 'O clube está fechado aos domingos.' }, { status: 400 });
       } else if (dayOfWeek === 6) {
-        // Sábado
+        // Sábado: APENAS Massagem é permitida
+        if (servico !== 'Massagem') {
+          return NextResponse.json({ success: false, error: 'Aos sábados, apenas Massagem está disponível.' }, { status: 400 });
+        }
         const validSaturdays = ['09:50', '10:40', '11:30', '12:25'];
         if (!validSaturdays.includes(horario)) {
           return NextResponse.json({ success: false, error: `Os horários de atendimento aos sábados são: ${validSaturdays.join(', ')}.` }, { status: 400 });
         }
-        
-        // Exclusivamente no sábado: apenas 1 vaga por horário no geral (ou capacidade personalizada)
+
         let maxSábado = 1;
         if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
           maxSábado = customRule.capacidadePersonalizada;
@@ -118,7 +177,7 @@ export async function POST(request: Request) {
           return NextResponse.json({ success: false, error: `Horário lotado. Apenas ${maxSábado} vaga(s) por horário aos sábados.` }, { status: 400 });
         }
       } else {
-        // Segunda a Sexta
+        // Segunda a Sexta: Massagem é bloqueada
         if (servico === 'Massagem') {
           return NextResponse.json({ success: false, error: 'Massagem é oferecida exclusivamente aos sábados.' }, { status: 400 });
         }
@@ -129,8 +188,7 @@ export async function POST(request: Request) {
       }
     }
 
-
-    // --- Antecedência mínima de 2h (apenas para hoje) ---
+    // --- Antecedência mínima de 2h ---
     if (!bypassRestrictions) {
       const agora = new Date();
       const dataHoraAgendamento = new Date(`${data}T${horario}:00`);
@@ -157,37 +215,44 @@ export async function POST(request: Request) {
       }
     }
 
-    // --- Validar créditos de treino ---
-    if (consumeCredito && !bypassRestrictions) {
-      const total = client.dadosComerciais.creditosTotal || 0;
-      const usados = client.dadosComerciais.creditosUsados || 0;
-      
-      // Contagem dinâmica: agendamentos com crédito no mês do agendamento
-      const mesAgendamento = data.slice(0, 7); // 'YYYY-MM'
-      const reservados = await Appointment.countDocuments({
-        clienteId,
-        status: 'agendado',
-        consumeCredito: true,
-        data: new RegExp('^' + mesAgendamento)
-      });
-      const disponiveis = Math.max(0, total - usados - reservados);
-      if (disponiveis <= 0) {
-        return NextResponse.json({ success: false, error: 'Créditos insuficientes! O aluno não possui créditos disponíveis para este mês.' }, { status: 400 });
-      }
-    }
+    // --- Validar créditos conforme tipoCredito ---
+    if (tipoCredito !== 'nenhum' && !bypassRestrictions) {
+      const com = client.dadosComerciais;
 
-    // --- Validar créditos de Massagem ---
-    if (consumeCreditoMassagem && !bypassRestrictions) {
-      const total = client.dadosComerciais.creditosMassagemTotal !== undefined ? client.dadosComerciais.creditosMassagemTotal : 1;
-      const usados = client.dadosComerciais.creditosMassagemUsados || 0;
-      const reservados = await Appointment.countDocuments({
-        clienteId,
-        status: 'agendado',
-        servico: 'Massagem'
-      });
-      const disponiveis = Math.max(0, total - usados - reservados);
-      if (disponiveis <= 0) {
-        return NextResponse.json({ success: false, error: 'Créditos de massagem insuficientes! O aluno não possui créditos de massagem disponíveis.' }, { status: 400 });
+      if (tipoCredito === 'academia') {
+        const total = com.creditosTotal || 0;
+        const usados = com.creditosUsados || 0;
+        const mesAgendamento = data.slice(0, 7);
+        const reservados = await Appointment.countDocuments({
+          clienteId,
+          status: 'agendado',
+          tipoCredito: 'academia',
+          data: new RegExp('^' + mesAgendamento)
+        });
+        const disponiveis = Math.max(0, total - usados - reservados);
+        if (disponiveis <= 0) {
+          return NextResponse.json({ success: false, error: 'Créditos de academia insuficientes! O aluno não possui créditos disponíveis para este mês.' }, { status: 400 });
+        }
+      } else if (tipoCredito === 'massagem') {
+        const total = com.creditosMassagemTotal || 0;
+        const usados = com.creditosMassagemUsados || 0;
+        const reservados = await Appointment.countDocuments({
+          clienteId,
+          status: 'agendado',
+          tipoCredito: 'massagem'
+        });
+        const disponiveis = Math.max(0, total - usados - reservados);
+        if (disponiveis <= 0) {
+          return NextResponse.json({ success: false, error: 'Créditos de massagem insuficientes! O aluno não possui créditos de massagem disponíveis.' }, { status: 400 });
+        }
+      } else if (tipoCredito === 'emergencia') {
+        const total = com.creditosEmergenciaTotal || 0;
+        const usados = com.creditosEmergenciaUsados || 0;
+        const reservados = com.creditosEmergenciaReservados || 0;
+        const disponiveis = Math.max(0, total - usados - reservados);
+        if (disponiveis <= 0) {
+          return NextResponse.json({ success: false, error: 'Créditos de emergência insuficientes! O aluno não possui créditos de emergência disponíveis.' }, { status: 400 });
+        }
       }
     }
 
@@ -195,7 +260,6 @@ export async function POST(request: Request) {
     let finalProfId = requestedProfId;
 
     if (tipo === 'consultorio') {
-      // Somente Dr. André Costa (prof_1)
       finalProfId = '6668ab030303030303030301';
       const slotsFilled = await Appointment.countDocuments({
         data,
@@ -208,7 +272,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'Dr. André Costa já possui agendamento neste horário no consultório.' }, { status: 400 });
       }
     } else {
-      // tipo === 'academia'
       const checkProfessionalAvailability = async (profId: string) => {
         const slotsDesteProf = await Appointment.find({
           data,
@@ -235,8 +298,7 @@ export async function POST(request: Request) {
         return true;
       };
 
-      // Tenta o profissional solicitado. Se indisponível, tenta o outro.
-      const professionals = ['6668ab030303030303030302', '6668ab030303030303030301']; // Camila, depois André
+      const professionals = ['6668ab030303030303030302', '6668ab030303030303030301'];
       if (finalProfId && professionals.includes(finalProfId)) {
         const index = professionals.indexOf(finalProfId);
         if (index > -1) {
@@ -259,7 +321,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: `Capacidade do profissional esgotada neste horário (máx. ${CAPACIDADE_POR_PROFISSIONAL} vagas por profissional ou profissional possui agendamento exclusivo).` }, { status: 400 });
       }
 
-      // Validação total da academia: max 6 vagas (ou capacidade personalizada) por horário
       let maxVagasAcademia = 6;
       if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
         maxVagasAcademia = customRule.capacidadePersonalizada;
@@ -279,7 +340,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: `Horário na academia lotado! Máximo de ${maxVagasAcademia} vagas.` }, { status: 400 });
       }
 
-      // Treino Livre max 3 por horário
       if (servico === 'Treino Livre') {
         const treinosLivresNesteHorario = allGymApts.filter(a => a.servico === 'Treino Livre').length;
         if (treinosLivresNesteHorario >= 3 && !bypassRestrictions) {
@@ -288,12 +348,17 @@ export async function POST(request: Request) {
       }
     }
 
-    // Incrementar reservas no modelo Client
-    if (consumeCredito) {
-      client.dadosComerciais.creditosReservados = (client.dadosComerciais.creditosReservados || 0) + 1;
-      await client.save();
-    } else if (consumeCreditoMassagem) {
-      client.dadosComerciais.creditosMassagemReservados = (client.dadosComerciais.creditosMassagemReservados || 0) + 1;
+    // --- Incrementar reservas no modelo Client ---
+    if (tipoCredito !== 'nenhum') {
+      const com = client.dadosComerciais;
+      if (tipoCredito === 'academia') {
+        com.creditosReservados = (com.creditosReservados || 0) + 1;
+      } else if (tipoCredito === 'massagem') {
+        com.creditosMassagemReservados = (com.creditosMassagemReservados || 0) + 1;
+      } else if (tipoCredito === 'emergencia') {
+        com.creditosEmergenciaReservados = (com.creditosEmergenciaReservados || 0) + 1;
+      }
+      client.markModified('dadosComerciais');
       await client.save();
     }
 
@@ -302,7 +367,8 @@ export async function POST(request: Request) {
       horario,
       tipo,
       servico,
-      consumeCredito,
+      consumeCredito: tipoCredito === 'academia',
+      tipoCredito,
       profissionalId: finalProfId,
       clienteId,
       status: 'agendado'
@@ -318,7 +384,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, status } = body; // status: 'presenca' | 'cancelado' | 'agendado'
+    const { id, status } = body;
 
     if (!id || !status) {
       return NextResponse.json({ success: false, error: 'Missing appointment ID or status' }, { status: 400 });
@@ -333,106 +399,18 @@ export async function PUT(request: Request) {
     const oldStatus = appointment.status;
 
     if (client) {
-      const consumeCredito = appointment.consumeCredito;
-      const consumeCreditoMassagem = appointment.servico === 'Massagem';
+      // Usar tipoCredito do appointment; fallback para inferência legada
+      const tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum' =
+        appointment.tipoCredito ||
+        (appointment.consumeCredito ? 'academia' : appointment.servico === 'Massagem' ? 'massagem' : 'nenhum');
 
-      if (consumeCredito) {
-        // 1. agendado -> presenca
-        if (oldStatus === 'agendado' && status === 'presenca') {
-          client.dadosComerciais.creditosReservados = Math.max(0, (client.dadosComerciais.creditosReservados || 0) - 1);
-          client.dadosComerciais.creditosUsados = (client.dadosComerciais.creditosUsados || 0) + 1;
-        }
-        // 2. agendado -> cancelado
-        else if (oldStatus === 'agendado' && status === 'cancelado') {
-          client.dadosComerciais.creditosReservados = Math.max(0, (client.dadosComerciais.creditosReservados || 0) - 1);
-          
-          const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
-          const agora = new Date();
-          const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
-          const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
-          
-          if (diffHoras < janelaHoras) {
-            // Cancelamento tardio — crédito é consumido de qualquer forma
-            client.dadosComerciais.creditosUsados = (client.dadosComerciais.creditosUsados || 0) + 1;
-          }
-        }
-        // 3. presenca -> agendado
-        else if (oldStatus === 'presenca' && status === 'agendado') {
-          client.dadosComerciais.creditosUsados = Math.max(0, (client.dadosComerciais.creditosUsados || 0) - 1);
-          client.dadosComerciais.creditosReservados = (client.dadosComerciais.creditosReservados || 0) + 1;
-        }
-        // 4. cancelado -> agendado
-        else if (oldStatus === 'cancelado' && status === 'agendado') {
-          client.dadosComerciais.creditosReservados = (client.dadosComerciais.creditosReservados || 0) + 1;
-          const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
-          const agora = new Date();
-          const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
-          const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
-          if (diffHoras < janelaHoras) {
-            client.dadosComerciais.creditosUsados = Math.max(0, (client.dadosComerciais.creditosUsados || 0) - 1);
-          }
-        }
-        // 5. presenca -> cancelado
-        else if (oldStatus === 'presenca' && status === 'cancelado') {
-          client.dadosComerciais.creditosUsados = Math.max(0, (client.dadosComerciais.creditosUsados || 0) - 1);
-          const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
-          const agora = new Date();
-          const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
-          const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
-          if (diffHoras < janelaHoras) {
-            client.dadosComerciais.creditosUsados = (client.dadosComerciais.creditosUsados || 0) + 1;
-          }
-        }
-      }
-      else if (consumeCreditoMassagem) {
-        // 1. agendado -> presenca
-        if (oldStatus === 'agendado' && status === 'presenca') {
-          client.dadosComerciais.creditosMassagemReservados = Math.max(0, (client.dadosComerciais.creditosMassagemReservados || 0) - 1);
-          client.dadosComerciais.creditosMassagemUsados = (client.dadosComerciais.creditosMassagemUsados || 0) + 1;
-        }
-        // 2. agendado -> cancelado
-        else if (oldStatus === 'agendado' && status === 'cancelado') {
-          client.dadosComerciais.creditosMassagemReservados = Math.max(0, (client.dadosComerciais.creditosMassagemReservados || 0) - 1);
-          
-          const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
-          const agora = new Date();
-          const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
-          const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
-          
-          if (diffHoras < janelaHoras) {
-            // Cancelamento tardio — crédito é consumido de qualquer forma
-            client.dadosComerciais.creditosMassagemUsados = (client.dadosComerciais.creditosMassagemUsados || 0) + 1;
-          }
-        }
-        // 3. presenca -> agendado
-        else if (oldStatus === 'presenca' && status === 'agendado') {
-          client.dadosComerciais.creditosMassagemUsados = Math.max(0, (client.dadosComerciais.creditosMassagemUsados || 0) - 1);
-          client.dadosComerciais.creditosMassagemReservados = (client.dadosComerciais.creditosMassagemReservados || 0) + 1;
-        }
-        // 4. cancelado -> agendado
-        else if (oldStatus === 'cancelado' && status === 'agendado') {
-          client.dadosComerciais.creditosMassagemReservados = (client.dadosComerciais.creditosMassagemReservados || 0) + 1;
-          const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
-          const agora = new Date();
-          const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
-          const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
-          if (diffHoras < janelaHoras) {
-            client.dadosComerciais.creditosMassagemUsados = Math.max(0, (client.dadosComerciais.creditosMassagemUsados || 0) - 1);
-          }
-        }
-        // 5. presenca -> cancelado
-        else if (oldStatus === 'presenca' && status === 'cancelado') {
-          client.dadosComerciais.creditosMassagemUsados = Math.max(0, (client.dadosComerciais.creditosMassagemUsados || 0) - 1);
-          const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
-          const agora = new Date();
-          const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
-          const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
-          if (diffHoras < janelaHoras) {
-            client.dadosComerciais.creditosMassagemUsados = (client.dadosComerciais.creditosMassagemUsados || 0) + 1;
-          }
-        }
-      }
+      const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
+      const agora = new Date();
+      const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
+      const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
 
+      applyStatusTransition(client, tipoCredito, oldStatus, status, diffHoras, janelaHoras);
+      client.markModified('dadosComerciais');
       await client.save();
     }
 
@@ -460,25 +438,24 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Appointment not found' }, { status: 404 });
     }
 
-    // Refund credits if deleted appointment was active
     const client = await Client.findById(appointment.clienteId);
     if (client) {
-      const consumeCredito = appointment.consumeCredito;
-      const consumeCreditoMassagem = appointment.servico === 'Massagem';
+      const tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum' =
+        appointment.tipoCredito ||
+        (appointment.consumeCredito ? 'academia' : appointment.servico === 'Massagem' ? 'massagem' : 'nenhum');
 
-      if (consumeCredito) {
-        if (appointment.status === 'agendado') {
-          client.dadosComerciais.creditosReservados = Math.max(0, (client.dadosComerciais.creditosReservados || 0) - 1);
-        } else if (appointment.status === 'presenca') {
-          client.dadosComerciais.creditosUsados = Math.max(0, (client.dadosComerciais.creditosUsados || 0) - 1);
-        }
-      } else if (consumeCreditoMassagem) {
-        if (appointment.status === 'agendado') {
-          client.dadosComerciais.creditosMassagemReservados = Math.max(0, (client.dadosComerciais.creditosMassagemReservados || 0) - 1);
-        } else if (appointment.status === 'presenca') {
-          client.dadosComerciais.creditosMassagemUsados = Math.max(0, (client.dadosComerciais.creditosMassagemUsados || 0) - 1);
-        }
+      const com = client.dadosComerciais;
+      if (tipoCredito === 'academia') {
+        if (appointment.status === 'agendado') com.creditosReservados = Math.max(0, (com.creditosReservados || 0) - 1);
+        else if (appointment.status === 'presenca') com.creditosUsados = Math.max(0, (com.creditosUsados || 0) - 1);
+      } else if (tipoCredito === 'massagem') {
+        if (appointment.status === 'agendado') com.creditosMassagemReservados = Math.max(0, (com.creditosMassagemReservados || 0) - 1);
+        else if (appointment.status === 'presenca') com.creditosMassagemUsados = Math.max(0, (com.creditosMassagemUsados || 0) - 1);
+      } else if (tipoCredito === 'emergencia') {
+        if (appointment.status === 'agendado') com.creditosEmergenciaReservados = Math.max(0, (com.creditosEmergenciaReservados || 0) - 1);
+        else if (appointment.status === 'presenca') com.creditosEmergenciaUsados = Math.max(0, (com.creditosEmergenciaUsados || 0) - 1);
       }
+      client.markModified('dadosComerciais');
       await client.save();
     }
 
@@ -488,4 +465,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-

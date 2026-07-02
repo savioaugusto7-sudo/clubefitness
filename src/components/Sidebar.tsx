@@ -63,6 +63,7 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'evolucao', label: 'Minha Evolução', icon: 'fa-chart-line' },
     { id: 'treino', label: 'Ficha de Treino', icon: 'fa-dumbbell' },
     { id: 'documentos', label: 'Meus Documentos', icon: 'fa-file-pdf' },
+    { id: 'creditos', label: 'Meus Créditos', icon: 'fa-coins' },
     { id: 'trancamento', label: 'Trancar Plano', icon: 'fa-snowflake' }
   ]
 };

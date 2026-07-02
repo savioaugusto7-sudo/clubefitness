@@ -19,10 +19,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
   // Booking states
   const [bookDate, setBookDate] = useState('');
-  const [bookTime, setBookTime] = useState('08:00');
+  const [bookTime, setBookTime] = useState('');
   const [bookService, setBookService] = useState('Treino Monitorado');
   const [bookType, setBookType] = useState<'academia' | 'consultorio'>('academia');
   const [bookingStatusMsg, setBookingStatusMsg] = useState('');
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Workout, Assessments, and Reports states for new views
   const [workout, setWorkout] = useState<any>(null);
@@ -239,6 +241,23 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     }
   }, [bookType]);
 
+  // Reset bookTime when date or service changes
+  useEffect(() => {
+    setBookTime('');
+    setAvailableSlots([]);
+  }, [bookDate, bookService]);
+
+  // Fetch available slots when date and service are set
+  useEffect(() => {
+    if (!bookDate || !bookService) return;
+    setLoadingSlots(true);
+    fetch(`/api/available-slots?data=${bookDate}&servico=${encodeURIComponent(bookService)}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setAvailableSlots(d.data); })
+      .catch(() => setAvailableSlots([]))
+      .finally(() => setLoadingSlots(false));
+  }, [bookDate, bookService]);
+
   const activeContract = contracts.find(c => c.status === 'assinado' || c.status === 'congelado');
 
   const getRemainingMonthsList = () => {
@@ -325,7 +344,6 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         horario: bookTime,
         tipo: bookType,
         servico: bookService,
-        consumeCredito: bookService === 'Treino Monitorado',
         profissionalId: '6668ab030303030303030302', // Camila Lima
         clienteId: profileId
       };
@@ -388,11 +406,24 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   // Find pending Asaas contract
   const pendingAsaasContract = contracts.find(c => c.asaasPaymentId && c.status === 'pendente');
 
-  // Calculate credits
+  // Calculate credits — all 3 types
   const credTotal = client.dadosComerciais?.creditosTotal || 0;
   const credUsados = client.dadosComerciais?.creditosUsados || 0;
   const credReservados = client.dadosComerciais?.creditosReservados || 0;
   const credDisp = Math.max(0, credTotal - credUsados - credReservados);
+
+  const massTotal = client.dadosComerciais?.creditosMassagemTotal || 0;
+  const massUsados = client.dadosComerciais?.creditosMassagemUsados || 0;
+  const massReservados = client.dadosComerciais?.creditosMassagemReservados || 0;
+  const massDisp = Math.max(0, massTotal - massUsados - massReservados);
+
+  const emergTotal = client.dadosComerciais?.creditosEmergenciaTotal || 0;
+  const emergUsados = client.dadosComerciais?.creditosEmergenciaUsados || 0;
+  const emergReservados = client.dadosComerciais?.creditosEmergenciaReservados || 0;
+  const emergDisp = Math.max(0, emergTotal - emergUsados - emergReservados);
+
+  // Detect saturday from selected booking date
+  const bookDateIsSaturday = bookDate ? new Date(bookDate + 'T12:00:00').getDay() === 6 : false;
 
   return (
     <div>
@@ -556,13 +587,20 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)}>
                   {bookType === 'academia' ? (
                     <>
-                      <option value="Treino Monitorado">Treino Monitorado (Consome Crédito)</option>
-                      <option value="Treino Livre">Treino Livre (Sem Custo)</option>
-                      <option value="Recovery">Recovery (Sem Custo)</option>
-                      <option value="Avaliação Física">Avaliação Física (Sem Custo)</option>
-                      <option value="Teste de Força">Teste de Força (Sem Custo)</option>
-                      <option value="Emergência">Atendimento de Emergência (Sem Custo)</option>
-                      <option value="Massagem">Massagem (Consome Crédito Massagem - Sábados)</option>
+                      {bookDateIsSaturday ? (
+                        // Sábado: apenas Massagem
+                        <option value="Massagem">Massagem</option>
+                      ) : (
+                        // Seg-Sex: todos exceto Massagem
+                        <>
+                          <option value="Treino Monitorado">Treino Monitorado</option>
+                          <option value="Treino Livre">Treino Livre</option>
+                          <option value="Recovery">Recovery</option>
+                          <option value="Avaliação Física">Avaliação Física</option>
+                          <option value="Teste de Força">Teste de Força</option>
+                          <option value="Emergência">Atendimento de Emergência</option>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
@@ -579,7 +617,29 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </div>
                 <div className="form-group">
                   <label>Horário</label>
-                  <input type="time" className="form-control" value={bookTime} onChange={e => setBookTime(e.target.value)} required />
+                  {!bookDate ? (
+                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px' }}></i>
+                      Selecione uma data para ver os horários disponíveis
+                    </div>
+                  ) : loadingSlots ? (
+                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                      Carregando horários...
+                    </div>
+                  ) : availableSlots.length === 0 ? (
+                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--color-danger)', fontSize: '0.85rem' }}>
+                      <i className="fa-solid fa-ban" style={{ marginRight: '8px' }}></i>
+                      Nenhum horário disponível para esta data e serviço
+                    </div>
+                  ) : (
+                    <select className="select-custom" value={bookTime} onChange={e => setBookTime(e.target.value)} required>
+                      <option value="">Selecione um horário</option>
+                      {availableSlots.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -1949,8 +2009,171 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         </>
       )}
 
+
+      {/* View: Meus Créditos */}
+      {activeTab === 'creditos' && (
+        <>
+          <div className="view-header">
+            <div className="view-title-group">
+              <h1>Meus Créditos</h1>
+              <p>Acompanhe o saldo de cada tipo de crédito do seu plano.</p>
+            </div>
+          </div>
+
+          {/* 3 Cards de Crédito */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '8px' }}>
+
+            {/* Academia */}
+            {(() => {
+              const pct = credTotal > 0 ? Math.round(((credUsados + credReservados) / credTotal) * 100) : 0;
+              const esgotado = credDisp <= 0 && credTotal > 0;
+              return (
+                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : 'var(--color-primary)'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'var(--color-primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className="fa-solid fa-dumbbell" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : 'var(--color-primary)' }}></i>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Créditos de Academia</h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Treino Monitorado, Avaliações e Emergências</p>
+                    </div>
+                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '14px', textAlign: 'center' }}>
+                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: credDisp > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>{credDisp}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Disponíveis</div></div>
+                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{credUsados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usados</div></div>
+                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)' }}>{credReservados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reservados</div></div>
+                  </div>
+                  <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : 'var(--color-primary)', borderRadius: '6px', transition: 'width 0.4s' }}></div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>{pct}% utilizado de {credTotal} créditos/mês</div>
+                </div>
+              );
+            })()}
+
+            {/* Emergência */}
+            {(() => {
+              const pct = emergTotal > 0 ? Math.round(((emergUsados + emergReservados) / emergTotal) * 100) : 0;
+              const esgotado = emergDisp <= 0 && emergTotal > 0;
+              const semPlano = emergTotal === 0;
+              return (
+                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'var(--border-color)' : '#f59e0b'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#f59e0b' }}></i>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Créditos de Emergência</h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agendamentos de Emergência (Seg–Sex)</p>
+                    </div>
+                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
+                  </div>
+                  {semPlano ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>Seu plano não inclui créditos de emergência.</p>
+                  ) : (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '14px', textAlign: 'center' }}>
+                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: emergDisp > 0 ? '#f59e0b' : 'var(--color-danger)' }}>{emergDisp}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Disponíveis</div></div>
+                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{emergUsados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usados</div></div>
+                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)' }}>{emergReservados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reservados</div></div>
+                      </div>
+                      <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#f59e0b', borderRadius: '6px', transition: 'width 0.4s' }}></div>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>{pct}% utilizado de {emergTotal} crédito(s)/mês</div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Massagem */}
+            {(() => {
+              const pct = massTotal > 0 ? Math.round(((massUsados + massReservados) / massTotal) * 100) : 0;
+              const esgotado = massDisp <= 0 && massTotal > 0;
+              const semPlano = massTotal === 0;
+              return (
+                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'var(--border-color)' : '#a855f7'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(168,85,247,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className="fa-solid fa-spa" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#a855f7' }}></i>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Créditos de Massagem</h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Massagem Terapêutica (exclusivo Sábados)</p>
+                    </div>
+                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
+                  </div>
+                  {semPlano ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>Seu plano não inclui créditos de massagem.</p>
+                  ) : (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '14px', textAlign: 'center' }}>
+                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: massDisp > 0 ? '#a855f7' : 'var(--color-danger)' }}>{massDisp}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Disponíveis</div></div>
+                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{massUsados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usados</div></div>
+                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)' }}>{massReservados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reservados</div></div>
+                      </div>
+                      <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#a855f7', borderRadius: '6px', transition: 'width 0.4s' }}></div>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>{pct}% utilizado de {massTotal} crédito(s)/mês</div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Histórico por tipo */}
+          <div className="content-panel" style={{ marginTop: '24px' }}>
+            <div className="panel-header"><h2>Histórico de Uso</h2></div>
+            {appointments.filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum').length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>Nenhum agendamento com crédito encontrado.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Data</th>
+                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Serviço</th>
+                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Tipo de Crédito</th>
+                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appointments
+                    .filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum')
+                    .sort((a: any, b: any) => b.data.localeCompare(a.data))
+                    .map((a: any) => {
+                      const tipoCor: Record<string, string> = { academia: 'var(--color-primary)', emergencia: '#f59e0b', massagem: '#a855f7' };
+                      const tipoLabel: Record<string, string> = { academia: 'Academia', emergencia: 'Emergência', massagem: 'Massagem' };
+                      const statusCor: Record<string, string> = { agendado: 'var(--color-warning)', presenca: 'var(--color-success)', cancelado: 'var(--color-danger)' };
+                      return (
+                        <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{a.data} {a.horario}</td>
+                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{a.servico}</td>
+                          <td style={{ padding: '10px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}22`, padding: '2px 8px', borderRadius: '8px' }}>
+                              {tipoLabel[a.tipoCredito] || a.tipoCredito}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: statusCor[a.status] || 'var(--text-muted)', background: `${statusCor[a.status] || 'var(--text-muted)'}22`, padding: '2px 8px', borderRadius: '8px' }}>
+                              {a.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Default Fallback for other tabs */}
-      {!['dashboard', 'agendar', 'agendamentos', 'treino', 'evolucao', 'documentos', 'trancamento'].includes(activeTab) && (
+      {!['dashboard', 'agendar', 'agendamentos', 'treino', 'evolucao', 'documentos', 'trancamento', 'creditos'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>

@@ -3781,13 +3781,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     <select className="select-custom" value={aptService} onChange={e => setAptService(e.target.value)}>
                       {aptType === 'academia' ? (
                         <>
-                          <option value="Treino Monitorado">Treino Monitorado (Consome Crédito)</option>
-                          <option value="Treino Livre">Treino Livre (Sem Custo)</option>
-                          <option value="Recovery">Recovery (Sem Custo)</option>
-                          <option value="Avaliação Física">Avaliação Física (Sem Custo)</option>
-                          <option value="Teste de Força">Teste de Força (Sem Custo)</option>
-                          <option value="Emergência">Atendimento de Emergência (Sem Custo)</option>
-                          <option value="Massagem">Massagem (Consome Crédito Massagem - Sábados)</option>
+                          {aptDate && new Date(aptDate + 'T12:00:00').getDay() === 6 ? (
+                            <option value="Massagem">Massagem</option>
+                          ) : (
+                            <>
+                              <option value="Treino Monitorado">Treino Monitorado</option>
+                              <option value="Treino Livre">Treino Livre</option>
+                              <option value="Recovery">Recovery</option>
+                              <option value="Avaliação Física">Avaliação Física</option>
+                              <option value="Teste de Força">Teste de Força</option>
+                              <option value="Emergência">Atendimento de Emergência</option>
+                            </>
+                          )}
                         </>
                       ) : (
                         <>

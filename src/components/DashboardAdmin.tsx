@@ -72,7 +72,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['client']);
   const [creditAmount, setCreditAmount] = useState(1);
   const [resetPassword, setResetPassword] = useState(false);
-  const [creditType, setCreditType] = useState<'academia' | 'massagem'>('academia');
+  const [creditType, setCreditType] = useState<'academia' | 'massagem' | 'emergencia'>('academia');
 
   // New states for the missing features
   const [plans, setPlans] = useState<any[]>([]);
@@ -200,6 +200,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
   const [dcFrequencia, setDcFrequencia] = useState<number>(3);
+  const [dcCreditosMassagem, setDcCreditosMassagem] = useState<number>(0);
+  const [dcCreditosEmergencia, setDcCreditosEmergencia] = useState<number>(0);
 
   // Contract Tab States
   const [clientContracts, setClientContracts] = useState<any[]>([]);
@@ -454,7 +456,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       enviarAsaas: gerarAsaas,
       contratoPdfBase64: pdfBase64,
       frequencia: dcFrequencia,
-      creditosTotal: dcFrequencia * 4 + 1
+      creditosTotal: dcFrequencia * 4 + 1,
+    creditosMassagemPorPlano: dcCreditosMassagem,
+    creditosEmergenciaPorPlano: dcCreditosEmergencia
     };
 
     const res = await fetch('/api/contracts', {
@@ -1208,12 +1212,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       } else if (modalType === 'credit') {
         // Update client credits
         const isMassage = creditType === 'massagem';
+        const isEmergencia = creditType === 'emergencia';
         const currentCom = editingItem.dadosComerciais;
         const payload = {
           id: editingItem._id,
           dadosComerciais: {
-            creditosTotal: isMassage ? currentCom.creditosTotal : (currentCom.creditosTotal || 0) + creditAmount,
-            creditosMassagemTotal: isMassage ? (currentCom.creditosMassagemTotal || 0) + creditAmount : currentCom.creditosMassagemTotal
+            creditosTotal:           (!isMassage && !isEmergencia) ? (currentCom.creditosTotal || 0) + creditAmount : currentCom.creditosTotal,
+            creditosMassagemTotal:   isMassage    ? (currentCom.creditosMassagemTotal    || 0) + creditAmount : currentCom.creditosMassagemTotal,
+            creditosEmergenciaTotal: isEmergencia ? (currentCom.creditosEmergenciaTotal  || 0) + creditAmount : currentCom.creditosEmergenciaTotal,
           }
         };
         const res = await fetch('/api/clients', {
@@ -3058,6 +3064,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       <select className="select-custom" value={creditType} onChange={e => setCreditType(e.target.value as any)}>
                         <option value="academia">Créditos de Academia</option>
                         <option value="massagem">Créditos de Massagem</option>
+                        <option value="emergencia">Créditos de Emergência</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -3660,6 +3667,17 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </div>
                         </div>
 
+                        <div className="form-row" style={{ marginTop: '10px' }}>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-spa"></i> Créditos de Massagem por Mês</label>
+                            <input type="number" className="form-control" min={0} value={dcCreditosMassagem} onChange={e => setDcCreditosMassagem(Number(e.target.value))} disabled={hasActiveSignedContract} />
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-triangle-exclamation"></i> Créditos de Emergência por Mês</label>
+                            <input type="number" className="form-control" min={0} value={dcCreditosEmergencia} onChange={e => setDcCreditosEmergencia(Number(e.target.value))} disabled={hasActiveSignedContract} />
+                          </div>
+                        </div>
+
                         <div className="form-group" style={{ marginTop: '10px' }}>
                           <label className="comercial-field-label"><i className="fa-solid fa-file-lines"></i> Observações Contratuais</label>
                           <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} placeholder="Notas adicionais sobre esta contratação" disabled={hasActiveSignedContract} />
@@ -3729,7 +3747,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                formaPagamento: dcFormaPag,
                                duracao: dcDuracao,
                                duracaoQtd: dcVigenciaQtd,
-                               valorUnitario: dcValorUnitario,
                                vencimento: dcVencimento,
                                descontoTipo: dcDescontoTipo,
                                descontoValor: dcDescontoValor,
@@ -3737,8 +3754,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                dataInicio: dcDataInicio,
                                responsavelVenda: dcResponsavelVenda,
                                observacoesContratuais: dcObservacoesContratuais,
+                               valorUnitario: dcValorUnitario,
                                frequencia: dcFrequencia,
-                               creditosTotal: dcFrequencia * 4 + 1
+                               creditosTotal: dcFrequencia * 4 + 1,
+                             creditosMassagemTotal: dcCreditosMassagem,
+                             creditosEmergenciaTotal: dcCreditosEmergencia
                              }
                            };
                            const res = await fetch('/api/clients', {
