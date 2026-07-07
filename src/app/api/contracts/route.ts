@@ -397,9 +397,12 @@ export async function POST(request: Request) {
     const count = await Contract.countDocuments({ clientId });
     const versao = count + 1;
 
-    // 2. Definir Vigência (Anual = 12 meses, Mensal = 1 mês)
+    const numParcelas = Number(parcelas) || 1;
+
+    // 2. Definir Vigência (Anual = 12 meses, baseada em parcelas se maior)
     const isAnual = plan.tipo === 'Anual';
-    const vigenciaMeses = isAnual ? 12 : 1;
+    const planVigencia = isAnual ? 12 : 1;
+    const vigenciaMeses = Math.max(planVigencia, numParcelas);
 
     // Calcular data de fim de vigência
     let dataFim = manualDataFim;
@@ -419,7 +422,6 @@ export async function POST(request: Request) {
       valorLiquido = Math.max(0, valorBruto - descVal);
     }
 
-    const numParcelas = Number(parcelas) || 1;
     const diaVenc = dataPrimeiroVencimento ? parseInt(dataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate();
 
     // Se houver contratos ativos assinados, podemos marcá-los como cancelados/inativos ao assinar o novo
