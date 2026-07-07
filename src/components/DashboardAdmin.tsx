@@ -3972,10 +3972,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             <label className="comercial-field-label"><i className="fa-solid fa-dumbbell"></i> Créditos de Aula por Mês</label>
                             <input type="number" className="form-control" min={0} value={dcCreditosTotal} onChange={e => setDcCreditosTotal(Number(e.target.value))} disabled={hasActiveSignedContract} />
                           </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-dumbbell"></i> Créditos de Aula por Mês</label>
-                            <input type="number" className="form-control" min={0} value={dcCreditosTotal} onChange={e => setDcCreditosTotal(Number(e.target.value))} disabled={hasActiveSignedContract} />
-                          </div>
                         </div>
 
                         <div className="form-row" style={{ marginTop: '10px' }}>
