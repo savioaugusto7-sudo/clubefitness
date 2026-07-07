@@ -811,6 +811,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     });
   };
 
+  const handleGlobalSync = async () => {
+    setLoadingPayments(true);
+    try {
+      await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_all_asaas' })
+      });
+    } catch (e) {
+      console.error('Error syncing all Asaas payments:', e);
+    }
+    await fetchPayments();
+  };
+
   const fetchPayments = async () => {
     setLoadingPayments(true);
     try {
@@ -2613,7 +2627,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     <option value="Atrasado">Atrasado</option>
                   </select>
                 </div>
-                <button className="btn btn-secondary" onClick={fetchPayments} disabled={loadingPayments}>
+                <button className="btn btn-secondary" onClick={handleGlobalSync} disabled={loadingPayments}>
                   <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i>Atualizar
                 </button>
               </div>

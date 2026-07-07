@@ -181,6 +181,65 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, asaasCustomerId: asaasId });
     }
 
+    // C. SYNC ALL CLIENTS WITH ASAAS
+    if (action === 'sync_all_asaas') {
+      const clients = await Client.find({ 'dadosComerciais.asaasCustomerId': { $ne: '' } });
+      if (clients.length === 0) {
+        return NextResponse.json({ success: true, message: 'Nenhum cliente com ID Asaas cadastrado.' });
+      }
+
+      const baseUrl = getAsaasBaseUrl();
+      const headers = getAsaasHeaders();
+
+      let syncedCount = 0;
+      for (const client of clients) {
+        const asaasId = client.dadosComerciais.asaasCustomerId;
+        try {
+          const paymentsRes = await fetch(`${baseUrl}/payments?customer=${asaasId}&limit=100`, { method: 'GET', headers });
+          if (paymentsRes.ok) {
+            const paymentsData = await paymentsRes.json();
+            if (Array.isArray(paymentsData.data)) {
+              // Delete existing local Asaas payments for this client
+              await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
+
+              const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
+                let status = 'Pendente';
+                if (p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH') {
+                  status = 'Pago';
+                } else if (p.status === 'OVERDUE') {
+                  status = 'Atrasado';
+                }
+
+                return {
+                  clientId: client._id,
+                  clientNome: client.dadosPessoais?.nome || 'Sem Nome',
+                  planoNome: p.description || 'Assinatura Asaas',
+                  valor: p.value || 0,
+                  vencimento: p.dueDate,
+                  dataPagamento: p.paymentDate || '',
+                  status,
+                  formaPagamento: 'Asaas',
+                  asaasPaymentId: p.id,
+                  asaasInvoiceUrl: p.invoiceUrl || '',
+                  parcelaNumero: idx + 1,
+                  parcelasTotal: paymentsData.data.length,
+                };
+              });
+
+              if (paymentRecords.length > 0) {
+                await Payment.insertMany(paymentRecords);
+              }
+              syncedCount++;
+            }
+          }
+        } catch (err) {
+          console.error(`Erro ao sincronizar cliente Asaas ${client.dadosPessoais?.nome}:`, err);
+        }
+      }
+
+      return NextResponse.json({ success: true, syncedCount });
+    }
+
     return NextResponse.json({ success: false, error: 'Ação inválida' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

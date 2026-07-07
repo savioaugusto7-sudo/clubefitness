@@ -3,6 +3,7 @@ import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
+import Payment from '@/models/Payment';
 
 export async function POST(request: Request) {
   try {
@@ -90,6 +91,13 @@ export async function POST(request: Request) {
 
       await client.save();
       console.log(`Aluno ${client.dadosPessoais?.nome} ativado com sucesso via Asaas!`);
+
+      // Atualizar status do pagamento correspondente na coleção Payment
+      await Payment.findOneAndUpdate(
+        { asaasPaymentId: payment.id },
+        { status: 'Pago', dataPagamento: new Date().toISOString().split('T')[0] }
+      );
+      console.log(`Mensalidade correspondente ao pagamento Asaas ${payment.id} marcada como Pago.`);
     } else if (event === 'PAYMENT_OVERDUE') {
       console.log(`Pagamento em atraso no Asaas para contrato: ID=${contract._id}, Aluno=${client.dadosPessoais?.nome}`);
       contract.asaasBillingStatus = 'vencido';
@@ -98,6 +106,13 @@ export async function POST(request: Request) {
       // Suspender/marcar aluno como vencido
       client.dadosComerciais.status = 'vencido';
       await client.save();
+
+      // Atualizar status do pagamento na coleção Payment
+      await Payment.findOneAndUpdate(
+        { asaasPaymentId: payment.id },
+        { status: 'Atrasado' }
+      );
+      console.log(`Mensalidade correspondente ao pagamento Asaas ${payment.id} marcada como Atrasada.`);
     } else if (event === 'PAYMENT_DELETED') {
       console.log(`Pagamento excluído no Asaas para contrato: ID=${contract._id}`);
       contract.status = 'cancelado';
@@ -109,6 +124,13 @@ export async function POST(request: Request) {
         client.dadosComerciais.status = 'inativo';
         await client.save();
       }
+
+      // Atualizar status do pagamento na coleção Payment
+      await Payment.findOneAndUpdate(
+        { asaasPaymentId: payment.id },
+        { status: 'Cancelado' }
+      );
+      console.log(`Mensalidade correspondente ao pagamento Asaas ${payment.id} marcada como Cancelada.`);
     } else {
       // Outros eventos apenas salvam o status atualizado da transação
       contract.asaasBillingStatus = payment.status.toLowerCase();
