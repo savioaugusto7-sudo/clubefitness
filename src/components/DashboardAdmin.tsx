@@ -60,6 +60,19 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [editingItem, setEditingItem] = useState<any>(null);
   const [simulatedDate, setSimulatedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
+  // Payments (Mensalidades) States
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentsSearch, setPaymentsSearch] = useState('');
+  const [paymentsStatusFilter, setPaymentsStatusFilter] = useState('');
+  const [showManualPayModal, setShowManualPayModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
+  const [mpFormaPag, setMpFormaPag] = useState('Pix Manual');
+  const [mpDataPag, setMpDataPag] = useState(new Date().toISOString().split('T')[0]);
+  const [mpObservacoes, setMpObservacoes] = useState('');
+  const [mpSaving, setMpSaving] = useState(false);
+  const [dcAsaasCustomerId, setDcAsaasCustomerId] = useState('');
+
   // Input states
   const [email, setEmail] = useState('');
   const [nome, setNome] = useState('');
@@ -467,6 +480,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       contratoPdfBase64: pdfBase64,
       frequencia: dcFrequencia,
       creditosTotal: dcCreditosTotal,
+                              asaasCustomerId: dcAsaasCustomerId,
     creditosMassagemPorPlano: dcCreditosMassagem,
     creditosEmergenciaPorPlano: dcCreditosEmergencia
     };
@@ -646,7 +660,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   };
 
   // F7   Simulador de Recebimentos
-  const [finTab, setFinTab] = useState<'contas_pagar' | 'recebimentos'>('contas_pagar');
+  const [finTab, setFinTab] = useState<'contas_pagar' | 'recebimentos' | 'mensalidades'>('mensalidades');
   const [showSimuladorModal, setShowSimuladorModal] = useState(false);
   const [simClient, setSimClient] = useState<any>(null);
   const [simForma, setSimForma] = useState<'pix' | 'boleto'>('pix');
@@ -734,6 +748,61 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       setLoading(false);
     }
   };
+
+  const fetchPayments = async () => {
+    setLoadingPayments(true);
+    try {
+      const url = `/api/admin/payments?search=${encodeURIComponent(paymentsSearch)}&status=${paymentsStatusFilter}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setPayments(data.data || []);
+      }
+    } catch (e) {
+      console.error('Error fetching payments:', e);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  const handleConfirmManualPayment = async () => {
+    if (!selectedPayment) return;
+    setMpSaving(true);
+    try {
+      const res = await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'confirm_manual',
+          paymentId: selectedPayment._id,
+          formaPagamento: mpFormaPag,
+          dataPagamento: mpDataPag,
+          observacoes: mpObservacoes
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Recebimento confirmado com sucesso!');
+        setShowManualPayModal(false);
+        setSelectedPayment(null);
+        setMpObservacoes('');
+        fetchPayments();
+        fetchData(); // reload clients
+      } else {
+        alert('Erro: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Erro de rede: ' + e.message);
+    } finally {
+      setMpSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'financeiro') {
+      fetchPayments();
+    }
+  }, [activeTab, paymentsSearch, paymentsStatusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -1786,6 +1855,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcUnidadeContratada(c.dadosComerciais?.unidadeContratada || '');
                               setDcObservacoesContratuais(c.dadosComerciais?.observacoesContratuais || '');
                               setDcFrequencia(c.dadosComerciais?.frequencia || 3);
+    setDcAsaasCustomerId(c.dadosComerciais?.asaasCustomerId || '');
     setDcCreditosTotal(c.dadosComerciais?.creditosTotal !== undefined ? c.dadosComerciais.creditosTotal : (c.dadosComerciais?.frequencia ? getCreditsForFreq(c.dadosComerciais.frequencia) : 13));
     setDcCreditosMassagem(c.dadosComerciais?.creditosMassagemTotal || 0);
     setDcCreditosEmergencia(c.dadosComerciais?.creditosEmergenciaTotal || 0);
@@ -2394,26 +2464,183 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           <div className="view-header">
             <div className="view-title-group">
               <h1>Controle Financeiro</h1>
-              <p>Gerencie as despesas, receitas e simule cobranças.</p>
+              <p>Gerencie as despesas, mensalidades e simule recebimentos.</p>
             </div>
           </div>
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--border-color)', marginBottom: '20px' }}>
             <button
+              onClick={() => setFinTab('mensalidades')}
+              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'mensalidades' ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: finTab === 'mensalidades' ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}
+            >
+              <i className="fa-solid fa-receipt" style={{ marginRight: '6px' }}></i>Mensalidades (Receber)
+            </button>
+            <button
               onClick={() => setFinTab('contas_pagar')}
-              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'contas_pagar' ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: finTab === 'contas_pagar' ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}
+              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'contas_pagar' ? 'var(--color-success)' : 'var(--text-dim)', borderBottom: finTab === 'contas_pagar' ? '3px solid var(--color-success)' : '3px solid transparent', marginBottom: '-2px' }}
             >
               <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i>Contas a Pagar
             </button>
             <button
               onClick={() => setFinTab('recebimentos')}
-              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'recebimentos' ? 'var(--color-success)' : 'var(--text-dim)', borderBottom: finTab === 'recebimentos' ? '3px solid var(--color-success)' : '3px solid transparent', marginBottom: '-2px' }}
+              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'recebimentos' ? 'var(--color-warning)' : 'var(--text-dim)', borderBottom: finTab === 'recebimentos' ? '3px solid var(--color-warning)' : '3px solid transparent', marginBottom: '-2px' }}
             >
               <i className="fa-solid fa-qrcode" style={{ marginRight: '6px' }}></i>Simulador de Recebimentos
             </button>
           </div>
 
+          {/* TAB 1: MENSALIDADES */}
+          {finTab === 'mensalidades' && (
+            <>
+              {/* Stats Cards */}
+              {(() => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const currentMonthStr = todayStr.substring(0, 7); // YYYY-MM
+                
+                const totalPaidThisMonth = payments
+                  .filter(p => p.status === 'Pago' && p.vencimento.startsWith(currentMonthStr))
+                  .reduce((sum, p) => sum + p.valor, 0);
+
+                const totalPendingThisMonth = payments
+                  .filter(p => p.status === 'Pendente' && p.vencimento >= todayStr && p.vencimento.startsWith(currentMonthStr))
+                  .reduce((sum, p) => sum + p.valor, 0);
+
+                const totalOverdue = payments
+                  .filter(p => p.status === 'Pendente' && p.vencimento < todayStr)
+                  .reduce((sum, p) => sum + p.valor, 0);
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Total Recebido (Mês)</span>
+                      <strong style={{ fontSize: '1.6rem', color: '#10b981' }}>R$ {totalPaidThisMonth.toFixed(2).replace('.', ',')}</strong>
+                    </div>
+                    <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total Pendente (Mês)</span>
+                      <strong style={{ fontSize: '1.6rem', color: '#f59e0b' }}>R$ {totalPendingThisMonth.toFixed(2).replace('.', ',')}</strong>
+                    </div>
+                    <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total em Atraso</span>
+                      <strong style={{ fontSize: '1.6rem', color: '#ef4444' }}>R$ {totalOverdue.toFixed(2).replace('.', ',')}</strong>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Filters & Search */}
+              <div className="content-panel" style={{ padding: '16px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px' }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Buscar por nome do aluno..."
+                    value={paymentsSearch}
+                    onChange={e => setPaymentsSearch(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <select
+                    className="select-custom"
+                    value={paymentsStatusFilter}
+                    onChange={e => setPaymentsStatusFilter(e.target.value)}
+                    style={{ width: '150px' }}
+                  >
+                    <option value="">Todos os Status</option>
+                    <option value="Pago">Pago</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Atrasado">Atrasado</option>
+                  </select>
+                </div>
+                <button className="btn btn-secondary" onClick={fetchPayments} disabled={loadingPayments}>
+                  <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i>Atualizar
+                </button>
+              </div>
+
+              {/* Table */}
+              <div className="content-panel" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Aluno</th>
+                        <th>Plano</th>
+                        <th>Parcela</th>
+                        <th>Vencimento</th>
+                        <th>Valor</th>
+                        <th>Método</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'center' }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map(p => {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const isOverdue = p.status === 'Pendente' && p.vencimento < todayStr;
+                        
+                        return (
+                          <tr key={p._id}>
+                            <td><strong>{p.clientNome}</strong></td>
+                            <td>{p.planoNome}</td>
+                            <td>{p.parcelaNumero}/{p.parcelasTotal}</td>
+                            <td>{p.vencimento.split('-').reverse().join('/')}</td>
+                            <td>R$ {p.valor.toFixed(2).replace('.', ',')}</td>
+                            <td>
+                              <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', fontSize: '0.72rem' }}>
+                                {p.formaPagamento}
+                              </span>
+                            </td>
+                            <td>
+                              {p.status === 'Pago' ? (
+                                <span className="badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Pago</span>
+                              ) : isOverdue ? (
+                                <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', animation: 'pulse 2s infinite' }}>Atrasado</span>
+                              ) : (
+                                <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>Pendente</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {p.status === 'Pendente' && p.formaPagamento !== 'Asaas' && (
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+                                  onClick={() => {
+                                    setSelectedPayment(p);
+                                    setMpFormaPag(p.formaPagamento);
+                                    setMpDataPag(new Date().toISOString().split('T')[0]);
+                                    setShowManualPayModal(true);
+                                  }}
+                                >
+                                  <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Receber
+                                </button>
+                              )}
+                              {p.status === 'Pendente' && p.formaPagamento === 'Asaas' && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Integrado Asaas</span>
+                              )}
+                              {p.status === 'Pago' && (
+                                <span style={{ fontSize: '0.75rem', color: '#10b981' }}><i className="fa-solid fa-circle-check"></i> Recebido</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {payments.length === 0 && (
+                        <tr>
+                          <td colSpan={8}>
+                            <div className="empty-state-card">
+                              <i className="fa-solid fa-receipt empty-state-icon"></i>
+                              <div className="empty-state-title">Nenhuma mensalidade encontrada</div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* TAB 2: CONTAS A PAGAR */}
           {finTab === 'contas_pagar' && (
             <>
               {/* Alerts for overdue/today */}
@@ -2457,7 +2684,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </div>
                   <button className="btn btn-secondary" onClick={() => exportToCSV(financials, 'financeiro', [
                     { key: 'vencimento', label: 'Vencimento' },
-                    { key: 'descricao', label: 'Descrio' },
+                    { key: 'descricao', label: 'Descrição' },
                     { key: 'categoria', label: 'Categoria' },
                     { key: 'valor', label: 'Valor (R$)' },
                     { key: 'status', label: 'Status' },
@@ -2492,7 +2719,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 );
               })()}
 
-              <div className="content-panel">
+              <div className="content-panel" style={{ padding: 0, overflow: 'hidden' }}>
                 <div className="table-responsive">
                   <table className="data-table">
                     <thead>
@@ -2505,7 +2732,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       {(() => {
                         const filtered = financials.filter(f =>
                           (finFilterStatus ? f.status === finFilterStatus : true) &&
-                          (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true)
+                          (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) &&
+                          (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)
                         );
                         const listKey = 'financeiro';
                         const activeP = getPage(listKey);
@@ -2538,7 +2766,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       })()}
                       {financials.filter(f =>
                         (finFilterStatus ? f.status === finFilterStatus : true) &&
-                        (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true)
+                        (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) &&
+                        (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)
                       ).length === 0 && (
                         <tr><td colSpan={7}>
                           <div className="empty-state-card">
@@ -2552,12 +2781,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </table>
                 </div>
                 {financials.length > 0 && (
-                  <Pagination currentPage={getPage('financeiro')} totalItems={financials.filter(f => (finFilterStatus ? f.status === finFilterStatus : true) && (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true)).length} itemsPerPage={getPageSize('financeiro')} onPageChange={page => setPage('financeiro', page)} />
+                  <Pagination currentPage={getPage('financeiro')} totalItems={financials.filter(f => (finFilterStatus ? f.status === finFilterStatus : true) && (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) && (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)).length} itemsPerPage={getPageSize('financeiro')} onPageChange={page => setPage('financeiro', page)} />
                 )}
               </div>
             </>
           )}
 
+          {/* TAB 3: SIMULADOR DE RECEBIMENTOS */}
           {finTab === 'recebimentos' && (
             <>
               <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '0.875rem' }}>
@@ -3003,7 +3233,60 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </div>
       )}
 
-      {/* CRUD MODAL */}
+            {/* MANUAL CONFIRM RECEIPT MODAL */}
+      {showManualPayModal && selectedPayment && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Confirmar Recebimento Manual</h3>
+              <button className="modal-close" onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>Aluno</div>
+                <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{selectedPayment.clientNome}</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Parcela</div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{selectedPayment.parcelaNumero}/{selectedPayment.parcelasTotal}</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Valor da Parcela</div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-primary)' }}>R$ {selectedPayment.valor.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="comercial-field-label">Método de Recebimento</label>
+                <select className="select-custom" value={mpFormaPag} onChange={e => setMpFormaPag(e.target.value)}>
+                  <option value="Pix Manual">Pix Manual (Não integrado)</option>
+                  <option value="Dinheiro">Dinheiro Físico</option>
+                  <option value="Cartão Manual">Cartão de Crédito/Débito (Máquina externa)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="comercial-field-label">Data de Recebimento</label>
+                <input type="date" className="form-control" value={mpDataPag} onChange={e => setMpDataPag(e.target.value)} required />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="comercial-field-label">Observações / Notas</label>
+                <textarea className="form-control" rows={2} value={mpObservacoes} onChange={e => setMpObservacoes(e.target.value)} placeholder="Comprovante id, quem recebeu, etc..." />
+              </div>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+              <button className="btn btn-secondary" onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleConfirmManualPayment} disabled={mpSaving}>
+                {mpSaving ? 'Salvando...' : 'Confirmar Recebimento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* CRUD MODAL */}{/* CRUD MODAL */}
       {showModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
@@ -3707,6 +3990,34 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         </div>
 
                         <div className="form-group" style={{ marginTop: '10px' }}>
+                          <label className="comercial-field-label"><i className="fa-solid fa-id-card"></i> ID do Cliente Asaas</label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input className="form-control" value={dcAsaasCustomerId} onChange={e => setDcAsaasCustomerId(e.target.value)} placeholder="ex: cus_0000057489" disabled={hasActiveSignedContract} />
+                            {!hasActiveSignedContract && (
+                              <button type="button" className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }} onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/admin/payments', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'asaas_search_link', clientId: detailClient._id, customCustomerId: dcAsaasCustomerId })
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setDcAsaasCustomerId(data.asaasCustomerId);
+                                    alert(`Sucesso! Cliente vinculado ao Asaas ID: ${data.asaasCustomerId}. As faturas foram sincronizadas.`);
+                                    fetchData();
+                                  } else {
+                                    alert('Erro: ' + data.error);
+                                  }
+                                } catch (err: any) {
+                                  alert('Erro ao buscar no Asaas: ' + err.message);
+                                }
+                              }}><i className="fa-solid fa-magnifying-glass"></i> Buscar no Asaas</button>
+                            )}
+                          </div>
+                        </div>
+
+<div className="form-group" style={{ marginTop: '10px' }}>
                           <label className="comercial-field-label"><i className="fa-solid fa-file-lines"></i> Observações Contratuais</label>
                           <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} placeholder="Notas adicionais sobre esta contratação" disabled={hasActiveSignedContract} />
                         </div>
@@ -3786,7 +4097,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                frequencia: dcFrequencia,
                                creditosTotal: dcCreditosTotal,
                              creditosMassagemTotal: dcCreditosMassagem,
-                             creditosEmergenciaTotal: dcCreditosEmergencia
+                             creditosEmergenciaTotal: dcCreditosEmergencia,
+                                asaasCustomerId: dcAsaasCustomerId
                              }
                            };
                            const res = await fetch('/api/clients', {

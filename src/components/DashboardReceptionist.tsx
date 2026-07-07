@@ -55,6 +55,19 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [dcResponsavelVenda, setDcResponsavelVenda] = useState('');
   const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
+  // Payments (Mensalidades) States
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentsSearch, setPaymentsSearch] = useState('');
+  const [paymentsStatusFilter, setPaymentsStatusFilter] = useState('');
+  const [showManualPayModal, setShowManualPayModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
+  const [mpFormaPag, setMpFormaPag] = useState('Pix Manual');
+  const [mpDataPag, setMpDataPag] = useState(new Date().toISOString().split('T')[0]);
+  const [mpObservacoes, setMpObservacoes] = useState('');
+  const [mpSaving, setMpSaving] = useState(false);
+  const [dcAsaasCustomerId, setDcAsaasCustomerId] = useState('');
+
   const getCreditsForFreq = (freq: number): number => {
     if (freq === 1) return 5;
     if (freq === 2) return 9;
@@ -156,6 +169,61 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
 
 
 
+  const fetchPayments = async () => {
+    setLoadingPayments(true);
+    try {
+      const url = `/api/admin/payments?search=${encodeURIComponent(paymentsSearch)}&status=${paymentsStatusFilter}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setPayments(data.data || []);
+      }
+    } catch (e) {
+      console.error('Error fetching payments:', e);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  const handleConfirmManualPayment = async () => {
+    if (!selectedPayment) return;
+    setMpSaving(true);
+    try {
+      const res = await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'confirm_manual',
+          paymentId: selectedPayment._id,
+          formaPagamento: mpFormaPag,
+          dataPagamento: mpDataPag,
+          observacoes: mpObservacoes
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Recebimento confirmado com sucesso!');
+        setShowManualPayModal(false);
+        setSelectedPayment(null);
+        setMpObservacoes('');
+        fetchPayments();
+        fetchData(); // reload clients
+      } else {
+        alert('Erro: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Erro de rede: ' + e.message);
+    } finally {
+      setMpSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'mensalidades') {
+      fetchPayments();
+    }
+  }, [activeTab, paymentsSearch, paymentsStatusFilter]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -252,6 +320,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     setDcUnidadeContratada(client.dadosComerciais?.unidadeContratada || '');
     setDcObservacoesContratuais(client.dadosComerciais?.observacoesContratuais || '');
     setDcFrequencia(client.dadosComerciais?.frequencia || 3);
+      setDcAsaasCustomerId(client.dadosComerciais?.asaasCustomerId || '');
       setDcCreditosTotal(client.dadosComerciais?.creditosTotal !== undefined ? client.dadosComerciais.creditosTotal : (client.dadosComerciais?.frequencia ? getCreditsForFreq(client.dadosComerciais.frequencia) : 13));
       setDcCreditosMassagem(client.dadosComerciais?.creditosMassagemTotal || 0);
       setDcCreditosEmergencia(client.dadosComerciais?.creditosEmergenciaTotal || 0);
@@ -294,7 +363,8 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         frequencia: dcFrequencia,
         creditosTotal: dcCreditosTotal,
         creditosMassagemTotal: dcCreditosMassagem,
-        creditosEmergenciaTotal: dcCreditosEmergencia
+        creditosEmergenciaTotal: dcCreditosEmergencia,
+        asaasCustomerId: dcAsaasCustomerId
       }
     };
     const res = await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1130,7 +1200,35 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                             <input type="number" className="form-control" min={0} value={dcCreditosEmergencia} onChange={e => setDcCreditosEmergencia(Number(e.target.value))} disabled={hasActiveSignedContract} />
                           </div>
                     </div>
-                    <div style={{ marginTop: '10px' }}>
+                    <div className="form-group" style={{ marginTop: '10px' }}>
+                          <label className="comercial-field-label"><i className="fa-solid fa-id-card"></i> ID do Cliente Asaas</label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input className="form-control" value={dcAsaasCustomerId} onChange={e => setDcAsaasCustomerId(e.target.value)} placeholder="ex: cus_0000057489" disabled={hasActiveSignedContract} />
+                            {!hasActiveSignedContract && (
+                              <button type="button" className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }} onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/admin/payments', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'asaas_search_link', clientId: selectedClient._id, customCustomerId: dcAsaasCustomerId })
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setDcAsaasCustomerId(data.asaasCustomerId);
+                                    alert(`Sucesso! Cliente vinculado ao Asaas ID: ${data.asaasCustomerId}. As faturas foram sincronizadas.`);
+                                    fetchData();
+                                  } else {
+                                    alert('Erro: ' + data.error);
+                                  }
+                                } catch (err: any) {
+                                  alert('Erro ao buscar no Asaas: ' + err.message);
+                                }
+                              }}><i className="fa-solid fa-magnifying-glass"></i> Buscar no Asaas</button>
+                            )}
+                          </div>
+                        </div>
+
+<div style={{ marginTop: '10px' }}>
                       <label className="comercial-field-label"><i className="fa-solid fa-file-lines"></i> Observações Contratuais</label>
                       <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} />
                     </div>
@@ -1520,107 +1618,162 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   // TAB: MENSALIDADES
   // ══════════════════════════════════════════════════════════════
   if (activeTab === 'mensalidades') {
-    const byStatus = (s: string) => clients.filter((c: any) => c.dadosComerciais?.status === s);
     return (
       <div>
         <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Mensalidades</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Registre pagamentos e acompanhe o status dos planos.</p>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Controle de Mensalidades</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Acompanhe os recebimentos mensais integrados e confirme recebimentos manuais.</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-          {statCard('fa-circle-check', 'Ativos', byStatus('ativo').length, '#10b981')}
-          {statCard('fa-circle-xmark', 'Vencidos', byStatus('vencido').length, '#ef4444')}
-          {statCard('fa-clock', 'Pendentes', byStatus('pendente').length, '#3b82f6')}
-          {statCard('fa-circle-pause', 'Suspensos', byStatus('suspenso').length, '#f59e0b')}
-        </div>
+        {/* Stats Cards */}
+        {(() => {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const currentMonthStr = todayStr.substring(0, 7); // YYYY-MM
+          
+          const totalPaidThisMonth = payments
+            .filter(p => p.status === 'Pago' && p.vencimento.startsWith(currentMonthStr))
+            .reduce((sum, p) => sum + p.valor, 0);
 
-        <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-darker)', borderBottom: '1px solid var(--border-color)' }}>
-                {['Cliente', 'Plano', 'Vencimento', 'Status', 'Ações'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...clients].sort((a: any, b: any) => {
-                const order = ['vencido', 'pendente', 'suspenso', 'ativo', 'cancelado', 'inativo'];
-                return order.indexOf(a.dadosComerciais?.status) - order.indexOf(b.dadosComerciais?.status);
-              }).map((c: any) => {
-                const planInfo = plans.find((p: any) => p._id === (c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId));
-                const st = c.dadosComerciais?.status || 'pendente';
-                const venc = c.dadosComerciais?.vencimento;
-                return (
-                  <tr key={c._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{c.dadosPessoais?.nome}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.dadosPessoais?.telefone || ''}</div>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
-                      <div>{planInfo?.nome || '—'}</div>
-                      {planInfo && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(planInfo.preco)}</div>}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      {venc ? new Date(venc + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: statusColor(st) + '22', color: statusColor(st), fontWeight: 600 }}>
-                        {statusLabel(st)}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <button
-                        style={{ ...btnPrimary, fontSize: '0.75rem', padding: '6px 12px', background: '#10b981' }}
-                        onClick={() => { setPaymentClient(c); setPaymentValue(planInfo?.preco || 0); setPaymentDate(new Date().toISOString().split('T')[0]); setShowPaymentModal(true); }}
-                      >
-                        <i className="fa-solid fa-money-bill-wave" style={{ marginRight: '6px' }} />Registrar Pagamento
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+          const totalPendingThisMonth = payments
+            .filter(p => p.status === 'Pendente' && p.vencimento >= todayStr && p.vencimento.startsWith(currentMonthStr))
+            .reduce((sum, p) => sum + p.valor, 0);
 
-        {/* Payment modal */}
-        {showPaymentModal && paymentClient && (
-          <div style={modalOverlay} onClick={e => { if (e.target === e.currentTarget) setShowPaymentModal(false); }}>
-            <div style={{ ...modalBox, maxWidth: '440px' }}>
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1rem' }}>Registrar Pagamento</h3>
-                  <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{paymentClient.dadosPessoais?.nome}</p>
-                </div>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }} onClick={() => setShowPaymentModal(false)}><i className="fa-solid fa-xmark" /></button>
+          const totalOverdue = payments
+            .filter(p => p.status === 'Pendente' && p.vencimento < todayStr)
+            .reduce((sum, p) => sum + p.valor, 0);
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Total Recebido (Mês)</span>
+                <strong style={{ fontSize: '1.6rem', color: '#10b981' }}>R$ {totalPaidThisMonth.toFixed(2).replace('.', ',')}</strong>
               </div>
-              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div><label style={labelStyle}>Valor (R$)</label><input style={inputStyle} type="number" step="0.01" value={paymentValue} onChange={e => setPaymentValue(Number(e.target.value))} /></div>
-                <div>
-                  <label style={labelStyle}>Forma de Pagamento</label>
-                  <select style={inputStyle} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
-                    <option value="pix">PIX</option><option value="cartao">Cartão</option><option value="boleto">Boleto</option><option value="dinheiro">Dinheiro</option>
-                  </select>
-                </div>
-                <div><label style={labelStyle}>Data do Pagamento</label><input style={inputStyle} type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
-                <div><label style={labelStyle}>Observações</label><input style={inputStyle} value={paymentObs} onChange={e => setPaymentObs(e.target.value)} placeholder="Opcional" /></div>
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                  <button style={btnSecondary} onClick={() => setShowPaymentModal(false)}>Cancelar</button>
-                  <button style={{ ...btnPrimary, background: '#10b981' }} onClick={handleRegisterPayment}>
-                    <i className="fa-solid fa-check" style={{ marginRight: '6px' }} />Confirmar
-                  </button>
-                </div>
+              <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total Pendente (Mês)</span>
+                <strong style={{ fontSize: '1.6rem', color: '#f59e0b' }}>R$ {totalPendingThisMonth.toFixed(2).replace('.', ',')}</strong>
+              </div>
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total em Atraso</span>
+                <strong style={{ fontSize: '1.6rem', color: '#ef4444' }}>R$ {totalOverdue.toFixed(2).replace('.', ',')}</strong>
               </div>
             </div>
+          );
+        })()}
+
+        {/* Filters & Search */}
+        <div className="content-panel" style={{ padding: '16px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Buscar por nome do aluno..."
+              value={paymentsSearch}
+              onChange={e => setPaymentsSearch(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <select
+              className="select-custom"
+              value={paymentsStatusFilter}
+              onChange={e => setPaymentsStatusFilter(e.target.value)}
+              style={{ width: '150px' }}
+            >
+              <option value="">Todos os Status</option>
+              <option value="Pago">Pago</option>
+              <option value="Pendente">Pendente</option>
+              <option value="Atrasado">Atrasado</option>
+            </select>
           </div>
-        )}
+          <button className="btn btn-secondary" onClick={fetchPayments} disabled={loadingPayments}>
+            <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i>Atualizar
+          </button>
+        </div>
+
+        {/* Table */}
+        <div className="content-panel" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Aluno</th>
+                  <th>Plano</th>
+                  <th>Parcela</th>
+                  <th>Vencimento</th>
+                  <th>Valor</th>
+                  <th>Método</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'center' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map(p => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const isOverdue = p.status === 'Pendente' && p.vencimento < todayStr;
+                  
+                  return (
+                    <tr key={p._id}>
+                      <td><strong>{p.clientNome}</strong></td>
+                      <td>{p.planoNome}</td>
+                      <td>{p.parcelaNumero}/{p.parcelasTotal}</td>
+                      <td>{p.vencimento.split('-').reverse().join('/')}</td>
+                      <td>R$ {p.valor.toFixed(2).replace('.', ',')}</td>
+                      <td>
+                        <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', fontSize: '0.72rem' }}>
+                          {p.formaPagamento}
+                        </span>
+                      </td>
+                      <td>
+                        {p.status === 'Pago' ? (
+                          <span className="badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Pago</span>
+                        ) : isOverdue ? (
+                          <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', animation: 'pulse 2s infinite' }}>Atrasado</span>
+                        ) : (
+                          <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>Pendente</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {p.status === 'Pendente' && p.formaPagamento !== 'Asaas' && (
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+                            onClick={() => {
+                              setSelectedPayment(p);
+                              setMpFormaPag(p.formaPagamento);
+                              setMpDataPag(new Date().toISOString().split('T')[0]);
+                              setShowManualPayModal(true);
+                            }}
+                          >
+                            <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Receber
+                          </button>
+                        )}
+                        {p.status === 'Pendente' && p.formaPagamento === 'Asaas' && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Integrado Asaas</span>
+                        )}
+                        {p.status === 'Pago' && (
+                          <span style={{ fontSize: '0.75rem', color: '#10b981' }}><i className="fa-solid fa-circle-check"></i> Recebido</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {payments.length === 0 && (
+                  <tr>
+                    <td colSpan={8}>
+                      <div className="empty-state-card">
+                        <i className="fa-solid fa-receipt empty-state-icon"></i>
+                        <div className="empty-state-title">Nenhuma mensalidade encontrada</div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
   // TAB: CONTRATOS
   // ══════════════════════════════════════════════════════════════
   if (activeTab === 'contratos') {
@@ -1661,7 +1814,60 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
           })}
         </div>
 
-        {/* Reuse the client modal for contracts */}
+              {/* MANUAL CONFIRM RECEIPT MODAL */}
+      {showManualPayModal && selectedPayment && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Confirmar Recebimento Manual</h3>
+              <button className="modal-close" onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>Aluno</div>
+                <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{selectedPayment.clientNome}</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Parcela</div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{selectedPayment.parcelaNumero}/{selectedPayment.parcelasTotal}</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Valor da Parcela</div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-primary)' }}>R$ {selectedPayment.valor.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="comercial-field-label">Método de Recebimento</label>
+                <select className="select-custom" value={mpFormaPag} onChange={e => setMpFormaPag(e.target.value)}>
+                  <option value="Pix Manual">Pix Manual (Não integrado)</option>
+                  <option value="Dinheiro">Dinheiro Físico</option>
+                  <option value="Cartão Manual">Cartão de Crédito/Débito (Máquina externa)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="comercial-field-label">Data de Recebimento</label>
+                <input type="date" className="form-control" value={mpDataPag} onChange={e => setMpDataPag(e.target.value)} required />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="comercial-field-label">Observações / Notas</label>
+                <textarea className="form-control" rows={2} value={mpObservacoes} onChange={e => setMpObservacoes(e.target.value)} placeholder="Comprovante id, quem recebeu, etc..." />
+              </div>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+              <button className="btn btn-secondary" onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleConfirmManualPayment} disabled={mpSaving}>
+                {mpSaving ? 'Salvando...' : 'Confirmar Recebimento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* Reuse the client modal for contracts */}{/* Reuse the client modal for contracts */}
         {showClientModal && selectedClient && (
           <div style={modalOverlay} onClick={e => { if (e.target === e.currentTarget) setShowClientModal(false); }}>
             <div style={modalBox}>

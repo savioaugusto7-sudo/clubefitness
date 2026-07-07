@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
+import Payment from '@/models/Payment';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import { createAsaasCustomer, createAsaasPayment, getAsaasPixQrCode } from '@/utils/asaas';
@@ -552,6 +553,37 @@ export async function POST(request: Request) {
       usuarioEmissor: usuarioEmissor || ''
     });
 
+    // Generate payments/installments list
+    const addMonths = (dateStr: string, months: number): string => {
+      const d = new Date(dateStr + 'T12:00:00');
+      d.setMonth(d.getMonth() + months);
+      return d.toISOString().split('T')[0];
+    };
+
+    const paymentRecords = [];
+    const installmentValue = Number((valorLiquido / numParcelas).toFixed(2));
+    for (let i = 0; i < numParcelas; i++) {
+      const dueDate = i === 0 ? dataPrimeiroVencimento : addMonths(dataPrimeiroVencimento, i);
+      paymentRecords.push({
+        clientId: client._id,
+        clientNome: client.dadosPessoais?.nome || 'Sem Nome',
+        contractId: newContract._id,
+        planoNome: plan.nome,
+        valor: installmentValue,
+        vencimento: dueDate,
+        status: status === 'assinado' && i === 0 && formaPagamento !== 'asaas' ? 'Pago' : 'Pendente',
+        dataPagamento: status === 'assinado' && i === 0 && formaPagamento !== 'asaas' ? new Date().toISOString().split('T')[0] : '',
+        formaPagamento: formaPagamento === 'asaas' ? 'Asaas' : 
+                        (formaPagamento === 'pix' ? 'Pix Manual' : 
+                         (formaPagamento === 'cartao' ? 'Cartão Manual' : 'Dinheiro')),
+        asaasPaymentId: formaPagamento === 'asaas' ? asaasPaymentId : '',
+        asaasInvoiceUrl: formaPagamento === 'asaas' ? asaasInvoiceUrl : '',
+        parcelaNumero: i + 1,
+        parcelasTotal: numParcelas,
+      });
+    }
+    await Payment.insertMany(paymentRecords);
+
     // 5. Se o contrato for emitido como ASSINADO, atualizar o cadastro do cliente
     if (status === 'assinado') {
       Object.assign(client.dadosComerciais, {
@@ -616,6 +648,13 @@ export async function PUT(request: Request) {
       contract.assinaturaData = new Date();
       await contract.save();
 
+      if (contract.formaPagamento !== 'asaas') {
+        await Payment.updateOne(
+          { contractId: contract._id, parcelaNumero: 1 },
+          { status: 'Pago', dataPagamento: new Date().toISOString().split('T')[0] }
+        );
+      }
+
       // Atualizar dados do cliente comercialmente
       const plan = await Plan.findById(contract.planoId);
       const isAnual = contract.planoTipo === 'Anual';
@@ -649,6 +688,11 @@ export async function PUT(request: Request) {
     if (action === 'cancel') {
       contract.status = 'cancelado';
       await contract.save();
+
+      await Payment.updateMany(
+        { contractId: contract._id, status: 'Pendente' },
+        { status: 'Cancelado' }
+      );
 
       // Se o contrato cancelado era o atual do cliente, marcar cliente como inativo
       if (client.dadosComerciais?.planoId?.toString() === contract.planoId.toString()) {

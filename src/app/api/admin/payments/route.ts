@@ -1,0 +1,188 @@
+import { NextResponse } from 'next/server';
+import dbConnect from '@/utils/dbConnect';
+import Payment from '@/models/Payment';
+import Client from '@/models/Client';
+import Contract from '@/models/Contract';
+
+const getAsaasHeaders = () => {
+  const token = process.env.ASAAS_API_KEY;
+  if (!token) {
+    throw new Error('ASAAS_API_KEY não configurada nas variáveis de ambiente.');
+  }
+  return {
+    'access_token': token,
+    'Content-Type': 'application/json'
+  };
+};
+
+const getAsaasBaseUrl = () => {
+  return (process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3').replace(/\/$/, '');
+};
+
+// 1. GET: Query all client payments (mensalidades)
+export async function GET(request: Request) {
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const statusFilter = searchParams.get('status'); // 'Pago', 'Pendente', 'Atrasado'
+    const searchQuery = searchParams.get('search') || '';
+
+    let query: any = {};
+
+    // Apply status filter
+    if (statusFilter) {
+      if (statusFilter === 'Atrasado') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        query.status = 'Pendente';
+        query.vencimento = { $lt: todayStr };
+      } else {
+        query.status = statusFilter;
+      }
+    }
+
+    // Apply name search
+    if (searchQuery) {
+      query.clientNome = { $regex: searchQuery, $options: 'i' };
+    }
+
+    // Fetch and sort by due date ascending
+    const payments = await Payment.find(query).sort({ vencimento: 1 }).limit(100);
+
+    return NextResponse.json({ success: true, data: payments });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// 2. POST: Manual Payment or Asaas Link
+export async function POST(request: Request) {
+  try {
+    await dbConnect();
+    const body = await request.json();
+    const { action } = body;
+
+    // A. CONFIRM MANUAL PAYMENT
+    if (action === 'confirm_manual') {
+      const { paymentId, formaPagamento, dataPagamento, observacoes } = body;
+      if (!paymentId || !formaPagamento) {
+        return NextResponse.json({ success: false, error: 'paymentId e formaPagamento são obrigatórios' }, { status: 400 });
+      }
+
+      const payment = await Payment.findById(paymentId);
+      if (!payment) {
+        return NextResponse.json({ success: false, error: 'Mensalidade não encontrada' }, { status: 404 });
+      }
+
+      payment.status = 'Pago';
+      payment.formaPagamento = formaPagamento;
+      payment.dataPagamento = dataPagamento || new Date().toISOString().split('T')[0];
+      payment.observacoes = observacoes || '';
+      await payment.save();
+
+      // Optionally update client payment status to active
+      const client = await Client.findById(payment.clientId);
+      if (client && client.dadosComerciais) {
+        client.dadosComerciais.status = 'ativo';
+        client.dadosComerciais.vencimento = payment.vencimento; // update vencimento to current month
+        await client.save();
+      }
+
+      return NextResponse.json({ success: true, data: payment });
+    }
+
+    // B. SEARCH & LINK CLIENT TO ASAAS CUSTOMER
+    if (action === 'asaas_search_link') {
+      const { clientId, customCustomerId } = body;
+      if (!clientId) {
+        return NextResponse.json({ success: false, error: 'clientId é obrigatório' }, { status: 400 });
+      }
+
+      const client = await Client.findById(clientId);
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
+      }
+
+      let asaasId = customCustomerId || '';
+
+      // If no custom customer ID provided, try searching Asaas using CPF or Email
+      if (!asaasId) {
+        const cpf = (client.dadosPessoais?.cpf || '').replace(/\D/g, '');
+        const email = client.dadosPessoais?.email || '';
+        const baseUrl = getAsaasBaseUrl();
+        const headers = getAsaasHeaders();
+
+        let searchUrl = '';
+        if (cpf) {
+          searchUrl = `${baseUrl}/customers?cpfCnpj=${cpf}`;
+        } else if (email) {
+          searchUrl = `${baseUrl}/customers?email=${email}`;
+        }
+
+        if (searchUrl) {
+          const res = await fetch(searchUrl, { method: 'GET', headers });
+          if (res.ok) {
+            const searchData = await res.json();
+            if (Array.isArray(searchData.data) && searchData.data.length > 0) {
+              asaasId = searchData.data[0].id;
+            }
+          }
+        }
+      }
+
+      if (!asaasId) {
+        return NextResponse.json({ success: false, error: 'Nenhum cliente correspondente encontrado no Asaas. Insira o ID manualmente ou certifique-se de que o CPF/E-mail está correto no Asaas.' }, { status: 400 });
+      }
+
+      // Link client in db
+      client.dadosComerciais.asaasCustomerId = asaasId;
+      await client.save();
+
+      // Retrieve all active/open payments from Asaas for this customer and populate our database
+      const baseUrl = getAsaasBaseUrl();
+      const headers = getAsaasHeaders();
+      const paymentsRes = await fetch(`${baseUrl}/payments?customer=${asaasId}&limit=100`, { method: 'GET', headers });
+
+      if (paymentsRes.ok) {
+        const paymentsData = await paymentsRes.json();
+        if (Array.isArray(paymentsData.data)) {
+          // Remove existing Asaas payments for this client to avoid duplicates
+          await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
+
+          const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
+            let status = 'Pendente';
+            if (p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH') {
+              status = 'Pago';
+            } else if (p.status === 'OVERDUE') {
+              status = 'Atrasado';
+            }
+
+            return {
+              clientId: client._id,
+              clientNome: client.dadosPessoais?.nome || 'Sem Nome',
+              planoNome: p.description || 'Assinatura Asaas',
+              valor: p.value || 0,
+              vencimento: p.dueDate,
+              dataPagamento: p.paymentDate || '',
+              status,
+              formaPagamento: 'Asaas',
+              asaasPaymentId: p.id,
+              asaasInvoiceUrl: p.invoiceUrl || '',
+              parcelaNumero: idx + 1,
+              parcelasTotal: paymentsData.data.length,
+            };
+          });
+
+          if (paymentRecords.length > 0) {
+            await Payment.insertMany(paymentRecords);
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true, asaasCustomerId: asaasId });
+    }
+
+    return NextResponse.json({ success: false, error: 'Ação inválida' }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
