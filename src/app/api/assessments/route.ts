@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clienteId, avaliadorId, data, dadosMedidos, resultadosCalculados, metas, observacoes, pdfName, pdf_url } = body;
+    const { clienteId, avaliadorId, data, dadosMedidos, resultadosCalculados, metas, observacoes, pdfName, pdf_url, tempoGastoSegundos } = body;
 
     if (!clienteId || !avaliadorId || !data || !dadosMedidos) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -41,7 +41,8 @@ export async function POST(request: Request) {
       metas,
       observacoes,
       pdfName,
-      pdf_url: pdf_url || ''
+      pdf_url: pdf_url || '',
+      tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
 
     return NextResponse.json({ success: true, data: assessment });

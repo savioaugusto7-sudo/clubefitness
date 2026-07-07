@@ -21,7 +21,8 @@ const PhysioReportSchema = new Schema({
   testesEspeciais: { type: Schema.Types.Mixed },
   termografia: { type: Schema.Types.Mixed },
   testesOrtopedicos: { type: Schema.Types.Mixed },
-  pdfName: { type: String }
+  pdfName: { type: String },
+  tempoGastoSegundos: { type: Number, default: 0 }
 }, { timestamps: true });
 
 export default models.PhysioReport || model('PhysioReport', PhysioReportSchema);

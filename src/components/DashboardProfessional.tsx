@@ -172,6 +172,40 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [fsService, setFsService] = useState('Treino Monitorado');
   const [fsDate, setFsDate] = useState('');
 
+  // Helper para goniometria (Mixed)
+  const parseGonioValue = (val: any) => {
+    if (val && typeof val === 'object') {
+      return {
+        semForca: val.semForca !== undefined && val.semForca !== null ? val.semForca : '',
+        comForca: val.comForca !== undefined && val.comForca !== null ? val.comForca : ''
+      };
+    }
+    return {
+      semForca: typeof val === 'number' ? val : '',
+      comForca: ''
+    };
+  };
+
+  // Timer & Rascunho states
+  const [asTimerSeconds, setAsTimerSeconds] = useState(0);
+  const [repTimerSeconds, setRepTimerSeconds] = useState(0);
+  const [stTimerSeconds, setStTimerSeconds] = useState(0);
+  const [asPrefilledFields, setAsPrefilledFields] = useState<Record<string, boolean>>({});
+  const [asMeta2Meses, setAsMeta2Meses] = useState('');
+  const [asMeta1Ano, setAsMeta1Ano] = useState('');
+
+  // Dobras cutâneas triplas
+  const [asDobrasReadings, setAsDobrasReadings] = useState<Record<string, [string, string, string]>>({
+    peitoral: ['', '', ''],
+    triceps: ['', '', ''],
+    subescapular: ['', '', ''],
+    subaxilar: ['', '', ''],
+    suprailiaca: ['', '', ''],
+    abdomen: ['', '', ''],
+    coxa: ['', '', ''],
+    panturrilha: ['', '', '']
+  });
+
   // Assessment form inputs
   const [asClient, setAsClient] = useState('');
   const [asDate, setAsDate] = useState('');
@@ -349,30 +383,42 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asCirurgias, setAsCirurgias] = useState('Nenhuma');
   const [asQueixas, setAsQueixas] = useState('Nenhuma');
 
-  const [asCirc, setAsCirc] = useState({
+  const [asCirc, setAsCirc] = useState<Record<string, number | ''>>({
     pescoco: 38, ombros: 110, torax: 90, cintura: 80, abdomen: 82, quadril: 95,
     braçoD: 32, braçoE: 32, antebraçoD: 26, antebraçoE: 26, coxaD: 55, coxaE: 55, panturrilhaD: 36, panturrilhaE: 36
   });
 
-  const [asDobras, setAsDobras] = useState({
-    peitoral: 10, triceps: 12, subescapular: 15, subaxilar: 11, suprailiaca: 14, abdomen: 18, coxa: 12, panturrilha: 10
+  const [asDobras, setAsDobras] = useState<Record<string, number | ''>>({
+    peitoral: '', triceps: '', subescapular: '', subaxilar: '', suprailiaca: '', abdomen: '', coxa: '', panturrilha: ''
   });
 
   const [asSomaDobras, setAsSomaDobras] = useState(102);
 
-  const [asGonio, setAsGonio] = useState({
-    quadrilFlexao1D: 75, quadrilFlexao1E: 75,
-    quadrilFlexao2D: 110, quadrilFlexao2E: 110,
-    quadrilRotIntD: 40, quadrilRotIntE: 40,
-    quadrilRotExtD: 40, quadrilRotExtE: 40,
-    joelhoFlexaoD: 140, joelhoFlexaoE: 140,
-    joelhoPopliteoD: 155, joelhoPopliteoE: 155,
-    tornozeloDorsi1D: 40, tornozeloDorsi1E: 40,
-    tornozeloDorsi2D: 20, tornozeloDorsi2E: 20,
-    tornozeloFlexaoPlantarD: 45, tornozeloFlexaoPlantarE: 45,
-    ombroRotIntD: 85, ombroRotIntE: 85,
-    ombroRotExtD: 90, ombroRotExtE: 90,
-    ombroAbducaoD: 180, ombroAbducaoE: 180
+  const [asGonio, setAsGonio] = useState<Record<string, { semForca: number | '', comForca: number | '' }>>({
+    quadrilFlexao1D: { semForca: '', comForca: '' },
+    quadrilFlexao1E: { semForca: '', comForca: '' },
+    quadrilFlexao2D: { semForca: '', comForca: '' },
+    quadrilFlexao2E: { semForca: '', comForca: '' },
+    quadrilRotIntD: { semForca: '', comForca: '' },
+    quadrilRotIntE: { semForca: '', comForca: '' },
+    quadrilRotExtD: { semForca: '', comForca: '' },
+    quadrilRotExtE: { semForca: '', comForca: '' },
+    joelhoFlexaoD: { semForca: '', comForca: '' },
+    joelhoFlexaoE: { semForca: '', comForca: '' },
+    joelhoPopliteoD: { semForca: '', comForca: '' },
+    joelhoPopliteoE: { semForca: '', comForca: '' },
+    tornozeloDorsi1D: { semForca: '', comForca: '' },
+    tornozeloDorsi1E: { semForca: '', comForca: '' },
+    tornozeloDorsi2D: { semForca: '', comForca: '' },
+    tornozeloDorsi2E: { semForca: '', comForca: '' },
+    tornozeloFlexaoPlantarD: { semForca: '', comForca: '' },
+    tornozeloFlexaoPlantarE: { semForca: '', comForca: '' },
+    ombroRotIntD: { semForca: '', comForca: '' },
+    ombroRotIntE: { semForca: '', comForca: '' },
+    ombroRotExtD: { semForca: '', comForca: '' },
+    ombroRotExtE: { semForca: '', comForca: '' },
+    ombroFlexaoD: { semForca: '', comForca: '' },
+    ombroFlexaoE: { semForca: '', comForca: '' }
   });
 
   const [asOberD, setAsOberD] = useState('Negativo');
@@ -441,31 +487,33 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [repDeAbdUnilateral, setRepDeAbdUnilateral] = useState('nao');
   const [repDeDorAbd, setRepDeDorAbd] = useState('nao');
 
-  // Goniometry
-  const [gQuadrilFlex1D, setGQuadrilFlex1D] = useState(75);
-  const [gQuadrilFlex1E, setGQuadrilFlex1E] = useState(75);
-  const [gQuadrilFlex2D, setGQuadrilFlex2D] = useState(100);
-  const [gQuadrilFlex2E, setGQuadrilFlex2E] = useState(102);
-  const [gQuadrilRotIntD, setGQuadrilRotIntD] = useState(35);
-  const [gQuadrilRotIntE, setGQuadrilRotIntE] = useState(36);
-  const [gQuadrilRotExtD, setGQuadrilRotExtD] = useState(40);
-  const [gQuadrilRotExtE, setGQuadrilRotExtE] = useState(40);
-  const [gJoelhoFlexD, setGJoelhoFlexD] = useState(135);
-  const [gJoelhoFlexE, setGJoelhoFlexE] = useState(135);
-  const [gJoelhoPopD, setGJoelhoPopD] = useState(148);
-  const [gJoelhoPopE, setGJoelhoPopE] = useState(148);
-  const [gTornozeloDorsi1D, setGTornozeloDorsi1D] = useState(35);
-  const [gTornozeloDorsi1E, setGTornozeloDorsi1E] = useState(35);
-  const [gTornozeloDorsi2D, setGTornozeloDorsi2D] = useState(28);
-  const [gTornozeloDorsi2E, setGTornozeloDorsi2E] = useState(28);
-  const [gTornozeloPlantarD, setGTornozeloPlantarD] = useState(40);
-  const [gTornozeloPlantarE, setGTornozeloPlantarE] = useState(40);
-  const [gOmbroRotIntD, setGOmbroRotIntD] = useState(80);
-  const [gOmbroRotIntE, setGOmbroRotIntE] = useState(80);
-  const [gOmbroRotExtD, setGOmbroRotExtD] = useState(85);
-  const [gOmbroRotExtE, setGOmbroRotExtE] = useState(85);
-  const [gOmbroAbducaoD, setGOmbroAbducaoD] = useState(170);
-  const [gOmbroAbducaoE, setGOmbroAbducaoE] = useState(170);
+  // Report Goniometry (Mixed / Double fields)
+  const [gGonio, setGGonio] = useState<Record<string, { semForca: number | '', comForca: number | '' }>>({
+    quadrilFlexao1D: { semForca: '', comForca: '' },
+    quadrilFlexao1E: { semForca: '', comForca: '' },
+    quadrilFlexao2D: { semForca: '', comForca: '' },
+    quadrilFlexao2E: { semForca: '', comForca: '' },
+    quadrilRotIntD: { semForca: '', comForca: '' },
+    quadrilRotIntE: { semForca: '', comForca: '' },
+    quadrilRotExtD: { semForca: '', comForca: '' },
+    quadrilRotExtE: { semForca: '', comForca: '' },
+    joelhoFlexaoD: { semForca: '', comForca: '' },
+    joelhoFlexaoE: { semForca: '', comForca: '' },
+    joelhoPopliteoD: { semForca: '', comForca: '' },
+    joelhoPopliteoE: { semForca: '', comForca: '' },
+    tornozeloDorsi1D: { semForca: '', comForca: '' },
+    tornozeloDorsi1E: { semForca: '', comForca: '' },
+    tornozeloDorsi2D: { semForca: '', comForca: '' },
+    tornozeloDorsi2E: { semForca: '', comForca: '' },
+    tornozeloFlexaoPlantarD: { semForca: '', comForca: '' },
+    tornozeloFlexaoPlantarE: { semForca: '', comForca: '' },
+    ombroRotIntD: { semForca: '', comForca: '' },
+    ombroRotIntE: { semForca: '', comForca: '' },
+    ombroRotExtD: { semForca: '', comForca: '' },
+    ombroRotExtE: { semForca: '', comForca: '' },
+    ombroFlexaoD: { semForca: '', comForca: '' },
+    ombroFlexaoE: { semForca: '', comForca: '' }
+  });
 
   // Orthopedic tests
   const [tOberD, setTOberD] = useState('Negativo');
@@ -601,6 +649,225 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
+  // Stopwatch effects
+  useEffect(() => {
+    let interval: any;
+    if (showAssessmentModal) {
+      interval = setInterval(() => {
+        setAsTimerSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setAsTimerSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [showAssessmentModal]);
+
+  useEffect(() => {
+    let interval: any;
+    if (showReportModal) {
+      interval = setInterval(() => {
+        setRepTimerSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRepTimerSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [showReportModal]);
+
+  useEffect(() => {
+    let interval: any;
+    if (showStModal) {
+      interval = setInterval(() => {
+        setStTimerSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setStTimerSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [showStModal]);
+
+  const formatTimer = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // LocalStorage Auto-save effects
+  useEffect(() => {
+    if (showAssessmentModal && asClient) {
+      const data = {
+        asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs,
+        asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asTimerSeconds,
+        asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal,
+        asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas,
+        asOberD, asOberE, asThomasD, asThomasE, asThomasIliopsoasD, asThomasIliopsoasE,
+        asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou,
+        asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE,
+        asStepDownRealizou, asSdPelvica, asSdAducao, asSdValgo, asSdPrps, asMaigneRealizou, asMaigneData, asMaigne, asPostura
+      };
+      localStorage.setItem('draft_assessment', JSON.stringify(data));
+    }
+  }, [showAssessmentModal, asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs, asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asTimerSeconds, asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal, asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas, asOberD, asOberE, asThomasD, asThomasE, asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou, asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE, asStepDownRealizou, asSdPelvica, asSdAducao, asSdValgo, asSdPrps, asMaigneRealizou, asMaigneData, asMaigne, asPostura]);
+
+  useEffect(() => {
+    if (showReportModal && repClient) {
+      const data = {
+        repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios,
+        gGonio, repTimerSeconds, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList,
+        repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade,
+        repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress,
+        repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou,
+        repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA,
+        mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou,
+        yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps
+      };
+      localStorage.setItem('draft_report', JSON.stringify(data));
+    }
+  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repTimerSeconds, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps]);
+
+  useEffect(() => {
+    if (showStModal && stClient) {
+      const data = {
+        stClient, stAvaliador, stDate, stPeso, stObs, stTestesList, stTimerSeconds
+      };
+      localStorage.setItem('draft_strength', JSON.stringify(data));
+    }
+  }, [showStModal, stClient, stAvaliador, stDate, stPeso, stObs, stTestesList, stTimerSeconds]);
+
+  const loadAssessmentDraft = () => {
+    const draft = localStorage.getItem('draft_assessment');
+    if (draft) {
+      if (confirm('Encontramos um rascunho de avaliação física não salva. Deseja recuperar os dados?')) {
+        try {
+          const p = JSON.parse(draft);
+          setAsDate(p.asDate || '');
+          setAsWeight(p.asWeight || '');
+          setAsHeight(p.asHeight || '');
+          setAsFat(p.asFat || '');
+          setAsMassaMagra(p.asMassaMagra || '');
+          setAsMassaGorda(p.asMassaGorda || '');
+          setAsObs(p.asObs || '');
+          setAsMeta2Meses(p.asMeta2Meses || '');
+          setAsMeta1Ano(p.asMeta1Ano || '');
+          if (p.asDobrasReadings) setAsDobrasReadings(p.asDobrasReadings);
+          if (p.asGonio) setAsGonio(p.asGonio);
+          if (p.asCirc) setAsCirc(p.asCirc);
+          if (p.asNivelExperiencia) setAsNivelExperiencia(p.asNivelExperiencia);
+          if (p.asFreqSemanal) setAsFreqSemanal(p.asFreqSemanal);
+          if (p.asObjetivoMeses) setAsObjetivoMeses(p.asObjetivoMeses);
+          if (p.asTipoObjetivo) setAsTipoObjetivo(p.asTipoObjetivo);
+          if (p.asObjetivoPrincipal) setAsObjetivoPrincipal(p.asObjetivoPrincipal);
+          if (p.asPressao) setAsPressao(p.asPressao);
+          if (p.asSono) setAsSono(p.asSono);
+          if (p.asNutricao) setAsNutricao(p.asNutricao);
+          if (p.asAtivFisica) setAsAtivFisica(p.asAtivFisica);
+          if (p.asMedicamentos) setAsMedicamentos(p.asMedicamentos);
+          if (p.asCirurgias) setAsCirurgias(p.asCirurgias);
+          if (p.asQueixas) setAsQueixas(p.asQueixas);
+          setAsOberD(p.asOberD || 'Negativo');
+          setAsOberE(p.asOberE || 'Negativo');
+          setAsThomasD(p.asThomasD || 'Negativo');
+          setAsThomasE(p.asThomasE || 'Negativo');
+          setAsThomasIliopsoasD(p.asThomasIliopsoasD || '');
+          setAsThomasIliopsoasE(p.asThomasIliopsoasE || '');
+          setAsThomasRetofemoralD(p.asThomasRetofemoralD || '');
+          setAsThomasRetofemoralE(p.asThomasRetofemoralE || '');
+          setAsTermografia(p.asTermografia || '');
+          setAsTermografiaRealizou(p.asTermografiaRealizou || 'nao');
+          setAsYTestRealizou(p.asYTestRealizou || 'nao');
+          setAsYLenD(p.asYLenD || ''); setAsYLenE(p.asYLenE || '');
+          setAsYAntD(p.asYAntD || ''); setAsYAntE(p.asYAntE || '');
+          setAsYPMD(p.asYPMD || ''); setAsYPME(p.asYPME || '');
+          setAsYPLD(p.asYPLD || ''); setAsYPLE(p.asYPLE || '');
+          setAsStepDownRealizou(p.asStepDownRealizou || 'nao');
+          setAsSdPelvica(p.asSdPelvica || ''); setAsSdAducao(p.asSdAducao || '');
+          setAsSdValgo(p.asSdValgo || ''); setAsSdPrps(p.asSdPrps || '');
+          setAsMaigneRealizou(p.asMaigneRealizou || 'nao');
+          if (p.asMaigneData) setAsMaigneData(p.asMaigneData);
+          setAsMaigne(p.asMaigne || '');
+          setAsPostura(p.asPostura || 'Nenhum desvio importante');
+          if (p.asTimerSeconds) setAsTimerSeconds(p.asTimerSeconds);
+        } catch(e) { console.error('Error loading assessment draft', e); }
+      } else {
+        localStorage.removeItem('draft_assessment');
+      }
+    }
+  };
+
+  const loadReportDraft = () => {
+    const draft = localStorage.getItem('draft_report');
+    if (draft) {
+      if (confirm('Encontramos um rascunho de relatório não salvo. Deseja recuperar os dados?')) {
+        try {
+          const p = JSON.parse(draft);
+          setRepDate(p.repDate || '');
+          setRepType(p.repType || 'simplificado');
+          setRepContent(p.repContent || '');
+          setRepPain(p.repPain || 5);
+          setRepExercicios(p.repExercicios || '');
+          if (p.gGonio) setGGonio(p.gGonio);
+          if (p.repQueixas) setRepQueixas(p.repQueixas);
+          setRepTraumas(p.repTraumas || '');
+          setRepCirurgiasRealizou(p.repCirurgiasRealizou || 'nao');
+          if (p.repCirurgiasList) setRepCirurgiasList(p.repCirurgiasList);
+          setRepDoencas(p.repDoencas || '');
+          setRepTraumasEmo(p.repTraumasEmo || '');
+          setRepMedicao(p.repMedicao || '');
+          setRepDrogas(p.repDrogas || '');
+          setRepSonoHoras(p.repSonoHoras || 8);
+          setRepSonoTipo(p.repSonoTipo || 'continuo');
+          setRepSonoQualidade(p.repSonoQualidade || 'Bom');
+          setRepAlimentacaoDor(p.repAlimentacaoDor || '');
+          setRepAtividadeFisicaQual(p.repAtividadeFisicaQual || '');
+          setRepAtividadeFisicaInterfere(p.repAtividadeFisicaInterfere || '');
+          setRepStress(p.repStress || 5);
+          setRepControleStress(p.repControleStress || '');
+          setRepAtividadeFisica(p.repAtividadeFisica || 'nao');
+          setRepTermografiaRealizou(p.repTermografiaRealizou || 'nao');
+          setRepTermografiaImgB64(p.repTermografiaImgB64 || '');
+          if (p.repExamesList) setRepExamesList(p.repExamesList);
+          setRepDeRealizou(p.repDeRealizou || 'nao');
+          setRepDeTipo(p.repDeTipo || 'Tipo IV');
+          setRepDeAbdBilateral(p.repDeAbdBilateral || 'nao');
+          setRepDeAbdUnilateral(p.repDeAbdUnilateral || 'nao');
+          setRepDeDorAbd(p.repDeDorAbd || 'nao');
+          setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
+          setYRealizou(p.yRealizou || 'nao');
+          setYLenD(p.yLenD || ''); setYLenE(p.yLenE || '');
+          setYAntD(p.yAntD || ''); setYAntE(p.yAntE || '');
+          setYPMD(p.yPMD || ''); setYPME(p.yPME || '');
+          setYPLD(p.yPLD || ''); setYPLE(p.yPLE || '');
+          setSdRealizou(p.sdRealizou || 'nao');
+          setSdPelvica(p.sdPelvica || ''); setSdAducao(p.sdAducao || '');
+          setSdValgo(p.sdValgo || ''); setSdPrps(p.sdPrps || '');
+          if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
+        } catch(e) { console.error('Error loading report draft', e); }
+      } else {
+        localStorage.removeItem('draft_report');
+      }
+    }
+  };
+
+  const loadStDraft = () => {
+    const draft = localStorage.getItem('draft_strength');
+    if (draft) {
+      if (confirm('Encontramos um rascunho de teste de força não salvo. Deseja recuperar os dados?')) {
+        try {
+          const p = JSON.parse(draft);
+          setStDate(p.stDate || '');
+          setStPeso(p.stPeso || '');
+          setStObs(p.stObs || '');
+          if (p.stTestesList) setStTestesList(p.stTestesList);
+          if (p.stTimerSeconds) setStTimerSeconds(p.stTimerSeconds);
+        } catch(e) { console.error('Error loading strength draft', e); }
+      } else {
+        localStorage.removeItem('draft_strength');
+      }
+    }
+  };
+
+
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -719,83 +986,125 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
       if (past.length > 0) {
         const latest = past[0];
-        setAsHeight(latest.dadosMedidos?.altura?.toString() || '1.70');
-        setAsWeight(latest.dadosMedidos?.peso?.toString() || '70');
+        const prefilled: Record<string, boolean> = {};
+        const mark = (key: string) => { prefilled[key] = true; };
+
+        setAsHeight(latest.dadosMedidos?.altura?.toString() || '');
+        if (latest.dadosMedidos?.altura) mark('altura');
+
+        setAsWeight(latest.dadosMedidos?.peso?.toString() || '');
+        if (latest.dadosMedidos?.peso) mark('peso');
+
         setAsObjetivoPrincipal(latest.dadosMedidos?.objetivoPrincipal || '');
+        if (latest.dadosMedidos?.objetivoPrincipal) mark('objetivoPrincipal');
+
         setAsObjetivoMeses(latest.dadosMedidos?.objetivoMeses || 3);
+        if (latest.dadosMedidos?.objetivoMeses) mark('objetivoMeses');
+
         setAsTipoObjetivo(latest.dadosMedidos?.tipoObjetivo || '');
+        if (latest.dadosMedidos?.tipoObjetivo) mark('tipoObjetivo');
+
         setAsFreqSemanal(latest.dadosMedidos?.freqSemanal || 3);
+        if (latest.dadosMedidos?.freqSemanal) mark('freqSemanal');
+
         setAsNivelExperiencia(latest.dadosMedidos?.nivelExperiencia || 'Iniciante / Retorno');
+        if (latest.dadosMedidos?.nivelExperiencia) mark('nivelExperiencia');
 
         if (latest.dadosMedidos?.saudeGeral) {
-          setAsPressao(latest.dadosMedidos.saudeGeral.pressaoArterial || '120/80 mmHg');
-          setAsSono(latest.dadosMedidos.saudeGeral.sono || '7-8 h por noite');
-          setAsNutricao(latest.dadosMedidos.saudeGeral.nutricao || 'Adequada');
-          setAsAtivFisica(latest.dadosMedidos.saudeGeral.atividadeFisica || '4x por semana');
-          setAsMedicamentos(latest.dadosMedidos.saudeGeral.medicamentos || 'Nenhum');
-          setAsCirurgias(latest.dadosMedidos.saudeGeral.cirurgias || 'Nenhuma');
-          setAsQueixas(latest.dadosMedidos.saudeGeral.queixas || 'Nenhuma');
+          setAsPressao(latest.dadosMedidos.saudeGeral.pressaoArterial || '');
+          if (latest.dadosMedidos.saudeGeral.pressaoArterial) mark('saudeGeral.pressaoArterial');
+
+          setAsSono(latest.dadosMedidos.saudeGeral.sono || '');
+          if (latest.dadosMedidos.saudeGeral.sono) mark('saudeGeral.sono');
+
+          setAsNutricao(latest.dadosMedidos.saudeGeral.nutricao || '');
+          if (latest.dadosMedidos.saudeGeral.nutricao) mark('saudeGeral.nutricao');
+
+          setAsAtivFisica(latest.dadosMedidos.saudeGeral.atividadeFisica || '');
+          if (latest.dadosMedidos.saudeGeral.atividadeFisica) mark('saudeGeral.atividadeFisica');
+
+          setAsMedicamentos(latest.dadosMedidos.saudeGeral.medicamentos || '');
+          if (latest.dadosMedidos.saudeGeral.medicamentos) mark('saudeGeral.medicamentos');
+
+          setAsCirurgias(latest.dadosMedidos.saudeGeral.cirurgias || '');
+          if (latest.dadosMedidos.saudeGeral.cirurgias) mark('saudeGeral.cirurgias');
+
+          setAsQueixas(latest.dadosMedidos.saudeGeral.queixas || '');
+          if (latest.dadosMedidos.saudeGeral.queixas) mark('saudeGeral.queixas');
         }
 
         if (latest.dadosMedidos?.circunferencias) {
           setAsCirc({
-            pescoco: latest.dadosMedidos.circunferencias.pescoco || 0,
-            ombros: latest.dadosMedidos.circunferencias.ombros || 0,
-            torax: latest.dadosMedidos.circunferencias.torax || 0,
-            cintura: latest.dadosMedidos.circunferencias.cintura || 0,
-            abdomen: latest.dadosMedidos.circunferencias.abdomen || 0,
-            quadril: latest.dadosMedidos.circunferencias.quadril || 0,
-            braçoD: latest.dadosMedidos.circunferencias.braçoD || 0,
-            braçoE: latest.dadosMedidos.circunferencias.braçoE || 0,
-            antebraçoD: latest.dadosMedidos.circunferencias.antebraçoD || 0,
-            antebraçoE: latest.dadosMedidos.circunferencias.antebraçoE || 0,
-            coxaD: latest.dadosMedidos.circunferencias.coxaD || 0,
-            coxaE: latest.dadosMedidos.circunferencias.coxaE || 0,
-            panturrilhaD: latest.dadosMedidos.circunferencias.panturrilhaD || 0,
-            panturrilhaE: latest.dadosMedidos.circunferencias.panturrilhaE || 0
+            pescoco: latest.dadosMedidos.circunferencias.pescoco || '',
+            ombros: latest.dadosMedidos.circunferencias.ombros || '',
+            torax: latest.dadosMedidos.circunferencias.torax || '',
+            cintura: latest.dadosMedidos.circunferencias.cintura || '',
+            abdomen: latest.dadosMedidos.circunferencias.abdomen || '',
+            quadril: latest.dadosMedidos.circunferencias.quadril || '',
+            braçoD: latest.dadosMedidos.circunferencias.braçoD || '',
+            braçoE: latest.dadosMedidos.circunferencias.braçoE || '',
+            antebraçoD: latest.dadosMedidos.circunferencias.antebraçoD || '',
+            antebraçoE: latest.dadosMedidos.circunferencias.antebraçoE || '',
+            coxaD: latest.dadosMedidos.circunferencias.coxaD || '',
+            coxaE: latest.dadosMedidos.circunferencias.coxaE || '',
+            panturrilhaD: latest.dadosMedidos.circunferencias.panturrilhaD || '',
+            panturrilhaE: latest.dadosMedidos.circunferencias.panturrilhaE || ''
+          });
+          Object.keys(latest.dadosMedidos.circunferencias).forEach(k => {
+            if (latest.dadosMedidos.circunferencias[k]) mark('circ.' + k);
           });
         }
 
         if (latest.dadosMedidos?.dobras) {
+          const d = latest.dadosMedidos.dobras;
           setAsDobras({
-            peitoral: latest.dadosMedidos.dobras.peitoral || 0,
-            triceps: latest.dadosMedidos.dobras.triceps || 0,
-            subescapular: latest.dadosMedidos.dobras.subescapular || 0,
-            subaxilar: latest.dadosMedidos.dobras.subaxilar || 0,
-            suprailiaca: latest.dadosMedidos.dobras.suprailiaca || 0,
-            abdomen: latest.dadosMedidos.dobras.abdomen || 0,
-            coxa: latest.dadosMedidos.dobras.coxa || 0,
-            panturrilha: latest.dadosMedidos.dobras.panturrilha || 0
+            peitoral: d.peitoral || '',
+            triceps: d.triceps || '',
+            subescapular: d.subescapular || '',
+            subaxilar: d.subaxilar || '',
+            suprailiaca: d.suprailiaca || '',
+            abdomen: d.abdomen || '',
+            coxa: d.coxa || '',
+            panturrilha: d.panturrilha || ''
+          });
+          setAsDobrasReadings({
+            peitoral: d.peitoral ? [d.peitoral.toString(), d.peitoral.toString(), d.peitoral.toString()] : ['', '', ''],
+            triceps: d.triceps ? [d.triceps.toString(), d.triceps.toString(), d.triceps.toString()] : ['', '', ''],
+            subescapular: d.subescapular ? [d.subescapular.toString(), d.subescapular.toString(), d.subescapular.toString()] : ['', '', ''],
+            subaxilar: d.subaxilar ? [d.subaxilar.toString(), d.subaxilar.toString(), d.subaxilar.toString()] : ['', '', ''],
+            suprailiaca: d.suprailiaca ? [d.suprailiaca.toString(), d.suprailiaca.toString(), d.suprailiaca.toString()] : ['', '', ''],
+            abdomen: d.abdomen ? [d.abdomen.toString(), d.abdomen.toString(), d.abdomen.toString()] : ['', '', ''],
+            coxa: d.coxa ? [d.coxa.toString(), d.coxa.toString(), d.coxa.toString()] : ['', '', ''],
+            panturrilha: d.panturrilha ? [d.panturrilha.toString(), d.panturrilha.toString(), d.panturrilha.toString()] : ['', '', '']
+          });
+          Object.keys(d).forEach(k => {
+            if (d[k]) mark('dobras.' + k);
           });
         }
 
         if (latest.dadosMedidos?.goniometria) {
-          setAsGonio({
-            quadrilFlexao1D: latest.dadosMedidos.goniometria.quadrilFlexao1D || 75,
-            quadrilFlexao1E: latest.dadosMedidos.goniometria.quadrilFlexao1E || 75,
-            quadrilFlexao2D: latest.dadosMedidos.goniometria.quadrilFlexao2D || 110,
-            quadrilFlexao2E: latest.dadosMedidos.goniometria.quadrilFlexao2E || 110,
-            quadrilRotIntD: latest.dadosMedidos.goniometria.quadrilRotIntD || 40,
-            quadrilRotIntE: latest.dadosMedidos.goniometria.quadrilRotIntE || 40,
-            quadrilRotExtD: latest.dadosMedidos.goniometria.quadrilRotExtD || 40,
-            quadrilRotExtE: latest.dadosMedidos.goniometria.quadrilRotExtE || 40,
-            joelhoFlexaoD: latest.dadosMedidos.goniometria.joelhoFlexaoD || 140,
-            joelhoFlexaoE: latest.dadosMedidos.goniometria.joelhoFlexaoE || 140,
-            joelhoPopliteoD: latest.dadosMedidos.goniometria.joelhoPopliteoD || 155,
-            joelhoPopliteoE: latest.dadosMedidos.goniometria.joelhoPopliteoE || 155,
-            tornozeloDorsi1D: latest.dadosMedidos.goniometria.tornozeloDorsi1D || 40,
-            tornozeloDorsi1E: latest.dadosMedidos.goniometria.tornozeloDorsi1E || 40,
-            tornozeloDorsi2D: latest.dadosMedidos.goniometria.tornozeloDorsi2D || 20,
-            tornozeloDorsi2E: latest.dadosMedidos.goniometria.tornozeloDorsi2E || 20,
-            tornozeloFlexaoPlantarD: latest.dadosMedidos.goniometria.tornozeloFlexaoPlantarD || 45,
-            tornozeloFlexaoPlantarE: latest.dadosMedidos.goniometria.tornozeloFlexaoPlantarE || 45,
-            ombroRotIntD: latest.dadosMedidos.goniometria.ombroRotIntD || 85,
-            ombroRotIntE: latest.dadosMedidos.goniometria.ombroRotIntE || 85,
-            ombroRotExtD: latest.dadosMedidos.goniometria.ombroRotExtD || 90,
-            ombroRotExtE: latest.dadosMedidos.goniometria.ombroRotExtE || 90,
-            ombroAbducaoD: latest.dadosMedidos.goniometria.ombroAbducaoD || 180,
-            ombroAbducaoE: latest.dadosMedidos.goniometria.ombroAbducaoE || 180
+          const g = latest.dadosMedidos.goniometria;
+          const mappedGonio: any = {};
+          const keys = [
+            'quadrilFlexao1D', 'quadrilFlexao1E', 'quadrilFlexao2D', 'quadrilFlexao2E',
+            'quadrilRotIntD', 'quadrilRotIntE', 'quadrilRotExtD', 'quadrilRotExtE',
+            'joelhoFlexaoD', 'joelhoFlexaoE', 'joelhoPopliteoD', 'joelhoPopliteoE',
+            'tornozeloDorsi1D', 'tornozeloDorsi1E', 'tornozeloDorsi2D', 'tornozeloDorsi2E',
+            'tornozeloFlexaoPlantarD', 'tornozeloFlexaoPlantarE', 'ombroRotIntD', 'ombroRotIntE',
+            'ombroRotExtD', 'ombroRotExtE', 'ombroFlexaoD', 'ombroFlexaoE', 'ombroAbducaoD', 'ombroAbducaoE'
+          ];
+          keys.forEach(k => {
+            let val = g[k];
+            let mapKey = k;
+            if (k === 'ombroAbducaoD') mapKey = 'ombroFlexaoD';
+            if (k === 'ombroAbducaoE') mapKey = 'ombroFlexaoE';
+            const parsed = parseGonioValue(val);
+            mappedGonio[mapKey] = parsed;
+            if (parsed.semForca !== '' || parsed.comForca !== '') {
+              mark('gonio.' + mapKey);
+            }
           });
+          setAsGonio(mappedGonio);
         }
 
         if (latest.dadosMedidos?.testesEspeciais) {
@@ -910,7 +1219,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
 
         setAsPostura(latest.dadosMedidos?.postura || 'Nenhum desvio importante');
-        // Load attached PDF if exists
+        if (latest.metas?.objetivo2Meses) {
+          setAsMeta2Meses(latest.metas.objetivo2Meses);
+          mark('metas.objetivo2Meses');
+        }
+        if (latest.metas?.objetivo1Ano) {
+          setAsMeta1Ano(latest.metas.objetivo1Ano);
+          mark('metas.objetivo1Ano');
+        }
+
         if (latest.pdf_url) {
           setAsPdfUrl(latest.pdf_url);
           setAsPdfAttachName('PDF anexado anteriormente');
@@ -918,43 +1235,60 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setAsPdfUrl('');
           setAsPdfAttachName('');
         }
+        setAsPrefilledFields(prefilled);
       } else {
-        // Valores iniciais padrões se não houver histórico
-        setAsHeight('1.70');
-        setAsWeight('70');
-        setAsObjetivoPrincipal('Perda de gordura e ganho de massa magra');
+        // Primeira Avaliação — Limpar tudo
+        setAsHeight('');
+        setAsWeight('');
+        setAsObjetivoPrincipal('');
         setAsObjetivoMeses(3);
         setAsTipoObjetivo('');
         setAsFreqSemanal(3);
         setAsNivelExperiencia('Iniciante / Retorno');
         setShowTipoObjetivoDropdown(false);
-        setAsPressao('120/80 mmHg');
-        setAsSono('7-8 h por noite');
-        setAsNutricao('Adequada');
-        setAsAtivFisica('4x por semana');
-        setAsMedicamentos('Nenhum');
-        setAsCirurgias('Nenhuma');
-        setAsQueixas('Nenhuma');
+        setAsPressao('');
+        setAsSono('');
+        setAsNutricao('');
+        setAsAtivFisica('');
+        setAsMedicamentos('');
+        setAsCirurgias('');
+        setAsQueixas('');
         setAsCirc({
-          pescoco: 38, ombros: 110, torax: 90, cintura: 80, abdomen: 82, quadril: 95,
-          braçoD: 32, braçoE: 32, antebraçoD: 26, antebraçoE: 26, coxaD: 55, coxaE: 55, panturrilhaD: 36, panturrilhaE: 36
+          pescoco: '', ombros: '', torax: '', cintura: '', abdomen: '', quadril: '',
+          braçoD: '', braçoE: '', antebraçoD: '', antebraçoE: '', coxaD: '', coxaE: '', panturrilhaD: '', panturrilhaE: ''
         });
         setAsDobras({
-          peitoral: 10, triceps: 12, subescapular: 15, subaxilar: 11, suprailiaca: 14, abdomen: 18, coxa: 12, panturrilha: 10
+          peitoral: '', triceps: '', subescapular: '', subaxilar: '', suprailiaca: '', abdomen: '', coxa: '', panturrilha: ''
+        });
+        setAsDobrasReadings({
+          peitoral: ['', '', ''], triceps: ['', '', ''], subescapular: ['', '', ''], subaxilar: ['', '', ''],
+          suprailiaca: ['', '', ''], abdomen: ['', '', ''], coxa: ['', '', ''], panturrilha: ['', '', '']
         });
         setAsGonio({
-          quadrilFlexao1D: 75, quadrilFlexao1E: 75,
-          quadrilFlexao2D: 110, quadrilFlexao2E: 110,
-          quadrilRotIntD: 40, quadrilRotIntE: 40,
-          quadrilRotExtD: 40, quadrilRotExtE: 40,
-          joelhoFlexaoD: 140, joelhoFlexaoE: 140,
-          joelhoPopliteoD: 155, joelhoPopliteoE: 155,
-          tornozeloDorsi1D: 40, tornozeloDorsi1E: 40,
-          tornozeloDorsi2D: 20, tornozeloDorsi2E: 20,
-          tornozeloFlexaoPlantarD: 45, tornozeloFlexaoPlantarE: 45,
-          ombroRotIntD: 85, ombroRotIntE: 85,
-          ombroRotExtD: 90, ombroRotExtE: 90,
-          ombroAbducaoD: 180, ombroAbducaoE: 180
+          quadrilFlexao1D: { semForca: '', comForca: '' },
+          quadrilFlexao1E: { semForca: '', comForca: '' },
+          quadrilFlexao2D: { semForca: '', comForca: '' },
+          quadrilFlexao2E: { semForca: '', comForca: '' },
+          quadrilRotIntD: { semForca: '', comForca: '' },
+          quadrilRotIntE: { semForca: '', comForca: '' },
+          quadrilRotExtD: { semForca: '', comForca: '' },
+          quadrilRotExtE: { semForca: '', comForca: '' },
+          joelhoFlexaoD: { semForca: '', comForca: '' },
+          joelhoFlexaoE: { semForca: '', comForca: '' },
+          joelhoPopliteoD: { semForca: '', comForca: '' },
+          joelhoPopliteoE: { semForca: '', comForca: '' },
+          tornozeloDorsi1D: { semForca: '', comForca: '' },
+          tornozeloDorsi1E: { semForca: '', comForca: '' },
+          tornozeloDorsi2D: { semForca: '', comForca: '' },
+          tornozeloDorsi2E: { semForca: '', comForca: '' },
+          tornozeloFlexaoPlantarD: { semForca: '', comForca: '' },
+          tornozeloFlexaoPlantarE: { semForca: '', comForca: '' },
+          ombroRotIntD: { semForca: '', comForca: '' },
+          ombroRotIntE: { semForca: '', comForca: '' },
+          ombroRotExtD: { semForca: '', comForca: '' },
+          ombroRotExtE: { semForca: '', comForca: '' },
+          ombroFlexaoD: { semForca: '', comForca: '' },
+          ombroFlexaoE: { semForca: '', comForca: '' }
         });
         setAsOberD('Negativo');
         setAsOberE('Negativo');
@@ -988,6 +1322,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setAsPostura('Nenhum desvio importante');
         setAsPdfUrl('');
         setAsPdfAttachName('');
+        setAsPrefilledFields({});
+        setAsMeta2Meses('');
+        setAsMeta1Ano('');
       }
     }
   }, [asClient, clients, assessments]);
@@ -1173,6 +1510,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const handleCreateAssessment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!asClient) {
+      alert('Por favor, selecione um aluno/cliente.');
+      return;
+    }
+    if (!asDate) {
+      alert('Por favor, informe a data da avaliação.');
+      return;
+    }
     try {
       const p = parseFloat(asWeight) || 0;
       const a = parseFloat(asHeight) || 0;
@@ -1262,43 +1607,44 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             panturrilhaD: Number(asCirc.panturrilhaD),
             panturrilhaE: Number(asCirc.panturrilhaE)
           },
-          dobras: {
-            peitoral: Number(asDobras.peitoral),
-            triceps: Number(asDobras.triceps),
-            subescapular: Number(asDobras.subescapular),
-            subaxilar: Number(asDobras.subaxilar),
-            suprailiaca: Number(asDobras.suprailiaca),
-            abdomen: Number(asDobras.abdomen),
-            coxa: Number(asDobras.coxa),
-            panturrilha: Number(asDobras.panturrilha)
+dobras: {
+            peitoral: Number(asDobras.peitoral) || 0,
+            triceps: Number(asDobras.triceps) || 0,
+            subescapular: Number(asDobras.subescapular) || 0,
+            subaxilar: Number(asDobras.subaxilar) || 0,
+            suprailiaca: Number(asDobras.suprailiaca) || 0,
+            abdomen: Number(asDobras.abdomen) || 0,
+            coxa: Number(asDobras.coxa) || 0,
+            panturrilha: Number(asDobras.panturrilha) || 0
           },
+          dobrasReadings: asDobrasReadings,
           somaDobras: asSomaDobras,
           percentil: 50,
-          goniometria: {
-            quadrilFlexao1D: Number(asGonio.quadrilFlexao1D),
-            quadrilFlexao1E: Number(asGonio.quadrilFlexao1E),
-            quadrilFlexao2D: Number(asGonio.quadrilFlexao2D),
-            quadrilFlexao2E: Number(asGonio.quadrilFlexao2E),
-            quadrilRotIntD: Number(asGonio.quadrilRotIntD),
-            quadrilRotIntE: Number(asGonio.quadrilRotIntE),
-            quadrilRotExtD: Number(asGonio.quadrilRotExtD),
-            quadrilRotExtE: Number(asGonio.quadrilRotExtE),
-            joelhoFlexaoD: Number(asGonio.joelhoFlexaoD),
-            joelhoFlexaoE: Number(asGonio.joelhoFlexaoE),
-            joelhoPopliteoD: Number(asGonio.joelhoPopliteoD),
-            joelhoPopliteoE: Number(asGonio.joelhoPopliteoE),
-            tornozeloDorsi1D: Number(asGonio.tornozeloDorsi1D),
-            tornozeloDorsi1E: Number(asGonio.tornozeloDorsi1E),
-            tornozeloDorsi2D: Number(asGonio.tornozeloDorsi2D),
-            tornozeloDorsi2E: Number(asGonio.tornozeloDorsi2E),
-            tornozeloFlexaoPlantarD: Number(asGonio.tornozeloFlexaoPlantarD),
-            tornozeloFlexaoPlantarE: Number(asGonio.tornozeloFlexaoPlantarE),
-            ombroRotIntD: Number(asGonio.ombroRotIntD),
-            ombroRotIntE: Number(asGonio.ombroRotIntE),
-            ombroRotExtD: Number(asGonio.ombroRotExtD),
-            ombroRotExtE: Number(asGonio.ombroRotExtE),
-            ombroAbducaoD: Number(asGonio.ombroAbducaoD),
-            ombroAbducaoE: Number(asGonio.ombroAbducaoE)
+goniometria: {
+            quadrilFlexao1D: asGonio.quadrilFlexao1D,
+            quadrilFlexao1E: asGonio.quadrilFlexao1E,
+            quadrilFlexao2D: asGonio.quadrilFlexao2D,
+            quadrilFlexao2E: asGonio.quadrilFlexao2E,
+            quadrilRotIntD: asGonio.quadrilRotIntD,
+            quadrilRotIntE: asGonio.quadrilRotIntE,
+            quadrilRotExtD: asGonio.quadrilRotExtD,
+            quadrilRotExtE: asGonio.quadrilRotExtE,
+            joelhoFlexaoD: asGonio.joelhoFlexaoD,
+            joelhoFlexaoE: asGonio.joelhoFlexaoE,
+            joelhoPopliteoD: asGonio.joelhoPopliteoD,
+            joelhoPopliteoE: asGonio.joelhoPopliteoE,
+            tornozeloDorsi1D: asGonio.tornozeloDorsi1D,
+            tornozeloDorsi1E: asGonio.tornozeloDorsi1E,
+            tornozeloDorsi2D: asGonio.tornozeloDorsi2D,
+            tornozeloDorsi2E: asGonio.tornozeloDorsi2E,
+            tornozeloFlexaoPlantarD: asGonio.tornozeloFlexaoPlantarD,
+            tornozeloFlexaoPlantarE: asGonio.tornozeloFlexaoPlantarE,
+            ombroRotIntD: asGonio.ombroRotIntD,
+            ombroRotIntE: asGonio.ombroRotIntE,
+            ombroRotExtD: asGonio.ombroRotExtD,
+            ombroRotExtE: asGonio.ombroRotExtE,
+            ombroFlexaoD: asGonio.ombroFlexaoD,
+            ombroFlexaoE: asGonio.ombroFlexaoE
           },
           testesEspeciais: {
             oberD: asOberD,
@@ -1360,17 +1706,27 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       const res = await fetch('/api/assessments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          ...payload,
+          metas: {
+            ...payload.metas,
+            objetivo2Meses: asMeta2Meses,
+            objetivo1Ano: asMeta1Ano
+          },
+          tempoGastoSegundos: asTimerSeconds
+        })
       });
       const data = await res.json();
       if (data.success) {
+        localStorage.removeItem('draft_assessment');
         setShowAssessmentModal(false);
         fetchData();
+        alert('Avaliação física criada com sucesso!');
       } else {
-        alert('Erro ao criar avaliação: ' + data.error);
+        alert('Erro ao criar avaliação física: ' + data.error);
       }
     } catch (err) {
-      alert('Erro ao enviar.');
+      alert('Erro ao enviar: ' + (err as Error).message);
     }
   };
 
@@ -1531,18 +1887,23 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     if (!latest) return;
     if (sections.includes('goniometria') && latest.dadosMedidos?.goniometria) {
       const g = latest.dadosMedidos.goniometria;
-      setGQuadrilFlex1D(g.quadrilFlexao1D || 75); setGQuadrilFlex1E(g.quadrilFlexao1E || 75);
-      setGQuadrilFlex2D(g.quadrilFlexao2D || 100); setGQuadrilFlex2E(g.quadrilFlexao2E || 102);
-      setGQuadrilRotIntD(g.quadrilRotIntD || 35); setGQuadrilRotIntE(g.quadrilRotIntE || 36);
-      setGQuadrilRotExtD(g.quadrilRotExtD || 40); setGQuadrilRotExtE(g.quadrilRotExtE || 40);
-      setGJoelhoFlexD(g.joelhoFlexaoD || 135); setGJoelhoFlexE(g.joelhoFlexaoE || 135);
-      setGJoelhoPopD(g.joelhoPopliteoD || 148); setGJoelhoPopE(g.joelhoPopliteoE || 148);
-      setGTornozeloDorsi1D(g.tornozeloDorsi1D || 35); setGTornozeloDorsi1E(g.tornozeloDorsi1E || 35);
-      setGTornozeloDorsi2D(g.tornozeloDorsi2D || 28); setGTornozeloDorsi2E(g.tornozeloDorsi2E || 28);
-      setGTornozeloPlantarD(g.tornozeloFlexaoPlantarD || 40); setGTornozeloPlantarE(g.tornozeloFlexaoPlantarE || 40);
-      setGOmbroRotIntD(g.ombroRotIntD || 80); setGOmbroRotIntE(g.ombroRotIntE || 80);
-      setGOmbroRotExtD(g.ombroRotExtD || 85); setGOmbroRotExtE(g.ombroRotExtE || 85);
-      setGOmbroAbducaoD(g.ombroAbducaoD || 170); setGOmbroAbducaoE(g.ombroAbducaoE || 170);
+      const mappedGonio: any = {};
+      const keys = [
+        'quadrilFlexao1D', 'quadrilFlexao1E', 'quadrilFlexao2D', 'quadrilFlexao2E',
+        'quadrilRotIntD', 'quadrilRotIntE', 'quadrilRotExtD', 'quadrilRotExtE',
+        'joelhoFlexaoD', 'joelhoFlexaoE', 'joelhoPopliteoD', 'joelhoPopliteoE',
+        'tornozeloDorsi1D', 'tornozeloDorsi1E', 'tornozeloDorsi2D', 'tornozeloDorsi2E',
+        'tornozeloFlexaoPlantarD', 'tornozeloFlexaoPlantarE', 'ombroRotIntD', 'ombroRotIntE',
+        'ombroRotExtD', 'ombroRotExtE', 'ombroFlexaoD', 'ombroFlexaoE', 'ombroAbducaoD', 'ombroAbducaoE'
+      ];
+      keys.forEach(k => {
+        let val = g[k];
+        let mapKey = k;
+        if (k === 'ombroAbducaoD') mapKey = 'ombroFlexaoD';
+        if (k === 'ombroAbducaoE') mapKey = 'ombroFlexaoE';
+        mappedGonio[mapKey] = parseGonioValue(val);
+      });
+      setGGonio(mappedGonio);
     }
     if (sections.includes('testes') && latest.dadosMedidos?.testesEspeciais) {
       const te = latest.dadosMedidos.testesEspeciais;
@@ -1597,7 +1958,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           exercicios: repExercicios,
           conduta: repContent
         },
-        pdfName: `Relatorio_Fisioterapia_${Date.now()}.pdf`
+        pdfName: `Relatorio_Fisioterapia_${Date.now()}.pdf`,
+        tempoGastoSegundos: repTimerSeconds
       };
 
       if (repType === 'completo') {
@@ -1625,20 +1987,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           }
         };
 
-        payload.goniometria = {
-          quadrilFlexao1D: Number(gQuadrilFlex1D), quadrilFlexao1E: Number(gQuadrilFlex1E),
-          quadrilFlexao2D: Number(gQuadrilFlex2D), quadrilFlexao2E: Number(gQuadrilFlex2E),
-          quadrilRotIntD: Number(gQuadrilRotIntD), quadrilRotIntE: Number(gQuadrilRotIntE),
-          quadrilRotExtD: Number(gQuadrilRotExtD), quadrilRotExtE: Number(gQuadrilRotExtE),
-          joelhoFlexaoD: Number(gJoelhoFlexD), joelhoFlexaoE: Number(gJoelhoFlexE),
-          joelhoPopliteoD: Number(gJoelhoPopD), joelhoPopliteoE: Number(gJoelhoPopE),
-          tornozeloDorsi1D: Number(gTornozeloDorsi1D), tornozeloDorsi1E: Number(gTornozeloDorsi1E),
-          tornozeloDorsi2D: Number(gTornozeloDorsi2D), tornozeloDorsi2E: Number(gTornozeloDorsi2E),
-          tornozeloFlexaoPlantarD: Number(gTornozeloPlantarD), tornozeloFlexaoPlantarE: Number(gTornozeloPlantarE),
-          ombroRotIntD: Number(gOmbroRotIntD), ombroRotIntE: Number(gOmbroRotIntE),
-          ombroRotExtD: Number(gOmbroRotExtD), ombroRotExtE: Number(gOmbroRotExtE),
-          ombroAbducaoD: Number(gOmbroAbducaoD), ombroAbducaoE: Number(gOmbroAbducaoE)
-        };
+        payload.goniometria = gGonio;
 
         payload.testesEspeciais = {
           oberD: tOberD, oberE: tOberE,
@@ -1693,6 +2042,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       });
       const data = await res.json();
       if (data.success) {
+        localStorage.removeItem('draft_report');
         setShowReportModal(false);
         // Reset states
         setRepActiveStep(1);
@@ -1919,7 +2269,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         testesRealizados: stTestesList,
         comparativos: calculateComparativos(stTestesList),
         observacoes: stObs,
-        pdfName: `TesteForca_${stDate}.pdf`
+        pdfName: `TesteForca_${stDate}.pdf`,
+        tempoGastoSegundos: stTimerSeconds
       };
       
       const res = await fetch('/api/strength-tests', {
@@ -1929,6 +2280,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       });
       const data = await res.json();
       if (data.success) {
+        localStorage.removeItem('draft_strength');
         setShowStModal(false);
         fetchData();
         // Reset states
@@ -1938,7 +2290,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         alert('Erro ao criar teste de força: ' + data.error);
       }
     } catch (err) {
-      alert('Erro ao registrar o teste de força.');
+      alert('Erro ao registrar o teste de força: ' + (err as Error).message);
     }
   };
 
@@ -3214,7 +3566,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               </div>
               <button className="btn btn-primary" onClick={() => {
                 setAsDate(new Date().toISOString().split('T')[0]);
-                setShowAssessmentModal(true);
+                setShowAssessmentModal(true); setTimeout(() => loadAssessmentDraft(), 150);
               }}>
                 <i className="fa-solid fa-plus"></i> Nova Avaliação
               </button>
@@ -3260,7 +3612,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
                             <i className="fa-solid fa-trash"></i>
                           </button>
-                          <button className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
                             <i className="fa-solid fa-file-pdf"></i> Laudo PDF
                           </button>
                         </td>
@@ -3274,7 +3626,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           <i className="fa-solid fa-weight-scale empty-state-icon"></i>
                           <div className="empty-state-title">Nenhuma avaliação física</div>
                           <div className="empty-state-desc">Não há registros de avaliações físicas.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); setTimeout(() => loadAssessmentDraft(), 150); }}>
                             <i className="fa-solid fa-plus"></i> Nova Avaliação
                           </button>
                         </div>
@@ -3315,7 +3667,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               </div>
               <button className="btn btn-primary" onClick={() => {
                 setRepDate(new Date().toISOString().split('T')[0]);
-                setShowReportModal(true);
+                setShowReportModal(true); setTimeout(() => loadReportDraft(), 150);
               }}>
                 <i className="fa-solid fa-plus"></i> Novo Relatório
               </button>
@@ -3361,7 +3713,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
                             <i className="fa-solid fa-trash"></i>
                           </button>
-                          <button className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
                             <i className="fa-solid fa-file-pdf"></i> PDF
                           </button>
                         </td>
@@ -3375,7 +3727,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           <i className="fa-solid fa-file-medical empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum relatório clínico</div>
                           <div className="empty-state-desc">Não há laudos ou relatórios de evolução fisioterápica.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); }}>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); setTimeout(() => loadReportDraft(), 150); }}>
                             <i className="fa-solid fa-plus"></i> Novo Relatório
                           </button>
                         </div>
@@ -3518,7 +3870,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               </div>
               <button className="btn btn-primary" onClick={() => {
                 setStDate(new Date().toISOString().split('T')[0]);
-                setShowStModal(true);
+                setShowStModal(true); setTimeout(() => loadStDraft(), 150);
               }}>
                 <i className="fa-solid fa-plus"></i> Novo Teste
               </button>
@@ -3598,7 +3950,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
                               <i className="fa-solid fa-trash"></i>
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => downloadStrengthTestPDF(st, st.clienteId, st.profissionalId)}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadStrengthTestPDF(st, st.clienteId, st.profissionalId)}>
                               <i className="fa-solid fa-file-pdf color-danger"></i> Análise PDF
                             </button>
                           </td>
@@ -3613,7 +3965,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           <i className="fa-solid fa-dumbbell empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum teste de força</div>
                           <div className="empty-state-desc">Não há avaliações de força muscular registradas.</div>
-                          <button className="btn btn-primary btn-sm" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); setTimeout(() => loadStDraft(), 150); }}>
                             <i className="fa-solid fa-plus"></i> Novo Teste
                           </button>
                         </div>
@@ -3689,7 +4041,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                         <td><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
                         <td><small style={{ color: 'var(--text-main)' }}>{(pr.conteudo || '').substring(0, 120)}{(pr.conteudo || '').length > 120 ? '...' : ''}</small></td>
                         <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => downloadProntuarioPDF(pr, pr.clienteId)}>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadProntuarioPDF(pr, pr.clienteId)}>
                             <i className="fa-solid fa-file-pdf"></i> PDF
                           </button>
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProntuario(pr._id)}>
@@ -3876,8 +4228,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       {showAssessmentModal && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
           <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <h3>Nova Avaliação Física Fisioterapêutica</h3>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <h3 style={{ margin: 0 }}>Nova Avaliação Física Fisioterapêutica</h3>
+                <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                  ⏱️ Tempo: {formatTimer(asTimerSeconds)}
+                </span>
+              </div>
               <button className="modal-close" onClick={handleCloseAssessment}>&times;</button>
             </div>
             
@@ -3996,18 +4353,77 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 {asStep === 4 && (
                   <>
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Dobras Cutâneas (mm)</h4>
-                    <p style={{ color: 'var(--text-dim)', fontSize: '12px' }}>Fórmula de Jackson & Pollock (7 Dobras).</p>
-                    <div className="form-row">
-                      <div className="form-group"><label>Peitoral</label><input type="number" step="0.1" className="form-control" value={asDobras.peitoral} onChange={e => setAsDobras({ ...asDobras, peitoral: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Tríceps</label><input type="number" step="0.1" className="form-control" value={asDobras.triceps} onChange={e => setAsDobras({ ...asDobras, triceps: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Subescapular</label><input type="number" step="0.1" className="form-control" value={asDobras.subescapular} onChange={e => setAsDobras({ ...asDobras, subescapular: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Subaxilar</label><input type="number" step="0.1" className="form-control" value={asDobras.subaxilar} onChange={e => setAsDobras({ ...asDobras, subaxilar: Number(e.target.value) })} /></div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group"><label>Supra-ilíaca</label><input type="number" step="0.1" className="form-control" value={asDobras.suprailiaca} onChange={e => setAsDobras({ ...asDobras, suprailiaca: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Abdômen</label><input type="number" step="0.1" className="form-control" value={asDobras.abdomen} onChange={e => setAsDobras({ ...asDobras, abdomen: Number(e.target.value) })} /></div>
-                      <div className="form-group" style={{ flex: 2 }}><label>Coxa</label><input type="number" step="0.1" className="form-control" value={asDobras.coxa} onChange={e => setAsDobras({ ...asDobras, coxa: Number(e.target.value) })} /></div>
-                    </div>
+                    <p style={{ color: 'var(--text-dim)', fontSize: '12px', marginBottom: '14px' }}>
+                      Fórmula de Jackson & Pollock (7 Dobras). Insira até 3 medidas por dobra. A média é calculada automaticamente.
+                    </p>
+                    
+                    {(() => {
+                      const dobrasList = [
+                        { key: 'peitoral', label: 'Peitoral' },
+                        { key: 'triceps', label: 'Tríceps' },
+                        { key: 'subescapular', label: 'Subescapular' },
+                        { key: 'subaxilar', label: 'Subaxilar' },
+                        { key: 'suprailiaca', label: 'Supra-ilíaca' },
+                        { key: 'abdomen', label: 'Abdômen' },
+                        { key: 'coxa', label: 'Coxa' }
+                      ];
+
+                      const handleDobraReadingChange = (dobraKey: string, subIdx: number, val: string) => {
+                        setAsDobrasReadings(prev => {
+                          const currentReadings = prev[dobraKey] || ['', '', ''];
+                          const nextReadings = [...currentReadings] as [string, string, string];
+                          nextReadings[subIdx] = val;
+
+                          // Calcular média em tempo real das medidas válidas
+                          const parsedVals = nextReadings.map(v => parseFloat(v)).filter(v => !isNaN(v));
+                          const avg = parsedVals.length > 0 ? parseFloat((parsedVals.reduce((sum, v) => sum + v, 0) / parsedVals.length).toFixed(1)) : 0;
+
+                          // Atualizar a dobra principal
+                          setAsDobras(prevD => ({ ...prevD, [dobraKey]: avg }));
+
+                          // Atualizar prefilled state
+                          setAsPrefilledFields(prevP => {
+                            const copy = { ...prevP };
+                            delete copy['dobras.' + dobraKey];
+                            return copy;
+                          });
+
+                          return { ...prev, [dobraKey]: nextReadings };
+                        });
+                      };
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          {dobrasList.map(dobra => {
+                            const readings = asDobrasReadings[dobra.key] || ['', '', ''];
+                            const isPrefilled = asPrefilledFields['dobras.' + dobra.key];
+                            return (
+                              <div key={dobra.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px 12px' }}>
+                                <div style={{ minWidth: '120px', fontWeight: 'bold', fontSize: '0.85rem' }}>{dobra.label}</div>
+                                <div style={{ display: 'flex', gap: '6px', flex: 1, minWidth: '220px' }}>
+                                  {[0, 1, 2].map(subIdx => (
+                                    <input
+                                      key={subIdx}
+                                      type="number"
+                                      step="0.1"
+                                      placeholder={`M${subIdx+1}`}
+                                      className="form-control form-control-sm"
+                                      style={{ textAlign: 'center', height: '28px', flex: 1, ...(isPrefilled ? { color: '#ef4444' } : {}) }}
+                                      value={readings[subIdx]}
+                                      onChange={e => handleDobraReadingChange(dobra.key, subIdx, e.target.value)}
+                                    />
+                                  ))}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', minWidth: '90px' }}>
+                                  <span style={{ color: 'var(--text-dim)' }}>Média:</span>
+                                  <strong style={{ fontSize: '0.9rem', color: isPrefilled ? '#ef4444' : 'var(--color-primary)' }}>{asDobras[dobra.key] || '0'} mm</strong>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                     <div style={{ marginTop: '16px', background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', maxWidth: '250px' }}>
                       <label style={{ fontWeight: 'bold', display: 'block', color: 'var(--color-primary)' }}>Soma das Dobras:</label>
                       <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-success)' }}>{asSomaDobras} mm</div>
@@ -4022,7 +4438,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     {/* Alertas de assimetria inline */}
                     {(() => {
                       const warnings: string[] = [];
-                      const checkAsymmetry = (d: number, e: number, label: string) => {
+                      const checkAsymmetry = (dObj: any, eObj: any, label: string) => {
+                        const d = dObj && typeof dObj === 'object' ? Number(dObj.semForca) || 0 : Number(dObj) || 0;
+                        const e = eObj && typeof eObj === 'object' ? Number(eObj.semForca) || 0 : Number(eObj) || 0;
                         const max = Math.max(d, e);
                         if (max > 0 && (Math.abs(d - e) / max) > 0.10) {
                           warnings.push(label);
@@ -4040,7 +4458,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       checkAsymmetry(asGonio.tornozeloFlexaoPlantarD, asGonio.tornozeloFlexaoPlantarE, 'Tornozelo - Flexão Plantar');
                       checkAsymmetry(asGonio.ombroRotIntD, asGonio.ombroRotIntE, 'Ombro - Rotação Interna');
                       checkAsymmetry(asGonio.ombroRotExtD, asGonio.ombroRotExtE, 'Ombro - Rotação Externa');
-                      checkAsymmetry(asGonio.ombroAbducaoD, asGonio.ombroAbducaoE, 'Ombro - Abdução');
+                      checkAsymmetry(asGonio.ombroFlexaoD, asGonio.ombroFlexaoE, 'Ombro - Flexão');
                       
                       const thomasIlioMax = Math.max(parseFloat(asThomasIliopsoasD) || 0, parseFloat(asThomasIliopsoasE) || 0);
                       if (thomasIlioMax > 0 && (Math.abs((parseFloat(asThomasIliopsoasD) || 0) - (parseFloat(asThomasIliopsoasE) || 0)) / thomasIlioMax) > 0.10) {
@@ -4065,113 +4483,115 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       return null;
                     })()}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Quadril</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Flexão (1) <small style={{ color: 'var(--text-dim)' }}>(70-80°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilFlexao1D} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao1D: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilFlexao1E} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao1E: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Flexão (2) <small style={{ color: 'var(--text-dim)' }}>(100-125°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilFlexao2D} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao2D: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilFlexao2E} onChange={e => setAsGonio({ ...asGonio, quadrilFlexao2E: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Rot. Interna <small style={{ color: 'var(--text-dim)' }}>(40-45°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilRotIntD} onChange={e => setAsGonio({ ...asGonio, quadrilRotIntD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilRotIntE} onChange={e => setAsGonio({ ...asGonio, quadrilRotIntE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Rot. Externa <small style={{ color: 'var(--text-dim)' }}>(40-45°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.quadrilRotExtD} onChange={e => setAsGonio({ ...asGonio, quadrilRotExtD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.quadrilRotExtE} onChange={e => setAsGonio({ ...asGonio, quadrilRotExtE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                    <div>
+                      <p style={{ color: 'var(--text-dim)', fontSize: '11px', marginBottom: '12px' }}>
+                        Informe a amplitude em graus. <strong>Ativo</strong> = Sem aplicar força do instrutor. <strong>Passivo</strong> = Aplicando força.
+                      </p>
+                      <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                        <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                          <thead style={{ background: 'var(--bg-card)' }}>
+                            <tr>
+                              <th rowSpan={2} style={{ verticalAlign: 'middle' }}>Movimento (Ref)</th>
+                              <th colSpan={2} style={{ textAlign: 'center', background: 'rgba(13,148,136,0.06)' }}>Direito</th>
+                              <th colSpan={2} style={{ textAlign: 'center', background: 'rgba(99,102,241,0.06)' }}>Esquerdo</th>
+                            </tr>
+                            <tr>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(13,148,136,0.04)' }}>Ativo (Sem)</th>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(13,148,136,0.08)' }}>Passivo (Com)</th>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(99,102,241,0.04)' }}>Ativo (Sem)</th>
+                              <th style={{ textAlign: 'center', fontSize: '10px', background: 'rgba(99,102,241,0.08)' }}>Passivo (Com)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { label: 'Quadril - Flexão 1', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
+                              { label: 'Quadril - Flexão 2', ref: '100-125°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
+                              { label: 'Quadril - Rotação Interna', ref: '40-45°', keyD: 'quadrilRotIntD', keyE: 'quadrilRotIntE' },
+                              { label: 'Quadril - Rotação Externa', ref: '40-45°', keyD: 'quadrilRotExtD', keyE: 'quadrilRotExtE' },
+                              { label: 'Joelho - Flexão', ref: '135-150°', keyD: 'joelhoFlexaoD', keyE: 'joelhoFlexaoE' },
+                              { label: 'Joelho - Poplíteo', ref: '155-160°', keyD: 'joelhoPopliteoD', keyE: 'joelhoPopliteoE' },
+                              { label: 'Tornozelo - Dorsi 1', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
+                              { label: 'Tornozelo - Dorsi 2', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
+                              { label: 'Tornozelo - F. Plantar', ref: '40-50°', keyD: 'tornozeloFlexaoPlantarD', keyE: 'tornozeloFlexaoPlantarE' },
+                              { label: 'Ombro - Rotação Interna', ref: '80-90°', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
+                              { label: 'Ombro - Rotação Externa', ref: '80-100°', keyD: 'ombroRotExtD', keyE: 'ombroRotExtE' },
+                              { label: 'Ombro - Flexão', ref: '180°', keyD: 'ombroFlexaoD', keyE: 'ombroFlexaoE' }
+                            ].map(row => {
+                              const valD = asGonio[row.keyD] || { semForca: '', comForca: '' };
+                              const valE = asGonio[row.keyE] || { semForca: '', comForca: '' };
+                              const prefilledD = asPrefilledFields['gonio.' + row.keyD];
+                              const prefilledE = asPrefilledFields['gonio.' + row.keyE];
 
-                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Joelho</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Flexão <small style={{ color: 'var(--text-dim)' }}>(135-150°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.joelhoFlexaoD} onChange={e => setAsGonio({ ...asGonio, joelhoFlexaoD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.joelhoFlexaoE} onChange={e => setAsGonio({ ...asGonio, joelhoFlexaoE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Poplíteo <small style={{ color: 'var(--text-dim)' }}>(155-160°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.joelhoPopliteoD} onChange={e => setAsGonio({ ...asGonio, joelhoPopliteoD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.joelhoPopliteoE} onChange={e => setAsGonio({ ...asGonio, joelhoPopliteoE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                              const updateField = (key: string, side: 'semForca' | 'comForca', value: string) => {
+                                setAsGonio(prev => {
+                                  const currentObj = prev[key] || { semForca: '', comForca: '' };
+                                  const numVal = value === '' ? '' : Number(value);
+                                  const nextObj = { ...currentObj, [side]: numVal };
 
-                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Tornozelo</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Dorsi (1) <small style={{ color: 'var(--text-dim)' }}>(35-45°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloDorsi1D} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi1D: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloDorsi1E} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi1E: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Dorsi (2) <small style={{ color: 'var(--text-dim)' }}>(20°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloDorsi2D} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi2D: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloDorsi2E} onChange={e => setAsGonio({ ...asGonio, tornozeloDorsi2E: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>F. Plantar <small style={{ color: 'var(--text-dim)' }}>(40-50°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.tornozeloFlexaoPlantarD} onChange={e => setAsGonio({ ...asGonio, tornozeloFlexaoPlantarD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.tornozeloFlexaoPlantarE} onChange={e => setAsGonio({ ...asGonio, tornozeloFlexaoPlantarE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                                  // Remover dos prefilleds
+                                  setAsPrefilledFields(prevP => {
+                                    const copy = { ...prevP };
+                                    delete copy['gonio.' + key];
+                                    return copy;
+                                  });
 
-                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '8px' }}>Ombro</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Rot. Interna <small style={{ color: 'var(--text-dim)' }}>(80-90°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroRotIntD} onChange={e => setAsGonio({ ...asGonio, ombroRotIntD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroRotIntE} onChange={e => setAsGonio({ ...asGonio, ombroRotIntE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Rot. Externa <small style={{ color: 'var(--text-dim)' }}>(80-100°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroRotExtD} onChange={e => setAsGonio({ ...asGonio, ombroRotExtD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroRotExtE} onChange={e => setAsGonio({ ...asGonio, ombroRotExtE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Abdução <small style={{ color: 'var(--text-dim)' }}>(180°)</small></span>
-                            <div style={{ display: 'flex', gap: '8px', maxWidth: '140px' }}>
-                              <input type="number" className="form-control form-control-sm" placeholder="D" value={asGonio.ombroAbducaoD} onChange={e => setAsGonio({ ...asGonio, ombroAbducaoD: Number(e.target.value) })} />
-                              <input type="number" className="form-control form-control-sm" placeholder="E" value={asGonio.ombroAbducaoE} onChange={e => setAsGonio({ ...asGonio, ombroAbducaoE: Number(e.target.value) })} />
-                            </div>
-                          </div>
-                        </div>
+                                  return { ...prev, [key]: nextObj };
+                                });
+                              };
+
+                              return (
+                                <tr key={row.keyD}>
+                                  <td>
+                                    <strong>{row.label}</strong> <br/>
+                                    <small style={{ color: 'var(--text-dim)' }}>Ref: {row.ref}</small>
+                                  </td>
+                                  {/* Direito */}
+                                  <td style={{ background: 'rgba(13,148,136,0.02)' }}>
+                                    <input
+                                      type="number"
+                                      placeholder="Ativo"
+                                      className="form-control form-control-sm"
+                                      style={{ textAlign: 'center', height: '26px', ...(prefilledD ? { color: '#ef4444' } : {}) }}
+                                      value={valD.semForca}
+                                      onChange={e => updateField(row.keyD, 'semForca', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ background: 'rgba(13,148,136,0.05)' }}>
+                                    <input
+                                      type="number"
+                                      placeholder="Passivo"
+                                      className="form-control form-control-sm"
+                                      style={{ textAlign: 'center', height: '26px', ...(prefilledD ? { color: '#ef4444' } : {}) }}
+                                      value={valD.comForca}
+                                      onChange={e => updateField(row.keyD, 'comForca', e.target.value)}
+                                    />
+                                  </td>
+                                  {/* Esquerdo */}
+                                  <td style={{ background: 'rgba(99,102,241,0.02)' }}>
+                                    <input
+                                      type="number"
+                                      placeholder="Ativo"
+                                      className="form-control form-control-sm"
+                                      style={{ textAlign: 'center', height: '26px', ...(prefilledE ? { color: '#ef4444' } : {}) }}
+                                      value={valE.semForca}
+                                      onChange={e => updateField(row.keyE, 'semForca', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ background: 'rgba(99,102,241,0.05)' }}>
+                                    <input
+                                      type="number"
+                                      placeholder="Passivo"
+                                      className="form-control form-control-sm"
+                                      style={{ textAlign: 'center', height: '26px', ...(prefilledE ? { color: '#ef4444' } : {}) }}
+                                      value={valE.comForca}
+                                      onChange={e => updateField(row.keyE, 'comForca', e.target.value)}
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
 
@@ -4739,7 +5159,48 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                     {/* Foco e Metas do Planejamento */}
                     <div className="form-group">
                       <label>Objetivo Principal (ex: Perda de gordura e ganho de massa magra)</label>
-                      <input type="text" className="form-control" value={asObjetivoPrincipal} onChange={e => setAsObjetivoPrincipal(e.target.value)} placeholder="Objetivos do aluno..." required />
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        style={asPrefilledFields['objetivoPrincipal'] ? { color: '#ef4444' } : {}} 
+                        value={asObjetivoPrincipal} 
+                        onChange={e => {
+                          setAsObjetivoPrincipal(e.target.value);
+                          setAsPrefilledFields(prev => { const c = { ...prev }; delete c['objetivoPrincipal']; return c; });
+                        }} 
+                        placeholder="Objetivos do aluno..." 
+                        required 
+                      />
+                    </div>
+                    <div className="form-row" style={{ marginBottom: '16px' }}>
+                      <div className="form-group">
+                        <label>Objetivo Curto Prazo (2 Meses)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          style={asPrefilledFields['metas.objetivo2Meses'] ? { color: '#ef4444' } : {}} 
+                          value={asMeta2Meses} 
+                          onChange={e => {
+                            setAsMeta2Meses(e.target.value);
+                            setAsPrefilledFields(prev => { const c = { ...prev }; delete c['metas.objetivo2Meses']; return c; });
+                          }} 
+                          placeholder="Ex: Reduzir 2% de BF, melhorar dorsiflexão..." 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Objetivo Longo Prazo (1 Ano)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          style={asPrefilledFields['metas.objetivo1Ano'] ? { color: '#ef4444' } : {}} 
+                          value={asMeta1Ano} 
+                          onChange={e => {
+                            setAsMeta1Ano(e.target.value);
+                            setAsPrefilledFields(prev => { const c = { ...prev }; delete c['metas.objetivo1Ano']; return c; });
+                          }} 
+                          placeholder="Ex: Hipertrofia de 5kg, manter simetria..." 
+                        />
+                      </div>
                     </div>
                     <div className="form-row" style={{ marginBottom: '16px' }}>
                       <div className="form-group">
@@ -5027,8 +5488,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       {showReportModal && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
           <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <h3>Novo Relatório Fisioterápico</h3>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <h3 style={{ margin: 0 }}>Novo Relatório Fisioterápico</h3>
+                <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                  ⏱️ Tempo: {formatTimer(repTimerSeconds)}
+                </span>
+              </div>
               <button className="modal-close" onClick={handleCloseReport}>&times;</button>
             </div>
             <form onSubmit={handleCreateReport}>
@@ -5421,32 +5887,94 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                       <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 10 }}>
                           <tr>
-                            <th>Movimento / Articulação</th>
-                            <th style={{ width: '25%', textAlign: 'center' }}>Direito (°)</th>
-                            <th style={{ width: '25%', textAlign: 'center' }}>Esquerdo (°)</th>
+                            <th rowSpan={2} style={{ verticalAlign: 'middle' }}>Movimento (Ref)</th>
+                            <th colSpan={2} style={{ textAlign: 'center', background: 'rgba(13,148,136,0.06)' }}>Direito</th>
+                            <th colSpan={2} style={{ textAlign: 'center', background: 'rgba(99,102,241,0.06)' }}>Esquerdo</th>
+                          </tr>
+                          <tr>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(13,148,136,0.04)' }}>Ativo (Sem)</th>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(13,148,136,0.08)' }}>Passivo (Com)</th>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(99,102,241,0.04)' }}>Ativo (Sem)</th>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(99,102,241,0.08)' }}>Passivo (Com)</th>
                           </tr>
                         </thead>
                         <tbody>
                           {[
-                            { label: 'Quadril - Flexão J. Fletido', dVal: gQuadrilFlex1D, setD: setGQuadrilFlex1D, eVal: gQuadrilFlex1E, setE: setGQuadrilFlex1E },
-                            { label: 'Quadril - Flexão J. Estendido', dVal: gQuadrilFlex2D, setD: setGQuadrilFlex2D, eVal: gQuadrilFlex2E, setE: setGQuadrilFlex2E },
-                            { label: 'Quadril - Rotação Interna', dVal: gQuadrilRotIntD, setD: setGQuadrilRotIntD, eVal: gQuadrilRotIntE, setE: setGQuadrilRotIntE },
-                            { label: 'Quadril - Rotação Externa', dVal: gQuadrilRotExtD, setD: setGQuadrilRotExtD, eVal: gQuadrilRotExtE, setE: setGQuadrilRotExtE },
-                            { label: 'Joelho - Flexão', dVal: gJoelhoFlexD, setD: setGJoelhoFlexD, eVal: gJoelhoFlexE, setE: setGJoelhoFlexE },
-                            { label: 'Joelho - Ângulo Poplíteo', dVal: gJoelhoPopD, setD: setGJoelhoPopD, eVal: gJoelhoPopE, setE: setGJoelhoPopE },
-                            { label: 'Tornozelo - Dorsiflexão J. Estendido', dVal: gTornozeloDorsi1D, setD: setGTornozeloDorsi1D, eVal: gTornozeloDorsi1E, setE: setGQuadrilFlex1E },
-                            { label: 'Tornozelo - Dorsiflexão J. Fletido', dVal: gTornozeloDorsi2D, setD: setGTornozeloDorsi2D, eVal: gTornozeloDorsi2E, setE: setGQuadrilFlex2E },
-                            { label: 'Tornozelo - Flexão Plantar', dVal: gTornozeloPlantarD, setD: setGTornozeloPlantarD, eVal: gTornozeloPlantarE, setE: setGTornozeloPlantarE },
-                            { label: 'Ombro - Rotação Interna', dVal: gOmbroRotIntD, setD: setGOmbroRotIntD, eVal: gOmbroRotIntE, setE: setGOmbroRotIntE },
-                            { label: 'Ombro - Rotação Externa', dVal: gOmbroRotExtD, setD: setGOmbroRotExtD, eVal: gOmbroRotExtE, setE: setGOmbroRotExtE },
-                            { label: 'Ombro - Abdução', dVal: gOmbroAbducaoD, setD: setGOmbroAbducaoD, eVal: gOmbroAbducaoE, setE: setGOmbroAbducaoE }
-                          ].map((row, rIdx) => (
-                            <tr key={rIdx}>
-                              <td><strong>{row.label}</strong></td>
-                              <td><input type="number" className="form-control form-control-sm" style={{ textAlign: 'center', height: '28px' }} value={row.dVal} onChange={e => row.setD(Number(e.target.value))} /></td>
-                              <td><input type="number" className="form-control form-control-sm" style={{ textAlign: 'center', height: '28px' }} value={row.eVal} onChange={e => row.setE(Number(e.target.value))} /></td>
-                            </tr>
-                          ))}
+                            { label: 'Quadril - Flexão J. Fletido', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
+                            { label: 'Quadril - Flexão J. Estendido', ref: '100-125°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
+                            { label: 'Quadril - Rotação Interna', ref: '40-45°', keyD: 'quadrilRotIntD', keyE: 'quadrilRotIntE' },
+                            { label: 'Quadril - Rotação Externa', ref: '40-45°', keyD: 'quadrilRotExtD', keyE: 'quadrilRotExtE' },
+                            { label: 'Joelho - Flexão', ref: '135-150°', keyD: 'joelhoFlexaoD', keyE: 'joelhoFlexaoE' },
+                            { label: 'Joelho - Ângulo Poplíteo', ref: '155-160°', keyD: 'joelhoPopliteoD', keyE: 'joelhoPopliteoE' },
+                            { label: 'Tornozelo - Dorsi 1', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
+                            { label: 'Tornozelo - Dorsi 2', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
+                            { label: 'Tornozelo - Flexão Plantar', ref: '40-50°', keyD: 'tornozeloFlexaoPlantarD', keyE: 'tornozeloFlexaoPlantarE' },
+                            { label: 'Ombro - Rotação Interna', ref: '80-90°', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
+                            { label: 'Ombro - Rotação Externa', ref: '80-100°', keyD: 'ombroRotExtD', keyE: 'ombroRotExtE' },
+                            { label: 'Ombro - Flexão', ref: '180°', keyD: 'ombroFlexaoD', keyE: 'ombroFlexaoE' }
+                          ].map(row => {
+                            const valD = gGonio[row.keyD] || { semForca: '', comForca: '' };
+                            const valE = gGonio[row.keyE] || { semForca: '', comForca: '' };
+
+                            const updateField = (key: string, side: 'semForca' | 'comForca', value: string) => {
+                              setGGonio(prev => {
+                                const currentObj = prev[key] || { semForca: '', comForca: '' };
+                                const numVal = value === '' ? '' : Number(value);
+                                return { ...prev, [key]: { ...currentObj, [side]: numVal } };
+                              });
+                            };
+
+                            return (
+                              <tr key={row.keyD}>
+                                <td>
+                                  <strong>{row.label}</strong> <br/>
+                                  <small style={{ color: 'var(--text-dim)' }}>Ref: {row.ref}</small>
+                                </td>
+                                {/* Direito */}
+                                <td style={{ background: 'rgba(13,148,136,0.02)' }}>
+                                  <input
+                                    type="number"
+                                    placeholder="Ativo"
+                                    className="form-control form-control-sm"
+                                    style={{ textAlign: 'center', height: '24px' }}
+                                    value={valD.semForca}
+                                    onChange={e => updateField(row.keyD, 'semForca', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ background: 'rgba(13,148,136,0.05)' }}>
+                                  <input
+                                    type="number"
+                                    placeholder="Passivo"
+                                    className="form-control form-control-sm"
+                                    style={{ textAlign: 'center', height: '24px' }}
+                                    value={valD.comForca}
+                                    onChange={e => updateField(row.keyD, 'comForca', e.target.value)}
+                                  />
+                                </td>
+                                {/* Esquerdo */}
+                                <td style={{ background: 'rgba(99,102,241,0.02)' }}>
+                                  <input
+                                    type="number"
+                                    placeholder="Ativo"
+                                    className="form-control form-control-sm"
+                                    style={{ textAlign: 'center', height: '24px' }}
+                                    value={valE.semForca}
+                                    onChange={e => updateField(row.keyE, 'semForca', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ background: 'rgba(99,102,241,0.05)' }}>
+                                  <input
+                                    type="number"
+                                    placeholder="Passivo"
+                                    className="form-control form-control-sm"
+                                    style={{ textAlign: 'center', height: '24px' }}
+                                    value={valE.comForca}
+                                    onChange={e => updateField(row.keyE, 'comForca', e.target.value)}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -6036,8 +6564,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       {showStModal && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
           <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <h3>Registrar Teste de Força Muscular</h3>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <h3 style={{ margin: 0 }}>Registrar Teste de Força Muscular</h3>
+                <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                  ⏱️ Tempo: {formatTimer(stTimerSeconds)}
+                </span>
+              </div>
               <button className="modal-close" onClick={handleCloseSt}>&times;</button>
             </div>
             <form onSubmit={handleCreateStrengthTest}>
@@ -6487,7 +7020,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                             <td>{imcText}</td>
                             {isAdmin && <td>{as.avaliadorId?.nome || 'Não Definido'}</td>}
                             <td>
-                              <button className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
+                              <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
                                 <i className="fa-solid fa-file-pdf"></i> Laudo PDF
                               </button>
                             </td>
@@ -6533,7 +7066,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                           </td>
                           {isAdmin && <td>{rep.profissionalId?.nome || 'Não Definido'}</td>}
                           <td>
-                            <button className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
                               <i className="fa-solid fa-file-pdf"></i> PDF
                             </button>
                           </td>

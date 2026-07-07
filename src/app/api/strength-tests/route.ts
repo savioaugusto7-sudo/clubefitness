@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clienteId, profissionalId, data, exercicio, cargaMax, repeticoes, exercicios, analise, observacoes, pdfName, pdfB64, pesoCliente, testesRealizados, comparativos } = body;
+    const { clienteId, profissionalId, data, exercicio, cargaMax, repeticoes, exercicios, analise, observacoes, pdfName, pdfB64, pesoCliente, testesRealizados, comparativos, tempoGastoSegundos } = body;
 
     if (!clienteId || !profissionalId || !data) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -46,7 +46,8 @@ export async function POST(request: Request) {
       pdfB64,
       pesoCliente,
       testesRealizados,
-      comparativos
+      comparativos,
+      tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
 
     return NextResponse.json({ success: true, data: test });

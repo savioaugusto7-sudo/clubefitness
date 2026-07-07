@@ -50,7 +50,8 @@ const StrengthTestSchema = new Schema({
   
   observacoes: { type: String, default: '' },
   pdfName: { type: String },
-  pdfB64: { type: String } // support binary/b64 exam PDF attachment
+  pdfB64: { type: String }, // support binary/b64 exam PDF attachment
+  tempoGastoSegundos: { type: Number, default: 0 }
 }, { timestamps: true });
 
 export default models.StrengthTest || model('StrengthTest', StrengthTestSchema);

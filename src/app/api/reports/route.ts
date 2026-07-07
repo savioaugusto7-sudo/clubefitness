@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clienteId, profissionalId, data, conteudo, anamnese, goniometria, testesEspeciais, termografia, testesOrtopedicos, pdfName } = body;
+    const { clienteId, profissionalId, data, conteudo, anamnese, goniometria, testesEspeciais, termografia, testesOrtopedicos, pdfName, tempoGastoSegundos } = body;
 
     if (!clienteId || !profissionalId || !data || !conteudo) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -42,7 +42,8 @@ export async function POST(request: Request) {
       testesEspeciais,
       termografia,
       testesOrtopedicos,
-      pdfName
+      pdfName,
+      tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
 
     // Populate so the PDF generator has access to client and professional names

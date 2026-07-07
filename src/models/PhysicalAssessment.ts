@@ -12,18 +12,19 @@ const DobrasSchema = new Schema({
 }, { _id: false });
 
 const GoniometriaSchema = new Schema({
-  quadrilFlexao1D: Number, quadrilFlexao1E: Number,
-  quadrilFlexao2D: Number, quadrilFlexao2E: Number,
-  quadrilRotIntD: Number, quadrilRotIntE: Number,
-  quadrilRotExtD: Number, quadrilRotExtE: Number,
-  joelhoFlexaoD: Number, joelhoFlexaoE: Number,
-  joelhoPopliteoD: Number, joelhoPopliteoE: Number,
-  tornozeloDorsi1D: Number, tornozeloDorsi1E: Number,
-  tornozeloDorsi2D: Number, tornozeloDorsi2E: Number,
-  tornozeloFlexaoPlantarD: Number, tornozeloFlexaoPlantarE: Number,
-  ombroRotIntD: Number, ombroRotIntE: Number,
-  ombroRotExtD: Number, ombroRotExtE: Number,
-  ombroAbducaoD: Number, ombroAbducaoE: Number
+  quadrilFlexao1D: Schema.Types.Mixed, quadrilFlexao1E: Schema.Types.Mixed,
+  quadrilFlexao2D: Schema.Types.Mixed, quadrilFlexao2E: Schema.Types.Mixed,
+  quadrilRotIntD: Schema.Types.Mixed, quadrilRotIntE: Schema.Types.Mixed,
+  quadrilRotExtD: Schema.Types.Mixed, quadrilRotExtE: Schema.Types.Mixed,
+  joelhoFlexaoD: Schema.Types.Mixed, joelhoFlexaoE: Schema.Types.Mixed,
+  joelhoPopliteoD: Schema.Types.Mixed, joelhoPopliteoE: Schema.Types.Mixed,
+  tornozeloDorsi1D: Schema.Types.Mixed, tornozeloDorsi1E: Schema.Types.Mixed,
+  tornozeloDorsi2D: Schema.Types.Mixed, tornozeloDorsi2E: Schema.Types.Mixed,
+  tornozeloFlexaoPlantarD: Schema.Types.Mixed, tornozeloFlexaoPlantarE: Schema.Types.Mixed,
+  ombroRotIntD: Schema.Types.Mixed, ombroRotIntE: Schema.Types.Mixed,
+  ombroRotExtD: Schema.Types.Mixed, ombroRotExtE: Schema.Types.Mixed,
+  ombroAbducaoD: Schema.Types.Mixed, ombroAbducaoE: Schema.Types.Mixed,
+  ombroFlexaoD: Schema.Types.Mixed, ombroFlexaoE: Schema.Types.Mixed
 }, { _id: false });
 
 const TestesEspeciaisSchema = new Schema({
@@ -49,6 +50,7 @@ const DadosMedidosSchema = new Schema({
   },
   circunferencias: CircunferenciasSchema,
   dobras: DobrasSchema,
+  dobrasReadings: Schema.Types.Mixed,
   somaDobras: Number, percentil: Number,
   goniometria: GoniometriaSchema,
   testesEspeciais: TestesEspeciaisSchema,
@@ -63,7 +65,9 @@ const ResultadosCalculadosSchema = new Schema({
 const MetasSchema = new Schema({
   metaGorduraValor: Number, metaGorduraAlvo: Number,
   metaMassaValor: Number, metaMassaAlvo: Number,
-  metaCondicionamentoProgresso: Number, metaFlexibilidadeProgresso: Number
+  metaCondicionamentoProgresso: Number, metaFlexibilidadeProgresso: Number,
+  objetivo2Meses: String,
+  objetivo1Ano: String
 }, { _id: false });
 
 const PhysicalAssessmentSchema = new Schema({
@@ -75,7 +79,8 @@ const PhysicalAssessmentSchema = new Schema({
   metas: { type: MetasSchema },
   observacoes: { type: String, default: '' },
   pdfName: { type: String },
-  pdf_url: { type: String, default: '' }
+  pdf_url: { type: String, default: '' },
+  tempoGastoSegundos: { type: Number, default: 0 }
 }, { timestamps: true });
 
 export default models.PhysicalAssessment || model('PhysicalAssessment', PhysicalAssessmentSchema);

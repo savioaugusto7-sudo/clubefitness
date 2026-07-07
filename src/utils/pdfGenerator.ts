@@ -103,6 +103,7 @@ function triggerDirectDownload(blob: Blob, filename: string) {
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = '/api/download-pdf';
+      form.target = '_blank';
       form.style.display = 'none';
       
       const inputB64 = document.createElement('input');
@@ -865,7 +866,7 @@ export async function downloadReportPDF(report: any) {
                   { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar' },
                   { key: 'ombroRotInt', label: 'Ombro - Rotação Interna' },
                   { key: 'ombroRotExt', label: 'Ombro - Rotação Externa' },
-                  { key: 'ombroAbducao', label: 'Ombro - Abdução' }
+                  { key: 'ombroFlexao', label: 'Ombro - Flexão' }
                 ].map(row => `
                   <tr>
                     <td style="font-weight:600;">${row.label}</td>
@@ -1338,45 +1339,71 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   function getGonStatusDot(movement: any, value: any) {
     let color = '#10b981'; // Green (ideal)
     let label = 'Dentro do ideal';
+    const val = Number(value);
     
+    if (isNaN(val)) return '';
+
     if (movement === 'quadrilFlexao1') {
-      if (value < 60) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 70) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 60) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 70) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 80) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'quadrilFlexao2') {
-      if (value < 90) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 100) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 90) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 100) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 125) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'quadrilRotInt') {
-      if (value < 30) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 40) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 30) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 40) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 45) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'quadrilRotExt') {
-      if (value < 30) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 40) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 30) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 40) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 45) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'joelhoFlexao') {
-      if (value < 120) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 135) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 120) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 135) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 150) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'joelhoPopliteo') {
-      if (value < 145) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 155) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 145) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 155) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 160) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'tornozeloDorsi1') {
-      if (value < 25) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 35) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 25) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 35) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 45) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'tornozeloDorsi2') {
-      if (value < 15) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 20) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 15) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 20) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 20) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'tornozeloFlexaoPlantar') {
-      if (value < 30) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 40) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 30) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 40) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 50) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'ombroRotInt') {
-      if (value < 70) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 80) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 70) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 80) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 90) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     } else if (movement === 'ombroRotExt') {
-      if (value < 70) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 80) { color = '#f59e0b'; label = 'Atenção'; }
-    } else if (movement === 'ombroAbducao') {
-      if (value < 160) { color = '#ef4444'; label = 'Abaixo do ideal'; }
-      else if (value < 180) { color = '#f59e0b'; label = 'Atenção'; }
+      if (val < 70) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 80) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 100) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
+    } else if (movement === 'ombroAbducao' || movement === 'ombroFlexao') {
+      if (val < 160) { color = '#ef4444'; label = 'Abaixo do ideal'; }
+      else if (val < 180) { color = '#f59e0b'; label = 'Atenção'; }
+      else if (val > 180) { color = '#ef4444'; label = 'Hipermóvel (Atenção)'; }
     }
-    return `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${color}; margin-left:6px;" title="${label}"></span>`;
+    return `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${color}; margin-left:4px;" title="${label}"></span>`;
+  }
+
+  function renderPdfGonio(movement: string, val: any) {
+    if (val && typeof val === 'object') {
+      const semStr = (val.semForca !== '' && val.semForca !== undefined) ? `${val.semForca}°${getGonStatusDot(movement, val.semForca)}` : '-';
+      const comStr = (val.comForca !== '' && val.comForca !== undefined) ? `${val.comForca}°${getGonStatusDot(movement, val.comForca)}` : '-';
+      return `<span style="font-size: 7.5px;">A: ${semStr} / P: ${comStr}</span>`;
+    }
+    const numVal = typeof val === 'number' ? val : parseFloat(val);
+    if (isNaN(numVal)) return '-';
+    return `${numVal}°${getGonStatusDot(movement, numVal)}`;
   }
 
   // Cálculos de composição corporal
@@ -1955,28 +1982,28 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">F. Quadril (1)</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.quadrilFlexao1D || 0}°${getGonStatusDot('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1D)} / ${assessment.dadosMedidos.goniometria?.quadrilFlexao1E || 0}°${getGonStatusDot('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1E)}
+                    ${renderPdfGonio('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1D)} / ${renderPdfGonio('quadrilFlexao1', assessment.dadosMedidos.goniometria?.quadrilFlexao1E)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilFlexao1D, assessment.dadosMedidos.goniometria?.quadrilFlexao1E)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">F. Quadril (2)</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.quadrilFlexao2D || 0}°${getGonStatusDot('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2D)} / ${assessment.dadosMedidos.goniometria?.quadrilFlexao2E || 0}°${getGonStatusDot('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2E)}
+                    ${renderPdfGonio('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2D)} / ${renderPdfGonio('quadrilFlexao2', assessment.dadosMedidos.goniometria?.quadrilFlexao2E)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilFlexao2D, assessment.dadosMedidos.goniometria?.quadrilFlexao2E)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">RQI</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.quadrilRotIntD || 0}°${getGonStatusDot('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntD)} / ${assessment.dadosMedidos.goniometria?.quadrilRotIntE || 0}°${getGonStatusDot('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntE)}
+                    ${renderPdfGonio('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntD)} / ${renderPdfGonio('quadrilRotInt', assessment.dadosMedidos.goniometria?.quadrilRotIntE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilRotIntD, assessment.dadosMedidos.goniometria?.quadrilRotIntE)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">RQE</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.quadrilRotExtD || 0}°${getGonStatusDot('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtD)} / ${assessment.dadosMedidos.goniometria?.quadrilRotExtE || 0}°${getGonStatusDot('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtE)}
+                    ${renderPdfGonio('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtD)} / ${renderPdfGonio('quadrilRotExt', assessment.dadosMedidos.goniometria?.quadrilRotExtE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.quadrilRotExtD, assessment.dadosMedidos.goniometria?.quadrilRotExtE)}
                   </td>
                 </tr>
@@ -1990,14 +2017,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">F. Joelho</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.joelhoFlexaoD || 0}°${getGonStatusDot('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoD)} / ${assessment.dadosMedidos.goniometria?.joelhoFlexaoE || 0}°${getGonStatusDot('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoE)}
+                    ${renderPdfGonio('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoD)} / ${renderPdfGonio('joelhoFlexao', assessment.dadosMedidos.goniometria?.joelhoFlexaoE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.joelhoFlexaoD, assessment.dadosMedidos.goniometria?.joelhoFlexaoE)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">Poplíteo</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.joelhoPopliteoD || 0}°${getGonStatusDot('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoD)} / ${assessment.dadosMedidos.goniometria?.joelhoPopliteoE || 0}°${getGonStatusDot('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoE)}
+                    ${renderPdfGonio('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoD)} / ${renderPdfGonio('joelhoPopliteo', assessment.dadosMedidos.goniometria?.joelhoPopliteoE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.joelhoPopliteoD, assessment.dadosMedidos.goniometria?.joelhoPopliteoE)}
                   </td>
                 </tr>
@@ -2011,21 +2038,21 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">Dorsi (1)</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.tornozeloDorsi1D || 0}°${getGonStatusDot('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1D)} / ${assessment.dadosMedidos.goniometria?.tornozeloDorsi1E || 0}°${getGonStatusDot('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1E)}
+                    ${renderPdfGonio('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1D)} / ${renderPdfGonio('tornozeloDorsi1', assessment.dadosMedidos.goniometria?.tornozeloDorsi1E)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloDorsi1D, assessment.dadosMedidos.goniometria?.tornozeloDorsi1E)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">Dorsi (2)</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.tornozeloDorsi2D || 0}°${getGonStatusDot('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2D)} / ${assessment.dadosMedidos.goniometria?.tornozeloDorsi2E || 0}°${getGonStatusDot('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2E)}
+                    ${renderPdfGonio('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2D)} / ${renderPdfGonio('tornozeloDorsi2', assessment.dadosMedidos.goniometria?.tornozeloDorsi2E)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloDorsi2D, assessment.dadosMedidos.goniometria?.tornozeloDorsi2E)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">F. Plantar</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD || 0}°${getGonStatusDot('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD)} / ${assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE || 0}°${getGonStatusDot('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE)}
+                    ${renderPdfGonio('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD)} / ${renderPdfGonio('tornozeloFlexaoPlantar', assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarD, assessment.dadosMedidos.goniometria?.tornozeloFlexaoPlantarE)}
                   </td>
                 </tr>
@@ -2039,21 +2066,21 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">ROI</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.ombroRotIntD || 0}°${getGonStatusDot('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntD)} / ${assessment.dadosMedidos.goniometria?.ombroRotIntE || 0}°${getGonStatusDot('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntE)}
+                    ${renderPdfGonio('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntD)} / ${renderPdfGonio('ombroRotInt', assessment.dadosMedidos.goniometria?.ombroRotIntE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroRotIntD, assessment.dadosMedidos.goniometria?.ombroRotIntE)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">ROE</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.ombroRotExtD || 0}°${getGonStatusDot('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtD)} / ${assessment.dadosMedidos.goniometria?.ombroRotExtE || 0}°${getGonStatusDot('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtE)}
+                    ${renderPdfGonio('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtD)} / ${renderPdfGonio('ombroRotExt', assessment.dadosMedidos.goniometria?.ombroRotExtE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroRotExtD, assessment.dadosMedidos.goniometria?.ombroRotExtE)}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:2px 0; vertical-align: top;">Latíssimo</td>
                   <td style="text-align:right; font-weight:600; vertical-align: top;">
-                    ${assessment.dadosMedidos.goniometria?.ombroAbducaoD || 0}°${getGonStatusDot('ombroAbducao', assessment.dadosMedidos.goniometria?.ombroAbducaoD)} / ${assessment.dadosMedidos.goniometria?.ombroAbducaoE || 0}°${getGonStatusDot('ombroAbducao', assessment.dadosMedidos.goniometria?.ombroAbducaoE)}
+                    ${renderPdfGonio('ombroFlexao', assessment.dadosMedidos.goniometria?.ombroFlexaoD)} / ${renderPdfGonio('ombroFlexao', assessment.dadosMedidos.goniometria?.ombroFlexaoE)}
                     ${checkPDFAsymmetry(assessment.dadosMedidos.goniometria?.ombroAbducaoD, assessment.dadosMedidos.goniometria?.ombroAbducaoE)}
                   </td>
                 </tr>
@@ -3093,7 +3120,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
                 <tr><td style="padding:5px;">Puxada Alta (Lat Pulldown)</td><td style="padding:5px;text-align:center;"><strong>${v.puxada || 0} kg</strong></td></tr>
                 <tr><td style="padding:5px;">Rotação Externa de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoExternaOmbro || 0} kg</strong></td></tr>
                 <tr><td style="padding:5px;">Rotação Interna de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.rotacaoInternaOmbro || 0} kg</strong></td></tr>
-                <tr><td style="padding:5px;">Abdução de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.abducaoOmbro || 0} kg</strong></td></tr>
+                <tr><td style="padding:5px;">Flexão de Ombro</td><td style="padding:5px;text-align:center;"><strong>${v.abducaoOmbro || 0} kg</strong></td></tr>
               </tbody>
             </table>
           </div>
