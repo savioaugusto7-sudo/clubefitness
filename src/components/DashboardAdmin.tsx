@@ -200,6 +200,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
   const [dcFrequencia, setDcFrequencia] = useState<number>(3);
+  const getCreditsForFreq = (freq: number): number => {
+    if (freq === 1) return 5;
+    if (freq === 2) return 9;
+    if (freq === 3) return 13;
+    if (freq === 4) return 17;
+    if (freq === 5) return 21;
+    return freq * 4 + 1;
+  };
+
+  const [dcCreditosTotal, setDcCreditosTotal] = useState<number>(13);
   const [dcCreditosMassagem, setDcCreditosMassagem] = useState<number>(0);
   const [dcCreditosEmergencia, setDcCreditosEmergencia] = useState<number>(0);
 
@@ -456,7 +466,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       enviarAsaas: gerarAsaas,
       contratoPdfBase64: pdfBase64,
       frequencia: dcFrequencia,
-      creditosTotal: dcFrequencia * 4 + 1,
+      creditosTotal: dcCreditosTotal,
     creditosMassagemPorPlano: dcCreditosMassagem,
     creditosEmergenciaPorPlano: dcCreditosEmergencia
     };
@@ -1776,6 +1786,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcUnidadeContratada(c.dadosComerciais?.unidadeContratada || '');
                               setDcObservacoesContratuais(c.dadosComerciais?.observacoesContratuais || '');
                               setDcFrequencia(c.dadosComerciais?.frequencia || 3);
+    setDcCreditosTotal(c.dadosComerciais?.creditosTotal !== undefined ? c.dadosComerciais.creditosTotal : (c.dadosComerciais?.frequencia ? getCreditsForFreq(c.dadosComerciais.frequencia) : 13));
+    setDcCreditosMassagem(c.dadosComerciais?.creditosMassagemTotal || 0);
+    setDcCreditosEmergencia(c.dadosComerciais?.creditosEmergenciaTotal || 0);
+    setDcCreditosTotal(c.dadosComerciais?.creditosTotal !== undefined ? c.dadosComerciais.creditosTotal : (c.dadosComerciais?.frequencia ? getCreditsForFreq(c.dadosComerciais.frequencia) : 13));
+    setDcCreditosMassagem(c.dadosComerciais?.creditosMassagemTotal || 0);
+    setDcCreditosEmergencia(c.dadosComerciais?.creditosEmergenciaTotal || 0);
                               
                               setSignatureName(c.dadosPessoais?.nome || '');
                               setShowContractPreview(false);
@@ -3657,13 +3673,25 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </div>
                           <div className="form-group">
                             <label className="comercial-field-label"><i className="fa-solid fa-calendar-week"></i> Frequência Semanal</label>
-                            <select className="select-custom" value={dcFrequencia} onChange={e => setDcFrequencia(Number(e.target.value))} disabled={hasActiveSignedContract}>
+                            <select className="select-custom" value={dcFrequencia} onChange={e => {
+                              const freq = Number(e.target.value);
+                              setDcFrequencia(freq);
+                              setDcCreditosTotal(getCreditsForFreq(freq));
+                            }} disabled={hasActiveSignedContract}>
                               <option value={1}>1x por semana (5 créditos/mês)</option>
                               <option value={2}>2x por semana (9 créditos/mês)</option>
                               <option value={3}>3x por semana (13 créditos/mês)</option>
                               <option value={4}>4x por semana (17 créditos/mês)</option>
                               <option value={5}>5x por semana (21 créditos/mês)</option>
                             </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-dumbbell"></i> Créditos de Aula por Mês</label>
+                            <input type="number" className="form-control" min={0} value={dcCreditosTotal} onChange={e => setDcCreditosTotal(Number(e.target.value))} disabled={hasActiveSignedContract} />
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-dumbbell"></i> Créditos de Aula por Mês</label>
+                            <input type="number" className="form-control" min={0} value={dcCreditosTotal} onChange={e => setDcCreditosTotal(Number(e.target.value))} disabled={hasActiveSignedContract} />
                           </div>
                         </div>
 
@@ -3756,7 +3784,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                observacoesContratuais: dcObservacoesContratuais,
                                valorUnitario: dcValorUnitario,
                                frequencia: dcFrequencia,
-                               creditosTotal: dcFrequencia * 4 + 1,
+                               creditosTotal: dcCreditosTotal,
                              creditosMassagemTotal: dcCreditosMassagem,
                              creditosEmergenciaTotal: dcCreditosEmergencia
                              }

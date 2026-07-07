@@ -55,6 +55,18 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [dcResponsavelVenda, setDcResponsavelVenda] = useState('');
   const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
+  const getCreditsForFreq = (freq: number): number => {
+    if (freq === 1) return 5;
+    if (freq === 2) return 9;
+    if (freq === 3) return 13;
+    if (freq === 4) return 17;
+    if (freq === 5) return 21;
+    return freq * 4 + 1;
+  };
+
+  const [dcCreditosTotal, setDcCreditosTotal] = useState<number>(13);
+  const [dcCreditosMassagem, setDcCreditosMassagem] = useState<number>(0);
+  const [dcCreditosEmergencia, setDcCreditosEmergencia] = useState<number>(0);
   const [dcFrequencia, setDcFrequencia] = useState<number>(3);
 
   // New client modal
@@ -240,6 +252,9 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     setDcUnidadeContratada(client.dadosComerciais?.unidadeContratada || '');
     setDcObservacoesContratuais(client.dadosComerciais?.observacoesContratuais || '');
     setDcFrequencia(client.dadosComerciais?.frequencia || 3);
+      setDcCreditosTotal(client.dadosComerciais?.creditosTotal !== undefined ? client.dadosComerciais.creditosTotal : (client.dadosComerciais?.frequencia ? getCreditsForFreq(client.dadosComerciais.frequencia) : 13));
+      setDcCreditosMassagem(client.dadosComerciais?.creditosMassagemTotal || 0);
+      setDcCreditosEmergencia(client.dadosComerciais?.creditosEmergenciaTotal || 0);
 
     const res = await fetch(`/api/contracts?clientId=${client._id}`);
     const data = await res.json();
@@ -277,7 +292,9 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         responsavelVenda: dcResponsavelVenda,
         observacoesContratuais: dcObservacoesContratuais,
         frequencia: dcFrequencia,
-        creditosTotal: dcFrequencia * 4 + 1
+        creditosTotal: dcCreditosTotal,
+        creditosMassagemTotal: dcCreditosMassagem,
+        creditosEmergenciaTotal: dcCreditosEmergencia
       }
     };
     const res = await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -529,7 +546,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       if (dc.success) setClientContracts(dc.data);
       fetchData();
       if (status === 'assinado') {
-        const clientWithComercial = { ...selectedClient, dadosComerciais: { ...selectedClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, vencimento: dcVencimento, descontoTipo: dcDescontoTipo, descontoValor: dcDescontoValor, parcelas: dcParcelas, dataInicio: dcDataInicio, frequencia: dcFrequencia, creditosTotal: dcFrequencia * 4 + 1 } };
+        const clientWithComercial = { ...selectedClient, dadosComerciais: { ...selectedClient.dadosComerciais, planoId: plan, formaPagamento: dcFormaPag, vencimento: dcVencimento, descontoTipo: dcDescontoTipo, descontoValor: dcDescontoValor, parcelas: dcParcelas, dataInicio: dcDataInicio, frequencia: dcFrequencia, creditosTotal: dcCreditosTotal, creditosMassagemTotal: dcCreditosMassagem, creditosEmergenciaTotal: dcCreditosEmergencia } };
         downloadContractPDF(clientWithComercial, plan, payload.contratoTexto);
       }
     } else alert('Erro ao criar contrato: ' + data.error);
@@ -1085,14 +1102,33 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                       </div>
                       <div>
                         <label className="comercial-field-label"><i className="fa-solid fa-calendar-week"></i> Frequência Semanal</label>
-                        <select className="select-custom" value={dcFrequencia} onChange={e => setDcFrequencia(Number(e.target.value))}>
-                          <option value={1}>1x por semana (5 créditos/mês)</option>
-                          <option value={2}>2x por semana (9 créditos/mês)</option>
-                          <option value={3}>3x por semana (13 créditos/mês)</option>
-                          <option value={4}>4x por semana (17 créditos/mês)</option>
-                          <option value={5}>5x por semana (21 créditos/mês)</option>
-                        </select>
-                      </div>
+                            <select className="select-custom" value={dcFrequencia} onChange={e => {
+                              const freq = Number(e.target.value);
+                              setDcFrequencia(freq);
+                              setDcCreditosTotal(getCreditsForFreq(freq));
+                            }} disabled={hasActiveSignedContract}>
+                              <option value={1}>1x por semana (5 créditos/mês)</option>
+                              <option value={2}>2x por semana (9 créditos/mês)</option>
+                              <option value={3}>3x por semana (13 créditos/mês)</option>
+                              <option value={4}>4x por semana (17 créditos/mês)</option>
+                              <option value={5}>5x por semana (21 créditos/mês)</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-dumbbell"></i> Créditos de Aula por Mês</label>
+                            <input type="number" className="form-control" min={0} value={dcCreditosTotal} onChange={e => setDcCreditosTotal(Number(e.target.value))} disabled={hasActiveSignedContract} />
+                          </div>
+                        </div>
+                        
+                        <div className="form-row" style={{ marginTop: '10px' }}>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-spa"></i> Créditos de Massagem por Mês</label>
+                            <input type="number" className="form-control" min={0} value={dcCreditosMassagem} onChange={e => setDcCreditosMassagem(Number(e.target.value))} disabled={hasActiveSignedContract} />
+                          </div>
+                          <div className="form-group">
+                            <label className="comercial-field-label"><i className="fa-solid fa-triangle-exclamation"></i> Créditos de Emergência por Mês</label>
+                            <input type="number" className="form-control" min={0} value={dcCreditosEmergencia} onChange={e => setDcCreditosEmergencia(Number(e.target.value))} disabled={hasActiveSignedContract} />
+                          </div>
                     </div>
                     <div style={{ marginTop: '10px' }}>
                       <label className="comercial-field-label"><i className="fa-solid fa-file-lines"></i> Observações Contratuais</label>
