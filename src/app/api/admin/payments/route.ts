@@ -177,6 +177,17 @@ export async function POST(request: Request) {
 
           if (paymentRecords.length > 0) {
             await Payment.insertMany(paymentRecords);
+
+            // Auto-activate contract if any payment is Pago
+            const pendingContract = await Contract.findOne({ clientId: client._id, status: 'pendente' });
+            if (pendingContract && paymentRecords.some((r: any) => r.status === 'Pago')) {
+              pendingContract.status = 'assinado';
+              pendingContract.asaasBillingStatus = 'pago';
+              await pendingContract.save();
+
+              client.dadosComerciais.status = 'ativo';
+              await client.save();
+            }
           }
         }
       }
@@ -234,6 +245,17 @@ export async function POST(request: Request) {
 
               if (paymentRecords.length > 0) {
                 await Payment.insertMany(paymentRecords);
+
+                // Auto-activate contract if any payment is Pago
+                const pendingContract = await Contract.findOne({ clientId: client._id, status: 'pendente' });
+                if (pendingContract && paymentRecords.some((r: any) => r.status === 'Pago')) {
+                  pendingContract.status = 'assinado';
+                  pendingContract.asaasBillingStatus = 'pago';
+                  await pendingContract.save();
+
+                  client.dadosComerciais.status = 'ativo';
+                  await client.save();
+                }
               }
               syncedCount++;
             }
