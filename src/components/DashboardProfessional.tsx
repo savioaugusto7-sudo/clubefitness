@@ -218,6 +218,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   
   // Wizard states
   const [asStep, setAsStep] = useState(1);
+  const [draftOnOpen, setDraftOnOpen] = useState<any>(null);
   const [asTermografia, setAsTermografia] = useState('');
   const [asYTest, setAsYTest] = useState('');
   const [asStepDown, setAsStepDown] = useState('');
@@ -271,6 +272,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const handleCloseAssessment = () => {
     setShowAssessmentModal(false);
+    setDraftOnOpen(null);
   };
 
   const handleCloseReport = () => {
@@ -3564,6 +3566,14 @@ goniometria: {
                 </select>
               </div>
               <button className="btn btn-primary" onClick={() => {
+                const draftStr = localStorage.getItem('draft_assessment');
+                if (draftStr) {
+                  try {
+                    setDraftOnOpen(JSON.parse(draftStr));
+                  } catch (e) {}
+                } else {
+                  setDraftOnOpen(null);
+                }
                 setAsDate(new Date().toISOString().split('T')[0]);
                 setShowAssessmentModal(true);
               }}>
@@ -5470,16 +5480,9 @@ goniometria: {
                   {asStep < 6 ? (
                     <button type="button" className="btn btn-primary" onClick={() => {
                       if (asStep === 1) {
-                        const draft = localStorage.getItem('draft_assessment');
-                        if (draft) {
-                          try {
-                            const parsed = JSON.parse(draft);
-                            if (parsed.asClient === asClient) {
-                              loadAssessmentDraft(false, parsed);
-                            }
-                          } catch (e) {
-                            console.error(e);
-                          }
+                        if (draftOnOpen && draftOnOpen.asClient === asClient) {
+                          loadAssessmentDraft(false, draftOnOpen);
+                          setDraftOnOpen(null);
                         }
                       }
                       setAsStep(asStep + 1);
