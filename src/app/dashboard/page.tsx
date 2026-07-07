@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import DashboardAdmin from '@/components/DashboardAdmin';
 import DashboardReceptionist from '@/components/DashboardReceptionist';
@@ -17,12 +17,15 @@ export default function DashboardPage() {
   const [seedMessage, setSeedMessage] = useState('');
   const [adminViewMode, setAdminViewMode] = useState<'admin' | 'receptionist' | 'professional' | 'client'>('admin');
 
+  const hasInitializedMode = useRef(false);
+
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && !hasInitializedMode.current) {
       const u = session.user as any;
       const roles = u.activeRoles || [u.role || 'client'];
       if (roles.length > 0) {
         setAdminViewMode(roles[0]);
+        hasInitializedMode.current = true;
       }
     }
   }, [session]);
