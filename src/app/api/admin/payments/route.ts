@@ -145,8 +145,11 @@ export async function POST(request: Request) {
       if (paymentsRes.ok) {
         const paymentsData = await paymentsRes.json();
         if (Array.isArray(paymentsData.data)) {
-          // Remove existing Asaas payments for this client to avoid duplicates
-          await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
+          // Remove all existing payments for this client to avoid duplicates
+          await Payment.deleteMany({ clientId: client._id });
+
+          // Sort payments by dueDate ascending so parcel numbers are chronological
+          paymentsData.data.sort((a: any, b: any) => a.dueDate.localeCompare(b.dueDate));
 
           const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
             let status = 'Pendente';
@@ -199,8 +202,11 @@ export async function POST(request: Request) {
           if (paymentsRes.ok) {
             const paymentsData = await paymentsRes.json();
             if (Array.isArray(paymentsData.data)) {
-              // Delete existing local Asaas payments for this client
-              await Payment.deleteMany({ clientId: client._id, formaPagamento: 'Asaas' });
+              // Delete existing local payments for this client to avoid duplicates
+              await Payment.deleteMany({ clientId: client._id });
+
+              // Sort payments by dueDate ascending so parcel numbers are chronological
+              paymentsData.data.sort((a: any, b: any) => a.dueDate.localeCompare(b.dueDate));
 
               const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
                 let status = 'Pendente';
