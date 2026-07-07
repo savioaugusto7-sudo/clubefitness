@@ -60,6 +60,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [paymentsSearch, setPaymentsSearch] = useState('');
   const [paymentsStatusFilter, setPaymentsStatusFilter] = useState('');
+  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
   const [showManualPayModal, setShowManualPayModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
   const [mpFormaPag, setMpFormaPag] = useState('Pix Manual');
@@ -168,6 +169,67 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   }, [fetchData]);
 
 
+
+  const getGroupedPayments = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const grouped: Record<string, {
+      clientId: string;
+      clientNome: string;
+      planoNome: string;
+      payments: any[];
+      totalValue: number;
+      paidCount: number;
+      totalCount: number;
+      status: 'Pago' | 'Pendente' | 'Atrasado';
+      proximoVencimento: string;
+    }> = {};
+
+    payments.forEach(p => {
+      if (!grouped[p.clientId]) {
+        grouped[p.clientId] = {
+          clientId: p.clientId,
+          clientNome: p.clientNome,
+          planoNome: p.planoNome,
+          payments: [],
+          totalValue: 0,
+          paidCount: 0,
+          totalCount: 0,
+          status: 'Pago',
+          proximoVencimento: ''
+        };
+      }
+      grouped[p.clientId].payments.push(p);
+    });
+
+    const groupedList = Object.values(grouped).map((group: any) => {
+      group.payments.sort((a: any, b: any) => a.vencimento.localeCompare(b.vencimento));
+      group.totalCount = group.payments.length;
+      group.paidCount = group.payments.filter((p: any) => p.status === 'Pago').length;
+      group.totalValue = group.payments.reduce((sum: number, p: any) => sum + p.valor, 0);
+
+      const hasOverdue = group.payments.some((p: any) => p.status === 'Pendente' && p.vencimento < todayStr);
+      const hasPending = group.payments.some((p: any) => p.status === 'Pendente');
+      
+      if (hasOverdue) {
+        group.status = 'Atrasado';
+      } else if (hasPending) {
+        group.status = 'Pendente';
+      } else {
+        group.status = 'Pago';
+      }
+
+      const nextUnpaid = group.payments.find((p: any) => p.status === 'Pendente');
+      group.proximoVencimento = nextUnpaid ? nextUnpaid.vencimento : (group.payments[group.payments.length - 1]?.vencimento || '');
+
+      return group;
+    });
+
+    return groupedList.filter((group: any) => {
+      const matchesSearch = group.clientNome.toLowerCase().includes(paymentsSearch.toLowerCase());
+      const matchesStatus = !paymentsStatusFilter || group.status === paymentsStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  };
 
   const fetchPayments = async () => {
     setLoadingPayments(true);
@@ -1688,76 +1750,120 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
           </button>
         </div>
 
-        {/* Table */}
+        {/* Table Grouped by Client */}
         <div className="content-panel" style={{ padding: 0, overflow: 'hidden' }}>
           <div className="table-responsive">
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}></th>
                   <th>Aluno</th>
                   <th>Plano</th>
-                  <th>Parcela</th>
-                  <th>Vencimento</th>
-                  <th>Valor</th>
-                  <th>Método</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'center' }}>Ações</th>
+                  <th>Status Consolidado</th>
+                  <th style={{ textAlign: 'center' }}>Progresso</th>
+                  <th>Próximo Vencimento</th>
+                  <th>Total do Contrato</th>
                 </tr>
               </thead>
               <tbody>
-                {payments.map(p => {
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  const isOverdue = p.status === 'Pendente' && p.vencimento < todayStr;
-                  
+                {getGroupedPayments().map((group: any) => {
+                  const isExpanded = !!expandedClients[group.clientId];
                   return (
-                    <tr key={p._id}>
-                      <td><strong>{p.clientNome}</strong></td>
-                      <td>{p.planoNome}</td>
-                      <td>{p.parcelaNumero}/{p.parcelasTotal}</td>
-                      <td>{p.vencimento.split('-').reverse().join('/')}</td>
-                      <td>R$ {p.valor.toFixed(2).replace('.', ',')}</td>
-                      <td>
-                        <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', fontSize: '0.72rem' }}>
-                          {p.formaPagamento}
-                        </span>
-                      </td>
-                      <td>
-                        {p.status === 'Pago' ? (
-                          <span className="badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Pago</span>
-                        ) : isOverdue ? (
-                          <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', animation: 'pulse 2s infinite' }}>Atrasado</span>
-                        ) : (
-                          <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>Pendente</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {p.status === 'Pendente' && p.formaPagamento !== 'Asaas' && (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            style={{ padding: '4px 10px', fontSize: '0.72rem' }}
-                            onClick={() => {
-                              setSelectedPayment(p);
-                              setMpFormaPag(p.formaPagamento);
-                              setMpDataPag(new Date().toISOString().split('T')[0]);
-                              setShowManualPayModal(true);
-                            }}
-                          >
-                            <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Receber
-                          </button>
-                        )}
-                        {p.status === 'Pendente' && p.formaPagamento === 'Asaas' && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Integrado Asaas</span>
-                        )}
-                        {p.status === 'Pago' && (
-                          <span style={{ fontSize: '0.75rem', color: '#10b981' }}><i className="fa-solid fa-circle-check"></i> Recebido</span>
-                        )}
-                      </td>
-                    </tr>
+                    <React.Fragment key={group.clientId}>
+                      <tr 
+                        style={{ cursor: 'pointer', background: isExpanded ? 'rgba(255,255,255,0.02)' : 'transparent' }}
+                        onClick={() => setExpandedClients(prev => ({ ...prev, [group.clientId]: !isExpanded }))}
+                      >
+                        <td style={{ textAlign: 'center' }}>
+                          <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{ color: 'var(--text-dim)' }}></i>
+                        </td>
+                        <td><strong>{group.clientNome}</strong></td>
+                        <td>{group.planoNome}</td>
+                        <td>
+                          {group.status === 'Pago' ? (
+                            <span className="badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Totalmente Quitado</span>
+                          ) : group.status === 'Atrasado' ? (
+                            <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', animation: 'pulse 2s infinite' }}>Em Atraso</span>
+                          ) : (
+                            <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>Pendente / Em Dia</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}><strong>{group.paidCount}</strong> de {group.totalCount}</td>
+                        <td>{group.proximoVencimento.split('-').reverse().join('/')}</td>
+                        <td>R$ {group.totalValue.toFixed(2).replace('.', ',')}</td>
+                      </tr>
+                      
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={7} style={{ padding: '0 0 20px 40px', background: 'rgba(0,0,0,0.15)' }}>
+                            <div style={{ padding: '16px', borderLeft: '3px solid var(--color-primary)', background: 'rgba(255,255,255,0.01)', borderRadius: '0 8px 8px 0' }}>
+                              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.88rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Extrato de Parcelas</h4>
+                              <table className="data-table" style={{ width: '100%', fontSize: '0.82rem' }}>
+                                <thead>
+                                  <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                                    <th>Parcela</th>
+                                    <th>Vencimento</th>
+                                    <th>Valor</th>
+                                    <th>Método</th>
+                                    <th>Status</th>
+                                    <th style={{ textAlign: 'center' }}>Ações</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {group.payments.map((p: any) => {
+                                    const isOverdue = p.status === 'Pendente' && p.vencimento < new Date().toISOString().split('T')[0];
+                                    return (
+                                      <tr key={p._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                        <td><strong>{p.parcelaNumero}/{p.parcelasTotal}</strong></td>
+                                        <td>{p.vencimento.split('-').reverse().join('/')}</td>
+                                        <td>R$ {p.valor.toFixed(2).replace('.', ',')}</td>
+                                        <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)' }}>{p.formaPagamento}</span></td>
+                                        <td>
+                                          {p.status === 'Pago' ? (
+                                            <span className="badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Pago</span>
+                                          ) : isOverdue ? (
+                                            <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>Atrasado</span>
+                                          ) : (
+                                            <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>Pendente</span>
+                                          )}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                          {p.status === 'Pendente' && p.formaPagamento !== 'Asaas' && (
+                                            <button
+                                              className="btn btn-primary btn-sm"
+                                              style={{ padding: '2px 8px', fontSize: '0.68rem' }}
+                                              onClick={() => {
+                                                setSelectedPayment(p);
+                                                setMpFormaPag(p.formaPagamento);
+                                                setMpDataPag(new Date().toISOString().split('T')[0]);
+                                                setShowManualPayModal(true);
+                                              }}
+                                            >
+                                              <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Receber
+                                            </button>
+                                          )}
+                                          {p.status === 'Pendente' && p.formaPagamento === 'Asaas' && (
+                                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Integrado Asaas</span>
+                                          )}
+                                          {p.status === 'Pago' && (
+                                            <span style={{ fontSize: '0.72rem', color: '#10b981' }}><i className="fa-solid fa-circle-check"></i> Recebido</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
-                {payments.length === 0 && (
+                {getGroupedPayments().length === 0 && (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={7}>
                       <div className="empty-state-card">
                         <i className="fa-solid fa-receipt empty-state-icon"></i>
                         <div className="empty-state-title">Nenhuma mensalidade encontrada</div>
