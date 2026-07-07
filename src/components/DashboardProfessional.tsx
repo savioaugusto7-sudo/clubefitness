@@ -734,12 +734,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   }, [showStModal, stClient, stAvaliador, stDate, stPeso, stObs, stTestesList, stTimerSeconds]);
 
-  const loadAssessmentDraft = () => {
+  const loadAssessmentDraft = (bypassConfirm = false, parsedObj?: any) => {
     const draft = localStorage.getItem('draft_assessment');
     if (draft) {
-      if (confirm('Encontramos um rascunho de avaliação física não salva. Deseja recuperar os dados?')) {
-        try {
-          const p = JSON.parse(draft);
+      try {
+        const p = parsedObj || JSON.parse(draft);
+        if (bypassConfirm || confirm('Encontramos um rascunho de avaliação física não salva para este aluno. Deseja recuperar os dados?')) {
           setAsDate(p.asDate || '');
           setAsWeight(p.asWeight || '');
           setAsHeight(p.asHeight || '');
@@ -785,12 +785,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setAsMaigneRealizou(p.asMaigneRealizou || 'nao');
           if (p.asMaigneData) setAsMaigneData(p.asMaigneData);
           setAsMaigne(p.asMaigne || '');
-          setAsPostura(p.asPostura || 'Nenhum desvio importante');
           if (p.asTimerSeconds) setAsTimerSeconds(p.asTimerSeconds);
-        } catch(e) { console.error('Error loading assessment draft', e); }
-      } else {
-        localStorage.removeItem('draft_assessment');
-      }
+        } else {
+          localStorage.removeItem('draft_assessment');
+        }
+      } catch(e) { console.error('Error loading assessment draft', e); }
     }
   };
 
@@ -3566,7 +3565,7 @@ goniometria: {
               </div>
               <button className="btn btn-primary" onClick={() => {
                 setAsDate(new Date().toISOString().split('T')[0]);
-                setShowAssessmentModal(true); setTimeout(() => loadAssessmentDraft(), 150);
+                setShowAssessmentModal(true);
               }}>
                 <i className="fa-solid fa-plus"></i> Nova Avaliação
               </button>
@@ -3626,7 +3625,7 @@ goniometria: {
                           <i className="fa-solid fa-weight-scale empty-state-icon"></i>
                           <div className="empty-state-title">Nenhuma avaliação física</div>
                           <div className="empty-state-desc">Não há registros de avaliações físicas.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); setTimeout(() => loadAssessmentDraft(), 150); }}>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
                             <i className="fa-solid fa-plus"></i> Nova Avaliação
                           </button>
                         </div>
@@ -4285,39 +4284,39 @@ goniometria: {
                       </div>
                       <div className="form-group">
                         <label>Peso (kg)</label>
-                        <input type="number" step="0.1" className="form-control" value={asWeight} onChange={e => setAsWeight(e.target.value)} required />
+                        <input type="number" step="0.1" className="form-control" style={asPrefilledFields['peso'] ? { color: '#ef4444' } : {}} value={asWeight} onChange={e => { setAsWeight(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['peso']; return c; }); }} required />
                       </div>
                       <div className="form-group">
                         <label>Altura (m)</label>
-                        <input type="number" step="0.01" className="form-control" value={asHeight} onChange={e => setAsHeight(e.target.value)} required />
+                        <input type="number" step="0.01" className="form-control" style={asPrefilledFields['altura'] ? { color: '#ef4444' } : {}} value={asHeight} onChange={e => { setAsHeight(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['altura']; return c; }); }} required />
                       </div>
                     </div>
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '16px', marginBottom: '12px' }}>Saúde Geral</h4>
                     <div className="form-group">
                       <label>Horas de Sono / Noite</label>
-                      <input type="text" className="form-control" value={asSono} onChange={e => setAsSono(e.target.value)} />
+                      <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.sono'] ? { color: '#ef4444' } : {}} value={asSono} onChange={e => { setAsSono(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.sono']; return c; }); }} />
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>Nutrição</label>
-                        <input type="text" className="form-control" value={asNutricao} onChange={e => setAsNutricao(e.target.value)} />
+                        <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.nutricao'] ? { color: '#ef4444' } : {}} value={asNutricao} onChange={e => { setAsNutricao(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.nutricao']; return c; }); }} />
                       </div>
                       <div className="form-group">
                         <label>Atividade Física</label>
-                        <input type="text" className="form-control" value={asAtivFisica} onChange={e => setAsAtivFisica(e.target.value)} />
+                        <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.atividadeFisica'] ? { color: '#ef4444' } : {}} value={asAtivFisica} onChange={e => { setAsAtivFisica(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.atividadeFisica']; return c; }); }} />
                       </div>
                     </div>
                     <div className="form-group">
                       <label>Medicamentos em Uso</label>
-                      <input type="text" className="form-control" value={asMedicamentos} onChange={e => setAsMedicamentos(e.target.value)} />
+                      <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.medicamentos'] ? { color: '#ef4444' } : {}} value={asMedicamentos} onChange={e => { setAsMedicamentos(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.medicamentos']; return c; }); }} />
                     </div>
                     <div className="form-group">
                       <label>Cirurgias Anteriores</label>
-                      <input type="text" className="form-control" value={asCirurgias} onChange={e => setAsCirurgias(e.target.value)} />
+                      <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.cirurgias'] ? { color: '#ef4444' } : {}} value={asCirurgias} onChange={e => { setAsCirurgias(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.cirurgias']; return c; }); }} />
                     </div>
                     <div className="form-group">
                       <label>Principais Queixas / Dores</label>
-                      <input type="text" className="form-control" value={asQueixas} onChange={e => setAsQueixas(e.target.value)} />
+                      <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.queixas'] ? { color: '#ef4444' } : {}} value={asQueixas} onChange={e => { setAsQueixas(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.queixas']; return c; }); }} />
                     </div>
                   </>
                 )}
@@ -4326,26 +4325,26 @@ goniometria: {
                   <>
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Circunferências Corporais (cm)</h4>
                     <div className="form-row">
-                      <div className="form-group"><label>Pescoço</label><input type="number" step="0.1" className="form-control" value={asCirc.pescoco} onChange={e => setAsCirc({ ...asCirc, pescoco: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Ombros</label><input type="number" step="0.1" className="form-control" value={asCirc.ombros} onChange={e => setAsCirc({ ...asCirc, ombros: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Tórax</label><input type="number" step="0.1" className="form-control" value={asCirc.torax} onChange={e => setAsCirc({ ...asCirc, torax: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Cintura</label><input type="number" step="0.1" className="form-control" value={asCirc.cintura} onChange={e => setAsCirc({ ...asCirc, cintura: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Pescoço</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.pescoco'] ? { color: '#ef4444' } : {}} value={asCirc.pescoco} onChange={e => { setAsCirc({ ...asCirc, pescoco: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.pescoco']; return c; }); }} /></div>
+                      <div className="form-group"><label>Ombros</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.ombros'] ? { color: '#ef4444' } : {}} value={asCirc.ombros} onChange={e => { setAsCirc({ ...asCirc, ombros: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.ombros']; return c; }); }} /></div>
+                      <div className="form-group"><label>Tórax</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.torax'] ? { color: '#ef4444' } : {}} value={asCirc.torax} onChange={e => { setAsCirc({ ...asCirc, torax: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.torax']; return c; }); }} /></div>
+                      <div className="form-group"><label>Cintura</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.cintura'] ? { color: '#ef4444' } : {}} value={asCirc.cintura} onChange={e => { setAsCirc({ ...asCirc, cintura: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.cintura']; return c; }); }} /></div>
                     </div>
                     <div className="form-row">
-                      <div className="form-group"><label>Abdômen</label><input type="number" step="0.1" className="form-control" value={asCirc.abdomen} onChange={e => setAsCirc({ ...asCirc, abdomen: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Quadril</label><input type="number" step="0.1" className="form-control" value={asCirc.quadril} onChange={e => setAsCirc({ ...asCirc, quadril: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Braço Direito</label><input type="number" step="0.1" className="form-control" value={asCirc.braçoD} onChange={e => setAsCirc({ ...asCirc, braçoD: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Braço Esquerdo</label><input type="number" step="0.1" className="form-control" value={asCirc.braçoE} onChange={e => setAsCirc({ ...asCirc, braçoE: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Abdômen</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.abdomen'] ? { color: '#ef4444' } : {}} value={asCirc.abdomen} onChange={e => { setAsCirc({ ...asCirc, abdomen: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.abdomen']; return c; }); }} /></div>
+                      <div className="form-group"><label>Quadril</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.quadril'] ? { color: '#ef4444' } : {}} value={asCirc.quadril} onChange={e => { setAsCirc({ ...asCirc, quadril: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.quadril']; return c; }); }} /></div>
+                      <div className="form-group"><label>Braço Direito</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.braçoD'] ? { color: '#ef4444' } : {}} value={asCirc.braçoD} onChange={e => { setAsCirc({ ...asCirc, braçoD: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.braçoD']; return c; }); }} /></div>
+                      <div className="form-group"><label>Braço Esquerdo</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.braçoE'] ? { color: '#ef4444' } : {}} value={asCirc.braçoE} onChange={e => { setAsCirc({ ...asCirc, braçoE: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.braçoE']; return c; }); }} /></div>
                     </div>
                     <div className="form-row">
-                      <div className="form-group"><label>Antebraço D</label><input type="number" step="0.1" className="form-control" value={asCirc.antebraçoD} onChange={e => setAsCirc({ ...asCirc, antebraçoD: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Antebraço E</label><input type="number" step="0.1" className="form-control" value={asCirc.antebraçoE} onChange={e => setAsCirc({ ...asCirc, antebraçoE: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Coxa Direita</label><input type="number" step="0.1" className="form-control" value={asCirc.coxaD} onChange={e => setAsCirc({ ...asCirc, coxaD: Number(e.target.value) })} /></div>
-                      <div className="form-group"><label>Coxa Esquerda</label><input type="number" step="0.1" className="form-control" value={asCirc.coxaE} onChange={e => setAsCirc({ ...asCirc, coxaE: Number(e.target.value) })} /></div>
+                      <div className="form-group"><label>Antebraço D</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.antebraçoD'] ? { color: '#ef4444' } : {}} value={asCirc.antebraçoD} onChange={e => { setAsCirc({ ...asCirc, antebraçoD: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.antebraçoD']; return c; }); }} /></div>
+                      <div className="form-group"><label>Antebraço E</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.antebraçoE'] ? { color: '#ef4444' } : {}} value={asCirc.antebraçoE} onChange={e => { setAsCirc({ ...asCirc, antebraçoE: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.antebraçoE']; return c; }); }} /></div>
+                      <div className="form-group"><label>Coxa Direita</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.coxaD'] ? { color: '#ef4444' } : {}} value={asCirc.coxaD} onChange={e => { setAsCirc({ ...asCirc, coxaD: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.coxaD']; return c; }); }} /></div>
+                      <div className="form-group"><label>Coxa Esquerda</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.coxaE'] ? { color: '#ef4444' } : {}} value={asCirc.coxaE} onChange={e => { setAsCirc({ ...asCirc, coxaE: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.coxaE']; return c; }); }} /></div>
                     </div>
                     <div className="form-row">
-                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha D</label><input type="number" step="0.1" className="form-control" value={asCirc.panturrilhaD} onChange={e => setAsCirc({ ...asCirc, panturrilhaD: Number(e.target.value) })} /></div>
-                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha E</label><input type="number" step="0.1" className="form-control" value={asCirc.panturrilhaE} onChange={e => setAsCirc({ ...asCirc, panturrilhaE: Number(e.target.value) })} /></div>
+                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha D</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.panturrilhaD'] ? { color: '#ef4444' } : {}} value={asCirc.panturrilhaD} onChange={e => { setAsCirc({ ...asCirc, panturrilhaD: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.panturrilhaD']; return c; }); }} /></div>
+                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha E</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.panturrilhaE'] ? { color: '#ef4444' } : {}} value={asCirc.panturrilhaE} onChange={e => { setAsCirc({ ...asCirc, panturrilhaE: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.panturrilhaE']; return c; }); }} /></div>
                     </div>
                   </>
                 )}
@@ -5469,7 +5468,22 @@ goniometria: {
                     </button>
                   )}
                   {asStep < 6 ? (
-                    <button type="button" className="btn btn-primary" onClick={() => setAsStep(asStep + 1)}>
+                    <button type="button" className="btn btn-primary" onClick={() => {
+                      if (asStep === 1) {
+                        const draft = localStorage.getItem('draft_assessment');
+                        if (draft) {
+                          try {
+                            const parsed = JSON.parse(draft);
+                            if (parsed.asClient === asClient) {
+                              loadAssessmentDraft(false, parsed);
+                            }
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }
+                      }
+                      setAsStep(asStep + 1);
+                    }}>
                       Avançar <i className="fa-solid fa-chevron-right"></i>
                     </button>
                   ) : (
