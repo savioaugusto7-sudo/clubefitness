@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
       Object.assign(client.dadosComerciais, {
         planoId: contract.planoId,
-        vencimento: contract.dataPrimeiroVencimento || contract.dataFim,
+        vencimento: contract.dataFim,
         status: 'ativo',
         parcelas: contract.parcelas,
         descontoValor: contract.descontoValor,

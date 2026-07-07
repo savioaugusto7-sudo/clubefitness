@@ -588,7 +588,7 @@ export async function POST(request: Request) {
     if (status === 'assinado') {
       Object.assign(client.dadosComerciais, {
         planoId: planoId,
-        vencimento: dataPrimeiroVencimento || dataFim,
+        vencimento: dataFim,
         status: 'ativo',
         parcelas: numParcelas,
         descontoValor: descVal,
@@ -661,7 +661,7 @@ export async function PUT(request: Request) {
 
       Object.assign(client.dadosComerciais, {
         planoId: contract.planoId,
-        vencimento: contract.dataPrimeiroVencimento || contract.dataInicio,
+        vencimento: contract.dataFim,
         status: 'ativo',
         parcelas: contract.parcelas,
         descontoValor: contract.descontoValor,

@@ -83,7 +83,6 @@ export async function POST(request: Request) {
       const client = await Client.findById(payment.clientId);
       if (client && client.dadosComerciais) {
         client.dadosComerciais.status = 'ativo';
-        client.dadosComerciais.vencimento = payment.vencimento; // update vencimento to current month
         await client.save();
       }
 
