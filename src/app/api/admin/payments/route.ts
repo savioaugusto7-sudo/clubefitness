@@ -198,7 +198,38 @@ export async function POST(request: Request) {
     if (action === 'sync_all_asaas') {
       const clients = await Client.find({ 'dadosComerciais.asaasCustomerId': { $ne: '' } });
       if (clients.length === 0) {
-        return NextResponse.json({ success: true, message: 'Nenhum cliente com ID Asaas cadastrado.' });
+         return NextResponse.json({ success: true, message: 'Nenhum cliente com ID Asaas cadastrado.' });
+      }
+
+      // Auto-migrate/align contract end dates with payments for all active clients (querying by clientId)
+      try {
+        const allContracts = await Contract.find({ status: { $in: ['assinado', 'congelado'] } });
+        for (const contract of allContracts) {
+          const payments = await Payment.find({ clientId: contract.clientId });
+          if (payments.length > 0) {
+            let latestPaymentDate = '';
+            payments.forEach((p: any) => {
+              if (p.vencimento && (!latestPaymentDate || p.vencimento > latestPaymentDate)) {
+                latestPaymentDate = p.vencimento;
+              }
+            });
+            if (latestPaymentDate && (!contract.dataFim || contract.dataFim < latestPaymentDate)) {
+              contract.dataFim = latestPaymentDate;
+              await contract.save();
+
+              const client = await Client.findById(contract.clientId);
+              if (client && client.dadosComerciais) {
+                if ((client.dadosComerciais.vencimento || '') < latestPaymentDate) {
+                  client.dadosComerciais.vencimento = latestPaymentDate;
+                  client.markModified('dadosComerciais');
+                  await client.save();
+                }
+              }
+            }
+          }
+        }
+      } catch (migrationErr) {
+        console.error('Error running contract duration self-healing migration:', migrationErr);
       }
 
       const baseUrl = getAsaasBaseUrl();
