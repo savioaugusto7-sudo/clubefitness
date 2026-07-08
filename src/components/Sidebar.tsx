@@ -54,7 +54,8 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'agendamentos', label: 'Agendamentos', icon: 'fa-calendar-alt' },
     { id: 'frequencia', label: 'Frequência & Evasão', icon: 'fa-chart-bar' },
     { id: 'mensalidades', label: 'Mensalidades', icon: 'fa-money-bill-wave' },
-    { id: 'contratos', label: 'Contratos', icon: 'fa-file-contract' }
+    { id: 'contratos', label: 'Contratos', icon: 'fa-file-contract' },
+    { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' }
   ],
   client: [
     { id: 'dashboard', label: 'Painel do Aluno', icon: 'fa-home' },

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import SearchableSelect from './SearchableSelect';
 
 interface DashboardReceptionistProps {
   activeTab: string;
@@ -83,6 +84,17 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [dcCreditosEmergencia, setDcCreditosEmergencia] = useState<number>(0);
   const [dcFrequencia, setDcFrequencia] = useState<number>(3);
 
+  const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
+  // Fixed Schedule form states
+  const [showFixedSchedModal, setShowFixedSchedModal] = useState(false);
+  const [fsClient, setFsClient] = useState('');
+  const [fsDay, setFsDay] = useState(1); // 1 = Monday
+  const [fsTime, setFsTime] = useState('08:00');
+  const [fsService, setFsService] = useState('Treino Monitorado');
+  const [fsDate, setFsDate] = useState(new Date().toISOString().split('T')[0]);
+  const [fsDurationType, setFsDurationType] = useState<'contrato' | 'manual' | 'indeterminado'>('contrato');
+  const [fsManualEndDate, setFsManualEndDate] = useState('');
+
   // New client modal
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newNome, setNewNome] = useState('');
@@ -146,17 +158,25 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [resC, resA, resP, resF] = await Promise.all([
+      const [resC, resA, resP, resF, resFs] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/appointments'),
         fetch('/api/plans'),
-        fetch('/api/financial')
+        fetch('/api/financial'),
+        fetch('/api/fixed-schedules')
       ]);
-      const [jC, jA, jP, jF] = await Promise.all([resC.json(), resA.json(), resP.json(), resF.json()]);
+      const [jC, jA, jP, jF, jFs] = await Promise.all([
+        resC.json(),
+        resA.json(),
+        resP.json(),
+        resF.json(),
+        resFs.json()
+      ]);
       if (jC.success) setClients(jC.data);
       if (jA.success) setAppointments(jA.data);
       if (jP.success) setPlans(jP.data);
       if (jF.success) setFinancials(jF.data);
+      if (jFs.success) setFixedSchedules(jFs.data);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
@@ -696,6 +716,89 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         downloadContractPDF(clientWithComercial, plan, payload.contratoTexto);
       }
     } else alert('Erro ao criar contrato: ' + data.error);
+  };
+
+  const handleCreateFixedSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fsClient) {
+      alert('Selecione um aluno.');
+      return;
+    }
+
+    try {
+      let finalEndDate = '';
+      if (fsDurationType === 'contrato') {
+        const resContracts = await fetch(`/api/contracts?clientId=${fsClient}`);
+        const dataContracts = await resContracts.json();
+        if (dataContracts.success) {
+          const activeContract = dataContracts.data.find((c: any) => c.status === 'assinado' || c.status === 'congelado');
+          if (activeContract && activeContract.dataFim) {
+            finalEndDate = activeContract.dataFim;
+          } else {
+            alert('Não foi encontrado nenhum contrato ativo/assinado para este aluno. Defina a data final manualmente.');
+            return;
+          }
+        } else {
+          alert('Erro ao carregar contratos do aluno.');
+          return;
+        }
+      } else if (fsDurationType === 'manual') {
+        if (!fsManualEndDate) {
+          alert('Por favor, informe a data final manualmente.');
+          return;
+        }
+        finalEndDate = fsManualEndDate;
+      }
+
+      const payload = {
+        clienteId: fsClient,
+        profissionalId: null,
+        diaSemana: Number(fsDay),
+        horario: fsTime,
+        servico: fsService,
+        dataInicio: fsDate,
+        duracaoSemanas: null,
+        dataFim: finalEndDate || null
+      };
+
+      const res = await fetch('/api/fixed-schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowFixedSchedModal(false);
+        setFsClient('');
+        setFsDay(1);
+        setFsTime('08:00');
+        setFsService('Treino Monitorado');
+        setFsDate(new Date().toISOString().split('T')[0]);
+        setFsDurationType('contrato');
+        setFsManualEndDate('');
+        fetchData();
+      } else {
+        alert('Erro ao criar horário fixo: ' + data.error);
+      }
+    } catch (err) {
+      alert('Erro de conexão ao criar horário fixo.');
+    }
+  };
+
+  const handleDeleteFixedSchedule = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta regra de horário fixo?')) {
+      try {
+        const res = await fetch(`/api/fixed-schedules?id=${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          fetchData();
+        } else {
+          alert('Erro ao excluir: ' + data.error);
+        }
+      } catch (err) {
+        alert('Erro de rede.');
+      }
+    }
   };
 
   const handleFreezeContract = async () => {
@@ -2247,6 +2350,182 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                   <button style={btnPrimary} onClick={handleFreezeContract}>Congelar</button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (activeTab === 'agenda_fixa') {
+    const daysMap = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const labelStyle: React.CSSProperties = { display: 'block', marginBottom: '5px', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)' };
+    const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.88rem' };
+    const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' };
+    const modalBox: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' };
+    const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' };
+    const btnPrimary: React.CSSProperties = { padding: '10px 20px', background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem' };
+    const btnSecondary: React.CSSProperties = { padding: '10px 20px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem' };
+
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Horários Fixos</h2>
+          <button style={btnPrimary} onClick={() => setShowFixedSchedModal(true)}>
+            <i className="fa-solid fa-plus" style={{ marginRight: '6px' }} />Novo Horário Fixo
+          </button>
+        </div>
+
+        <div style={{ ...cardStyle, padding: '20px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <input 
+              type="text" 
+              className="form-control" 
+              placeholder="Buscar por aluno..." 
+              value={paymentsSearch} 
+              onChange={e => setPaymentsSearch(e.target.value)} 
+              style={{ maxWidth: '300px', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 12px' }} 
+            />
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-darker)', borderBottom: '1px solid var(--border-color)' }}>
+                  {['Aluno', 'Dia da Semana', 'Horário', 'Serviço', 'Vigência da Regra', 'Ações'].map(h => (
+                    <th key={h} style={{ padding: '12px 16px', textAlign: h === 'Ações' ? 'center' : 'left', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const q = paymentsSearch.toLowerCase();
+                  const filtered = fixedSchedules.filter(fs => 
+                    (fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome || '').toLowerCase().includes(q)
+                  );
+
+                  if (filtered.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Nenhum horário fixo semanal registrado.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filtered.map(fs => {
+                    const dayLabel = daysMap[fs.diaSemana] || fs.diaSemana;
+                    return (
+                      <tr key={fs._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '12px 16px' }}>
+                          <strong>{fs.clienteId?.dadosPessoais?.nome || 'Aluno'}</strong>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>{dayLabel}</td>
+                        <td style={{ padding: '12px 16px' }}>{fs.horario}</td>
+                        <td style={{ padding: '12px 16px' }}>{fs.servico}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          {fs.dataInicio} {fs.dataFim ? `até ${fs.dataFim}` : '(Indeterminado)'}
+                        </td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          <button 
+                            className="btn btn-danger btn-sm" 
+                            style={{ padding: '4px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => handleDeleteFixedSchedule(fs._id)}
+                            title="Excluir Horário Fixo"
+                          >
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Modal de Novo Horário Fixo */}
+        {showFixedSchedModal && (
+          <div style={{ ...modalOverlay, zIndex: 9500 }} onClick={e => { if (e.target === e.currentTarget) setShowFixedSchedModal(false); }}>
+            <div style={{ ...modalBox, maxWidth: '500px' }}>
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between' }}>
+                <h3 style={{ margin: 0 }}>
+                  <i className="fa-solid fa-thumbtack" style={{ marginRight: '8px', color: 'var(--color-primary)' }} />Novo Horário Fixo
+                </h3>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }} onClick={() => setShowFixedSchedModal(false)}>&times;</button>
+              </div>
+              <form onSubmit={handleCreateFixedSchedule}>
+                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div>
+                    <label style={labelStyle}>Aluno / Cliente</label>
+                    <SearchableSelect
+                      options={clients.map(c => ({
+                        value: c._id,
+                        label: `${c.dadosPessoais?.nome || 'Sem Nome'} (${c.dadosPessoais?.cpf || 'Sem CPF'})`
+                      }))}
+                      value={fsClient}
+                      onChange={setFsClient}
+                      placeholder="Selecione o aluno..."
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Dia da Semana</label>
+                      <select style={inputStyle} value={fsDay} onChange={e => setFsDay(Number(e.target.value))} required>
+                        <option value={1}>Segunda-feira</option>
+                        <option value={2}>Terça-feira</option>
+                        <option value={3}>Quarta-feira</option>
+                        <option value={4}>Quinta-feira</option>
+                        <option value={5}>Sexta-feira</option>
+                        <option value={6}>Sábado</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Horário</label>
+                      <input style={inputStyle} type="time" value={fsTime} onChange={e => setFsTime(e.target.value)} required />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Serviço</label>
+                      <select style={inputStyle} value={fsService} onChange={e => setFsService(e.target.value)} required>
+                        <option value="Treino Monitorado">Treino Monitorado</option>
+                        <option value="Treino Livre">Treino Livre</option>
+                        <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Data de Início</label>
+                      <input style={inputStyle} type="date" value={fsDate} onChange={e => setFsDate(e.target.value)} required />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Tipo de Duração</label>
+                    <select style={inputStyle} value={fsDurationType} onChange={e => setFsDurationType(e.target.value as any)} required>
+                      <option value="contrato">Até o fim da vigência do contrato do aluno</option>
+                      <option value="manual">Definir data final manualmente</option>
+                      <option value="indeterminado">Sem data final (Indeterminado)</option>
+                    </select>
+                  </div>
+
+                  {fsDurationType === 'manual' && (
+                    <div>
+                      <label style={labelStyle}>Data de Término Recorrente</label>
+                      <input style={inputStyle} type="date" value={fsManualEndDate} onChange={e => setFsManualEndDate(e.target.value)} required />
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: '15px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button type="button" style={btnSecondary} onClick={() => setShowFixedSchedModal(false)}>Cancelar</button>
+                  <button type="submit" style={btnPrimary}>Criar Regra</button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -6,6 +6,7 @@ import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } fr
 import ClicksignPanel from './ClicksignPanel';
 import AsaasPanel from './AsaasPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
+import SearchableSelect from './SearchableSelect';
 
 
 interface DashboardAdminProps {
@@ -118,6 +119,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [medNF, setMedNF] = useState('');
 
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
+  // Fixed Schedule form states
+  const [showFixedSchedModal, setShowFixedSchedModal] = useState(false);
+  const [fsClient, setFsClient] = useState('');
+  const [fsDay, setFsDay] = useState(1); // 1 = Monday
+  const [fsTime, setFsTime] = useState('08:00');
+  const [fsService, setFsService] = useState('Treino Monitorado');
+  const [fsDate, setFsDate] = useState(new Date().toISOString().split('T')[0]);
+  const [fsDurationType, setFsDurationType] = useState<'contrato' | 'manual' | 'indeterminado'>('contrato');
+  const [fsManualEndDate, setFsManualEndDate] = useState('');
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
   const [exerciseRequests, setExerciseRequests] = useState<any[]>([]);
   const [trancamentosAdminList, setTrancamentosAdminList] = useState<any[]>([]);
@@ -533,6 +543,89 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       }
     } else {
       alert('Erro ao criar contrato: ' + data.error);
+    }
+  };
+
+  const handleCreateFixedSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fsClient) {
+      alert('Selecione um aluno.');
+      return;
+    }
+
+    try {
+      let finalEndDate = '';
+      if (fsDurationType === 'contrato') {
+        const resContracts = await fetch(`/api/contracts?clientId=${fsClient}`);
+        const dataContracts = await resContracts.json();
+        if (dataContracts.success) {
+          const activeContract = dataContracts.data.find((c: any) => c.status === 'assinado' || c.status === 'congelado');
+          if (activeContract && activeContract.dataFim) {
+            finalEndDate = activeContract.dataFim;
+          } else {
+            alert('Não foi encontrado nenhum contrato ativo/assinado para este aluno. Defina a data final manualmente.');
+            return;
+          }
+        } else {
+          alert('Erro ao carregar contratos do aluno.');
+          return;
+        }
+      } else if (fsDurationType === 'manual') {
+        if (!fsManualEndDate) {
+          alert('Por favor, informe a data final manualmente.');
+          return;
+        }
+        finalEndDate = fsManualEndDate;
+      }
+
+      const payload = {
+        clienteId: fsClient,
+        profissionalId: null,
+        diaSemana: Number(fsDay),
+        horario: fsTime,
+        servico: fsService,
+        dataInicio: fsDate,
+        duracaoSemanas: null,
+        dataFim: finalEndDate || null
+      };
+
+      const res = await fetch('/api/fixed-schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowFixedSchedModal(false);
+        setFsClient('');
+        setFsDay(1);
+        setFsTime('08:00');
+        setFsService('Treino Monitorado');
+        setFsDate(new Date().toISOString().split('T')[0]);
+        setFsDurationType('contrato');
+        setFsManualEndDate('');
+        fetchData();
+      } else {
+        alert('Erro ao criar horário fixo: ' + data.error);
+      }
+    } catch (err) {
+      alert('Erro de conexão ao criar horário fixo.');
+    }
+  };
+
+  const handleDeleteFixedSchedule = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta regra de horário fixo?')) {
+      try {
+        const res = await fetch(`/api/fixed-schedules?id=${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          fetchData();
+        } else {
+          alert('Erro ao excluir: ' + data.error);
+        }
+      } catch (err) {
+        alert('Erro de rede.');
+      }
     }
   };
 
@@ -1790,7 +1883,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   })()}
                   {professionals.length === 0 && (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <div className="empty-state-card">
                           <i className="fa-solid fa-user-doctor empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum profissional cadastrado</div>
@@ -2334,6 +2427,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               <p>Monitore quais alunos possuem horários recorrentes reservados na agenda.</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <button className="btn btn-primary" onClick={() => setShowFixedSchedModal(true)}>
+                <i className="fa-solid fa-plus" style={{ marginRight: '6px' }} />Novo Horário Fixo
+              </button>
               <div className="page-size-selector">
                 <span>Exibir:</span>
                 <select value={getPageSize('agenda_fixa')} onChange={e => setPageSizeForKey('agenda_fixa', Number(e.target.value))}>
@@ -2357,7 +2453,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     <th>Dia da Semana</th>
                     <th>Horário</th>
                     <th>Serviço</th>
-                    <th>Data de Início</th>
+                    <th>Vigência da Regra</th>
+                    <th style={{ textAlign: 'center' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2381,7 +2478,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           <td>{dayLabel}</td>
                           <td>{fs.horario}</td>
                           <td>{fs.servico}</td>
-                          <td>{fs.dataInicio}</td>
+                          <td>
+                            {fs.dataInicio} {fs.dataFim ? `até ${fs.dataFim}` : '(Indeterminado)'}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFixedSchedule(fs._id)} title="Excluir Horário Fixo">
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
+                          </td>
                         </tr>
                       );
                     });
@@ -4537,7 +4641,89 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
            </div>
          </div>
        )}
-       {/* Modal de Congelamento */}
+               {/* Modal de Novo Horário Fixo */}
+        {showFixedSchedModal && (
+          <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setShowFixedSchedModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '95%' }}>
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff' }}>
+                <h3><i className="fa-solid fa-thumbtack" style={{ marginRight: '8px' }}></i>Novo Horário Fixo</h3>
+                <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowFixedSchedModal(false)}>&times;</button>
+              </div>
+              <form onSubmit={handleCreateFixedSchedule}>
+                <div className="modal-body" style={{ padding: '20px' }}>
+                  <div className="form-group" style={{ marginBottom: '15px' }}>
+                    <label>Aluno / Cliente</label>
+                    <SearchableSelect
+                      options={clients.map(c => ({
+                        value: c._id,
+                        label: `${c.dadosPessoais?.nome || 'Sem Nome'} (${c.dadosPessoais?.cpf || 'Sem CPF'})`
+                      }))}
+                      value={fsClient}
+                      onChange={setFsClient}
+                      placeholder="Selecione o aluno..."
+                      required
+                    />
+                  </div>
+
+                  <div className="form-row" style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>Dia da Semana</label>
+                      <select className="select-custom" value={fsDay} onChange={e => setFsDay(Number(e.target.value))} required>
+                        <option value={1}>Segunda-feira</option>
+                        <option value={2}>Terça-feira</option>
+                        <option value={3}>Quarta-feira</option>
+                        <option value={4}>Quinta-feira</option>
+                        <option value={5}>Sexta-feira</option>
+                        <option value={6}>Sábado</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>Horário</label>
+                      <input type="time" className="form-control" value={fsTime} onChange={e => setFsTime(e.target.value)} required />
+                    </div>
+                  </div>
+
+                  <div className="form-row" style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>Serviço</label>
+                      <select className="select-custom" value={fsService} onChange={e => setFsService(e.target.value)} required>
+                        <option value="Treino Monitorado">Treino Monitorado</option>
+                        <option value="Treino Livre">Treino Livre</option>
+                        <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>Data de Início</label>
+                      <input type="date" className="form-control" value={fsDate} onChange={e => setFsDate(e.target.value)} required />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '15px' }}>
+                    <label>Tipo de Duração</label>
+                    <select className="select-custom" value={fsDurationType} onChange={e => setFsDurationType(e.target.value as any)} required>
+                      <option value="contrato">Até o fim da vigência do contrato do aluno</option>
+                      <option value="manual">Definir data final manualmente</option>
+                      <option value="indeterminado">Sem data final (Indeterminado)</option>
+                    </select>
+                  </div>
+
+                  {fsDurationType === 'manual' && (
+                    <div className="form-group" style={{ marginBottom: '15px' }}>
+                      <label>Data de Término Recorrente</label>
+                      <input type="date" className="form-control" value={fsManualEndDate} onChange={e => setFsManualEndDate(e.target.value)} required />
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer" style={{ padding: '15px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px' }}>
+                  <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowFixedSchedModal(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1, background: 'var(--color-primary)' }}>Criar Regra</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Congelamento */}
        {showFreezeModal && (
          <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setShowFreezeModal(false)}>
            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '95%' }}>

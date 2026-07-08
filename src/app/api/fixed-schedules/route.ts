@@ -26,19 +26,21 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clienteId, profissionalId, diaSemana, horario, servico, dataInicio } = body;
+    const { clienteId, profissionalId, diaSemana, horario, servico, dataInicio, duracaoSemanas, dataFim } = body;
 
-    if (!clienteId || !profissionalId || diaSemana === undefined || !horario || !servico || !dataInicio) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    if (!clienteId || diaSemana === undefined || !horario || !servico || !dataInicio) {
+      return NextResponse.json({ success: false, error: 'Missing required fields (clienteId, diaSemana, horario, servico, dataInicio)' }, { status: 400 });
     }
 
     const schedule = await FixedSchedule.create({
       clienteId,
-      profissionalId,
+      profissionalId: profissionalId || null,
       diaSemana: Number(diaSemana),
       horario,
       servico,
-      dataInicio
+      dataInicio,
+      duracaoSemanas: duracaoSemanas ? Number(duracaoSemanas) : null,
+      dataFim: dataFim || null
     });
 
     return NextResponse.json({ success: true, data: schedule });
