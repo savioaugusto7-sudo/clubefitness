@@ -867,15 +867,27 @@ export async function downloadReportPDF(report: any) {
                   { key: 'ombroRotInt', label: 'Ombro - Rotação Interna' },
                   { key: 'ombroRotExt', label: 'Ombro - Rotação Externa' },
                   { key: 'ombroFlexao', label: 'Ombro - Flexão' }
-                ].map(row => `
-                  <tr>
-                    <td style="font-weight:600;">${row.label}</td>
-                    <td style="text-align:center;">${g[row.key + 'D'] || '0'}°</td>
-                    <td style="text-align:center;">${g[row.key + 'E'] || '0'}°</td>
-                  </tr>
-                `).join('')}
+                ].map(row => {
+                  const valD = g[row.key + 'D'] || {};
+                  const valE = g[row.key + 'E'] || {};
+                  const fmtVal = (val: any) => {
+                    const sf = val.semForca !== undefined && val.semForca !== null && val.semForca !== '' ? `${val.semForca}°` : '-';
+                    const cf = val.comForca !== undefined && val.comForca !== null && val.comForca !== '' ? `${val.comForca}°` : '-';
+                    return `1: ${sf} | 2: ${cf}`;
+                  };
+                  return `
+                    <tr>
+                      <td style="font-weight:600;">${row.label}</td>
+                      <td style="text-align:center;">${fmtVal(valD)}</td>
+                      <td style="text-align:center;">${fmtVal(valE)}</td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
+            <div style="font-size: 7px; color: #64748b; margin-top: 5px; font-style: italic;">
+              * Legenda Goniometria: 1 e 2 (com ou sem aplicação de força do instrutor).
+            </div>
           </div>
         </div>
 
@@ -899,16 +911,88 @@ export async function downloadReportPDF(report: any) {
                 <tr>
                   <td style="font-weight:700;">Teste de Thomas</td>
                   <td style="text-align:center; color:${te.thomasD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasD === 'Positivo' ? '700' : 'normal'};">
-                    ${te.thomasD} ${te.thomasD === 'Positivo' && te.thomasAnguloD ? `(${te.thomasAnguloD}°)` : ''}
+                    ${(() => {
+                      if (te.thomasD !== 'Positivo') return te.thomasD;
+                      if ((te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '') || (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '')) {
+                        const iVal = te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `${te.thomasIliopsoasD}°` : '-';
+                        const rVal = te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `${te.thomasRetofemoralD}°` : '-';
+                        return `Positivo (Ilio: ${iVal} / Reto: ${rVal})`;
+                      }
+                      if (te.thomasAnguloD !== undefined && te.thomasAnguloD !== null && te.thomasAnguloD !== '') {
+                        return `Positivo (${te.thomasAnguloD}°)`;
+                      }
+                      return 'Positivo';
+                    })()}
                   </td>
                   <td style="text-align:center; color:${te.thomasE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasE === 'Positivo' ? '700' : 'normal'};">
-                    ${te.thomasE} ${te.thomasE === 'Positivo' && te.thomasAnguloE ? `(${te.thomasAnguloE}°)` : ''}
+                    ${(() => {
+                      if (te.thomasE !== 'Positivo') return te.thomasE;
+                      if ((te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '') || (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '')) {
+                        const iVal = te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `${te.thomasIliopsoasE}°` : '-';
+                        const rVal = te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `${te.thomasRetofemoralE}°` : '-';
+                        return `Positivo (Ilio: ${iVal} / Reto: ${rVal})`;
+                      }
+                      if (te.thomasAnguloE !== undefined && te.thomasAnguloE !== null && te.thomasAnguloE !== '') {
+                        return `Positivo (${te.thomasAnguloE}°)`;
+                      }
+                      return 'Positivo';
+                    })()}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
+
+        ${report.perimetria ? `
+        <div class="section-card">
+          <div class="section-card-title">Perimetria (Circunferências em cm)</div>
+          <div class="section-card-content">
+            <table class="table-data" style="font-size: 7.5px;">
+              <thead>
+                <tr style="font-weight:bold;">
+                  <th>Região</th>
+                  <th style="text-align:right; width:30%;">Medida</th>
+                  <th>Região</th>
+                  <th style="text-align:right; width:30%;">Medida</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="font-weight:600;">Pescoço:</td>
+                  <td style="text-align:right;">${report.perimetria.pescoco ? `${report.perimetria.pescoco} cm` : '-'}</td>
+                  <td style="font-weight:600;">Cintura:</td>
+                  <td style="text-align:right;">${report.perimetria.cintura ? `${report.perimetria.cintura} cm` : '-'}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:600;">Ombros:</td>
+                  <td style="text-align:right;">${report.perimetria.ombros ? `${report.perimetria.ombros} cm` : '-'}</td>
+                  <td style="font-weight:600;">Abdômen:</td>
+                  <td style="text-align:right;">${report.perimetria.abdomen ? `${report.perimetria.abdomen} cm` : '-'}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:600;">Tórax:</td>
+                  <td style="text-align:right;">${report.perimetria.torax ? `${report.perimetria.torax} cm` : '-'}</td>
+                  <td style="font-weight:600;">Quadril:</td>
+                  <td style="text-align:right;">${report.perimetria.quadril ? `${report.perimetria.quadril} cm` : '-'}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:600;">Braço Dir. / Esq.:</td>
+                  <td style="text-align:right;">${report.perimetria.braçoD || '-'} / ${report.perimetria.braçoE || '-'} cm</td>
+                  <td style="font-weight:600;">Coxa Dir. / Esq.:</td>
+                  <td style="text-align:right;">${report.perimetria.coxaD || '-'} / ${report.perimetria.coxaE || '-'} cm</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:600;">Antebraço Dir. / Esq.:</td>
+                  <td style="text-align:right;">${report.perimetria.antebraçoD || '-'} / ${report.perimetria.antebraçoE || '-'} cm</td>
+                  <td style="font-weight:600;">Panturrilha Dir. / Esq.:</td>
+                  <td style="text-align:right;">${report.perimetria.panturrilhaD || '-'} / ${report.perimetria.panturrilhaE || '-'} cm</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        ` : ''}
 
         ${hasTermografia || hasExames ? `
         <div class="section-card">

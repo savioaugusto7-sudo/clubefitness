@@ -439,7 +439,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [repDate, setRepDate] = useState('');
   const [repPain, setRepPain] = useState(5);
   const [repContent, setRepContent] = useState('');
-  const [repType, setRepType] = useState<'simplificado' | 'completo'>('simplificado');
+  const [repType, setRepType] = useState<'simplificado' | 'completo'>('completo');
   const [repActiveTab, setRepActiveTab] = useState<'anamnese' | 'goniometria' | 'testes'>('anamnese');
   
   // Full report fields
@@ -522,8 +522,16 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [tOberE, setTOberE] = useState('Negativo');
   const [tThomasD, setTThomasD] = useState('Negativo');
   const [tThomasE, setTThomasE] = useState('Negativo');
-  const [tThomasAngD, setTThomasAngD] = useState<number | ''>('');
-  const [tThomasAngE, setTThomasAngE] = useState<number | ''>('');
+  const [tThomasIliopsoasD, setTThomasIliopsoasD] = useState('');
+  const [tThomasIliopsoasE, setTThomasIliopsoasE] = useState('');
+  const [tThomasRetofemoralD, setTThomasRetofemoralD] = useState('');
+  const [tThomasRetofemoralE, setTThomasRetofemoralE] = useState('');
+
+  const [repCirc, setRepCirc] = useState<Record<string, number | ''>>({
+    pescoco: '', ombros: '', torax: '', cintura: '', abdomen: '', quadril: '',
+    braçoD: '', braçoE: '', antebraçoD: '', antebraçoE: '', coxaD: '', coxaE: '',
+    panturrilhaD: '', panturrilhaE: ''
+  });
   
   // Maigne Star
   const [mFlex, setMFlex] = useState(25);
@@ -721,11 +729,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou,
         repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA,
         mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou,
-        yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps
+        yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps,
+        repCirc, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE
       };
       localStorage.setItem('draft_report', JSON.stringify(data));
     }
-  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repTimerSeconds, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps]);
+  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repTimerSeconds, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps, repCirc, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
 
   useEffect(() => {
     if (showStModal && stClient) {
@@ -833,6 +842,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setRepDeAbdUnilateral(p.repDeAbdUnilateral || 'nao');
           setRepDeDorAbd(p.repDeDorAbd || 'nao');
           setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
+          if (p.repCirc) setRepCirc(p.repCirc);
+          setTThomasIliopsoasD(p.tThomasIliopsoasD || '');
+          setTThomasIliopsoasE(p.tThomasIliopsoasE || '');
+          setTThomasRetofemoralD(p.tThomasRetofemoralD || '');
+          setTThomasRetofemoralE(p.tThomasRetofemoralE || '');
           setYRealizou(p.yRealizou || 'nao');
           setYLenD(p.yLenD || ''); setYLenE(p.yLenE || '');
           setYAntD(p.yAntD || ''); setYAntE(p.yAntE || '');
@@ -1912,10 +1926,20 @@ goniometria: {
       if (te.oberE) setTOberE(te.oberE);
       if (te.thomasD) setTThomasD(te.thomasD);
       if (te.thomasE) setTThomasE(te.thomasE);
-      const rawAngD = te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null ? te.thomasIliopsoasD : te.thomasRetofemoralD;
-      const rawAngE = te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null ? te.thomasIliopsoasE : te.thomasRetofemoralE;
-      if (rawAngD !== undefined && rawAngD !== null && rawAngD !== '') setTThomasAngD(Number(rawAngD));
-      if (rawAngE !== undefined && rawAngE !== null && rawAngE !== '') setTThomasAngE(Number(rawAngE));
+      if (te.thomasIliopsoasD) setTThomasIliopsoasD(te.thomasIliopsoasD);
+      if (te.thomasIliopsoasE) setTThomasIliopsoasE(te.thomasIliopsoasE);
+      if (te.thomasRetofemoralD) setTThomasRetofemoralD(te.thomasRetofemoralD);
+      if (te.thomasRetofemoralE) setTThomasRetofemoralE(te.thomasRetofemoralE);
+    }
+    if (sections.includes('perimetria') && latest.dadosMedidos?.circunferencias) {
+      const c = latest.dadosMedidos.circunferencias;
+      setRepCirc({
+        pescoco: c.pescoco || '', ombros: c.ombros || '', torax: c.torax || '',
+        cintura: c.cintura || '', abdomen: c.abdomen || '', quadril: c.quadril || '',
+        braçoD: c.braçoD || '', braçoE: c.braçoE || '', antebraçoD: c.antebraçoD || '',
+        antebraçoE: c.antebraçoE || '', coxaD: c.coxaD || '', coxaE: c.coxaE || '',
+        panturrilhaD: c.panturrilhaD || '', panturrilhaE: c.panturrilhaE || ''
+      });
     }
     if (sections.includes('ytest') && latest.dadosMedidos?.testesEspeciais?.yTest) {
       try {
@@ -1993,9 +2017,12 @@ goniometria: {
         payload.testesEspeciais = {
           oberD: tOberD, oberE: tOberE,
           thomasD: tThomasD, thomasE: tThomasE,
-          thomasAnguloD: tThomasAngD !== '' ? Number(tThomasAngD) : null,
-          thomasAnguloE: tThomasAngE !== '' ? Number(tThomasAngE) : null
+          thomasIliopsoasD: tThomasIliopsoasD !== '' ? Number(tThomasIliopsoasD) : null,
+          thomasIliopsoasE: tThomasIliopsoasE !== '' ? Number(tThomasIliopsoasE) : null,
+          thomasRetofemoralD: tThomasRetofemoralD !== '' ? Number(tThomasRetofemoralD) : null,
+          thomasRetofemoralE: tThomasRetofemoralE !== '' ? Number(tThomasRetofemoralE) : null
         };
+        payload.perimetria = repCirc;
 
         payload.termografia = {
           realizou: repTermografiaRealizou,
@@ -4558,7 +4585,7 @@ goniometria: {
                                   <td style={{ background: 'rgba(13,148,136,0.02)' }}>
                                     <input
                                       type="number"
-                                      placeholder="Ativo"
+                                      placeholder="1"
                                       className="form-control form-control-sm"
                                       style={{ textAlign: 'center', height: '26px', ...(prefilledD ? { color: '#ef4444' } : {}) }}
                                       value={valD.semForca}
@@ -4568,7 +4595,7 @@ goniometria: {
                                   <td style={{ background: 'rgba(13,148,136,0.05)' }}>
                                     <input
                                       type="number"
-                                      placeholder="Passivo"
+                                      placeholder="2"
                                       className="form-control form-control-sm"
                                       style={{ textAlign: 'center', height: '26px', ...(prefilledD ? { color: '#ef4444' } : {}) }}
                                       value={valD.comForca}
@@ -4579,7 +4606,7 @@ goniometria: {
                                   <td style={{ background: 'rgba(99,102,241,0.02)' }}>
                                     <input
                                       type="number"
-                                      placeholder="Ativo"
+                                      placeholder="1"
                                       className="form-control form-control-sm"
                                       style={{ textAlign: 'center', height: '26px', ...(prefilledE ? { color: '#ef4444' } : {}) }}
                                       value={valE.semForca}
@@ -4589,7 +4616,7 @@ goniometria: {
                                   <td style={{ background: 'rgba(99,102,241,0.05)' }}>
                                     <input
                                       type="number"
-                                      placeholder="Passivo"
+                                      placeholder="2"
                                       className="form-control form-control-sm"
                                       style={{ textAlign: 'center', height: '26px', ...(prefilledE ? { color: '#ef4444' } : {}) }}
                                       value={valE.comForca}
@@ -5517,31 +5544,19 @@ goniometria: {
             <form onSubmit={handleCreateReport}>
               <div className="modal-body" style={{ maxHeight: '74vh', overflowY: 'auto', padding: '20px' }}>
                 
-                {/* Tipo de Relatório */}
-                <div className="form-group" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                  <label style={{ fontWeight: '600', color: 'var(--color-primary)' }}>Tipo de Relatório</label>
-                  <div style={{ display: 'flex', gap: '20px', marginTop: '6px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                      <input type="radio" name="repType" checked={repType === 'simplificado'} onChange={() => { setRepType('simplificado'); setRepActiveStep(1); }} />
-                      Simplificado (1 Página)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                      <input type="radio" name="repType" checked={repType === 'completo'} onChange={() => { setRepType('completo'); setRepActiveStep(1); }} />
-                      Completo (4 Páginas - Wizard 6 Etapas)
-                    </label>
-                  </div>
-                </div>
 
-                {/* Wizard Progress Bar for Completo */}
-                {repType === 'completo' && (
+
+                {/* Wizard Progress Bar */}
+                {true && (
                   <div className="physio-wizard-progress" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', overflowX: 'auto', gap: '10px', paddingBottom: '8px' }}>
                     {[
                       { step: 1, label: 'Anamnese' },
                       { step: 2, label: 'Histórico & Hábitos' },
                       { step: 3, label: 'Goniometria & Ober' },
-                      { step: 4, label: 'Termo & Exames' },
-                      { step: 5, label: 'Testes Avançados' },
-                      { step: 6, label: 'Conduta & Salvar' }
+                      { step: 4, label: 'Perimetria' },
+                      { step: 5, label: 'Termo & Exames' },
+                      { step: 6, label: 'Testes Avançados' },
+                      { step: 7, label: 'Conduta & Salvar' }
                     ].map(s => {
                       const isActive = repActiveStep === s.step;
                       const isCompleted = repActiveStep > s.step;
@@ -5760,7 +5775,7 @@ goniometria: {
                 )}
 
                 {/* PASSO 2: HISTÓRICO CLÍNICO E HÁBITOS DE VIDA */}
-                {repType === 'completo' && repActiveStep === 2 && (
+                {repActiveStep === 2 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Histórico Clínico</h4>
                     <div className="form-group">
@@ -5879,7 +5894,7 @@ goniometria: {
                 )}
 
                 {/* PASSO 3: GONIOMETRIA E TESTES DE ENCURTAMENTO */}
-                {repType === 'completo' && repActiveStep === 3 && (
+                {repActiveStep === 3 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h4 style={{ margin: 0 }}>Goniometria & Mobilidade Articular</h4>
@@ -5909,10 +5924,10 @@ goniometria: {
                             <th colSpan={2} style={{ textAlign: 'center', background: 'rgba(99,102,241,0.06)' }}>Esquerdo</th>
                           </tr>
                           <tr>
-                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(13,148,136,0.04)' }}>Ativo (Sem)</th>
-                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(13,148,136,0.08)' }}>Passivo (Com)</th>
-                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(99,102,241,0.04)' }}>Ativo (Sem)</th>
-                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(99,102,241,0.08)' }}>Passivo (Com)</th>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(13,148,136,0.04)' }}>1</th>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(13,148,136,0.08)' }}>2</th>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(99,102,241,0.04)' }}>1</th>
+                            <th style={{ textAlign: 'center', fontSize: '9px', background: 'rgba(99,102,241,0.08)' }}>2</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -5951,7 +5966,7 @@ goniometria: {
                                 <td style={{ background: 'rgba(13,148,136,0.02)' }}>
                                   <input
                                     type="number"
-                                    placeholder="Ativo"
+                                    placeholder="1"
                                     className="form-control form-control-sm"
                                     style={{ textAlign: 'center', height: '24px' }}
                                     value={valD.semForca}
@@ -5961,7 +5976,7 @@ goniometria: {
                                 <td style={{ background: 'rgba(13,148,136,0.05)' }}>
                                   <input
                                     type="number"
-                                    placeholder="Passivo"
+                                    placeholder="2"
                                     className="form-control form-control-sm"
                                     style={{ textAlign: 'center', height: '24px' }}
                                     value={valD.comForca}
@@ -5972,7 +5987,7 @@ goniometria: {
                                 <td style={{ background: 'rgba(99,102,241,0.02)' }}>
                                   <input
                                     type="number"
-                                    placeholder="Ativo"
+                                    placeholder="1"
                                     className="form-control form-control-sm"
                                     style={{ textAlign: 'center', height: '24px' }}
                                     value={valE.semForca}
@@ -5982,7 +5997,7 @@ goniometria: {
                                 <td style={{ background: 'rgba(99,102,241,0.05)' }}>
                                   <input
                                     type="number"
-                                    placeholder="Passivo"
+                                    placeholder="2"
                                     className="form-control form-control-sm"
                                     style={{ textAlign: 'center', height: '24px' }}
                                     value={valE.comForca}
@@ -6057,15 +6072,27 @@ goniometria: {
                     {(tThomasD === 'Positivo' || tThomasE === 'Positivo') && (
                       <div className="resp-grid-1-1" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
                         {tThomasD === 'Positivo' && (
-                          <div className="form-group">
-                            <label style={{ fontSize: '0.75rem' }}>Ângulo Encurtamento Direito (Thomas)</label>
-                            <input type="number" className="form-control form-control-sm" placeholder="Graus (°)..." value={tThomasAngD} onChange={e => setTThomasAngD(e.target.value !== '' ? Number(e.target.value) : '')} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Iliopsoas D (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasIliopsoasD} onChange={e => setTThomasIliopsoasD(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Retofemoral D (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasRetofemoralD} onChange={e => setTThomasRetofemoralD(e.target.value)} />
+                            </div>
                           </div>
                         )}
                         {tThomasE === 'Positivo' && (
-                          <div className="form-group">
-                            <label style={{ fontSize: '0.75rem' }}>Ângulo Encurtamento Esquerdo (Thomas)</label>
-                            <input type="number" className="form-control form-control-sm" placeholder="Graus (°)..." value={tThomasAngE} onChange={e => setTThomasAngE(e.target.value !== '' ? Number(e.target.value) : '')} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Iliopsoas E (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasIliopsoasE} onChange={e => setTThomasIliopsoasE(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Retofemoral E (°)</label>
+                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasRetofemoralE} onChange={e => setTThomasRetofemoralE(e.target.value)} />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -6074,7 +6101,101 @@ goniometria: {
                 )}
 
                 {/* PASSO 4: TERMOGRAFIA E EXAMES COMPLEMENTARES */}
-                {repType === 'completo' && repActiveStep === 4 && (
+                {repActiveStep === 4 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', margin: 0 }}>Perimetria (Circunferências em cm)</h4>
+
+                        {(() => {
+                          const latest = getLatestRepAssessment();
+                          if (!latest?.dadosMedidos?.circunferencias) return null;
+                          return (
+                            <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                                <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                                <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Perimetria disponível</span>
+                              </div>
+                              <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['perimetria'])}>
+                                <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Perimetria
+                              </button>
+                            </div>
+                          );
+                        })()}
+
+                        <div className="resp-grid-1-1">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Pescoço</label>
+                              <input type="number" step="0.1" className="form-control" value={repCirc.pescoco} onChange={e => setRepCirc(prev => ({ ...prev, pescoco: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Ombros</label>
+                              <input type="number" step="0.1" className="form-control" value={repCirc.ombros} onChange={e => setRepCirc(prev => ({ ...prev, ombros: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Tórax</label>
+                              <input type="number" step="0.1" className="form-control" value={repCirc.torax} onChange={e => setRepCirc(prev => ({ ...prev, torax: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Cintura</label>
+                              <input type="number" step="0.1" className="form-control" value={repCirc.cintura} onChange={e => setRepCirc(prev => ({ ...prev, cintura: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Abdômen</label>
+                              <input type="number" step="0.1" className="form-control" value={repCirc.abdomen} onChange={e => setRepCirc(prev => ({ ...prev, abdomen: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ fontSize: '0.75rem' }}>Quadril</label>
+                              <input type="number" step="0.1" className="form-control" value={repCirc.quadril} onChange={e => setRepCirc(prev => ({ ...prev, quadril: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Braço Direito</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.braçoD} onChange={e => setRepCirc(prev => ({ ...prev, braçoD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Braço Esquerdo</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.braçoE} onChange={e => setRepCirc(prev => ({ ...prev, braçoE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Antebraço Direito</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.antebraçoD} onChange={e => setRepCirc(prev => ({ ...prev, antebraçoD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Antebraço Esquerdo</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.antebraçoE} onChange={e => setRepCirc(prev => ({ ...prev, antebraçoE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Coxa Direito</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.coxaD} onChange={e => setRepCirc(prev => ({ ...prev, coxaD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Coxa Esquerdo</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.coxaE} onChange={e => setRepCirc(prev => ({ ...prev, coxaE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Panturrilha Direita</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.panturrilhaD} onChange={e => setRepCirc(prev => ({ ...prev, panturrilhaD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                              <div className="form-group" style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.75rem' }}>Panturrilha Esquerdo</label>
+                                <input type="number" step="0.1" className="form-control" value={repCirc.panturrilhaE} onChange={e => setRepCirc(prev => ({ ...prev, panturrilhaE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                {repActiveStep === 5 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Termografia Clínica</h4>
                     {(() => {
@@ -6162,7 +6283,7 @@ goniometria: {
                 )}
 
                 {/* PASSO 5: TESTES ORTOPÉDICOS AVANÇADOS */}
-                {repType === 'completo' && repActiveStep === 5 && (
+                {repActiveStep === 6 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     
                     {/* Y TESTE */}
@@ -6375,6 +6496,7 @@ goniometria: {
                         </div>
                       </div>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic' }}>* Clique nos nós verdes do gráfico em teia ou use os controles deslizantes para alterar as amplitudes de movimento e dor.</p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontStyle: 'italic', fontWeight: 600 }}>* Legenda Goniometria: 1 e 2 (com ou sem aplicação de força do instrutor).</p>
                         </>
                       )}
                     </div>
@@ -6510,7 +6632,7 @@ goniometria: {
                 )}
 
                 {/* PASSO 6: CONDUTA TERAPÊUTICA E PRESCRIÇÃO */}
-                {((repType === 'simplificado') || (repType === 'completo' && repActiveStep === 6)) && (
+                {(repActiveStep === 7) && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Conduta & Exercícios Domiciliares</h4>
                     <div className="form-group">
@@ -6543,7 +6665,7 @@ goniometria: {
               </div>
               <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                 <div>
-                  {repType === 'completo' && repActiveStep > 1 && (
+                  {repActiveStep > 1 && (
                     <button type="button" className="btn btn-secondary" onClick={() => setRepActiveStep(repActiveStep - 1)}>
                       Anterior
                     </button>
@@ -6551,7 +6673,7 @@ goniometria: {
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button type="button" className="btn btn-secondary" onClick={handleCloseReport}>Cancelar</button>
-                  {repType === 'completo' && repActiveStep < 6 ? (
+                  {repActiveStep < 7 ? (
                     <button
                       type="button"
                       className="btn btn-primary"
