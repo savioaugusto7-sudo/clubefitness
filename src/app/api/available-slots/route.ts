@@ -160,33 +160,7 @@ export async function GET(request: Request) {
       // Verificar se há vagas totais suficientes
       if (vagasTotais + servicoConfig.vagasOcupadas > maxVagas) continue;
 
-      // Para academia: verificar se ao menos 1 profissional tem vaga suficiente
-      const profIds = ['6668ab030303030303030302', '6668ab030303030303030301'];
-      let profDisponivel = false;
-
-      for (const profId of profIds) {
-        const slotsProf = gymApts.filter(a => String(a.profissionalId) === profId);
-        const vagasProf = slotsProf.reduce((sum, apt) => {
-          const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
-          return sum + cfg.vagasOcupadas;
-        }, 0);
-
-        const profTemExclusivo = slotsProf.some(apt => {
-          const cfg = SERVICOS_CONFIG[apt.servico];
-          return cfg && cfg.vagasOcupadas >= CAPACIDADE_POR_PROFISSIONAL;
-        });
-
-        if (profTemExclusivo) continue;
-        if (servicoConfig.vagasOcupadas >= CAPACIDADE_POR_PROFISSIONAL && slotsProf.length > 0) continue;
-        if (vagasProf + servicoConfig.vagasOcupadas <= CAPACIDADE_POR_PROFISSIONAL) {
-          profDisponivel = true;
-          break;
-        }
-      }
-
-      if (profDisponivel) {
-        availableSlots.push(horario);
-      }
+      availableSlots.push(horario);
     }
 
     return NextResponse.json({ success: true, data: availableSlots });

@@ -256,83 +256,38 @@ export async function POST(request: Request) {
       }
     }
 
-    // --- Atribuição e Capacidade de Profissional ---
+    // --- Atribuição de Profissional (sem travas de capacidade ou exclusividade) ---
     let finalProfId = requestedProfId;
+    const professionals = ['6668ab030303030303030302', '6668ab030303030303030301'];
+    if (!finalProfId || !professionals.includes(finalProfId)) {
+      finalProfId = professionals[0];
+    }
 
-    const checkProfessionalAvailability = async (profId: string) => {
-        const slotsDesteProf = await Appointment.find({
-          data,
-          horario,
-          tipo: 'academia',
-          profissionalId: profId,
-          status: { $ne: 'cancelado' }
-        });
+    let maxVagasAcademia = 6;
+    if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
+      maxVagasAcademia = customRule.capacidadePersonalizada;
+    }
 
-        const vagasProf = slotsDesteProf.reduce((sum, apt) => {
-          const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
-          return sum + cfg.vagasOcupadas;
-        }, 0);
+    const allGymApts = await Appointment.find({
+      data,
+      horario,
+      tipo: 'academia',
+      status: { $ne: 'cancelado' }
+    });
+    const vagasTotais = allGymApts.reduce((sum, apt) => {
+      const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
+      return sum + cfg.vagasOcupadas;
+    }, 0);
+    if (vagasTotais + servicoConfig.vagasOcupadas > maxVagasAcademia && !bypassRestrictions) {
+      return NextResponse.json({ success: false, error: `Horário na academia lotado! Máximo de ${maxVagasAcademia} vagas.` }, { status: 400 });
+    }
 
-        const profTemExclusivo = slotsDesteProf.some(apt => {
-          const cfg = SERVICOS_CONFIG[apt.servico];
-          return cfg && cfg.exclusivoPorProfissional;
-        });
-
-        if (profTemExclusivo) return false;
-        if (servicoConfig.exclusivoPorProfissional && slotsDesteProf.length > 0) return false;
-        if (vagasProf + servicoConfig.vagasOcupadas > CAPACIDADE_POR_PROFISSIONAL) return false;
-
-        return true;
-      };
-
-      const professionals = ['6668ab030303030303030302', '6668ab030303030303030301'];
-      if (finalProfId && professionals.includes(finalProfId)) {
-        const index = professionals.indexOf(finalProfId);
-        if (index > -1) {
-          professionals.splice(index, 1);
-          professionals.unshift(finalProfId);
-        }
+    if (servico === 'Treino Livre') {
+      const treinosLivresNesteHorario = allGymApts.filter(a => a.servico === 'Treino Livre').length;
+      if (treinosLivresNesteHorario >= 3 && !bypassRestrictions) {
+        return NextResponse.json({ success: false, error: 'Limite de 3 Treinos Livres por horário atingido.' }, { status: 400 });
       }
-
-      let foundProf = false;
-      for (const profId of professionals) {
-        const available = await checkProfessionalAvailability(profId);
-        if (available) {
-          finalProfId = profId;
-          foundProf = true;
-          break;
-        }
-      }
-
-      if (!foundProf && !bypassRestrictions) {
-        return NextResponse.json({ success: false, error: `Capacidade do profissional esgotada neste horário (máx. ${CAPACIDADE_POR_PROFISSIONAL} vagas por profissional ou profissional possui agendamento exclusivo).` }, { status: 400 });
-      }
-
-      let maxVagasAcademia = 6;
-      if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
-        maxVagasAcademia = customRule.capacidadePersonalizada;
-      }
-
-      const allGymApts = await Appointment.find({
-        data,
-        horario,
-        tipo: 'academia',
-        status: { $ne: 'cancelado' }
-      });
-      const vagasTotais = allGymApts.reduce((sum, apt) => {
-        const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
-        return sum + cfg.vagasOcupadas;
-      }, 0);
-      if (vagasTotais + servicoConfig.vagasOcupadas > maxVagasAcademia && !bypassRestrictions) {
-        return NextResponse.json({ success: false, error: `Horário na academia lotado! Máximo de ${maxVagasAcademia} vagas.` }, { status: 400 });
-      }
-
-      if (servico === 'Treino Livre') {
-        const treinosLivresNesteHorario = allGymApts.filter(a => a.servico === 'Treino Livre').length;
-        if (treinosLivresNesteHorario >= 3 && !bypassRestrictions) {
-          return NextResponse.json({ success: false, error: 'Limite de 3 Treinos Livres por horário atingido.' }, { status: 400 });
-        }
-      }
+    }
 
     // --- Incrementar reservas no modelo Client ---
     if (tipoCredito !== 'nenhum') {
