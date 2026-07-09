@@ -74,7 +74,8 @@ export async function GET(request: Request) {
     grade.sort((a, b) => a.localeCompare(b));
 
     const agora = new Date();
-    const isSameDay = data === agora.toISOString().slice(0, 10);
+    const nowBrStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    const isSameDay = data === nowBrStr;
 
     // Buscar todos os agendamentos do dia
     const allApts = await Appointment.find({
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
     for (const horario of grade) {
       // Filtrar antecedência mínima de 2h para hoje
       if (isSameDay) {
-        const dataHora = new Date(`${data}T${horario}:00`);
+        const dataHora = new Date(`${data}T${horario}:00-03:00`);
         const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
         if (diffHoras < ANTECEDENCIA_MIN_H) continue;
       }

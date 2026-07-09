@@ -125,16 +125,14 @@ export async function POST(request: Request) {
     const tipo = servicoConfig.tipo;
 
     // --- Bloquear datas passadas ---
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const partsData = data.split('-');
-    const dataAgendamentoObj = new Date(Number(partsData[0]), Number(partsData[1]) - 1, Number(partsData[2]));
-    dataAgendamentoObj.setHours(0, 0, 0, 0);
-    if (dataAgendamentoObj < hoje) {
+    const nowBrStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }); // "YYYY-MM-DD"
+    if (data < nowBrStr) {
       return NextResponse.json({ success: false, error: 'Não é permitido agendar em datas passadas.' }, { status: 400 });
     }
 
     // --- Regras de Dias de Semana e Sábado ---
+    const partsData = data.split('-');
+    const dataAgendamentoObj = new Date(Number(partsData[0]), Number(partsData[1]) - 1, Number(partsData[2]));
     const dayOfWeek = dataAgendamentoObj.getDay(); // 0=Dom, 6=Sáb
 
     // Verificar se há regras customizadas para este horário e data
@@ -191,7 +189,7 @@ export async function POST(request: Request) {
     // --- Antecedência mínima de 2h ---
     if (!bypassRestrictions) {
       const agora = new Date();
-      const dataHoraAgendamento = new Date(`${data}T${horario}:00`);
+      const dataHoraAgendamento = new Date(`${data}T${horario}:00-03:00`);
       const diffHoras = (dataHoraAgendamento.getTime() - agora.getTime()) / (1000 * 60 * 60);
       if (diffHoras < AGENDAMENTO_ANTECEDENCIA_MIN) {
         return NextResponse.json({ success: false, error: `Agendamento deve ser feito com pelo menos ${AGENDAMENTO_ANTECEDENCIA_MIN} horas de antecedência.` }, { status: 400 });
@@ -345,7 +343,7 @@ export async function PUT(request: Request) {
         appointment.tipoCredito ||
         (appointment.consumeCredito ? 'academia' : appointment.servico === 'Massagem' ? 'massagem' : 'nenhum');
 
-      const dataHora = new Date(`${appointment.data}T${appointment.horario}:00`);
+      const dataHora = new Date(`${appointment.data}T${appointment.horario}:00-03:00`);
       const agora = new Date();
       const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
       const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
