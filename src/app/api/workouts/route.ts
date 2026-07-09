@@ -37,14 +37,23 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clientId, category, workoutData } = body;
+    const { clientId, category, workoutData, fichasMonitorado, fichasLivre } = body;
 
-    if (!clientId || !category || !workoutData) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    if (!clientId) {
+      return NextResponse.json({ success: false, error: 'Missing required field: clientId' }, { status: 400 });
     }
 
-    // category is 'fichasMonitorado' or 'fichasLivre'
-    const updateQuery = { [category]: workoutData };
+    let updateQuery: any = {};
+    if (category && workoutData) {
+      updateQuery[category] = workoutData;
+    } else {
+      if (fichasMonitorado) updateQuery.fichasMonitorado = fichasMonitorado;
+      if (fichasLivre) updateQuery.fichasLivre = fichasLivre;
+    }
+
+    if (Object.keys(updateQuery).length === 0) {
+      return NextResponse.json({ success: false, error: 'No update data provided' }, { status: 400 });
+    }
     
     let workout = await ClientWorkout.findOneAndUpdate(
       { clienteId: clientId },

@@ -153,6 +153,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Workout editor tab states
   const [workoutSearch, setWorkoutSearch] = useState('');
   const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises'>('clients');
+  const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'none'>('all');
+  const [workoutPlanFilter, setWorkoutPlanFilter] = useState<string>('all');
+  const [isNewWorkoutSheet, setIsNewWorkoutSheet] = useState(false);
+  const [originalWorkoutData, setOriginalWorkoutData] = useState<any>(null);
   const [selectedClientForWorkout, setSelectedClientForWorkout] = useState<any>(null);
   const [editingWorkoutData, setEditingWorkoutData] = useState<any>(null);
   const [activeWorkoutCategory, setActiveWorkoutCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
@@ -2404,6 +2408,7 @@ goniometria: {
       const data = await res.json();
       if (data.success) {
         setEditingWorkoutData(data.data);
+        setOriginalWorkoutData(JSON.parse(JSON.stringify(data.data)));
       }
     } catch (e) {
       console.error(e);
@@ -2434,6 +2439,53 @@ goniometria: {
       }
     }
   }, [editingWorkoutData, activeWorkoutCategory, activeWorkoutSubTab]);
+
+  const detectStructuralChanges = (original: any, current: any) => {
+    if (!original || !current) return false;
+    
+    const origList = original[activeWorkoutCategory] || [];
+    const currList = current[activeWorkoutCategory] || [];
+    
+    if (origList.length !== currList.length) return true;
+    
+    const origSheet = origList.find((f: any) => f.id === activeWorkoutSubTab);
+    const currSheet = currList.find((f: any) => f.id === activeWorkoutSubTab);
+    
+    if (!origSheet && !currSheet) return false;
+    if (!origSheet || !currSheet) return true;
+    
+    if (origSheet.nome !== currSheet.nome) return true;
+    if (origSheet.observacoesGerais !== currSheet.observacoesGerais) return true;
+    
+    const origExs = origSheet.exercicios || [];
+    const currExs = currSheet.exercicios || [];
+    
+    if (origExs.length !== currExs.length) return true;
+    
+    for (let i = 0; i < origExs.length; i++) {
+      const o = origExs[i];
+      const c = currExs[i];
+      
+      if (o.exercicioId !== c.exercicioId) return true;
+      if (o.series !== c.series) return true;
+      if (o.repeticoes !== c.repeticoes) return true;
+      if (o.descanso !== c.descanso) return true;
+      if (o.ritmo !== c.ritmo) return true;
+      if (o.observacao !== c.observacao) return true;
+      if (o.combinaGrupo !== c.combinaGrupo) return true;
+    }
+    
+    return false;
+  };
+
+  useEffect(() => {
+    if (originalWorkoutData && editingWorkoutData) {
+      const isChanged = detectStructuralChanges(originalWorkoutData, editingWorkoutData);
+      setIsNewWorkoutSheet(isChanged);
+    } else {
+      setIsNewWorkoutSheet(false);
+    }
+  }, [editingWorkoutData, activeWorkoutCategory, activeWorkoutSubTab, originalWorkoutData]);
 
   const handleAddWorkoutSheet = () => {
     if (!editingWorkoutData) return;
@@ -2583,10 +2635,14 @@ goniometria: {
     if (!editingWorkoutData || !selectedClientForWorkout) return;
     try {
       setLoading(true);
-      const categoryList = editingWorkoutData[activeWorkoutCategory];
-      const sheetIdx = categoryList.findIndex((f: any) => f.id === activeWorkoutSubTab);
-      if (sheetIdx !== -1) {
-        categoryList[sheetIdx].ultimaAtualizacao = new Date().toISOString().split('T')[0];
+      const updatedData = { ...editingWorkoutData };
+      
+      if (isNewWorkoutSheet) {
+        const categoryList = updatedData[activeWorkoutCategory] || [];
+        const sheetIdx = categoryList.findIndex((f: any) => f.id === activeWorkoutSubTab);
+        if (sheetIdx !== -1) {
+          categoryList[sheetIdx].ultimaAtualizacao = new Date().toISOString().split('T')[0];
+        }
       }
 
       const res = await fetch('/api/workouts', {
@@ -2594,8 +2650,8 @@ goniometria: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: selectedClientForWorkout._id,
-          category: activeWorkoutCategory,
-          workoutData: categoryList
+          fichasMonitorado: updatedData.fichasMonitorado,
+          fichasLivre: updatedData.fichasLivre
         })
       });
       const data = await res.json();
@@ -2603,6 +2659,7 @@ goniometria: {
         alert('Ficha de treino salva com sucesso!');
         setSelectedClientForWorkout(null);
         setEditingWorkoutData(null);
+        setOriginalWorkoutData(null);
         fetchData();
       } else {
         alert('Erro ao salvar: ' + data.error);
@@ -2628,9 +2685,35 @@ goniometria: {
     label: c.dadosPessoais?.nome || 'Sem Nome'
   }));
 
-  const filteredClients = clients.filter(c =>
-    c.dadosPessoais?.nome?.toLowerCase().includes(workoutSearch.toLowerCase())
-  );
+  const filteredClients = clients.filter(c => {
+    // 1. Filtro de pesquisa de Nome ou Email
+    const matchesSearch = 
+      (c.dadosPessoais?.nome || '').toLowerCase().includes(workoutSearch.toLowerCase()) ||
+      (c.dadosPessoais?.email || '').toLowerCase().includes(workoutSearch.toLowerCase());
+      
+    // 2. Filtro de Status de Ficha (Ativa vs Sem Ficha)
+    const userWorkout = workouts.find(w => w.clienteId === c._id);
+    const hasActiveWorkout = userWorkout && (
+      (userWorkout.fichasMonitorado && userWorkout.fichasMonitorado.some((f: any) => f.exercicios && f.exercicios.length > 0)) ||
+      (userWorkout.fichasLivre && userWorkout.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0))
+    );
+    
+    let matchesStatus = true;
+    if (workoutStatusFilter === 'active') {
+      matchesStatus = !!hasActiveWorkout;
+    } else if (workoutStatusFilter === 'none') {
+      matchesStatus = !hasActiveWorkout;
+    }
+    
+    // 3. Filtro de Plano
+    let matchesPlan = true;
+    if (workoutPlanFilter !== 'all') {
+      const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+      matchesPlan = planName === workoutPlanFilter;
+    }
+    
+    return matchesSearch && matchesStatus && matchesPlan;
+  });
 
   const filteredExercises = exercises.filter(ex => {
     if (ex.status === 'pending') return false;
@@ -3033,9 +3116,52 @@ goniometria: {
               {workoutSubTab === 'clients' && (
                 <div className="content-panel">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ maxWidth: '400px', flexGrow: 1 }}>
-                      <input type="text" className="form-control" placeholder="Buscar aluno..." value={workoutSearch} onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutSearch(e.target.value); }} />
+                    <div style={{ display: 'flex', gap: '12px', flexGrow: 1, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: '200px', maxWidth: '300px', flexGrow: 1 }}>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="Buscar aluno por nome ou email..." 
+                          value={workoutSearch} 
+                          onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutSearch(e.target.value); }} 
+                        />
+                      </div>
+                      
+                      {/* Filtro por Status da Ficha */}
+                      <div style={{ width: '160px' }}>
+                        <select 
+                          className="select-custom"
+                          value={workoutStatusFilter} 
+                          onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutStatusFilter(e.target.value as any); }}
+                        >
+                          <option value="all">Todos os Status</option>
+                          <option value="active">Com Ficha Ativa</option>
+                          <option value="none">Sem Ficha</option>
+                        </select>
+                      </div>
+
+                      {/* Filtro por Plano */}
+                      <div style={{ width: '180px' }}>
+                        <select 
+                          className="select-custom"
+                          value={workoutPlanFilter} 
+                          onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutPlanFilter(e.target.value); }}
+                        >
+                          <option value="all">Todos os Planos</option>
+                          {(() => {
+                            const uniquePlans = Array.from(
+                              new Set(
+                                clients.map(c => c.dadosComerciais?.planoId?.nome || 'Personalizado')
+                              )
+                            );
+                            return uniquePlans.map(planName => (
+                              <option key={planName} value={planName}>{planName}</option>
+                            ));
+                          })()}
+                        </select>
+                      </div>
                     </div>
+
                     <div className="page-size-selector">
                       <span>Exibir:</span>
                       <select value={getPageSize('treinos_prof_clients')} onChange={e => setPageSizeForKey('treinos_prof_clients', Number(e.target.value))}>
@@ -3052,6 +3178,7 @@ goniometria: {
                           <th>Aluno</th>
                           <th>Plano</th>
                           <th style={{ textAlign: 'center' }}>Status da Ficha</th>
+                          <th style={{ textAlign: 'center' }}>Data da Última Ficha</th>
                           <th>Ações</th>
                         </tr>
                       </thead>
@@ -3066,7 +3193,37 @@ goniometria: {
 
                           return paginated.map(c => {
                             const userWorkout = workouts.find(w => w.clienteId === c._id);
-                            const hasWorkout = userWorkout && userWorkout.fichasMonitorado?.some((f: any) => f.exercicios?.length > 0);
+                            const hasWorkout = userWorkout && (
+                              (userWorkout.fichasMonitorado && userWorkout.fichasMonitorado.some((f: any) => f.exercicios && f.exercicios.length > 0)) ||
+                              (userWorkout.fichasLivre && userWorkout.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0))
+                            );
+
+                            const getUltimaFichaDate = () => {
+                              if (!userWorkout) return '—';
+                              const dates: string[] = [];
+                              if (userWorkout.fichasMonitorado) {
+                                userWorkout.fichasMonitorado.forEach((f: any) => {
+                                  if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) {
+                                    dates.push(f.ultimaAtualizacao);
+                                  }
+                                });
+                              }
+                              if (userWorkout.fichasLivre) {
+                                userWorkout.fichasLivre.forEach((f: any) => {
+                                  if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) {
+                                    dates.push(f.ultimaAtualizacao);
+                                  }
+                                });
+                              }
+                              if (dates.length === 0) return '—';
+                              dates.sort((a, b) => b.localeCompare(a));
+                              const parts = dates[0].split('-');
+                              if (parts.length === 3) {
+                                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                              }
+                              return dates[0];
+                            };
+
                             return (
                               <tr key={c._id}>
                                 <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
@@ -3075,6 +3232,9 @@ goniometria: {
                                   <span className={`badge ${hasWorkout ? 'badge-success' : 'badge-warning'}`}>
                                     {hasWorkout ? 'Ficha Ativa' : 'Sem Ficha'}
                                   </span>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <strong style={{ fontSize: '0.85rem' }}>{getUltimaFichaDate()}</strong>
                                 </td>
                                 <td>
                                   <button className="btn btn-primary btn-sm" onClick={() => handleOpenWorkoutEditor(c)}>
@@ -3087,7 +3247,7 @@ goniometria: {
                         })()}
                         {filteredClients.length === 0 && (
                           <tr>
-                            <td colSpan={4}>
+                            <td colSpan={5}>
                               <div className="empty-state-card">
                                 <i className="fa-solid fa-dumbbell empty-state-icon"></i>
                                 <div className="empty-state-title">Nenhum aluno encontrado</div>
@@ -3252,16 +3412,21 @@ goniometria: {
                             {currentSheets.length > 1 && (
                               <button
                                 type="button"
-                                className={`btn btn-sm ${sheetToDelete === sheet.id ? 'btn-danger text-white' : 'text-danger'}`}
+                                className="btn btn-sm"
                                 style={{ 
                                   padding: '2px 6px', 
                                   border: 'none', 
                                   background: sheetToDelete === sheet.id ? 'var(--color-danger)' : 'transparent',
+                                  color: '#ffffff',
+                                  opacity: 0.8,
                                   borderRadius: '4px',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '4px'
+                                  gap: '4px',
+                                  transition: 'opacity 0.2s'
                                 }}
+                                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                                onMouseLeave={e => e.currentTarget.style.opacity = '0.8'}
                                 onClick={() => handleRemoveWorkoutSheet(sheet.id)}
                                 title={sheetToDelete === sheet.id ? "Clique novamente para confirmar" : "Remover esta Ficha"}
                               >
@@ -3435,7 +3600,20 @@ goniometria: {
                             </table>
                           </div>
 
-                          <div style={{ marginTop: '24px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', marginBottom: '12px', background: 'rgba(255, 255, 255, 0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            <input 
+                              type="checkbox" 
+                              id="isNewWorkoutSheetCheckbox" 
+                              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-primary)' }} 
+                              checked={isNewWorkoutSheet} 
+                              onChange={e => setIsNewWorkoutSheet(e.target.checked)} 
+                            />
+                            <label htmlFor="isNewWorkoutSheetCheckbox" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', userSelect: 'none', margin: 0 }}>
+                              Esta alteração representa uma nova ficha / replanejamento de metas
+                            </label>
+                          </div>
+
+                          <div style={{ marginTop: '16px' }}>
                             <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSaveWorkout}>
                               <i className="fa-solid fa-save"></i> Salvar Ficha de Treino
                             </button>
