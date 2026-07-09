@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { tipo, horario, acao, diaSemana, dataEspecifica, capacidadePersonalizada } = body;
+    const { tipo, horario, acao, diaSemana, dataEspecifica, capacidadePersonalizada, servico } = body;
 
     if (!tipo || !horario || !acao) {
       return NextResponse.json({ success: false, error: 'Campos obrigatórios: tipo, horario, acao' }, { status: 400 });
@@ -29,7 +29,8 @@ export async function POST(request: Request) {
       acao,
       diaSemana: diaSemana !== undefined ? diaSemana : null,
       dataEspecifica: dataEspecifica || null,
-      capacidadePersonalizada: capacidadePersonalizada !== undefined ? capacidadePersonalizada : null
+      capacidadePersonalizada: capacidadePersonalizada !== undefined ? capacidadePersonalizada : null,
+      servico: servico || null
     });
 
     return NextResponse.json({ success: true, data: newConfig });

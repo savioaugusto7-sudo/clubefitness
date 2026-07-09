@@ -85,6 +85,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [dcFrequencia, setDcFrequencia] = useState<number>(3);
 
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
+  const [agendaConfigs, setAgendaConfigs] = useState<any[]>([]);
   // Fixed Schedule form states
   const [showFixedSchedModal, setShowFixedSchedModal] = useState(false);
   const [fsClient, setFsClient] = useState('');
@@ -158,25 +159,28 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [resC, resA, resP, resF, resFs] = await Promise.all([
+      const [resC, resA, resP, resF, resFs, resAc] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/appointments'),
         fetch('/api/plans'),
         fetch('/api/financial'),
-        fetch('/api/fixed-schedules')
+        fetch('/api/fixed-schedules'),
+        fetch('/api/admin/agenda-config')
       ]);
-      const [jC, jA, jP, jF, jFs] = await Promise.all([
+      const [jC, jA, jP, jF, jFs, jAc] = await Promise.all([
         resC.json(),
         resA.json(),
         resP.json(),
         resF.json(),
-        resFs.json()
+        resFs.json(),
+        resAc.json()
       ]);
       if (jC.success) setClients(jC.data);
       if (jA.success) setAppointments(jA.data);
       if (jP.success) setPlans(jP.data);
       if (jF.success) setFinancials(jF.data);
       if (jFs.success) setFixedSchedules(jFs.data);
+      if (jAc.success) setAgendaConfigs(jAc.data);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
@@ -189,6 +193,87 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   }, [fetchData]);
 
 
+
+  const getAvailableHours = (day: number, service: string) => {
+    if (day === 0) return [];
+    const defaultGrade = day === 6
+      ? ['09:50', '10:40', '11:30', '12:25']
+      : ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+    const additions = agendaConfigs.filter(cfg => 
+      cfg.tipo === 'academia' && 
+      cfg.acao === 'adicionar' && 
+      cfg.diaSemana === day && 
+      !cfg.dataEspecifica
+    );
+    let grade = [...defaultGrade];
+    for (const add of additions) {
+      if (!grade.includes(add.horario)) {
+        grade.push(add.horario);
+      }
+    }
+    grade.sort((a, b) => a.localeCompare(b));
+    return grade.filter(horario => {
+      const serviceBlock = agendaConfigs.some(cfg => 
+        cfg.tipo === 'servico' && 
+        cfg.servico === service && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'bloquear' && 
+        !cfg.dataEspecifica
+      );
+      if (serviceBlock) return false;
+      const gradeBlock = agendaConfigs.some(cfg => 
+        cfg.tipo === 'academia' && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'bloquear' && 
+        !cfg.dataEspecifica
+      );
+      if (gradeBlock) return false;
+      const serviceCapRule = agendaConfigs.find(cfg => 
+        cfg.tipo === 'servico' && 
+        cfg.servico === service && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'alterar_capacidade' && 
+        !cfg.dataEspecifica
+      );
+      const gradeCapRule = agendaConfigs.find(cfg => 
+        cfg.tipo === 'academia' && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'alterar_capacidade' && 
+        !cfg.dataEspecifica
+      );
+      let maxVagas = 6;
+      if (serviceCapRule && serviceCapRule.capacidadePersonalizada !== null) {
+        maxVagas = serviceCapRule.capacidadePersonalizada;
+      } else if (gradeCapRule && gradeCapRule.capacidadePersonalizada !== null) {
+        maxVagas = gradeCapRule.capacidadePersonalizada;
+      }
+      const requiredVagas = service === 'Treino Livre' ? 0 : (service === 'Avaliação Fisioterápica' ? 3 : 1);
+      const occupied = fixedSchedules
+        .filter(fs => fs.diaSemana === day && fs.horario === horario)
+        .reduce((sum, fs) => {
+          const fsVagas = fs.servico === 'Treino Livre' ? 0 : (fs.servico === 'Avaliação Fisioterápica' ? 3 : 1);
+          return sum + fsVagas;
+        }, 0);
+      return (occupied + requiredVagas <= maxVagas);
+    });
+  };
+
+  useEffect(() => {
+    if (showFixedSchedModal) {
+      const hours = getAvailableHours(fsDay, fsService);
+      if (hours.length > 0) {
+        if (!hours.includes(fsTime)) {
+          setFsTime(hours[0]);
+        }
+      } else {
+        setFsTime('');
+      }
+    }
+  }, [fsDay, fsService, fixedSchedules, agendaConfigs, showFixedSchedModal]);
 
   const getGroupedPayments = () => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -2486,7 +2571,17 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     </div>
                     <div style={{ flex: 1 }}>
                       <label style={labelStyle}>Horário</label>
-                      <input style={inputStyle} type="time" value={fsTime} onChange={e => setFsTime(e.target.value)} required />
+                      <select style={inputStyle} value={fsTime} onChange={e => setFsTime(e.target.value)} required>
+                        <option value="">Selecione...</option>
+                        {getAvailableHours(fsDay, fsService).map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                      {getAvailableHours(fsDay, fsService).length === 0 && (
+                        <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
+                          Nenhum horário com vagas disponíveis neste dia/serviço.
+                        </small>
+                      )}
                     </div>
                   </div>
 

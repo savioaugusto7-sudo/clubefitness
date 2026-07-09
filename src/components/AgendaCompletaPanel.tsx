@@ -556,13 +556,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         >
           <i className="fa-solid fa-dumbbell" style={{ marginRight: '6px' }}></i> Academia
         </button>
-        <button 
-          className={`btn ${activeTab === 'consultorio' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('consultorio')}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <i className="fa-solid fa-user-md" style={{ marginRight: '6px' }}></i> Consultório
-        </button>
+
 
         {/* Divisor */}
         <div style={{ width: '1px', background: 'var(--border-color)', margin: '0 8px' }}></div>
@@ -950,13 +944,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                   onChange={e => setAddTimeInput(e.target.value)} 
                 />
               </div>
-              <div className="form-group">
-                <label>Tipo de Grade</label>
-                <select className="select-custom" value={addTimeType} onChange={e => setAddTimeType(e.target.value as any)}>
-                  <option value="academia">Academia (Treinos)</option>
-                  <option value="consultorio">Consultório (Fisioterapia)</option>
-                </select>
-              </div>
+
               <div className="form-group">
                 <label>Vagas Iniciais</label>
                 <input 

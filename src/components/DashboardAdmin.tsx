@@ -119,6 +119,19 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [medNF, setMedNF] = useState('');
 
   const [fixedSchedules, setFixedSchedules] = useState<any[]>([]);
+  const [agendaConfigs, setAgendaConfigs] = useState<any[]>([]);
+  
+  // Agenda Configuration Panel form states
+  const [acScope, setAcScope] = useState<'grade' | 'servico'>('grade');
+  const [acGrade, setAcGrade] = useState<'academia' | 'consultorio'>('academia');
+  const [acService, setAcService] = useState('Treino Monitorado');
+  const [acFrequency, setAcFrequency] = useState<'permanente' | 'data'>('permanente');
+  const [acSelectedDays, setAcSelectedDays] = useState<number[]>([]);
+  const [acSpecificDate, setAcSpecificDate] = useState('');
+  const [acTime, setAcTime] = useState('08:00');
+  const [acAction, setAcAction] = useState<'bloquear' | 'alterar_capacidade' | 'adicionar'>('bloquear');
+  const [acCapacity, setAcCapacity] = useState(6);
+
   // Fixed Schedule form states
   const [showFixedSchedModal, setShowFixedSchedModal] = useState(false);
   const [fsClient, setFsClient] = useState('');
@@ -797,7 +810,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs, resTranc, resContracts] = await Promise.all([
+      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs, resTranc, resContracts, resAc] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/professionals'),
         fetch('/api/appointments'),
@@ -809,7 +822,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         fetch('/api/strength-tests'),
         fetch('/api/exercises?status=pending'),
         fetch('/api/trancamentos'),
-        fetch('/api/contracts')
+        fetch('/api/contracts'),
+        fetch('/api/admin/agenda-config')
       ]);
       const jsonClients = await resClients.json();
       const jsonProfs = await resProfs.json();
@@ -823,6 +837,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const jsonExs = await resExs.json();
       const jsonTranc = await resTranc.json();
       const jsonContracts = await resContracts.json();
+      const jsonAc = await resAc.json();
 
       if (jsonClients.success) setClients(jsonClients.data);
       if (jsonProfs.success) setProfessionals(jsonProfs.data);
@@ -836,12 +851,191 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       if (jsonExs.success) setExerciseRequests(jsonExs.data);
       if (jsonTranc.success) setTrancamentosAdminList(jsonTranc.data);
       if (jsonContracts.success) setContractsAdminList(jsonContracts.data);
+      if (jsonAc.success) setAgendaConfigs(jsonAc.data);
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
     } finally {
       setLoading(false);
     }
   };
+  const handleCreateAgendaConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload: any = {
+      horario: acTime,
+      acao: acAction,
+      capacidadePersonalizada: acAction === 'alterar_capacidade' ? acCapacity : null
+    };
+    if (acScope === 'grade') {
+      payload.tipo = 'academia';
+      payload.servico = null;
+    } else {
+      payload.tipo = 'servico';
+      payload.servico = acService;
+    }
+    if (acFrequency === 'permanente') {
+      if (acSelectedDays.length === 0) {
+        alert('Selecione pelo menos um dia da semana!');
+        return;
+      }
+      setLoading(true);
+      try {
+        for (const day of acSelectedDays) {
+          const res = await fetch('/api/admin/agenda-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              diaSemana: day,
+              dataEspecifica: null
+            })
+          });
+          const data = await res.json();
+          if (!data.success) {
+            alert('Erro ao criar regra semanal: ' + data.error);
+          }
+        }
+        alert('Regras permanentes criadas com sucesso!');
+        fetchData();
+        setAcSelectedDays([]);
+      } catch (err: any) {
+        alert('Erro na requisição: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      if (!acSpecificDate) {
+        alert('Selecione uma data!');
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await fetch('/api/admin/agenda-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            diaSemana: null,
+            dataEspecifica: acSpecificDate
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Regra pontual criada com sucesso!');
+          fetchData();
+          setAcSpecificDate('');
+        } else {
+          alert('Erro ao criar regra pontual: ' + data.error);
+        }
+      } catch (err: any) {
+        alert('Erro na requisição: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteAgendaConfig = async (id: string) => {
+    if (!confirm('Deseja realmente remover esta regra?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/agenda-config?id=${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Regra removida com sucesso!');
+        fetchData();
+      } else {
+        alert('Erro ao remover: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao deletar: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAvailableHours = (day: number, service: string) => {
+    if (day === 0) return [];
+    const defaultGrade = day === 6
+      ? ['09:50', '10:40', '11:30', '12:25']
+      : ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+    const additions = agendaConfigs.filter(cfg => 
+      cfg.tipo === 'academia' && 
+      cfg.acao === 'adicionar' && 
+      cfg.diaSemana === day && 
+      !cfg.dataEspecifica
+    );
+    let grade = [...defaultGrade];
+    for (const add of additions) {
+      if (!grade.includes(add.horario)) {
+        grade.push(add.horario);
+      }
+    }
+    grade.sort((a, b) => a.localeCompare(b));
+    return grade.filter(horario => {
+      const serviceBlock = agendaConfigs.some(cfg => 
+        cfg.tipo === 'servico' && 
+        cfg.servico === service && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'bloquear' && 
+        !cfg.dataEspecifica
+      );
+      if (serviceBlock) return false;
+      const gradeBlock = agendaConfigs.some(cfg => 
+        cfg.tipo === 'academia' && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'bloquear' && 
+        !cfg.dataEspecifica
+      );
+      if (gradeBlock) return false;
+      const serviceCapRule = agendaConfigs.find(cfg => 
+        cfg.tipo === 'servico' && 
+        cfg.servico === service && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'alterar_capacidade' && 
+        !cfg.dataEspecifica
+      );
+      const gradeCapRule = agendaConfigs.find(cfg => 
+        cfg.tipo === 'academia' && 
+        cfg.horario === horario && 
+        cfg.diaSemana === day && 
+        cfg.acao === 'alterar_capacidade' && 
+        !cfg.dataEspecifica
+      );
+      let maxVagas = 6;
+      if (serviceCapRule && serviceCapRule.capacidadePersonalizada !== null) {
+        maxVagas = serviceCapRule.capacidadePersonalizada;
+      } else if (gradeCapRule && gradeCapRule.capacidadePersonalizada !== null) {
+        maxVagas = gradeCapRule.capacidadePersonalizada;
+      }
+      const requiredVagas = service === 'Treino Livre' ? 0 : (service === 'Avaliação Fisioterápica' ? 3 : 1);
+      const occupied = fixedSchedules
+        .filter(fs => fs.diaSemana === day && fs.horario === horario)
+        .reduce((sum, fs) => {
+          const fsVagas = fs.servico === 'Treino Livre' ? 0 : (fs.servico === 'Avaliação Fisioterápica' ? 3 : 1);
+          return sum + fsVagas;
+        }, 0);
+      return (occupied + requiredVagas <= maxVagas);
+    });
+  };
+
+  useEffect(() => {
+    if (showFixedSchedModal) {
+      const hours = getAvailableHours(fsDay, fsService);
+      if (hours.length > 0) {
+        if (!hours.includes(fsTime)) {
+          setFsTime(hours[0]);
+        }
+      } else {
+        setFsTime('');
+      }
+    }
+  }, [fsDay, fsService, fixedSchedules, agendaConfigs, showFixedSchedModal]);
+
 
   const getGroupedPayments = () => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -3305,6 +3499,219 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         <AgendaCompletaPanel clients={clients} professionals={professionals} />
       )}
 
+      {/* ======================== CONFIGURAÇÃO DA AGENDA TAB ======================== */}
+      {activeTab === 'config_agenda' && (
+        <>
+          <div className="view-header">
+            <div className="view-title-group">
+              <h1>Configuração da Agenda</h1>
+              <p>Gerencie horários de funcionamento, capacidades e bloqueios permanentes ou para datas específicas.</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+            {/* Formulário de Criação */}
+            <div className="content-panel" style={{ flex: '1 1 400px', padding: '24px' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-plus-circle" style={{ color: 'var(--color-primary)' }}></i>
+                Nova Regra de Agenda
+              </h2>
+              
+              <form onSubmit={handleCreateAgendaConfig} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Escopo da Regra</label>
+                  <select className="select-custom" value={acScope} onChange={e => {
+                    const val = e.target.value as any;
+                    setAcScope(val);
+                    if (val === 'servico') {
+                      if (acAction === 'adicionar') setAcAction('bloquear');
+                    }
+                  }}>
+                    <option value="grade">Grade Completa (Academia)</option>
+                    <option value="servico">Serviço Específico</option>
+                  </select>
+                </div>
+
+                {acScope === 'servico' && (
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600 }}>Serviço</label>
+                    <select className="select-custom" value={acService} onChange={e => setAcService(e.target.value)}>
+                      <option value="Treino Monitorado">Treino Monitorado</option>
+                      <option value="Treino Livre">Treino Livre</option>
+                      <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Frequência</label>
+                  <select className="select-custom" value={acFrequency} onChange={e => setAcFrequency(e.target.value as any)}>
+                    <option value="permanente">Permanente (Repete todas as semanas)</option>
+                    <option value="data">Data Específica (Regra pontual)</option>
+                  </select>
+                </div>
+
+                {acFrequency === 'permanente' ? (
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600 }}>Dias da Semana</label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {[
+                        { val: 1, label: 'Seg' },
+                        { val: 2, label: 'Ter' },
+                        { val: 3, label: 'Qua' },
+                        { val: 4, label: 'Qui' },
+                        { val: 5, label: 'Sex' },
+                        { val: 6, label: 'Sáb' }
+                      ].map(d => {
+                        const checked = acSelectedDays.includes(d.val);
+                        return (
+                          <button
+                            key={d.val}
+                            type="button"
+                            className={`btn ${checked ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '6px 12px', fontSize: '0.85rem', flex: '1 1 50px' }}
+                            onClick={() => {
+                              if (checked) {
+                                setAcSelectedDays(acSelectedDays.filter(val => val !== d.val));
+                              } else {
+                                setAcSelectedDays([...acSelectedDays, d.val]);
+                              }
+                            }}
+                          >
+                            {d.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600 }}>Data Específica</label>
+                    <input type="date" className="form-control" value={acSpecificDate} onChange={e => setAcSpecificDate(e.target.value)} required />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Ação</label>
+                  <select className="select-custom" value={acAction} onChange={e => setAcAction(e.target.value as any)}>
+                    <option value="bloquear">Bloquear / Fechar Horário</option>
+                    <option value="alterar_capacidade">Definir Capacidade (Vagas)</option>
+                    {acScope === 'grade' && <option value="adicionar">Adicionar Horário Extra</option>}
+                  </select>
+                </div>
+
+                {acAction === 'alterar_capacidade' && (
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600 }}>Quantidade de Vagas</label>
+                    <input type="number" min={0} max={20} className="form-control" value={acCapacity} onChange={e => setAcCapacity(Number(e.target.value))} required />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Horário</label>
+                  {acAction === 'adicionar' ? (
+                    <input type="time" className="form-control" value={acTime} onChange={e => setAcTime(e.target.value)} required />
+                  ) : (
+                    <select className="select-custom" value={acTime} onChange={e => setAcTime(e.target.value)}>
+                      {acFrequency === 'permanente' && acSelectedDays.length === 1 && acSelectedDays[0] === 6 ? (
+                        ['09:50', '10:40', '11:30', '12:25'].map(h => <option key={h} value={h}>{h}</option>)
+                      ) : (
+                        ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'].map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))
+                      )}
+                    </select>
+                  )}
+                </div>
+
+                <button type="submit" className="btn btn-primary" style={{ marginTop: '10px', width: '100%' }}>
+                  Salvar Regra
+                </button>
+              </form>
+            </div>
+
+            {/* Listagem de Regras Cadastradas */}
+            <div className="content-panel" style={{ flex: '2 1 600px', padding: '24px' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-list" style={{ color: 'var(--color-primary)' }}></i>
+                Regras Cadastradas
+              </h2>
+              
+              {agendaConfigs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  Nenhuma regra de agenda cadastrada no momento.
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table-custom">
+                    <thead>
+                      <tr>
+                        <th>Frequência</th>
+                        <th>Horário</th>
+                        <th>Grade / Serviço</th>
+                        <th>Ação</th>
+                        <th style={{ width: '80px', textAlign: 'center' }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agendaConfigs.map((cfg: any) => {
+                        const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                        const freqLabel = cfg.dataEspecifica 
+                          ? `Pontual: ${cfg.dataEspecifica.split('-').reverse().join('/')}`
+                          : `Semanal: ${dayNames[cfg.diaSemana] || 'Desconhecido'}`;
+                          
+                        const targetLabel = cfg.tipo === 'servico'
+                          ? `Serviço: ${cfg.servico}`
+                          : 'Grade Completa';
+                          
+                        let actionLabel = '';
+                        if (cfg.acao === 'bloquear') {
+                          actionLabel = 'Bloqueado';
+                        } else if (cfg.acao === 'adicionar') {
+                          actionLabel = 'Adicionado';
+                        } else if (cfg.acao === 'alterar_capacidade') {
+                          actionLabel = `${cfg.capacidadePersonalizada} vagas`;
+                        }
+
+                        return (
+                          <tr key={cfg._id}>
+                            <td style={{ fontWeight: 600 }}>{freqLabel}</td>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{cfg.horario}</td>
+                            <td>{targetLabel}</td>
+                            <td>
+                              <span style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                background: cfg.acao === 'bloquear' ? 'rgba(239,68,68,0.1)' : cfg.acao === 'adicionar' ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)',
+                                color: cfg.acao === 'bloquear' ? '#ef4444' : cfg.acao === 'adicionar' ? '#10b981' : '#3b82f6'
+                              }}>
+                                {actionLabel}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)', padding: '4px 8px' }}
+                                onClick={() => handleDeleteAgendaConfig(cfg._id)}
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* ======================== TRANCAMENTOS ADMIN TAB ======================== */}
       {activeTab === 'trancamentos_admin' && (() => {
         // Build: map contractId -> list of trancamentos
@@ -4679,7 +5086,17 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
                       <label>Horário</label>
-                      <input type="time" className="form-control" value={fsTime} onChange={e => setFsTime(e.target.value)} required />
+                      <select className="select-custom" value={fsTime} onChange={e => setFsTime(e.target.value)} required>
+                        <option value="">Selecione...</option>
+                        {getAvailableHours(fsDay, fsService).map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                      {getAvailableHours(fsDay, fsService).length === 0 && (
+                        <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
+                          Nenhum horário com vagas disponíveis neste dia/serviço.
+                        </small>
+                      )}
                     </div>
                   </div>
 

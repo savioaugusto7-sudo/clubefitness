@@ -1,7 +1,8 @@
 import mongoose, { Schema, model, models } from 'mongoose';
 
 const AgendaConfigSchema = new Schema({
-  tipo: { type: String, enum: ['academia', 'consultorio'], required: true },
+  tipo: { type: String, enum: ['academia', 'consultorio', 'servico'], required: true },
+  servico: { type: String, default: null },
   horario: { type: String, required: true }, // e.g. "08:00"
   
   // Exclusão / Bloqueio / Adição

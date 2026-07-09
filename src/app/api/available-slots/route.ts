@@ -9,7 +9,7 @@ const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number; tipo: 'academia' 
   'Recovery':                 { vagasOcupadas: 1, tipo: 'academia'    },
   'Avaliação Física':         { vagasOcupadas: 3, tipo: 'academia'    },
   'Teste de Força':           { vagasOcupadas: 3, tipo: 'academia'    },
-  'Avaliação Fisioterápica':  { vagasOcupadas: 3, tipo: 'consultorio' },
+  'Avaliação Fisioterápica':  { vagasOcupadas: 3, tipo: 'academia' },
   'Emergência':               { vagasOcupadas: 3, tipo: 'academia'    },
   'Massagem':                 { vagasOcupadas: 1, tipo: 'academia'    },
 };
@@ -54,7 +54,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const grade = dayOfWeek === 6 ? VALID_SATURDAYS : VALID_WEEKDAYS;
+    // 1. Determinar grade dinâmica (incluindo horários extras adicionados)
+    const defaultGrade = dayOfWeek === 6 ? VALID_SATURDAYS : VALID_WEEKDAYS;
+    const additions = await AgendaConfig.find({
+      tipo: servicoConfig.tipo,
+      acao: 'adicionar',
+      $or: [
+        { dataEspecifica: data },
+        { diaSemana: dayOfWeek, dataEspecifica: null }
+      ]
+    });
+    
+    let grade = [...defaultGrade];
+    for (const add of additions) {
+      if (!grade.includes(add.horario)) {
+        grade.push(add.horario);
+      }
+    }
+    grade.sort((a, b) => a.localeCompare(b));
+
     const agora = new Date();
     const isSameDay = data === agora.toISOString().slice(0, 10);
 
@@ -74,7 +92,20 @@ export async function GET(request: Request) {
         if (diffHoras < ANTECEDENCIA_MIN_H) continue;
       }
 
-      // Verificar customRule de bloqueio
+      // 1. Verificar bloqueio específico por serviço
+      const specificServiceBlock = await AgendaConfig.findOne({
+        tipo: 'servico',
+        servico: servico,
+        horario,
+        acao: 'bloquear',
+        $or: [
+          { dataEspecifica: data },
+          { diaSemana: dayOfWeek, dataEspecifica: null }
+        ]
+      });
+      if (specificServiceBlock) continue;
+
+      // 2. Verificar customRule geral da grade (bloqueio ou capacidade)
       const customRule = await AgendaConfig.findOne({
         tipo: servicoConfig.tipo,
         horario,
@@ -89,7 +120,7 @@ export async function GET(request: Request) {
       const aptsNoHorario = allApts.filter(a => a.horario === horario);
 
       if (dayOfWeek === 6) {
-        // Sábado: apenas 1 vaga total
+        // Sábado: apenas 1 vaga total por padrão ou capacidade personalizada
         let maxSab = 1;
         if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
           maxSab = customRule.capacidadePersonalizada;
@@ -107,21 +138,27 @@ export async function GET(request: Request) {
         return sum + cfg.vagasOcupadas;
       }, 0);
 
+      // Determinar limite máximo de vagas (específico do serviço ou geral da grade)
+      const specificServiceCapacity = await AgendaConfig.findOne({
+        tipo: 'servico',
+        servico: servico,
+        horario,
+        acao: 'alterar_capacidade',
+        $or: [
+          { dataEspecifica: data },
+          { diaSemana: dayOfWeek, dataEspecifica: null }
+        ]
+      }).sort({ dataEspecifica: -1 });
+
       let maxVagas = MAX_VAGAS_ACADEMIA;
-      if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
+      if (specificServiceCapacity && specificServiceCapacity.capacidadePersonalizada !== null) {
+        maxVagas = specificServiceCapacity.capacidadePersonalizada;
+      } else if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
         maxVagas = customRule.capacidadePersonalizada;
       }
 
       // Verificar se há vagas totais suficientes
       if (vagasTotais + servicoConfig.vagasOcupadas > maxVagas) continue;
-
-      // Para serviços de consultório: verificar vaga do profissional específico
-      if (servicoConfig.tipo === 'consultorio') {
-        const consultsNoHorario = aptsNoHorario.filter(a => a.tipo === 'consultorio' && a.status !== 'cancelado');
-        if (consultsNoHorario.length >= 1) continue;
-        availableSlots.push(horario);
-        continue;
-      }
 
       // Para academia: verificar se ao menos 1 profissional tem vaga suficiente
       const profIds = ['6668ab030303030303030302', '6668ab030303030303030301'];

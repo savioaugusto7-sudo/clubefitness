@@ -27,6 +27,7 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'controle_creditos', label: 'Controle de Créditos', icon: 'fa-coins' },
     { id: 'planos', label: 'Planos & Configs', icon: 'fa-tags' },
     { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' },
+    { id: 'config_agenda', label: 'Configuração da Agenda', icon: 'fa-calendar-check' },
     { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' },
     { id: 'clicksign', label: 'Clicksign', icon: 'fa-file-signature' },
     { id: 'asaas', label: 'Asaas', icon: 'fa-credit-card' },

@@ -2719,13 +2719,7 @@ goniometria: {
                     </div>
                     <div className="metric-icon success"><i className="fa-solid fa-dumbbell"></i></div>
                   </div>
-                  <div className="metric-card">
-                    <div className="metric-info">
-                      <h3>Consultório (Fisio)</h3>
-                      <div className="value">{totalConsultorio}</div>
-                    </div>
-                    <div className="metric-icon indigo"><i className="fa-solid fa-stethoscope"></i></div>
-                  </div>
+
                 </div>
 
                 {/* Bloco de Atenção: Urgentes */}
@@ -4158,33 +4152,19 @@ goniometria: {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Modalidade</label>
-                    <select className="select-custom" value={aptType} onChange={e => setAptType(e.target.value as any)}>
-                      <option value="academia">Academia</option>
-                      <option value="consultorio">Fisioterapia</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
                     <label>Serviço</label>
                     <select className="select-custom" value={aptService} onChange={e => setAptService(e.target.value)}>
-                      {aptType === 'academia' ? (
-                        <>
-                          {aptDate && new Date(aptDate + 'T12:00:00').getDay() === 6 ? (
-                            <option value="Massagem">Massagem</option>
-                          ) : (
-                            <>
-                              <option value="Treino Monitorado">Treino Monitorado</option>
-                              <option value="Treino Livre">Treino Livre</option>
-                              <option value="Recovery">Recovery</option>
-                              <option value="Avaliação Física">Avaliação Física</option>
-                              <option value="Teste de Força">Teste de Força</option>
-                              <option value="Emergência">Atendimento de Emergência</option>
-                            </>
-                          )}
-                        </>
+                      {aptDate && new Date(aptDate + 'T12:00:00').getDay() === 6 ? (
+                        <option value="Massagem">Massagem</option>
                       ) : (
                         <>
+                          <option value="Treino Monitorado">Treino Monitorado</option>
+                          <option value="Treino Livre">Treino Livre</option>
+                          <option value="Recovery">Recovery</option>
+                          <option value="Avaliação Física">Avaliação Física</option>
+                          <option value="Teste de Força">Teste de Força</option>
                           <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                          <option value="Emergência">Atendimento de Emergência</option>
                         </>
                       )}
                     </select>

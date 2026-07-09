@@ -106,12 +106,7 @@ export async function GET(request: Request) {
     };
 
     let resolvedSlots = [];
-    if (!tipoFiltro || tipoFiltro === 'academia') {
-      resolvedSlots.push(...resolveSlots('academia', defaultAcademiaSlots));
-    }
-    if (!tipoFiltro || tipoFiltro === 'consultorio') {
-      resolvedSlots.push(...resolveSlots('consultorio', defaultConsultorioSlots));
-    }
+    resolvedSlots.push(...resolveSlots('academia', defaultAcademiaSlots));
 
     // 3. Buscar agendamentos existentes da data e popular
     const appointments = await Appointment.find({

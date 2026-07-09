@@ -17,7 +17,7 @@ const SERVICOS_CONFIG: Record<string, {
   'Recovery':                 { tipoCredito: 'nenhum',     vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Avaliação Física':         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Teste de Força':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Avaliação Fisioterápica':  { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'consultorio' },
+  'Avaliação Fisioterápica':  { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia' },
   'Emergência':               { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Massagem':                 { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
 };
@@ -259,20 +259,7 @@ export async function POST(request: Request) {
     // --- Atribuição e Capacidade de Profissional ---
     let finalProfId = requestedProfId;
 
-    if (tipo === 'consultorio') {
-      finalProfId = '6668ab030303030303030301';
-      const slotsFilled = await Appointment.countDocuments({
-        data,
-        horario,
-        tipo: 'consultorio',
-        status: { $ne: 'cancelado' },
-        profissionalId: finalProfId
-      });
-      if (slotsFilled >= 1) {
-        return NextResponse.json({ success: false, error: 'Dr. André Costa já possui agendamento neste horário no consultório.' }, { status: 400 });
-      }
-    } else {
-      const checkProfessionalAvailability = async (profId: string) => {
+    const checkProfessionalAvailability = async (profId: string) => {
         const slotsDesteProf = await Appointment.find({
           data,
           horario,
@@ -346,7 +333,6 @@ export async function POST(request: Request) {
           return NextResponse.json({ success: false, error: 'Limite de 3 Treinos Livres por horário atingido.' }, { status: 400 });
         }
       }
-    }
 
     // --- Incrementar reservas no modelo Client ---
     if (tipoCredito !== 'nenhum') {

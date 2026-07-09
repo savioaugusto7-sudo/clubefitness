@@ -575,36 +575,21 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
           <div className="content-panel" style={{ maxWidth: '600px' }}>
             <form onSubmit={handleBookAppointment}>
               <div className="form-group">
-                <label>Modalidade</label>
-                <select className="select-custom" value={bookType} onChange={e => setBookType(e.target.value as any)}>
-                  <option value="academia">Treino na Academia</option>
-                  <option value="consultorio">Atendimento Fisioterápico</option>
-                </select>
-              </div>
-
-              <div className="form-group">
                 <label>Serviço</label>
                 <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)}>
-                  {bookType === 'academia' ? (
-                    <>
-                      {bookDateIsSaturday ? (
-                        // Sábado: apenas Massagem
-                        <option value="Massagem">Massagem</option>
-                      ) : (
-                        // Seg-Sex: todos exceto Massagem
-                        <>
-                          <option value="Treino Monitorado">Treino Monitorado</option>
-                          <option value="Treino Livre">Treino Livre</option>
-                          <option value="Recovery">Recovery</option>
-                          <option value="Avaliação Física">Avaliação Física</option>
-                          <option value="Teste de Força">Teste de Força</option>
-                          <option value="Emergência">Atendimento de Emergência</option>
-                        </>
-                      )}
-                    </>
+                  {bookDateIsSaturday ? (
+                    // Sábado: apenas Massagem
+                    <option value="Massagem">Massagem</option>
                   ) : (
+                    // Seg-Sex: todos exceto Massagem
                     <>
+                      <option value="Treino Monitorado">Treino Monitorado</option>
+                      <option value="Treino Livre">Treino Livre</option>
+                      <option value="Recovery">Recovery</option>
+                      <option value="Avaliação Física">Avaliação Física</option>
+                      <option value="Teste de Força">Teste de Força</option>
                       <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                      <option value="Emergência">Atendimento de Emergência</option>
                     </>
                   )}
                 </select>
