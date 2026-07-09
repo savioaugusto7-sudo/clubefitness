@@ -207,7 +207,11 @@ export default function AsaasPanel() {
         showFeedback('Cobrança avulsa gerada com sucesso!', 'success');
         
         // Load details for success modal
-        const detailsObj = Array.isArray(data.data) ? data.data[0] : data.data;
+        let detailsObj = data.data;
+        if (Array.isArray(data.data)) {
+          const firstInstallment = data.data.find((p: any) => p.parcelaNumero === 1);
+          detailsObj = firstInstallment || data.data[0];
+        }
         setSuccessDetails(detailsObj);
         setShowSuccessDetailsModal(true);
 
