@@ -38,7 +38,6 @@ export default function GestaoContratosPanel({
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
   const [dcFrequencia, setDcFrequencia] = useState(3);
   const [dcCreditosTotal, setDcCreditosTotal] = useState(0);
-  const [dcGerarAsaas, setDcGerarAsaas] = useState(false);
   const [savingComercial, setSavingComercial] = useState(false);
 
   // Modals & Triggers
@@ -152,7 +151,6 @@ export default function GestaoContratosPanel({
     setDcObservacoesContratuais(com.observacoesContratuais || '');
     setDcFrequencia(client.frequencia || 3);
     setDcCreditosTotal(com.creditosTotal || 0);
-    setDcGerarAsaas(false);
 
     loadContracts(client._id);
   };
@@ -358,7 +356,7 @@ export default function GestaoContratosPanel({
       contratoTexto: generateContractText(),
       usuarioEmissor: userCargo,
       enviarClicksign: isClicksign,
-      enviarAsaas: dcGerarAsaas,
+      enviarAsaas: false,
       contratoPdfBase64: pdfBase64,
       frequencia: dcFrequencia,
       creditosTotal: dcCreditosTotal
@@ -521,7 +519,7 @@ export default function GestaoContratosPanel({
         contratoTexto: generateContractText(),
         usuarioEmissor: userCargo,
         enviarClicksign: false,
-        enviarAsaas: dcGerarAsaas,
+        enviarAsaas: false,
         frequencia: dcFrequencia,
         creditosTotal: dcCreditosTotal,
         assinaturaPresencialImage: base64Image,
@@ -849,18 +847,7 @@ export default function GestaoContratosPanel({
                 <i className="fa-solid fa-book-open" style={{ marginRight: '6px' }}></i> Visualizar Texto Completo do Contrato
               </button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '6px 0' }}>
-                <input
-                  type="checkbox"
-                  id="cffGerarAsaas"
-                  checked={dcGerarAsaas}
-                  onChange={e => setDcGerarAsaas(e.target.checked)}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-                <label htmlFor="cffGerarAsaas" style={{ margin: 0, fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
-                  <i className="fa-solid fa-credit-card" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Gerar Cobrança automática no Asaas (Pix/Boleto)
-                </label>
-              </div>
+
 
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button

@@ -3,11 +3,23 @@ import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
-import { getAsaasPaymentDetails, getAsaasPixQrCode, createAsaasCustomer, createAsaasPayment } from '@/utils/asaas';
+import { getAsaasPaymentDetails, getAsaasPixQrCode, createAsaasCustomer, createAsaasPayment, createAsaasSubscription, getAsaasInstallmentPayments, getAsaasSubscriptionPayments } from '@/utils/asaas';
+import Payment from '@/models/Payment';
 
 export async function GET(request: Request) {
   try {
     await dbConnect();
+
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+
+    if (type === 'standalone') {
+      const standalonePayments = await Payment.find({
+        planoNome: { $regex: /^(Cobrança Avulsa:|Parcelamento |Assinatura:)/ },
+        formaPagamento: 'Asaas'
+      }).sort({ createdAt: -1 });
+      return NextResponse.json({ success: true, data: standalonePayments });
+    }
 
     // Buscar todos os clientes
     const clients = await Client.find().sort({ 'dadosPessoais.nome': 1 });
@@ -30,6 +42,7 @@ export async function GET(request: Request) {
         valorLiquido: 0,
         formaPagamento: '',
         dataPrimeiroVencimento: '',
+        parcelas: 1,
         asaasPaymentId: '',
         asaasInvoiceUrl: '',
         asaasBoletoPdf: '',
@@ -51,6 +64,7 @@ export async function GET(request: Request) {
         clientInfo.valorLiquido = asaasContract.valorLiquido;
         clientInfo.formaPagamento = asaasContract.formaPagamento;
         clientInfo.dataPrimeiroVencimento = asaasContract.dataPrimeiroVencimento || asaasContract.dataInicio || '';
+        clientInfo.parcelas = asaasContract.parcelas || 1;
         clientInfo.asaasPaymentId = asaasContract.asaasPaymentId;
         clientInfo.asaasInvoiceUrl = asaasContract.asaasInvoiceUrl;
         clientInfo.asaasBoletoPdf = asaasContract.asaasBoletoPdf || '';
@@ -65,6 +79,7 @@ export async function GET(request: Request) {
         clientInfo.valorLiquido = pendingContract.valorLiquido;
         clientInfo.formaPagamento = pendingContract.formaPagamento;
         clientInfo.dataPrimeiroVencimento = pendingContract.dataPrimeiroVencimento || pendingContract.dataInicio || '';
+        clientInfo.parcelas = pendingContract.parcelas || 1;
         clientInfo.contractStatus = pendingContract.status;
       } else if (contracts.length > 0) {
         // Possui contratos assinados ou cancelados
@@ -73,6 +88,7 @@ export async function GET(request: Request) {
         clientInfo.planoNome = latestContract.planoNome;
         clientInfo.valorLiquido = latestContract.valorLiquido;
         clientInfo.formaPagamento = latestContract.formaPagamento;
+        clientInfo.parcelas = latestContract.parcelas || 1;
         clientInfo.contractStatus = latestContract.status;
       }
 
@@ -191,10 +207,160 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { contractId } = body;
+    const { contractId, action, clientId, valor, vencimento, formaPagamento, descricao, parcelas, cycle } = body;
 
+    // ══════════════════════════════════════════════════════════════
+    // SUB-FLOW: STANDALONE CHARGES (AVULSA, PARCELADA, ASSINATURA)
+    // ══════════════════════════════════════════════════════════════
+    if (action) {
+      if (!clientId || !valor || !formaPagamento) {
+        return NextResponse.json({ success: false, error: 'clientId, valor e formaPagamento são obrigatórios' }, { status: 400 });
+      }
+
+      const client = await Client.findById(clientId);
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
+      }
+
+      let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
+      if (!asaasCustomerId) {
+        console.log('Criando cliente no Asaas para cobrança avulsa...');
+        asaasCustomerId = await createAsaasCustomer(client);
+        client.dadosComerciais.asaasCustomerId = asaasCustomerId;
+        await client.save();
+      }
+
+      if (action === 'create_avulsa') {
+        const dueDate = vencimento || new Date().toISOString().split('T')[0];
+        const paymentResult = await createAsaasPayment({
+          customerId: asaasCustomerId,
+          formaPagamento,
+          value: Number(valor),
+          dueDate,
+          description: descricao || 'Cobrança Avulsa'
+        });
+
+        // Registrar na coleção Payment para aparecer no controle financeiro
+        const pRecord = await Payment.create({
+          clientId: client._id,
+          clientNome: client.dadosPessoais?.nome || 'Avulso',
+          planoNome: `Cobrança Avulsa: ${descricao || 'Geral'}`,
+          valor: Number(valor),
+          vencimento: dueDate,
+          status: 'Pendente',
+          formaPagamento: 'Asaas',
+          asaasPaymentId: paymentResult.paymentId,
+          asaasInvoiceUrl: paymentResult.invoiceUrl,
+          parcelaNumero: 1,
+          parcelasTotal: 1,
+          observacoes: descricao || ''
+        });
+
+        return NextResponse.json({ success: true, data: pRecord });
+      }
+
+      if (action === 'create_parcelamento') {
+        const numParcelas = Number(parcelas) || 1;
+        const firstDueDate = vencimento || new Date().toISOString().split('T')[0];
+        
+        const paymentResult = await createAsaasPayment({
+          customerId: asaasCustomerId,
+          formaPagamento,
+          value: Number(valor),
+          dueDate: firstDueDate,
+          description: descricao || 'Parcelamento',
+          parcelas: numParcelas
+        });
+
+        if (!paymentResult.installmentId) {
+          throw new Error('Não foi possível gerar o ID do parcelamento no Asaas');
+        }
+
+        // Consultar as cobranças individuais criadas no Asaas
+        const installmentPayments = await getAsaasInstallmentPayments(paymentResult.installmentId);
+        const savedPayments = [];
+
+        for (const ip of installmentPayments) {
+          const pRecord = await Payment.create({
+            clientId: client._id,
+            clientNome: client.dadosPessoais?.nome || 'Avulso',
+            planoNome: `Parcelamento ${ip.installmentNumber}/${installmentPayments.length}: ${descricao || 'Geral'}`,
+            valor: ip.value,
+            vencimento: ip.dueDate,
+            status: 'Pendente',
+            formaPagamento: 'Asaas',
+            asaasPaymentId: ip.id,
+            asaasInvoiceUrl: ip.invoiceUrl,
+            parcelaNumero: ip.installmentNumber,
+            parcelasTotal: installmentPayments.length,
+            observacoes: descricao || ''
+          });
+          savedPayments.push(pRecord);
+        }
+
+        return NextResponse.json({ success: true, data: savedPayments });
+      }
+
+      if (action === 'create_assinatura') {
+        const firstDueDate = vencimento || new Date().toISOString().split('T')[0];
+        const subResult = await createAsaasSubscription({
+          customerId: asaasCustomerId,
+          formaPagamento,
+          value: Number(valor),
+          nextDueDate: firstDueDate,
+          cycle: cycle || 'MONTHLY',
+          description: descricao || 'Assinatura Recorrente'
+        });
+
+        // Buscar a primeira cobrança gerada para essa assinatura
+        const subPayments = await getAsaasSubscriptionPayments(subResult.subscriptionId);
+        let firstPaymentRecord = null;
+
+        if (subPayments.length > 0) {
+          const sp = subPayments[0];
+          firstPaymentRecord = await Payment.create({
+            clientId: client._id,
+            clientNome: client.dadosPessoais?.nome || 'Avulso',
+            planoNome: `Assinatura: ${descricao || 'Geral'}`,
+            valor: sp.value,
+            vencimento: sp.dueDate,
+            status: 'Pendente',
+            formaPagamento: 'Asaas',
+            asaasPaymentId: sp.id,
+            asaasInvoiceUrl: sp.invoiceUrl,
+            parcelaNumero: 1,
+            parcelasTotal: 1,
+            observacoes: `Assinatura Asaas ID: ${subResult.subscriptionId}`
+          });
+        } else {
+          // Fallback caso não seja gerado imediatamente no Sandbox
+          firstPaymentRecord = await Payment.create({
+            clientId: client._id,
+            clientNome: client.dadosPessoais?.nome || 'Avulso',
+            planoNome: `Assinatura: ${descricao || 'Geral'}`,
+            valor: Number(valor),
+            vencimento: firstDueDate,
+            status: 'Pendente',
+            formaPagamento: 'Asaas',
+            asaasPaymentId: `sub_dummy_${subResult.subscriptionId}`,
+            asaasInvoiceUrl: '',
+            parcelaNumero: 1,
+            parcelasTotal: 1,
+            observacoes: `Assinatura Asaas ID: ${subResult.subscriptionId} (Pendente de emissão da 1ª fatura)`
+          });
+        }
+
+        return NextResponse.json({ success: true, data: firstPaymentRecord });
+      }
+
+      return NextResponse.json({ success: false, error: 'Ação inválida' }, { status: 400 });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ORIGINAL FLOW: CONTRACT-BASED CHARGES
+    // ══════════════════════════════════════════════════════════════
     if (!contractId) {
-      return NextResponse.json({ success: false, error: 'contractId é obrigatório' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'contractId ou action é obrigatório' }, { status: 400 });
     }
 
     const contract = await Contract.findById(contractId);
@@ -248,6 +414,46 @@ export async function POST(request: Request) {
     }
 
     await contract.save();
+
+    // Também criar lançamento correspondente na tabela de Payments
+    const numP = contract.parcelas || 1;
+    if (numP > 1 && paymentResult.installmentId) {
+      const installmentPayments = await getAsaasInstallmentPayments(paymentResult.installmentId);
+      for (const ip of installmentPayments) {
+        await Payment.create({
+          clientId: client._id,
+          clientNome: client.dadosPessoais?.nome || 'Avulso',
+          planoNome: `Contrato Parcela ${ip.installmentNumber}/${installmentPayments.length}: ${plan.nome}`,
+          valor: ip.value,
+          vencimento: ip.dueDate,
+          status: 'Pendente',
+          formaPagamento: 'Asaas',
+          asaasPaymentId: ip.id,
+          asaasInvoiceUrl: ip.invoiceUrl,
+          parcelaNumero: ip.installmentNumber,
+          parcelasTotal: installmentPayments.length,
+          contractId: contract._id,
+          observacoes: `Gerado para o contrato ${contract._id}`
+        });
+      }
+    } else {
+      await Payment.create({
+        clientId: client._id,
+        clientNome: client.dadosPessoais?.nome || 'Avulso',
+        planoNome: `Contrato: ${plan.nome}`,
+        valor: contract.valorLiquido,
+        vencimento: contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0],
+        status: 'Pendente',
+        formaPagamento: 'Asaas',
+        asaasPaymentId: contract.asaasPaymentId,
+        asaasInvoiceUrl: contract.asaasInvoiceUrl,
+        parcelaNumero: 1,
+        parcelasTotal: 1,
+        contractId: contract._id,
+        observacoes: `Gerado para o contrato ${contract._id}`
+      });
+    }
+
     return NextResponse.json({ success: true, data: contract });
   } catch (error: any) {
     console.error('Erro ao gerar cobrança manual do Asaas:', error);

@@ -35,8 +35,47 @@ export async function POST(request: Request) {
 
     const contract = await Contract.findOne({ $or: queryConds });
     if (!contract) {
-      console.warn(`Contrato não encontrado no sistema para a cobrança do Asaas: ID=${payment.id}`);
-      return NextResponse.json({ success: true, message: 'Cobrança não vinculada a nenhum contrato no sistema' });
+      console.warn(`Contrato não encontrado no sistema para a cobrança do Asaas: ID=${payment.id}. Tentando atualizar cobrança avulsa...`);
+      
+      const dbPayment = await Payment.findOne({ asaasPaymentId: payment.id });
+      if (dbPayment) {
+        if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
+          dbPayment.status = 'Pago';
+          dbPayment.dataPagamento = new Date().toISOString().split('T')[0];
+        } else if (event === 'PAYMENT_OVERDUE') {
+          dbPayment.status = 'Atrasado';
+        } else if (event === 'PAYMENT_DELETED') {
+          dbPayment.status = 'Cancelado';
+        }
+        await dbPayment.save();
+        console.log(`Mensalidade avulsa correspondente ao pagamento Asaas ${payment.id} atualizada com status: ${dbPayment.status}.`);
+        return NextResponse.json({ success: true, message: 'Mensalidade avulsa atualizada' });
+      }
+
+      // Se for nova fatura de assinatura recorrente gerada no Asaas
+      if (event === 'PAYMENT_CREATED' && payment.subscription) {
+        const client = await Client.findOne({ 'dadosComerciais.asaasCustomerId': payment.customer });
+        if (client) {
+          const newPayment = await Payment.create({
+            clientId: client._id,
+            clientNome: client.dadosPessoais?.nome || 'Avulso',
+            planoNome: `Assinatura: Recorrência`,
+            valor: payment.value,
+            vencimento: payment.dueDate,
+            status: 'Pendente',
+            formaPagamento: 'Asaas',
+            asaasPaymentId: payment.id,
+            asaasInvoiceUrl: payment.invoiceUrl,
+            parcelaNumero: 1,
+            parcelasTotal: 1,
+            observacoes: `Fatura gerada automaticamente pela assinatura Asaas ${payment.subscription}`
+          });
+          console.log(`Criado novo registro de fatura de assinatura para o aluno ${client.dadosPessoais?.nome}`);
+          return NextResponse.json({ success: true, message: 'Nova fatura de assinatura registrada', data: newPayment });
+        }
+      }
+
+      return NextResponse.json({ success: true, message: 'Cobrança não vinculada a nenhum contrato ou pagamento avulso no sistema' });
     }
 
     const client = await Client.findById(contract.clientId);

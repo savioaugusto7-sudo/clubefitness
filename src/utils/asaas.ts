@@ -136,3 +136,70 @@ export async function getAsaasPaymentDetails(paymentId: string) {
 
   return handleError(res, 'Consultar Cobrança');
 }
+
+export async function createAsaasSubscription(params: {
+  customerId: string;
+  formaPagamento: string;
+  value: number;
+  nextDueDate: string;
+  cycle: string;
+  description: string;
+}) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  let billingType = 'UNDEFINED';
+  const fp = (params.formaPagamento || '').toLowerCase();
+  if (fp === 'pix') billingType = 'PIX';
+  else if (fp === 'boleto') billingType = 'BOLETO';
+  else if (fp === 'cartao') billingType = 'CREDIT_CARD';
+
+  const body = {
+    customer: params.customerId,
+    billingType,
+    value: params.value,
+    nextDueDate: params.nextDueDate,
+    cycle: params.cycle.toUpperCase(),
+    description: params.description
+  };
+
+  const res = await fetch(`${baseUrl}/subscriptions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body)
+  });
+
+  const data = await handleError(res, 'Criar Assinatura');
+  return {
+    subscriptionId: data.id,
+    billingStatus: data.status,
+    description: data.description,
+    cycle: data.cycle
+  };
+}
+
+export async function getAsaasInstallmentPayments(installmentId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/payments?installment=${installmentId}`, {
+    method: 'GET',
+    headers
+  });
+
+  const data = await handleError(res, 'Listar Pagamentos do Parcelamento');
+  return data.data || [];
+}
+
+export async function getAsaasSubscriptionPayments(subscriptionId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/payments?subscription=${subscriptionId}`, {
+    method: 'GET',
+    headers
+  });
+
+  const data = await handleError(res, 'Listar Pagamentos da Assinatura');
+  return data.data || [];
+}
