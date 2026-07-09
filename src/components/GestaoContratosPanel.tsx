@@ -52,6 +52,27 @@ export default function GestaoContratosPanel({
   const [sigConsent, setSigConsent] = useState(false);
   const [submittingSignature, setSubmittingSignature] = useState(false);
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const preventDefault = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+
+    canvas.addEventListener('touchstart', preventDefault, { passive: false });
+    canvas.addEventListener('touchmove', preventDefault, { passive: false });
+    canvas.addEventListener('touchend', preventDefault, { passive: false });
+    canvas.addEventListener('touchcancel', preventDefault, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('touchstart', preventDefault);
+      canvas.removeEventListener('touchmove', preventDefault);
+      canvas.removeEventListener('touchend', preventDefault);
+      canvas.removeEventListener('touchcancel', preventDefault);
+    };
+  }, [showSignatureModal]);
+
   // Filter clients
   const filteredClients = clients.filter(c => {
     const nome = c.dadosPessoais?.nome || '';
@@ -1029,7 +1050,8 @@ export default function GestaoContratosPanel({
                       borderRadius: '4px',
                       cursor: 'crosshair',
                       background: '#ffffff',
-                      maxWidth: '100%'
+                      maxWidth: '100%',
+                      touchAction: 'none'
                     }}
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
