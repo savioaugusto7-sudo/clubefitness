@@ -9,7 +9,7 @@ const AppointmentSchema = new Schema({
   tipoCredito: { type: String, enum: ['academia', 'massagem', 'emergencia', 'nenhum'], default: 'nenhum' },
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', required: true },
   clienteId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
-  status: { type: String, enum: ['agendado', 'presenca', 'cancelado'], default: 'agendado' }
+  status: { type: String, enum: ['agendado', 'presenca', 'cancelado', 'falta'], default: 'agendado' }
 }, { timestamps: true });
 
 export default models.Appointment || model('Appointment', AppointmentSchema);

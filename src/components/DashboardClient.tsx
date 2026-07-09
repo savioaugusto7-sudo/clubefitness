@@ -710,8 +710,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         </td>
                         <td>{a.servico}</td>
                         <td className="text-center">
-                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
-                            {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
+                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
+                            {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
                           </span>
                         </td>
                         <td>
@@ -2132,7 +2132,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     .map((a: any) => {
                       const tipoCor: Record<string, string> = { academia: 'var(--color-primary)', emergencia: '#f59e0b', massagem: '#a855f7' };
                       const tipoLabel: Record<string, string> = { academia: 'Academia', emergencia: 'Emergência', massagem: 'Massagem' };
-                      const statusCor: Record<string, string> = { agendado: 'var(--color-warning)', presenca: 'var(--color-success)', cancelado: 'var(--color-danger)' };
+                      const statusCor: Record<string, string> = { agendado: 'var(--color-warning)', presenca: 'var(--color-success)', cancelado: 'var(--color-danger)', falta: 'var(--color-danger)' };
                       return (
                         <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                           <td style={{ padding: '10px', fontSize: '0.82rem' }}>{a.data} {a.horario}</td>

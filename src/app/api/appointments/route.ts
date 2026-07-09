@@ -50,8 +50,8 @@ function applyStatusTransition(
 
   const com = client.dadosComerciais;
 
-  // 1. agendado → presenca
-  if (oldStatus === 'agendado' && newStatus === 'presenca') {
+  // 1. agendado → presenca ou falta
+  if (oldStatus === 'agendado' && (newStatus === 'presenca' || newStatus === 'falta')) {
     com[fields.reservados] = Math.max(0, (com[fields.reservados] || 0) - 1);
     com[fields.usados] = (com[fields.usados] || 0) + 1;
   }
@@ -62,8 +62,8 @@ function applyStatusTransition(
       com[fields.usados] = (com[fields.usados] || 0) + 1; // cancelamento tardio consome crédito
     }
   }
-  // 3. presenca → agendado
-  else if (oldStatus === 'presenca' && newStatus === 'agendado') {
+  // 3. presenca ou falta → agendado
+  else if ((oldStatus === 'presenca' || oldStatus === 'falta') && newStatus === 'agendado') {
     com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
     com[fields.reservados] = (com[fields.reservados] || 0) + 1;
   }
@@ -74,8 +74,8 @@ function applyStatusTransition(
       com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
     }
   }
-  // 5. presenca → cancelado
-  else if (oldStatus === 'presenca' && newStatus === 'cancelado') {
+  // 5. presenca ou falta → cancelado
+  else if ((oldStatus === 'presenca' || oldStatus === 'falta') && newStatus === 'cancelado') {
     com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
     if (diffHoras < janelaHoras) {
       com[fields.usados] = (com[fields.usados] || 0) + 1;
