@@ -97,6 +97,21 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   const [manualProfId, setManualProfId] = useState('');
   const [clientSearchText, setClientSearchText] = useState('');
 
+  // States para Modal Customizado de Confirmação de Deleção
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [deleteTargetTime, setDeleteTargetTime] = useState('');
+  const [deleteTargetType, setDeleteTargetType] = useState<'academia' | 'consultorio'>('academia');
+
+  // Função utilitária de formatação de data com dia da semana
+  const formatSelectedDateWithDayOfWeek = (dateStr: string) => {
+    if (!dateStr) return '';
+    const dateObj = new Date(dateStr + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('pt-BR');
+    const dayOfWeek = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+    const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+    return `${formattedDate} (${capitalizedDay})`;
+  };
+
   // Notificação temporária
   const showFeedback = (text: string, type: 'success' | 'danger') => {
     setMessage({ text, type });
@@ -462,17 +477,15 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
       alert('Selecione o cliente.');
       return;
     }
-    if (!manualProfId) {
-      alert('Selecione o profissional.');
-      return;
-    }
+
+    const defaultProfId = professionals[0]?._id || '6668ab030303030303030302';
 
     const payload = {
       data: selectedDate,
       horario: selectedSlot?.horario,
       servico: manualService,
       clienteId: manualClientId,
-      profissionalId: manualProfId,
+      profissionalId: defaultProfId,
       bypassRestrictions: true
     };
 
@@ -490,7 +503,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         
         const newApt = data.data;
         const c = clients.find(cl => cl._id === manualClientId);
-        const p = professionals.find(pr => pr._id === manualProfId);
+        const p = professionals.find(pr => pr._id === defaultProfId);
         newApt.clienteId = c;
         newApt.profissionalId = p;
 
@@ -633,7 +646,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
           <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
             <small style={{ color: 'var(--text-dim)', display: 'block' }}>Data selecionada:</small>
             <strong style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>
-              {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+              {selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : '—'}
             </strong>
           </div>
         </div>
@@ -651,7 +664,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
             <>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-clock" style={{ color: 'var(--text-dim)' }}></i>
-                Grade de Horários para {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}
+                Grade de Horários para {selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : ''}
               </h3>
 
               {slots.length === 0 ? (
@@ -749,10 +762,9 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                             className="btn btn-secondary btn-sm" 
                             style={{ color: 'var(--color-danger)' }}
                             onClick={() => {
-                              if (confirm(`Suspender o horário das ${slot.horario} (${slot.tipo})?`)) {
-                                const recursivo = confirm('Deseja excluir de forma recorrente (todas as semanas neste dia)?');
-                                handleBlockSlot(slot.horario, slot.tipo, recursivo);
-                              }
+                              setDeleteTargetTime(slot.horario);
+                              setDeleteTargetType(slot.tipo);
+                              setShowDeleteConfirmModal(true);
                             }}
                           >
                             <i className="fa-solid fa-trash-can"></i>
@@ -790,7 +802,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
-                  Compromissos Google Agenda ({selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''})
+                  Compromissos Google Agenda ({selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : ''})
                 </h3>
                 <span style={{ fontSize: '0.72rem', background: '#10b98120', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
                   CONECTADA
@@ -926,6 +938,60 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         </div>
       )}
 
+      {/* MODAL 1.5: Suspender Horário (Confirmação Customizada) */}
+      {showDeleteConfirmModal && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowDeleteConfirmModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px', width: '90%' }}>
+            <div className="modal-header">
+              <h3 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-trash-can"></i> Suspender Horário
+              </h3>
+              <button className="modal-close" onClick={() => setShowDeleteConfirmModal(false)}>&times;</button>
+            </div>
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5 }}>
+                Como deseja suspender o horário das <strong>{deleteTargetTime}</strong> ({deleteTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})?
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    handleBlockSlot(deleteTargetTime, deleteTargetType, false);
+                    setShowDeleteConfirmModal(false);
+                  }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '12px 16px', height: 'auto', textAlign: 'left', borderColor: 'var(--border-color)' }}
+                >
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>
+                    Apenas neste dia ({selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : ''})
+                  </strong>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>O horário voltará a ficar ativo na semana seguinte.</span>
+                </button>
+
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    handleBlockSlot(deleteTargetTime, deleteTargetType, true);
+                    setShowDeleteConfirmModal(false);
+                  }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '12px 16px', height: 'auto', textAlign: 'left', borderColor: 'var(--border-color)' }}
+                >
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>De forma recorrente (semanal)</strong>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Remover das {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }) + 's' : 'todas as semanas'}.
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setShowDeleteConfirmModal(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL 2: Adicionar Horário Extra (Local) */}
       {showAddHourModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAddHourModal(false)}>
@@ -1047,54 +1113,65 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                       }}
                     />
                     {clientSearchText && !manualClientId && (
-                      <div style={{ position: 'absolute', width: '100%', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', zIndex: 10, marginTop: '2px' }}>
+                      <div style={{ 
+                        position: 'absolute', 
+                        width: '100%', 
+                        background: '#ffffff', 
+                        border: '1px solid #d1d5db', 
+                        borderRadius: '6px', 
+                        zIndex: 9999, 
+                        marginTop: '2px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        maxHeight: '200px',
+                        overflowY: 'auto'
+                      }}>
                         {filteredClients.map(c => (
                           <div 
                             key={c._id}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.8rem', borderBottom: '1px solid var(--border-color)' }}
+                            style={{ 
+                              padding: '10px 12px', 
+                              cursor: 'pointer', 
+                              fontSize: '0.82rem', 
+                              borderBottom: '1px solid #f3f4f6',
+                              color: '#111827',
+                              transition: 'background-color 0.2s'
+                            }}
                             onClick={() => {
                               setManualClientId(c._id);
                               setClientSearchText(c.dadosPessoais.nome);
                             }}
-                            className="autocomplete-item"
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                           >
-                            <strong>{c.dadosPessoais.nome}</strong> (CPF: {c.dadosPessoais.cpf})
+                            <strong style={{ color: '#111827' }}>{c.dadosPessoais.nome}</strong> 
+                            <span style={{ color: '#6b7280', marginLeft: '6px' }}>
+                              (CPF: {c.dadosPessoais.cpf || '—'})
+                            </span>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Serviço</label>
-                      <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)}>
-                        {selectedSlot.tipo === 'academia' ? (
-                          <>
-                            <option value="Treino Monitorado">Treino Monitorado</option>
-                            <option value="Treino Livre">Treino Livre</option>
-                            <option value="Recovery">Recovery</option>
-                            <option value="Avaliação Física">Avaliação Física</option>
-                            <option value="Teste de Força">Teste de Força</option>
-                            <option value="Emergência">Emergência</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Profissional</label>
-                      <select className="select-custom" value={manualProfId} onChange={e => setManualProfId(e.target.value)}>
-                        <option value="">Selecione o profissional...</option>
-                        {professionals.map(p => (
-                          <option key={p._id} value={p._id}>{p.nome}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Serviço</label>
+                    <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)}>
+                      {selectedSlot.tipo === 'academia' ? (
+                        <>
+                          <option value="Treino Monitorado">Treino Monitorado</option>
+                          <option value="Treino Livre">Treino Livre</option>
+                          <option value="Recovery">Recovery</option>
+                          <option value="Avaliação Física">Avaliação Física</option>
+                          <option value="Teste de Força">Teste de Força</option>
+                          <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                          <option value="Emergência">Emergência</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                        </>
+                      )}
+                    </select>
                   </div>
 
                   <button className="btn btn-primary" onClick={handleManualBook} style={{ alignSelf: 'flex-end', marginTop: '6px' }}>
