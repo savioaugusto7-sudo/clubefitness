@@ -153,7 +153,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Workout editor tab states
   const [workoutSearch, setWorkoutSearch] = useState('');
   const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises'>('clients');
-  const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'none'>('all');
+  const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
   const [workoutPlanFilter, setWorkoutPlanFilter] = useState<string>('all');
   const [isNewWorkoutSheet, setIsNewWorkoutSheet] = useState(false);
   const [originalWorkoutData, setOriginalWorkoutData] = useState<any>(null);
@@ -2698,9 +2698,35 @@ goniometria: {
       (userWorkout.fichasLivre && userWorkout.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0))
     );
     
+    // Calcular se a ficha está expirada (mais de 60 dias)
+    let isExpired = false;
+    if (hasActiveWorkout && userWorkout) {
+      const dates: string[] = [];
+      if (userWorkout.fichasMonitorado) {
+        userWorkout.fichasMonitorado.forEach((f: any) => {
+          if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+        });
+      }
+      if (userWorkout.fichasLivre) {
+        userWorkout.fichasLivre.forEach((f: any) => {
+          if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+        });
+      }
+      if (dates.length > 0) {
+        dates.sort((a, b) => b.localeCompare(a));
+        const latestDate = new Date(dates[0] + 'T12:00:00');
+        const today = new Date();
+        const diffTime = today.getTime() - latestDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        isExpired = diffDays > 60;
+      }
+    }
+    
     let matchesStatus = true;
     if (workoutStatusFilter === 'active') {
-      matchesStatus = !!hasActiveWorkout;
+      matchesStatus = !!hasActiveWorkout && !isExpired;
+    } else if (workoutStatusFilter === 'expired') {
+      matchesStatus = !!hasActiveWorkout && isExpired;
     } else if (workoutStatusFilter === 'none') {
       matchesStatus = !hasActiveWorkout;
     }
@@ -3135,7 +3161,8 @@ goniometria: {
                           onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutStatusFilter(e.target.value as any); }}
                         >
                           <option value="all">Todos os Status</option>
-                          <option value="active">Com Ficha Ativa</option>
+                          <option value="active">Com Ficha Ativa (Válida)</option>
+                          <option value="expired">Com Ficha Vencida</option>
                           <option value="none">Sem Ficha</option>
                         </select>
                       </div>
@@ -3198,8 +3225,8 @@ goniometria: {
                               (userWorkout.fichasLivre && userWorkout.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0))
                             );
 
-                            const getUltimaFichaDate = () => {
-                              if (!userWorkout) return '—';
+                            const getUltimaFichaInfo = () => {
+                              if (!userWorkout) return { dateStr: '—', isExpired: false };
                               const dates: string[] = [];
                               if (userWorkout.fichasMonitorado) {
                                 userWorkout.fichasMonitorado.forEach((f: any) => {
@@ -3215,26 +3242,37 @@ goniometria: {
                                   }
                                 });
                               }
-                              if (dates.length === 0) return '—';
+                              if (dates.length === 0) return { dateStr: '—', isExpired: false };
                               dates.sort((a, b) => b.localeCompare(a));
-                              const parts = dates[0].split('-');
-                              if (parts.length === 3) {
-                                return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                              }
-                              return dates[0];
+                              const latestDateStr = dates[0];
+                              const latestDate = new Date(latestDateStr + 'T12:00:00');
+                              const today = new Date();
+                              const diffTime = today.getTime() - latestDate.getTime();
+                              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                              const isExpired = diffDays > 60;
+                              const parts = latestDateStr.split('-');
+                              const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : latestDateStr;
+                              return { dateStr: formattedDate, isExpired };
                             };
+
+                            const { dateStr, isExpired } = getUltimaFichaInfo();
 
                             return (
                               <tr key={c._id}>
                                 <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
                                 <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
                                 <td style={{ textAlign: 'center' }}>
-                                  <span className={`badge ${hasWorkout ? 'badge-success' : 'badge-warning'}`}>
-                                    {hasWorkout ? 'Ficha Ativa' : 'Sem Ficha'}
+                                  <span className={`badge ${hasWorkout ? (isExpired ? 'badge-danger' : 'badge-success') : 'badge-warning'}`}>
+                                    {hasWorkout ? (isExpired ? 'Ficha Vencida' : 'Ficha Ativa') : 'Sem Ficha'}
                                   </span>
                                 </td>
                                 <td style={{ textAlign: 'center' }}>
-                                  <strong style={{ fontSize: '0.85rem' }}>{getUltimaFichaDate()}</strong>
+                                  <strong style={{ fontSize: '0.85rem' }}>{dateStr}</strong>
+                                  {hasWorkout && isExpired && (
+                                    <div style={{ marginTop: '4px' }}>
+                                      <span className="badge badge-danger" style={{ fontSize: '0.7rem', padding: '2px 6px', fontWeight: 700 }}>Vencida</span>
+                                    </div>
+                                  )}
                                 </td>
                                 <td>
                                   <button className="btn btn-primary btn-sm" onClick={() => handleOpenWorkoutEditor(c)}>
