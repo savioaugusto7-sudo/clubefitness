@@ -1,0 +1,1091 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+
+interface GestaoContratosPanelProps {
+  clients: any[];
+  plans: any[];
+  userCargo: string;
+  fetchData: () => void;
+}
+
+export default function GestaoContratosPanel({
+  clients,
+  plans,
+  userCargo,
+  fetchData
+}: GestaoContratosPanelProps) {
+  // Navigation & General states
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loadingContracts, setLoadingContracts] = useState(false);
+
+  // Form states (Dados Comerciais)
+  const [dcPlano, setDcPlano] = useState('');
+  const [dcFormaPag, setDcFormaPag] = useState('pix');
+  const [dcDuracao, setDcDuracao] = useState<'mensal' | 'anual' | 'semana' | 'indeterminado'>('mensal');
+  const [dcVigenciaQtd, setDcVigenciaQtd] = useState(1);
+  const [dcValorUnitario, setDcValorUnitario] = useState(0);
+  const [dcVencimento, setDcVencimento] = useState('');
+  const [dcDescontoTipo, setDcDescontoTipo] = useState<'percentual' | 'fixo'>('percentual');
+  const [dcDescontoValor, setDcDescontoValor] = useState(0);
+  const [dcParcelas, setDcParcelas] = useState(1);
+  const [dcDataInicio, setDcDataInicio] = useState('');
+  const [dcResponsavelVenda, setDcResponsavelVenda] = useState('');
+  const [dcUnidadeContratada, setDcUnidadeContratada] = useState('');
+  const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
+  const [dcFrequencia, setDcFrequencia] = useState(3);
+  const [dcCreditosTotal, setDcCreditosTotal] = useState(0);
+  const [dcGerarAsaas, setDcGerarAsaas] = useState(false);
+  const [savingComercial, setSavingComercial] = useState(false);
+
+  // Modals & Triggers
+  const [showTextPreview, setShowTextPreview] = useState(false);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+
+  // Presential Signature Modal Canvas states
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [sigName, setSigName] = useState('');
+  const [sigConsent, setSigConsent] = useState(false);
+  const [submittingSignature, setSubmittingSignature] = useState(false);
+
+  // Filter clients
+  const filteredClients = clients.filter(c => {
+    const nome = c.dadosPessoais?.nome || '';
+    const cpf = c.dadosPessoais?.cpf || '';
+    const q = searchQuery.toLowerCase();
+    return nome.toLowerCase().includes(q) || cpf.includes(q);
+  });
+
+  // Load contracts for selected client
+  const loadContracts = async (clientId: string) => {
+    try {
+      setLoadingContracts(true);
+      const res = await fetch(`/api/contracts?clientId=${clientId}`);
+      const data = await res.json();
+      if (data.success) {
+        setContracts(data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar histórico de contratos:', err);
+    } finally {
+      setLoadingContracts(false);
+    }
+  };
+
+  // Sync clicksign status
+  const handleSyncClicksign = async (contractId: string) => {
+    try {
+      const res = await fetch(`/api/clicksign?id=${contractId}`);
+      const data = await res.json();
+      if (data.success) {
+        alert('Status sincronizado com sucesso!');
+        if (selectedClient) loadContracts(selectedClient._id);
+        fetchData();
+      } else {
+        alert('Erro ao sincronizar: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao sincronizar: ' + err.message);
+    }
+  };
+
+  // Cancel clicksign/manual contract
+  const handleCancelContract = async (contractId: string, clientNome: string) => {
+    if (!confirm(`Cancelar o contrato de ${clientNome}? Esta ação não pode ser desfeita.`)) return;
+    try {
+      const res = await fetch(`/api/clicksign?id=${contractId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert('Contrato cancelado com sucesso!');
+        if (selectedClient) loadContracts(selectedClient._id);
+        fetchData();
+      } else {
+        alert('Erro ao cancelar: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao cancelar: ' + err.message);
+    }
+  };
+
+  // Select client workspace
+  const handleSelectClient = (client: any) => {
+    setSelectedClient(client);
+    const com = client.dadosComerciais || {};
+    
+    setDcPlano(com.planoId?._id || com.planoId || '');
+    setDcFormaPag(com.formaPagamento || 'pix');
+    setDcDuracao(com.duracao || 'mensal');
+    setDcVigenciaQtd(com.duracaoQtd || 1);
+    setDcValorUnitario(com.valorUnitario || 0);
+    setDcVencimento(com.vencimento || '');
+    setDcDescontoTipo(com.descontoTipo || 'percentual');
+    setDcDescontoValor(com.descontoValor || 0);
+    setDcParcelas(com.parcelas || 1);
+    setDcDataInicio(com.dataInicio || new Date().toISOString().split('T')[0]);
+    setDcResponsavelVenda(com.responsavelVenda || '');
+    setDcUnidadeContratada(com.unidadeContratada || '');
+    setDcObservacoesContratuais(com.observacoesContratuais || '');
+    setDcFrequencia(client.frequencia || 3);
+    setDcCreditosTotal(com.creditosTotal || 0);
+    setDcGerarAsaas(false);
+
+    loadContracts(client._id);
+  };
+
+  // Auto-fill values when plan changes
+  useEffect(() => {
+    if (!dcPlano) return;
+    const plan = plans.find(p => p._id === dcPlano);
+    if (plan) {
+      setDcValorUnitario(plan.preco);
+      setDcDuracao(plan.tipo === 'Anual' ? 'anual' : 'mensal');
+      setDcVigenciaQtd(plan.tipo === 'Anual' ? 12 : 1);
+      
+      // Setup default credits
+      const planCreds = plan.creditosTotal || 0;
+      setDcCreditosTotal(planCreds);
+    }
+  }, [dcPlano, plans]);
+
+  // Save commercial data to client profile
+  const handleSaveComercial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient) return;
+    try {
+      setSavingComercial(true);
+      const res = await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedClient._id,
+          dadosComerciais: {
+            planoId: dcPlano || null,
+            formaPagamento: dcFormaPag,
+            duracao: dcDuracao,
+            duracaoQtd: dcVigenciaQtd,
+            valorUnitario: dcValorUnitario,
+            vencimento: dcVencimento,
+            descontoTipo: dcDescontoTipo,
+            descontoValor: dcDescontoValor,
+            parcelas: dcParcelas,
+            dataInicio: dcDataInicio,
+            responsavelVenda: dcResponsavelVenda,
+            unidadeContratada: dcUnidadeContratada,
+            observacoesContratuais: dcObservacoesContratuais,
+            creditosTotal: dcCreditosTotal
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Dados comerciais atualizados com sucesso no perfil do aluno!');
+        setSelectedClient(data.data);
+        fetchData();
+      } else {
+        alert('Erro ao salvar dados comerciais: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao salvar dados comerciais: ' + err.message);
+    } finally {
+      setSavingComercial(false);
+    }
+  };
+
+  // Generate dynamic contract HTML text
+  const generateContractText = () => {
+    const plan = plans.find(p => p._id === dcPlano);
+    if (!plan) return '<p style="color:var(--color-danger);font-weight:bold;">Selecione um plano comercial na coluna da esquerda para gerar a minuta do contrato.</p>';
+
+    const pes = selectedClient.dadosPessoais || {};
+    const formattedCpf = pes.cpf || '—';
+    const formattedNome = pes.nome || '—';
+    
+    const isAnual = dcDuracao === 'anual';
+    let vigenciaText = '1 (um) mês';
+    if (dcDuracao === 'semana') {
+      vigenciaText = `${dcVigenciaQtd} semana(s)`;
+    } else if (dcDuracao === 'mensal') {
+      vigenciaText = dcVigenciaQtd === 1 ? '1 (um) mês' : `${dcVigenciaQtd} meses`;
+    } else if (dcDuracao === 'anual') {
+      vigenciaText = dcVigenciaQtd === 1 ? '12 (doze) meses (1 ano)' : `${dcVigenciaQtd * 12} meses (${dcVigenciaQtd} anos)`;
+    }
+
+    const bruto = dcValorUnitario * dcVigenciaQtd;
+    const descVal = Number(dcDescontoValor) || 0;
+    let liquido = bruto;
+    if (dcDescontoTipo === 'percentual') {
+      liquido = bruto * (1 - descVal / 100);
+    } else {
+      liquido = Math.max(0, bruto - descVal);
+    }
+    const valFinal = liquido;
+    const valorParcela = valFinal / (Number(dcParcelas) || 1);
+
+    const formaPagText = ({ pix: 'Pix', boleto: 'Boleto Bancário', cartao: 'Cartão de Crédito/Débito', dinheiro: 'Dinheiro' } as any)[dcFormaPag] || dcFormaPag;
+    const dataContrato = new Date().toLocaleDateString('pt-BR');
+    const servicosList = plan.servicosPermitidos?.length > 0 ? plan.servicosPermitidos.join(', ') : 'Treino Monitorado, Recovery, Fisioterapia';
+
+    const endD = new Date((dcDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+    endD.setMonth(endD.getMonth() + (isAnual ? 12 : 1));
+    const dataFimCalculada = endD.toLocaleDateString('pt-BR');
+
+    const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
+
+    let html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #000; font-size: 9.5pt;">
+        <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px;">
+          <h1 style="margin: 0; font-size: 15pt; font-weight: bold; color: #10b981;">CLUBE FITNESS FISIO</h1>
+          <p style="margin: 4px 0 0; font-size: 9pt; color: #555;">Prestação de Fisioterapia e Atividades Físicas Personalizadas</p>
+          <h2 style="margin: 10px 0 0; font-size: 12pt; font-weight: bold; text-transform: uppercase;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS E ADESÃO</h2>
+        </div>
+
+        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
+        <p style="margin-bottom: 10px;">
+          <strong>CONTRATADA:</strong> CLUBE FITNESS FISIO, sediada em Belo Horizonte, Minas Gerais.<br/>
+          <strong>CONTRATANTE:</strong> ${formattedNome}, CPF nº ${formattedCpf}, residente em: ${enderecoCompleto}. E-mail: ${pes.email || '—'}, Telefone: ${pes.telefone || '—'}.
+        </p>
+
+        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">2. OBJETO DO CONTRATO</h3>
+        <p style="margin-bottom: 10px;">
+          O objeto deste contrato é a prestação de serviços de condicionamento físico e acompanhamento terapêutico na modalidade <strong>Plano ${plan.nome}</strong>.
+        </p>
+
+        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">3. SERVIÇOS E VIGÊNCIA</h3>
+        <p style="margin-bottom: 10px;">
+          <strong>3.1 Serviços Inclusos:</strong> O aluno terá acesso às seguintes modalidades/serviços: ${servicosList}. Saldo total: ${dcCreditosTotal} créditos mensais.<br/>
+          <strong>3.2 Vigência:</strong> Este contrato vigorará por <strong>${vigenciaText}</strong>, iniciando em <strong>${new Date(dcDataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}</strong> e término em <strong>${dataFimCalculada}</strong>.
+        </p>
+
+        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">4. VALORES E CONDIÇÕES DE PAGAMENTO</h3>
+        <p style="margin-bottom: 10px;">
+          O CONTRATANTE pagará à CONTRATADA o valor líquido total de <strong>R$ ${valFinal.toFixed(2).replace('.', ',')}</strong>, parcelado em <strong>${dcParcelas}x</strong> de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')}</strong> via <strong>${formaPagText}</strong>, com vencimento inicial em <strong>${new Date(dcVencimento + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>.
+        </p>
+
+        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">5. CANCELAMENTOS E MULTAS</h3>
+        <p style="margin-bottom: 10px;">
+          Cancelamentos e ausências devem ser avisados com antecedência mínima de 6 (seis) horas. Desistências antes do prazo de vigência acarretarão multa rescisória de 10% do valor restante a vencer.
+        </p>
+
+        <p style="margin-top: 30px; text-align: center;">Belo Horizonte, ${dataContrato}</p>
+        
+        <div style="display: flex; justify-content: space-between; margin-top: 40px; gap: 30px;">
+          <div style="flex: 1; text-align: center;"><div style="border-top: 1px solid #333; padding-top: 6px;"><strong>CONTRATADO</strong><br/><small>Clube Fitness Fisio</small></div></div>
+          <div style="flex: 1; text-align: center;"><div style="border-top: 1px solid #333; padding-top: 6px;"><strong>CONTRATANTE</strong><br/><small>${formattedNome}</small></div></div>
+        </div>
+      </div>
+    `;
+
+    return html;
+  };
+
+  // Submit contract (clicksSign, manual pending, or direct signed)
+  const handleIssueContract = async (status: 'pendente' | 'clicksign') => {
+    const plan = plans.find(p => p._id === dcPlano);
+    if (!plan) {
+      alert('Selecione um plano comercial.');
+      return;
+    }
+
+    const isClicksign = status === 'clicksign';
+    let pdfBase64 = '';
+
+    if (isClicksign) {
+      try {
+        pdfBase64 = await getContractPDFBase64(
+          {
+            ...selectedClient,
+            dadosComerciais: {
+              planoId: dcPlano,
+              formaPagamento: dcFormaPag,
+              duracao: dcDuracao,
+              vencimento: dcVencimento,
+              descontoTipo: dcDescontoTipo,
+              descontoValor: dcDescontoValor,
+              parcelas: dcParcelas,
+              dataInicio: dcDataInicio,
+              responsavelVenda: dcResponsavelVenda,
+              unidadeContratada: dcUnidadeContratada,
+              observacoesContratuais: dcObservacoesContratuais
+            }
+          },
+          plan,
+          generateContractText()
+        );
+      } catch (err: any) {
+        alert('Erro ao gerar o PDF para a Clicksign: ' + err.message);
+        return;
+      }
+    }
+
+    const payload = {
+      clientId: selectedClient._id,
+      planoId: dcPlano,
+      descontoTipo: dcDescontoTipo,
+      descontoValor: dcDescontoValor,
+      parcelas: dcParcelas,
+      formaPagamento: dcFormaPag,
+      dataPrimeiroVencimento: dcVencimento,
+      dataInicio: dcDataInicio,
+      responsavelVenda: dcResponsavelVenda,
+      unidadeContratada: dcUnidadeContratada,
+      observacoesContratuais: dcObservacoesContratuais,
+      status: isClicksign ? 'pendente' : 'pendente',
+      contratoTexto: generateContractText(),
+      usuarioEmissor: userCargo,
+      enviarClicksign: isClicksign,
+      enviarAsaas: dcGerarAsaas,
+      contratoPdfBase64: pdfBase64,
+      frequencia: dcFrequencia,
+      creditosTotal: dcCreditosTotal
+    };
+
+    try {
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(isClicksign ? 'Contrato enviado para Clicksign com sucesso!' : 'Contrato pendente gerado!');
+        loadContracts(selectedClient._id);
+        fetchData();
+      } else {
+        alert('Erro ao gerar contrato: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro: ' + err.message);
+    }
+  };
+
+  // HTML5 Canvas Drawing functions for Presential Touch Signature
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getMouseCoords(e);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const coords = getMouseCoords(e);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    ctx.lineTo(coords.x, coords.y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const startDrawingTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const coords = getTouchCoords(e);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+    setIsDrawing(true);
+  };
+
+  const drawTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const coords = getTouchCoords(e);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    ctx.lineTo(coords.x, coords.y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  };
+
+  const stopDrawingTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    setIsDrawing(false);
+  };
+
+  const getMouseCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  };
+
+  const getTouchCoords = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    };
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  };
+
+  // Open signature canvas modal
+  const handleOpenSignatureModal = () => {
+    const plan = plans.find(p => p._id === dcPlano);
+    if (!plan) {
+      alert('Por favor, selecione um plano comercial antes.');
+      return;
+    }
+    setSigName(selectedClient.dadosPessoais?.nome || '');
+    setSigConsent(false);
+    setShowSignatureModal(true);
+    // Let the DOM render and clear the canvas
+    setTimeout(() => clearCanvas(), 100);
+  };
+
+  // Submit Touch Signature contract creation
+  const handleSaveSignatureContract = async () => {
+    if (!sigConsent) {
+      alert('Você precisa aceitar os termos declarados.');
+      return;
+    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    setSubmittingSignature(true);
+    try {
+      const base64Image = canvas.toDataURL('image/png');
+      
+      // Grab IP address
+      let ip = 'IP não detectado';
+      try {
+        const ipRes = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipRes.json();
+        ip = ipData.ip || 'IP não detectado';
+      } catch (err) {
+        console.warn('Failed to fetch public IP:', err);
+      }
+
+      const plan = plans.find(p => p._id === dcPlano);
+      const payload = {
+        clientId: selectedClient._id,
+        planoId: dcPlano,
+        descontoTipo: dcDescontoTipo,
+        descontoValor: dcDescontoValor,
+        parcelas: dcParcelas,
+        formaPagamento: dcFormaPag,
+        dataPrimeiroVencimento: dcVencimento,
+        dataInicio: dcDataInicio,
+        responsavelVenda: dcResponsavelVenda,
+        unidadeContratada: dcUnidadeContratada,
+        observacoesContratuais: dcObservacoesContratuais,
+        status: 'assinado',
+        assinaturaNome: sigName,
+        contratoTexto: generateContractText(),
+        usuarioEmissor: userCargo,
+        enviarClicksign: false,
+        enviarAsaas: dcGerarAsaas,
+        frequencia: dcFrequencia,
+        creditosTotal: dcCreditosTotal,
+        assinaturaPresencialImage: base64Image,
+        trilhaAuditoria: {
+          ip,
+          dataHora: new Date(),
+          operadorNome: userCargo,
+          userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'Desconhecido'
+        }
+      };
+
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Assinatura presencial coletada e contrato ativado com sucesso!');
+        setShowSignatureModal(false);
+        loadContracts(selectedClient._id);
+        fetchData();
+        
+        // Trigger auto-download
+        downloadContractPDF(selectedClient, plan, payload.contratoTexto, data.data);
+      } else {
+        alert('Erro ao emitir contrato assinado: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro: ' + err.message);
+    } finally {
+      setSubmittingSignature(false);
+    }
+  };
+
+  // Render Client List General View
+  if (!selectedClient) {
+    return (
+      <div>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Gestão Completa de Contratos</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+            Selecione um aluno para gerenciar dados comerciais, ler minutas de contratos e disparar assinaturas (Clicksign ou Presencial por Touchscreen).
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '20px', display: 'flex', gap: '12px' }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Buscar aluno por nome ou CPF..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ maxWidth: '360px' }}
+          />
+        </div>
+
+        <div className="content-panel">
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Aluno</th>
+                  <th>CPF</th>
+                  <th>Plano Comercial Atual</th>
+                  <th>Vigência Comercial</th>
+                  <th>Status Comercial</th>
+                  <th style={{ textAlign: 'center' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClients.map((c: any) => {
+                  const com = c.dadosComerciais || {};
+                  const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
+                  const status = com.status || 'pendente';
+                  const stLabel = status === 'assinado' ? 'Contrato Ativo' : status === 'congelado' ? 'Congelado' : 'Sem Contrato Ativo';
+                  const stColor = status === 'assinado' ? 'var(--color-success)' : status === 'congelado' ? 'var(--color-warning)' : 'var(--text-dim)';
+                  
+                  return (
+                    <tr key={c._id}>
+                      <td style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome || 'Sem Nome'}</td>
+                      <td>{c.dadosPessoais?.cpf || '—'}</td>
+                      <td>{plan?.nome || '—'}</td>
+                      <td>
+                        {com.dataInicio ? `${new Date(com.dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} até ${com.vencimento ? new Date(com.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}` : '—'}
+                      </td>
+                      <td>
+                        <span style={{ color: stColor, fontWeight: 700 }}>{stLabel}</span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                          onClick={() => handleSelectClient(c)}
+                        >
+                          <i className="fa-solid fa-file-signature" style={{ marginRight: '6px' }}></i> Gerenciar Contratos
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredClients.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                      Nenhum aluno encontrado correspondente à pesquisa.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Detailed Workspace View for Selected Client
+  return (
+    <div>
+      {/* Workspace Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <button className="btn btn-secondary" onClick={() => setSelectedClient(null)}>
+          <i className="fa-solid fa-arrow-left" style={{ marginRight: '6px' }}></i> Voltar para a lista
+        </button>
+        <div>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Aluno selecionado: <strong>{selectedClient.dadosPessoais?.nome}</strong> ({selectedClient.dadosPessoais?.cpf || 'Sem CPF'})
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '24px', alignItems: 'start' }}>
+        
+        {/* Left Column: Commercial settings */}
+        <form onSubmit={handleSaveComercial} className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+            <i className="fa-solid fa-gears" style={{ marginRight: '8px' }}></i> Dados Comerciais do Perfil
+          </h3>
+
+          <div className="form-group">
+            <label>Plano</label>
+            <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} required>
+              <option value="">Selecione um plano...</option>
+              {plans.map(p => (
+                <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco.toFixed(2)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Forma de Pagamento</label>
+              <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} required>
+                <option value="pix">Pix</option>
+                <option value="cartao">Cartão de Crédito</option>
+                <option value="boleto">Boleto Bancário</option>
+                <option value="dinheiro">Dinheiro</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Dia de Vencimento (1º Vencimento)</label>
+              <input
+                type="date"
+                className="form-control"
+                value={dcVencimento}
+                onChange={e => setDcVencimento(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Tipo Vigência</label>
+              <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} required>
+                <option value="semana">Semana</option>
+                <option value="mensal">Mensal</option>
+                <option value="anual">Anual</option>
+                <option value="indeterminado">Indeterminado</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Qtd Vigência</label>
+              <input
+                type="number"
+                className="form-control"
+                value={dcVigenciaQtd}
+                onChange={e => setDcVigenciaQtd(Number(e.target.value))}
+                min={1}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Desconto Tipo</label>
+              <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)}>
+                <option value="percentual">Percentual (%)</option>
+                <option value="fixo">Fixo (R$)</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Desconto Valor</label>
+              <input
+                type="number"
+                className="form-control"
+                value={dcDescontoValor}
+                onChange={e => setDcDescontoValor(Number(e.target.value))}
+                min={0}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Nº Parcelas</label>
+              <select className="select-custom" value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} required>
+                {[...Array(12)].map((_, i) => (
+                  <option key={i + 1} value={i + 1}>{i + 1}x</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Valor Unitário (R$)</label>
+              <input
+                type="number"
+                className="form-control"
+                value={dcValorUnitario}
+                onChange={e => setDcValorUnitario(Number(e.target.value))}
+                min={0}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Data de Início</label>
+              <input
+                type="date"
+                className="form-control"
+                value={dcDataInicio}
+                onChange={e => setDcDataInicio(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Créditos Mensais</label>
+              <input
+                type="number"
+                className="form-control"
+                value={dcCreditosTotal}
+                onChange={e => setDcCreditosTotal(Number(e.target.value))}
+                min={0}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Responsável Venda</label>
+              <input
+                type="text"
+                className="form-control"
+                value={dcResponsavelVenda}
+                onChange={e => setDcResponsavelVenda(e.target.value)}
+                placeholder="Ex: Consultor X"
+              />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Unidade Contratada</label>
+              <input
+                type="text"
+                className="form-control"
+                value={dcUnidadeContratada}
+                onChange={e => setDcUnidadeContratada(e.target.value)}
+                placeholder="Ex: Unidade Lourdes"
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Observações Contratuais</label>
+            <textarea
+              className="form-control"
+              value={dcObservacoesContratuais}
+              onChange={e => setDcObservacoesContratuais(e.target.value)}
+              placeholder="Inserir observações que aparecem na minuta..."
+              style={{ minHeight: '60px', resize: 'vertical' }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={savingComercial}
+            style={{ width: '100%', marginTop: '10px' }}
+          >
+            {savingComercial ? (
+              <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando no Perfil...</span>
+            ) : (
+              <span><i className="fa-solid fa-floppy-disk"></i> Salvar Dados Comerciais no Perfil</span>
+            )}
+          </button>
+        </form>
+
+        {/* Right Column: Issuance & History */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Box 1: Issue actions */}
+          <div className="content-panel" style={{ padding: '20px' }}>
+            <h3 style={{ margin: '0 0 14px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+              <i className="fa-solid fa-file-invoice" style={{ marginRight: '8px' }}></i> Emissão de Novo Contrato
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: '100%', padding: '10px', background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 600 }}
+                onClick={() => setShowTextPreview(true)}
+              >
+                <i className="fa-solid fa-book-open" style={{ marginRight: '6px' }}></i> Visualizar Texto Completo do Contrato
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '6px 0' }}>
+                <input
+                  type="checkbox"
+                  id="cffGerarAsaas"
+                  checked={dcGerarAsaas}
+                  onChange={e => setDcGerarAsaas(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="cffGerarAsaas" style={{ margin: 0, fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
+                  <i className="fa-solid fa-credit-card" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Gerar Cobrança automática no Asaas (Pix/Boleto)
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1, minWidth: '140px', background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  onClick={() => handleOpenSignatureModal()}
+                >
+                  <i className="fa-solid fa-hand-pointer"></i> Assinatura Presencial
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: '140px', color: '#818cf8', borderColor: 'rgba(129,140,248,0.4)', background: 'rgba(129,140,248,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  onClick={() => handleIssueContract('clicksign')}
+                >
+                  <i className="fa-solid fa-file-signature"></i> Enviar p/ Clicksign
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: '140px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  onClick={() => handleIssueContract('pendente')}
+                >
+                  <i className="fa-solid fa-clock"></i> Emitir Pendente
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Box 2: Contract History */}
+          <div className="content-panel" style={{ padding: '20px' }}>
+            <h3 style={{ margin: '0 0 14px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+              <i className="fa-solid fa-history" style={{ marginRight: '8px' }}></i> Histórico de Contratos Emitidos
+            </h3>
+
+            {loadingContracts ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i> Carregando contratos...
+              </div>
+            ) : contracts.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                Nenhum contrato emitido anteriormente para este aluno.
+              </div>
+            ) : (
+              <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                <table className="data-table" style={{ fontSize: '0.8rem' }}>
+                  <thead>
+                    <tr>
+                      <th>Emissão</th>
+                      <th>Plano</th>
+                      <th>Tipo</th>
+                      <th>Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contracts.map(c => {
+                      const cType = c.assinaturaPresencialImage ? 'Presencial (Touch)' : c.clicksignDocKey ? 'Clicksign' : 'Manual';
+                      const st = c.clicksignStatus || c.status;
+                      const statusColor = st === 'assinado' ? 'var(--color-success)' : st === 'cancelado' ? 'var(--color-danger)' : 'var(--color-warning)';
+                      
+                      return (
+                        <tr key={c._id}>
+                          <td>{new Date(c.dataEmissao).toLocaleDateString('pt-BR')}</td>
+                          <td style={{ fontWeight: 600 }}>{c.planoNome}</td>
+                          <td>{cType}</td>
+                          <td>
+                            <span style={{ color: statusColor, fontWeight: 700 }}>
+                              {st === 'assinado' ? 'Assinado' : st === 'cancelado' ? 'Cancelado' : 'Pendente'}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <button
+                                className="btn btn-secondary"
+                                style={{ padding: '3px 6px', fontSize: '0.75rem' }}
+                                title="Baixar PDF do Contrato"
+                                onClick={() => {
+                                  const plan = plans.find(p => p._id === (c.planoId?._id || c.planoId));
+                                  if (plan) downloadContractPDF(selectedClient, plan, c.contratoTexto, c);
+                                }}
+                              >
+                                <i className="fa-solid fa-file-pdf"></i>
+                              </button>
+
+                              {c.clicksignDocKey && st === 'pendente' && (
+                                <>
+                                  <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: '3px 6px', fontSize: '0.75rem', color: 'var(--color-primary)' }}
+                                    title="Sincronizar com Clicksign"
+                                    onClick={() => handleSyncClicksign(c._id)}
+                                  >
+                                    <i className="fa-solid fa-sync"></i>
+                                  </button>
+                                  {c.clicksignUrl && (
+                                    <a
+                                      href={c.clicksignUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="btn btn-secondary"
+                                      style={{ padding: '3px 6px', fontSize: '0.75rem', color: '#6366f1' }}
+                                      title="Abrir Link Clicksign"
+                                    >
+                                      <i className="fa-solid fa-external-link"></i>
+                                    </a>
+                                  )}
+                                </>
+                              )}
+
+                              {st !== 'cancelado' && (
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '3px 6px', fontSize: '0.75rem', color: 'var(--color-danger)' }}
+                                  title="Cancelar Contrato"
+                                  onClick={() => handleCancelContract(c._id, selectedClient.dadosPessoais?.nome)}
+                                >
+                                  <i className="fa-solid fa-trash"></i>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL 1: TEXT PREVIEW */}
+      {showTextPreview && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowTextPreview(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Minuta de Contrato Gerada</h3>
+              <button className="modal-close" onClick={() => setShowTextPreview(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '500px', overflowY: 'auto', background: '#fff', color: '#000', padding: '30px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+              <div dangerouslySetInnerHTML={{ __html: generateContractText() }} />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowTextPreview(false)}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: PRESENTIAL SIGNATURE (TOUCH / CANVAS) */}
+      {showSignatureModal && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => { if (!submittingSignature) setShowSignatureModal(false); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px', width: '95%' }}>
+            <div className="modal-header">
+              <h3>Assinatura Eletrônica Presencial</h3>
+              <button className="modal-close" onClick={() => { if (!submittingSignature) setShowSignatureModal(false); }}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                Vire o tablet, celular ou tela touchscreen para que o aluno leia os termos e assine com o dedo ou caneta stylus.
+              </p>
+
+              <div className="form-group">
+                <label>Nome Completo do Assinante</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={sigName}
+                  onChange={e => setSigName(e.target.value)}
+                  placeholder="Nome do aluno ou responsável legal"
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Desenhe a assinatura abaixo:</label>
+                <div style={{ background: '#fff', borderRadius: '6px', padding: '4px', display: 'flex', justifyContent: 'center' }}>
+                  <canvas
+                    ref={canvasRef}
+                    width={500}
+                    height={180}
+                    style={{
+                      border: '2px dashed #94a3b8',
+                      borderRadius: '4px',
+                      cursor: 'crosshair',
+                      background: '#ffffff',
+                      maxWidth: '100%'
+                    }}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawingTouch}
+                    onTouchMove={drawTouch}
+                    onTouchEnd={stopDrawingTouch}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={clearCanvas}>
+                    <i className="fa-solid fa-eraser"></i> Limpar Tela
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginTop: '6px' }}>
+                <input
+                  type="checkbox"
+                  id="sigConsentCheck"
+                  checked={sigConsent}
+                  onChange={e => setSigConsent(e.target.checked)}
+                  style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer' }}
+                />
+                <label htmlFor="sigConsentCheck" style={{ fontSize: '0.8rem', cursor: 'pointer', lineHeight: '1.4', margin: 0, fontWeight: 500 }}>
+                  Declaro que li e concordo com todos os termos do contrato, realizando a assinatura por meio eletrônico touchscreen neste terminal presencial.
+                </label>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowSignatureModal(false)}
+                disabled={submittingSignature}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSaveSignatureContract}
+                disabled={submittingSignature || !sigConsent || !sigName}
+                style={{ background: '#10b981', borderColor: '#10b981' }}
+              >
+                {submittingSignature ? (
+                  <span><i className="fa-solid fa-spinner fa-spin"></i> Enviando...</span>
+                ) : (
+                  <span><i className="fa-solid fa-file-signature"></i> Finalizar Assinatura</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

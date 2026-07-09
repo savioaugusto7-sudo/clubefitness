@@ -3279,10 +3279,31 @@ function valorExtenso(valor: number): string {
 // ==========================================================
 // PDF — CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 // ==========================================================
-export function downloadContractPDF(client: any, plan: any, templateOverride?: string) {
+export function downloadContractPDF(client: any, plan: any, templateOverride?: string, contract?: any) {
   const html2pdf = (window as any).html2pdf;
   if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
   if (!client) { alert('Cliente não encontrado.'); return; }
+
+  const activeContract = contract || (client?.assinaturaPresencialImage ? client : null);
+  let signatureSection = '';
+  if (activeContract && activeContract.assinaturaPresencialImage) {
+    signatureSection = `
+      <div style="margin-top: 40px; border-top: 1px dashed #000; padding-top: 15px; page-break-inside: avoid; break-inside: avoid; text-align: left;">
+        <h4 style="font-size: 10pt; font-weight: bold; margin-bottom: 8px;">Assinatura Eletrônica Presencial</h4>
+        <div style="display: flex; gap: 20px; align-items: center; justify-content: flex-start;">
+          <img src="${activeContract.assinaturaPresencialImage}" style="max-height: 80px; border: 1px solid #ddd; background: #fff;" />
+          <div style="font-size: 8pt; color: #555; line-height: 1.4; text-align: left;">
+            <strong>Assinante:</strong> ${activeContract.assinaturaNome || client?.dadosPessoais?.nome || '-'}<br/>
+            <strong>CPF:</strong> ${client?.dadosPessoais?.cpf || '-'}<br/>
+            <strong>IP de Origem:</strong> ${activeContract.trilhaAuditoria?.ip || '-'}<br/>
+            <strong>Data/Hora:</strong> ${activeContract.trilhaAuditoria?.dataHora ? new Date(activeContract.trilhaAuditoria.dataHora).toLocaleString('pt-BR') : '-'}<br/>
+            <strong>Operador Responsável:</strong> ${activeContract.trilhaAuditoria?.operadorNome || '-'}<br/>
+            <strong>Dispositivo:</strong> ${activeContract.trilhaAuditoria?.userAgent || '-'}
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
   const com = client.dadosComerciais || {};
@@ -3422,7 +3443,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   // If a rich templateOverride was passed (HTML from generateContractTemplate), use it directly.
   // Otherwise build the legacy header + body.
   if (templateOverride) {
-    pdfContainer.innerHTML = templateOverride + `
+    pdfContainer.innerHTML = templateOverride + signatureSection + `
       <style>
         p, h2, h3, h4 {
           page-break-inside: avoid !important;
@@ -3469,6 +3490,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
         <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATADO<br><small>Clube Fitness Fisio</small></div></div>
         <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome||'-'}</small></div></div>
       </div>
+      ${signatureSection}
     `;
   }
 
@@ -3503,11 +3525,32 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   });
 }
 
-export function getContractPDFBase64(client: any, plan: any, templateOverride?: string): Promise<string> {
+export function getContractPDFBase64(client: any, plan: any, templateOverride?: string, contract?: any): Promise<string> {
   return new Promise((resolve, reject) => {
     const html2pdf = (window as any).html2pdf;
     if (!html2pdf) { reject(new Error('html2pdf.js não está carregado.')); return; }
     if (!client) { reject(new Error('Cliente não encontrado.')); return; }
+
+    const activeContract = contract || (client?.assinaturaPresencialImage ? client : null);
+    let signatureSection = '';
+    if (activeContract && activeContract.assinaturaPresencialImage) {
+      signatureSection = `
+        <div style="margin-top: 40px; border-top: 1px dashed #000; padding-top: 15px; page-break-inside: avoid; break-inside: avoid; text-align: left;">
+          <h4 style="font-size: 10pt; font-weight: bold; margin-bottom: 8px;">Assinatura Eletrônica Presencial</h4>
+          <div style="display: flex; gap: 20px; align-items: center; justify-content: flex-start;">
+            <img src="${activeContract.assinaturaPresencialImage}" style="max-height: 80px; border: 1px solid #ddd; background: #fff;" />
+            <div style="font-size: 8pt; color: #555; line-height: 1.4; text-align: left;">
+              <strong>Assinante:</strong> ${activeContract.assinaturaNome || client?.dadosPessoais?.nome || '-'}<br/>
+              <strong>CPF:</strong> ${client?.dadosPessoais?.cpf || '-'}<br/>
+              <strong>IP de Origem:</strong> ${activeContract.trilhaAuditoria?.ip || '-'}<br/>
+              <strong>Data/Hora:</strong> ${activeContract.trilhaAuditoria?.dataHora ? new Date(activeContract.trilhaAuditoria.dataHora).toLocaleString('pt-BR') : '-'}<br/>
+              <strong>Operador Responsável:</strong> ${activeContract.trilhaAuditoria?.operadorNome || '-'}<br/>
+              <strong>Dispositivo:</strong> ${activeContract.trilhaAuditoria?.userAgent || '-'}
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
     const com = client.dadosComerciais || {};
@@ -3568,7 +3611,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     document.body.appendChild(pdfWrapper);
 
     if (templateOverride) {
-      pdfContainer.innerHTML = templateOverride + `
+      pdfContainer.innerHTML = templateOverride + signatureSection + `
         <style>
           p, h2, h3, h4 { page-break-inside: avoid !important; break-inside: avoid !important; display: block !important; position: relative !important; }
           li, tr, table { page-break-inside: avoid !important; break-inside: avoid !important; }
@@ -3599,6 +3642,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
           <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATADO<br><small>Clube Fitness Fisio</small></div></div>
           <div style="flex:1;text-align:center;"><div style="border-top:1px solid #000;padding-top:6px;margin-top:40px;">CONTRATANTE<br><small>${pes.nome||'-'}</small></div></div>
         </div>
+        ${signatureSection}
       `;
     }
 

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 import SearchableSelect from './SearchableSelect';
+import GestaoContratosPanel from './GestaoContratosPanel';
 
 interface DashboardReceptionistProps {
   activeTab: string;
@@ -2086,42 +2087,8 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   // ══════════════════════════════════════════════════════════════
   if (activeTab === 'contratos') {
     return (
-      <div>
-        <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Contratos</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Selecione um cliente para gerar ou visualizar contratos.</p>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <input
-            placeholder="Buscar cliente..."
-            value={clientSearch}
-            onChange={e => setClientSearch(e.target.value)}
-            style={{ ...inputStyle, maxWidth: '320px' }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {filteredClients.filter((c: any) => c.dadosPessoais?.nome).map((c: any) => {
-            const planInfo = plans.find((p: any) => p._id === (c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId));
-            const st = c.dadosComerciais?.status || 'pendente';
-            return (
-              <div key={c._id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{planInfo?.nome || 'Sem plano'}</div>
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '20px', background: statusColor(st) + '22', color: statusColor(st), fontWeight: 600 }}>{statusLabel(st)}</span>
-                  <button style={btnPrimary} onClick={() => { openClientModal(c); setTimeout(() => setClientModalTab('contratos'), 100); }}>
-                    <i className="fa-solid fa-file-contract" style={{ marginRight: '6px' }} />Gerenciar Contratos
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
+      <>
+        <GestaoContratosPanel clients={clients} plans={plans} userCargo="Recepção" fetchData={fetchData} />
               {/* MANUAL CONFIRM RECEIPT MODAL */}
       {showManualPayModal && selectedPayment && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>
@@ -2438,7 +2405,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
             </div>
           </div>
         )}
-      </div>
+      </>
     );
   }
 

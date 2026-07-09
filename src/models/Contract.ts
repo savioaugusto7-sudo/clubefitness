@@ -44,6 +44,13 @@ const ContractSchema = new Schema({
   clicksignSignerKey: { type: String, default: '' },
   clicksignUrl: { type: String, default: '' },
   clicksignStatus: { type: String, default: 'pendente' },
+  assinaturaPresencialImage: { type: String, default: '' },
+  trilhaAuditoria: {
+    ip: { type: String, default: '' },
+    dataHora: { type: Date, default: null },
+    operadorNome: { type: String, default: '' },
+    userAgent: { type: String, default: '' }
+  },
   asaasPaymentId: { type: String, default: '' },
   asaasInvoiceUrl: { type: String, default: '' },
   asaasBoletoPdf: { type: String, default: '' },

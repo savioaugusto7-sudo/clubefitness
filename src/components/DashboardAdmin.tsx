@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
-import ClicksignPanel from './ClicksignPanel';
+import GestaoContratosPanel from './GestaoContratosPanel';
 import AsaasPanel from './AsaasPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import SearchableSelect from './SearchableSelect';
@@ -3484,9 +3484,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </>
       )}
 
-      {/* ======================== CLICKSIGN MANAGEMENT TAB ======================== */}
-      {activeTab === 'clicksign' && (
-        <ClicksignPanel />
+      {/* ======================== GESTÃO DE CONTRATOS TAB ======================== */}
+      {activeTab === 'gestao_contratos' && (
+        <GestaoContratosPanel clients={clients} plans={plans} userCargo="Administrador" fetchData={fetchData} />
       )}
 
       {/* ======================== ASAAS MANAGEMENT TAB ======================== */}
@@ -3854,7 +3854,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         );
       })()}
 
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'clicksign', 'asaas', 'trancamentos_admin', 'config_agenda'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'gestao_contratos', 'asaas', 'trancamentos_admin', 'config_agenda'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>

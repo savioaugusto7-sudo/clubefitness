@@ -376,7 +376,9 @@ export async function POST(request: Request) {
       contratoHtmlBase64,
       contratoPdfBase64,
       frequencia,
-      creditosTotal
+      creditosTotal,
+      assinaturaPresencialImage,
+      trilhaAuditoria
     } = body;
 
     if (!clientId || !planoId || !dataInicio) {
@@ -518,6 +520,8 @@ export async function POST(request: Request) {
       clicksignSignerKey,
       clicksignUrl,
       clicksignStatus,
+      assinaturaPresencialImage: assinaturaPresencialImage || '',
+      trilhaAuditoria: trilhaAuditoria || null,
       asaasPaymentId,
       asaasInvoiceUrl,
       asaasBoletoPdf,
