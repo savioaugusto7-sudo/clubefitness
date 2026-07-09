@@ -88,6 +88,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [creditAmount, setCreditAmount] = useState(1);
   const [resetPassword, setResetPassword] = useState(false);
   const [creditType, setCreditType] = useState<'academia' | 'massagem' | 'emergencia'>('academia');
+  const [creditOperation, setCreditOperation] = useState<'add' | 'sub'>('add');
+
 
   // New states for the missing features
   const [plans, setPlans] = useState<any[]>([]);
@@ -163,9 +165,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const handleOpenRulesModal = (client: any) => {
     setRulesClient(client);
     setRulesData({
-      permiteRolagem: client.regrasCredito?.permiteRolagem || false,
-      diasRetencaoFalta: client.regrasCredito?.diasRetencaoFalta || 0,
-      deducaoFaltaAtraso: client.regrasCredito?.deducaoFaltaAtraso || 1
+      permiteRolagem: client.dadosComerciais?.regrasCredito?.permiteRolagem || false,
+      diasRetencaoFalta: client.dadosComerciais?.regrasCredito?.diasRetencaoFalta || 0,
+      deducaoFaltaAtraso: client.dadosComerciais?.regrasCredito?.deducaoFaltaAtraso ?? 1
     });
     setShowRulesModal(true);
   };
@@ -174,7 +176,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     if (!rulesClient) return;
     const payload = {
       id: rulesClient._id,
-      regrasCredito: rulesData
+      dadosComerciais: {
+        regrasCredito: rulesData
+      }
     };
     const res = await fetch('/api/clients', {
       method: 'PUT',
@@ -1236,6 +1240,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setModalType('credit');
     setCreditAmount(1);
     setCreditType('academia');
+    setCreditOperation('add');
     setShowModal(true);
   };
 
@@ -1656,12 +1661,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         const isMassage = creditType === 'massagem';
         const isEmergencia = creditType === 'emergencia';
         const currentCom = editingItem.dadosComerciais;
+        const change = creditOperation === 'sub' ? -creditAmount : creditAmount;
         const payload = {
           id: editingItem._id,
           dadosComerciais: {
-            creditosTotal:           (!isMassage && !isEmergencia) ? (currentCom.creditosTotal || 0) + creditAmount : currentCom.creditosTotal,
-            creditosMassagemTotal:   isMassage    ? (currentCom.creditosMassagemTotal    || 0) + creditAmount : currentCom.creditosMassagemTotal,
-            creditosEmergenciaTotal: isEmergencia ? (currentCom.creditosEmergenciaTotal  || 0) + creditAmount : currentCom.creditosEmergenciaTotal,
+            creditosTotal:           (!isMassage && !isEmergencia) ? Math.max(0, (currentCom.creditosTotal || 0) + change) : currentCom.creditosTotal,
+            creditosMassagemTotal:   isMassage    ? Math.max(0, (currentCom.creditosMassagemTotal    || 0) + change) : currentCom.creditosMassagemTotal,
+            creditosEmergenciaTotal: isEmergencia ? Math.max(0, (currentCom.creditosEmergenciaTotal  || 0) + change) : currentCom.creditosEmergenciaTotal,
           }
         };
         const res = await fetch('/api/clients', {
@@ -3925,7 +3931,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 {modalType === 'client' && (editingItem ? 'Editar Aluno' : 'Cadastrar Aluno')}
                 {modalType === 'professional' && (editingItem ? 'Editar Profissional' : 'Cadastrar Profissional')}
                 {modalType === 'user' && (editingItem ? 'Editar Usuário' : 'Cadastrar Usuário')}
-                {modalType === 'credit' && `Adicionar Créditos para ${editingItem.dadosPessoais?.nome}`}
+                {modalType === 'credit' && (creditOperation === 'add' ? `Adicionar Créditos para ${editingItem.dadosPessoais?.nome}` : `Subtrair Créditos de ${editingItem.dadosPessoais?.nome}`)}
                 {modalType === 'exercise_request' && 'Revisar & Aprovar Exercício'}
               </h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
@@ -3988,16 +3994,25 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
                 {modalType === 'credit' && (
                   <>
-                    <div className="form-group">
-                      <label>Tipo de Crédito</label>
-                      <select className="select-custom" value={creditType} onChange={e => setCreditType(e.target.value as any)}>
-                        <option value="academia">Créditos de Academia</option>
-                        <option value="massagem">Créditos de Massagem</option>
-                        <option value="emergencia">Créditos de Emergência</option>
-                      </select>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Operação</label>
+                        <select className="select-custom" value={creditOperation} onChange={e => setCreditOperation(e.target.value as any)}>
+                          <option value="add">Adicionar (+)</option>
+                          <option value="sub">Subtrair (-)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Tipo de Crédito</label>
+                        <select className="select-custom" value={creditType} onChange={e => setCreditType(e.target.value as any)}>
+                          <option value="academia">Créditos de Academia</option>
+                          <option value="massagem">Créditos de Massagem</option>
+                          <option value="emergencia">Créditos de Emergência</option>
+                        </select>
+                      </div>
                     </div>
                     <div className="form-group">
-                      <label>Quantidade a Adicionar</label>
+                      <label>{creditOperation === 'add' ? 'Quantidade a Adicionar' : 'Quantidade a Subtrair'}</label>
                       <input type="number" className="form-control" value={creditAmount} onChange={e => setCreditAmount(Number(e.target.value))} min={1} required />
                     </div>
                   </>
@@ -4284,6 +4299,71 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 <button type="submit" className="btn btn-primary">Salvar</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rules Modal */}
+      {showRulesModal && rulesClient && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowRulesModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+            <div className="modal-header">
+              <h3 style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-scale-balanced"></i> Regras de Crédito – {rulesClient.dadosPessoais?.nome}
+              </h3>
+              <button className="modal-close" onClick={() => setShowRulesModal(false)}>&times;</button>
+            </div>
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="comercial-field-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={rulesData.permiteRolagem}
+                    onChange={e => setRulesData({ ...rulesData, permiteRolagem: e.target.checked })}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  Permitir Rolagem de Créditos para o mês seguinte
+                </label>
+                <small style={{ color: 'var(--text-muted)', display: 'block', marginLeft: '24px', fontSize: '0.78rem' }}>
+                  Se ativado, os créditos não utilizados expiram apenas no final do contrato, em vez de expirar mensalmente.
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label className="comercial-field-label">Janela Limite para Reagendamento Pós-Falta (dias)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={rulesData.diasRetencaoFalta}
+                  onChange={e => setRulesData({ ...rulesData, diasRetencaoFalta: Number(e.target.value) })}
+                  min={0}
+                  placeholder="0 para sem limite"
+                />
+                <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px', fontSize: '0.78rem' }}>
+                  Número de dias que o aluno tem para realizar a reposição da aula após faltar (0 = sem limite).
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label className="comercial-field-label">Dedução de Créditos por Falta/Atraso</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={rulesData.deducaoFaltaAtraso}
+                  onChange={e => setRulesData({ ...rulesData, deducaoFaltaAtraso: Number(e.target.value) })}
+                  min={0}
+                />
+                <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px', fontSize: '0.78rem' }}>
+                  Quantos créditos são consumidos/penalizados quando o aluno falta sem aviso prévio.
+                </small>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowRulesModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleSaveRules}>Salvar Regras</button>
+            </div>
           </div>
         </div>
       )}
