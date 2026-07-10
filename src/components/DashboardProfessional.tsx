@@ -8,6 +8,36 @@ import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 
+export const normalizeText = (str: string) => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
+export const getServiceColor = (service: string) => {
+  const name = (service || '').toLowerCase();
+  if (name.includes('monitorado')) {
+    return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981' }; // Green
+  }
+  if (name.includes('livre')) {
+    return { bg: 'rgba(99, 102, 241, 0.15)', text: '#6366f1' }; // Indigo
+  }
+  if (name.includes('avaliacao') || name.includes('avaliação')) {
+    return { bg: 'rgba(168, 85, 247, 0.15)', text: '#a855f7' }; // Purple
+  }
+  if (name.includes('liberacao') || name.includes('liberação') || name.includes('miofascial')) {
+    return { bg: 'rgba(6, 182, 212, 0.15)', text: '#06b6d4' }; // Cyan
+  }
+  if (name.includes('quiro') || name.includes('quiropraxia')) {
+    return { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b' }; // Orange
+  }
+  if (name.includes('recovery') || name.includes('recuperacao') || name.includes('recuperação')) {
+    return { bg: 'rgba(244, 63, 94, 0.15)', text: '#f43f5e' }; // Rose
+  }
+  return { bg: 'rgba(236, 72, 153, 0.15)', text: '#ec4899' }; // Pink (Default)
+};
+
 export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number, max: number }, F: { min: number, max: number } }>> = {
   "Ombro": {
     "Abdução": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
@@ -2686,10 +2716,10 @@ goniometria: {
   }));
 
   const filteredClients = clients.filter(c => {
-    // 1. Filtro de pesquisa de Nome ou Email
+    // 1. Filtro de pesquisa de Nome ou Email (sem acentos)
     const matchesSearch = 
-      (c.dadosPessoais?.nome || '').toLowerCase().includes(workoutSearch.toLowerCase()) ||
-      (c.dadosPessoais?.email || '').toLowerCase().includes(workoutSearch.toLowerCase());
+      normalizeText(c.dadosPessoais?.nome).includes(normalizeText(workoutSearch)) ||
+      normalizeText(c.dadosPessoais?.email).includes(normalizeText(workoutSearch));
       
     // 2. Filtro de Status de Ficha (Ativa vs Sem Ficha)
     const userWorkout = workouts.find(w => w.clienteId === c._id);
@@ -2743,7 +2773,7 @@ goniometria: {
 
   const filteredExercises = exercises.filter(ex => {
     if (ex.status === 'pending') return false;
-    const matchesSearch = ex.nome?.toLowerCase().includes(exerciseSearch.toLowerCase());
+    const matchesSearch = normalizeText(ex.nome).includes(normalizeText(exerciseSearch));
     const matchesGroup = exerciseGroup ? ex.grupo === exerciseGroup : true;
     return matchesSearch && matchesGroup;
   });
@@ -2942,68 +2972,198 @@ goniometria: {
 
                 {/* Demais Atendimentos: Todos os Atendimentos de Hoje */}
                 <div className="content-panel">
-                  <div className="panel-header">
+                  <div className="panel-header" style={{ marginBottom: '20px' }}>
                     <h2><i className="fa-solid fa-calendar-day" style={{ color: 'var(--color-primary)' }}></i> Todos os Atendimentos de Hoje</h2>
                   </div>
-                  <div className="table-responsive">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Horário</th>
-                          <th>Aluno</th>
-                          <th>Modalidade / Serviço</th>
-                          <th>Status</th>
-                          <th>Sinalizar</th>
-                          <th>Histórico</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {todayApts.length === 0 ? (
-                          <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '24px' }}>Nenhum agendamento para hoje.</td></tr>
-                        ) : (
-                          todayApts.map(a => {
-                            const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
-                            const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-warning' : 'badge-info';
-                            const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado';
+                  
+                  {(() => {
+                    if (todayApts.length === 0) {
+                      return (
+                        <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '32px', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
+                          <i className="fa-regular fa-calendar-times" style={{ fontSize: '2rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}></i>
+                          Nenhum agendamento para hoje.
+                        </div>
+                      );
+                    }
 
-                            const actionsCell = a.status === 'agendado' ? (
-                              <div style={{ display: 'flex', gap: '4px' }}>
-                                <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '2px 6px', fontSize: '0.75rem' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}><i className="fa-solid fa-check"></i></button>
-                                <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px', fontSize: '0.75rem' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}><i className="fa-solid fa-xmark"></i></button>
-                                <button className="btn btn-secondary btn-sm" style={{ padding: '2px 6px', fontSize: '0.75rem' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}><i className="fa-solid fa-ban"></i></button>
+                    // Agrupar agendamentos por horário
+                    const appointmentsByTime: Record<string, any[]> = {};
+                    todayApts.forEach(a => {
+                      if (!appointmentsByTime[a.horario]) {
+                        appointmentsByTime[a.horario] = [];
+                      }
+                      appointmentsByTime[a.horario].push(a);
+                    });
+
+                    // Ordenar os horários
+                    const sortedTimes = Object.keys(appointmentsByTime).sort();
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {sortedTimes.map(time => {
+                          const apts = appointmentsByTime[time];
+                          return (
+                            <div 
+                              key={time} 
+                              style={{ 
+                                background: 'rgba(255, 255, 255, 0.01)', 
+                                border: '1.5px solid var(--border-color)', 
+                                borderRadius: '12px', 
+                                overflow: 'hidden'
+                              }}
+                            >
+                              {/* Cabeçalho do Bloco de Horário */}
+                              <div style={{ 
+                                background: 'rgba(255, 255, 255, 0.02)', 
+                                padding: '12px 18px', 
+                                borderBottom: '1px solid var(--border-color)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: '8px'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <i className="fa-regular fa-clock" style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}></i>
+                                  <strong style={{ fontSize: '1.15rem', color: 'var(--color-primary)' }}>
+                                    Horário: {time}
+                                  </strong>
+                                </div>
+                                <span className="badge" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-dim)', fontSize: '0.74rem', fontWeight: 700, padding: '3px 8px' }}>
+                                  {apts.length} {apts.length === 1 ? 'aluno' : 'alunos'}
+                                </span>
                               </div>
-                            ) : (
-                              <button className="btn btn-secondary btn-sm" style={{ padding: '2px 6px', fontSize: '0.7rem' }} onClick={() => handleUpdateAptStatus(a._id, 'agendado')}><i className="fa-solid fa-rotate-left"></i> Reverter</button>
-                            );
 
-                            return (
-                              <tr key={a._id}>
-                                <td><strong>{a.horario}</strong></td>
-                                <td>
-                                  <strong>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</strong><br />
-                                  <small style={{ color: 'var(--text-dim)' }}>
-                                    {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
-                                  </small>
-                                </td>
-                                <td>
-                                  <span className="badge badge-info">{a.servico || a.tipo}</span>
-                                </td>
-                                <td><span className={`badge ${statusClass}`}>{statusText}</span></td>
-                                <td>{actionsCell}</td>
-                                <td>
-                                  {client._id ? (
-                                    <button className="btn btn-secondary btn-sm" onClick={() => { setDetailClient(client); setShowClientDetailModal(true); }}>
-                                      <i className="fa-solid fa-clock-rotate-left"></i> Histórico
+                              {/* Grid de Alunos no Horário */}
+                              <div style={{ 
+                                padding: '16px', 
+                                display: 'grid', 
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                                gap: '14px' 
+                              }}>
+                                {apts.map(a => {
+                                  const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                                  const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-warning' : 'badge-info';
+                                  const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado';
+                                  
+                                  // Cores do Serviço
+                                  const sColors = getServiceColor(a.servico || a.tipo);
+
+                                  const actionsCell = a.status === 'agendado' ? (
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                      <button 
+                                        className="btn btn-sm" 
+                                        style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700 }} 
+                                        onClick={() => handleUpdateAptStatus(a._id, 'presenca')}
+                                        title="Marcar Presença"
+                                      >
+                                        <i className="fa-solid fa-check"></i> Presença
+                                      </button>
+                                      <button 
+                                        className="btn btn-danger btn-sm" 
+                                        style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700 }} 
+                                        onClick={() => handleUpdateAptStatus(a._id, 'falta')}
+                                        title="Marcar Falta"
+                                      >
+                                        <i className="fa-solid fa-xmark"></i> Falta
+                                      </button>
+                                      <button 
+                                        className="btn btn-secondary btn-sm" 
+                                        style={{ padding: '4px 8px', fontSize: '0.75rem' }} 
+                                        onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}
+                                        title="Cancelar Horário"
+                                      >
+                                        <i className="fa-solid fa-ban"></i>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      className="btn btn-secondary btn-sm" 
+                                      style={{ padding: '4px 10px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }} 
+                                      onClick={() => handleUpdateAptStatus(a._id, 'agendado')}
+                                    >
+                                      <i className="fa-solid fa-rotate-left"></i> Reverter Status
                                     </button>
-                                  ) : '-'}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                                  );
+
+                                  return (
+                                    <div 
+                                      key={a._id} 
+                                      style={{ 
+                                        background: 'rgba(255, 255, 255, 0.02)', 
+                                        border: '1px solid var(--border-color)', 
+                                        borderRadius: '10px', 
+                                        padding: '14px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
+                                        gap: '12px'
+                                      }}
+                                    >
+                                      {/* Cabeçalho do Card (Aluno) */}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                                        <div>
+                                          <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 750, color: 'var(--text-main)' }}>
+                                            {client.dadosPessoais?.nome || 'Aluno Desconhecido'}
+                                          </h4>
+                                          {client.dadosComerciais?.frequencia && (
+                                            <small style={{ color: 'var(--text-dim)', fontWeight: 500 }}>
+                                              Frequência: {client.dadosComerciais.frequencia}x/semana
+                                            </small>
+                                          )}
+                                        </div>
+                                        <span className={`badge ${statusClass}`} style={{ fontWeight: 700, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                                          {statusText}
+                                        </span>
+                                      </div>
+
+                                      {/* Seção Modalidade/Serviço Colorida com Destaque */}
+                                      <div style={{ 
+                                        background: sColors.bg, 
+                                        border: `1.5px solid ${sColors.text}`, 
+                                        borderRadius: '8px', 
+                                        padding: '8px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        boxShadow: `0 2px 6px ${sColors.bg}`
+                                      }}>
+                                        <i className="fa-solid fa-dumbbell" style={{ color: sColors.text, fontSize: '0.95rem' }}></i>
+                                        <div>
+                                          <div style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: sColors.text, fontWeight: 900, letterSpacing: '0.5px' }}>
+                                            Modalidade / Serviço
+                                          </div>
+                                          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: sColors.text }}>
+                                            {a.servico || a.tipo}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Rodapé de Ações do Card */}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <div>
+                                          {actionsCell}
+                                        </div>
+                                        {client._id && (
+                                          <button 
+                                            className="btn btn-secondary btn-sm" 
+                                            style={{ padding: '4px 10px', fontSize: '0.74rem' }} 
+                                            onClick={() => { setDetailClient(client); setShowClientDetailModal(true); }}
+                                          >
+                                            <i className="fa-solid fa-clock-rotate-left"></i> Histórico
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             );
@@ -3059,8 +3219,8 @@ goniometria: {
                     const listKey = 'clientes';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q) || c.dadosPessoais?.email?.toLowerCase().includes(q) || c.dadosPessoais?.cpf?.includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -3930,8 +4090,8 @@ goniometria: {
                     const listKey = 'relatorios';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = reports.filter(r => (r.clienteId?.dadosPessoais?.nome || r.clienteId?.nome || '').toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = reports.filter(r => normalizeText(r.clienteId?.dadosPessoais?.nome || r.clienteId?.nome).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -4133,8 +4293,8 @@ goniometria: {
                     const listKey = 'testes_forca';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = strengthTests.filter(st => (st.clienteId?.dadosPessoais?.nome || st.clienteId?.nome || '').toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = strengthTests.filter(st => normalizeText(st.clienteId?.dadosPessoais?.nome || st.clienteId?.nome).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -4267,8 +4427,8 @@ goniometria: {
                     const listKey = 'prontuarios';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = prontuarios.filter(p => (p.clienteId?.dadosPessoais?.nome || p.clienteId?.nome || '').toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = prontuarios.filter(p => normalizeText(p.clienteId?.dadosPessoais?.nome || p.clienteId?.nome).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);

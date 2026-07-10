@@ -40,6 +40,13 @@ interface StandalonePaymentInfo {
   createdAt: string;
 }
 
+const normalizeText = (str: string) => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
 export default function AsaasPanel() {
   const [clients, setClients] = useState<AsaasClientInfo[]>([]);
   const [standalonePayments, setStandalonePayments] = useState<StandalonePaymentInfo[]>([]);
@@ -239,15 +246,15 @@ export default function AsaasPanel() {
   const filteredClients = clients.filter(c => {
     const name = c.nome || '';
     const cpf = c.cpf || '';
-    const q = searchQuery.toLowerCase();
-    return name.toLowerCase().includes(q) || cpf.includes(q);
+    const q = normalizeText(searchQuery);
+    return normalizeText(name).includes(q) || cpf.includes(q);
   });
 
   const filteredStandalone = standalonePayments.filter(p => {
     const name = p.clientNome || '';
     const desc = p.planoNome || '';
-    const q = standaloneSearchQuery.toLowerCase();
-    return name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+    const q = normalizeText(standaloneSearchQuery);
+    return normalizeText(name).includes(q) || normalizeText(desc).includes(q);
   });
 
   const activeClient = clients.find(c => c.clientId === selectedClientId);

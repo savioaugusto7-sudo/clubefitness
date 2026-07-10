@@ -5,6 +5,13 @@ import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator'
 import SearchableSelect from './SearchableSelect';
 import GestaoContratosPanel from './GestaoContratosPanel';
 
+const normalizeText = (str: string) => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
 interface DashboardReceptionistProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -331,7 +338,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     });
 
     return groupedList.filter((group: any) => {
-      const matchesSearch = group.clientNome.toLowerCase().includes(paymentsSearch.toLowerCase());
+      const matchesSearch = normalizeText(group.clientNome).includes(normalizeText(paymentsSearch));
       const matchesStatus = !paymentsStatusFilter || group.status === paymentsStatusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -2451,9 +2458,9 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
               </thead>
               <tbody>
                 {(() => {
-                  const q = paymentsSearch.toLowerCase();
+                  const q = normalizeText(paymentsSearch);
                   const filtered = fixedSchedules.filter(fs => 
-                    (fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome || '').toLowerCase().includes(q)
+                    normalizeText(fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome).includes(q)
                   );
 
                   if (filtered.length === 0) {

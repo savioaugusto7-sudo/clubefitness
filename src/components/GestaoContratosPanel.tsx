@@ -3,6 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 
+const normalizeText = (str: string) => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
 interface GestaoContratosPanelProps {
   clients: any[];
   plans: any[];
@@ -76,8 +83,8 @@ export default function GestaoContratosPanel({
   const filteredClients = clients.filter(c => {
     const nome = c.dadosPessoais?.nome || '';
     const cpf = c.dadosPessoais?.cpf || '';
-    const q = searchQuery.toLowerCase();
-    return nome.toLowerCase().includes(q) || cpf.includes(q);
+    const q = normalizeText(searchQuery);
+    return normalizeText(nome).includes(q) || cpf.includes(q);
   });
 
   // Load contracts for selected client

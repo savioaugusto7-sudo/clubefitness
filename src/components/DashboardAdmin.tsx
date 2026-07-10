@@ -9,6 +9,13 @@ import AgendaCompletaPanel from './AgendaCompletaPanel';
 import SearchableSelect from './SearchableSelect';
 
 
+const normalizeText = (str: string) => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
 interface DashboardAdminProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -1096,7 +1103,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     });
 
     return groupedList.filter((group: any) => {
-      const matchesSearch = group.clientNome.toLowerCase().includes(paymentsSearch.toLowerCase());
+      const matchesSearch = normalizeText(group.clientNome).includes(normalizeText(paymentsSearch));
       const matchesStatus = !paymentsStatusFilter || group.status === paymentsStatusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -1917,8 +1924,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'dashboard_freq';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -2058,8 +2065,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'profissionais';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = professionals.filter(p => p.nome?.toLowerCase().includes(q) || p.userId?.email?.toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = professionals.filter(p => normalizeText(p.nome).includes(q) || normalizeText(p.userId?.email).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -2156,8 +2163,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'clientes';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q) || c.dadosPessoais?.email?.toLowerCase().includes(q) || c.dadosPessoais?.cpf?.includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -2338,8 +2345,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'usuarios';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = users.filter(u => u.nome?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = users.filter(u => normalizeText(u.nome).includes(q) || normalizeText(u.email).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -2468,8 +2475,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'controle_creditos';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = clients.filter(c => c.dadosPessoais?.nome?.toLowerCase().includes(q) || c.dadosPessoais?.email?.toLowerCase().includes(q) || c.dadosPessoais?.cpf?.includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -2662,8 +2669,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'agenda_fixa';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = fixedSchedules.filter(fs => (fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome || '').toLowerCase().includes(q) || fs.profissionalId?.nome?.toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = fixedSchedules.filter(fs => normalizeText(fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome).includes(q) || normalizeText(fs.profissionalId?.nome).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -3306,8 +3313,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'medicamentos';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = getSearchQuery(listKey).toLowerCase();
-                    const filtered = medications.filter(m => m.nome?.toLowerCase().includes(q) || m.categoria?.toLowerCase().includes(q));
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = medications.filter(m => normalizeText(m.nome).includes(q) || normalizeText(m.categoria).includes(q));
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);

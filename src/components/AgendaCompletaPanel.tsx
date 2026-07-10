@@ -2,6 +2,37 @@
 
 import React, { useState, useEffect } from 'react';
 
+const normalizeText = (str: string) => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
+const getServiceColor = (service: string) => {
+  const name = (service || '').toLowerCase();
+  if (name.includes('monitorado')) {
+    return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981' }; // Green
+  }
+  if (name.includes('livre')) {
+    return { bg: 'rgba(99, 102, 241, 0.15)', text: '#6366f1' }; // Indigo
+  }
+  if (name.includes('avaliacao') || name.includes('avaliação')) {
+    return { bg: 'rgba(168, 85, 247, 0.15)', text: '#a855f7' }; // Purple
+  }
+  if (name.includes('liberacao') || name.includes('liberação') || name.includes('miofascial')) {
+    return { bg: 'rgba(6, 182, 212, 0.15)', text: '#06b6d4' }; // Cyan
+  }
+  if (name.includes('quiro') || name.includes('quiropraxia')) {
+    return { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b' }; // Orange
+  }
+  if (name.includes('recovery') || name.includes('recuperacao') || name.includes('recuperação')) {
+    return { bg: 'rgba(244, 63, 94, 0.15)', text: '#f43f5e' }; // Rose
+  }
+  return { bg: 'rgba(236, 72, 153, 0.15)', text: '#ec4899' }; // Pink (Default)
+};
+
+
 interface ClientInfo {
   _id: string;
   dadosPessoais: {
@@ -547,7 +578,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   };
 
   const filteredClients = clients.filter(c => 
-    c.dadosPessoais?.nome?.toLowerCase().includes(clientSearchText.toLowerCase())
+    normalizeText(c.dadosPessoais?.nome).includes(normalizeText(clientSearchText))
   ).slice(0, 5);
 
   const formatMonthName = (date: Date) => {
@@ -716,22 +747,45 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                           {slot.appointments.length === 0 ? (
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>Nenhum aluno agendado</span>
                           ) : (
-                            slot.appointments.map(apt => (
-                              <span 
-                                key={apt._id} 
-                                style={{ 
-                                  fontSize: '0.72rem', 
-                                  background: 'var(--bg-secondary)', 
-                                  border: '1px solid var(--border-color)', 
-                                  borderRadius: '4px', 
-                                  padding: '2px 6px', 
-                                  color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--text-main)',
-                                  fontWeight: apt.status === 'presenca' ? 'bold' : 'normal'
-                                }}
-                              >
-                                {apt.clienteId?.dadosPessoais?.nome?.split(' ')[0]} ({apt.servico?.replace('Treino ', '')})
-                              </span>
-                            ))
+                             slot.appointments.map(apt => {
+                               const sColors = getServiceColor(apt.servico || slot.tipo);
+                               const shortName = apt.clienteId?.dadosPessoais?.nome 
+                                 ? apt.clienteId.dadosPessoais.nome.split(' ').slice(0, 2).join(' ') 
+                                 : 'Aluno';
+                               return (
+                                 <div 
+                                   key={apt._id} 
+                                   style={{ 
+                                     display: 'inline-flex', 
+                                     alignItems: 'center', 
+                                     background: 'var(--bg-secondary)', 
+                                     border: `1.5px solid ${sColors.text}`, 
+                                     borderRadius: '16px', 
+                                     padding: '2px 8px 2px 10px', 
+                                     gap: '6px',
+                                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                   }}
+                                 >
+                                   <span style={{ fontSize: '0.74rem', fontWeight: 700, color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--text-main)' }}>
+                                     {shortName}
+                                   </span>
+                                   <span 
+                                     style={{ 
+                                       fontSize: '0.64rem', 
+                                       fontWeight: 800, 
+                                       textTransform: 'uppercase', 
+                                       padding: '1px 6px', 
+                                       borderRadius: '10px', 
+                                       background: sColors.bg,
+                                       color: sColors.text,
+                                       letterSpacing: '0.3px'
+                                     }}
+                                   >
+                                     {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
+                                   </span>
+                                 </div>
+                               );
+                             })
                           )}
                         </div>
 

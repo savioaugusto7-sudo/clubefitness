@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 
+const normalizeText = (str: string) => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
 interface WorkoutBuilderProps {
   onClose: () => void;
   clientId: string;
@@ -31,7 +38,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
 
   const filteredExercises = exercises.filter(e => {
     if (selectedMuscle !== 'Todos' && e.grupo_muscular !== selectedMuscle) return false;
-    if (search && !e.nome.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !normalizeText(e.nome).includes(normalizeText(search))) return false;
     return true;
   });
 
