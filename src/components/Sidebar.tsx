@@ -43,7 +43,6 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'clientes', label: 'Clientes Vinculados', icon: 'fa-user-friends' },
     { id: 'frequencia_alunos', label: 'Frequência dos Alunos', icon: 'fa-chart-bar' },
     { id: 'treinos_prof', label: 'Fichas de Treino', icon: 'fa-dumbbell' },
-    { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' },
     { id: 'avaliacoes', label: 'Avaliações Físicas', icon: 'fa-heartbeat' },
     { id: 'relatorios', label: 'Relatórios Fisioterápicos', icon: 'fa-file-medical' },
     { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },

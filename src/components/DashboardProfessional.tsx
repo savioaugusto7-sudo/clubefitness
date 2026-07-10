@@ -3326,15 +3326,7 @@ goniometria: {
                       <button className="btn btn-primary" onClick={() => setShowNewExModal(true)}>
                         <i className="fa-solid fa-plus"></i> Novo Exercício
                       </button>
-                      <a href="/api/exercises/export" className="btn btn-secondary" download>
-                        <i className="fa-solid fa-file-export"></i> Exportar (.xlsx)
-                      </a>
-                      <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-                        <i className="fa-solid fa-file-import"></i> Importar (.xlsx)
-                      </button>
-                      <a href="/api/exercises/template" className="btn btn-secondary" download style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-solid fa-download"></i> Baixar Template
-                      </a>
+
                       <input
                         type="file"
                         ref={fileInputRef}
