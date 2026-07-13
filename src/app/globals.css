@@ -244,6 +244,16 @@ nav.nav-menu {
   border-color: var(--color-primary);
 }
 
+select option {
+  background-color: #0e131f !important;
+  color: #f8fafc !important;
+}
+
+select {
+  background-color: var(--bg-darker);
+  color: var(--text-main);
+}
+
 /* Área de Conteúdo Principal */
 main.main-content {
   margin-left: var(--sidebar-width);
