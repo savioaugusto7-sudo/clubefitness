@@ -10,7 +10,8 @@ const ProfessionalSchema = new Schema({
     refreshToken: { type: String, default: '' },
     tokenExpiry: { type: Date, default: null },
     calendarId: { type: String, default: 'primary' }
-  }
+  },
+  pin: { type: String, default: '1234' }
 }, { timestamps: true });
 
 export default models.Professional || model('Professional', ProfessionalSchema);

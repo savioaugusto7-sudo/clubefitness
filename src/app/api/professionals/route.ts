@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { email, nome, especialidade, registro, cargo } = body;
+    const { email, nome, especialidade, registro, cargo, pin } = body;
 
     // 1. Create or Find User
     let user = await User.findOne({ email: email.toLowerCase() });
@@ -41,7 +41,8 @@ export async function POST(request: Request) {
       userId: user._id,
       nome,
       especialidade,
-      registro
+      registro,
+      pin: pin || '1234'
     });
 
     return NextResponse.json({ success: true, data: professional });
@@ -54,7 +55,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, nome, especialidade, registro, cargo } = body;
+    const { id, nome, especialidade, registro, cargo, pin } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing professional ID' }, { status: 400 });
@@ -68,6 +69,9 @@ export async function PUT(request: Request) {
     professional.nome = nome || professional.nome;
     professional.especialidade = especialidade || professional.especialidade;
     professional.registro = registro || professional.registro;
+    if (pin !== undefined) {
+      professional.pin = pin || '1234';
+    }
     await professional.save();
 
     // Sincronizar nome e cargo no User

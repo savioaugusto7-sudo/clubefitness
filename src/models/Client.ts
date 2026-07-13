@@ -69,7 +69,8 @@ const ClientSchema = new Schema({
   cadastroConcluido: { type: Boolean, default: false },
   dadosPessoais: { type: DadosPessoaisSchema, required: true },
   dadosClinicos: { type: DadosClinicosSchema, default: () => ({}) },
-  dadosComerciais: { type: DadosComerciaisSchema, default: () => ({}) }
+  dadosComerciais: { type: DadosComerciaisSchema, default: () => ({}) },
+  profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null }
 }, { timestamps: true });
 
 export default models.Client || model('Client', ClientSchema);

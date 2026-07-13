@@ -3,6 +3,7 @@ import dbConnect from '@/utils/dbConnect';
 import Client from '@/models/Client';
 import User from '@/models/User';
 import Plan from '@/models/Plan';
+import Professional from '@/models/Professional';
 
 export async function GET(request: Request) {
   try {
@@ -14,6 +15,7 @@ export async function GET(request: Request) {
     // Force registration of models for population
     const _plan = Plan;
     const _user = User;
+    const _prof = Professional;
 
     let query = {};
     if (id) {
@@ -24,7 +26,8 @@ export async function GET(request: Request) {
 
     const clients = await Client.find(query)
       .populate('userId')
-      .populate('dadosComerciais.planoId');
+      .populate('dadosComerciais.planoId')
+      .populate('profissionalId');
 
     return NextResponse.json({ success: true, data: clients });
   } catch (error: any) {
@@ -82,7 +85,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, dadosPessoais, dadosClinicos, dadosComerciais } = body;
+    const { id, dadosPessoais, dadosClinicos, dadosComerciais, profissionalId } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing client ID' }, { status: 400 });
@@ -113,6 +116,9 @@ export async function PUT(request: Request) {
     if (dadosComerciais) {
       Object.assign(client.dadosComerciais, dadosComerciais);
       client.markModified('dadosComerciais');
+    }
+    if (profissionalId !== undefined) {
+      client.profissionalId = profissionalId || null;
     }
 
     await client.save();

@@ -17,6 +17,8 @@ import FixedSchedule from '@/models/FixedSchedule';
 import Prontuario from '@/models/Prontuario';
 import StrengthTest from '@/models/StrengthTest';
 import Exercise from '@/models/Exercise';
+import ActivityLog from '@/models/ActivityLog';
+import { hashPassword } from '@/utils/auth';
 
 // Static ObjectIDs for stable references
 const ids = {
@@ -38,11 +40,13 @@ const ids = {
     aluno1: '6668ab020202020202020204',
     aluno2: '6668ab020202020202020205',
     aluno3: '6668ab020202020202020206',
-    aluno4: '6668ab020202020202020207'
+    aluno4: '6668ab020202020202020207',
+    coletivo: '6668ab020202020202020209'
   },
   professionals: {
     prof_1: '6668ab030303030303030301', // Dr. Andre
-    prof_2: '6668ab030303030303030302'  // Prof Camila
+    prof_2: '6668ab030303030303030302', // Prof Camila
+    prof_coletivo: '6668ab030303030303030309' // Computador Coletivo
   },
   clients: {
     cli_1: '6668ab040404040404040401',
@@ -89,6 +93,7 @@ export async function GET() {
     await FixedSchedule.deleteMany({ $or: [{ profissionalId: { $in: testProfIds } }, { clienteId: { $in: testClientIds } }] });
     await Prontuario.deleteMany({ clienteId: { $in: testClientIds } });
     await StrengthTest.deleteMany({ clienteId: { $in: testClientIds } });
+    await ActivityLog.deleteMany({});
 
     // 2. Insert Plans
     const plansData = [
@@ -104,22 +109,24 @@ export async function GET() {
     ];
     await Plan.insertMany(plansData);
 
-    // 3. Insert Users
+    // 3. Insert Users (with hashed passwords for standard login support)
     const usersData = [
-      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin', roles: ['admin'], cargo: 'Administrador Geral', isTest: true },
-      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', roles: ['professional'], cargo: 'Fisio', isTest: true },
-      { _id: ids.users.prof, nome: 'Treinadora Camila Lima', email: 'prof@clube.com', tipo: 'professional', roles: ['professional'], cargo: 'Treino', isTest: true },
-      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno VIP', isTest: true },
-      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', isTest: true },
-      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', isTest: true },
-      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', isTest: true }
+      { _id: ids.users.admin, nome: 'Admin Geral', email: 'admin@clube.com', tipo: 'admin', roles: ['admin'], cargo: 'Administrador Geral', password: hashPassword('admin123'), isTest: true },
+      { _id: ids.users.fisio, nome: 'Dr. André Costa', email: 'fisio@clube.com', tipo: 'professional', roles: ['professional'], cargo: 'Fisio', password: hashPassword('fisio123'), isTest: true },
+      { _id: ids.users.prof, nome: 'Treinadora Camila Lima', email: 'prof@clube.com', tipo: 'professional', roles: ['professional'], cargo: 'Treino', password: hashPassword('prof123'), isTest: true },
+      { _id: ids.users.aluno1, nome: 'Sávio Silva', email: 'aluno1@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno VIP', password: hashPassword('aluno123'), isTest: true },
+      { _id: ids.users.aluno2, nome: 'Maria Santos', email: 'aluno2@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', password: hashPassword('aluno223'), isTest: true },
+      { _id: ids.users.aluno3, nome: 'João Oliveira', email: 'aluno3@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', password: hashPassword('aluno323'), isTest: true },
+      { _id: ids.users.aluno4, nome: 'Cliente Fictício', email: 'ficticio@clube.com', tipo: 'client', roles: ['client'], cargo: 'Aluno', password: hashPassword('ficticio123'), isTest: true },
+      { _id: ids.users.coletivo, nome: 'Computador Coletivo', email: 'coletivo@clube.com', tipo: 'professional', roles: ['professional'], cargo: 'Coletivo', password: hashPassword('coletivo123'), isTest: true }
     ];
     await User.insertMany(usersData);
 
-    // 4. Insert Professionals
+    // 4. Insert Professionals (including default PINs for action verification)
     const professionalsData = [
-      { _id: ids.professionals.prof_1, userId: ids.users.fisio, nome: 'Dr. André Costa', especialidade: 'Fisioterapia e Quiropraxia', registro: 'CREFITO 12345-F' },
-      { _id: ids.professionals.prof_2, userId: ids.users.prof, nome: 'Treinadora Camila Lima', especialidade: 'Avaliação Física e Treinamento', registro: 'CREF 54321-G' }
+      { _id: ids.professionals.prof_1, userId: ids.users.fisio, nome: 'Dr. André Costa', especialidade: 'Fisioterapia e Quiropraxia', registro: 'CREFITO 12345-F', pin: '1111' },
+      { _id: ids.professionals.prof_2, userId: ids.users.prof, nome: 'Treinadora Camila Lima', especialidade: 'Avaliação Física e Treinamento', registro: 'CREF 54321-G', pin: '2222' },
+      { _id: ids.professionals.prof_coletivo, userId: ids.users.coletivo, nome: 'Computador Coletivo', especialidade: 'Terminal Compartilhado', registro: 'SEM REGISTRO', pin: '0000' }
     ];
     await Professional.insertMany(professionalsData);
 
@@ -128,6 +135,7 @@ export async function GET() {
       {
         _id: ids.clients.cli_1,
         userId: ids.users.aluno1,
+        profissionalId: ids.professionals.prof_1,
         dadosPessoais: {
           nome: 'Sávio Silva',
           cpf: '123.456.789-00',
@@ -167,6 +175,7 @@ export async function GET() {
       {
         _id: ids.clients.cli_2,
         userId: ids.users.aluno2,
+        profissionalId: ids.professionals.prof_2,
         dadosPessoais: {
           nome: 'Maria Santos',
           cpf: '987.654.321-11',
@@ -206,6 +215,7 @@ export async function GET() {
       {
         _id: ids.clients.cli_3,
         userId: ids.users.aluno3,
+        profissionalId: ids.professionals.prof_1,
         dadosPessoais: {
           nome: 'João Oliveira',
           cpf: '456.789.123-22',
@@ -245,6 +255,7 @@ export async function GET() {
       {
         _id: ids.clients.cli_4,
         userId: ids.users.aluno4,
+        profissionalId: ids.professionals.prof_2,
         dadosPessoais: {
           nome: 'Cliente Fictício',
           cpf: '444.444.444-44',

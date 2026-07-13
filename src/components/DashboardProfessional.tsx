@@ -97,6 +97,69 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   }, [professionalId]);
 
 
+  const currentProf = professionals.find(p => p._id === professionalId);
+  const isColetivo = (session?.user as any)?.email === 'coletivo@clube.com' || currentProf?.userId?.email === 'coletivo@clube.com' || currentProf?.nome?.toLowerCase().includes('coletivo');
+
+  // PIN verification states
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinModalProf, setPinModalProf] = useState('');
+  const [pinModalValue, setPinModalValue] = useState('');
+  const [pinModalError, setPinModalError] = useState('');
+  const [pinModalCallback, setPinModalCallback] = useState<((authenticatedProfId: string) => void) | null>(null);
+
+  const executeAction = (actionName: string, targetClientId: string | null, callback: (executorProfId: string, isCollective: boolean) => void, actionDetails: string = '') => {
+    const logActivity = async (profId: string, isCollective: boolean) => {
+      try {
+        await fetch('/api/admin/activity-logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profissionalId: profId,
+            clienteId: targetClientId,
+            acao: actionName,
+            detalhes: actionDetails,
+            origem: isCollective ? 'Computador Coletivo' : 'Acesso Direto'
+          })
+        });
+      } catch (e) {
+        console.error('Failed to log activity', e);
+      }
+    };
+
+    if (isColetivo) {
+      // Find first professional that is not collective for selection default
+      const defaultProf = professionals.filter(p => p._id !== professionalId)[0]?._id || '';
+      setPinModalProf(defaultProf);
+      setPinModalValue('');
+      setPinModalError('');
+      setPinModalCallback(() => (authProfId: string) => {
+        callback(authProfId, true);
+        logActivity(authProfId, true);
+      });
+      setShowPinModal(true);
+    } else {
+      callback(professionalId || '', false);
+      logActivity(professionalId || '', false);
+    }
+  };
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const prof = professionals.find(p => p._id === pinModalProf);
+    if (!prof) {
+      setPinModalError('Profissional não encontrado.');
+      return;
+    }
+    if (prof.pin === pinModalValue) {
+      setShowPinModal(false);
+      if (pinModalCallback) {
+        pinModalCallback(prof._id);
+      }
+    } else {
+      setPinModalError('PIN inválido. Tente novamente.');
+    }
+  };
+
   const [loading, setLoading] = useState(true);
 
   // Pagination & UX states
@@ -1487,39 +1550,53 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         return;
       }
     }
-    try {
-      const res = await fetch('/api/appointments', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status })
-      });
-      const data = await res.json();
-      if (data.success) fetchData();
-    } catch (err) {
-      console.error(err);
-    }
+
+    const apt = appointments.find((a: any) => a._id === id);
+    const targetClientId = apt?.clienteId?._id || apt?.clienteId || null;
+    const clientName = apt?.clienteId?.dadosPessoais?.nome || apt?.clienteId?.nome || '';
+    const details = `Horário: ${apt?.horário || apt?.horario || ''}, Serviço: ${apt?.servico || ''}, Status: ${status}`;
+
+    executeAction(`Alterou Status de Agendamento para ${status}`, targetClientId, async (executorProfId, isCollective) => {
+      try {
+        const res = await fetch('/api/appointments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status, profissionalId: executorProfId })
+        });
+        const data = await res.json();
+        if (data.success) fetchData();
+      } catch (err) {
+        console.error(err);
+      }
+    }, `${clientName} - ${details}`);
   };
 
   const handleSaveEmergencyResolution = async () => {
     if (!emergencyReport.trim()) { alert('Por favor, preencha o relatório para o Prontuário Clínico.'); return; }
     if (emergencyConduct === 'remarcacao' && (!emergencyReschedDate || !emergencyReschedHour)) { alert('Preencha a data e o horário para a remarcação.'); return; }
-    try {
-      // 1. Mark original appointment as present
-      await fetch('/api/appointments', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: emergencyAptId, status: 'presenca' }) });
-      // 2. Create prontuário from emergency report
-      const condutaText = emergencyConduct === 'alta' ? 'Alta do Paciente' : `Remarcado para ${emergencyReschedDate} às ${emergencyReschedHour}`;
-      const prontuarioObs = `[Atendimento de Emergência - Finalização]\nConduta: ${condutaText}\n\nRelato Clínico:\n${emergencyReport}`;
-      await fetch('/api/prontuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: emergencyApt?.clienteId?._id || emergencyApt?.clienteId, profissionalId: emergencyApt?.profissionalId?._id || emergencyApt?.profissionalId || professionalId || '6668ab030303030303030301', data: emergencyApt?.data, conteudo: prontuarioObs }) });
-      // 3. If rescheduling, create new appointment
-      if (emergencyConduct === 'remarcacao') {
-        await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: emergencyReschedDate, horario: emergencyReschedHour, servico: 'Emergência', clienteId: emergencyApt?.clienteId?._id || emergencyApt?.clienteId, profissionalId: emergencyApt?.profissionalId?._id || emergencyApt?.profissionalId, status: 'agendado' }) });
+
+    const targetClientId = emergencyApt?.clienteId?._id || emergencyApt?.clienteId || null;
+    const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || '';
+    const condutaText = emergencyConduct === 'alta' ? 'Alta do Paciente' : `Remarcado para ${emergencyReschedDate} às ${emergencyReschedHour}`;
+
+    executeAction('Resolveu Atendimento de Emergência', targetClientId, async (executorProfId, isCollective) => {
+      try {
+        // 1. Mark original appointment as present
+        await fetch('/api/appointments', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: emergencyAptId, status: 'presenca', profissionalId: executorProfId }) });
+        // 2. Create prontuário from emergency report
+        const prontuarioObs = `[Atendimento de Emergência - Finalização]\nConduta: ${condutaText}\n\nRelato Clínico:\n${emergencyReport}`;
+        await fetch('/api/prontuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: targetClientId, profissionalId: executorProfId, data: emergencyApt?.data, conteudo: prontuarioObs }) });
+        // 3. If rescheduling, create new appointment
+        if (emergencyConduct === 'remarcacao') {
+          await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: emergencyReschedDate, horario: emergencyReschedHour, servico: 'Emergência', clienteId: targetClientId, profissionalId: executorProfId, status: 'agendado' }) });
+        }
+        setShowEmergencyModal(false);
+        alert('Atendimento de emergência finalizado e prontuário gerado!');
+        fetchData();
+      } catch (err: any) {
+        alert('Erro ao salvar resolução: ' + err.message);
       }
-      setShowEmergencyModal(false);
-      alert('Atendimento de emergência finalizado e prontuário gerado!');
-      fetchData();
-    } catch (err: any) {
-      alert('Erro ao salvar resolução: ' + err.message);
-    }
+    }, `${clientName} - Conduta: ${condutaText}`);
   };
 
   const handleCreateFixedSchedule = async (e: React.FormEvent) => {
@@ -1752,30 +1829,40 @@ goniometria: {
         pdf_url: asPdfUrl || ''
       };
 
-      const res = await fetch('/api/assessments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...payload,
-          metas: {
-            ...payload.metas,
-            objetivo2Meses: asMeta2Meses,
-            objetivo1Ano: asMeta1Ano
-          },
-          tempoGastoSegundos: asTimerSeconds
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.removeItem('draft_assessment');
-        setShowAssessmentModal(false);
-        fetchData();
-        alert('Avaliação física criada com sucesso!');
-      } else {
-        alert('Erro ao criar avaliação física: ' + data.error);
-      }
-    } catch (err) {
-      alert('Erro ao enviar: ' + (err as Error).message);
+      const client = clients.find(c => c._id === asClient);
+      const clientName = client?.dadosPessoais?.nome || '';
+
+      executeAction('Criou Avaliação Física', asClient, async (executorProfId, isCollective) => {
+        try {
+          const res = await fetch('/api/assessments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              avaliadorId: executorProfId,
+              metas: {
+                ...payload.metas,
+                objetivo2Meses: asMeta2Meses,
+                objetivo1Ano: asMeta1Ano
+              },
+              tempoGastoSegundos: asTimerSeconds
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            localStorage.removeItem('draft_assessment');
+            setShowAssessmentModal(false);
+            fetchData();
+            alert('Avaliação física criada com sucesso!');
+          } else {
+            alert('Erro ao criar avaliação física: ' + data.error);
+          }
+        } catch (err: any) {
+          alert('Erro ao enviar: ' + err.message);
+        }
+      }, `${clientName} - Data: ${asDate}`);
+    } catch (err: any) {
+      alert('Erro ao processar: ' + err.message);
     }
   };
 
@@ -2097,71 +2184,84 @@ goniometria: {
         };
       }
 
-      const res = await fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.removeItem('draft_report');
-        setShowReportModal(false);
-        // Reset states
-        setRepActiveStep(1);
-        setRepQueixas([
-          {
-            dorOnde: '',
-            quandoComecou: '',
-            comoIniciou: '',
-            dorEvolucao: 'estavel',
-            dorIntensidade: 5,
-            dorTodoMomento: 'sim',
-            desencadeiaPiora: '',
-            melhoraDesaparece: '',
-            caracteristicaDor: 'Pontual / Aguda',
-            origens: []
+      const client = clients.find(c => c._id === repClient);
+      const clientName = client?.dadosPessoais?.nome || '';
+
+      executeAction('Criou Relatório Fisioterápico', repClient, async (executorProfId, isCollective) => {
+        payload.profissionalId = executorProfId;
+        try {
+          const res = await fetch('/api/reports', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data.success) {
+            localStorage.removeItem('draft_report');
+            setShowReportModal(false);
+            // Reset states
+            setRepActiveStep(1);
+            setRepQueixas([
+              {
+                dorOnde: '',
+                quandoComecou: '',
+                comoIniciou: '',
+                dorEvolucao: 'estavel',
+                dorIntensidade: 5,
+                dorTodoMomento: 'sim',
+                desencadeiaPiora: '',
+                melhoraDesaparece: '',
+                caracteristicaDor: 'Pontual / Aguda',
+                origens: []
+              }
+            ]);
+            setRepCirurgiasRealizou('nao');
+            setRepCirurgiasList([]);
+            setRepTraumas('');
+            setRepCirurgias('');
+            setRepDoencas('');
+            setRepTraumasEmo('');
+            setRepMedicao('');
+            setRepDrogas('');
+            setRepSonoHoras(8);
+            setRepSonoTipo('continuo');
+            setRepSonoQualidade('Bom');
+            setRepAlimentacaoDor('');
+            setRepAtividadeFisicaQual('');
+            setRepAtividadeFisicaInterfere('');
+            setRepControleStress('');
+            setRepStress(5);
+            setRepSono(8);
+            setRepAtividadeFisica('nao');
+            setRepTermografiaRealizou('nao');
+            setRepTermografiaImgB64('');
+            setRepExamesList([]);
+            setRepDeRealizou('nao');
+            setRepDeTipo('Tipo IV');
+            setRepDeAbdBilateral('nao');
+            setRepDeAbdUnilateral('nao');
+            setRepDeDorAbd('nao');
+            setRepMaigneRealizou('nao');
+            setYRealizou('nao');
+            setSdRealizou('nao');
+            setRepExercicios('');
+            setRepContent('');
+            setRepAvaliador(executorProfId);
+
+            fetchData();
+            alert('Relatório fisioterápico criado com sucesso!');
+            if (data.data) {
+              downloadReportPDF(data.data);
+            }
+          } else {
+            alert('Erro ao criar relatório: ' + data.error);
           }
-        ]);
-        setRepCirurgiasRealizou('nao');
-        setRepCirurgiasList([]);
-        setRepTraumas('');
-        setRepCirurgias('');
-        setRepDoencas('');
-        setRepTraumasEmo('');
-        setRepMedicao('');
-        setRepDrogas('');
-        setRepSonoHoras(8);
-        setRepSonoTipo('continuo');
-        setRepSonoQualidade('Bom');
-        setRepAlimentacaoDor('');
-        setRepAtividadeFisicaQual('');
-        setRepAtividadeFisicaInterfere('');
-        setRepControleStress('');
-        setRepStress(5);
-        setRepSono(8);
-        setRepAtividadeFisica('nao');
-        setRepTermografiaRealizou('nao');
-        setRepTermografiaImgB64('');
-        setRepExamesList([]);
-        setRepDeRealizou('nao');
-        setRepDeTipo('Tipo IV');
-        setRepDeAbdBilateral('nao');
-        setRepDeAbdUnilateral('nao');
-        setRepDeDorAbd('nao');
-        setRepMaigneRealizou('nao');
-        setYRealizou('nao');
-        setSdRealizou('nao');
-        setRepExercicios('');
-        setRepContent('');
-        fetchData();
-        
-        // Trigger report PDF download
-        downloadReportPDF(data.data);
-      } else {
-        alert('Erro ao criar relatório: ' + data.error);
-      }
+        } catch (err: any) {
+          alert('Erro ao enviar: ' + err.message);
+        }
+      }, `${clientName} - Tipo: ${repType}`);
     } catch (err: any) {
-      alert('Erro ao enviar: ' + err.message);
+      alert('Erro ao processar: ' + err.message);
     }
   };
 
@@ -2335,24 +2435,38 @@ goniometria: {
         tempoGastoSegundos: stTimerSeconds
       };
       
-      const res = await fetch('/api/strength-tests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.removeItem('draft_strength');
-        setShowStModal(false);
-        fetchData();
-        // Reset states
-        setStTestesList([]);
-        setStObs('');
-      } else {
-        alert('Erro ao criar teste de força: ' + data.error);
-      }
-    } catch (err) {
-      alert('Erro ao registrar o teste de força: ' + (err as Error).message);
+      const client = clients.find(c => c._id === stClient);
+      const clientName = client?.dadosPessoais?.nome || '';
+
+      executeAction('Criou Teste de Força', stClient, async (executorProfId, isCollective) => {
+        try {
+          const res = await fetch('/api/strength-tests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              profissionalId: executorProfId
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            localStorage.removeItem('draft_strength');
+            setShowStModal(false);
+            fetchData();
+            // Reset states
+            setStTestesList([]);
+            setStObs('');
+            setStAvaliador(executorProfId);
+            alert('Teste de força criado com sucesso!');
+          } else {
+            alert('Erro ao criar teste de força: ' + data.error);
+          }
+        } catch (err: any) {
+          alert('Erro ao registrar o teste de força: ' + err.message);
+        }
+      }, `${clientName} - Quantidade: ${stTestesList.length}`);
+    } catch (err: any) {
+      alert('Erro ao processar: ' + err.message);
     }
   };
 
@@ -2372,24 +2486,35 @@ goniometria: {
         data: prDate,
         conteudo: prContent
       };
-      const res = await fetch('/api/prontuarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowProntuarioModal(false);
-        fetchData();
-        if (confirm('Deseja fazer o download do PDF do prontuário agora?')) {
-          const client = clients.find(c => c._id === prClient);
-          downloadProntuarioPDF(data.data, client);
+      const client = clients.find(c => c._id === prClient);
+      const clientName = client?.dadosPessoais?.nome || '';
+
+      executeAction('Criou Prontuário Clínico', prClient, async (executorProfId, isCollective) => {
+        try {
+          const res = await fetch('/api/prontuarios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              profissionalId: executorProfId
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setShowProntuarioModal(false);
+            fetchData();
+            if (confirm('Deseja fazer o download do PDF do prontuário agora?')) {
+              downloadProntuarioPDF(data.data, client);
+            }
+          } else {
+            alert('Erro ao salvar prontuário: ' + data.error);
+          }
+        } catch (err: any) {
+          alert('Erro ao salvar prontuário: ' + err.message);
         }
-      } else {
-        alert('Erro ao salvar prontuário: ' + data.error);
-      }
-    } catch (err) {
-      alert('Erro de conexão.');
+      }, `${clientName} - Conteúdo: ${prContent.substring(0, 50)}...`);
+    } catch (err: any) {
+      alert('Erro de conexão: ' + err.message);
     }
   };
 
@@ -2663,42 +2788,46 @@ goniometria: {
 
   const handleSaveWorkout = async () => {
     if (!editingWorkoutData || !selectedClientForWorkout) return;
-    try {
-      setLoading(true);
-      const updatedData = { ...editingWorkoutData };
-      
-      if (isNewWorkoutSheet) {
-        const categoryList = updatedData[activeWorkoutCategory] || [];
-        const sheetIdx = categoryList.findIndex((f: any) => f.id === activeWorkoutSubTab);
-        if (sheetIdx !== -1) {
-          categoryList[sheetIdx].ultimaAtualizacao = new Date().toISOString().split('T')[0];
-        }
-      }
+    const clientName = selectedClientForWorkout.dadosPessoais?.nome || '';
 
-      const res = await fetch('/api/workouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId: selectedClientForWorkout._id,
-          fichasMonitorado: updatedData.fichasMonitorado,
-          fichasLivre: updatedData.fichasLivre
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Ficha de treino salva com sucesso!');
-        setSelectedClientForWorkout(null);
-        setEditingWorkoutData(null);
-        setOriginalWorkoutData(null);
-        fetchData();
-      } else {
-        alert('Erro ao salvar: ' + data.error);
+    executeAction('Salvou Ficha de Treino', selectedClientForWorkout._id, async (executorProfId, isCollective) => {
+      try {
+        setLoading(true);
+        const updatedData = { ...editingWorkoutData };
+        
+        if (isNewWorkoutSheet) {
+          const categoryList = updatedData[activeWorkoutCategory] || [];
+          const sheetIdx = categoryList.findIndex((f: any) => f.id === activeWorkoutSubTab);
+          if (sheetIdx !== -1) {
+            categoryList[sheetIdx].ultimaAtualizacao = new Date().toISOString().split('T')[0];
+          }
+        }
+
+        const res = await fetch('/api/workouts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: selectedClientForWorkout._id,
+            fichasMonitorado: updatedData.fichasMonitorado,
+            fichasLivre: updatedData.fichasLivre
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Ficha de treino salva com sucesso!');
+          setSelectedClientForWorkout(null);
+          setEditingWorkoutData(null);
+          setOriginalWorkoutData(null);
+          fetchData();
+        } else {
+          alert('Erro ao salvar: ' + data.error);
+        }
+      } catch (e) {
+        alert('Erro na requisição.');
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      alert('Erro na requisição.');
-    } finally {
-      setLoading(false);
-    }
+    }, `${clientName} - Categoria: ${activeWorkoutCategory}`);
   };
 
   if (loading) {
@@ -3220,7 +3349,15 @@ goniometria: {
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q));
+                    const filtered = clients.filter(c => {
+                      if (!isColetivo) {
+                        const linkedProfId = c.profissionalId?._id || c.profissionalId;
+                        if (linkedProfId !== professionalId) {
+                          return false;
+                        }
+                      }
+                      return normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q);
+                    });
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -3230,7 +3367,14 @@ goniometria: {
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <img src={c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
-                            <strong>{c.dadosPessoais?.nome}</strong>
+                            <strong>
+                              {c.dadosPessoais?.nome}
+                              {isColetivo && (
+                                <span style={{ fontWeight: 500, fontSize: '0.82rem', color: 'var(--color-primary)', marginLeft: '6px' }}>
+                                  (Prof. {c.profissionalId?.nome || 'Sem Vínculo'})
+                                </span>
+                              )}
+                            </strong>
                           </div>
                         </td>
                         <td>{c.dadosPessoais?.telefone || '-'}</td>
@@ -7567,6 +7711,59 @@ goniometria: {
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowClientDetailModal(false)}>Fechar</button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* 🔐 PIN Verification Modal */}
+      {showPinModal && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 1200 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Confirmar Ação (Computador Coletivo)</h3>
+              <button className="modal-close" onClick={() => setShowPinModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handlePinSubmit}>
+              <div className="modal-body">
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Profissional Executor</label>
+                  <select
+                    className="form-control"
+                    value={pinModalProf}
+                    onChange={e => setPinModalProf(e.target.value)}
+                    required
+                    style={{ background: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--border-color)', width: '100%' }}
+                  >
+                    {professionals.filter(p => p._id !== professionalId).map(p => (
+                      <option key={p._id} value={p._id}>{p.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>PIN de Acesso Rápido</label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    className="form-control"
+                    placeholder="Digite seu PIN de 4 dígitos"
+                    value={pinModalValue}
+                    onChange={e => setPinModalValue(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                {pinModalError && (
+                  <div style={{ color: 'var(--color-danger)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                    <i className="fa-solid fa-triangle-exclamation"></i> {pinModalError}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowPinModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">
+                  <i className="fa-solid fa-key"></i> Confirmar PIN
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

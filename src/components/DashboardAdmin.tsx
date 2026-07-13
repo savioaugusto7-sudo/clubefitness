@@ -26,6 +26,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [savingClientProf, setSavingClientProf] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Pagination & UX states
@@ -90,6 +92,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [plano, setPlano] = useState('6668ab010101010101010103'); // default Clube Completo
   const [especialidade, setEspecialidade] = useState('');
   const [registro, setRegistro] = useState('');
+  const [pin, setPin] = useState('');
   const [userRole, setUserRole] = useState<string>('aluno');
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['client']);
   const [creditAmount, setCreditAmount] = useState(1);
@@ -821,7 +824,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs, resTranc, resContracts, resAc] = await Promise.all([
+      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs, resTranc, resContracts, resAc, resLogs] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/professionals'),
         fetch('/api/appointments'),
@@ -834,7 +837,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         fetch('/api/exercises?status=pending'),
         fetch('/api/trancamentos'),
         fetch('/api/contracts'),
-        fetch('/api/admin/agenda-config')
+        fetch('/api/admin/agenda-config'),
+        fetch('/api/admin/activity-logs')
       ]);
       const jsonClients = await resClients.json();
       const jsonProfs = await resProfs.json();
@@ -849,6 +853,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const jsonTranc = await resTranc.json();
       const jsonContracts = await resContracts.json();
       const jsonAc = await resAc.json();
+      const jsonLogs = await resLogs.json();
 
       if (jsonClients.success) setClients(jsonClients.data);
       if (jsonProfs.success) setProfessionals(jsonProfs.data);
@@ -863,6 +868,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       if (jsonTranc.success) setTrancamentosAdminList(jsonTranc.data);
       if (jsonContracts.success) setContractsAdminList(jsonContracts.data);
       if (jsonAc.success) setAgendaConfigs(jsonAc.data);
+      if (jsonLogs.success) setActivityLogs(jsonLogs.data);
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
     } finally {
@@ -1233,11 +1239,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       setNome(item.nome || '');
       setEspecialidade(item.especialidade || '');
       setRegistro(item.registro || '');
+      setPin(item.pin || '1234');
     } else {
       setEmail('');
       setNome('');
       setEspecialidade('');
       setRegistro('');
+      setPin('1234');
     }
     setShowModal(true);
   };
@@ -1502,7 +1510,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           nome,
           especialidade,
           registro,
-          cargo: especialidade
+          cargo: especialidade,
+          pin
         };
         const method = editingItem ? 'PUT' : 'POST';
         const res = await fetch('/api/professionals', {
@@ -2113,6 +2122,303 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 onPageChange={page => setPage('profissionais', page)}
               />
             )}
+          </div>
+        </>
+      )}
+
+      {/* 2.5. View: Vincular Alunos */}
+      {activeTab === 'vincular_alunos' && (
+        <>
+          <div className="view-header">
+            <div className="view-title-group">
+              <h1>Vincular Alunos a Profissionais</h1>
+              <p>Associe cada aluno ao profissional de saúde responsável.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('vincular_alunos')} onChange={e => setPageSizeForKey('vincular_alunos', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="content-panel">
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar aluno..."
+                value={getSearchQuery('vincular_alunos')}
+                onChange={e => setSearchQueryForKey('vincular_alunos', e.target.value)}
+                style={{ maxWidth: '300px' }}
+              />
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Aluno</th>
+                    <th>Plano Ativo</th>
+                    <th>Profissional Responsável</th>
+                    <th>Status de Salvamento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const listKey = 'vincular_alunos';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const q = normalizeText(getSearchQuery(listKey));
+                    const filtered = clients.filter(c => 
+                      normalizeText(c.dadosPessoais?.nome).includes(q) || 
+                      normalizeText(c.dadosPessoais?.email).includes(q)
+                    );
+                    const totalPages = Math.ceil(filtered.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+                    if (paginated.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
+                            Nenhum aluno encontrado.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <>
+                        {paginated.map(c => {
+                          const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+                          const currentProfId = c.profissionalId?._id || c.profissionalId || '';
+                          const saveStatus = savingClientProf[c._id];
+
+                          const handleProfChange = async (profId: string) => {
+                            setSavingClientProf(prev => ({ ...prev, [c._id]: 'salvando' }));
+                            try {
+                              const res = await fetch('/api/clients', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  id: c._id,
+                                  profissionalId: profId || null
+                                })
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setClients(prev => prev.map(item => item._id === c._id ? { ...item, profissionalId: profId || null } : item));
+                                setSavingClientProf(prev => ({ ...prev, [c._id]: 'salvo' }));
+                                setTimeout(() => {
+                                  setSavingClientProf(prev => {
+                                    const copy = { ...prev };
+                                    delete copy[c._id];
+                                    return copy;
+                                  });
+                                }, 2000);
+                              } else {
+                                setSavingClientProf(prev => ({ ...prev, [c._id]: 'erro' }));
+                              }
+                            } catch (e) {
+                              setSavingClientProf(prev => ({ ...prev, [c._id]: 'erro' }));
+                            }
+                          };
+
+                          return (
+                            <tr key={c._id}>
+                              <td>
+                                <strong>{c.dadosPessoais?.nome}</strong>
+                                <br />
+                                <small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small>
+                              </td>
+                              <td>{planName}</td>
+                              <td>
+                                <select
+                                  value={currentProfId}
+                                  onChange={e => handleProfChange(e.target.value)}
+                                  className="form-control"
+                                  style={{ maxWidth: '250px', background: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
+                                >
+                                  <option value="">Nenhum/Sem Vínculo</option>
+                                  {professionals.map(p => (
+                                    <option key={p._id} value={p._id}>{p.nome}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td style={{ verticalAlign: 'middle' }}>
+                                {saveStatus === 'salvando' && (
+                                  <span style={{ color: 'var(--color-primary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <i className="fa-solid fa-spinner fa-spin"></i> Salvando...
+                                  </span>
+                                )}
+                                {saveStatus === 'salvo' && (
+                                  <span style={{ color: '#10b981', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <i className="fa-solid fa-check"></i> Salvo!
+                                  </span>
+                                )}
+                                {saveStatus === 'erro' && (
+                                  <span style={{ color: 'var(--color-danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <i className="fa-solid fa-triangle-exclamation"></i> Erro ao salvar
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            {(() => {
+              const listKey = 'vincular_alunos';
+              const q = normalizeText(getSearchQuery(listKey));
+              const filtered = clients.filter(c => 
+                normalizeText(c.dadosPessoais?.nome).includes(q) || 
+                normalizeText(c.dadosPessoais?.email).includes(q)
+              );
+              const totalPages = Math.ceil(filtered.length / getPageSize(listKey));
+              if (totalPages <= 1) return null;
+              return (
+                <Pagination
+                  currentPage={getPage(listKey)}
+                  totalItems={filtered.length}
+                  itemsPerPage={getPageSize(listKey)}
+                  onPageChange={page => setPage(listKey, page)}
+                />
+              );
+            })()}
+          </div>
+        </>
+      )}
+
+      {/* 2.6. View: Log de Atividades */}
+      {activeTab === 'log_atividades' && (
+        <>
+          <div className="view-header">
+            <div className="view-title-group">
+              <h1>Log de Atividades (Auditoria)</h1>
+              <p>Histórico de ações realizadas pelos profissionais no sistema.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="page-size-selector">
+                <span>Exibir:</span>
+                <select value={getPageSize('log_atividades')} onChange={e => setPageSizeForKey('log_atividades', Number(e.target.value))}>
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="content-panel">
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar por ação, profissional ou aluno..."
+                value={getSearchQuery('log_atividades')}
+                onChange={e => setSearchQueryForKey('log_atividades', e.target.value)}
+                style={{ maxWidth: '300px' }}
+              />
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Data / Hora</th>
+                    <th>Profissional</th>
+                    <th>Ação</th>
+                    <th>Aluno Alvo</th>
+                    <th>Origem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const listKey = 'log_atividades';
+                    const activeP = getPage(listKey);
+                    const size = getPageSize(listKey);
+                    const q = normalizeText(getSearchQuery(listKey));
+                    
+                    const filtered = activityLogs.filter(log => {
+                      const matchesSearch = 
+                        normalizeText(log.acao).includes(q) || 
+                        normalizeText(log.detalhes).includes(q) ||
+                        normalizeText(log.profissionalId?.nome).includes(q) ||
+                        normalizeText(log.clienteId?.dadosPessoais?.nome).includes(q);
+                      return matchesSearch;
+                    });
+
+                    const totalPages = Math.ceil(filtered.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+                    if (paginated.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
+                            Nenhuma atividade registrada.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return paginated.map(log => {
+                      const formattedDate = new Date(log.createdAt).toLocaleString('pt-BR');
+                      const profName = log.profissionalId?.nome || 'Profissional Desconhecido';
+                      const clientName = log.clienteId?.dadosPessoais?.nome || '-';
+                      const isColetivo = log.origem === 'Computador Coletivo';
+
+                      return (
+                        <tr key={log._id}>
+                          <td><strong>{formattedDate}</strong></td>
+                          <td>{profName}</td>
+                          <td>
+                            <strong>{log.acao}</strong>
+                            {log.detalhes && (
+                              <>
+                                <br />
+                                <small style={{ color: 'var(--text-dim)' }}>{log.detalhes}</small>
+                              </>
+                            )}
+                          </td>
+                          <td>{clientName}</td>
+                          <td>
+                            <span className={`badge ${isColetivo ? 'badge-info' : 'badge-secondary'}`}>
+                              {log.origem}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            {(() => {
+              const listKey = 'log_atividades';
+              const q = normalizeText(getSearchQuery(listKey));
+              const filtered = activityLogs.filter(log => 
+                normalizeText(log.acao).includes(q) || 
+                normalizeText(log.detalhes).includes(q) ||
+                normalizeText(log.profissionalId?.nome).includes(q) ||
+                normalizeText(log.clienteId?.dadosPessoais?.nome).includes(q)
+              );
+              const totalPages = Math.ceil(filtered.length / getPageSize(listKey));
+              if (totalPages <= 1) return null;
+              return (
+                <Pagination
+                  currentPage={getPage(listKey)}
+                  totalItems={filtered.length}
+                  itemsPerPage={getPageSize(listKey)}
+                  onPageChange={page => setPage(listKey, page)}
+                />
+              );
+            })()}
           </div>
         </>
       )}
@@ -3995,6 +4301,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         <label>Registro Profissional (Ex: CREFITO)</label>
                         <input type="text" className="form-control" value={registro} onChange={e => setRegistro(e.target.value)} required />
                       </div>
+                    </div>
+                    <div className="form-group">
+                      <label>PIN de Acesso Coletivo (Senha Curta de 4 Dígitos)</label>
+                      <input type="text" className="form-control" value={pin} onChange={e => setPin(e.target.value)} maxLength={6} placeholder="Ex: 1234" required />
                     </div>
                   </>
                 )}

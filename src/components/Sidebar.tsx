@@ -24,6 +24,8 @@ const tabConfigs: Record<string, TabConfig[]> = {
     { id: 'usuarios', label: 'Cadastro de Usuários', icon: 'fa-user-cog' },
     { id: 'profissionais', label: 'Profissionais', icon: 'fa-user-md' },
     { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
+    { id: 'vincular_alunos', label: 'Vincular Alunos', icon: 'fa-link' },
+    { id: 'log_atividades', label: 'Log de Atividades', icon: 'fa-history' },
     { id: 'controle_creditos', label: 'Controle de Créditos', icon: 'fa-coins' },
     { id: 'planos', label: 'Planos & Configs', icon: 'fa-tags' },
     { id: 'agenda_fixa', label: 'Horários Fixos', icon: 'fa-thumbtack' },
