@@ -3342,9 +3342,9 @@ goniometria: {
             const cid = typeof as.clienteId === 'object' ? as.clienteId?._id : as.clienteId;
             return cid === clientId;
           });
-          if (clientAs.length === 0) return '-';
+          if (clientAs.length === 0) return null;
           const sorted = [...clientAs].sort((a: any, b: any) => b.data.localeCompare(a.data));
-          return sorted[0].data.split('-').reverse().join('/');
+          return sorted[0].data; // YYYY-MM-DD
         };
 
         const getLastStrengthTest = (clientId: string) => {
@@ -3352,9 +3352,71 @@ goniometria: {
             const cid = typeof st.clienteId === 'object' ? st.clienteId?._id : st.clienteId;
             return cid === clientId;
           });
-          if (clientSt.length === 0) return '-';
+          if (clientSt.length === 0) return null;
           const sorted = [...clientSt].sort((a: any, b: any) => b.data.localeCompare(a.data));
-          return sorted[0].data.split('-').reverse().join('/');
+          return sorted[0].data; // YYYY-MM-DD
+        };
+
+        const getPlanStyleAndIcon = (vencimentoStr: string) => {
+          if (!vencimentoStr) return { displayVal: '-', style: { color: 'var(--text-muted)' }, icon: null };
+          const parts = vencimentoStr.split('-');
+          if (parts.length !== 3) return { displayVal: vencimentoStr, style: {}, icon: null };
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          d.setHours(0,0,0,0);
+
+          const diffTime = d.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const displayVal = vencimentoStr.split('-').reverse().join('/');
+
+          if (diffDays < 0) {
+            return {
+              displayVal,
+              style: { color: 'var(--color-danger)', fontWeight: 700 },
+              icon: <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px', color: 'var(--color-danger)' }} title="Plano Vencido"></i>
+            };
+          } else if (diffDays <= 15) {
+            return {
+              displayVal,
+              style: { color: 'var(--color-warning)', fontWeight: 600 },
+              icon: <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px', color: 'var(--color-warning)' }} title="Vence nos próximos 15 dias"></i>
+            };
+          } else {
+            return { displayVal, style: {}, icon: null };
+          }
+        };
+
+        const getExamStyleAndIcon = (examDateStr: string | null) => {
+          if (!examDateStr || examDateStr === '-') return { displayVal: '-', style: { color: 'var(--text-muted)' }, icon: null };
+          const parts = examDateStr.split('-');
+          if (parts.length !== 3) return { displayVal: examDateStr, style: {}, icon: null };
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          d.setHours(0,0,0,0);
+
+          const diffTime = today.getTime() - d.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          const displayVal = examDateStr.split('-').reverse().join('/');
+
+          if (diffDays > 60) {
+            return {
+              displayVal,
+              style: { color: 'var(--color-danger)', fontWeight: 700 },
+              icon: <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px', color: 'var(--color-danger)' }} title="Vencido (Mais de 2 meses)"></i>
+            };
+          } else if (diffDays > 40) {
+            return {
+              displayVal,
+              style: { color: 'var(--color-warning)', fontWeight: 600 },
+              icon: <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px', color: 'var(--color-warning)' }} title="Vencendo em breve (Restam menos de 20 dias)"></i>
+            };
+          } else {
+            return { displayVal, style: {}, icon: null };
+          }
         };
 
         return (
@@ -3414,9 +3476,12 @@ goniometria: {
                       return paginated.map(c => {
                         const days = getDaysSince(c._id);
                         const risk = getRisk(days);
-                        const lastAsDate = getLastAssessment(c._id);
-                        const lastStDate = getLastStrengthTest(c._id);
-                        const endPlanDate = c.dadosComerciais?.vencimento ? c.dadosComerciais.vencimento.split('-').reverse().join('/') : '-';
+                        const lastAsRaw = getLastAssessment(c._id);
+                        const lastStRaw = getLastStrengthTest(c._id);
+
+                        const asObj = getExamStyleAndIcon(lastAsRaw);
+                        const stObj = getExamStyleAndIcon(lastStRaw);
+                        const planObj = getPlanStyleAndIcon(c.dadosComerciais?.vencimento);
 
                         return (
                           <tr key={c._id}>
@@ -3438,9 +3503,18 @@ goniometria: {
                                 </div>
                               </div>
                             </td>
-                            <td>{lastAsDate}</td>
-                            <td>{lastStDate}</td>
-                            <td>{endPlanDate}</td>
+                            <td style={asObj.style}>
+                              {asObj.icon}
+                              {asObj.displayVal}
+                            </td>
+                            <td style={stObj.style}>
+                              {stObj.icon}
+                              {stObj.displayVal}
+                            </td>
+                            <td style={planObj.style}>
+                              {planObj.icon}
+                              {planObj.displayVal}
+                            </td>
                             <td>
                               <span className="badge" style={{ background: risk.color + '22', color: risk.color, fontWeight: 700 }}>
                                 {risk.level}
