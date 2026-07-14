@@ -2514,7 +2514,8 @@ goniometria: {
             setShowProntuarioModal(false);
             fetchData();
             if (confirm('Deseja fazer o download do PDF do prontuário agora?')) {
-              downloadProntuarioPDF(data.data, client);
+              const profDetails = professionals.find(p => p._id === executorProfId) || { nome: 'Profissional', registro: 'CREFITO' };
+              downloadProntuarioPDF(data.data, client, profDetails.nome, profDetails.registro);
             }
           } else {
             alert('Erro ao salvar prontuário: ' + data.error);
@@ -3493,7 +3494,7 @@ goniometria: {
                                     {c.dadosPessoais?.nome}
                                     {isColetivo && (
                                       <span style={{ fontWeight: 500, fontSize: '0.82rem', color: 'var(--color-primary)', marginLeft: '6px' }}>
-                                        (Prof. {c.profissionalId?.nome || 'Sem Vínculo'})
+                                        (Prof. {c.profissionalId?.nome || 'Sem Vínculo'}{c.profissionalId?.registro ? ` - ${c.profissionalId.registro}` : ''})
                                       </span>
                                     )}
                                   </strong>
@@ -4721,7 +4722,11 @@ goniometria: {
                         <td><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
                         <td><small style={{ color: 'var(--text-main)' }}>{(pr.conteudo || '').substring(0, 120)}{(pr.conteudo || '').length > 120 ? '...' : ''}</small></td>
                         <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadProntuarioPDF(pr, pr.clienteId)}>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                            const pId = typeof pr.profissionalId === 'object' ? pr.profissionalId?._id : pr.profissionalId;
+                            const profDetails = professionals.find(p => p._id === pId) || pr.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
+                            downloadProntuarioPDF(pr, pr.clienteId, profDetails.nome, profDetails.registro);
+                          }}>
                             <i className="fa-solid fa-file-pdf"></i> PDF
                           </button>
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProntuario(pr._id)}>
@@ -7872,7 +7877,7 @@ goniometria: {
                     style={{ background: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--border-color)', width: '100%' }}
                   >
                     {professionals.filter(p => p._id !== professionalId).map(p => (
-                      <option key={p._id} value={p._id}>{p.nome}</option>
+                      <option key={p._id} value={p._id}>{p.nome} ({p.registro || 'Sem Registro'})</option>
                     ))}
                   </select>
                 </div>
