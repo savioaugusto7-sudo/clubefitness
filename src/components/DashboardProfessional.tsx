@@ -7854,7 +7854,7 @@ goniometria: {
       )}
       {/* 🔐 PIN Verification Modal */}
       {showPinModal && (
-        <div className="modal-overlay" style={{ display: 'flex', zIndex: 1200 }}>
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 10000 }}>
           <div className="modal-content" style={{ maxWidth: '400px', width: '90%' }}>
             <div className="modal-header">
               <h3>Confirmar Ação (Computador Coletivo)</h3>
