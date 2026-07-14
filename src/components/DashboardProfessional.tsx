@@ -1012,10 +1012,20 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
       }
 
-      if (activeTab === 'dashboard' || activeTab === 'resumo_dia') {
+      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'clientes') {
         const resApts = await fetch('/api/appointments');
         const jsonApts = await resApts.json();
         if (jsonApts.success) setAppointments(jsonApts.data);
+      }
+      if (activeTab === 'clientes') {
+        const [resAs, resSt] = await Promise.all([
+          fetch('/api/assessments'),
+          fetch('/api/strength-tests')
+        ]);
+        const jsonAs = await resAs.json();
+        const jsonSt = await resSt.json();
+        if (jsonAs.success) setAssessments(jsonAs.data);
+        if (jsonSt.success) setStrengthTests(jsonSt.data);
       } else if (activeTab === 'treinos_prof') {
         const [resWorkouts, resExs] = await Promise.all([
           fetch('/api/workouts'),
@@ -3309,107 +3319,160 @@ goniometria: {
       )}
 
       {/* 2. View: Clientes Vinculados */}
-      {activeTab === 'clientes' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Meus Alunos</h1>
-              <p>Acompanhamento de fichas clínicas e evolução.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('clientes')} onChange={e => setPageSizeForKey('clientes', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'clientes' && (() => {
+        const getDaysSince = (clientId: string) => {
+          const clientApts = appointments.filter((a: any) =>
+            (a.clientId === clientId || a.clientId?._id === clientId) &&
+            (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
+          );
+          if (clientApts.length === 0) return 999;
+          const dates = clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime());
+          return Math.floor((Date.now() - Math.max(...dates)) / (1000 * 60 * 60 * 24));
+        };
+
+        const getRisk = (days: number) => {
+          if (days === 999) return { level: 'Sem histórico', color: 'var(--text-muted)' };
+          if (days <= 7) return { level: 'Baixo', color: 'var(--color-primary)' };
+          if (days <= 20) return { level: 'Médio', color: 'var(--color-warning)' };
+          return { level: 'Alto', color: 'var(--color-danger)' };
+        };
+
+        const getLastAssessment = (clientId: string) => {
+          const clientAs = assessments.filter((as: any) => {
+            const cid = typeof as.clienteId === 'object' ? as.clienteId?._id : as.clienteId;
+            return cid === clientId;
+          });
+          if (clientAs.length === 0) return '-';
+          const sorted = [...clientAs].sort((a: any, b: any) => b.data.localeCompare(a.data));
+          return sorted[0].data.split('-').reverse().join('/');
+        };
+
+        const getLastStrengthTest = (clientId: string) => {
+          const clientSt = strengthTests.filter((st: any) => {
+            const cid = typeof st.clienteId === 'object' ? st.clienteId?._id : st.clienteId;
+            return cid === clientId;
+          });
+          if (clientSt.length === 0) return '-';
+          const sorted = [...clientSt].sort((a: any, b: any) => b.data.localeCompare(a.data));
+          return sorted[0].data.split('-').reverse().join('/');
+        };
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Meus Alunos</h1>
+                <p>Acompanhamento de fichas clínicas e evolução.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="page-size-selector">
+                  <span>Exibir:</span>
+                  <select value={getPageSize('clientes')} onChange={e => setPageSizeForKey('clientes', Number(e.target.value))}>
+                    <option value={5}>5</option>
+                    <option value={8}>8</option>
+                    <option value={15}>15</option>
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar aluno por nome, email ou CPF..." value={getSearchQuery('clientes')} onChange={e => setSearchQueryForKey('clientes', e.target.value)} style={{ maxWidth: '300px' }} />
-            </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Aluno</th>
-                    <th>Contato</th>
-                    <th>Plano</th>
-                    <th>Observações Clínicas</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'clientes';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = clients.filter(c => {
-                      if (!isColetivo) {
-                        const linkedProfId = c.profissionalId?._id || c.profissionalId;
-                        if (linkedProfId !== professionalId) {
-                          return false;
+            <div className="content-panel">
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <input type="text" className="form-control" placeholder="Buscar aluno por nome, email ou CPF..." value={getSearchQuery('clientes')} onChange={e => setSearchQueryForKey('clientes', e.target.value)} style={{ maxWidth: '300px' }} />
+              </div>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Aluno</th>
+                      <th>Última Avaliação</th>
+                      <th>Teste de Força</th>
+                      <th>Fim do Plano</th>
+                      <th>Risco de Evasão</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const listKey = 'clientes';
+                      const activeP = getPage(listKey);
+                      const size = getPageSize(listKey);
+                      const q = normalizeText(getSearchQuery(listKey));
+                      const filtered = clients.filter(c => {
+                        if (!isColetivo) {
+                          const linkedProfId = c.profissionalId?._id || c.profissionalId;
+                          if (linkedProfId !== professionalId) {
+                            return false;
+                          }
                         }
-                      }
-                      return normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q);
-                    });
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+                        return normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q);
+                      });
+                      const totalPages = Math.ceil(filtered.length / size);
+                      const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                      const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-                    return paginated.map(c => (
-                      <tr key={c._id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <img src={c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
-                            <strong>
-                              {c.dadosPessoais?.nome}
-                              {isColetivo && (
-                                <span style={{ fontWeight: 500, fontSize: '0.82rem', color: 'var(--color-primary)', marginLeft: '6px' }}>
-                                  (Prof. {c.profissionalId?.nome || 'Sem Vínculo'})
-                                </span>
-                              )}
-                            </strong>
+                      return paginated.map(c => {
+                        const days = getDaysSince(c._id);
+                        const risk = getRisk(days);
+                        const lastAsDate = getLastAssessment(c._id);
+                        const lastStDate = getLastStrengthTest(c._id);
+                        const endPlanDate = c.dadosComerciais?.vencimento ? c.dadosComerciais.vencimento.split('-').reverse().join('/') : '-';
+
+                        return (
+                          <tr key={c._id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <img src={c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                                <div>
+                                  <strong style={{ display: 'block' }}>
+                                    {c.dadosPessoais?.nome}
+                                    {isColetivo && (
+                                      <span style={{ fontWeight: 500, fontSize: '0.82rem', color: 'var(--color-primary)', marginLeft: '6px' }}>
+                                        (Prof. {c.profissionalId?.nome || 'Sem Vínculo'})
+                                      </span>
+                                    )}
+                                  </strong>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                                    {c.dadosPessoais?.telefone || '-'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>{lastAsDate}</td>
+                            <td>{lastStDate}</td>
+                            <td>{endPlanDate}</td>
+                            <td>
+                              <span className="badge" style={{ background: risk.color + '22', color: risk.color, fontWeight: 700 }}>
+                                {risk.level}
+                              </span>
+                            </td>
+                            <td>
+                              <button className="btn btn-primary btn-sm" onClick={() => {
+                                setDetailClient(c);
+                                setClientDetailTab('agendamentos');
+                                setShowClientDetailModal(true);
+                              }}>
+                                <i className="fa-solid fa-address-card"></i> Histórico
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                    {clients.length === 0 && (
+                      <tr>
+                        <td colSpan={6}>
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-graduation-cap empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum aluno vinculado</div>
+                            <div className="empty-state-desc">Não há alunos vinculados a você no sistema.</div>
                           </div>
                         </td>
-                        <td>{c.dadosPessoais?.telefone || '-'}</td>
-                        <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
-                        <td>
-                          <em style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            {c.dadosClinicos?.lesoes || 'Sem lesões registradas'}
-                          </em>
-                        </td>
-                        <td>
-                          <button className="btn btn-primary btn-sm" onClick={() => {
-                            setDetailClient(c);
-                            setClientDetailTab('agendamentos');
-                            setShowClientDetailModal(true);
-                          }}>
-                            <i className="fa-solid fa-address-card"></i> Histórico
-                          </button>
-                        </td>
                       </tr>
-                    ));
-                  })()}
-                  {clients.length === 0 && (
-                    <tr>
-                      <td colSpan={5}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-graduation-cap empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum aluno vinculado</div>
-                          <div className="empty-state-desc">Não há alunos vinculados a você no sistema.</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             {clients.length > 0 && (
               <Pagination
                 currentPage={getPage('clientes')}
@@ -3420,7 +3483,8 @@ goniometria: {
             )}
           </div>
         </>
-      )}
+      );
+    })()}
 
       {/* 3. View: Fichas de Treino */}
       {activeTab === 'treinos_prof' && (
