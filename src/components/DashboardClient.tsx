@@ -325,6 +325,21 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     }
   }, [bookType]);
 
+  // Sincronizar serviço automaticamente quando a data for Sábado ou Dia de Semana
+  useEffect(() => {
+    if (!bookDate) return;
+    const isSaturday = new Date(bookDate + 'T12:00:00').getDay() === 6;
+    if (isSaturday) {
+      if (bookService !== 'Massagem') {
+        setBookService('Massagem');
+      }
+    } else {
+      if (bookService === 'Massagem') {
+        setBookService(bookType === 'academia' ? 'Treino Monitorado' : 'Avaliação Fisioterápica');
+      }
+    }
+  }, [bookDate, bookType, bookService]);
+
   // Reset bookTime when date or service changes
   useEffect(() => {
     setBookTime('');

@@ -796,6 +796,8 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                             title="Ver e Gerenciar Agendamentos"
                             onClick={() => {
                               setSelectedSlot(slot);
+                              const isSat = selectedDate ? new Date(selectedDate + 'T12:00:00').getDay() === 6 : false;
+                              setManualService(isSat ? 'Massagem' : 'Treino Monitorado');
                               setShowDetailsModal(true);
                             }}
                           >
@@ -1211,7 +1213,9 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                   <div>
                     <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Serviço</label>
                     <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)}>
-                      {selectedSlot.tipo === 'academia' ? (
+                      {selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 ? (
+                        <option value="Massagem">Massagem</option>
+                      ) : selectedSlot.tipo === 'academia' ? (
                         <>
                           <option value="Treino Monitorado">Treino Monitorado</option>
                           <option value="Treino Livre">Treino Livre</option>
