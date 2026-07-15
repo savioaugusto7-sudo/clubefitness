@@ -461,7 +461,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
     let confirmMsg = 'Deseja realmente cancelar este agendamento?';
     if (diffHoras < janelaHoras) {
-      confirmMsg = `Atenção: Este agendamento é no passado ou possui menos de ${janelaHoras} horas de antecedência. Caso confirme o cancelamento, o crédito correspondente será consumido e NÃO será devolvido. Deseja continuar?`;
+      confirmMsg = `Atenção: Cancelamentos realizados com menos de ${janelaHoras} horas de antecedência em relação ao horário do agendamento resultam no consumo do crédito utilizado. Deseja continuar?`;
     } else {
       confirmMsg = 'Deseja realmente cancelar este agendamento? O crédito correspondente será devolvido à sua conta.';
     }
