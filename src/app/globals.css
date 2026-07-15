@@ -2948,16 +2948,14 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     bottom: 0;
     left: 0;
     width: 100vw;
-    height: 72px;
-    background: rgba(14, 19, 31, 0.96);
+    background: #080b11; /* Fundo preto para combinar com o layout do app */
     border-top: 1px solid var(--border-color);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(16px);
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(20px);
     z-index: 1050;
     justify-content: space-around;
     align-items: center;
-    padding: 0 8px;
-    padding-bottom: env(safe-area-inset-bottom, 8px); /* suporte para área segura de iPhones sem botão home */
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px; /* Ajuste flexível para safe area de celulares */
   }
 
   .bottom-nav-item {
@@ -2966,15 +2964,15 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     align-items: center;
     justify-content: center;
     flex: 1;
-    color: var(--text-dim);
+    color: rgba(255, 255, 255, 0.45); /* Ícones brancos com opacidade para inativos */
     cursor: pointer;
-    gap: 5px;
+    gap: 4px;
     transition: all var(--transition-fast);
-    padding: 8px 0;
+    padding: 4px 0;
   }
 
   .bottom-nav-item i {
-    font-size: 1.25rem;
+    font-size: 1.3rem; /* Ícones ligeiramente maiores e nítidos */
   }
 
   .bottom-nav-item span {
@@ -2985,8 +2983,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
   .bottom-nav-item:hover,
   .bottom-nav-item.active {
-    color: var(--color-primary);
-    filter: drop-shadow(0 0 4px var(--color-primary-glow));
+    color: #ffffff !important; /* Ícones brancos brilhantes para ativos */
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
   }
 
   /* Bottom Drawer (Menu Gaveta Deslizante) */
