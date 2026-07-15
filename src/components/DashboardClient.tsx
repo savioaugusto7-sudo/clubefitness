@@ -790,105 +790,117 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       )}
 
       {/* 3. View: Meus Agendamentos */}
-      {activeTab === 'agendamentos' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Meus Agendamentos</h1>
-              <p>Histórico e acompanhamento de agendamentos realizados.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('appointments')} onChange={e => setPageSizeForKey('appointments', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'agendamentos' && (() => {
+        const now = new Date();
+        const futureApts = appointments.filter((a: any) => {
+          const aptDateTime = new Date(`${a.data}T${a.horario}:00-03:00`);
+          return aptDateTime.getTime() >= now.getTime();
+        }).sort((a: any, b: any) => {
+          const dateA = `${a.data}T${a.horario}`;
+          const dateB = `${b.data}T${b.horario}`;
+          return dateA.localeCompare(dateB);
+        });
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Meus Agendamentos</h1>
+                <p>Histórico e acompanhamento de agendamentos realizados.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="page-size-selector">
+                  <span>Exibir:</span>
+                  <select value={getPageSize('appointments')} onChange={e => setPageSizeForKey('appointments', Number(e.target.value))}>
+                    <option value={5}>5</option>
+                    <option value={8}>8</option>
+                    <option value={15}>15</option>
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data / Hora</th>
-                    <th>Modalidade</th>
-                    <th>Serviço</th>
-                    <th className="text-center">Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'appointments';
-                    const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(appointments.length / size);
-                    const activeP = getPage(listKey);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = appointments.slice((curP - 1) * size, curP * size);
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data / Hora</th>
+                      <th>Modalidade</th>
+                      <th>Serviço</th>
+                      <th className="text-center">Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const listKey = 'appointments';
+                      const size = getPageSize(listKey);
+                      const totalPages = Math.ceil(futureApts.length / size);
+                      const activeP = getPage(listKey);
+                      const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                      const paginated = futureApts.slice((curP - 1) * size, curP * size);
 
-                    if (paginated.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={5}>
-                            <div className="empty-state-card">
-                              <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
-                              <div className="empty-state-title">Nenhum agendamento futuro</div>
-                              <div className="empty-state-desc">Você não possui aulas ou consultas agendadas para os próximos dias.</div>
-                              <button type="button" className="btn btn-primary btn-sm" onClick={() => setActiveTab('agendar')}>
-                                <i className="fa-solid fa-calendar-plus"></i> Agendar Agora
+                      if (paginated.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={5}>
+                              <div className="empty-state-card">
+                                <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
+                                <div className="empty-state-title">Nenhum agendamento futuro</div>
+                                <div className="empty-state-desc">Você não possui aulas ou consultas agendadas para os próximos dias.</div>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={() => setActiveTab('agendar')}>
+                                  <i className="fa-solid fa-calendar-plus"></i> Agendar Agora
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return paginated.map(a => (
+                        <tr key={a._id}>
+                          <td data-label="Data / Hora"><strong>{formatDateBR(a.data)}</strong> às {a.horario}</td>
+                          <td data-label="Modalidade">
+                            <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
+                              {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
+                            </span>
+                          </td>
+                          <td data-label="Serviço">{a.servico}</td>
+                          <td data-label="Status" className="text-center">
+                            <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
+                              {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
+                            </span>
+                          </td>
+                          <td data-label="Ações">
+                            {a.status === 'agendado' && (
+                              <button className="btn btn-danger btn-sm" onClick={() => handleCancelAppointment(a._id)} style={{ width: '100%' }}>
+                                Cancelar Agendamento
                               </button>
-                            </div>
+                            )}
+                            {a.status !== 'agendado' && (
+                              <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Indisponível</span>
+                            )}
                           </td>
                         </tr>
-                      );
-                    }
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
 
-                    return paginated.map(a => (
-                      <tr key={a._id}>
-                        <td data-label="Data / Hora"><strong>{formatDateBR(a.data)}</strong> às {a.horario}</td>
-                        <td data-label="Modalidade">
-                          <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
-                            {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
-                          </span>
-                        </td>
-                        <td data-label="Serviço">{a.servico}</td>
-                        <td data-label="Status" className="text-center">
-                          <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
-                            {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
-                          </span>
-                        </td>
-                        <td data-label="Ações">
-                          {a.status === 'agendado' && (
-                            <button className="btn btn-danger btn-sm" onClick={() => handleCancelAppointment(a._id)} style={{ width: '100%' }}>
-                              Cancelar Agendamento
-                            </button>
-                          )}
-                          {a.status !== 'agendado' && (
-                            <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Indisponível</span>
-                          )}
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
+              {futureApts.length > 0 && (
+                <Pagination
+                  currentPage={getPage('appointments')}
+                  totalItems={futureApts.length}
+                  itemsPerPage={getPageSize('appointments')}
+                  onPageChange={page => setPage('appointments', page)}
+                />
+              )}
             </div>
-
-            {appointments.length > 0 && (
-              <Pagination
-                currentPage={getPage('appointments')}
-                totalItems={appointments.length}
-                itemsPerPage={getPageSize('appointments')}
-                onPageChange={page => setPage('appointments', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* View: Ficha de Treino */}
       {activeTab === 'treino' && (
