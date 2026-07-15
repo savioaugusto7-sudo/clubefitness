@@ -3360,4 +3360,35 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
+
+  /* Alinha células com textos muito longos como blocos verticais */
+  .data-table td.cell-block {
+    display: block !important;
+    text-align: left !important;
+    padding: 8px 0 !important;
+  }
+  .data-table td.cell-block::before {
+    display: block !important;
+    margin-bottom: 4px !important;
+    text-align: left !important;
+  }
+  .data-table td.cell-block small {
+    display: block !important;
+    text-align: left !important;
+    white-space: normal !important;
+  }
 }
+
+@media (max-width: 1024px) {
+  main.main-content {
+    margin-left: 0 !important; /* Remove margem esquerda no mobile quando o menu está oculto */
+    padding: 16px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .resp-grid-2-1 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+  }
+}
+

@@ -23,9 +23,10 @@ export async function GET(request: Request) {
     let query: any = { 'dadosComerciais.status': { $ne: 'excluido_anonimizado' } };
 
     // Professionals can only list their own linked clients (except for collective account)
-    if (user.role === 'professional' && user.email !== 'coletivo@clube.com') {
-      query.profissionalId = user.professionalProfileId;
-    }
+    // Commented out as any professional can perform actions with any student (evaluations, tests, presences, lack)
+    // if (user.role === 'professional' && user.email !== 'coletivo@clube.com') {
+    //   query.profissionalId = user.professionalProfileId;
+    // }
 
     // Clients can only fetch their own profile
     if (user.role === 'client') {

@@ -3083,15 +3083,15 @@ goniometria: {
                             const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
                             return (
                               <tr key={a._id} style={{ background: 'rgba(239, 68, 68, 0.02)' }}>
-                                <td style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
-                                <td style={{ padding: '12px 16px' }}>
+                                <td data-label="Horário" style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
+                                <td data-label="Aluno" style={{ padding: '12px 16px' }}>
                                   <strong>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</strong><br />
                                   <small style={{ color: 'var(--text-dim)' }}>
                                     {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
                                   </small>
                                 </td>
-                                <td style={{ padding: '12px 16px' }}><span className="badge badge-info">{a.servico || a.tipo}</span></td>
-                                <td style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
+                                <td data-label="Serviço" style={{ padding: '12px 16px' }}><span className="badge badge-info">{a.servico || a.tipo}</span></td>
+                                <td data-label="Sinalizar Frequência" style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
                                   <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
                                     <i className="fa-solid fa-check"></i> Presença
                                   </button>
@@ -3547,7 +3547,7 @@ goniometria: {
 
                         return (
                           <tr key={c._id}>
-                            <td>
+                            <td data-label="Aluno">
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <img src={c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
                                 <div>
@@ -3565,24 +3565,24 @@ goniometria: {
                                 </div>
                               </div>
                             </td>
-                            <td style={asObj.style}>
+                            <td data-label="Última Avaliação" style={asObj.style}>
                               {asObj.icon}
                               {asObj.displayVal}
                             </td>
-                            <td style={stObj.style}>
+                            <td data-label="Teste de Força" style={stObj.style}>
                               {stObj.icon}
                               {stObj.displayVal}
                             </td>
-                            <td style={planObj.style}>
+                            <td data-label="Fim do Plano" style={planObj.style}>
                               {planObj.icon}
                               {planObj.displayVal}
                             </td>
-                            <td>
+                            <td data-label="Risco de Evasão">
                               <span className="badge" style={{ background: risk.color + '22', color: risk.color, fontWeight: 700 }}>
                                 {risk.level}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="Ações">
                               <button className="btn btn-primary btn-sm" onClick={() => {
                                 setDetailClient(c);
                                 setClientDetailTab('agendamentos');
@@ -3764,14 +3764,14 @@ goniometria: {
 
                             return (
                               <tr key={c._id}>
-                                <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
-                                <td>{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
-                                <td style={{ textAlign: 'center' }}>
+                                <td data-label="Aluno"><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
+                                <td data-label="Plano">{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
+                                <td data-label="Status da Ficha" style={{ textAlign: 'center' }}>
                                   <span className={`badge ${hasWorkout ? (isExpired ? 'badge-danger' : 'badge-success') : 'badge-warning'}`}>
                                     {hasWorkout ? (isExpired ? 'Ficha Vencida' : 'Ficha Ativa') : 'Sem Ficha'}
                                   </span>
                                 </td>
-                                <td style={{ textAlign: 'center' }}>
+                                <td data-label="Data da Última Ficha" style={{ textAlign: 'center' }}>
                                   <strong style={{ fontSize: '0.85rem' }}>{dateStr}</strong>
                                   {hasWorkout && isExpired && (
                                     <div style={{ marginTop: '4px' }}>
@@ -3779,7 +3779,7 @@ goniometria: {
                                     </div>
                                   )}
                                 </td>
-                                <td>
+                                <td data-label="Ações">
                                   <button className="btn btn-primary btn-sm" onClick={() => handleOpenWorkoutEditor(c)}>
                                     <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar Ficha' : 'Criar Ficha'}
                                   </button>
@@ -3870,10 +3870,10 @@ goniometria: {
 
                           return paginated.map(ex => (
                             <tr key={ex._id}>
-                              <td><strong>{ex.nome}</strong></td>
-                              <td style={{ textAlign: 'center' }}><span className="badge badge-info">{ex.grupo}</span></td>
-                              <td><code>{ex.equipamento}</code></td>
-                              <td><small style={{ color: 'var(--text-muted)' }}>{ex.instrucoes || 'Nenhuma instrução disponível.'}</small></td>
+                              <td data-label="Exercício"><strong>{ex.nome}</strong></td>
+                              <td data-label="Grupo" style={{ textAlign: 'center' }}><span className="badge badge-info">{ex.grupo}</span></td>
+                              <td data-label="Equipamento"><code>{ex.equipamento}</code></td>
+                              <td data-label="Instruções" className="cell-block"><small style={{ color: 'var(--text-muted)' }}>{ex.instrucoes || 'Nenhuma instrução disponível.'}</small></td>
                             </tr>
                           ));
                         })()}
@@ -4071,7 +4071,7 @@ goniometria: {
                                   const rowStyle = groupColor ? { borderLeft: `4px solid ${groupColor}`, background: 'rgba(255, 255, 255, 0.015)' } : {};
                                   return (
                                     <tr key={idx} style={rowStyle}>
-                                      <td>
+                                      <td data-label="Exercício">
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                           <strong>{ex.exercicioId}</strong>
                                           {ex.combinaGrupo && (
@@ -4081,25 +4081,25 @@ goniometria: {
                                           )}
                                         </div>
                                       </td>
-                                      <td>
+                                      <td data-label="Séries">
                                         <input type="number" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.series} onChange={e => handleUpdateExerciseField(idx, 'series', Number(e.target.value))} />
                                       </td>
-                                      <td>
+                                      <td data-label="Reps">
                                         <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.repeticoes} onChange={e => handleUpdateExerciseField(idx, 'repeticoes', e.target.value)} />
                                       </td>
-                                      <td>
+                                      <td data-label="Ritmo">
                                         <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.ritmo || '2-0-2-0'} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="2-0-2-0" />
                                       </td>
-                                      <td>
+                                      <td data-label="Carga">
                                         <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.carga} onChange={e => handleUpdateExerciseField(idx, 'carga', e.target.value)} />
                                       </td>
-                                      <td>
+                                      <td data-label="Descanso">
                                         <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.descanso} onChange={e => handleUpdateExerciseField(idx, 'descanso', e.target.value)} />
                                       </td>
-                                      <td>
+                                      <td data-label="Obs" className="cell-block">
                                         <input type="text" className="form-control" style={{ padding: '4px', height: '30px' }} value={ex.observacao} onChange={e => handleUpdateExerciseField(idx, 'observacao', e.target.value)} placeholder="Dica..." />
                                       </td>
-                                      <td>
+                                      <td data-label="Combinar">
                                         <input 
                                           type="text" 
                                           list={`group-suggestions-${activeWorkoutSubTab}`} 
@@ -4110,7 +4110,7 @@ goniometria: {
                                           placeholder="Individual" 
                                         />
                                       </td>
-                                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                      <td data-label="Ações" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                                         <button className="btn btn-secondary btn-sm" style={{ padding: '4px 6px', marginRight: '4px' }} disabled={idx === 0} onClick={() => handleMoveExercise(idx, -1)}>
                                           <i className="fa-solid fa-arrow-up"></i>
                                         </button>
@@ -4243,12 +4243,12 @@ goniometria: {
 
                     return paginated.map(fs => (
                       <tr key={fs._id}>
-                        <td><strong>{fs.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td>{fs.profissionalId?.nome || 'Profissional'}</td>
-                        <td>{weekdayNames[fs.diaSemana]}</td>
-                        <td><strong>{fs.horario}</strong></td>
-                        <td>{fs.servico}</td>
-                        <td>
+                        <td data-label="Aluno"><strong>{fs.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td data-label="Especialista">{fs.profissionalId?.nome || 'Profissional'}</td>
+                        <td data-label="Dia de Semana">{weekdayNames[fs.diaSemana]}</td>
+                        <td data-label="Horário"><strong>{fs.horario}</strong></td>
+                        <td data-label="Serviço">{fs.servico}</td>
+                        <td data-label="Ações">
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFixedSchedule(fs._id)}>
                             <i className="fa-solid fa-trash"></i> Excluir
                           </button>
@@ -4341,17 +4341,17 @@ goniometria: {
 
                     return paginated.map(as => (
                       <tr key={as._id}>
-                        <td><strong>{as.data}</strong></td>
-                        <td><strong>{as.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td>{as.dadosMedidos?.peso} kg / {as.dadosMedidos?.altura} m</td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td data-label="Data"><strong>{as.data}</strong></td>
+                        <td data-label="Aluno"><strong>{as.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td data-label="Peso / Altura">{as.dadosMedidos?.peso} kg / {as.dadosMedidos?.altura} m</td>
+                        <td data-label="% Gordura (BF)" style={{ textAlign: 'center' }}>
                           <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura}% BF</span>
                         </td>
-                        <td>
+                        <td data-label="Massa Magra / Gorda">
                           MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
                         </td>
-                        {isAdmin && <td>{as.avaliadorId?.nome || 'Não Definido'}</td>}
-                        <td>
+                        {isAdmin && <td data-label="Avaliador">{as.avaliadorId?.nome || 'Não Definido'}</td>}
+                        <td data-label="Ações">
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
                             <i className="fa-solid fa-trash"></i>
                           </button>
@@ -4446,16 +4446,16 @@ goniometria: {
 
                     return paginated.map(rep => (
                       <tr key={rep._id}>
-                        <td><strong>{rep.data}</strong></td>
-                        <td><strong>{rep.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td data-label="Data"><strong>{rep.data}</strong></td>
+                        <td data-label="Aluno / Paciente"><strong>{rep.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td data-label="Escala de Dor" style={{ textAlign: 'center' }}>
                           <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
                             Dor: {rep.conteudo?.dorEscala} / 10
                           </span>
                         </td>
-                        <td><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
-                        {isAdmin && <td>{rep.profissionalId?.nome || 'Não Definido'}</td>}
-                        <td>
+                        <td data-label="Queixa Principal" className="cell-block"><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
+                        {isAdmin && <td data-label="Profissional">{rep.profissionalId?.nome || 'Não Definido'}</td>}
+                        <td data-label="Ações">
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
                             <i className="fa-solid fa-trash"></i>
                           </button>
@@ -4578,14 +4578,14 @@ goniometria: {
                       : 'Sem histórico';
                     return (
                       <tr key={c._id}>
-                        <td>
+                        <td data-label="Aluno">
                           <div style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{c.dadosPessoais?.telefone || ''}</div>
                         </td>
-                        <td style={{ fontWeight: 600, color: sessions > 0 ? 'var(--color-primary)' : 'var(--text-dim)' }}>{sessions}</td>
-                        <td style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{lastDate}</td>
-                        <td style={{ fontWeight: 600 }}>{days === 999 ? '—' : days}</td>
-                        <td>
+                        <td data-label="Sessões (mês)" style={{ fontWeight: 600, color: sessions > 0 ? 'var(--color-primary)' : 'var(--text-dim)' }}>{sessions}</td>
+                        <td data-label="Último Atendimento" style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{lastDate}</td>
+                        <td data-label="Dias Sem Vir" style={{ fontWeight: 600 }}>{days === 999 ? '—' : days}</td>
+                        <td data-label="Risco de Evasão">
                           <span className="badge" style={{ background: risk.color + '22', color: risk.color, fontWeight: 700 }}>
                             {risk.level}
                           </span>
@@ -4688,14 +4688,14 @@ goniometria: {
 
                       return (
                         <tr key={st._id}>
-                          <td><strong>{st.data}</strong></td>
-                          <td><strong>{st.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                          <td>{metricaText}</td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td data-label="Data"><strong>{st.data}</strong></td>
+                          <td data-label="Aluno"><strong>{st.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                          <td data-label="Métricas de Força / Cargas">{metricaText}</td>
+                          <td data-label="Avaliação / Risco" style={{ textAlign: 'center' }}>
                             {statusBadge}
                           </td>
-                          {isAdmin && <td>{st.profissionalId?.nome || 'Não Definido'}</td>}
-                          <td>
+                          {isAdmin && <td data-label="Avaliador">{st.profissionalId?.nome || 'Não Definido'}</td>}
+                          <td data-label="Ações">
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
                               <i className="fa-solid fa-trash"></i>
                             </button>
@@ -4789,10 +4789,10 @@ goniometria: {
 
                     return paginated.map(pr => (
                       <tr key={pr._id}>
-                        <td><strong>{pr.data}</strong></td>
-                        <td><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td><small style={{ color: 'var(--text-main)' }}>{(pr.conteudo || '').substring(0, 120)}{(pr.conteudo || '').length > 120 ? '...' : ''}</small></td>
-                        <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <td data-label="Data"><strong>{pr.data}</strong></td>
+                        <td data-label="Aluno / Paciente"><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td data-label="Anotações Médicas" className="cell-block"><small style={{ color: 'var(--text-main)' }}>{(pr.conteudo || '').substring(0, 120)}{(pr.conteudo || '').length > 120 ? '...' : ''}</small></td>
+                        <td data-label="Ações" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
                             const pId = typeof pr.profissionalId === 'object' ? pr.profissionalId?._id : pr.profissionalId;
                             const profDetails = professionals.find(p => p._id === pId) || pr.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
@@ -5284,12 +5284,12 @@ goniometria: {
 
                               return (
                                 <tr key={row.keyD}>
-                                  <td>
+                                  <td data-label="Movimento (Ref)">
                                     <strong>{row.label}</strong> <br/>
                                     <small style={{ color: 'var(--text-dim)' }}>Ref: {row.ref}</small>
                                   </td>
                                   {/* Direito */}
-                                  <td style={{ background: 'rgba(13,148,136,0.02)' }}>
+                                  <td data-label="Direito Ativo (Sem)" style={{ background: 'rgba(13,148,136,0.02)' }}>
                                     <input
                                       type="number"
                                       placeholder="1"
@@ -5299,7 +5299,7 @@ goniometria: {
                                       onChange={e => updateField(row.keyD, 'semForca', e.target.value)}
                                     />
                                   </td>
-                                  <td style={{ background: 'rgba(13,148,136,0.05)' }}>
+                                  <td data-label="Direito Passivo (Com)" style={{ background: 'rgba(13,148,136,0.05)' }}>
                                     <input
                                       type="number"
                                       placeholder="2"
@@ -5310,7 +5310,7 @@ goniometria: {
                                     />
                                   </td>
                                   {/* Esquerdo */}
-                                  <td style={{ background: 'rgba(99,102,241,0.02)' }}>
+                                  <td data-label="Esquerdo Ativo (Sem)" style={{ background: 'rgba(99,102,241,0.02)' }}>
                                     <input
                                       type="number"
                                       placeholder="1"
@@ -5320,7 +5320,7 @@ goniometria: {
                                       onChange={e => updateField(row.keyE, 'semForca', e.target.value)}
                                     />
                                   </td>
-                                  <td style={{ background: 'rgba(99,102,241,0.05)' }}>
+                                  <td data-label="Esquerdo Passivo (Com)" style={{ background: 'rgba(99,102,241,0.05)' }}>
                                     <input
                                       type="number"
                                       placeholder="2"
@@ -7541,29 +7541,29 @@ goniometria: {
                         </thead>
                         <tbody>
                           {stTestesList.map((t, idx) => (
-                            <tr key={idx}>
-                              <td>{t.articulacao}</td>
-                              <td>{t.movimento}</td>
-                              <td>{t.lado}</td>
-                              <td>{t.valorObtido} {t.unidade}</td>
-                              <td>{t.forcaN.toFixed(1)} N</td>
-                              <td>{t.pcPercent.toFixed(1)}%</td>
-                              <td>{t.pctRef.toFixed(1)}%</td>
-                              <td>
-                                <span className={`badge ${
-                                  t.classificacao === 'FORÇA NORMAL' ? 'badge-success' : 
-                                  t.classificacao === 'DÉFICIT LEVE' ? 'badge-warning' : 
-                                  t.classificacao === 'DÉFICIT MODERADO' ? 'badge-warning' : 'badge-danger'
-                                }`} style={{ fontSize: '0.7rem' }}>
-                                  {t.classificacao}
-                                </span>
-                              </td>
-                              <td>
-                                <button type="button" className="btn btn-danger btn-sm" onClick={() => handleRemoveTestItem(idx)}>
-                                  <i className="fa-solid fa-trash"></i>
-                                </button>
-                              </td>
-                            </tr>
+                             <tr key={idx}>
+                               <td data-label="Articulação">{t.articulacao}</td>
+                               <td data-label="Movimento">{t.movimento}</td>
+                               <td data-label="Lado">{t.lado}</td>
+                               <td data-label="Valor">{t.valorObtido} {t.unidade}</td>
+                               <td data-label="Força (N)">{t.forcaN.toFixed(1)} N</td>
+                               <td data-label="%PC">{t.pcPercent.toFixed(1)}%</td>
+                               <td data-label="% Ref">{t.pctRef.toFixed(1)}%</td>
+                               <td data-label="Classificação">
+                                 <span className={`badge ${
+                                   t.classificacao === 'FORÇA NORMAL' ? 'badge-success' : 
+                                   t.classificacao === 'DÉFICIT LEVE' ? 'badge-warning' : 
+                                   t.classificacao === 'DÉFICIT MODERADO' ? 'badge-warning' : 'badge-danger'
+                                 }`} style={{ fontSize: '0.7rem' }}>
+                                   {t.classificacao}
+                                 </span>
+                               </td>
+                               <td data-label="Ações">
+                                 <button type="button" className="btn btn-danger btn-sm" onClick={() => handleRemoveTestItem(idx)}>
+                                   <i className="fa-solid fa-trash"></i>
+                                 </button>
+                               </td>
+                             </tr>
                           ))}
                         </tbody>
                       </table>
@@ -7594,13 +7594,13 @@ goniometria: {
                           <tbody>
                             {comps.map((c, idx) => (
                               <tr key={idx}>
-                                <td>{c.articulacao}</td>
-                                <td>{c.movimento}</td>
-                                <td>{c.valorD.toFixed(1)} N</td>
-                                <td>{c.valorE.toFixed(1)} N</td>
-                                <td>{c.simetria.toFixed(1)}%</td>
-                                <td>{c.deficit.toFixed(1)}%</td>
-                                <td>
+                                <td data-label="Articulação">{c.articulacao}</td>
+                                <td data-label="Movimento">{c.movimento}</td>
+                                <td data-label="Dir (N)">{c.valorD.toFixed(1)} N</td>
+                                <td data-label="Esq (N)">{c.valorE.toFixed(1)} N</td>
+                                <td data-label="Symmetry (%)">{c.simetria.toFixed(1)}%</td>
+                                <td data-label="Déficit (%)">{c.deficit.toFixed(1)}%</td>
+                                <td data-label="Status">
                                   <span className={`badge ${
                                     c.classificacaoSimetria === 'Excelente' ? 'badge-success' : 
                                     c.classificacaoSimetria === 'Aceitável' ? 'badge-success' : 
@@ -7856,16 +7856,16 @@ goniometria: {
                         const imcText = as.resultadosCalculados?.imc ? `${as.resultadosCalculados.imc.toFixed(1)} (${as.resultadosCalculados.imcClassificacao || ''})` : '-';
                         return (
                           <tr key={as._id}>
-                            <td>{(() => {
+                            <td data-label="Data">{(() => {
                               if (!as.data) return '';
                               const parts = as.data.split('-');
                               if (parts.length !== 3) return as.data;
                               return `${parts[2]}/${parts[1]}/${parts[0]}`;
                             })()}</td>
-                            <td>{fatText}</td>
-                            <td>{imcText}</td>
-                            {isAdmin && <td>{as.avaliadorId?.nome || 'Não Definido'}</td>}
-                            <td>
+                            <td data-label="Gordura Corporal">{fatText}</td>
+                            <td data-label="IMC">{imcText}</td>
+                            {isAdmin && <td data-label="Avaliador">{as.avaliadorId?.nome || 'Não Definido'}</td>}
+                            <td data-label="Ações">
                               <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
                                 logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
                                 downloadAssessmentPDF(as, assessments);
@@ -7901,20 +7901,20 @@ goniometria: {
                       }
                       return clientReports.map(rep => (
                         <tr key={rep._id}>
-                          <td>{(() => {
+                          <td data-label="Data">{(() => {
                             if (!rep.data) return '';
                             const parts = rep.data.split('-');
                             if (parts.length !== 3) return rep.data;
                             return `${parts[2]}/${parts[1]}/${parts[0]}`;
                           })()}</td>
-                          <td>{rep.conteudo?.queixaPrincipal || '-'}</td>
-                          <td>
+                          <td data-label="Queixa Principal" className="cell-block">{rep.conteudo?.queixaPrincipal || '-'}</td>
+                          <td data-label="Escala de Dor">
                             <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
                               Dor: {rep.conteudo?.dorEscala}/10
                             </span>
                           </td>
-                          {isAdmin && <td>{rep.profissionalId?.nome || 'Não Definido'}</td>}
-                          <td>
+                          {isAdmin && <td data-label="Profissional">{rep.profissionalId?.nome || 'Não Definido'}</td>}
+                          <td data-label="Ações">
                             <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
                               logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
                               downloadReportPDF(rep);

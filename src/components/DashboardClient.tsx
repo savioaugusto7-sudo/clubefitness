@@ -238,9 +238,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 )}
               </div>
 
-              <button className="btn btn-primary" onClick={() => setSelectedExerciseForInstruction(details)} style={{ width: '100%', fontSize: '0.78rem', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '8px' }}>
-                <i className="fa-solid fa-circle-info"></i> Instruções
-              </button>
+              {/* Instruções removidas conforme solicitação */}
             </div>
           );
         })}
@@ -283,7 +281,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         setContracts(jsonContracts.data || []);
       }
       if (jsonApts.success) {
-        setAppointments(jsonApts.data);
+        const sorted = (jsonApts.data || []).sort((a: any, b: any) => {
+          const dateA = `${a.data}T${a.horario}`;
+          const dateB = `${b.data}T${b.horario}`;
+          return dateB.localeCompare(dateA);
+        });
+        setAppointments(sorted);
       }
       if (jsonWorkout.success) {
         setWorkout(jsonWorkout.data);
@@ -447,7 +450,23 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   };
 
   const handleCancelAppointment = async (id: string) => {
-    if (confirm('Deseja realmente cancelar este agendamento?')) {
+    const apt = appointments.find(a => a._id === id);
+    if (!apt) return;
+
+    // Calcular diferença de horas (fuso -03:00)
+    const dataHora = new Date(`${apt.data}T${apt.horario}:00-03:00`);
+    const agora = new Date();
+    const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
+    const janelaHoras = apt.tipo === 'academia' ? 6 : 2;
+
+    let confirmMsg = 'Deseja realmente cancelar este agendamento?';
+    if (diffHoras < janelaHoras) {
+      confirmMsg = `Atenção: Este agendamento é no passado ou possui menos de ${janelaHoras} horas de antecedência. Caso confirme o cancelamento, o crédito correspondente será consumido e NÃO será devolvido. Deseja continuar?`;
+    } else {
+      confirmMsg = 'Deseja realmente cancelar este agendamento? O crédito correspondente será devolvido à sua conta.';
+    }
+
+    if (confirm(confirmMsg)) {
       try {
         const res = await fetch('/api/appointments', {
           method: 'PUT',
