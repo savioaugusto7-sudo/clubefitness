@@ -316,6 +316,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Wizard states
   const [asStep, setAsStep] = useState(1);
   const [draftOnOpen, setDraftOnOpen] = useState<any>(null);
+  const [checkedStDraftClient, setCheckedStDraftClient] = useState<string | null>(null);
+  const [checkedRepDraftClient, setCheckedRepDraftClient] = useState<string | null>(null);
   const [asTermografia, setAsTermografia] = useState('');
   const [asYTest, setAsYTest] = useState('');
   const [asStepDown, setAsStepDown] = useState('');
@@ -901,82 +903,100 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
-  const loadReportDraft = () => {
-    const draft = localStorage.getItem('draft_report');
-    if (draft) {
-      if (confirm('Encontramos um rascunho de relatório não salvo. Deseja recuperar os dados?')) {
+  useEffect(() => {
+    if (!showStModal) {
+      setCheckedStDraftClient(null);
+      return;
+    }
+    if (stClient && stClient !== checkedStDraftClient) {
+      setCheckedStDraftClient(stClient);
+      const draft = localStorage.getItem('draft_strength');
+      if (draft) {
         try {
           const p = JSON.parse(draft);
-          setRepDate(p.repDate || '');
-          setRepType(p.repType || 'simplificado');
-          setRepContent(p.repContent || '');
-          setRepPain(p.repPain || 5);
-          setRepExercicios(p.repExercicios || '');
-          if (p.gGonio) setGGonio(p.gGonio);
-          if (p.repQueixas) setRepQueixas(p.repQueixas);
-          setRepTraumas(p.repTraumas || '');
-          setRepCirurgiasRealizou(p.repCirurgiasRealizou || 'nao');
-          if (p.repCirurgiasList) setRepCirurgiasList(p.repCirurgiasList);
-          setRepDoencas(p.repDoencas || '');
-          setRepTraumasEmo(p.repTraumasEmo || '');
-          setRepMedicao(p.repMedicao || '');
-          setRepDrogas(p.repDrogas || '');
-          setRepSonoHoras(p.repSonoHoras || 8);
-          setRepSonoTipo(p.repSonoTipo || 'continuo');
-          setRepSonoQualidade(p.repSonoQualidade || 'Bom');
-          setRepAlimentacaoDor(p.repAlimentacaoDor || '');
-          setRepAtividadeFisicaQual(p.repAtividadeFisicaQual || '');
-          setRepAtividadeFisicaInterfere(p.repAtividadeFisicaInterfere || '');
-          setRepStress(p.repStress || 5);
-          setRepControleStress(p.repControleStress || '');
-          setRepAtividadeFisica(p.repAtividadeFisica || 'nao');
-          setRepTermografiaRealizou(p.repTermografiaRealizou || 'nao');
-          setRepTermografiaImgB64(p.repTermografiaImgB64 || '');
-          if (p.repExamesList) setRepExamesList(p.repExamesList);
-          setRepDeRealizou(p.repDeRealizou || 'nao');
-          setRepDeTipo(p.repDeTipo || 'Tipo IV');
-          setRepDeAbdBilateral(p.repDeAbdBilateral || 'nao');
-          setRepDeAbdUnilateral(p.repDeAbdUnilateral || 'nao');
-          setRepDeDorAbd(p.repDeDorAbd || 'nao');
-          setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
-          if (p.repCirc) setRepCirc(p.repCirc);
-          setTThomasIliopsoasD(p.tThomasIliopsoasD || '');
-          setTThomasIliopsoasE(p.tThomasIliopsoasE || '');
-          setTThomasRetofemoralD(p.tThomasRetofemoralD || '');
-          setTThomasRetofemoralE(p.tThomasRetofemoralE || '');
-          setYRealizou(p.yRealizou || 'nao');
-          setYLenD(p.yLenD || ''); setYLenE(p.yLenE || '');
-          setYAntD(p.yAntD || ''); setYAntE(p.yAntE || '');
-          setYPMD(p.yPMD || ''); setYPME(p.yPME || '');
-          setYPLD(p.yPLD || ''); setYPLE(p.yPLE || '');
-          setSdRealizou(p.sdRealizou || 'nao');
-          setSdPelvica(p.sdPelvica || ''); setSdAducao(p.sdAducao || '');
-          setSdValgo(p.sdValgo || ''); setSdPrps(p.sdPrps || '');
-          if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
-        } catch(e) { console.error('Error loading report draft', e); }
-      } else {
-        localStorage.removeItem('draft_report');
+          if (p.stClient === stClient) {
+            if (confirm('Encontramos um rascunho de teste de força não salvo para este aluno. Deseja recuperar os dados?')) {
+              setStDate(p.stDate || '');
+              setStPeso(p.stPeso || '');
+              setStObs(p.stObs || '');
+              if (p.stTestesList) setStTestesList(p.stTestesList);
+              if (p.stTimerSeconds) setStTimerSeconds(p.stTimerSeconds);
+            }
+          }
+        } catch (e) {
+          console.error('Error loading strength draft', e);
+        }
       }
     }
-  };
+  }, [showStModal, stClient, checkedStDraftClient]);
 
-  const loadStDraft = () => {
-    const draft = localStorage.getItem('draft_strength');
-    if (draft) {
-      if (confirm('Encontramos um rascunho de teste de força não salvo. Deseja recuperar os dados?')) {
+  useEffect(() => {
+    if (!showReportModal) {
+      setCheckedRepDraftClient(null);
+      return;
+    }
+    if (repClient && repClient !== checkedRepDraftClient) {
+      setCheckedRepDraftClient(repClient);
+      const draft = localStorage.getItem('draft_report');
+      if (draft) {
         try {
           const p = JSON.parse(draft);
-          setStDate(p.stDate || '');
-          setStPeso(p.stPeso || '');
-          setStObs(p.stObs || '');
-          if (p.stTestesList) setStTestesList(p.stTestesList);
-          if (p.stTimerSeconds) setStTimerSeconds(p.stTimerSeconds);
-        } catch(e) { console.error('Error loading strength draft', e); }
-      } else {
-        localStorage.removeItem('draft_strength');
+          if (p.repClient === repClient) {
+            if (confirm('Encontramos um rascunho de relatório clínico não salvo para este aluno. Deseja recuperar os dados?')) {
+              setRepDate(p.repDate || '');
+              setRepType(p.repType || 'simplificado');
+              setRepContent(p.repContent || '');
+              setRepPain(p.repPain || 5);
+              setRepExercicios(p.repExercicios || '');
+              if (p.gGonio) setGGonio(p.gGonio);
+              if (p.repQueixas) setRepQueixas(p.repQueixas);
+              setRepTraumas(p.repTraumas || '');
+              setRepCirurgiasRealizou(p.repCirurgiasRealizou || 'nao');
+              if (p.repCirurgiasList) setRepCirurgiasList(p.repCirurgiasList);
+              setRepDoencas(p.repDoencas || '');
+              setRepTraumasEmo(p.repTraumasEmo || '');
+              setRepMedicao(p.repMedicao || '');
+              setRepDrogas(p.repDrogas || '');
+              setRepSonoHoras(p.repSonoHoras || 8);
+              setRepSonoTipo(p.repSonoTipo || 'continuo');
+              setRepSonoQualidade(p.repSonoQualidade || 'Bom');
+              setRepAlimentacaoDor(p.repAlimentacaoDor || '');
+              setRepAtividadeFisicaQual(p.repAtividadeFisicaQual || '');
+              setRepAtividadeFisicaInterfere(p.repAtividadeFisicaInterfere || '');
+              setRepStress(p.repStress || 5);
+              setRepControleStress(p.repControleStress || '');
+              setRepAtividadeFisica(p.repAtividadeFisica || 'nao');
+              setRepTermografiaRealizou(p.repTermografiaRealizou || 'nao');
+              setRepTermografiaImgB64(p.repTermografiaImgB64 || '');
+              if (p.repExamesList) setRepExamesList(p.repExamesList);
+              setRepDeRealizou(p.repDeRealizou || 'nao');
+              setRepDeTipo(p.repDeTipo || 'Tipo IV');
+              setRepDeAbdBilateral(p.repDeAbdBilateral || 'nao');
+              setRepDeAbdUnilateral(p.repDeAbdUnilateral || 'nao');
+              setRepDeDorAbd(p.repDeDorAbd || 'nao');
+              setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
+              if (p.repCirc) setRepCirc(p.repCirc);
+              setTThomasIliopsoasD(p.tThomasIliopsoasD || '');
+              setTThomasIliopsoasE(p.tThomasIliopsoasE || '');
+              setTThomasRetofemoralD(p.tThomasRetofemoralD || '');
+              setTThomasRetofemoralE(p.tThomasRetofemoralE || '');
+              setYRealizou(p.yRealizou || 'nao');
+              setYLenD(p.yLenD || ''); setYLenE(p.yLenE || '');
+              setYAntD(p.yAntD || ''); setYAntE(p.yAntE || '');
+              setYPMD(p.yPMD || ''); setYPME(p.yPME || '');
+              setYPLD(p.yPLD || ''); setYPLE(p.yPLE || '');
+              setSdRealizou(p.sdRealizou || 'nao');
+              setSdPelvica(p.sdPelvica || ''); setSdAducao(p.sdAducao || '');
+              setSdValgo(p.sdValgo || ''); setSdPrps(p.sdPrps || '');
+              if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
+            }
+          }
+        } catch (e) {
+          console.error('Error loading report draft', e);
+        }
       }
     }
-  };
+  }, [showReportModal, repClient, checkedRepDraftClient]);
 
 
 
@@ -4348,7 +4368,7 @@ goniometria: {
               </div>
               <button className="btn btn-primary" onClick={() => {
                 setRepDate(new Date().toISOString().split('T')[0]);
-                setShowReportModal(true); setTimeout(() => loadReportDraft(), 150);
+                setShowReportModal(true);
               }}>
                 <i className="fa-solid fa-plus"></i> Novo Relatório
               </button>
@@ -4408,7 +4428,7 @@ goniometria: {
                           <i className="fa-solid fa-file-medical empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum relatório clínico</div>
                           <div className="empty-state-desc">Não há laudos ou relatórios de evolução fisioterápica.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); setTimeout(() => loadReportDraft(), 150); }}>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); }}>
                             <i className="fa-solid fa-plus"></i> Novo Relatório
                           </button>
                         </div>
@@ -4551,7 +4571,7 @@ goniometria: {
               </div>
               <button className="btn btn-primary" onClick={() => {
                 setStDate(new Date().toISOString().split('T')[0]);
-                setShowStModal(true); setTimeout(() => loadStDraft(), 150);
+                setShowStModal(true);
               }}>
                 <i className="fa-solid fa-plus"></i> Novo Teste
               </button>
@@ -4646,7 +4666,7 @@ goniometria: {
                           <i className="fa-solid fa-dumbbell empty-state-icon"></i>
                           <div className="empty-state-title">Nenhum teste de força</div>
                           <div className="empty-state-desc">Não há avaliações de força muscular registradas.</div>
-                          <button className="btn btn-primary btn-sm" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); setTimeout(() => loadStDraft(), 150); }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
                             <i className="fa-solid fa-plus"></i> Novo Teste
                           </button>
                         </div>
