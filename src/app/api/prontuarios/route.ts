@@ -3,6 +3,7 @@ import dbConnect from '@/utils/dbConnect';
 import Prontuario from '@/models/Prontuario';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
+import { checkSessionPermission } from '@/utils/authHelper';
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,18 @@ export async function GET(request: Request) {
     const _client = Client;
     const _prof = Professional;
 
-    const records = await Prontuario.find({})
+    const { user } = await checkSessionPermission(['admin', 'professional', 'client']);
+
+    let query = {};
+    if (user.role === 'professional') {
+      const linkedClients = await Client.find({ profissionalId: user.professionalProfileId }).select('_id');
+      const clientIds = linkedClients.map(c => c._id);
+      query = { clienteId: { $in: clientIds } };
+    } else if (user.role === 'client') {
+      query = { clienteId: user.clientProfileId };
+    }
+
+    const records = await Prontuario.find(query)
       .populate('clienteId')
       .populate('profissionalId');
 
@@ -25,6 +37,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await dbConnect();
+    
+    await checkSessionPermission(['admin', 'professional']);
+
     const body = await request.json();
     const { clienteId, profissionalId, data, conteudo } = body;
 
@@ -48,6 +63,9 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await dbConnect();
+    
+    await checkSessionPermission(['admin', 'professional']);
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

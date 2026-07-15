@@ -67,6 +67,8 @@ const ClientSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   codigo: { type: String },
   cadastroConcluido: { type: Boolean, default: false },
+  termoAceito: { type: Boolean, default: false },
+  dataAceiteTermo: { type: Date },
   dadosPessoais: { type: DadosPessoaisSchema, required: true },
   dadosClinicos: { type: DadosClinicosSchema, default: () => ({}) },
   dadosComerciais: { type: DadosComerciaisSchema, default: () => ({}) },

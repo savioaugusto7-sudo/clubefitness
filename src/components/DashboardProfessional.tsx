@@ -143,6 +143,42 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
+  const logReadActivity = async (actionName: string, targetClientId: string, clientName: string) => {
+    try {
+      await fetch('/api/admin/activity-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profissionalId: professionalId,
+          clienteId: targetClientId,
+          acao: actionName,
+          detalhes: `Visualizou dados do aluno: ${clientName}`,
+          origem: isColetivo ? 'Computador Coletivo' : 'Acesso Direto'
+        })
+      });
+    } catch (e) {
+      console.error('Failed to log read activity', e);
+    }
+  };
+
+  const logPdfDownload = async (action: string, clientId: string, clientName: string, docDate: string) => {
+    try {
+      await fetch('/api/admin/activity-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profissionalId: professionalId,
+          clienteId: clientId,
+          acao: 'Exportou PDF Clínico',
+          detalhes: `${action} de ${clientName} referente a data ${docDate}`,
+          origem: isColetivo ? 'Computador Coletivo' : 'Acesso Direto'
+        })
+      });
+    } catch (e) {
+      console.error('Failed to log PDF download', e);
+    }
+  };
+
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const prof = professionals.find(p => p._id === pinModalProf);
@@ -2535,6 +2571,7 @@ goniometria: {
             fetchData();
             if (confirm('Deseja fazer o download do PDF do prontuário agora?')) {
               const profDetails = professionals.find(p => p._id === executorProfId) || { nome: 'Profissional', registro: 'CREFITO' };
+              logPdfDownload('Prontuário Clínico', data.data.clienteId?._id || data.data.clienteId, client?.dadosPessoais?.nome || 'Aluno', data.data.data);
               downloadProntuarioPDF(data.data, client, profDetails.nome, profDetails.registro);
             }
           } else {
@@ -3308,7 +3345,11 @@ goniometria: {
                                           <button 
                                             className="btn btn-secondary btn-sm" 
                                             style={{ padding: '4px 10px', fontSize: '0.74rem' }} 
-                                            onClick={() => { setDetailClient(client); setShowClientDetailModal(true); }}
+                                            onClick={() => {
+                                              setDetailClient(client);
+                                              setShowClientDetailModal(true);
+                                              logReadActivity('Visualizou Histórico Clínico', client._id, client.dadosPessoais?.nome || '');
+                                            }}
                                           >
                                             <i className="fa-solid fa-clock-rotate-left"></i> Histórico
                                           </button>
@@ -3546,6 +3587,7 @@ goniometria: {
                                 setDetailClient(c);
                                 setClientDetailTab('agendamentos');
                                 setShowClientDetailModal(true);
+                                logReadActivity('Visualizou Histórico Clínico', c._id, c.dadosPessoais?.nome || '');
                               }}>
                                 <i className="fa-solid fa-address-card"></i> Histórico
                               </button>
@@ -4313,7 +4355,10 @@ goniometria: {
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
                             <i className="fa-solid fa-trash"></i>
                           </button>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                            logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
+                            downloadAssessmentPDF(as, assessments);
+                          }}>
                             <i className="fa-solid fa-file-pdf"></i> Laudo PDF
                           </button>
                         </td>
@@ -4414,7 +4459,10 @@ goniometria: {
                           <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
                             <i className="fa-solid fa-trash"></i>
                           </button>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                            logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
+                            downloadReportPDF(rep);
+                          }}>
                             <i className="fa-solid fa-file-pdf"></i> PDF
                           </button>
                         </td>
@@ -4651,7 +4699,10 @@ goniometria: {
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
                               <i className="fa-solid fa-trash"></i>
                             </button>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadStrengthTestPDF(st, st.clienteId, st.profissionalId)}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                              logPdfDownload('Teste de Força Muscular', st.clienteId?._id || st.clienteId, st.clienteId?.dadosPessoais?.nome || 'Aluno', st.data);
+                              downloadStrengthTestPDF(st, st.clienteId, st.profissionalId);
+                            }}>
                               <i className="fa-solid fa-file-pdf color-danger"></i> Análise PDF
                             </button>
                           </td>
@@ -4745,6 +4796,7 @@ goniometria: {
                           <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
                             const pId = typeof pr.profissionalId === 'object' ? pr.profissionalId?._id : pr.profissionalId;
                             const profDetails = professionals.find(p => p._id === pId) || pr.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
+                            logPdfDownload('Prontuário Clínico', pr.clienteId?._id || pr.clienteId, pr.clienteId?.dadosPessoais?.nome || 'Aluno', pr.data);
                             downloadProntuarioPDF(pr, pr.clienteId, profDetails.nome, profDetails.registro);
                           }}>
                             <i className="fa-solid fa-file-pdf"></i> PDF
@@ -7814,7 +7866,10 @@ goniometria: {
                             <td>{imcText}</td>
                             {isAdmin && <td>{as.avaliadorId?.nome || 'Não Definido'}</td>}
                             <td>
-                              <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadAssessmentPDF(as, assessments)}>
+                              <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                                logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
+                                downloadAssessmentPDF(as, assessments);
+                              }}>
                                 <i className="fa-solid fa-file-pdf"></i> Laudo PDF
                               </button>
                             </td>
@@ -7860,7 +7915,10 @@ goniometria: {
                           </td>
                           {isAdmin && <td>{rep.profissionalId?.nome || 'Não Definido'}</td>}
                           <td>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadReportPDF(rep)}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                              logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
+                              downloadReportPDF(rep);
+                            }}>
                               <i className="fa-solid fa-file-pdf"></i> PDF
                             </button>
                           </td>
@@ -7871,7 +7929,44 @@ goniometria: {
                 </table>
               </div>
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+              <button className="btn btn-primary" onClick={async () => {
+                try {
+                  const res = await fetch(`/api/clients/export?clientId=${detailClient._id}`);
+                  const data = await res.json();
+                  if (data.success) {
+                    const dossierString = JSON.stringify(data.data, null, 2);
+                    const blob = new Blob([dossierString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `dossie-lgpd-${detailClient.dadosPessoais?.nome?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Log download activity
+                    await fetch('/api/admin/activity-logs', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        profissionalId: professionalId,
+                        clienteId: detailClient._id,
+                        acao: 'Exportou Dossiê LGPD',
+                        detalhes: `Exportou o dossiê completo de portabilidade do aluno ${detailClient.dadosPessoais?.nome || ''}`,
+                        origem: isColetivo ? 'Computador Coletivo' : 'Acesso Direto'
+                      })
+                    });
+                  } else {
+                    alert('Erro ao exportar dossiê: ' + data.error);
+                  }
+                } catch (e: any) {
+                  alert('Erro ao realizar exportação: ' + e.message);
+                }
+              }} style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--color-primary-dark)', borderColor: 'var(--color-primary-dark)' }}>
+                <i className="fa-solid fa-download"></i> Exportar Dossiê LGPD
+              </button>
               <button className="btn btn-secondary" onClick={() => setShowClientDetailModal(false)}>Fechar</button>
             </div>
           </div>

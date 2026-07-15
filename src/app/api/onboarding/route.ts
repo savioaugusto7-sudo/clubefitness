@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       restricoes,
       medicamentos,
       historicoClinico,
+      termoAceito,
     } = body;
 
     const user = session.user as any;
@@ -74,6 +75,8 @@ export async function POST(request: Request) {
     };
 
     client.cadastroConcluido = true;
+    client.termoAceito = termoAceito === true;
+    client.dataAceiteTermo = termoAceito ? new Date() : undefined;
 
     await client.save();
 

@@ -14,6 +14,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [termoAceito, setTermoAceito] = useState(false);
 
   const [nome, setNome] = useState(user?.name || '');
   const [dataNascimento, setDataNascimento] = useState('');
@@ -53,6 +54,10 @@ export default function OnboardingPage() {
   };
 
   const handleSubmit = async () => {
+    if (!termoAceito) {
+      setError('Você precisa aceitar os Termos de Consentimento e a Política de Privacidade para prosseguir.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -64,6 +69,7 @@ export default function OnboardingPage() {
           cep, endereco, numero, complemento, bairro, cidade, estado,
           nacionalidade: 'brasileiro(a)', estadoCivil, profissao,
           lesoes, restricoes, medicamentos, historicoClinico,
+          termoAceito: true
         }),
       });
       const data = await res.json();
@@ -509,6 +515,19 @@ export default function OnboardingPage() {
                       placeholder="Ex: Hipertensão, diabetes, asma, doenças cardiovasculares..."
                       style={{ resize: 'vertical' }} />
                   </div>
+                </div>
+
+                <div style={{ marginTop: '24px', marginBottom: '24px', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <input
+                    type="checkbox"
+                    id="chkTermo"
+                    checked={termoAceito}
+                    onChange={e => setTermoAceito(e.target.checked)}
+                    style={{ width: '18px', height: '18px', marginTop: '3px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                  />
+                  <label htmlFor="chkTermo" style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: '1.5', cursor: 'pointer' }}>
+                    Declaro que li e concordo com os <a href="#" onClick={(e) => { e.preventDefault(); alert('Política de Privacidade:\n\nOs dados de saúde coletados nesta avaliação (anamnese, queixas, restrições e registros clínicos) serão utilizados exclusivamente por profissionais autorizados para elaboração, acompanhamento e adaptação de sua conduta terapêutica e de exercícios físicos, garantindo sigilo médico em conformidade com as normas do CFM/CREFITO e da LGPD (Lei nº 13.709/2018).'); }} style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>Termos de Consentimento Livre e Esclarecido (TCLE)</a> e com a <a href="#" onClick={(e) => { e.preventDefault(); alert('Política de Tratamento de Dados:\n\nSeus dados pessoais (cadastro e faturamento) e clínicos (evolução física e de força) são armazenados em servidores protegidos. Seus dados cadastrais poderão ser eliminados sob requisição expressa, enquanto dados de prontuário clínico serão mantidos em anonimização para cumprimento das obrigações legais de guarda médica de 20 anos.'); }} style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>Política de Privacidade</a> para o tratamento de meus dados pessoais e de saúde.
+                  </label>
                 </div>
 
                 {error && (
