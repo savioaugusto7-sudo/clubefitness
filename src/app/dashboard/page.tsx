@@ -125,7 +125,7 @@ export default function DashboardPage() {
       {/* Main Content Area */}
       <main className="main-content" id="mainContent">
         {/* Header toolbar */}
-        <header style={{ 
+        <header className="dashboard-header" style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
@@ -133,7 +133,7 @@ export default function DashboardPage() {
           flexWrap: 'wrap',
           gap: '16px'
         }}>
-          <div>
+          <div className="header-info-group">
             <h4 style={{ color: 'var(--text-dim)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Clube Fitness Fisio
             </h4>
@@ -155,7 +155,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="header-actions-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {activeRoles.length > 1 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600 }}>Visualizar como:</span>

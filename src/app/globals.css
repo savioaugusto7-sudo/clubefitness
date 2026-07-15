@@ -2923,3 +2923,332 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .calendar-day-empty {
   aspect-ratio: 1;
 }
+
+/* ==========================================================================
+   DESIGN RESPONSIVO DE PONTA (CELULAR E TABLET)
+   ========================================================================== */
+
+/* 📱 CELULARES (Telas até 600px) */
+@media (max-width: 600px) {
+  /* Oculta a sidebar de alunos e readequa o contêiner */
+  .client-sidebar-mobile-hidden {
+    display: none !important;
+  }
+
+  main.main-content {
+    margin-left: 0 !important;
+    padding: 16px 16px 90px 16px !important; /* padding inferior maior para não cobrir conteúdo com a Bottom Nav */
+    width: 100% !important;
+  }
+
+  /* Bottom Navigation Bar Fixa */
+  .bottom-nav-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    height: 72px;
+    background: rgba(14, 19, 31, 0.96);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(16px);
+    z-index: 1050;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 8px;
+    padding-bottom: env(safe-area-inset-bottom, 8px); /* suporte para área segura de iPhones sem botão home */
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: var(--text-dim);
+    cursor: pointer;
+    gap: 5px;
+    transition: all var(--transition-fast);
+    padding: 8px 0;
+  }
+
+  .bottom-nav-item i {
+    font-size: 1.25rem;
+  }
+
+  .bottom-nav-item span {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .bottom-nav-item:hover,
+  .bottom-nav-item.active {
+    color: var(--color-primary);
+    filter: drop-shadow(0 0 4px var(--color-primary-glow));
+  }
+
+  /* Bottom Drawer (Menu Gaveta Deslizante) */
+  .bottom-drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: flex;
+    align-items: flex-end;
+    animation: fadeIn 0.25s ease;
+  }
+
+  .bottom-drawer-content {
+    width: 100%;
+    background: var(--bg-dark);
+    border-top: 2px solid var(--border-color-active);
+    border-radius: 24px 24px 0 0;
+    padding: 24px;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .bottom-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+  }
+
+  .bottom-drawer-header h4 {
+    font-family: var(--font-title);
+    font-size: 1.1rem;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .drawer-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .bottom-drawer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .drawer-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px;
+    color: var(--text-muted);
+    cursor: pointer;
+    gap: 8px;
+    transition: all var(--transition-fast);
+  }
+
+  .drawer-grid-item:hover,
+  .drawer-grid-item.active {
+    background: rgba(16, 185, 129, 0.06);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .drawer-grid-item i {
+    font-size: 1.35rem;
+  }
+
+  .drawer-grid-item span {
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .drawer-grid-item.text-danger {
+    grid-column: span 2;
+    background: rgba(239, 68, 68, 0.04);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--color-danger);
+  }
+
+  .drawer-grid-item.text-danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: var(--color-danger);
+  }
+}
+
+/* 📑 TABLETS (Telas entre 601px e 1024px) */
+@media (min-width: 601px) and (max-width: 1024px) {
+  /* Encolhe a Sidebar para Modo Ícone-Apenas */
+  aside.sidebar {
+    width: 80px !important;
+    padding: 24px 8px !important;
+    align-items: center !important;
+  }
+
+  .brand-name,
+  .nav-item span,
+  .user-info,
+  .user-badge button {
+    display: none !important;
+  }
+
+  .brand-section {
+    padding-bottom: 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .brand-logo {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .nav-menu {
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .nav-item {
+    justify-content: center !important;
+    padding: 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .nav-item i {
+    font-size: 1.3rem !important;
+    margin: 0 !important;
+  }
+
+  .user-profile-section {
+    padding: 12px 0 !important;
+    width: 100% !important;
+    border-top: 1px solid var(--border-color) !important;
+  }
+
+  .user-badge {
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  .user-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    margin: 0 !important;
+  }
+
+  /* Ajusta a margem do conteúdo principal */
+  main.main-content {
+    margin-left: 80px !important;
+    padding: 24px !important;
+  }
+}
+
+/* ⚡ REDESENHO DE TABELAS PARA CARDS NO CELULAR */
+@media (max-width: 768px) {
+  .table-responsive {
+    border: none !important;
+    overflow-x: visible !important;
+  }
+
+  .data-table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+  }
+
+  .data-table thead {
+    display: none !important; /* esconde cabeçalhos tabulares */
+  }
+
+  .data-table tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .data-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    gap: 8px !important;
+  }
+
+  .data-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 8px 0 !important;
+    border: none !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.04) !important;
+    font-size: 0.88rem !important;
+    text-align: right !important;
+  }
+
+  .data-table td:last-child {
+    border-bottom: none !important;
+    padding-top: 12px !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+
+  /* Cria rótulos das colunas usando data-attributes ou injetando labels */
+  .data-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.5px;
+    text-align: left;
+    display: inline-block;
+  }
+  
+  /* Fallback para rótulo manual se não houver data-label */
+  .data-table td:not([data-label])::before {
+    content: "Dado";
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+  }
+
+  /* Remove rótulos para botões e ações */
+  .data-table td:last-child::before {
+    display: none !important;
+  }
+
+  /* Correção de Inputs para iOS */
+  input, select, textarea {
+    font-size: 16px !important; /* evita auto-zoom no Safari iOS */
+  }
+}
+
+/* Animações Modernas */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

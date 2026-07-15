@@ -82,17 +82,19 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
 
   return (
     <>
-      {/* Mobile Menu Toggle Button */}
-      <div 
-        className="mobile-menu-toggle" 
-        onClick={() => setMobileOpen(!mobileOpen)}
-        style={{ zIndex: 1100 }}
-      >
-        <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
-      </div>
+      {/* Mobile Menu Toggle Button (oculto para alunos, que usam a Bottom Nav Bar) */}
+      {role !== 'client' && (
+        <div 
+          className="mobile-menu-toggle" 
+          onClick={() => setMobileOpen(!mobileOpen)}
+          style={{ zIndex: 1100 }}
+        >
+          <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
+        </div>
+      )}
 
       {/* Sidebar Container */}
-      <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`} id="appSidebar">
+      <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''} ${role === 'client' ? 'client-sidebar-mobile-hidden' : ''}`} id="appSidebar">
         {/* Brand Section */}
         <div className="brand-section">
           <div className="brand-logo" style={{
@@ -159,6 +161,66 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
           </div>
         </div>
       </aside>
+
+      {/* Bottom Nav Bar for Client (Mobile Only) */}
+      {role === 'client' && (
+        <div className="bottom-nav-bar">
+          <div className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabClick('dashboard')}>
+            <i className="fa-solid fa-house"></i>
+            <span>Início</span>
+          </div>
+          <div className={`bottom-nav-item ${activeTab === 'agendar' ? 'active' : ''}`} onClick={() => handleTabClick('agendar')}>
+            <i className="fa-solid fa-calendar-plus"></i>
+            <span>Agendar</span>
+          </div>
+          <div className={`bottom-nav-item ${activeTab === 'treino' ? 'active' : ''}`} onClick={() => handleTabClick('treino')}>
+            <i className="fa-solid fa-dumbbell"></i>
+            <span>Treino</span>
+          </div>
+          <div className={`bottom-nav-item ${activeTab === 'documentos' ? 'active' : ''}`} onClick={() => handleTabClick('documentos')}>
+            <i className="fa-solid fa-file-pdf"></i>
+            <span>Laudos</span>
+          </div>
+          <div className={`bottom-nav-item ${mobileOpen ? 'active' : ''}`} onClick={() => setMobileOpen(!mobileOpen)}>
+            <i className="fa-solid fa-bars"></i>
+            <span>Mais</span>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Drawer for Client (Mobile Only) */}
+      {role === 'client' && mobileOpen && (
+        <div className="bottom-drawer-overlay" onClick={() => setMobileOpen(false)}>
+          <div className="bottom-drawer-content" onClick={e => e.stopPropagation()}>
+            <div className="bottom-drawer-header">
+              <h4>Mais Opções</h4>
+              <button className="drawer-close" onClick={() => setMobileOpen(false)}>&times;</button>
+            </div>
+            <div className="bottom-drawer-grid">
+              <div className={`drawer-grid-item ${activeTab === 'agendamentos' ? 'active' : ''}`} onClick={() => handleTabClick('agendamentos')}>
+                <i className="fa-solid fa-clock"></i>
+                <span>Agendamentos</span>
+              </div>
+              <div className={`drawer-grid-item ${activeTab === 'evolucao' ? 'active' : ''}`} onClick={() => handleTabClick('evolucao')}>
+                <i className="fa-solid fa-chart-line"></i>
+                <span>Minha Evolução</span>
+              </div>
+              <div className={`drawer-grid-item ${activeTab === 'creditos' ? 'active' : ''}`} onClick={() => handleTabClick('creditos')}>
+                <i className="fa-solid fa-coins"></i>
+                <span>Meus Créditos</span>
+              </div>
+              <div className={`drawer-grid-item ${activeTab === 'trancamento' ? 'active' : ''}`} onClick={() => handleTabClick('trancamento')}>
+                <i className="fa-solid fa-snowflake"></i>
+                <span>Trancar Plano</span>
+              </div>
+              <div className="drawer-grid-item text-danger" onClick={() => signOut({ callbackUrl: '/login?from=logout' })}>
+                <i className="fa-solid fa-right-from-bracket"></i>
+                <span>Sair da Conta</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

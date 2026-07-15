@@ -46,6 +46,25 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   // Sub-tabs for evolution
   const [evoSubTab, setEvoSubTab] = useState<'composicao' | 'perimetros' | 'mobilidade' | 'forca'>('composicao');
 
+  const getNextDays = () => {
+    const days = [];
+    const date = new Date();
+    for (let i = 0; i < 10; i++) {
+      const nextDate = new Date(date);
+      nextDate.setDate(date.getDate() + i);
+      const isSunday = nextDate.getDay() === 0;
+      if (!isSunday) {
+        days.push({
+          dateStr: nextDate.toISOString().split('T')[0],
+          dayName: nextDate.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+          dayNum: nextDate.getDate(),
+          monthName: nextDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+        });
+      }
+    }
+    return days;
+  };
+
   // Pagination & UX states
   const [pages, setPages] = useState<Record<string, number>>({});
   const [pageSize, setPageSize] = useState<Record<string, number>>({});
@@ -595,37 +614,90 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </select>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Data</label>
-                  <input type="date" className="form-control" value={bookDate} onChange={e => setBookDate(e.target.value)} required />
+              <div className="form-group" style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600 }}>1. Selecione a Data</label>
+                
+                {/* Carrossel de datas em formato de cartões (toque rápido) */}
+                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', margin: '0 -4px' }}>
+                  {getNextDays().map((d) => (
+                    <button
+                      type="button"
+                      key={d.dateStr}
+                      onClick={() => {
+                        setBookDate(d.dateStr);
+                        setBookTime('');
+                      }}
+                      style={{
+                        flex: '0 0 68px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        padding: '12px 6px',
+                        borderRadius: '12px',
+                        border: bookDate === d.dateStr ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
+                        background: bookDate === d.dateStr ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.01)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        outline: 'none'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 700 }}>{d.dayName}</span>
+                      <span style={{ fontSize: '1.15rem', fontWeight: 800, margin: '4px 0', color: bookDate === d.dateStr ? 'var(--color-primary)' : 'var(--text-main)' }}>{d.dayNum}</span>
+                      <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{d.monthName}</span>
+                    </button>
+                  ))}
                 </div>
-                <div className="form-group">
-                  <label>Horário</label>
-                  {!bookDate ? (
-                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px' }}></i>
-                      Selecione uma data para ver os horários disponíveis
-                    </div>
-                  ) : loadingSlots ? (
-                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
-                      Carregando horários...
-                    </div>
-                  ) : availableSlots.length === 0 ? (
-                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--color-danger)', fontSize: '0.85rem' }}>
-                      <i className="fa-solid fa-ban" style={{ marginRight: '8px' }}></i>
-                      Nenhum horário disponível para esta data e serviço
-                    </div>
-                  ) : (
-                    <select className="select-custom" value={bookTime} onChange={e => setBookTime(e.target.value)} required>
-                      <option value="">Selecione um horário</option>
-                      {availableSlots.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  )}
+                
+                {/* Fallback de data convencional */}
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ou selecione outra data:</span>
+                  <input type="date" className="form-control" value={bookDate} onChange={e => { setBookDate(e.target.value); setBookTime(''); }} style={{ maxWidth: '160px', padding: '6px 10px', height: '36px' }} required />
                 </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600 }}>2. Selecione o Horário</label>
+                {!bookDate ? (
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                    <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px' }}></i>
+                    Selecione uma data acima para visualizar os horários disponíveis.
+                  </div>
+                ) : loadingSlots ? (
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                    Carregando horários disponíveis...
+                  </div>
+                ) : availableSlots.length === 0 ? (
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--color-danger)', fontSize: '0.84rem' }}>
+                    <i className="fa-solid fa-ban" style={{ marginRight: '8px' }}></i>
+                    Nenhum horário disponível para a data ou serviço selecionado.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: '10px' }}>
+                    {availableSlots.map(h => (
+                      <button
+                        type="button"
+                        key={h}
+                        onClick={() => setBookTime(h)}
+                        style={{
+                          padding: '10px 6px',
+                          borderRadius: '10px',
+                          border: bookTime === h ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
+                          background: bookTime === h ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.015)',
+                          color: bookTime === h ? 'var(--color-primary)' : 'var(--text-main)',
+                          fontSize: '0.84rem',
+                          fontWeight: 700,
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          outline: 'none'
+                        }}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {bookingStatusMsg && (
@@ -702,21 +774,21 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                     return paginated.map(a => (
                       <tr key={a._id}>
-                        <td><strong>{a.data}</strong> às {a.horario}</td>
-                        <td>
+                        <td data-label="Data / Hora"><strong>{a.data}</strong> às {a.horario}</td>
+                        <td data-label="Modalidade">
                           <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
                             {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
                           </span>
                         </td>
-                        <td>{a.servico}</td>
-                        <td className="text-center">
+                        <td data-label="Serviço">{a.servico}</td>
+                        <td data-label="Status" className="text-center">
                           <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
                             {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Ações">
                           {a.status === 'agendado' && (
-                            <button className="btn btn-danger btn-sm" onClick={() => handleCancelAppointment(a._id)}>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleCancelAppointment(a._id)} style={{ width: '100%' }}>
                               Cancelar Agendamento
                             </button>
                           )}
@@ -1725,12 +1797,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                     return paginated.map(doc => (
                       <tr key={doc.id}>
-                        <td>{doc.data}</td>
-                        <td className="text-center">
+                        <td data-label="Data">{doc.data}</td>
+                        <td data-label="Tipo de Documento" className="text-center">
                           <span className={`badge ${doc.badgeClass}`}>{doc.tipo}</span>
                         </td>
-                        <td>{doc.desc}</td>
-                        <td>
+                        <td data-label="Descrição">{doc.desc}</td>
+                        <td data-label="Arquivo">
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
@@ -1741,6 +1813,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                                 downloadReportPDF(doc.rawDoc);
                               }
                             }}
+                            style={{ width: '100%' }}
                           >
                             <i className="fa-solid fa-file-pdf"></i> Baixar PDF
                           </button>
@@ -1793,7 +1866,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const isDistributionPerfect = sumRedist === creditosCongelados;
 
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+                <div className="trancamento-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
                   {/* Form de Trancamento */}
                   <div className="content-panel">
                     <div className="panel-header">
