@@ -1781,26 +1781,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               <h1>Dashboard Administrativo</h1>
               <p>Visão geral de faturamento, alunos ativos e ocupação diária.</p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-              <label htmlFor="simDateInput" style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600 }}>Simular Dia de Hoje:</label>
-              <input 
-                type="date" 
-                id="simDateInput" 
-                className="form-control" 
-                style={{ border: 'none', background: 'transparent', color: '#fff', fontSize: '0.75rem', width: '130px', padding: '0 4px', height: 'auto' }} 
-                value={simulatedDate} 
-                onChange={e => setSimulatedDate(e.target.value)} 
-              />
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-sm" 
-                style={{ padding: '2px 8px', fontSize: '0.7rem' }} 
-                onClick={() => setSimulatedDate(new Date().toISOString().split('T')[0])} 
-                title="Resetar para hoje"
-              >
-                Hoje
-              </button>
-            </div>
           </div>
 
           <div className="metrics-grid">

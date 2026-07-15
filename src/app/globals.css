@@ -3325,12 +3325,33 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     gap: 16px !important;
   }
 
-  /* 5. Ocultar Cabeçalho Redundante (.dashboard-header) e reduzir espaçamento no celular */
+  /* 5. Cabeçalho Simplificado para Profissional/Admin no celular (oculta login, mantém troca de perfil) */
   .dashboard-header {
-    display: none !important;
+    margin-bottom: 16px !important;
+    padding: 8px 0 !important;
   }
   
+  .dashboard-header .header-info-group {
+    display: none !important; /* Esconde email e badge da clínica no mobile para economizar espaço */
+  }
+
+  .dashboard-header .header-actions-group {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
   .main-content {
     padding-top: 16px !important;
+  }
+
+  /* 6. Responsividade Global de Grids de 2 e 3 Colunas Fixas para Equipe no celular */
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns:1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 1fr 1fr"],
+  div[style*="grid-template-columns:1fr 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
   }
 }

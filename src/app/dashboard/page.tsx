@@ -125,85 +125,87 @@ export default function DashboardPage() {
       {/* Main Content Area */}
       <main className="main-content" id="mainContent">
         {/* Header toolbar */}
-        <header className="dashboard-header" style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '32px',
-          flexWrap: 'wrap',
-          gap: '16px'
-        }}>
-          <div className="header-info-group">
-            <h4 style={{ color: 'var(--text-dim)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Clube Fitness Fisio
-            </h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="badge" style={{ 
-                background: user.role === 'admin' ? 'rgba(245, 158, 11, 0.1)' : user.role === 'receptionist' ? 'rgba(236, 72, 153, 0.1)' : user.role === 'professional' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                color: user.role === 'admin' ? 'var(--color-warning)' : user.role === 'receptionist' ? '#ec4899' : user.role === 'professional' ? 'var(--color-accent)' : 'var(--color-primary)',
-                fontWeight: 700,
-                fontSize: '0.75rem',
-                padding: '4px 8px',
-                borderRadius: '6px',
-                textTransform: 'uppercase'
-              }}>
-                {user.cargo || (user.role === 'admin' ? 'ADMIN' : user.role === 'receptionist' ? 'RECEPÇÃO' : user.role === 'professional' ? 'PROFISSIONAL' : 'ALUNO')}
-              </span>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Logado como: <strong>{user.email}</strong>
-              </span>
-            </div>
-          </div>
-
-          <div className="header-actions-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {activeRoles.length > 1 && (
+        {effectiveRole !== 'client' && (
+          <header className="dashboard-header" style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '32px',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <div className="header-info-group">
+              <h4 style={{ color: 'var(--text-dim)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Clube Fitness Fisio
+              </h4>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600 }}>Visualizar como:</span>
-                <select 
-                  value={adminViewMode} 
-                  onChange={(e) => {
-                    setAdminViewMode(e.target.value as any);
-                    setActiveTab('dashboard');
-                  }}
-                  style={{ 
-                    fontSize: '0.78rem', 
-                    padding: '6px 12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-main)', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
-                >
-                  {activeRoles.includes('admin') && <option value="admin">Administrador Geral</option>}
-                  {activeRoles.includes('receptionist') && <option value="receptionist">Recepção</option>}
-                  {activeRoles.includes('professional') && <option value="professional">Profissional</option>}
-                  {activeRoles.includes('client') && <option value="client">Aluno</option>}
-                </select>
+                <span className="badge" style={{ 
+                  background: user.role === 'admin' ? 'rgba(245, 158, 11, 0.1)' : user.role === 'receptionist' ? 'rgba(236, 72, 153, 0.1)' : user.role === 'professional' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                  color: user.role === 'admin' ? 'var(--color-warning)' : user.role === 'receptionist' ? '#ec4899' : user.role === 'professional' ? 'var(--color-accent)' : 'var(--color-primary)',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  textTransform: 'uppercase'
+                }}>
+                  {user.cargo || (user.role === 'admin' ? 'ADMIN' : user.role === 'receptionist' ? 'RECEPÇÃO' : user.role === 'professional' ? 'PROFISSIONAL' : 'ALUNO')}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Logado como: <strong>{user.email}</strong>
+                </span>
               </div>
-            )}
-            {user.role === 'admin' && user.email === 'admin@clube.com' && (
+            </div>
+
+            <div className="header-actions-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {activeRoles.length > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600 }}>Visualizar como:</span>
+                  <select 
+                    value={adminViewMode} 
+                    onChange={(e) => {
+                      setAdminViewMode(e.target.value as any);
+                      setActiveTab('dashboard');
+                    }}
+                    style={{ 
+                      fontSize: '0.78rem', 
+                      padding: '6px 12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-main)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    {activeRoles.includes('admin') && <option value="admin">Administrador Geral</option>}
+                    {activeRoles.includes('receptionist') && <option value="receptionist">Recepção</option>}
+                    {activeRoles.includes('professional') && <option value="professional">Profissional</option>}
+                    {activeRoles.includes('client') && <option value="client">Aluno</option>}
+                  </select>
+                </div>
+              )}
+              {user.role === 'admin' && user.email === 'admin@clube.com' && (
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  onClick={handleSeedDB}
+                  disabled={seeding}
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  <i className="fa-solid fa-database" style={{ marginRight: '6px' }}></i>
+                  {seedMessage || 'Resetar Dados de Teste'}
+                </button>
+              )}
               <button 
-                className="btn btn-secondary btn-sm" 
-                onClick={handleSeedDB}
-                disabled={seeding}
+                className="btn btn-danger btn-sm" 
+                onClick={() => signOut({ callbackUrl: '/login?from=logout' })}
                 style={{ fontSize: '0.75rem' }}
               >
-                <i className="fa-solid fa-database" style={{ marginRight: '6px' }}></i>
-                {seedMessage || 'Resetar Dados de Teste'}
+                <i className="fa-solid fa-right-from-bracket" style={{ marginRight: '6px' }}></i>
+                Sair
               </button>
-            )}
-            <button 
-              className="btn btn-danger btn-sm" 
-              onClick={() => signOut({ callbackUrl: '/login?from=logout' })}
-              style={{ fontSize: '0.75rem' }}
-            >
-              <i className="fa-solid fa-right-from-bracket" style={{ marginRight: '6px' }}></i>
-              Sair
-            </button>
-          </div>
-        </header>
+            </div>
+          </header>
+        )}
 
         {/* Dynamic page content */}
         {renderContent()}
