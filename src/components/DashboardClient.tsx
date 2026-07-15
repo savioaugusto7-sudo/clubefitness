@@ -11,6 +11,31 @@ interface DashboardClientProps {
   clientId?: string;
 }
 
+const formatDateBR = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+const formatMonthYearBR = (myStr: string) => {
+  if (!myStr) return '';
+  const parts = myStr.split('-');
+  if (parts.length === 2) {
+    return `${parts[1]}/${parts[0]}`;
+  }
+  return myStr;
+};
+
+const formatDateISO = (d: Date) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function DashboardClient({ activeTab, setActiveTab, clientId }: DashboardClientProps) {
   const { data: session } = useSession();
   const [client, setClient] = useState<any>(null);
@@ -88,7 +113,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     while (currentIter <= limitDate && iterations < 15) {
       const isSunday = currentIter.getDay() === 0;
       if (!isSunday) {
-        const dateStr = currentIter.toLocaleDateString('sv-SE');
+        const dateStr = formatDateISO(currentIter);
         days.push({
           dateStr,
           dayName: currentIter.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
@@ -610,7 +635,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
             <div style={{ marginTop: '12px', lineHeight: '1.6' }}>
               <p>Plano Contratado: <strong>{client.dadosComerciais?.planoId?.nome || 'Plano Personalizado'}</strong></p>
               <p>Frequência Contratada: <strong>{client.dadosComerciais?.frequencia} vezes por semana</strong></p>
-              <p>Vencimento do Plano: <strong>{client.dadosComerciais?.vencimento}</strong></p>
+              <p>Vencimento do Plano: <strong>{formatDateBR(client.dadosComerciais?.vencimento)}</strong></p>
             </div>
           </div>
             </>
@@ -683,20 +708,6 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{d.monthName}</span>
                     </button>
                   ))}
-                </div>
-                
-                {/* Fallback de data convencional */}
-                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ou selecione outra data:</span>
-                  <input 
-                    type="date" 
-                    className="form-control" 
-                    value={bookDate} 
-                    onChange={e => { setBookDate(e.target.value); setBookTime(''); }} 
-                    max={getSchedulingLimitDate().toLocaleDateString('sv-SE')}
-                    style={{ maxWidth: '160px', padding: '6px 10px', height: '36px' }} 
-                    required 
-                  />
                 </div>
               </div>
 
@@ -819,7 +830,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                     return paginated.map(a => (
                       <tr key={a._id}>
-                        <td data-label="Data / Hora"><strong>{a.data}</strong> às {a.horario}</td>
+                        <td data-label="Data / Hora"><strong>{formatDateBR(a.data)}</strong> às {a.horario}</td>
                         <td data-label="Modalidade">
                           <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
                             {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
@@ -1071,7 +1082,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             
                             {sortedAssessments.map((a, idx) => (
                               <text key={idx} x={getX(idx)} y={h - 10} style={{ fill: 'var(--text-muted)', fontSize: '8px', textAnchor: 'middle', fontWeight: '600' }}>
-                                {a.data}
+                                {formatDateBR(a.data)}
                               </text>
                             ))}
 
@@ -1177,7 +1188,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                                   const mg = a.resultadosCalculados?.massaGorda || a.dadosMedidos?.massaGorda || 0;
                                   return (
                                     <tr key={a._id}>
-                                      <td><strong>{a.data}</strong></td>
+                                      <td><strong>{formatDateBR(a.data)}</strong></td>
                                       <td className="text-right">{w} kg</td>
                                       <td className="text-right">{f}%</td>
                                       <td className="text-right">{mm} kg</td>
@@ -1226,7 +1237,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     <div className="content-panel">
                       <div className="panel-header" style={{ marginBottom: '20px' }}>
                         <h2>Comparativo de Circunferências Corporais</h2>
-                        <small style={{ color: 'var(--text-muted)' }}>Comparação entre as duas últimas avaliações ({prevAs?.data || '-'} vs {latestAs.data})</small>
+                        <small style={{ color: 'var(--text-muted)' }}>Comparação entre as duas últimas avaliações ({prevAs?.data ? formatDateBR(prevAs.data) : '-'} vs {formatDateBR(latestAs.data)})</small>
                       </div>
 
                       <div className="table-responsive">
@@ -1234,8 +1245,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           <thead>
                             <tr>
                               <th>Região Corporal</th>
-                              <th className="text-right">Avaliação Anterior ({prevAs?.data || '-'})</th>
-                              <th className="text-right">Última Avaliação ({latestAs.data})</th>
+                              <th className="text-right">Avaliação Anterior ({prevAs?.data ? formatDateBR(prevAs.data) : '-'})</th>
+                              <th className="text-right">Última Avaliação ({formatDateBR(latestAs.data)})</th>
                               <th className="text-center">Variação Absoluta (cm)</th>
                               <th className="text-center">Variação Percentual (%)</th>
                             </tr>
@@ -1508,7 +1519,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                                   const barColor = idx === progression.length - 1 ? 'var(--color-primary)' : 'var(--text-dim)';
                                   return (
                                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', width: '80px', flexShrink: 0 }}>{p.data}</span>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', width: '80px', flexShrink: 0 }}>{formatDateBR(p.data)}</span>
                                       <div style={{ flexGrow: 1, background: 'rgba(255,255,255,0.03)', height: '14px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                                         <div style={{ width: `${pctWidth}%`, height: '100%', background: barColor, borderRadius: '6px', transition: 'width 0.6s ease' }}></div>
                                       </div>
@@ -1531,7 +1542,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                           <div>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data da última avaliação:</span>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{latestSt.data}</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{formatDateBR(latestSt.data)}</div>
                           </div>
                           <div>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Peso Corporal registrado:</span>
@@ -1842,7 +1853,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                     return paginated.map(doc => (
                       <tr key={doc.id}>
-                        <td data-label="Data">{doc.data}</td>
+                        <td data-label="Data">{formatDateBR(doc.data)}</td>
                         <td data-label="Tipo de Documento" className="text-center">
                           <span className={`badge ${doc.badgeClass}`}>{doc.tipo}</span>
                         </td>
@@ -1933,7 +1944,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                     <div style={{ background: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
                       <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Plano: <strong>{activeContract.planoNome}</strong></p>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Vigência: de <strong>{activeContract.dataInicio}</strong> até <strong>{activeContract.dataFim}</strong></p>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Vigência: de <strong>{formatDateBR(activeContract.dataInicio)}</strong> até <strong>{formatDateBR(activeContract.dataFim)}</strong></p>
                       <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Frequência contratada: <strong>{frequencia}x por semana</strong></p>
                       <p style={{ margin: '0', fontSize: '0.9rem', color: semanasDisponiveis > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>
                         Semanas já trancadas: <strong>{totalSemanasTrancadas} de 4</strong> (Restam <strong>{semanasDisponiveis}</strong> semanas disponíveis)
@@ -2088,15 +2099,17 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           ) : (
                             trancamentosList.map(t => (
                               <tr key={t._id}>
-                                <td><strong>{t.dataInicio}</strong></td>
-                                <td>{t.semanas} {t.semanas === 1 ? 'semana' : 'semanas'}</td>
-                                <td><span className="badge badge-info">{t.creditosTrancados} créditos</span></td>
-                                <td style={{ fontSize: '0.8rem' }}>
-                                  {t.redistribuicao?.map((r: any) => (
-                                    <div key={r.mesAno}>
-                                      {r.mesAno}: <strong>+{r.creditos}</strong> créditos
-                                    </div>
-                                  ))}
+                                <td data-label="Data Início"><strong>{formatDateBR(t.dataInicio)}</strong></td>
+                                <td data-label="Semanas">{t.semanas} {t.semanas === 1 ? 'semana' : 'semanas'}</td>
+                                <td data-label="Créditos"><span className="badge badge-info">{t.creditosTrancados} créditos</span></td>
+                                <td data-label="Redistribuição" style={{ fontSize: '0.8rem' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end' }}>
+                                    {t.redistribuicao?.map((r: any) => (
+                                      <div key={r.mesAno} style={{ whiteSpace: 'nowrap' }}>
+                                        {formatMonthYearBR(r.mesAno)}: <strong>+{r.creditos}</strong> cr.
+                                      </div>
+                                    ))}
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -2253,7 +2266,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       const statusCor: Record<string, string> = { agendado: 'var(--color-warning)', presenca: 'var(--color-success)', cancelado: 'var(--color-danger)', falta: 'var(--color-danger)' };
                       return (
                         <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{a.data} {a.horario}</td>
+                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{formatDateBR(a.data)} {a.horario}</td>
                           <td style={{ padding: '10px', fontSize: '0.82rem' }}>{a.servico}</td>
                           <td style={{ padding: '10px' }}>
                             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}22`, padding: '2px 8px', borderRadius: '8px' }}>

@@ -3324,4 +3324,13 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
+
+  /* 5. Ocultar Cabeçalho Redundante (.dashboard-header) e reduzir espaçamento no celular */
+  .dashboard-header {
+    display: none !important;
+  }
+  
+  .main-content {
+    padding-top: 16px !important;
+  }
 }
