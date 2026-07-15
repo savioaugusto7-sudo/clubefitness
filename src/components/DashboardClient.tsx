@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
-import { downloadReportPDF, downloadAssessmentPDF } from '@/utils/pdfGenerator';
+import { downloadReportPDF, downloadAssessmentPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 
 interface DashboardClientProps {
   activeTab: string;
@@ -1826,7 +1826,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               <h1>Meus Documentos Clínicos</h1>
               <p>Acesse e baixe seus laudos de fisioterapia e relatórios de avaliações físicas.</p>
             </div>
-            {(assessments.length > 0 || reports.length > 0) && (
+            {(assessments.length > 0 || reports.length > 0 || strengthTests.length > 0) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div className="page-size-selector">
                   <span>Exibir:</span>
@@ -1874,6 +1874,14 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         badgeClass: 'badge-info',
                         desc: 'Evolução do tratamento de reabilitação e condutas',
                         rawDoc: r
+                      })),
+                      ...strengthTests.map(st => ({
+                        id: st._id,
+                        data: st.data,
+                        tipo: 'Teste de Força',
+                        badgeClass: 'badge-warning',
+                        desc: 'Métricas de força muscular bilateral e comparativos',
+                        rawDoc: st
                       }))
                     ].sort((a, b) => b.data.localeCompare(a.data));
 
@@ -1890,7 +1898,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             <div className="empty-state-card">
                               <i className="fa-solid fa-folder-open empty-state-icon"></i>
                               <div className="empty-state-title">Nenhum documento disponível</div>
-                              <div className="empty-state-desc">Não há laudos de fisioterapia ou relatórios de avaliação física disponíveis para download no momento.</div>
+                              <div className="empty-state-desc">Não há laudos de fisioterapia, relatórios de avaliação física ou testes de força disponíveis para download no momento.</div>
                             </div>
                           </td>
                         </tr>
@@ -1911,6 +1919,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             onClick={() => {
                               if (doc.tipo === 'Avaliação Física') {
                                 downloadAssessmentPDF(doc.rawDoc, assessments);
+                              } else if (doc.tipo === 'Teste de Força') {
+                                downloadStrengthTestPDF(doc.rawDoc, client, doc.rawDoc.profissionalId);
                               } else {
                                 downloadReportPDF(doc.rawDoc);
                               }
