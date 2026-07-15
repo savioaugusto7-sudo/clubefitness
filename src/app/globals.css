@@ -3318,4 +3318,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     display: inline-flex !important;
     align-items: center !important;
   }
+
+  /* 4. Trancamento de Plano: Conversão de Grid de 2 Colunas para 1 Coluna no celular */
+  .trancamento-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
 }
