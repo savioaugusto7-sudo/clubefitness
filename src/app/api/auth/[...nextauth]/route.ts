@@ -137,7 +137,7 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
     },
-    async jwt({ token }) {
+    async jwt({ token, trigger, session }: any) {
       if (token.email) {
         try {
           await dbConnect();
@@ -161,7 +161,11 @@ export const authOptions: NextAuthOptions = {
 
             if (clientProfile) {
               token.clientProfileId = clientProfile._id.toString();
-              token.cadastroConcluido = clientProfile.cadastroConcluido === true;
+              if (trigger === "update" && session?.cadastroConcluido !== undefined) {
+                token.cadastroConcluido = session.cadastroConcluido;
+              } else {
+                token.cadastroConcluido = clientProfile.cadastroConcluido === true;
+              }
             }
             if (profProfile) {
               token.professionalProfileId = profProfile._id.toString();

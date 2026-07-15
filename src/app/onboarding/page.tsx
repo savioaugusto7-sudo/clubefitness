@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 type Step = 1 | 2 | 3;
 
 export default function OnboardingPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const user = session?.user as any;
 
@@ -74,6 +74,7 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (data.success) {
+        await update({ cadastroConcluido: true });
         router.push('/dashboard');
       } else {
         setError(data.error || 'Erro ao salvar.');
