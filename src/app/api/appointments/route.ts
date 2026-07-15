@@ -4,6 +4,8 @@ import Appointment from '@/models/Appointment';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import AgendaConfig from '@/models/AgendaConfig';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // Configuração de Serviços — Regras de Crédito e Capacidade
 const SERVICOS_CONFIG: Record<string, {
@@ -123,6 +125,37 @@ export async function POST(request: Request) {
 
     const tipoCredito = servicoConfig.tipoCredito;
     const tipo = servicoConfig.tipo;
+
+    // Restrição da regra de liberação de agenda para alunos (sexta 18h)
+    const session = await getServerSession(authOptions);
+    if (session && session.user && (session.user as any).role === 'client') {
+      const now = new Date();
+      const utcStr = now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' });
+      const localNow = new Date(utcStr);
+
+      const todayDayOfWeek = localNow.getDay();
+      const todayHours = localNow.getHours();
+
+      const daysUntilSaturday = 6 - todayDayOfWeek;
+      const currentSaturday = new Date(localNow);
+      currentSaturday.setDate(localNow.getDate() + daysUntilSaturday);
+      currentSaturday.setHours(23, 59, 59, 999);
+
+      const nextWeekReleased = (todayDayOfWeek === 5 && todayHours >= 18) || todayDayOfWeek === 6 || todayDayOfWeek === 0;
+
+      const limitDate = new Date(currentSaturday);
+      if (nextWeekReleased) {
+        limitDate.setDate(currentSaturday.getDate() + 7);
+      }
+
+      const limitDateStr = limitDate.toLocaleDateString('sv-SE');
+      if (data > limitDateStr) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'A agenda para a semana seguinte ainda não está disponível para agendamento por alunos. A liberação ocorre toda sexta-feira às 18h.' 
+        }, { status: 400 });
+      }
+    }
 
     // --- Bloquear datas passadas ---
     const nowBrStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }); // "YYYY-MM-DD"

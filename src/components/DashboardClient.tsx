@@ -46,21 +46,58 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   // Sub-tabs for evolution
   const [evoSubTab, setEvoSubTab] = useState<'composicao' | 'perimetros' | 'mobilidade' | 'forca'>('composicao');
 
+  const getSchedulingLimitDate = () => {
+    const now = new Date();
+    // Forçar cálculo no fuso horário do Brasil/São Paulo
+    const utcStr = now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' });
+    const localNow = new Date(utcStr);
+
+    const todayDayOfWeek = localNow.getDay(); // 0 = Dom, 1 = Seg, ..., 5 = Sex, 6 = Sáb
+    const todayHours = localNow.getHours();
+
+    // Sábado da semana atual
+    const daysUntilSaturday = 6 - todayDayOfWeek;
+    const currentSaturday = new Date(localNow);
+    currentSaturday.setDate(localNow.getDate() + daysUntilSaturday);
+    currentSaturday.setHours(23, 59, 59, 999);
+
+    // Checa se já passou de sexta-feira às 18h ou se é sábado/domingo
+    const nextWeekReleased = (todayDayOfWeek === 5 && todayHours >= 18) || todayDayOfWeek === 6 || todayDayOfWeek === 0;
+
+    const limitDate = new Date(currentSaturday);
+    if (nextWeekReleased) {
+      // Se liberado, estende até o sábado da semana seguinte
+      limitDate.setDate(currentSaturday.getDate() + 7);
+    }
+
+    return limitDate;
+  };
+
   const getNextDays = () => {
     const days = [];
-    const date = new Date();
-    for (let i = 0; i < 10; i++) {
-      const nextDate = new Date(date);
-      nextDate.setDate(date.getDate() + i);
-      const isSunday = nextDate.getDay() === 0;
+    const limitDate = getSchedulingLimitDate();
+    
+    const now = new Date();
+    const utcStr = now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' });
+    const today = new Date(utcStr);
+    today.setHours(0, 0, 0, 0);
+
+    const currentIter = new Date(today);
+    // Limitar para exibir no máximo 14 dias para evitar loops infinitos acidentais
+    let iterations = 0;
+    while (currentIter <= limitDate && iterations < 15) {
+      const isSunday = currentIter.getDay() === 0;
       if (!isSunday) {
+        const dateStr = currentIter.toLocaleDateString('sv-SE');
         days.push({
-          dateStr: nextDate.toISOString().split('T')[0],
-          dayName: nextDate.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
-          dayNum: nextDate.getDate(),
-          monthName: nextDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+          dateStr,
+          dayName: currentIter.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+          dayNum: currentIter.getDate(),
+          monthName: currentIter.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
         });
       }
+      currentIter.setDate(currentIter.getDate() + 1);
+      iterations++;
     }
     return days;
   };
@@ -651,7 +688,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 {/* Fallback de data convencional */}
                 <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ou selecione outra data:</span>
-                  <input type="date" className="form-control" value={bookDate} onChange={e => { setBookDate(e.target.value); setBookTime(''); }} style={{ maxWidth: '160px', padding: '6px 10px', height: '36px' }} required />
+                  <input 
+                    type="date" 
+                    className="form-control" 
+                    value={bookDate} 
+                    onChange={e => { setBookDate(e.target.value); setBookTime(''); }} 
+                    max={getSchedulingLimitDate().toLocaleDateString('sv-SE')}
+                    style={{ maxWidth: '160px', padding: '6px 10px', height: '36px' }} 
+                    required 
+                  />
                 </div>
               </div>
 

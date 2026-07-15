@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Appointment from '@/models/Appointment';
 import AgendaConfig from '@/models/AgendaConfig';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number; tipo: 'academia' | 'consultorio' }> = {
   'Treino Monitorado':        { vagasOcupadas: 1, tipo: 'academia'    },
@@ -34,6 +36,34 @@ export async function GET(request: Request) {
     const servicoConfig = SERVICOS_CONFIG[servico];
     if (!servicoConfig) {
       return NextResponse.json({ success: false, error: `Serviço desconhecido: ${servico}` }, { status: 400 });
+    }
+
+    // Restrição da regra de liberação de agenda para alunos (sexta 18h)
+    const session = await getServerSession(authOptions);
+    if (session && session.user && (session.user as any).role === 'client') {
+      const now = new Date();
+      const utcStr = now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' });
+      const localNow = new Date(utcStr);
+
+      const todayDayOfWeek = localNow.getDay();
+      const todayHours = localNow.getHours();
+
+      const daysUntilSaturday = 6 - todayDayOfWeek;
+      const currentSaturday = new Date(localNow);
+      currentSaturday.setDate(localNow.getDate() + daysUntilSaturday);
+      currentSaturday.setHours(23, 59, 59, 999);
+
+      const nextWeekReleased = (todayDayOfWeek === 5 && todayHours >= 18) || todayDayOfWeek === 6 || todayDayOfWeek === 0;
+
+      const limitDate = new Date(currentSaturday);
+      if (nextWeekReleased) {
+        limitDate.setDate(currentSaturday.getDate() + 7);
+      }
+
+      const limitDateStr = limitDate.toLocaleDateString('sv-SE');
+      if (data > limitDateStr) {
+        return NextResponse.json({ success: true, data: [] });
+      }
     }
 
     const parts = data.split('-');
