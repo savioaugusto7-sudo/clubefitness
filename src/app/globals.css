@@ -3250,3 +3250,72 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
+
+/* ==========================================================================
+   CORREÇÕES ADICIONAIS DE USABILIDADE E RESPONSIVIDADE EM CELULARES (QA)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 1. Grade de Horários (Agenda Completa): Reflow horizontal para blocos verticais */
+  .agenda-slot-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+  
+  .agenda-slot-row > div {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+  
+  /* Botões de Ação na base do slot card */
+  .agenda-slot-row > div:last-child {
+    display: flex !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 4px !important;
+  }
+  
+  /* 2. Correção de Colspan (Estados Vazios) nas Tabelas Responsivas */
+  .data-table td[colspan] {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+    border: none !important;
+    padding: 24px 12px !important;
+    background: transparent !important;
+  }
+  
+  .data-table td[colspan]::before {
+    display: none !important; /* Oculta a legenda da coluna */
+  }
+  
+  .empty-state-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 20px 10px !important;
+  }
+  
+  .empty-state-desc {
+    padding: 0 8px !important;
+    font-size: 0.8rem !important;
+    line-height: 1.4 !important;
+    white-space: normal !important;
+  }
+
+  /* 3. Correção de Legibilidade do input[type="date"] nativo no Safari iOS */
+  input[type="date"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-color: var(--bg-dark) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    min-height: 40px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+}

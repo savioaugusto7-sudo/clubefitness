@@ -716,6 +716,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                     return (
                       <div 
                         key={`${slot.horario}-${slot.tipo}`}
+                        className="agenda-slot-row"
                         style={{
                           background: 'var(--bg-darker)',
                           border: '1px solid var(--border-color)',
