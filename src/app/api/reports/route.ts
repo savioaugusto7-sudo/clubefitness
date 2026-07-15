@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     await checkSessionPermission(['admin', 'professional']);
 
     const body = await request.json();
-    const { clienteId, profissionalId, data, conteudo, anamnese, goniometria, testesEspeciais, termografia, testesOrtopedicos, pdfName, tempoGastoSegundos } = body;
+    const { clienteId, profissionalId, data, conteudo, anamnese, goniometria, testesEspeciais, termografia, testesOrtopedicos, pdfName, pdf_url, tempoGastoSegundos } = body;
 
     if (!clienteId || !profissionalId || !data || !conteudo) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       termografia,
       testesOrtopedicos,
       pdfName,
+      pdf_url: pdf_url || '',
       tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
 

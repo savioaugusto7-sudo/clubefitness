@@ -382,6 +382,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // PDF attachment state
   const [asPdfUrl, setAsPdfUrl] = useState('');
   const [asPdfAttachName, setAsPdfAttachName] = useState('');
+
+  // Physio Report PDF attachment state
+  const [repPdfUrl, setRepPdfUrl] = useState('');
+  const [repPdfAttachName, setRepPdfAttachName] = useState('');
   const [asMaigneData, setAsMaigneData] = useState({
     flexao: 25, flexaoEVA: 0,
     extensao: 25, extensaoEVA: 0,
@@ -2019,6 +2023,32 @@ goniometria: {
     setAsPdfAttachName('');
   };
 
+  const handleRepPdfFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      alert('Por favor, selecione apenas arquivos PDF.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('O PDF é muito grande! Escolha um arquivo de até 10 MB.');
+      e.target.value = '';
+      return;
+    }
+    setRepPdfAttachName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setRepPdfUrl(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeRepPdfAttach = () => {
+    setRepPdfUrl('');
+    setRepPdfAttachName('');
+  };
+
   const downloadExame = (index: number) => {
     const exame = repExamesList[index];
     if (!exame || !exame.pdfB64) return;
@@ -2171,6 +2201,7 @@ goniometria: {
           conduta: repContent
         },
         pdfName: `Relatorio_Fisioterapia_${Date.now()}.pdf`,
+        pdf_url: repPdfUrl || '',
         tempoGastoSegundos: repTimerSeconds
       };
 
@@ -2312,6 +2343,8 @@ goniometria: {
             setSdRealizou('nao');
             setRepExercicios('');
             setRepContent('');
+            setRepPdfUrl('');
+            setRepPdfAttachName('');
             setRepAvaliador(executorProfId);
 
             fetchData();
@@ -7365,6 +7398,72 @@ goniometria: {
                         placeholder="Ex: Ponte pélvica isométrica 3x45s, alongamento de flexores de quadril..."
                       />
                       <small style={{ color: 'var(--text-muted)' }}>Indique orientações ergonômicas e exercícios prescritos ao paciente.</small>
+                    </div>
+
+                    {/* PDF Attachment Section */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', marginTop: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <div style={{ background: 'rgba(13, 148, 136, 0.12)', padding: '8px', borderRadius: '8px' }}>
+                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}></i>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Avaliação Postural PDF</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                            Anexe um PDF da avaliação postural do paciente. Ele será incorporado ao final do PDF do relatório. Máx. 10 MB.
+                          </div>
+                        </div>
+                      </div>
+
+                      {!repPdfUrl ? (
+                        <div>
+                          <label
+                            htmlFor="repPdfUploadInput"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '10px',
+                              border: '2px dashed var(--border-color)',
+                              borderRadius: '8px',
+                              padding: '20px',
+                              cursor: 'pointer',
+                              color: 'var(--text-dim)',
+                              fontSize: '0.85rem',
+                              transition: 'border-color 0.2s, color 0.2s'
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--color-primary)'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--text-dim)'; }}
+                          >
+                            <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.4rem' }}></i>
+                            <span>Clique para selecionar um PDF ou arraste aqui</span>
+                          </label>
+                          <input
+                            id="repPdfUploadInput"
+                            type="file"
+                            accept="application/pdf"
+                            style={{ display: 'none' }}
+                            onChange={handleRepPdfFileSelect}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ background: 'rgba(13, 148, 136, 0.08)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444', fontSize: '1.5rem' }}></i>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{repPdfAttachName || 'PDF anexado'}</div>
+                              <div style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ PDF pronto para ser incluído no relatório</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={removeRepPdfAttach}
+                            style={{ flexShrink: 0 }}
+                          >
+                            <i className="fa-solid fa-trash"></i> Remover
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

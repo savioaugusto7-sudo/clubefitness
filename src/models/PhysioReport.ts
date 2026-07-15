@@ -23,6 +23,7 @@ const PhysioReportSchema = new Schema({
   testesOrtopedicos: { type: Schema.Types.Mixed },
   perimetria: { type: Schema.Types.Mixed },
   pdfName: { type: String },
+  pdf_url: { type: String, default: '' },
   tempoGastoSegundos: { type: Number, default: 0 }
 }, { timestamps: true });
 

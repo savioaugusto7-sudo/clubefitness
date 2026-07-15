@@ -1098,13 +1098,49 @@ export async function downloadReportPDF(report: any) {
     pagebreak: { mode: ['css', 'legacy'] }
   };
 
-  html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
-    triggerDirectDownload(blob, options.filename);
-    document.body.removeChild(pdfWrapper);
-  }).catch((err: any) => {
-    console.error('Erro na geração do PDF do relatório:', err);
-    document.body.removeChild(pdfWrapper);
-  });
+  if (report.pdf_url) {
+    html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
+      try {
+        document.body.removeChild(pdfWrapper);
+        if (typeof PDFLib === 'undefined') {
+          console.warn('A biblioteca de mesclagem (pdf-lib) não foi carregada. Baixando apenas o relatório do sistema...');
+          const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
+          triggerDirectDownload(rawBlob, options.filename);
+          return;
+        }
+        const { PDFDocument } = PDFLib;
+        const mergedPdf = await PDFDocument.create();
+
+        const systemPdfDoc = await PDFDocument.load(pdfSystemBuffer);
+        const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
+        systemPages.forEach((page: any) => mergedPdf.addPage(page));
+
+        const attachedBlob = base64ToBlob(report.pdf_url, 'application/pdf');
+        const attachedPdfBuffer = await attachedBlob.arrayBuffer();
+        const attachedPdfDoc = await PDFDocument.load(attachedPdfBuffer);
+        const attachedPages = await mergedPdf.copyPages(attachedPdfDoc, attachedPdfDoc.getPageIndices());
+        attachedPages.forEach((page: any) => mergedPdf.addPage(page));
+
+        const mergedPdfBytes = await mergedPdf.save();
+        const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+        triggerDirectDownload(mergedBlob, options.filename);
+      } catch (error: any) {
+        console.error('Erro na mesclagem dos PDFs:', error);
+        alert('Erro ao mesclar o PDF anexo com o relatório: ' + error.message);
+      }
+    }).catch((err: any) => {
+      console.error('Erro na geração do PDF:', err);
+      document.body.removeChild(pdfWrapper);
+    });
+  } else {
+    html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
+      triggerDirectDownload(blob, options.filename);
+      document.body.removeChild(pdfWrapper);
+    }).catch((err: any) => {
+      console.error('Erro na geração do PDF do relatório:', err);
+      document.body.removeChild(pdfWrapper);
+    });
+  }
 }
 
 
