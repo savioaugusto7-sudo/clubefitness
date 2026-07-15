@@ -654,7 +654,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
       )}
 
       {/* Grid: Calendário do Mês à Esquerda, Horários do Dia à Direita */}
-      <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '24px', alignItems: 'start' }}>
+      <div className="agenda-grid-container" style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '24px', alignItems: 'start' }}>
         
         {/* Widget Calendário */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>

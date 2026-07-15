@@ -2930,8 +2930,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 /* 📱 CELULARES (Telas até 600px) */
 @media (max-width: 600px) {
-  /* Oculta a sidebar de alunos e readequa o contêiner */
-  .client-sidebar-mobile-hidden {
+  /* Oculta a sidebar de todos os usuários no celular (usam Bottom Nav) */
+  aside.sidebar {
     display: none !important;
   }
 
@@ -3353,5 +3353,11 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   div[style*="grid-template-columns:1fr 1fr 1fr"] {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
+  }
+
+  /* 7. Agenda Geral (Academia, Consultório, Google Agenda): Empilha calendário e listagem no celular */
+  .agenda-grid-container {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
   }
 }

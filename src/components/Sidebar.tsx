@@ -71,6 +71,33 @@ const tabConfigs: Record<string, TabConfig[]> = {
   ]
 };
 
+const bottomNavConfigs: Record<string, TabConfig[]> = {
+  admin: [
+    { id: 'dashboard', label: 'Início', icon: 'fa-chart-pie' },
+    { id: 'agenda_completa', label: 'Agenda', icon: 'fa-calendar-alt' },
+    { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
+    { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' }
+  ],
+  professional: [
+    { id: 'resumo_dia', label: 'Resumo', icon: 'fa-clipboard-list' },
+    { id: 'dashboard', label: 'Agenda', icon: 'fa-calendar-alt' },
+    { id: 'clientes', label: 'Alunos', icon: 'fa-user-friends' },
+    { id: 'treinos_prof', label: 'Treinos', icon: 'fa-dumbbell' }
+  ],
+  receptionist: [
+    { id: 'dashboard', label: 'Painel', icon: 'fa-chart-pie' },
+    { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
+    { id: 'agendamentos', label: 'Agendas', icon: 'fa-calendar-alt' },
+    { id: 'mensalidades', label: 'Mensalidades', icon: 'fa-money-bill-wave' }
+  ],
+  client: [
+    { id: 'dashboard', label: 'Início', icon: 'fa-home' },
+    { id: 'agendar', label: 'Agendar', icon: 'fa-calendar-plus' },
+    { id: 'treino', label: 'Treino', icon: 'fa-dumbbell' },
+    { id: 'documentos', label: 'Laudos', icon: 'fa-file-pdf' }
+  ]
+};
+
 export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const tabs = tabConfigs[role] || [];
@@ -82,19 +109,8 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
 
   return (
     <>
-      {/* Mobile Menu Toggle Button (oculto para alunos, que usam a Bottom Nav Bar) */}
-      {role !== 'client' && (
-        <div 
-          className="mobile-menu-toggle" 
-          onClick={() => setMobileOpen(!mobileOpen)}
-          style={{ zIndex: 1100 }}
-        >
-          <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
-        </div>
-      )}
-
       {/* Sidebar Container */}
-      <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''} ${role === 'client' ? 'client-sidebar-mobile-hidden' : ''}`} id="appSidebar">
+      <aside className="sidebar" id="appSidebar">
         {/* Brand Section */}
         <div className="brand-section">
           <div className="brand-logo" style={{
@@ -162,34 +178,26 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
         </div>
       </aside>
 
-      {/* Bottom Nav Bar for Client (Mobile Only) */}
-      {role === 'client' && (
-        <div className="bottom-nav-bar">
-          <div className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabClick('dashboard')}>
-            <i className="fa-solid fa-house"></i>
-            <span>Início</span>
+      {/* Bottom Nav Bar (Mobile Only) */}
+      <div className="bottom-nav-bar">
+        {bottomNavConfigs[role]?.map((tab) => (
+          <div 
+            key={tab.id} 
+            className={`bottom-nav-item ${activeTab === tab.id ? 'active' : ''}`} 
+            onClick={() => handleTabClick(tab.id)}
+          >
+            <i className={`fa-solid ${tab.icon}`}></i>
+            <span>{tab.label}</span>
           </div>
-          <div className={`bottom-nav-item ${activeTab === 'agendar' ? 'active' : ''}`} onClick={() => handleTabClick('agendar')}>
-            <i className="fa-solid fa-calendar-plus"></i>
-            <span>Agendar</span>
-          </div>
-          <div className={`bottom-nav-item ${activeTab === 'treino' ? 'active' : ''}`} onClick={() => handleTabClick('treino')}>
-            <i className="fa-solid fa-dumbbell"></i>
-            <span>Treino</span>
-          </div>
-          <div className={`bottom-nav-item ${activeTab === 'documentos' ? 'active' : ''}`} onClick={() => handleTabClick('documentos')}>
-            <i className="fa-solid fa-file-pdf"></i>
-            <span>Laudos</span>
-          </div>
-          <div className={`bottom-nav-item ${mobileOpen ? 'active' : ''}`} onClick={() => setMobileOpen(!mobileOpen)}>
-            <i className="fa-solid fa-bars"></i>
-            <span>Mais</span>
-          </div>
+        ))}
+        <div className={`bottom-nav-item ${mobileOpen ? 'active' : ''}`} onClick={() => setMobileOpen(!mobileOpen)}>
+          <i className="fa-solid fa-bars"></i>
+          <span>Mais</span>
         </div>
-      )}
+      </div>
 
-      {/* Bottom Drawer for Client (Mobile Only) */}
-      {role === 'client' && mobileOpen && (
+      {/* Bottom Drawer (Mobile Only) */}
+      {mobileOpen && (
         <div className="bottom-drawer-overlay" onClick={() => setMobileOpen(false)}>
           <div className="bottom-drawer-content" onClick={e => e.stopPropagation()}>
             <div className="bottom-drawer-header">
@@ -197,22 +205,18 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
               <button className="drawer-close" onClick={() => setMobileOpen(false)}>&times;</button>
             </div>
             <div className="bottom-drawer-grid">
-              <div className={`drawer-grid-item ${activeTab === 'agendamentos' ? 'active' : ''}`} onClick={() => handleTabClick('agendamentos')}>
-                <i className="fa-solid fa-clock"></i>
-                <span>Agendamentos</span>
-              </div>
-              <div className={`drawer-grid-item ${activeTab === 'evolucao' ? 'active' : ''}`} onClick={() => handleTabClick('evolucao')}>
-                <i className="fa-solid fa-chart-line"></i>
-                <span>Minha Evolução</span>
-              </div>
-              <div className={`drawer-grid-item ${activeTab === 'creditos' ? 'active' : ''}`} onClick={() => handleTabClick('creditos')}>
-                <i className="fa-solid fa-coins"></i>
-                <span>Meus Créditos</span>
-              </div>
-              <div className={`drawer-grid-item ${activeTab === 'trancamento' ? 'active' : ''}`} onClick={() => handleTabClick('trancamento')}>
-                <i className="fa-solid fa-snowflake"></i>
-                <span>Trancar Plano</span>
-              </div>
+              {tabs
+                .filter(tab => !bottomNavConfigs[role]?.some(bt => bt.id === tab.id))
+                .map(tab => (
+                  <div 
+                    key={tab.id} 
+                    className={`drawer-grid-item ${activeTab === tab.id ? 'active' : ''}`} 
+                    onClick={() => handleTabClick(tab.id)}
+                  >
+                    <i className={`fa-solid ${tab.icon}`}></i>
+                    <span>{tab.label}</span>
+                  </div>
+                ))}
               <div className="drawer-grid-item text-danger" onClick={() => signOut({ callbackUrl: '/login?from=logout' })}>
                 <i className="fa-solid fa-right-from-bracket"></i>
                 <span>Sair da Conta</span>
