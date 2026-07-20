@@ -3316,9 +3316,23 @@ function valorExtenso(valor: number): string {
 // PDF — CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 // ==========================================================
 export function downloadContractPDF(client: any, plan: any, templateOverride?: string, contract?: any) {
+  if (!client) { alert('Cliente não encontrado.'); return; }
+
+  // Check if contract has an attached custom PDF (e.g. imported/uploaded PDF)
+  const attachedPdf = contract?.contratoAnexo || contract?.contratoPdfBase64 || client?.contratoAnexo || client?.dadosComerciais?.contratoAnexo;
+  if (attachedPdf) {
+    const link = document.createElement('a');
+    link.href = attachedPdf;
+    const clientName = client?.dadosPessoais?.nome || client?.nome || 'Aluno';
+    link.download = `Contrato_Assinado_${clientName.replace(/\s+/g, '_')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return;
+  }
+
   const html2pdf = (window as any).html2pdf;
   if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
-  if (!client) { alert('Cliente não encontrado.'); return; }
 
   const activeContract = contract || (client?.assinaturaPresencialImage ? client : null);
   let signatureSection = '';

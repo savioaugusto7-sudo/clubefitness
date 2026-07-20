@@ -1153,12 +1153,33 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const data = await res.json();
       if (data.success) {
         alert('Parcela excluída com sucesso!');
+        await fetchPayments();
         fetchData();
       } else {
         alert('Erro ao excluir parcela: ' + data.error);
       }
     } catch (err: any) {
       alert('Erro: ' + err.message);
+    }
+  };
+
+  const handleClean250Payments = async (clientId: string, clientNome: string) => {
+    if (!confirm(`Deseja remover todas as cobranças/parcelas indevidas de R$ 250,00 para o aluno ${clientNome}?`)) return;
+    try {
+      setLoadingPayments(true);
+      const res = await fetch(`/api/admin/payments?clientId=${clientId}&clean250=true`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`SUCESSO: ${data.deletedCount || 0} cobrança(s) indevida(s) de R$ 250,00 foram removidas!`);
+        await fetchPayments();
+        fetchData();
+      } else {
+        alert('Erro ao limpar cobranças: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao limpar cobranças: ' + err.message);
+    } finally {
+      setLoadingPayments(false);
     }
   };
 
@@ -3296,7 +3317,18 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               <tr>
                                 <td colSpan={7} style={{ padding: '0 0 20px 40px', background: 'rgba(0,0,0,0.15)' }}>
                                   <div style={{ padding: '16px', borderLeft: '3px solid var(--color-primary)', background: 'rgba(255,255,255,0.01)', borderRadius: '0 8px 8px 0' }}>
-                                    <h4 style={{ margin: '0 0 12px 0', fontSize: '0.88rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Extrato de Parcelas</h4>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 12px 0' }}>
+                                      <h4 style={{ margin: 0, fontSize: '0.88rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Extrato de Parcelas</h4>
+                                      {group.payments.some((p: any) => p.valor === 250 || p.formaPagamento === 'DINHEIRO' || p.formaPagamento === 'Dinheiro') && (
+                                        <button
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}
+                                          onClick={(e) => { e.stopPropagation(); handleClean250Payments(group.clientId, group.clientNome); }}
+                                        >
+                                          <i className="fa-solid fa-broom" style={{ marginRight: '6px' }}></i>Limpar Cobranças Indevidas (R$ 250,00)
+                                        </button>
+                                      )}
+                                    </div>
                                     <table className="data-table" style={{ width: '100%', fontSize: '0.82rem' }}>
                                       <thead>
                                         <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
