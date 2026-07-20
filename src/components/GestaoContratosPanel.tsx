@@ -920,8 +920,8 @@ export default function GestaoContratosPanel({
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Forma de Pagamento</label>
               <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} required>
                 <option value="pix">Pix</option>
@@ -930,7 +930,7 @@ export default function GestaoContratosPanel({
                 <option value="dinheiro">Dinheiro</option>
               </select>
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Dia de Vencimento (1º Vencimento)</label>
               <input
                 type="date"
@@ -942,8 +942,8 @@ export default function GestaoContratosPanel({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Tipo Vigência</label>
               <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} required>
                 <option value="semana">Semana</option>
@@ -952,7 +952,7 @@ export default function GestaoContratosPanel({
                 <option value="indeterminado">Indeterminado</option>
               </select>
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Qtd Vigência</label>
               <input
                 type="number"
@@ -965,15 +965,15 @@ export default function GestaoContratosPanel({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Desconto Tipo</label>
               <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)}>
                 <option value="percentual">Percentual (%)</option>
                 <option value="fixo">Fixo (R$)</option>
               </select>
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Desconto Valor</label>
               <input
                 type="number"
@@ -985,8 +985,8 @@ export default function GestaoContratosPanel({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Nº Parcelas</label>
               <select className="select-custom" value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} required>
                 {[...Array(12)].map((_, i) => (
@@ -994,7 +994,7 @@ export default function GestaoContratosPanel({
                 ))}
               </select>
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Valor Unitário (R$)</label>
               <input
                 type="number"
@@ -1007,8 +1007,8 @@ export default function GestaoContratosPanel({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Frequência Semanal Contratada</label>
               <select
                 className="select-custom"
@@ -1030,7 +1030,7 @@ export default function GestaoContratosPanel({
                 <option value={5}>5x por semana (22 sessões/mês)</option>
               </select>
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Data de Início</label>
               <input
                 type="date"
@@ -1040,7 +1040,7 @@ export default function GestaoContratosPanel({
                 required
               />
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Créditos Mensais</label>
               <input
                 type="number"
@@ -1053,8 +1053,8 @@ export default function GestaoContratosPanel({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Créditos de Massagem (Mensais)</label>
               <input
                 type="number"
@@ -1064,7 +1064,7 @@ export default function GestaoContratosPanel({
                 min={0}
               />
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Créditos de Emergência (Mensais)</label>
               <input
                 type="number"
