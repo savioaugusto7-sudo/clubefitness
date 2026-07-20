@@ -103,33 +103,46 @@ export async function POST(request: Request) {
 
       let asaasId = customCustomerId || '';
 
-      // If no custom customer ID provided, try searching Asaas using CPF or Email
+      // If no custom customer ID provided, try searching Asaas in cascade:
+      // 1. Clean CPF (04340508659)
+      // 2. Formatted CPF (043.405.086-59)
+      // 3. Email
+      // 4. Name
       if (!asaasId) {
-        const cpf = (client.dadosPessoais?.cpf || '').replace(/\D/g, '');
+        const rawCpf = client.dadosPessoais?.cpf || '';
+        const cpfClean = rawCpf.replace(/\D/g, '');
         const email = client.dadosPessoais?.email || '';
+        const nome = client.dadosPessoais?.nome || '';
         const baseUrl = getAsaasBaseUrl();
         const headers = getAsaasHeaders();
 
-        let searchUrl = '';
-        if (cpf) {
-          searchUrl = `${baseUrl}/customers?cpfCnpj=${cpf}`;
-        } else if (email) {
-          searchUrl = `${baseUrl}/customers?email=${email}`;
-        }
+        const searchQueries: string[] = [];
+        if (cpfClean) searchQueries.push(`${baseUrl}/customers?cpfCnpj=${cpfClean}`);
+        if (rawCpf && rawCpf !== cpfClean) searchQueries.push(`${baseUrl}/customers?cpfCnpj=${encodeURIComponent(rawCpf)}`);
+        if (email) searchQueries.push(`${baseUrl}/customers?email=${encodeURIComponent(email)}`);
+        if (nome) searchQueries.push(`${baseUrl}/customers?name=${encodeURIComponent(nome)}`);
 
-        if (searchUrl) {
-          const res = await fetch(searchUrl, { method: 'GET', headers });
-          if (res.ok) {
-            const searchData = await res.json();
-            if (Array.isArray(searchData.data) && searchData.data.length > 0) {
-              asaasId = searchData.data[0].id;
+        for (const queryUrl of searchQueries) {
+          try {
+            const res = await fetch(queryUrl, { method: 'GET', headers });
+            if (res.ok) {
+              const searchData = await res.json();
+              if (Array.isArray(searchData.data) && searchData.data.length > 0) {
+                asaasId = searchData.data[0].id;
+                break;
+              }
             }
+          } catch (err) {
+            console.error('Erro na consulta em cascata Asaas:', err);
           }
         }
       }
 
       if (!asaasId) {
-        return NextResponse.json({ success: false, error: 'Nenhum cliente correspondente encontrado no Asaas. Insira o ID manualmente ou certifique-se de que o CPF/E-mail está correto no Asaas.' }, { status: 400 });
+        return NextResponse.json({
+          success: false,
+          error: 'Nenhum cliente cadastrado no Asaas foi localizado com os dados de CPF, E-mail ou Nome. Para emitir cobranças ou cadastrar este aluno no Asaas, acesse a aba Asaas.'
+        }, { status: 400 });
       }
 
       // Link client in db

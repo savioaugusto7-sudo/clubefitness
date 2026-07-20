@@ -75,6 +75,7 @@ export default function AsaasPanel() {
   // Syncing states
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [isProduction, setIsProduction] = useState(false);
 
   // Modals & Feedback
   const [showPixModal, setShowPixModal] = useState(false);
@@ -99,6 +100,7 @@ export default function AsaasPanel() {
       const data = await res.json();
       if (data.success) {
         setClients(data.data || []);
+        if (data.isProduction !== undefined) setIsProduction(data.isProduction);
       } else {
         showFeedback(data.error || 'Erro ao carregar faturas de contratos', 'danger');
       }
@@ -288,7 +290,7 @@ export default function AsaasPanel() {
           <button className="btn btn-secondary" onClick={() => { fetchPayments(); fetchStandalonePayments(); }} disabled={loading || loadingStandalone}>
             <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i> Atualizar Dados
           </button>
-          <a href="https://sandbox.asaas.com" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+          <a href={isProduction ? 'https://www.asaas.com' : 'https://sandbox.asaas.com'} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
             <i className="fa-solid fa-arrow-up-right-from-square"></i> Painel Operacional Asaas
           </a>
         </div>
@@ -306,10 +308,14 @@ export default function AsaasPanel() {
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ambiente de Integração</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
-            <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>Sandbox (Modo de Testes)</strong>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isProduction ? '#10b981' : '#f59e0b' }}></span>
+            <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>
+              {isProduction ? 'Produção (Conta Real)' : 'Sandbox (Modo de Testes)'}
+            </strong>
           </div>
-          <small style={{ display: 'block', marginTop: '6px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>As transações criadas não representam cobranças bancárias reais.</small>
+          <small style={{ display: 'block', marginTop: '6px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+            {isProduction ? 'Modo Real de Produção (Cobranças bancárias ativas).' : 'As transações criadas não representam cobranças bancárias reais.'}
+          </small>
         </div>
 
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>

@@ -13,12 +13,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
+    const isProduction = Boolean(process.env.ASAAS_API_URL?.includes('api.asaas.com'));
+
     if (type === 'standalone') {
       const standalonePayments = await Payment.find({
-        planoNome: { $regex: /^(Cobrança Avulsa:|Parcelamento |Assinatura:)/ },
-        formaPagamento: 'Asaas'
+        formaPagamento: 'Asaas',
+        $or: [
+          { observacoes: { $regex: 'Avulso', $options: 'i' } },
+          { observacoes: { $regex: 'Parcelamento', $options: 'i' } },
+          { observacoes: { $regex: 'Assinatura', $options: 'i' } }
+        ]
       }).sort({ createdAt: -1 });
-      return NextResponse.json({ success: true, data: standalonePayments });
+      return NextResponse.json({ success: true, data: standalonePayments, isProduction });
     }
 
     // Buscar todos os clientes
@@ -95,7 +101,7 @@ export async function GET(request: Request) {
       clientGroupedData.push(clientInfo);
     }
 
-    return NextResponse.json({ success: true, data: clientGroupedData });
+    return NextResponse.json({ success: true, data: clientGroupedData, isProduction });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
