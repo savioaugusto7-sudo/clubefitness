@@ -1278,12 +1278,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   };
 
   useEffect(() => {
-    if (activeTab === 'financeiro') {
-      fetchPayments();
-    }
-  }, [activeTab, paymentsSearch, paymentsStatusFilter]);
+    fetchPayments();
+  }, [paymentsSearch, paymentsStatusFilter]);
 
   useEffect(() => {
+    fetchPayments();
     fetchData();
   }, [activeTab]);
 
@@ -1855,10 +1854,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const totalClients = clients.length;
   const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
   
-  // Receita Est. Mensal: soma estrita de todas as parcelas com vencimento no mês atual (Pagas ou Em Aberto; se não houver parcelas no mês, é 0)
+  // Receita Est. Mensal: soma de todas as parcelas com vencimento no mês atual (Pagas ou Em Aberto)
   const currentMonthStr = getYearMonth(new Date());
   const currentMonthPayments = payments.filter(p => p.vencimento && getYearMonth(p.vencimento) === currentMonthStr && p.status !== 'Cancelado' && p.valor <= 2000);
-  const revenueEst = currentMonthPayments.reduce((sum, p) => sum + p.valor, 0);
+  const activeClientsList = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado');
+  
+  const revenueEst = currentMonthPayments.length > 0
+    ? currentMonthPayments.reduce((sum, p) => sum + p.valor, 0)
+    : activeClientsList.reduce((acc, c) => acc + (Number(c.dadosComerciais?.valorUnitario) || 310), 0);
   const todayApts = appointments.filter(a => {
     const todayStr = new Date().toISOString().split('T')[0];
     return a.data === todayStr && a.status !== 'cancelado';
