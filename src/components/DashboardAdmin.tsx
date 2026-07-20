@@ -1809,17 +1809,21 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   // Dashboard calculations
   const totalClients = clients.length;
   const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
-  const revenueEst = clients
-    .filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado')
-    .reduce((acc, c) => {
-      let val = Number(c.dadosComerciais?.valorUnitario) || 310;
-      // If valorUnitario holds a total annual amount (>2000), convert to monthly equivalent
-      if (val > 2000) {
-        val = val / (c.dadosComerciais?.duracaoQtd || 10);
-      }
-      if (val > 2000) val = 310;
-      return acc + val;
-    }, 0);
+  
+  // Receita Est. Mensal: soma das parcelas/mensalidades com vencimento no mês atual
+  const currentMonthStr = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+  const currentMonthPayments = payments.filter(p => p.vencimento && p.vencimento.startsWith(currentMonthStr) && p.status !== 'Cancelado' && p.valor <= 2000);
+  
+  const revenueEst = currentMonthPayments.length > 0
+    ? currentMonthPayments.reduce((sum, p) => sum + p.valor, 0)
+    : clients
+        .filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado')
+        .reduce((acc, c) => {
+          let val = Number(c.dadosComerciais?.valorUnitario) || 310;
+          if (val > 2000) val = val / (c.dadosComerciais?.duracaoQtd || 10);
+          if (val > 2000) val = 310;
+          return acc + val;
+        }, 0);
   const todayApts = appointments.filter(a => {
     const todayStr = new Date().toISOString().split('T')[0];
     return a.data === todayStr && a.status !== 'cancelado';
