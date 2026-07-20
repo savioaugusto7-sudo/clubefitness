@@ -156,6 +156,7 @@ export default function GestaoContratosPanel({
           frequencia: dcFrequencia,
           creditosTotal: dcCreditosTotal,
           status: 'assinado',
+          clicksignStatus: 'assinado',
           assinaturaNome: 'Importado / Já Assinado Anteriormente',
           contratoAnexo: importPdfBase64,
           usuarioEmissor: 'Sistema / Importação Manual'
@@ -1216,7 +1217,7 @@ export default function GestaoContratosPanel({
                   <tbody>
                     {contracts.map(c => {
                       const cType = c.assinaturaPresencialImage ? 'Presencial (Touch)' : c.clicksignDocKey ? 'Clicksign' : 'Manual';
-                      const st = c.clicksignStatus || c.status;
+                      const st = c.status === 'assinado' ? 'assinado' : (c.clicksignStatus || c.status);
                       const statusColor = st === 'assinado' ? 'var(--color-success)' : st === 'cancelado' ? 'var(--color-danger)' : 'var(--color-warning)';
                       
                       return (

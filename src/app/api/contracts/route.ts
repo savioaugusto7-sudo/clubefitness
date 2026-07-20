@@ -650,6 +650,7 @@ export async function PUT(request: Request) {
       );
 
       contract.status = 'assinado';
+      contract.clicksignStatus = 'assinado';
       contract.assinaturaNome = assinaturaNome || client.dadosPessoais.nome;
       contract.assinaturaData = new Date();
       await contract.save();

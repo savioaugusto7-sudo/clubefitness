@@ -3321,14 +3321,41 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
   // Check if contract has an attached custom PDF (e.g. imported/uploaded PDF)
   const attachedPdf = contract?.contratoAnexo || contract?.contratoPdfBase64 || client?.contratoAnexo || client?.dadosComerciais?.contratoAnexo;
   if (attachedPdf) {
-    const link = document.createElement('a');
-    link.href = attachedPdf;
-    const clientName = client?.dadosPessoais?.nome || client?.nome || 'Aluno';
-    link.download = `Contrato_Assinado_${clientName.replace(/\s+/g, '_')}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    return;
+    try {
+      let blob: Blob;
+      if (attachedPdf.startsWith('data:')) {
+        const parts = attachedPdf.split(',');
+        const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/pdf';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        blob = new Blob([u8arr], { type: mime });
+      } else {
+        const bstr = atob(attachedPdf);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        blob = new Blob([u8arr], { type: 'application/pdf' });
+      }
+
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      const clientName = client?.dadosPessoais?.nome || client?.nome || 'Aluno';
+      link.download = `Contrato_Assinado_${clientName.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      return;
+    } catch (err) {
+      console.error('Erro ao processar o PDF anexado:', err);
+    }
   }
 
   const html2pdf = (window as any).html2pdf;
