@@ -5030,9 +5030,25 @@ goniometria: {
             </div>
             
             {/* Wizard Steps indicator */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)', flexWrap: 'wrap' }}>
+            <div className="wizard-step-bar" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
               {[1, 2, 3, 4, 5, 6].map(step => (
-                <div key={step} style={{ flex: '1 1 15%', padding: '10px 4px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: asStep === step ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: asStep === step ? '3px solid var(--color-primary)' : '3px solid transparent' }}>
+                <div
+                  key={step}
+                  onClick={() => setAsStep(step)}
+                  style={{
+                    flex: '1 0 auto',
+                    minWidth: '95px',
+                    padding: '12px 8px',
+                    textAlign: 'center',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    touchAction: 'manipulation',
+                    color: asStep === step ? 'var(--color-primary)' : 'var(--text-dim)',
+                    borderBottom: asStep === step ? '3px solid var(--color-primary)' : '3px solid transparent'
+                  }}
+                >
                   {step === 1 ? '1. Aluno' : step === 2 ? '2. Biometria' : step === 3 ? '3. Perímetros' : step === 4 ? '4. Dobras' : step === 5 ? '5. Ângulos' : '6. Metas'}
                 </div>
               ))}
@@ -6314,7 +6330,7 @@ goniometria: {
 
                 {/* Wizard Progress Bar */}
                 {true && (
-                  <div className="physio-wizard-progress" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', overflowX: 'auto', gap: '10px', paddingBottom: '8px' }}>
+                  <div className="physio-wizard-progress" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', overflowX: 'auto', gap: '10px', paddingBottom: '8px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
                     {[
                       { step: 1, label: 'Anamnese' },
                       { step: 2, label: 'Histórico & Hábitos' },
@@ -6337,11 +6353,13 @@ goniometria: {
                             setRepActiveStep(s.step);
                           }}
                           style={{
-                            flex: 1,
-                            minWidth: '100px',
+                            flex: '1 0 auto',
+                            minWidth: '110px',
                             textAlign: 'center',
                             cursor: 'pointer',
-                            padding: '6px 8px',
+                            padding: '8px 10px',
+                            touchAction: 'manipulation',
+                            userSelect: 'none',
                             borderRadius: '6px',
                             background: isActive ? 'var(--color-primary)' : isCompleted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.02)',
                             border: isActive ? '1px solid var(--color-primary)' : isCompleted ? '1px solid #10b981' : '1px solid var(--border-color)',
@@ -7781,7 +7799,7 @@ goniometria: {
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <button type="button" className="btn btn-secondary" onClick={handleCloseSt}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">Registrar Teste de Força</button>
               </div>
@@ -7818,7 +7836,7 @@ goniometria: {
                   <textarea className="form-control" style={{ height: '240px' }} value={prContent} onChange={e => setPrContent(e.target.value)} placeholder="Registrar evolução do tratamento e condutas tomadas..." required />
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <button type="button" className="btn btn-secondary" onClick={handleCloseProntuario}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">Salvar Prontuário</button>
               </div>
