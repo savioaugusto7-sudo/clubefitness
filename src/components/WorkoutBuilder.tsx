@@ -89,56 +89,58 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-default)', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#0a0f1d', zIndex: 999999, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
       {/* HEADER */}
-      <div style={{ padding: '20px 40px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button className="btn btn-secondary" onClick={onClose}><i className="fa-solid fa-arrow-left"></i></button>
+      <div style={{ padding: '16px 28px', background: '#131b2e', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button className="btn btn-secondary" onClick={onClose} style={{ gap: '6px' }}>
+            <i className="fa-solid fa-arrow-left"></i> Voltar para Lista
+          </button>
           <div>
-            <h2 style={{ margin: 0, color: 'var(--color-primary)' }}>Editor Avançado de Treino</h2>
-            <div style={{ color: 'var(--text-dim)' }}>Aluno: {clientName}</div>
+            <h2 style={{ margin: 0, color: 'var(--color-primary)', fontSize: '1.25rem', fontWeight: 700 }}>Editor Avançado de Treino</h2>
+            <div style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Aluno: <strong style={{ color: '#fff' }}>{clientName}</strong></div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <div style={{ background: 'var(--bg-default)', padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <span style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>Volume de Carga Total:</span>
-            <strong style={{ marginLeft: '8px', fontSize: '1.2rem', color: 'var(--color-primary)' }}>{calculateTotalLoad()} kg</strong>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>Volume de Carga Total:</span>
+            <strong style={{ marginLeft: '8px', fontSize: '1.1rem', color: 'var(--color-primary)' }}>{calculateTotalLoad()} kg</strong>
           </div>
-          <button className="btn btn-primary" onClick={handleSave}><i className="fa-solid fa-save"></i> Salvar Treino</button>
+          <button className="btn btn-primary" onClick={handleSave} style={{ gap: '6px' }}><i className="fa-solid fa-floppy-disk"></i> Salvar Treino</button>
         </div>
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         
         {/* SIDEBAR EXERCISES */}
-        <div style={{ width: '350px', background: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ width: '340px', background: '#131b2e', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <input type="text" className="form-control" placeholder="Buscar exercício..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: '12px' }} />
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {muscles.map(m => (
-                <button key={m} onClick={() => setSelectedMuscle(m)} style={{ padding: '6px 12px', borderRadius: '100px', border: '1px solid var(--border-color)', background: selectedMuscle === m ? 'var(--color-primary)' : 'transparent', color: selectedMuscle === m ? '#fff' : 'var(--text-color)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <button key={m} onClick={() => setSelectedMuscle(m)} style={{ padding: '4px 10px', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.1)', background: selectedMuscle === m ? 'var(--color-primary)' : 'rgba(255,255,255,0.04)', color: selectedMuscle === m ? '#fff' : 'var(--text-color)', cursor: 'pointer', fontSize: '0.78rem' }}>
                   {m}
                 </button>
               ))}
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {filteredExercises.map(ex => (
-              <div key={ex._id} style={{ padding: '16px', background: 'var(--bg-default)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div key={ex._id} style={{ padding: '12px 14px', background: '#0a0f1d', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{ex.nome}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{ex.grupo_muscular}</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{ex.nome}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{ex.grupo_muscular}</div>
                 </div>
                 <button className="btn btn-secondary btn-sm" onClick={() => addToWorkout(ex)}><i className="fa-solid fa-plus"></i></button>
               </div>
             ))}
-            {filteredExercises.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-dim)', marginTop: '40px' }}>Nenhum exercício encontrado.</div>}
+            {filteredExercises.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-dim)', marginTop: '40px', fontSize: '0.85rem' }}>Nenhum exercício encontrado.</div>}
           </div>
         </div>
 
         {/* MAIN WORKOUT AREA */}
-        <div style={{ flex: 1, padding: '40px', overflowY: 'auto', background: 'var(--bg-default)' }}>
+        <div style={{ flex: 1, padding: '30px', overflowY: 'auto', background: '#0a0f1d' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
             
             <div style={{ display: 'flex', gap: '20px', marginBottom: '40px' }}>
