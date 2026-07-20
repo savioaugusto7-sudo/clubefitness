@@ -7,6 +7,7 @@ import GestaoContratosPanel from './GestaoContratosPanel';
 import AsaasPanel from './AsaasPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import SearchableSelect from './SearchableSelect';
+import DadosClinicosPanel from './DadosClinicosPanel';
 
 
 const normalizeText = (str: string) => {
@@ -1575,17 +1576,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       } else if (modalType === 'plan') {
         const payload = {
           id: editingItem?._id,
-          nome: planName,
-          validadeDias: planValidade,
-          limiteSessoesAcademia: planAcademia,
-          limiteSessoesConsultorio: planConsultorio,
-          preco: planPrice,
-          creditosTotal: planCreditos,
-          tipo: planTipo,
-          servicosPermitidos: planServicos,
-          beneficiosInclusos: planBeneficios,
-          unidadeAtendimento: planUnidade,
-          ativo: planAtivo
+          nome: planName
         };
         const method = editingItem ? 'PUT' : 'POST';
         const res = await fetch('/api/plans', {
@@ -2588,6 +2579,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </>
       )}
 
+      {/* 3b. View: Dados Clínicos */}
+      {activeTab === 'dados_clinicos' && (
+        <DadosClinicosPanel clients={clients} onUpdate={fetchData} />
+      )}
+
       {/* 4. View: Usuários */}
       {activeTab === 'usuarios' && (
         <>
@@ -2848,11 +2844,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 <thead>
                   <tr>
                     <th>Nome do Plano</th>
-                    <th className="text-right">Preço Mensal</th>
-                    <th style={{ textAlign: 'center' }}>Vigência (Dias)</th>
-                    <th style={{ textAlign: 'center' }}>Limite Academia</th>
-                    <th style={{ textAlign: 'center' }}>Limite Consultório</th>
-                    <th>Ações</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2867,11 +2859,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     return paginated.map(p => (
                       <tr key={p._id}>
                         <td><strong>{p.nome}</strong></td>
-                        <td className="text-right">R$ {p.preco.toFixed(2).replace('.', ',')}</td>
-                        <td style={{ textAlign: 'center' }}>{p.validadeDias} dias</td>
-                        <td style={{ textAlign: 'center' }}>{p.limiteSessoesAcademia > 0 ? `${p.limiteSessoesAcademia} sessões` : 'Ilimitado'}</td>
-                        <td style={{ textAlign: 'center' }}>{p.limiteSessoesConsultorio > 0 ? `${p.limiteSessoesConsultorio} sessões` : 'Sem sessões'}</td>
-                        <td>
+                        <td style={{ textAlign: 'center' }}>
                           <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenPlanModal(p)}>
                             <i className="fa-solid fa-pen"></i>
                           </button>
@@ -4418,36 +4406,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 )}
 
                 {modalType === 'plan' && (
-                  <>
-                    <div className="form-group">
-                      <label>Nome do Plano</label>
-                      <input type="text" className="form-control" value={planName} onChange={e => setPlanName(e.target.value)} required />
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Vigência (Dias)</label>
-                        <input type="number" className="form-control" value={planValidade} onChange={e => setPlanValidade(Number(e.target.value))} required />
-                      </div>
-                      <div className="form-group">
-                        <label>Preço Mensal (R$)</label>
-                        <input type="number" className="form-control" value={planPrice} onChange={e => setPlanPrice(Number(e.target.value))} required />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Limite Sessões Academia</label>
-                        <input type="number" className="form-control" value={planAcademia} onChange={e => setPlanAcademia(Number(e.target.value))} required />
-                      </div>
-                      <div className="form-group">
-                        <label>Limite Sessões Consultório</label>
-                        <input type="number" className="form-control" value={planConsultorio} onChange={e => setPlanConsultorio(Number(e.target.value))} required />
-                      </div>
-                      <div className="form-group">
-                        <label>Total de Créditos</label>
-                        <input type="number" className="form-control" value={planCreditos} onChange={e => setPlanCreditos(Number(e.target.value))} required />
-                      </div>
-                    </div>
-                  </>
+                  <div className="form-group">
+                    <label>Nome do Plano</label>
+                    <input type="text" className="form-control" placeholder="Ex: Crônico 1, Crônico 2, Agudo, Academia..." value={planName} onChange={e => setPlanName(e.target.value)} required />
+                  </div>
                 )}
 
                 {modalType === 'financial' && (
@@ -4665,717 +4627,151 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </div>
       )}
 
-       {/* F2   Ficha Completa do Aluno */}
+       {/* F2   Ficha de Dados Pessoais do Aluno */}
        {showClientDetailModal && detailClient && (
          <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowClientDetailModal(false)}>
            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '95%' }}>
              <div className="modal-header">
-               <h3><i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Ficha Completa   {detailClient.dadosPessoais?.nome}</h3>
+               <h3><i className="fa-solid fa-id-card" style={{ marginRight: '8px' }}></i>Ficha de Dados Pessoais - {detailClient.dadosPessoais?.nome}</h3>
                <button className="modal-close" onClick={() => setShowClientDetailModal(false)}>&times;</button>
              </div>
-             <div className="modal-body" style={{ padding: 0 }}>
-               <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', overflowX: 'auto' }}>
-                 {(['pessoais', 'clinicos', 'comerciais', 'contratos'] as const).map((t) => {
-                   const labels: Record<string, string> = { pessoais: 'Dados Pessoais', clinicos: 'Dados Clínicos', comerciais: 'Dados Comerciais', contratos: 'Contratos' };
-                   const icons: Record<string, string> = { pessoais: 'fa-user', clinicos: 'fa-heart-pulse', comerciais: 'fa-file-contract', contratos: 'fa-file-signature' };
-                   return (
-                     <button key={t} onClick={() => setClientDetailTab(t)} style={{ flex: 1, padding: '12px', fontWeight: 600, fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', color: clientDetailTab === t ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: clientDetailTab === t ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px', whiteSpace: 'nowrap' }}>
-                       <i className={`fa-solid ${icons[t]}`} style={{ marginRight: '5px' }}></i>{labels[t]}
-                     </button>
-                   );
-                 })}
+             <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '550px', overflowY: 'auto' }}>
+               <div className="form-row">
+                 <div className="form-group">
+                   <label>Nome Completo</label>
+                   <input className="form-control" value={dcNome} onChange={e => setDcNome(e.target.value)} />
+                 </div>
+                 <div className="form-group">
+                   <label>E-mail</label>
+                   <input className="form-control" value={dcEmail} onChange={e => setDcEmail(e.target.value)} />
+                 </div>
                </div>
-               <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '550px', overflowY: 'auto' }}>
-                 {clientDetailTab === 'pessoais' && (
-                   <>
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Nome Completo</label>
-                         <input className="form-control" value={dcNome} onChange={e => setDcNome(e.target.value)} />
-                       </div>
-                       <div className="form-group">
-                         <label>E-mail</label>
-                         <input className="form-control" value={dcEmail} onChange={e => setDcEmail(e.target.value)} />
-                       </div>
-                     </div>
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>CPF</label>
-                         <input className="form-control" value={dcCpf} onChange={e => setDcCpf(e.target.value)} />
-                       </div>
-                       <div className="form-group">
-                         <label>Telefone Principal</label>
-                         <input className="form-control" value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} />
-                       </div>
-                       <div className="form-group">
-                         <label>Telefone Secundário</label>
-                         <input className="form-control" value={dcTelefoneSecundario} onChange={e => setDcTelefoneSecundario(e.target.value)} />
-                       </div>
-                     </div>
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Sexo</label>
-                         <select className="select-custom" value={dcSexo} onChange={e => setDcSexo(e.target.value)}>
-                           <option value="M">Masculino</option>
-                           <option value="F">Feminino</option>
-                           <option value="O">Outro</option>
-                         </select>
-                       </div>
-                       <div className="form-group">
-                         <label>Data de Nascimento</label>
-                         <input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} />
-                       </div>
-                     </div>
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Estado Civil</label>
-                         <select className="select-custom" value={dcEstadoCivil} onChange={e => setDcEstadoCivil(e.target.value)}>
-                           <option value="solteiro(a)">Solteiro(a)</option>
-                           <option value="casado(a)">Casado(a)</option>
-                           <option value="divorciado(a)">Divorciado(a)</option>
-                           <option value="viúvo(a)">Viúvo(a)</option>
-                           <option value="união estável">União Estável</option>
-                         </select>
-                       </div>
-                       <div className="form-group">
-                         <label>Nacionalidade</label>
-                         <input className="form-control" value={dcNacionalidade} onChange={e => setDcNacionalidade(e.target.value)} />
-                       </div>
-                       <div className="form-group">
-                         <label>Profissão</label>
-                         <input className="form-control" value={dcProfissao} onChange={e => setDcProfissao(e.target.value)} />
-                       </div>
-                     </div>
-                     <div className="form-row">
-                       <div className="form-group" style={{ flex: 3 }}>
-                         <label>Logradouro (Endereço)</label>
-                         <input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua / Avenida" />
-                       </div>
-                       <div className="form-group" style={{ flex: 1 }}>
-                         <label>Número</label>
-                         <input className="form-control" value={dcNumero} onChange={e => setDcNumero(e.target.value)} placeholder="Nº" />
-                       </div>
-                     </div>
-                     <div className="form-row">
-                       <div className="form-group">
-                         <label>Complemento</label>
-                         <input className="form-control" value={dcComplemento} onChange={e => setDcComplemento(e.target.value)} placeholder="Apto, Sala, etc." />
-                       </div>
-                       <div className="form-group">
-                         <label>Bairro</label>
-                         <input className="form-control" value={dcBairro} onChange={e => setDcBairro(e.target.value)} placeholder="Bairro" />
-                       </div>
-                     </div>
-                     <div className="form-row">
-                       <div className="form-group" style={{ flex: 2 }}>
-                         <label>Cidade</label>
-                         <input className="form-control" value={dcCidade} onChange={e => setDcCidade(e.target.value)} placeholder="Cidade" />
-                       </div>
-                       <div className="form-group" style={{ flex: 1 }}>
-                         <label>Estado (UF)</label>
-                         <input className="form-control" value={dcEstado} onChange={e => setDcEstado(e.target.value)} maxLength={2} placeholder="UF" />
-                       </div>
-                       <div className="form-group" style={{ flex: 2 }}>
-                         <label>CEP</label>
-                         <input className="form-control" value={dcCep} onChange={e => setDcCep(e.target.value)} placeholder="00000-000" />
-                       </div>
-                     </div>
-                   </>
-                 )}
-                 {clientDetailTab === 'clinicos' && (
-                   <>
-                     <div className="form-group"><label>Lesões e Diagnósticos</label><textarea className="form-control" rows={3} value={dcLesãoes} onChange={e => setDcLesãoes(e.target.value)} placeholder="Ex: Lesão manguito rotador grau II..." /></div>
-                     <div className="form-group"><label>Restrições / Contraindications</label><textarea className="form-control" rows={2} value={dcRestricoes} onChange={e => setDcRestricoes(e.target.value)} /></div>
-                     <div className="form-group"><label>Medicamentos em Uso</label><input className="form-control" value={dcMedicamentos} onChange={e => setDcMedicamentos(e.target.value)} placeholder="Nome, dosagem, frequência..." /></div>
-                     <div className="form-group"><label>Histórico Clínico Relevante</label><textarea className="form-control" rows={3} value={dcHistorico} onChange={e => setDcHistorico(e.target.value)} placeholder="Cirurgias, alergias, doenças crônicas..." /></div>
-                     <div className="form-group"><label>Observações Clínicas</label><textarea className="form-control" rows={2} value={dcObsClin} onChange={e => setDcObsClin(e.target.value)} /></div>
-                   </>
-                 )}
-                 {clientDetailTab === 'comerciais' && (
-                    <>
-                      {hasActiveSignedContract && (
-                        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <i className="fa-solid fa-triangle-exclamation"></i>
-                          <span><strong>Contrato Ativo Assinado:</strong> As informações comerciais estão bloqueadas para edição direta. Para alterá-las, gere uma nova versão do contrato na aba <strong>Contratos</strong>.</span>
-                        </div>
-                      )}
+               <div className="form-row">
+                 <div className="form-group">
+                   <label>CPF</label>
+                   <input className="form-control" value={dcCpf} onChange={e => setDcCpf(e.target.value)} />
+                 </div>
+                 <div className="form-group">
+                   <label>Telefone Principal</label>
+                   <input className="form-control" value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} />
+                 </div>
+                 <div className="form-group">
+                   <label>Telefone Secundário</label>
+                   <input className="form-control" value={dcTelefoneSecundario} onChange={e => setDcTelefoneSecundario(e.target.value)} />
+                 </div>
+               </div>
+               <div className="form-row">
+                 <div className="form-group">
+                   <label>Sexo</label>
+                   <select className="select-custom" value={dcSexo} onChange={e => setDcSexo(e.target.value)}>
+                     <option value="M">Masculino</option>
+                     <option value="F">Feminino</option>
+                     <option value="O">Outro</option>
+                   </select>
+                 </div>
+                 <div className="form-group">
+                   <label>Data de Nascimento</label>
+                   <input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} />
+                 </div>
+               </div>
+               <div className="form-row">
+                 <div className="form-group">
+                   <label>Estado Civil</label>
+                   <select className="select-custom" value={dcEstadoCivil} onChange={e => setDcEstadoCivil(e.target.value)}>
+                     <option value="solteiro(a)">Solteiro(a)</option>
+                     <option value="casado(a)">Casado(a)</option>
+                     <option value="divorciado(a)">Divorciado(a)</option>
+                     <option value="viúvo(a)">Viúvo(a)</option>
+                     <option value="união estável">União Estável</option>
+                   </select>
+                 </div>
+                 <div className="form-group">
+                   <label>Nacionalidade</label>
+                   <input className="form-control" value={dcNacionalidade} onChange={e => setDcNacionalidade(e.target.value)} />
+                 </div>
+                 <div className="form-group">
+                   <label>Profissão</label>
+                   <input className="form-control" value={dcProfissao} onChange={e => setDcProfissao(e.target.value)} />
+                 </div>
+               </div>
+               <div className="form-row">
+                 <div className="form-group" style={{ flex: 3 }}>
+                   <label>Logradouro (Endereço)</label>
+                   <input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, Avenida, etc." />
+                 </div>
+                 <div className="form-group" style={{ flex: 1 }}>
+                   <label>Número</label>
+                   <input className="form-control" value={dcNumero} onChange={e => setDcNumero(e.target.value)} placeholder="Nº" />
+                 </div>
+               </div>
+               <div className="form-row">
+                 <div className="form-group">
+                   <label>Complemento</label>
+                   <input className="form-control" value={dcComplemento} onChange={e => setDcComplemento(e.target.value)} placeholder="Apto, Sala, etc." />
+                 </div>
+                 <div className="form-group">
+                   <label>Bairro</label>
+                   <input className="form-control" value={dcBairro} onChange={e => setDcBairro(e.target.value)} placeholder="Bairro" />
+                 </div>
+               </div>
+               <div className="form-row">
+                 <div className="form-group" style={{ flex: 2 }}>
+                   <label>Cidade</label>
+                   <input className="form-control" value={dcCidade} onChange={e => setDcCidade(e.target.value)} placeholder="Cidade" />
+                 </div>
+                 <div className="form-group" style={{ flex: 1 }}>
+                   <label>Estado (UF)</label>
+                   <input className="form-control" value={dcEstado} onChange={e => setDcEstado(e.target.value)} maxLength={2} placeholder="UF" />
+                 </div>
+                 <div className="form-group" style={{ flex: 2 }}>
+                   <label>CEP</label>
+                   <input className="form-control" value={dcCep} onChange={e => setDcCep(e.target.value)} placeholder="00000-000" />
+                 </div>
+               </div>
 
-                      <div className="comercial-summary-card">
-                        <div className="comercial-summary-header">
-                          <span><i className="fa-solid fa-calculator" style={{ marginRight: '8px' }}></i> Resumo Financeiro em Tempo Real</span>
-                        </div>
-                        <div className="comercial-summary-grid">
-                          <div className="comercial-summary-box">
-                            <span className="comercial-summary-label">Subtotal Bruto</span>
-                            <strong className="comercial-summary-val">R$ {valorBruto.toFixed(2).replace('.', ',')}</strong>
-                            <small className="comercial-summary-desc">
-                              {dcDuracao === 'semana' 
-                                ? `${dcVigenciaQtd} sem. x R$ ${dcValorUnitario.toFixed(2)}` 
-                                : dcDuracao === 'mensal' 
-                                ? `${dcVigenciaQtd} meses x R$ ${dcValorUnitario.toFixed(2)}` 
-                                : `${dcVigenciaQtd} ano(s) x R$ ${dcValorUnitario.toFixed(2)}`}
-                            </small>
-                          </div>
-                          <div className="comercial-summary-box" style={{ background: 'rgba(239, 68, 68, 0.015)', borderColor: 'rgba(239, 68, 68, 0.08)' }}>
-                            <span className="comercial-summary-label" style={{ color: 'var(--color-danger)' }}>Desconto Aplicado</span>
-                            <strong className="comercial-summary-val" style={{ color: 'var(--color-danger)' }}>- R$ {descontoReais.toFixed(2).replace('.', ',')}</strong>
-                            <small className="comercial-summary-desc">
-                              {dcDescontoTipo === 'percentual' ? `${dcDescontoValor}% de desconto` : 'Valor fixo deduzido'}
-                            </small>
-                          </div>
-                          <div className="comercial-summary-box" style={{ background: 'rgba(16, 185, 129, 0.015)', borderColor: 'rgba(16, 185, 129, 0.08)' }}>
-                            <span className="comercial-summary-label" style={{ color: 'var(--color-success)' }}>Total Líquido</span>
-                            <strong className="comercial-summary-val" style={{ color: 'var(--color-success)' }}>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong>
-                            <small className="comercial-summary-desc">Valor final do contrato</small>
-                          </div>
-                          <div className="comercial-summary-box">
-                            <span className="comercial-summary-label">Parcelamento ({dcFormaPag.toUpperCase()})</span>
-                            <strong className="comercial-summary-val">{dcParcelas}x R$ {valorParcela.toFixed(2).replace('.', ',')}</strong>
-                            <small className="comercial-summary-desc">
-                              {dcParcelas > 1 ? 'Mensalidades' : 'À vista'}
-                            </small>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="comercial-section-card">
-                        <div className="comercial-section-title">
-                          <i className="fa-solid fa-file-invoice-dollar"></i> Plano Contratado & Vigência
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-signature"></i> Plano Contratado</label>
-                            <select className="select-custom" value={dcPlano} onChange={e => {
-                              const newPlanoId = e.target.value;
-                              setDcPlano(newPlanoId);
-                              const plan = plans.find((p: any) => p._id === newPlanoId);
-                              if (plan) {
-                                let sugDur = 'mensal';
-                                let sugQtd = 1;
-                                if (plan.tipo === 'Anual' || plan.validadeDias > 180) {
-                                  sugDur = 'anual';
-                                  sugQtd = 1;
-                                } else if (plan.validadeDias === 14 || plan.validadeDias === 7) {
-                                  sugDur = 'semana';
-                                  sugQtd = plan.validadeDias === 14 ? 2 : 1;
-                                } else {
-                                  sugDur = 'mensal';
-                                  sugQtd = Math.round(plan.validadeDias / 30) || 1;
-                                }
-                                setDcDuracao(sugDur);
-                                setDcVigenciaQtd(sugQtd);
-                                setDcValorUnitario(plan.preco || 0);
-                                if (sugDur === 'anual') {
-                                  setDcParcelas(12);
-                                } else if (sugDur === 'mensal') {
-                                  setDcParcelas(sugQtd);
-                                } else {
-                                  setDcParcelas(1);
-                                }
-                              }
-                            }} disabled={hasActiveSignedContract}>
-                              {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
-                            </select>
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-circle-info"></i> Status</label>
-                            <select className="select-custom" value={dcStatus} onChange={e => setDcStatus(e.target.value)} disabled={hasActiveSignedContract}>
-                              <option value="ativo">Ativo</option>
-                              <option value="vencido">Vencido</option>
-                              <option value="suspenso">Suspenso</option>
-                              <option value="inativo">Inativo</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="form-row" style={{ marginTop: '10px' }}>
-                          <div className="form-group" style={{ display: 'flex', gap: '8px' }}>
-                            <div style={{ flex: 1 }}>
-                              <label className="comercial-field-label"><i className="fa-solid fa-calendar-days"></i> Vigência do Contrato</label>
-                              <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value)} disabled={hasActiveSignedContract}>
-                                <option value="semana">Semana(s)</option>
-                                <option value="mensal">Mensal</option>
-                                <option value="anual">Anual (12 Meses)</option>
-                              </select>
-                            </div>
-                            <div style={{ width: '80px' }}>
-                              <label className="comercial-field-label"><i className="fa-solid fa-list-numeric"></i> Qtd</label>
-                              <input type="number" className="form-control" value={dcVigenciaQtd} onChange={e => setDcVigenciaQtd(Math.max(1, Number(e.target.value)))} min={1} disabled={hasActiveSignedContract} />
-                            </div>
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-money-bill-wave"></i> {dcDuracao === 'semana' ? 'Valor Semanal (R$)' : dcDuracao === 'anual' ? 'Valor Anual (R$)' : 'Valor Mensal (R$)'}</label>
-                            <input type="number" className="form-control" value={dcValorUnitario} onChange={e => setDcValorUnitario(Number(e.target.value))} min={0} disabled={hasActiveSignedContract} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="comercial-section-card">
-                        <div className="comercial-section-title">
-                          <i className="fa-solid fa-percent"></i> Descontos & Parcelamento
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-tag"></i> Tipo de Desconto</label>
-                            <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)} disabled={hasActiveSignedContract}>
-                              <option value="percentual">Percentual (%)</option>
-                              <option value="fixo">Fixo (R$)</option>
-                            </select>
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-tags"></i> Valor do Desconto</label>
-                            <input type="number" className="form-control" value={dcDescontoValor} onChange={e => setDcDescontoValor(Number(e.target.value))} min={0} disabled={hasActiveSignedContract} />
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-credit-card"></i> Parcelas</label>
-                            <input type="number" className="form-control" value={dcParcelas} onChange={e => setDcParcelas(Math.max(1, Number(e.target.value)))} min={1} disabled={hasActiveSignedContract} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="comercial-section-card">
-                        <div className="comercial-section-title">
-                          <i className="fa-solid fa-calendar-check"></i> Fechamento & Emissão
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-receipt"></i> Forma de Pagamento</label>
-                            <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} disabled={hasActiveSignedContract}>
-                              <option value="pix">Pix</option>
-                              <option value="boleto">Boleto Bancário</option>
-                              <option value="cartao">Cartão de Crédito/Débito</option>
-                              <option value="dinheiro">Dinheiro</option>
-                            </select>
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-calendar-plus"></i> Data de Início</label>
-                            <input type="date" className="form-control" value={dcDataInicio} onChange={e => setDcDataInicio(e.target.value)} disabled={hasActiveSignedContract} />
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-calendar-day"></i> Primeiro Vencimento</label>
-                            <input type="date" className="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} disabled={hasActiveSignedContract} />
-                          </div>
-                        </div>
-
-                        <div className="form-row" style={{ marginTop: '10px' }}>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-user-tie"></i> Responsável pela Venda</label>
-                            <input className="form-control" value={dcResponsavelVenda} onChange={e => setDcResponsavelVenda(e.target.value)} placeholder="Nome do vendedor" disabled={hasActiveSignedContract} />
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-calendar-week"></i> Frequência Semanal</label>
-                            <select className="select-custom" value={dcFrequencia} onChange={e => {
-                              const freq = Number(e.target.value);
-                              setDcFrequencia(freq);
-                              setDcCreditosTotal(getCreditsForFreq(freq));
-                            }} disabled={hasActiveSignedContract}>
-                              <option value={1}>1x por semana (5 créditos/mês)</option>
-                              <option value={2}>2x por semana (9 créditos/mês)</option>
-                              <option value={3}>3x por semana (13 créditos/mês)</option>
-                              <option value={4}>4x por semana (17 créditos/mês)</option>
-                              <option value={5}>5x por semana (21 créditos/mês)</option>
-                            </select>
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-dumbbell"></i> Créditos de Aula por Mês</label>
-                            <input type="number" className="form-control" min={0} value={dcCreditosTotal} onChange={e => setDcCreditosTotal(Number(e.target.value))} disabled={hasActiveSignedContract} />
-                          </div>
-                        </div>
-
-                        <div className="form-row" style={{ marginTop: '10px' }}>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-spa"></i> Créditos de Massagem por Mês</label>
-                            <input type="number" className="form-control" min={0} value={dcCreditosMassagem} onChange={e => setDcCreditosMassagem(Number(e.target.value))} disabled={hasActiveSignedContract} />
-                          </div>
-                          <div className="form-group">
-                            <label className="comercial-field-label"><i className="fa-solid fa-triangle-exclamation"></i> Créditos de Emergência por Mês</label>
-                            <input type="number" className="form-control" min={0} value={dcCreditosEmergencia} onChange={e => setDcCreditosEmergencia(Number(e.target.value))} disabled={hasActiveSignedContract} />
-                          </div>
-                        </div>
-
-                        <div className="form-group" style={{ marginTop: '10px' }}>
-                          <label className="comercial-field-label"><i className="fa-solid fa-id-card"></i> ID do Cliente Asaas</label>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <input className="form-control" value={dcAsaasCustomerId} onChange={e => setDcAsaasCustomerId(e.target.value)} placeholder="ex: cus_0000057489" disabled={hasActiveSignedContract} />
-                            {!hasActiveSignedContract && (
-                              <button type="button" className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }} onClick={async () => {
-                                try {
-                                  const res = await fetch('/api/admin/payments', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ action: 'asaas_search_link', clientId: detailClient._id, customCustomerId: dcAsaasCustomerId })
-                                  });
-                                  const data = await res.json();
-                                  if (data.success) {
-                                    setDcAsaasCustomerId(data.asaasCustomerId);
-                                    alert(`Sucesso! Cliente vinculado ao Asaas ID: ${data.asaasCustomerId}. As faturas foram sincronizadas.`);
-                                    fetchData();
-                                  } else {
-                                    alert('Erro: ' + data.error);
-                                  }
-                                } catch (err: any) {
-                                  alert('Erro ao buscar no Asaas: ' + err.message);
-                                }
-                              }}><i className="fa-solid fa-magnifying-glass"></i> Buscar no Asaas</button>
-                            )}
-                          </div>
-                        </div>
-
-<div className="form-group" style={{ marginTop: '10px' }}>
-                          <label className="comercial-field-label"><i className="fa-solid fa-file-lines"></i> Observações Contratuais</label>
-                          <textarea className="form-control" rows={2} value={dcObservacoesContratuais} onChange={e => setDcObservacoesContratuais(e.target.value)} placeholder="Notas adicionais sobre esta contratação" disabled={hasActiveSignedContract} />
-                        </div>
-                      </div>
-
-                      {/* Ficha de Resumo Prático para o Cliente */}
-                      <div style={{
-                        marginTop: '20px',
-                        padding: '18px',
-                        background: 'rgba(16, 185, 129, 0.03)',
-                        border: '1px dashed rgba(16, 185, 129, 0.3)',
-                        borderRadius: '12px',
-                        color: 'var(--text-main)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                          <h4 style={{ margin: 0, color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            <i className="fa-solid fa-receipt" style={{ marginRight: '6px' }}></i> Resumo de Venda & Fechamento (Apresentação ao Cliente)
-                          </h4>
-                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', color: 'var(--color-primary)', fontWeight: 'bold' }}>
-                            Fechamento
-                          </span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-                          <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Período de Vigência</div>
-                            <div style={{ fontSize: '1rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <i className="fa-solid fa-calendar-week" style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}></i>
-                              {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} até {dataFimStr}
-                            </div>
-                            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
-                              Duração: {dcDuracao === 'semana' ? `${dcVigenciaQtd} semana(s)` : dcDuracao === 'mensal' ? `${dcVigenciaQtd} mês(es)` : `${dcVigenciaQtd} ano(s)`}
-                            </small>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Valor Total (Líquido)</div>
-                            <div style={{ fontSize: '1rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <i className="fa-solid fa-circle-check" style={{ color: 'var(--color-success)', fontSize: '0.9rem' }}></i>
-                              R$ {valorLiquido.toFixed(2).replace('.', ',')}
-                            </div>
-                            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
-                              Bruto: R$ {valorBruto.toFixed(2).replace('.', ',')} (Desc: R$ {descontoReais.toFixed(2).replace('.', ',')})
-                            </small>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Condição de Pagamento</div>
-                            <div style={{ fontSize: '1rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <i className="fa-solid fa-credit-card" style={{ color: 'var(--color-primary)', fontSize: '0.9rem' }}></i>
-                              {dcParcelas}x de R$ {valorParcela.toFixed(2).replace('.', ',')}
-                            </div>
-                            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
-                              Forma: {dcFormaPag.toUpperCase()}
-                            </small>
-                          </div>
-                        </div>
-                      </div>
-                      
-                     <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                       {!hasActiveSignedContract && (
-                         <button className="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
-                           const payload = {
-                             id: detailClient._id,
-                             dadosComerciais: {
-                               planoId: dcPlano,
-                               status: dcStatus,
-                               formaPagamento: dcFormaPag,
-                               duracao: dcDuracao,
-                               duracaoQtd: dcVigenciaQtd,
-                               vencimento: dcVencimento,
-                               descontoTipo: dcDescontoTipo,
-                               descontoValor: dcDescontoValor,
-                               parcelas: dcParcelas,
-                               dataInicio: dcDataInicio,
-                               responsavelVenda: dcResponsavelVenda,
-                               observacoesContratuais: dcObservacoesContratuais,
-                               valorUnitario: dcValorUnitario,
-                               frequencia: dcFrequencia,
-                               creditosTotal: dcCreditosTotal,
-                             creditosMassagemTotal: dcCreditosMassagem,
-                             creditosEmergenciaTotal: dcCreditosEmergencia,
-                                asaasCustomerId: dcAsaasCustomerId
-                             }
-                           };
-                           const res = await fetch('/api/clients', {
-                             method: 'PUT',
-                             headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify(payload)
-                           });
-                           const data = await res.json();
-                           if (data.success) {
-                             fetchData();
-                             alert('Dados comerciais salvos!');
-                             setShowClientDetailModal(false);
-                           } else {
-                             alert('Erro ao salvar dados comerciais: ' + data.error);
-                           }
-                         }}><i className="fa-solid fa-floppy-disk"></i> Salvar</button>
-                       )}
-                       <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
-                         const plan = plans.find((p: any) => p._id === dcPlano);
-                         const clientWithComercial = {
-                           ...detailClient,
-                           dadosComerciais: {
-                             ...detailClient.dadosComerciais,
-                             planoId: plan,
-                             formaPagamento: dcFormaPag,
-                             duracao: isSelectedPlanAnual ? 'anual' : 'mensal',
-                             vencimento: dcVencimento,
-                             descontoTipo: dcDescontoTipo,
-                             descontoValor: dcDescontoValor,
-                             parcelas: dcParcelas,
-                             dataInicio: dcDataInicio,
-                             responsavelVenda: dcResponsavelVenda,
-                             unidadeContratada: dcUnidadeContratada,
-                             frequencia: dcFrequencia,
-                             creditosTotal: dcFrequencia * 4 + 1,
-                             observacoesContratuais: dcObservacoesContratuais
-                           }
-                         };
-                         const activeContract = clientContracts.find(c => c.status === 'assinado');
-                         downloadContractPDF(clientWithComercial, plan, activeContract?.contratoTexto || generateContractTemplate());
-                       }}><i className="fa-solid fa-file-contract"></i> Contrato PDF</button>
-                     </div>
-                   </>
-                 )}
-                 {clientDetailTab === 'contratos' && (
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                     {/* Histórico de Contratos */}
-                     <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '15px', background: 'var(--bg-secondary)' }}>
-                       <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                         <i className="fa-solid fa-history" style={{ color: 'var(--color-primary)' }}></i> Histórico de Versões do Contrato
-                       </h4>
-                       
-                       {clientContracts.length === 0 ? (
-                         <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', margin: 0, textAlign: 'center', padding: '15px 0' }}>
-                           Nenhum contrato gerado para este aluno ainda.
-                         </p>
-                       ) : (
-                         <div style={{ overflowX: 'auto' }}>
-                           <table className="table-data" style={{ width: '100%', fontSize: '0.8rem' }}>
-                             <thead>
-                               <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>V.</th>
-                                 <th style={{ padding: '8px 5px' }}>Plano</th>
-                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Vigência</th>
-                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Status</th>
-                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Asaas</th>
-                                 <th style={{ padding: '8px 5px', textAlign: 'center' }}>Ações</th>
-                               </tr>
-                             </thead>
-                             <tbody>
-                               {clientContracts.map((c: any) => {
-                                 let badgeColor = 'var(--text-dim)';
-                                 let badgeBg = 'rgba(128,128,128,0.1)';
-                                 if (c.status === 'assinado') { badgeColor = 'var(--color-success)'; badgeBg = 'rgba(16,185,129,0.1)'; }
-                                 else if (c.status === 'cancelado') { badgeColor = 'var(--color-danger)'; badgeBg = 'rgba(239,68,68,0.1)'; }
-                                 else if (c.status === 'congelado') { badgeColor = 'var(--color-primary)'; badgeBg = 'rgba(59,130,246,0.1)'; }
-                                 else if (c.status === 'pendente') { badgeColor = '#f59e0b'; badgeBg = 'rgba(245,158,11,0.1)'; }
-
-                                 return (
-                                   <tr key={c._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                     <td style={{ padding: '8px 5px', textAlign: 'center', fontWeight: 'bold' }}>{c.versao}</td>
-                                     <td style={{ padding: '8px 5px' }}>{c.planoNome}</td>
-                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
-                                       {c.dataInicio ? new Date(c.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {c.dataFim ? new Date(c.dataFim + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                     </td>
-                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
-                                       <span style={{ color: badgeColor, background: badgeBg, padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                         {c.status}
-                                       </span>
-                                     </td>
-                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
-                                        {c.asaasPaymentId ? (
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
-                                            <span style={{ color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold' }}>
-                                              GERADO
-                                            </span>
-                                            <small style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                                              {c.asaasBillingStatus || 'pendente'}
-                                            </small>
-                                          </div>
-                                        ) : (
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
-                                            <span style={{ color: 'var(--text-dim)', background: 'rgba(128,128,128,0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold' }}>
-                                              NÃO GERADO
-                                            </span>
-                                            {c.status === 'pendente' && (
-                                              <button
-                                                className="btn btn-secondary btn-sm"
-                                                style={{ fontSize: '0.65rem', padding: '2px 6px', marginTop: '3px', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
-                                                onClick={() => handleGenerateAsaasCharge(c._id)}
-                                                disabled={generatingAsaasId === c._id}
-                                              >
-                                                {generatingAsaasId === c._id ? (
-                                                  <i className="fa-solid fa-spinner fa-spin"></i>
-                                                ) : (
-                                                  <>Gerar Cobrança</>
-                                                )}
-                                              </button>
-                                            )}
-                                          </div>
-                                        )}
-                                      </td>
-                                     <td style={{ padding: '8px 5px', textAlign: 'center' }}>
-                                       <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                                         <button className="btn btn-secondary btn-sm" title="Baixar PDF" onClick={() => {
-                                           const pl = plans.find((p: any) => p._id === c.planoId?._id || p._id === c.planoId);
-                                           downloadContractPDF(detailClient, pl, c.contratoTexto);
-                                         }}><i className="fa-solid fa-file-pdf"></i></button>
-                                         
-                                         {c.status === 'pendente' && (
-                                           <>
-                                             <button className="btn btn-primary btn-sm" style={{ padding: '2px 6px' }} onClick={() => {
-                                               const sName = prompt('Nome do Assinante para Aceite Eletrônico:', detailClient.dadosPessoais?.nome || '');
-                                               if (sName !== null) handleSignContract(c._id, sName);
-                                             }}><i className="fa-solid fa-signature"></i> Assinar</button>
-                                             <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px' }} onClick={() => handleCancelContract(c._id)}><i className="fa-solid fa-xmark"></i></button>
-                                           </>
-                                         )}
-
-                                         {c.status === 'assinado' && (
-                                           <>
-                                             {c.planoTipo === 'Anual' && (
-                                               <button className="btn btn-secondary btn-sm" style={{ padding: '2px 6px', color: 'var(--color-primary)' }} onClick={() => {
-                                                 setFreezeContractId(c._id);
-                                                 setFreezeStartDate(new Date().toISOString().split('T')[0]);
-                                                 setFreezeDuration(30);
-                                                 setShowFreezeModal(true);
-                                               }}><i className="fa-solid fa-snowflake"></i> Congelar</button>
-                                             )}
-                                             <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px' }} onClick={() => handleCancelContract(c._id)}><i className="fa-solid fa-ban"></i> Cancelar</button>
-                                           </>
-                                         )}
-                                       </div>
-                                     </td>
-                                   </tr>
-                                 );
-                                })}
-                             </tbody>
-                           </table>
-                         </div>
-                       )}
-                     </div>
-
-                     {/* Simulador / Gerador de Novo Contrato */}
-                     {!showContractPreview ? (
-                       <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '15px', background: 'var(--bg-secondary)', textAlign: 'center' }}>
-                         <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Emitir Novo Contrato / Nova Versão</h4>
-                         <p style={{ color: 'var(--text-dim)', fontSize: '0.8rem', margin: '0 0 12px 0' }}>
-                           Ao emitir e assinar um novo contrato, o contrato assinado atualmente (se houver) será cancelado automaticamente e substituído pela nova versão comercial.
-                         </p>
-                         <button className="btn btn-primary" onClick={() => {
-                           setSignatureName(detailClient.dadosPessoais?.nome || '');
-                           setShowContractPreview(true);
-                         }}><i className="fa-solid fa-file-signature"></i> Abrir Simulador e Gerar Contrato</button>
-                       </div>
-                     ) : (
-                       <div style={{ border: '1.5px solid var(--color-primary)', borderRadius: '8px', padding: '15px', background: 'var(--bg-secondary)' }}>
-                         <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--color-primary)' }}>Simulador & Pré-visualização do Contrato</h4>
-                         
-                         {/* Live calculations notice */}
-                         <div style={{ background: 'rgba(59,130,246,0.05)', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid rgba(59,130,246,0.1)', marginBottom: '12px' }}>
-                           <strong>Configurações do Contrato (Definidas na aba Comercial):</strong><br/>
-                           • Plano: {selectedPlan?.nome || 'Nenhum'} | Bruto: R$ {valorBruto.toFixed(2).replace('.', ',')}<br/>
-                           • Desconto: {dcDescontoTipo === 'percentual' ? `${dcDescontoValor}%` : `R$ ${dcDescontoValor}`} | Líquido: <strong>R$ {valorLiquido.toFixed(2).replace('.', ',')}</strong><br/>
-                           • Condição: {dcParcelas}x de R$ {valorParcela.toFixed(2).replace('.', ',')} via {dcFormaPag.toUpperCase()}<br/>
-                           • Vigência: {dcDuracao === 'anual' ? `${dcVigenciaQtd} ano(s)` : dcDuracao === 'semana' ? `${dcVigenciaQtd} semana(s)` : `${dcVigenciaQtd} mês(es)`} (a R$ {dcValorUnitario.toFixed(2)}/unid) | Início: {dcDataInicio || 'Hoje'}
-                         </div>
-
-                         {/* Opção Asaas */}
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.05)', padding: '10px 12px', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '8px', marginBottom: '15px' }}>
-                           <input
-                             type="checkbox"
-                             id="cffGerarAsaas"
-                             checked={gerarAsaas}
-                             onChange={e => setGerarAsaas(e.target.checked)}
-                             style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                           />
-                           <label htmlFor="cffGerarAsaas" style={{ margin: 0, fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-                             <i className="fa-solid fa-credit-card" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Gerar Cobrança automática no Asaas (Pix/Boleto/Cartão)
-                           </label>
-                         </div>
-
-                         {/* Dynamic HTML preview frame */}
-                         <div style={{ background: '#fff', color: '#000', padding: '20px', border: '1px solid #ccc', borderRadius: '6px', maxHeight: '250px', overflowY: 'auto', marginBottom: '15px', fontFamily: 'Arial, sans-serif', fontSize: '0.82rem', lineHeight: '1.4' }}>
-                           <div dangerouslySetInnerHTML={{ __html: generateContractTemplate() }} />
-                         </div>
-
-                         {/* Signature input and action buttons */}
-                         <div className="form-group" style={{ marginBottom: '15px' }}>
-                           <label>Nome do Assinante para Aceite Digital (Obrigatório para Assinar)</label>
-                           <input className="form-control" value={signatureName} onChange={e => setSignatureName(e.target.value)} placeholder="Nome completo do assinante" />
-                           <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>
-                             Ao assinar, um registro digital com data, hora e IP será atrelado a este documento.
-                           </small>
-                         </div>
-
-                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            <button className="btn btn-secondary" style={{ flex: '1 1 auto' }} onClick={() => setShowContractPreview(false)}>Fechar</button>
-                            <button className="btn btn-secondary" style={{ flex: '1 1 auto', color: '#f59e0b' }} onClick={() => handleCreateContract('pendente')}><i className="fa-solid fa-clock"></i> Emitir Pendente</button>
-                            <button className="btn btn-secondary" style={{ flex: '1 1 auto', color: '#818cf8', borderColor: 'rgba(129,140,248,0.4)', background: 'rgba(129,140,248,0.08)' }} onClick={() => handleCreateContract('clicksign')}><i className="fa-solid fa-file-signature"></i> Enviar p/ Clicksign</button>
-                            <button className="btn btn-primary" style={{ flex: '1 1 auto' }} onClick={() => handleCreateContract('assinado')}><i className="fa-solid fa-check-double"></i> Confirmar e Assinar</button>
-                          </div>
-                       </div>
-                     )}
-                   </div>
-                 )}
-                 {(clientDetailTab === 'pessoais' || clientDetailTab === 'clinicos') && (
-                   <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-                     <button className="btn btn-primary" onClick={async () => {
-                       const payload: any = { id: detailClient._id };
-                       if (clientDetailTab === 'pessoais') {
-                         payload.dadosPessoais = {
-                           nome: dcNome,
-                           email: dcEmail,
-                           cpf: dcCpf,
-                           telefone: dcTelefone,
-                           sexo: dcSexo,
-                           dataNascimento: dcNascimento,
-                           endereco: dcEndereco,
-                           telefoneSecundario: dcTelefoneSecundario,
-                           estadoCivil: dcEstadoCivil,
-                           nacionalidade: dcNacionalidade,
-                           profissao: dcProfissao,
-                           numero: dcNumero,
-                           complemento: dcComplemento,
-                           bairro: dcBairro,
-                           cidade: dcCidade,
-                           estado: dcEstado,
-                           cep: dcCep
-                         };
-                       } else {
-                         payload.dadosClinicos = {
-                           lesoes: dcLesãoes,
-                           restricoes: dcRestricoes,
-                           medicamentos: dcMedicamentos,
-                           historicoClinico: dcHistorico,
-                           observacoes: dcObsClin
-                         };
+               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                 <button className="btn btn-secondary" onClick={() => setShowClientDetailModal(false)}>Cancelar</button>
+                 <button className="btn btn-primary" onClick={async () => {
+                   try {
+                     const payload = {
+                       id: detailClient._id,
+                       dadosPessoais: {
+                         nome: dcNome,
+                         email: dcEmail,
+                         cpf: dcCpf,
+                         telefone: dcTelefone,
+                         sexo: dcSexo,
+                         dataNascimento: dcNascimento,
+                         endereco: dcEndereco,
+                         telefoneSecundario: dcTelefoneSecundario,
+                         estadoCivil: dcEstadoCivil,
+                         nacionalidade: dcNacionalidade,
+                         profissao: dcProfissao,
+                         numero: dcNumero,
+                         complemento: dcComplemento,
+                         bairro: dcBairro,
+                         cidade: dcCidade,
+                         estado: dcEstado,
+                         cep: dcCep
                        }
-                       const res = await fetch('/api/clients', {
-                         method: 'PUT',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify(payload)
-                       });
-                       const data = await res.json();
-                       if (data.success) {
-                         fetchData();
-                         alert('Dados salvos com sucesso!');
-                       } else {
-                         alert('Erro ao salvar dados: ' + data.error);
-                       }
-                     }}><i className="fa-solid fa-floppy-disk"></i> Salvar Alterações</button>
-                   </div>
-                 )}
+                     };
+                     const res = await fetch('/api/clients', {
+                       method: 'PUT',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify(payload)
+                     });
+                     const data = await res.json();
+                     if (data.success) {
+                       fetchData();
+                       alert('Dados pessoais atualizados com sucesso!');
+                       setShowClientDetailModal(false);
+                     } else {
+                       alert('Erro ao salvar dados pessoais: ' + data.error);
+                     }
+                   } catch (err: any) {
+                     alert('Erro ao salvar dados pessoais: ' + err.message);
+                   }
+                 }}><i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i> Salvar Dados Pessoais</button>
                </div>
              </div>
            </div>

@@ -50,6 +50,113 @@ export default function GestaoContratosPanel({
   // Modals & Triggers
   const [showTextPreview, setShowTextPreview] = useState(false);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [showImportSignedModal, setShowImportSignedModal] = useState(false);
+  const [importPdfFile, setImportPdfFile] = useState<File | null>(null);
+  const [importPdfBase64, setImportPdfBase64] = useState<string>('');
+  const [importPdfName, setImportPdfName] = useState<string>('');
+  const [submittingImport, setSubmittingImport] = useState(false);
+
+  const handlePdfFileSelect = (file: File) => {
+    if (file.type !== 'application/pdf') {
+      alert('Por favor, selecione um arquivo no formato PDF.');
+      return;
+    }
+    setImportPdfFile(file);
+    setImportPdfName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImportPdfBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImportSignedContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient) return;
+    const plan = plans.find(p => p._id === dcPlano);
+    if (!plan) {
+      alert('Por favor, selecione um plano comercial.');
+      return;
+    }
+
+    try {
+      setSubmittingImport(true);
+
+      const isAnual = dcDuracao === 'anual';
+      const bruto = dcValorUnitario * dcVigenciaQtd;
+      const descVal = Number(dcDescontoValor) || 0;
+      let liquido = bruto;
+      if (dcDescontoTipo === 'percentual') {
+        liquido = bruto * (1 - descVal / 100);
+      } else {
+        liquido = Math.max(0, bruto - descVal);
+      }
+
+      const endD = new Date((dcDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+      if (dcDuracao === 'semana') {
+        endD.setDate(endD.getDate() + (dcVigenciaQtd * 7));
+      } else if (dcDuracao === 'anual') {
+        endD.setMonth(endD.getMonth() + (dcVigenciaQtd * 12));
+      } else {
+        endD.setMonth(endD.getMonth() + dcVigenciaQtd);
+      }
+      const dataFimCalculada = endD.toISOString().split('T')[0];
+
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: selectedClient._id,
+          planoId: dcPlano,
+          planoNome: plan.nome,
+          planoTipo: isAnual ? 'Anual' : 'Mensal',
+          valorBruto: bruto,
+          descontoTipo: dcDescontoTipo,
+          descontoValor: descVal,
+          valorLiquido: liquido,
+          formaPagamento: dcFormaPag,
+          parcelas: dcParcelas,
+          dataPrimeiroVencimento: dcVencimento || dcDataInicio,
+          dataInicio: dcDataInicio,
+          dataFim: dataFimCalculada,
+          vigenciaMeses: dcVigenciaQtd,
+          frequencia: dcFrequencia,
+          creditosTotal: dcCreditosTotal,
+          status: 'assinado',
+          assinaturaNome: 'Importado / Já Assinado Anteriormente',
+          contratoAnexo: importPdfBase64,
+          usuarioEmissor: 'Sistema / Importação Manual'
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('Contrato existente importado e ativado com sucesso!');
+        setShowImportSignedModal(false);
+        setImportPdfFile(null);
+        setImportPdfBase64('');
+        setImportPdfName('');
+        setSelectedClient({
+          ...selectedClient,
+          dadosComerciais: {
+            ...selectedClient.dadosComerciais,
+            planoId: dcPlano,
+            status: 'ativo',
+            vencimento: dataFimCalculada,
+            dataInicio: dcDataInicio
+          }
+        });
+        loadContracts(selectedClient._id);
+        fetchData();
+      } else {
+        alert('Erro ao registrar contrato: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao registrar contrato: ' + err.message);
+    } finally {
+      setSubmittingImport(false);
+    }
+  };
 
   // Presential Signature Modal Canvas states
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -671,7 +778,7 @@ export default function GestaoContratosPanel({
             <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} required>
               <option value="">Selecione um plano...</option>
               {plans.map(p => (
-                <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco.toFixed(2)}</option>
+                <option key={p._id} value={p._id}>{p.nome}</option>
               ))}
             </select>
           </div>
@@ -821,6 +928,83 @@ export default function GestaoContratosPanel({
             />
           </div>
 
+          {/* SIMULADOR DE PREÇO & FECHAMENTO */}
+          {(() => {
+            const brutoSim = dcValorUnitario * dcVigenciaQtd;
+            const descValSim = Number(dcDescontoValor) || 0;
+            let liquidoSim = brutoSim;
+            if (dcDescontoTipo === 'percentual') {
+              liquidoSim = brutoSim * (1 - descValSim / 100);
+            } else {
+              liquidoSim = Math.max(0, brutoSim - descValSim);
+            }
+            const descontoReaisSim = brutoSim - liquidoSim;
+            const valorParcelaSim = liquidoSim / (Number(dcParcelas) || 1);
+
+            const endD = new Date((dcDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+            if (dcDuracao === 'semana') {
+              endD.setDate(endD.getDate() + (dcVigenciaQtd * 7));
+            } else if (dcDuracao === 'anual') {
+              endD.setMonth(endD.getMonth() + (dcVigenciaQtd * 12));
+            } else {
+              endD.setMonth(endD.getMonth() + dcVigenciaQtd);
+            }
+            const dataFimSimStr = endD.toLocaleDateString('pt-BR');
+
+            return (
+              <div style={{
+                marginTop: '10px',
+                padding: '16px',
+                background: 'rgba(16, 185, 129, 0.04)',
+                border: '1px dashed rgba(16, 185, 129, 0.35)',
+                borderRadius: '10px',
+                color: 'var(--text-main)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
+                  <h4 style={{ margin: 0, color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <i className="fa-solid fa-receipt" style={{ marginRight: '6px' }}></i> Resumo de Venda & Fechamento (Apresentação ao Cliente)
+                  </h4>
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.12)', color: 'var(--color-primary)', fontWeight: 'bold' }}>
+                    Fechamento
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Período de Vigência</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-calendar-week" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}></i>
+                      {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} até {dataFimSimStr}
+                    </div>
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
+                      Duração: {dcDuracao === 'semana' ? `${dcVigenciaQtd} semana(s)` : dcDuracao === 'mensal' ? `${dcVigenciaQtd} mês(es)` : `${dcVigenciaQtd} ano(s)`}
+                    </small>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Valor Total (Líquido)</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-circle-check" style={{ color: 'var(--color-success)', fontSize: '0.85rem' }}></i>
+                      R$ {liquidoSim.toFixed(2).replace('.', ',')}
+                    </div>
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
+                      Bruto: R$ {brutoSim.toFixed(2).replace('.', ',')} (Desc: R$ {descontoReaisSim.toFixed(2).replace('.', ',')})
+                    </small>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Condição de Pagamento</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-credit-card" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}></i>
+                      {dcParcelas}x de R$ {valorParcelaSim.toFixed(2).replace('.', ',')}
+                    </div>
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
+                      Forma: {dcFormaPag.toUpperCase()}
+                    </small>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           <button
             type="submit"
             className="btn btn-primary"
@@ -880,6 +1064,14 @@ export default function GestaoContratosPanel({
                   onClick={() => handleIssueContract('pendente')}
                 >
                   <i className="fa-solid fa-clock"></i> Emitir Pendente
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: '100%', color: '#10b981', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.1)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', marginTop: '6px' }}
+                  onClick={() => setShowImportSignedModal(true)}
+                >
+                  <i className="fa-solid fa-file-circle-check"></i> Registrar Já Assinado (Anexar PDF)
                 </button>
               </div>
             </div>
@@ -1099,6 +1291,63 @@ export default function GestaoContratosPanel({
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: IMPORT EXISTING SIGNED CONTRACT */}
+      {showImportSignedModal && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => { if (!submittingImport) setShowImportSignedModal(false); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '95%' }}>
+            <div className="modal-header">
+              <h3><i className="fa-solid fa-file-circle-check" style={{ marginRight: '8px', color: 'var(--color-success)' }}></i>Registrar Contrato Já Assinado</h3>
+              <button className="modal-close" onClick={() => { if (!submittingImport) setShowImportSignedModal(false); }}>&times;</button>
+            </div>
+            <form onSubmit={handleImportSignedContract} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', padding: '12px', borderRadius: '8px', fontSize: '0.83rem', color: 'var(--text-main)' }}>
+                <strong>Ativação Direta de Aluno:</strong> Utilize esta opção para cadastrar alunos migrados que já possuem contrato assinado anteriormente. O contrato será registrado com status <strong style={{ color: 'var(--color-success)' }}>ASSINADO</strong> e o plano será ativado imediatamente.
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600 }}>Anexar PDF do Contrato Assinado (Opcional)</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="form-control"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePdfFileSelect(file);
+                  }}
+                />
+                {importPdfName && (
+                  <small style={{ color: 'var(--color-success)', marginTop: '4px', display: 'block' }}>
+                    <i className="fa-solid fa-circle-check"></i> Arquivo selecionado: {importPdfName}
+                  </small>
+                )}
+              </div>
+
+              <div style={{ border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', background: 'var(--bg-secondary)', fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div><strong>Aluno:</strong> {selectedClient?.dadosPessoais?.nome || '—'}</div>
+                <div><strong>Plano:</strong> {plans.find(p => p._id === dcPlano)?.nome || 'Não selecionado'}</div>
+                <div><strong>Data de Início:</strong> {dcDataInicio || 'Não informada'}</div>
+                <div><strong>Vigência:</strong> {dcVigenciaQtd} {dcDuracao}(s)</div>
+                <div><strong>Valor Unitário:</strong> R$ {dcValorUnitario.toFixed(2)} | <strong>Parcelas:</strong> {dcParcelas}x</div>
+                <div><strong>Forma de Pagamento:</strong> {dcFormaPag.toUpperCase()}</div>
+              </div>
+
+              <div className="modal-footer" style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowImportSignedModal(false)} disabled={submittingImport}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ background: 'var(--color-success)', borderColor: 'var(--color-success)' }} disabled={submittingImport}>
+                  {submittingImport ? (
+                    <span><i className="fa-solid fa-spinner fa-spin"></i> Registrando...</span>
+                  ) : (
+                    <span><i className="fa-solid fa-check-double"></i> Confirmar e Ativar Aluno</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

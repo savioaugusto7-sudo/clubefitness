@@ -2,11 +2,11 @@ import mongoose, { Schema, model, models } from 'mongoose';
 
 const PlanSchema = new Schema({
   nome: { type: String, required: true },
-  validadeDias: { type: Number, required: true },
+  validadeDias: { type: Number, default: 30 },
   limiteSessoesAcademia: { type: Number, default: 0 },
   limiteSessoesConsultorio: { type: Number, default: 0 },
-  preco: { type: Number, required: true },
-  creditosTotal: { type: Number, required: true },
+  preco: { type: Number, default: 0 },
+  creditosTotal: { type: Number, default: 0 },
   servicosPermitidos: [{ type: String }],
   tipo: { type: String, enum: ['Mensal', 'Anual'], default: 'Mensal' },
   beneficiosInclusos: [{ type: String }],

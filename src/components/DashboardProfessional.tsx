@@ -7,6 +7,7 @@ import SearchableSelect from './SearchableSelect';
 import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
+import DadosClinicosPanel from './DadosClinicosPanel';
 
 export const normalizeText = (str: string) => {
   return (str || '')
@@ -3655,6 +3656,11 @@ goniometria: {
         </>
       );
     })()}
+
+      {/* 2b. View: Dados Clínicos */}
+      {activeTab === 'dados_clinicos' && (
+        <DadosClinicosPanel clients={clients} onUpdate={fetchData} />
+      )}
 
       {/* 3. View: Fichas de Treino */}
       {activeTab === 'treinos_prof' && (
