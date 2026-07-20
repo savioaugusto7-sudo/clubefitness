@@ -1146,6 +1146,22 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     await fetchPayments();
   };
 
+  const handleDeleteSinglePayment = async (paymentId: string) => {
+    if (!confirm('Deseja excluir esta parcela/cobrança indevida?')) return;
+    try {
+      const res = await fetch(`/api/admin/payments?id=${paymentId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert('Parcela excluída com sucesso!');
+        fetchData();
+      } else {
+        alert('Erro ao excluir parcela: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro: ' + err.message);
+    }
+  };
+
   const fetchPayments = async () => {
     setLoadingPayments(true);
     try {
@@ -3311,26 +3327,36 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                                 )}
                                               </td>
                                               <td style={{ textAlign: 'center' }}>
-                                                {p.status === 'Pendente' && p.formaPagamento !== 'Asaas' && (
+                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                                                  {p.status === 'Pendente' && p.formaPagamento !== 'Asaas' && (
+                                                    <button
+                                                      className="btn btn-primary btn-sm"
+                                                      style={{ padding: '2px 8px', fontSize: '0.68rem' }}
+                                                      onClick={() => {
+                                                        setSelectedPayment(p);
+                                                        setMpFormaPag(p.formaPagamento);
+                                                        setMpDataPag(new Date().toISOString().split('T')[0]);
+                                                        setShowManualPayModal(true);
+                                                      }}
+                                                    >
+                                                      <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Receber
+                                                    </button>
+                                                  )}
+                                                  {p.status === 'Pendente' && p.formaPagamento === 'Asaas' && (
+                                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Integrado Asaas</span>
+                                                  )}
+                                                  {p.status === 'Pago' && (
+                                                    <span style={{ fontSize: '0.72rem', color: '#10b981' }}><i className="fa-solid fa-circle-check"></i> Recebido</span>
+                                                  )}
                                                   <button
-                                                    className="btn btn-primary btn-sm"
-                                                    style={{ padding: '2px 8px', fontSize: '0.68rem' }}
-                                                    onClick={() => {
-                                                      setSelectedPayment(p);
-                                                      setMpFormaPag(p.formaPagamento);
-                                                      setMpDataPag(new Date().toISOString().split('T')[0]);
-                                                      setShowManualPayModal(true);
-                                                    }}
+                                                    className="btn btn-secondary btn-sm"
+                                                    style={{ padding: '2px 6px', fontSize: '0.68rem', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                                                    title="Excluir Parcela Indevida"
+                                                    onClick={() => handleDeleteSinglePayment(p._id)}
                                                   >
-                                                    <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Receber
+                                                    <i className="fa-solid fa-trash"></i>
                                                   </button>
-                                                )}
-                                                {p.status === 'Pendente' && p.formaPagamento === 'Asaas' && (
-                                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Integrado Asaas</span>
-                                                )}
-                                                {p.status === 'Pago' && (
-                                                  <span style={{ fontSize: '0.72rem', color: '#10b981' }}><i className="fa-solid fa-circle-check"></i> Recebido</span>
-                                                )}
+                                                </div>
                                               </td>
                                             </tr>
                                           );

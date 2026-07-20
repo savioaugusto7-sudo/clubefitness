@@ -330,21 +330,6 @@ export default function GestaoContratosPanel({
     loadContracts(client._id);
   };
 
-  // Auto-fill values when plan changes
-  useEffect(() => {
-    if (!dcPlano) return;
-    const plan = plans.find(p => p._id === dcPlano);
-    if (plan) {
-      setDcValorUnitario(plan.preco);
-      setDcDuracao(plan.tipo === 'Anual' ? 'anual' : 'mensal');
-      setDcVigenciaQtd(plan.tipo === 'Anual' ? 12 : 1);
-      
-      // Setup default credits
-      const planCreds = plan.creditosTotal || 0;
-      setDcCreditosTotal(planCreds);
-    }
-  }, [dcPlano, plans]);
-
   // Save commercial data to client profile
   const handleSaveComercial = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -885,7 +870,22 @@ export default function GestaoContratosPanel({
 
           <div className="form-group">
             <label>Plano</label>
-            <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} required>
+            <select
+              className="select-custom"
+              value={dcPlano}
+              onChange={e => {
+                const newPlanoId = e.target.value;
+                setDcPlano(newPlanoId);
+                const plan = plans.find(p => p._id === newPlanoId);
+                if (plan) {
+                  setDcValorUnitario(plan.preco);
+                  setDcDuracao(plan.tipo === 'Anual' ? 'anual' : 'mensal');
+                  setDcVigenciaQtd(plan.tipo === 'Anual' ? 12 : 1);
+                  setDcCreditosTotal(plan.creditosTotal || 0);
+                }
+              }}
+              required
+            >
               <option value="">Selecione um plano...</option>
               {plans.map(p => (
                 <option key={p._id} value={p._id}>{p.nome}</option>

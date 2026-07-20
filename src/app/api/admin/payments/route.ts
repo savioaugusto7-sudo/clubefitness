@@ -315,3 +315,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const paymentId = searchParams.get('id');
+    const clientId = searchParams.get('clientId');
+    const clean250 = searchParams.get('clean250');
+
+    if (paymentId) {
+      await Payment.findByIdAndDelete(paymentId);
+      return NextResponse.json({ success: true });
+    }
+
+    let query: any = {};
+    if (clientId) query.clientId = clientId;
+    if (clean250) {
+      query.$or = [
+        { valor: 250 },
+        { formaPagamento: 'DINHEIRO' },
+        { formaPagamento: 'Dinheiro' }
+      ];
+    }
+
+    if (Object.keys(query).length > 0) {
+      const res = await Payment.deleteMany(query);
+      return NextResponse.json({ success: true, deletedCount: res.deletedCount });
+    }
+
+    return NextResponse.json({ success: false, error: 'Parâmetros ausentes' }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
