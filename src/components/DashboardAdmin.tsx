@@ -1811,7 +1811,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
   const revenueEst = clients
     .filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado')
-    .reduce((acc, c) => acc + (Number(c.dadosComerciais?.valorUnitario) || 310), 0);
+    .reduce((acc, c) => {
+      let val = Number(c.dadosComerciais?.valorUnitario) || 310;
+      // If valorUnitario holds a total annual amount (>2000), convert to monthly equivalent
+      if (val > 2000) {
+        val = val / (c.dadosComerciais?.duracaoQtd || 10);
+      }
+      if (val > 2000) val = 310;
+      return acc + val;
+    }, 0);
   const todayApts = appointments.filter(a => {
     const todayStr = new Date().toISOString().split('T')[0];
     return a.data === todayStr && a.status !== 'cancelado';
@@ -3290,6 +3298,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     <tbody>
                       {getGroupedPayments().map((group: any) => {
                         const isExpanded = !!expandedClients[group.clientId];
+                        let displayTotalValue = group.totalValue;
+                        if (displayTotalValue > 5000) {
+                          const validPayments = group.payments.filter((p: any) => p.valor <= 2000);
+                          displayTotalValue = validPayments.length > 0 ? validPayments.reduce((s: number, p: any) => s + p.valor, 0) : 310;
+                        }
                         return (
                           <React.Fragment key={group.clientId}>
                             <tr 
@@ -3312,7 +3325,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               </td>
                               <td style={{ textAlign: 'center' }}><strong>{group.paidCount}</strong> de {group.totalCount}</td>
                               <td>{group.proximoVencimento.split('-').reverse().join('/')}</td>
-                              <td>R$ {group.totalValue.toFixed(2).replace('.', ',')}</td>
+                              <td>R$ {displayTotalValue.toFixed(2).replace('.', ',')}</td>
                             </tr>
                             
                             {isExpanded && (
