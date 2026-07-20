@@ -3220,13 +3220,15 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     display: inline-block;
   }
   
-  /* Fallback para rótulo manual se não houver data-label */
+  /* Fallback para rótulo manual se não houver data-label - Ocultar o texto genérico Dado */
   .data-table td:not([data-label])::before {
-    content: "Dado";
-    font-weight: 700;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    font-size: 0.72rem;
+    display: none !important;
+  }
+
+  /* Modal Overlay em telas móveis acima da barra de navegação inferior */
+  .modal-overlay {
+    z-index: 99999 !important;
+    padding-bottom: 90px !important;
   }
 
   /* Remove rótulos para botões e ações */

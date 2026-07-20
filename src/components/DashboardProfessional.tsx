@@ -16,6 +16,15 @@ export const normalizeText = (str: string) => {
     .toLowerCase();
 };
 
+export const formatDateBR = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
 export const getServiceColor = (service: string) => {
   const name = (service || '').toLowerCase();
   if (name.includes('monitorado')) {
@@ -4828,7 +4837,7 @@ goniometria: {
 
                     return paginated.map(pr => (
                       <tr key={pr._id}>
-                        <td data-label="Data"><strong>{pr.data}</strong></td>
+                        <td data-label="Data"><strong>{formatDateBR(pr.data)}</strong></td>
                         <td data-label="Aluno / Paciente"><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
                         <td data-label="Anotações Médicas" className="cell-block"><small style={{ color: 'var(--text-main)' }}>{(pr.conteudo || '').substring(0, 120)}{(pr.conteudo || '').length > 120 ? '...' : ''}</small></td>
                         <td data-label="Ações" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -6251,15 +6260,26 @@ goniometria: {
                     </button>
                   )}
                   {asStep < 6 ? (
-                    <button type="button" className="btn btn-primary" onClick={() => {
-                      if (asStep === 1) {
-                        if (draftOnOpen && draftOnOpen.asClient === asClient) {
-                          loadAssessmentDraft(false, draftOnOpen);
-                          setDraftOnOpen(null);
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (asStep === 1) {
+                          if (!asClient) {
+                            alert('Por favor, selecione um aluno antes de avançar.');
+                            return;
+                          }
+                          if (draftOnOpen && draftOnOpen.asClient === asClient) {
+                            loadAssessmentDraft(false, draftOnOpen);
+                            setDraftOnOpen(null);
+                          }
                         }
-                      }
-                      setAsStep(asStep + 1);
-                    }}>
+                        setAsStep(prev => Math.min(6, prev + 1));
+                      }}
+                      style={{ cursor: 'pointer', zIndex: 10, position: 'relative' }}
+                    >
                       Avançar <i className="fa-solid fa-chevron-right"></i>
                     </button>
                   ) : (

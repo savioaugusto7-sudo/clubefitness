@@ -1810,20 +1810,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const totalClients = clients.length;
   const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
   
-  // Receita Est. Mensal: soma das parcelas/mensalidades com vencimento no mês atual
+  // Receita Est. Mensal: soma estrita das parcelas/mensalidades com vencimento no mês atual (se não houver parcela, é 0)
   const currentMonthStr = new Date().toISOString().substring(0, 7); // "YYYY-MM"
   const currentMonthPayments = payments.filter(p => p.vencimento && p.vencimento.startsWith(currentMonthStr) && p.status !== 'Cancelado' && p.valor <= 2000);
-  
-  const revenueEst = currentMonthPayments.length > 0
-    ? currentMonthPayments.reduce((sum, p) => sum + p.valor, 0)
-    : clients
-        .filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado')
-        .reduce((acc, c) => {
-          let val = Number(c.dadosComerciais?.valorUnitario) || 310;
-          if (val > 2000) val = val / (c.dadosComerciais?.duracaoQtd || 10);
-          if (val > 2000) val = 310;
-          return acc + val;
-        }, 0);
+  const revenueEst = currentMonthPayments.reduce((sum, p) => sum + p.valor, 0);
   const todayApts = appointments.filter(a => {
     const todayStr = new Date().toISOString().split('T')[0];
     return a.data === todayStr && a.status !== 'cancelado';
@@ -2012,14 +2002,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
                       return (
                         <tr key={c._id}>
-                          <td><strong>{c.dadosPessoais?.nome}</strong></td>
-                          <td>{planName}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{metrics.frequenciaSemanal}x/semana</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-success)' }}>{metrics.realizados}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-info)' }}>{metrics.agendados}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: metrics.pendentes > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{metrics.pendentes}</td>
-                          <td style={{ textAlign: 'center' }}>{metrics.diasRestantes} dias</td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td data-label="Cliente"><strong>{c.dadosPessoais?.nome}</strong></td>
+                          <td data-label="Plano">{planName}</td>
+                          <td data-label="Freq. Contratada" style={{ textAlign: 'center', fontWeight: 600 }}>{metrics.frequenciaSemanal}x/semana</td>
+                          <td data-label="Treinos Feitos" style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-success)' }}>{metrics.realizados}</td>
+                          <td data-label="Treinos Agendados" style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-info)' }}>{metrics.agendados}</td>
+                          <td data-label="Pendentes" style={{ textAlign: 'center', fontWeight: 700, color: metrics.pendentes > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{metrics.pendentes}</td>
+                          <td data-label="Dias Restantes" style={{ textAlign: 'center' }}>{metrics.diasRestantes} dias</td>
+                          <td data-label="Status" style={{ textAlign: 'center' }}>
                             {status === 'ativo' ? statusBadge : (
                               <span className="badge badge-danger">Vencido</span>
                             )}
