@@ -1808,8 +1808,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   // Dashboard calculations
   const totalClients = clients.length;
-  const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo').length;
-  const revenueEst = activeClients * 310;
+  const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
+  const revenueEst = clients
+    .filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado')
+    .reduce((acc, c) => acc + (Number(c.dadosComerciais?.valorUnitario) || 310), 0);
   const todayApts = appointments.filter(a => {
     const todayStr = new Date().toISOString().split('T')[0];
     return a.data === todayStr && a.status !== 'cancelado';
