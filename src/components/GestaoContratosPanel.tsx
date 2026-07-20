@@ -331,7 +331,7 @@ export default function GestaoContratosPanel({
     setDcResponsavelVenda(com.responsavelVenda || '');
     setDcUnidadeContratada(com.unidadeContratada || '');
     setDcObservacoesContratuais(com.observacoesContratuais || '');
-    setDcFrequencia(client.frequencia || 3);
+    setDcFrequencia(com.frequencia || client.frequencia || 3);
     setDcCreditosTotal(com.creditosTotal || 0);
     setDcAsaasCustomerId(com.asaasCustomerId || '');
 
@@ -377,6 +377,7 @@ export default function GestaoContratosPanel({
             responsavelVenda: dcResponsavelVenda,
             unidadeContratada: dcUnidadeContratada,
             observacoesContratuais: dcObservacoesContratuais,
+            frequencia: dcFrequencia,
             creditosTotal: dcCreditosTotal
           }
         })
@@ -990,6 +991,28 @@ export default function GestaoContratosPanel({
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Frequência Semanal Contratada</label>
+              <select
+                className="select-custom"
+                value={dcFrequencia}
+                onChange={e => {
+                  const freq = Number(e.target.value);
+                  setDcFrequencia(freq);
+                  if (freq === 1) setDcCreditosTotal(4);
+                  else if (freq === 2) setDcCreditosTotal(9);
+                  else if (freq === 3) setDcCreditosTotal(13);
+                  else if (freq === 4) setDcCreditosTotal(17);
+                  else if (freq === 5) setDcCreditosTotal(22);
+                }}
+              >
+                <option value={1}>1x por semana (4 sessões/mês)</option>
+                <option value={2}>2x por semana (9 sessões/mês)</option>
+                <option value={3}>3x por semana (13 sessões/mês)</option>
+                <option value={4}>4x por semana (17 sessões/mês)</option>
+                <option value={5}>5x por semana (22 sessões/mês)</option>
+              </select>
+            </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label>Data de Início</label>
               <input
