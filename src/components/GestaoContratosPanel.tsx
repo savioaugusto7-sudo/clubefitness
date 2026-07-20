@@ -260,6 +260,33 @@ export default function GestaoContratosPanel({
     }
   };
 
+  // Confirm / Mark contract as Assinado and activate client plan
+  const handleConfirmSignContract = async (contractId: string) => {
+    if (!selectedClient) return;
+    if (!confirm('Deseja marcar este contrato como Assinado e ativar o plano do aluno?')) return;
+    try {
+      const res = await fetch('/api/contracts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: contractId,
+          action: 'sign',
+          assinaturaNome: selectedClient.dadosPessoais?.nome || 'Assinado Manualmente'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Contrato marcado como Assinado e plano do aluno ativado com sucesso!');
+        loadContracts(selectedClient._id);
+        fetchData();
+      } else {
+        alert('Erro ao ativar contrato: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro: ' + err.message);
+    }
+  };
+
   // Cancel clicksign/manual contract
   const handleCancelContract = async (contractId: string, clientNome: string) => {
     if (!confirm(`Cancelar o contrato de ${clientNome}? Esta ação não pode ser desfeita.`)) return;
@@ -324,6 +351,19 @@ export default function GestaoContratosPanel({
     if (!selectedClient) return;
     try {
       setSavingComercial(true);
+
+      const isAnual = dcDuracao === 'anual';
+      const startD = new Date((dcDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+      const endD = new Date(startD);
+      if (dcDuracao === 'semana') {
+        endD.setDate(endD.getDate() + (dcVigenciaQtd * 7));
+      } else if (isAnual) {
+        endD.setMonth(endD.getMonth() + (dcVigenciaQtd * 12));
+      } else {
+        endD.setMonth(endD.getMonth() + dcVigenciaQtd);
+      }
+      const dataFimCalculada = endD.toISOString().split('T')[0];
+
       const res = await fetch('/api/clients', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -335,7 +375,8 @@ export default function GestaoContratosPanel({
             duracao: dcDuracao,
             duracaoQtd: dcVigenciaQtd,
             valorUnitario: dcValorUnitario,
-            vencimento: dcVencimento,
+            vencimento: dataFimCalculada,
+            dataPrimeiroVencimento: dcVencimento,
             descontoTipo: dcDescontoTipo,
             descontoValor: dcDescontoValor,
             parcelas: dcParcelas,
@@ -397,7 +438,13 @@ export default function GestaoContratosPanel({
     const servicosList = plan.servicosPermitidos?.length > 0 ? plan.servicosPermitidos.join(', ') : 'Treino Monitorado, Recovery, Fisioterapia';
 
     const endD = new Date((dcDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
-    endD.setMonth(endD.getMonth() + (isAnual ? 12 : 1));
+    if (dcDuracao === 'semana') {
+      endD.setDate(endD.getDate() + (dcVigenciaQtd * 7));
+    } else if (isAnual) {
+      endD.setMonth(endD.getMonth() + (dcVigenciaQtd * 12));
+    } else {
+      endD.setMonth(endD.getMonth() + dcVigenciaQtd);
+    }
     const dataFimCalculada = endD.toLocaleDateString('pt-BR');
 
     const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
@@ -1195,6 +1242,17 @@ export default function GestaoContratosPanel({
                               >
                                 <i className="fa-solid fa-file-pdf"></i>
                               </button>
+
+                              {st === 'pendente' && (
+                                <button
+                                  className="btn btn-success"
+                                  style={{ padding: '3px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  title="Confirmar / Marcar como Assinado e Ativar Plano"
+                                  onClick={() => handleConfirmSignContract(c._id)}
+                                >
+                                  <i className="fa-solid fa-file-circle-check"></i> Marcar Assinado
+                                </button>
+                              )}
 
                               {c.clicksignDocKey && st === 'pendente' && (
                                 <>

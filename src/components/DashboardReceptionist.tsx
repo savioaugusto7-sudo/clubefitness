@@ -326,7 +326,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       if (hasOverdue) {
         group.status = 'Atrasado';
       } else if (hasPending) {
-        group.status = 'Pendente';
+        group.status = 'Em Dia';
       } else {
         group.status = 'Pago';
       }
@@ -1995,7 +1995,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                           ) : group.status === 'Atrasado' ? (
                             <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', animation: 'pulse 2s infinite' }}>Em Atraso</span>
                           ) : (
-                            <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>Pendente / Em Dia</span>
+                            <span className="badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 600 }}>Em Dia</span>
                           )}
                         </td>
                         <td style={{ textAlign: 'center' }}><strong>{group.paidCount}</strong> de {group.totalCount}</td>
@@ -2034,7 +2034,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                                           ) : isOverdue ? (
                                             <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>Atrasado</span>
                                           ) : (
-                                            <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>Pendente</span>
+                                            <span className="badge" style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>A Vencer</span>
                                           )}
                                         </td>
                                         <td style={{ textAlign: 'center' }}>
