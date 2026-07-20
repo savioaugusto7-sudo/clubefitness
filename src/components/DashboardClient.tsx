@@ -363,7 +363,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     ...rawActiveContract,
     planoNome: rawActiveContract.planoNome || rawActiveContract.planoId?.nome || client?.dadosComerciais?.planoId?.nome || 'Clube Fitness - Monitorado',
     dataInicio: rawActiveContract.dataInicio || client?.dadosComerciais?.dataInicio || client?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-    dataFim: rawActiveContract.dataFim || client?.dadosComerciais?.vencimento || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+    dataFim: client?.dadosComerciais?.vencimento || rawActiveContract.dataFim || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
   } : (client?.dadosComerciais?.planoId || client?.dadosComerciais?.status === 'ativo' ? {
     _id: client._id,
     planoNome: client.dadosComerciais?.planoId?.nome || client.dadosComerciais?.planoNome || 'Clube Fitness - Monitorado',
