@@ -20,25 +20,46 @@ export const normalizeText = (str: string) => {
 
 export const getYearMonth = (dateInput: any): string => {
   if (!dateInput) return '';
+  
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return '';
+    const year = dateInput.getFullYear();
+    const month = String(dateInput.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }
+
+  let str = '';
   if (typeof dateInput === 'string') {
-    if (dateInput.includes('/')) {
-      const parts = dateInput.split('/');
-      if (parts.length === 3) {
-        return `${parts[2].substring(0, 4)}-${parts[1].padStart(2, '0')}`;
-      }
+    str = dateInput;
+  } else if (typeof dateInput === 'object' && dateInput !== null) {
+    if (typeof dateInput.toISOString === 'function') {
+      str = dateInput.toISOString();
+    } else {
+      str = String(dateInput);
     }
-    const cleanStr = dateInput.split('T')[0];
-    const parts = cleanStr.split('-');
-    if (parts.length >= 2) {
-      return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+  } else {
+    str = String(dateInput);
+  }
+
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      const year = parts[2].trim().substring(0, 4);
+      const month = parts[1].trim().padStart(2, '0');
+      return `${year}-${month}`;
     }
   }
-  try {
-    const d = new Date(dateInput);
-    if (!isNaN(d.getTime())) {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+  const cleanStr = str.split('T')[0];
+  const parts = cleanStr.split('-');
+  if (parts.length >= 2) {
+    const year = parts[0].trim();
+    const month = parts[1].trim().padStart(2, '0');
+    if (year.length === 4 && month.length === 2) {
+      return `${year}-${month}`;
     }
-  } catch (e) {}
+  }
+
   return '';
 };
 
