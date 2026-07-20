@@ -56,6 +56,39 @@ export default function GestaoContratosPanel({
   const [importPdfName, setImportPdfName] = useState<string>('');
   const [submittingImport, setSubmittingImport] = useState(false);
 
+  // Asaas Search & Link state
+  const [dcAsaasCustomerId, setDcAsaasCustomerId] = useState('');
+  const [searchingAsaas, setSearchingAsaas] = useState(false);
+
+  const handleSearchAsaas = async () => {
+    if (!selectedClient) return;
+    try {
+      setSearchingAsaas(true);
+      const res = await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'asaas_search_link',
+          clientId: selectedClient._id,
+          customCustomerId: dcAsaasCustomerId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDcAsaasCustomerId(data.asaasCustomerId);
+        alert(`Sucesso! Cliente vinculado ao Asaas ID: ${data.asaasCustomerId}. Faturas sincronizadas!`);
+        fetchData();
+        if (selectedClient) loadContracts(selectedClient._id);
+      } else {
+        alert('Erro ao buscar no Asaas: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao buscar no Asaas: ' + err.message);
+    } finally {
+      setSearchingAsaas(false);
+    }
+  };
+
   const handlePdfFileSelect = (file: File) => {
     if (file.type !== 'application/pdf') {
       alert('Por favor, selecione um arquivo no formato PDF.');
@@ -265,6 +298,7 @@ export default function GestaoContratosPanel({
     setDcObservacoesContratuais(com.observacoesContratuais || '');
     setDcFrequencia(client.frequencia || 3);
     setDcCreditosTotal(com.creditosTotal || 0);
+    setDcAsaasCustomerId(com.asaasCustomerId || '');
 
     loadContracts(client._id);
   };
@@ -769,9 +803,38 @@ export default function GestaoContratosPanel({
         
         {/* Left Column: Commercial settings */}
         <form onSubmit={handleSaveComercial} className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-            <i className="fa-solid fa-gears" style={{ marginRight: '8px' }}></i> Dados Comerciais do Perfil
-          </h3>
+          {/* BLOCO VÍNCULO E BUSCA ASAAS */}
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+              <i className="fa-solid fa-credit-card" style={{ color: 'var(--color-primary)' }}></i> Vínculo Asaas (ID do Cliente)
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                className="form-control"
+                style={{ fontSize: '0.83rem', flex: 1 }}
+                value={dcAsaasCustomerId}
+                onChange={e => setDcAsaasCustomerId(e.target.value)}
+                placeholder="ex: cus_0000057489 (ou deixe em branco para CPF)"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.78rem', whiteSpace: 'nowrap', background: 'rgba(16,185,129,0.1)', color: 'var(--color-primary)', borderColor: 'rgba(16,185,129,0.3)' }}
+                onClick={handleSearchAsaas}
+                disabled={searchingAsaas}
+              >
+                {searchingAsaas ? (
+                  <span><i className="fa-solid fa-spinner fa-spin"></i> Buscando...</span>
+                ) : (
+                  <span><i className="fa-solid fa-magnifying-glass"></i> Buscar no Asaas</span>
+                )}
+              </button>
+            </div>
+            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '4px' }}>
+              Insira o ID ou deixe em branco para buscar por CPF/E-mail no Asaas.
+            </small>
+          </div>
 
           <div className="form-group">
             <label>Plano</label>

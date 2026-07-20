@@ -8,6 +8,7 @@ import AsaasPanel from './AsaasPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import SearchableSelect from './SearchableSelect';
 import DadosClinicosPanel from './DadosClinicosPanel';
+import WorkoutBuilder from './WorkoutBuilder';
 
 
 const normalizeText = (str: string) => {
@@ -163,7 +164,22 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [exEquip, setExEquip] = useState('');
   const [exInst, setExInst] = useState('');
 
-  // F2  Ficha completa do aluno
+  // Fichas de Treino States
+  const [selectedClientForWorkout, setSelectedClientForWorkout] = useState<any>(null);
+  const [workoutSearchAdmin, setWorkoutSearchAdmin] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const wId = params.get('workoutClientId');
+      if (wId && clients.length > 0) {
+        const found = clients.find(c => c._id === wId);
+        if (found) setSelectedClientForWorkout(found);
+      }
+    }
+  }, [clients]);
+
+  // F2   Ficha completa do aluno
   // Regras Modal
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesClient, setRulesClient] = useState<any>(null);
@@ -4140,8 +4156,105 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           </>
         );
       })()}
+      {(activeTab === 'treinos_prof' || activeTab === 'fichas_treino') && (
+        <div style={{ padding: '10px 0' }}>
+          {selectedClientForWorkout ? (
+            <div>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedClientForWorkout(null)}
+                >
+                  <i className="fa-solid fa-arrow-left" style={{ marginRight: '6px' }}></i> Voltar para Lista de Alunos
+                </button>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                  Aluno: <strong>{selectedClientForWorkout.dadosPessoais?.nome}</strong>
+                </div>
+              </div>
+              <WorkoutBuilder
+                onClose={() => setSelectedClientForWorkout(null)}
+                clientId={selectedClientForWorkout._id}
+                clientName={selectedClientForWorkout.dadosPessoais?.nome || 'Aluno'}
+              />
+            </div>
+          ) : (
+            <div>
+              <div className="view-header" style={{ marginBottom: '20px' }}>
+                <div className="view-title-group">
+                  <h1><i className="fa-solid fa-dumbbell" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Fichas de Treino</h1>
+                  <p>Selecione um aluno para montar, visualizar ou atualizar a ficha de treino.</p>
+                </div>
+              </div>
 
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'gestao_contratos', 'asaas', 'trancamentos_admin', 'config_agenda', 'log_atividades'].includes(activeTab) && (
+              <div className="content-panel" style={{ padding: '20px' }}>
+                <div style={{ marginBottom: '16px', maxWidth: '400px' }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Buscar aluno por nome ou CPF..."
+                    value={workoutSearchAdmin}
+                    onChange={e => setWorkoutSearchAdmin(e.target.value)}
+                  />
+                </div>
+
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Aluno</th>
+                        <th>CPF</th>
+                        <th>Telefone</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'center' }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clients
+                        .filter(c => {
+                          const name = c.dadosPessoais?.nome || '';
+                          const cpf = c.dadosPessoais?.cpf || '';
+                          const q = (workoutSearchAdmin || '').toLowerCase();
+                          return name.toLowerCase().includes(q) || cpf.includes(q);
+                        })
+                        .map(c => (
+                          <tr key={c._id}>
+                            <td style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome || 'Sem Nome'}</td>
+                            <td>{c.dadosPessoais?.cpf || '—'}</td>
+                            <td>{c.dadosPessoais?.telefone || '—'}</td>
+                            <td>
+                              <span className={`badge badge-${c.dadosComerciais?.status === 'ativo' ? 'success' : 'secondary'}`}>
+                                {c.dadosComerciais?.status?.toUpperCase() || 'INATIVO'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                className="btn btn-primary btn-sm"
+                                style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                                onClick={() => setSelectedClientForWorkout(c)}
+                              >
+                                <i className="fa-solid fa-dumbbell" style={{ marginRight: '6px' }}></i>
+                                Abrir / Criar Ficha
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      {clients.length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                            Nenhum aluno cadastrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'gestao_contratos', 'asaas', 'trancamentos_admin', 'config_agenda', 'log_atividades', 'dados_clinicos', 'vincular_alunos', 'treinos_prof', 'fichas_treino'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>

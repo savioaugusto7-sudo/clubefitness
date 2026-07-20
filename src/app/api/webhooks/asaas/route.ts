@@ -88,63 +88,20 @@ export async function POST(request: Request) {
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
       console.log(`Confirmando pagamento para contrato: ID=${contract._id}, Aluno=${client.dadosPessoais?.nome}`);
 
-      // Cancelar qualquer outro contrato assinado anterior para evitar duplicidade de planos
-      await Contract.updateMany(
-        { clientId: contract.clientId, _id: { $ne: contract._id }, status: 'assinado' },
-        { status: 'cancelado' }
-      );
-
-      // Atualizar status do contrato
-      contract.status = 'assinado';
+      // Atualizar status financeiro do contrato no Asaas (mantém o contrato status inalterado)
       contract.asaasBillingStatus = 'pago';
-      if (!contract.assinaturaNome) {
-        contract.assinaturaNome = client.dadosPessoais?.nome || 'Aceite via Asaas';
-        contract.assinaturaData = new Date();
-      }
       await contract.save();
-
-      // Sincronizar dados comerciais do aluno
-      const plan = await Plan.findById(contract.planoId);
-      const isAnual = contract.planoTipo === 'Anual';
-
-      Object.assign(client.dadosComerciais, {
-        planoId: contract.planoId,
-        vencimento: contract.dataFim,
-        status: 'ativo',
-        parcelas: contract.parcelas,
-        descontoValor: contract.descontoValor,
-        descontoTipo: contract.descontoTipo,
-        duracao: isAnual ? 'anual' : 'mensal',
-        formaPagamento: contract.formaPagamento,
-        dataInicio: contract.dataInicio,
-        responsavelVenda: contract.responsavelVenda || '',
-        unidadeContratada: contract.unidadeContratada || '',
-        observacoesContratuais: contract.observacoesContratuais || '',
-        creditosTotal: plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0),
-        creditosUsados: 0,
-        creditosReservados: 0,
-        creditosMassagemTotal: isAnual ? 1 : 0,
-        creditosMassagemUsados: 0,
-        creditosMassagemReservados: 0
-      });
-
-      await client.save();
-      console.log(`Aluno ${client.dadosPessoais?.nome} ativado com sucesso via Asaas!`);
 
       // Atualizar status do pagamento correspondente na coleção Payment
       await Payment.findOneAndUpdate(
         { asaasPaymentId: payment.id },
-        { status: 'Pago', dataPagamento: new Date().toISOString().split('T')[0] }
+        { status: 'Pago', dataPagamento: payment.paymentDate || new Date().toISOString().split('T')[0] }
       );
       console.log(`Mensalidade correspondente ao pagamento Asaas ${payment.id} marcada como Pago.`);
     } else if (event === 'PAYMENT_OVERDUE') {
       console.log(`Pagamento em atraso no Asaas para contrato: ID=${contract._id}, Aluno=${client.dadosPessoais?.nome}`);
       contract.asaasBillingStatus = 'vencido';
       await contract.save();
-
-      // Suspender/marcar aluno como vencido
-      client.dadosComerciais.status = 'vencido';
-      await client.save();
 
       // Atualizar status do pagamento na coleção Payment
       await Payment.findOneAndUpdate(
@@ -154,7 +111,6 @@ export async function POST(request: Request) {
       console.log(`Mensalidade correspondente ao pagamento Asaas ${payment.id} marcada como Atrasada.`);
     } else if (event === 'PAYMENT_DELETED') {
       console.log(`Pagamento excluído no Asaas para contrato: ID=${contract._id}`);
-      contract.status = 'cancelado';
       contract.asaasBillingStatus = 'cancelado';
       await contract.save();
 
