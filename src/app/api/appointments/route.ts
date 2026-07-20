@@ -235,6 +235,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
     }
 
+    // --- Bloquear agendamento se cliente for LEAD (Sem Plano) ---
+    if (!bypassRestrictions && (client.dadosComerciais?.status === 'lead' || client.dadosComerciais?.status === 'pendente' || !client.dadosComerciais?.status)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Cliente em fase de cadastro/avaliação (Lead) não pode realizar agendamento sem antes contratar um plano comercial ativo.'
+      }, { status: 400 });
+    }
+
+    // --- Restringir serviços permitidos quando o agendamento for feito pelo próprio aluno ---
+    if (session && session.user && (session.user as any).role === 'client') {
+      const allowedStudentServices = ['Treino Monitorado', 'Treino Livre', 'Emergência', 'Atendimento de Emergência'];
+      if (!allowedStudentServices.includes(servico)) {
+        return NextResponse.json({
+          success: false,
+          error: 'Alunos só podem agendar Treino Monitorado, Treino Livre ou Atendimento de Emergência. Outros serviços devem ser agendados com a recepção ou equipe.'
+        }, { status: 400 });
+      }
+    }
+
     // --- Bloquear agendamento se plano vencido há mais de 10 dias ---
     if (!bypassRestrictions && client.dadosComerciais.status === 'vencido' && client.dadosComerciais.vencimento) {
       const venc = new Date(client.dadosComerciais.vencimento + 'T00:00:00');

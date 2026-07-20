@@ -688,27 +688,24 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
           </div>
 
           <div className="content-panel" style={{ maxWidth: '600px' }}>
-            <form onSubmit={handleBookAppointment}>
-              <div className="form-group">
-                <label>Serviço</label>
-                <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)}>
-                  {bookDateIsSaturday ? (
-                    // Sábado: apenas Massagem
-                    <option value="Massagem">Massagem</option>
-                  ) : (
-                    // Seg-Sex: todos exceto Massagem
-                    <>
-                      <option value="Treino Monitorado">Treino Monitorado</option>
-                      <option value="Treino Livre">Treino Livre</option>
-                      <option value="Recovery">Recovery</option>
-                      <option value="Avaliação Física">Avaliação Física</option>
-                      <option value="Teste de Força">Teste de Força</option>
-                      <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                      <option value="Emergência">Atendimento de Emergência</option>
-                    </>
-                  )}
-                </select>
+            {client?.dadosComerciais?.status === 'lead' ? (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <i className="fa-solid fa-user-clock" style={{ fontSize: '2.5rem', color: '#8b5cf6', marginBottom: '12px' }}></i>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', fontWeight: 700 }}>Cadastro em Fase de Avaliação (Lead)</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '16px' }}>
+                  Sua conta está cadastrada para experiência/avaliação. Para realizar agendamentos de treinos e aulas, escolha e contrate um plano comercial com a nossa equipe!
+                </p>
               </div>
+            ) : (
+              <form onSubmit={handleBookAppointment}>
+                <div className="form-group">
+                  <label>Serviço</label>
+                  <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)}>
+                    <option value="Treino Monitorado">Treino Monitorado</option>
+                    <option value="Treino Livre">Treino Livre</option>
+                    <option value="Emergência">Atendimento de Emergência</option>
+                  </select>
+                </div>
 
               <div className="form-group" style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600 }}>1. Selecione a Data</label>
@@ -800,6 +797,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 Confirmar Agendamento
               </button>
             </form>
+            )}
           </div>
         </>
       )}

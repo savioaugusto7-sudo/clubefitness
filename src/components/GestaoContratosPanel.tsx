@@ -788,9 +788,10 @@ export default function GestaoContratosPanel({
                   const com = c.dadosComerciais || {};
                   const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
                   const status = com.status || 'pendente';
+                  const isLead = status === 'lead';
                   const isClientActive = status === 'ativo' || status === 'assinado';
-                  const stLabel = isClientActive ? 'Contrato Ativo' : status === 'congelado' ? 'Congelado' : 'Sem Contrato Ativo';
-                  const stColor = isClientActive ? 'var(--color-success)' : status === 'congelado' ? 'var(--color-warning)' : 'var(--text-dim)';
+                  const stLabel = isClientActive ? 'Contrato Ativo' : isLead ? 'Lead / Em Avaliação' : status === 'congelado' ? 'Congelado' : 'Sem Contrato Ativo';
+                  const stColor = isClientActive ? 'var(--color-success)' : isLead ? '#8b5cf6' : status === 'congelado' ? 'var(--color-warning)' : 'var(--text-dim)';
                   
                   return (
                     <tr key={c._id}>
@@ -804,13 +805,25 @@ export default function GestaoContratosPanel({
                         <span style={{ color: stColor, fontWeight: 700 }}>{stLabel}</span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <button
-                          className="btn btn-primary"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          onClick={() => handleSelectClient(c)}
-                        >
-                          <i className="fa-solid fa-file-signature" style={{ marginRight: '6px' }}></i> Gerenciar Contratos
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                          {!isClientActive && (
+                            <button
+                              className="btn btn-success"
+                              style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Vender Plano / Converter Lead em Aluno Ativo"
+                              onClick={() => handleSelectClient(c)}
+                            >
+                              <i className="fa-solid fa-cart-shopping"></i> Vender Plano
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                            onClick={() => handleSelectClient(c)}
+                          >
+                            <i className="fa-solid fa-file-signature" style={{ marginRight: '6px' }}></i> Gerenciar Contratos
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
