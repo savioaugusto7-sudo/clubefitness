@@ -851,7 +851,20 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // LocalStorage Auto-save effects
+  // Lock body scroll and prevent mobile keyboard viewport misalignment when clinical modals open
+  useEffect(() => {
+    const isAnyModalOpen = showAssessmentModal || showReportModal || showStModal || showProntuarioModal;
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showAssessmentModal, showReportModal, showStModal, showProntuarioModal]);
+
+  // LocalStorage Auto-save effects (without 1s timer re-triggering)
   useEffect(() => {
     if (showAssessmentModal && asClient) {
       const data = {
@@ -866,7 +879,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       };
       localStorage.setItem('draft_assessment', JSON.stringify(data));
     }
-  }, [showAssessmentModal, asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs, asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asTimerSeconds, asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal, asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas, asOberD, asOberE, asThomasD, asThomasE, asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou, asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE, asStepDownRealizou, asSdPelvica, asSdAducao, asSdValgo, asSdPrps, asMaigneRealizou, asMaigneData, asMaigne, asPostura]);
+  }, [showAssessmentModal, asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs, asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal, asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas, asOberD, asOberE, asThomasD, asThomasE, asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou, asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE, asStepDownRealizou, asSdPelvica, asSdAducao, asSdValgo, asSdPrps, asMaigneRealizou, asMaigneData, asMaigne, asPostura]);
 
   useEffect(() => {
     if (showReportModal && repClient) {
@@ -883,7 +896,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       };
       localStorage.setItem('draft_report', JSON.stringify(data));
     }
-  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repTimerSeconds, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps, repCirc, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
+  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps, repCirc, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
 
   useEffect(() => {
     if (showStModal && stClient) {
@@ -892,7 +905,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       };
       localStorage.setItem('draft_strength', JSON.stringify(data));
     }
-  }, [showStModal, stClient, stAvaliador, stDate, stPeso, stObs, stTestesList, stTimerSeconds]);
+  }, [showStModal, stClient, stAvaliador, stDate, stPeso, stObs, stTestesList]);
 
   const loadAssessmentDraft = (bypassConfirm = false, parsedObj?: any) => {
     const draft = localStorage.getItem('draft_assessment');
