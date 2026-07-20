@@ -11,11 +11,35 @@ import DadosClinicosPanel from './DadosClinicosPanel';
 import WorkoutBuilder from './WorkoutBuilder';
 
 
-const normalizeText = (str: string) => {
+export const normalizeText = (str: string) => {
   return (str || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
+};
+
+export const getYearMonth = (dateInput: any): string => {
+  if (!dateInput) return '';
+  if (typeof dateInput === 'string') {
+    if (dateInput.includes('/')) {
+      const parts = dateInput.split('/');
+      if (parts.length === 3) {
+        return `${parts[2].substring(0, 4)}-${parts[1].padStart(2, '0')}`;
+      }
+    }
+    const cleanStr = dateInput.split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length >= 2) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+    }
+  }
+  try {
+    const d = new Date(dateInput);
+    if (!isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+  } catch (e) {}
+  return '';
 };
 
 interface DashboardAdminProps {
@@ -1810,9 +1834,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const totalClients = clients.length;
   const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
   
-  // Receita Est. Mensal: soma estrita das parcelas/mensalidades com vencimento no mês atual (se não houver parcela, é 0)
-  const currentMonthStr = new Date().toISOString().substring(0, 7); // "YYYY-MM"
-  const currentMonthPayments = payments.filter(p => p.vencimento && p.vencimento.startsWith(currentMonthStr) && p.status !== 'Cancelado' && p.valor <= 2000);
+  // Receita Est. Mensal: soma estrita de todas as parcelas com vencimento no mês atual (Pagas ou Em Aberto; se não houver parcelas no mês, é 0)
+  const currentMonthStr = getYearMonth(new Date());
+  const currentMonthPayments = payments.filter(p => p.vencimento && getYearMonth(p.vencimento) === currentMonthStr && p.status !== 'Cancelado' && p.valor <= 2000);
   const revenueEst = currentMonthPayments.reduce((sum, p) => sum + p.valor, 0);
   const todayApts = appointments.filter(a => {
     const todayStr = new Date().toISOString().split('T')[0];
