@@ -278,8 +278,15 @@ export default function GestaoContratosPanel({
       const data = await res.json();
       if (data.success) {
         alert('Contrato marcado como Assinado e plano do aluno ativado com sucesso!');
-        loadContracts(selectedClient._id);
-        fetchData();
+        setSelectedClient({
+          ...selectedClient,
+          dadosComerciais: {
+            ...selectedClient.dadosComerciais,
+            status: 'ativo'
+          }
+        });
+        await loadContracts(selectedClient._id);
+        await fetchData();
       } else {
         alert('Erro ao ativar contrato: ' + data.error);
       }
@@ -776,8 +783,9 @@ export default function GestaoContratosPanel({
                   const com = c.dadosComerciais || {};
                   const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
                   const status = com.status || 'pendente';
-                  const stLabel = status === 'assinado' ? 'Contrato Ativo' : status === 'congelado' ? 'Congelado' : 'Sem Contrato Ativo';
-                  const stColor = status === 'assinado' ? 'var(--color-success)' : status === 'congelado' ? 'var(--color-warning)' : 'var(--text-dim)';
+                  const isClientActive = status === 'ativo' || status === 'assinado';
+                  const stLabel = isClientActive ? 'Contrato Ativo' : status === 'congelado' ? 'Congelado' : 'Sem Contrato Ativo';
+                  const stColor = isClientActive ? 'var(--color-success)' : status === 'congelado' ? 'var(--color-warning)' : 'var(--text-dim)';
                   
                   return (
                     <tr key={c._id}>
