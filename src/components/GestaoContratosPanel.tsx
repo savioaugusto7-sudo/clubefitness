@@ -45,6 +45,8 @@ export default function GestaoContratosPanel({
   const [dcObservacoesContratuais, setDcObservacoesContratuais] = useState('');
   const [dcFrequencia, setDcFrequencia] = useState(3);
   const [dcCreditosTotal, setDcCreditosTotal] = useState(0);
+  const [dcCreditosMassagem, setDcCreditosMassagem] = useState(0);
+  const [dcCreditosEmergencia, setDcCreditosEmergencia] = useState(0);
   const [savingComercial, setSavingComercial] = useState(false);
 
   // Modals & Triggers
@@ -333,6 +335,8 @@ export default function GestaoContratosPanel({
     setDcObservacoesContratuais(com.observacoesContratuais || '');
     setDcFrequencia(com.frequencia || client.frequencia || 3);
     setDcCreditosTotal(com.creditosTotal || 0);
+    setDcCreditosMassagem(com.creditosMassagemTotal || (com.duracao === 'anual' ? 1 : 0));
+    setDcCreditosEmergencia(com.creditosEmergenciaTotal || (com.duracao === 'anual' ? 1 : 0));
     setDcAsaasCustomerId(com.asaasCustomerId || '');
 
     loadContracts(client._id);
@@ -374,11 +378,11 @@ export default function GestaoContratosPanel({
             descontoValor: dcDescontoValor,
             parcelas: dcParcelas,
             dataInicio: dcDataInicio,
-            responsavelVenda: dcResponsavelVenda,
-            unidadeContratada: dcUnidadeContratada,
             observacoesContratuais: dcObservacoesContratuais,
             frequencia: dcFrequencia,
-            creditosTotal: dcCreditosTotal
+            creditosTotal: dcCreditosTotal,
+            creditosMassagemTotal: dcCreditosMassagem,
+            creditosEmergenciaTotal: dcCreditosEmergencia
           }
         })
       });
@@ -1038,34 +1042,34 @@ export default function GestaoContratosPanel({
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Responsável Venda</label>
+              <label>Créditos de Massagem (Mensais)</label>
               <input
-                type="text"
+                type="number"
                 className="form-control"
-                value={dcResponsavelVenda}
-                onChange={e => setDcResponsavelVenda(e.target.value)}
-                placeholder="Ex: Consultor X"
+                value={dcCreditosMassagem}
+                onChange={e => setDcCreditosMassagem(Number(e.target.value))}
+                min={0}
               />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Unidade Contratada</label>
+              <label>Créditos de Emergência (Mensais)</label>
               <input
-                type="text"
+                type="number"
                 className="form-control"
-                value={dcUnidadeContratada}
-                onChange={e => setDcUnidadeContratada(e.target.value)}
-                placeholder="Ex: Unidade Lourdes"
+                value={dcCreditosEmergencia}
+                onChange={e => setDcCreditosEmergencia(Number(e.target.value))}
+                min={0}
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Observações Contratuais</label>
+            <label>Observações Contratuais (Opcional)</label>
             <textarea
               className="form-control"
               value={dcObservacoesContratuais}
               onChange={e => setDcObservacoesContratuais(e.target.value)}
-              placeholder="Inserir observações que aparecem na minuta..."
+              placeholder="Inserir observações opcionais..."
               style={{ minHeight: '60px', resize: 'vertical' }}
             />
           </div>
