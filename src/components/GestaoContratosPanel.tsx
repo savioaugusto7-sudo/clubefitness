@@ -30,6 +30,7 @@ export default function GestaoContratosPanel({
   const [sortOption, setSortOption] = useState('vencimento_asc');
   const [contracts, setContracts] = useState<any[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
+  const [generatingPayments, setGeneratingPayments] = useState(false);
 
   // Form states (Dados Comerciais)
   const [dcPlano, setDcPlano] = useState('');
@@ -426,18 +427,8 @@ export default function GestaoContratosPanel({
       });
       const data = await res.json();
       if (data.success) {
-        // Auto-generate local payment installment records for Financeiro
-        try {
-          await fetch('/api/admin/payments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'generate_local_payments', clientId: selectedClient._id })
-          });
-        } catch (payErr) {
-          console.error('Error auto-generating payments for client:', payErr);
-        }
-
         alert('Dados comerciais atualizados com sucesso no perfil do aluno!');
+        fetchData();
         setSelectedClient(data.data);
         fetchData();
       } else {
@@ -447,6 +438,66 @@ export default function GestaoContratosPanel({
       alert('Erro ao salvar dados comerciais: ' + err.message);
     } finally {
       setSavingComercial(false);
+    }
+  };
+
+  // Explicitly generate payment installments for Controle Financeiro
+  const handleGeneratePaymentsExplicitly = async () => {
+    if (!selectedClient) return;
+    try {
+      setGeneratingPayments(true);
+      // First save commercial data to ensure profile is synced
+      await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedClient._id,
+          dadosComerciais: {
+            planoId: dcPlano || null,
+            formaPagamento: dcFormaPag,
+            duracao: dcDuracao,
+            duracaoQtd: dcVigenciaQtd,
+            valorUnitario: dcValorUnitario,
+            vencimento: dcVencimento,
+            dataPrimeiroVencimento: dcVencimento,
+            descontoTipo: dcDescontoTipo,
+            descontoValor: dcDescontoValor,
+            parcelas: dcParcelas,
+            dataInicio: dcDataInicio,
+            observacoesContratuais: dcObservacoesContratuais,
+            frequencia: dcFrequencia,
+            creditosTotal: dcCreditosTotal,
+            creditosMassagemTotal: dcCreditosMassagem,
+            creditosEmergenciaTotal: dcCreditosEmergencia
+          }
+        })
+      });
+
+      const res = await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate_local_payments', clientId: selectedClient._id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const bruto = dcValorUnitario * dcVigenciaQtd;
+        let liq = bruto;
+        if (dcDescontoTipo === 'percentual') {
+          liq = bruto * (1 - (Number(dcDescontoValor) || 0) / 100);
+        } else {
+          liq = Math.max(0, bruto - (Number(dcDescontoValor) || 0));
+        }
+        const valParc = liq / (Number(dcParcelas) || 1);
+        const vencFmt = dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje';
+        
+        alert(`✅ Sucesso!\n\nFoi(ram) lançada(s) ${dcParcelas} parcela(s) no valor de R$ ${valParc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cada no Controle Financeiro.\n(1º Vencimento: ${vencFmt})`);
+      } else {
+        alert('Erro ao lançar parcelas: ' + (data.error || 'Falha na requisição'));
+      }
+    } catch (err: any) {
+      alert('Erro ao lançar parcelas: ' + err.message);
+    } finally {
+      setGeneratingPayments(false);
     }
   };
 
@@ -1255,18 +1306,34 @@ export default function GestaoContratosPanel({
             );
           })()}
 
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={savingComercial}
-            style={{ width: '100%', marginTop: '10px' }}
-          >
-            {savingComercial ? (
-              <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando no Perfil...</span>
-            ) : (
-              <span><i className="fa-solid fa-floppy-disk"></i> Salvar Dados Comerciais no Perfil</span>
-            )}
-          </button>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
+            <button
+              type="submit"
+              className="btn btn-secondary"
+              disabled={savingComercial}
+              style={{ flex: '1 1 180px' }}
+            >
+              {savingComercial ? (
+                <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</span>
+              ) : (
+                <span><i className="fa-solid fa-floppy-disk"></i> Salvar no Perfil</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={generatingPayments}
+              onClick={handleGeneratePaymentsExplicitly}
+              style={{ flex: '1 1 220px', background: '#10b981', borderColor: '#10b981', color: '#ffffff', fontWeight: 'bold' }}
+            >
+              {generatingPayments ? (
+                <span><i className="fa-solid fa-spinner fa-spin"></i> Lançando...</span>
+              ) : (
+                <span><i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i> Lançar Parcelas no Financeiro</span>
+              )}
+            </button>
+          </div>
         </form>
 
         {/* Right Column: Issuance & History */}

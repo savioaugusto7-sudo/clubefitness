@@ -585,10 +585,10 @@ export async function POST(request: Request) {
         asaasPaymentId: formaPagamento === 'asaas' ? asaasPaymentId : '',
         asaasInvoiceUrl: formaPagamento === 'asaas' ? asaasInvoiceUrl : '',
         parcelaNumero: i + 1,
-        parcelasTotal: numParcelas,
       });
     }
-    await Payment.insertMany(paymentRecords);
+    // Parcelas no financeiro são lançadas exclusivamente pelo botão "Lançar Parcelas no Financeiro"
+    // await Payment.insertMany(paymentRecords);
 
     // 5. Se o contrato for emitido como ASSINADO, atualizar o cadastro do cliente
     if (status === 'assinado') {
