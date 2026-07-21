@@ -54,6 +54,8 @@ const DadosComerciaisSchema = new Schema({
   creditosUltimoReset: { type: String },
   dataInicio: { type: String },
   dataPrimeiroVencimento: { type: String },
+  criarRecorrenciaMensal: { type: Boolean, default: false },
+  recorrenciaMeses: { type: Number, default: 12 },
   responsavelVenda: { type: String, default: '' },
   unidadeContratada: { type: String, default: '' },
   observacoesContratuais: { type: String, default: '' },

@@ -49,7 +49,8 @@ const ensureLocalPaymentsForClients = async () => {
         const rawFirstDue = com.dataPrimeiroVencimento || com.dataInicio || todayStr;
         const firstDueStr = rawFirstDue.includes('T') ? rawFirstDue.split('T')[0] : rawFirstDue;
 
-        const numParcelas = Math.max(1, Number(com.parcelas) || 1);
+        const isRecorrente = Boolean(com.criarRecorrenciaMensal);
+        const totalInstallments = isRecorrente ? Math.max(1, Number(com.recorrenciaMeses) || 12) : Math.max(1, Number(com.parcelas) || 1);
         const valorUnitario = Number(com.valorUnitario) || 0;
         const duracaoQtd = Number(com.duracaoQtd) || 1;
         const bruto = valorUnitario * duracaoQtd;
@@ -60,10 +61,10 @@ const ensureLocalPaymentsForClients = async () => {
         } else {
           liquido = Math.max(0, bruto - desc);
         }
-        const valorParcela = numParcelas > 0 ? liquido / numParcelas : liquido;
+        const valorParcela = isRecorrente ? liquido : (totalInstallments > 0 ? liquido / totalInstallments : liquido);
 
         const recordsToInsert = [];
-        for (let i = 0; i < numParcelas; i++) {
+        for (let i = 0; i < totalInstallments; i++) {
           const due = new Date(firstDueStr + 'T00:00:00');
           due.setMonth(due.getMonth() + i);
           const dueIso = due.toISOString().split('T')[0];
@@ -79,7 +80,7 @@ const ensureLocalPaymentsForClients = async () => {
             status: isZeroVal ? 'Pago' : 'Pendente',
             formaPagamento: formatFormaPagamento(com.formaPagamento),
             parcelaNumero: i + 1,
-            parcelasTotal: numParcelas
+            parcelasTotal: totalInstallments
           });
         }
 
@@ -155,7 +156,8 @@ export async function POST(request: Request) {
       const rawFirstDue = com.dataPrimeiroVencimento || com.dataInicio || todayStr;
       const firstDueStr = rawFirstDue.includes('T') ? rawFirstDue.split('T')[0] : rawFirstDue;
 
-      const numParcelas = Math.max(1, Number(com.parcelas) || 1);
+      const isRecorrente = Boolean(com.criarRecorrenciaMensal);
+      const totalInstallments = isRecorrente ? Math.max(1, Number(com.recorrenciaMeses) || 12) : Math.max(1, Number(com.parcelas) || 1);
       const valorUnitario = Number(com.valorUnitario) || 0;
       const duracaoQtd = Number(com.duracaoQtd) || 1;
       const bruto = valorUnitario * duracaoQtd;
@@ -166,10 +168,10 @@ export async function POST(request: Request) {
       } else {
         liquido = Math.max(0, bruto - desc);
       }
-      const valorParcela = numParcelas > 0 ? liquido / numParcelas : liquido;
+      const valorParcela = isRecorrente ? liquido : (totalInstallments > 0 ? liquido / totalInstallments : liquido);
 
       const recordsToInsert = [];
-      for (let i = 0; i < numParcelas; i++) {
+      for (let i = 0; i < totalInstallments; i++) {
         const due = new Date(firstDueStr + 'T00:00:00');
         due.setMonth(due.getMonth() + i);
         const dueIso = due.toISOString().split('T')[0];
@@ -185,7 +187,7 @@ export async function POST(request: Request) {
           status: isZeroVal ? 'Pago' : 'Pendente',
           formaPagamento: formatFormaPagamento(com.formaPagamento),
           parcelaNumero: i + 1,
-          parcelasTotal: numParcelas
+          parcelasTotal: totalInstallments
         });
       }
 

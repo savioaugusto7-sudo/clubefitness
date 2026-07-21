@@ -50,6 +50,8 @@ export default function GestaoContratosPanel({
   const [dcCreditosTotal, setDcCreditosTotal] = useState(0);
   const [dcCreditosMassagem, setDcCreditosMassagem] = useState(0);
   const [dcCreditosEmergencia, setDcCreditosEmergencia] = useState(0);
+  const [dcCriarRecorrencia, setDcCriarRecorrencia] = useState(false);
+  const [dcRecorrenciaMeses, setDcRecorrenciaMeses] = useState(12);
   const [savingComercial, setSavingComercial] = useState(false);
 
   // Modals & Triggers
@@ -376,6 +378,8 @@ export default function GestaoContratosPanel({
     setDcCreditosTotal(com.creditosTotal || 0);
     setDcCreditosMassagem(com.creditosMassagemTotal || (com.duracao === 'anual' ? 1 : 0));
     setDcCreditosEmergencia(com.creditosEmergenciaTotal || (com.duracao === 'anual' ? 1 : 0));
+    setDcCriarRecorrencia(Boolean(com.criarRecorrenciaMensal));
+    setDcRecorrenciaMeses(com.recorrenciaMeses || 12);
     setDcAsaasCustomerId(com.asaasCustomerId || '');
 
     loadContracts(client._id);
@@ -421,7 +425,9 @@ export default function GestaoContratosPanel({
             frequencia: dcFrequencia,
             creditosTotal: dcCreditosTotal,
             creditosMassagemTotal: dcCreditosMassagem,
-            creditosEmergenciaTotal: dcCreditosEmergencia
+            creditosEmergenciaTotal: dcCreditosEmergencia,
+            criarRecorrenciaMensal: dcCriarRecorrencia,
+            recorrenciaMeses: dcRecorrenciaMeses
           }
         })
       });
@@ -487,10 +493,11 @@ export default function GestaoContratosPanel({
         } else {
           liq = Math.max(0, bruto - (Number(dcDescontoValor) || 0));
         }
-        const valParc = liq / (Number(dcParcelas) || 1);
+        const totalCount = dcCriarRecorrencia ? dcRecorrenciaMeses : (Number(dcParcelas) || 1);
+        const valParc = dcCriarRecorrencia ? liq : (liq / totalCount);
         const vencFmt = dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje';
         
-        alert(`✅ Sucesso!\n\nFoi(ram) lançada(s) ${dcParcelas} parcela(s) no valor de R$ ${valParc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cada no Controle Financeiro.\n(1º Vencimento: ${vencFmt})`);
+        alert(`✅ Sucesso!\n\nFoi(ram) lançada(s) ${totalCount} parcela(s) ${dcCriarRecorrencia ? 'mensais recorrentes ' : ''}no valor de R$ ${valParc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cada no Controle Financeiro.\n(1º Vencimento: ${vencFmt})`);
       } else {
         alert('Erro ao lançar parcelas: ' + (data.error || 'Falha na requisição'));
       }
@@ -1216,6 +1223,38 @@ export default function GestaoContratosPanel({
                 min={0}
               />
             </div>
+          </div>
+
+          {/* CAIXA DE RECORRÊNCIA MENSAL AUTOMÁTICA */}
+          <div style={{ marginTop: '8px', marginBottom: '16px', padding: '14px', background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={dcCriarRecorrencia}
+                onChange={e => setDcCriarRecorrencia(e.target.checked)}
+                style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)' }}
+              />
+              <span><i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px', color: '#3b82f6' }}></i> Criar Recorrência Mensal Automática para este Plano</span>
+            </label>
+            {dcCriarRecorrencia && (
+              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Duração da Recorrência Mensal:</label>
+                <select
+                  className="select-custom"
+                  value={dcRecorrenciaMeses}
+                  onChange={e => setDcRecorrenciaMeses(Number(e.target.value))}
+                  style={{ width: '160px', padding: '6px 10px', fontSize: '0.83rem' }}
+                >
+                  <option value={3}>3 Meses</option>
+                  <option value={6}>6 Meses</option>
+                  <option value={12}>12 Meses (1 Ano)</option>
+                  <option value={24}>24 Meses (2 Anos)</option>
+                </select>
+                <small style={{ color: '#3b82f6', fontSize: '0.75rem', flex: '1 1 100%' }}>
+                  Gera cobranças mensais automáticas consecutivas a partir da Data do 1º Vencimento.
+                </small>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
