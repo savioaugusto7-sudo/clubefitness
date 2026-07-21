@@ -3551,3 +3551,33 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   color: var(--text-main, #f8fafc) !important;
 }
 
+/* Role Switcher Tabs (Multi-Role Users) */
+.role-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.role-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.role-tab-btn.active {
+  background: var(--color-primary, #10b981);
+  color: #ffffff;
+  border-color: var(--color-primary, #10b981);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
