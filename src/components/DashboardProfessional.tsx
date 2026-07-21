@@ -364,7 +364,85 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [isNavigatingStep, setIsNavigatingStep] = useState(false);
   const [, startStepTransition] = useTransition();
 
+  // Wizard step validation functions
+  const validateAssessmentStep = (step: number): boolean => {
+    if (step === 1) {
+      if (!asClient) {
+        alert('Por favor, selecione o Aluno/Paciente antes de avançar.');
+        return false;
+      }
+      if (!asDate) {
+        alert('Por favor, informe a Data da avaliação antes de avançar.');
+        return false;
+      }
+    } else if (step === 2) {
+      if (!asWeight || Number(asWeight) <= 0) {
+        alert('Por favor, informe o Peso corporal (kg) antes de avançar.');
+        return false;
+      }
+      if (!asHeight || Number(asHeight) <= 0) {
+        alert('Por favor, informe a Altura (m) antes de avançar.');
+        return false;
+      }
+    } else if (step === 3) {
+      const circValues = Object.values(asCirc || {});
+      const filledCount = circValues.filter((v: any) => v !== '' && v !== null && v !== undefined && Number(v) > 0).length;
+      if (filledCount < 2) {
+        alert('Por favor, preencha os Perímetros Corporais do aluno antes de avançar.');
+        return false;
+      }
+    } else if (step === 4) {
+      let foldCount = 0;
+      Object.values(asDobrasReadings || {}).forEach((readings: any) => {
+        if (Array.isArray(readings) && readings.some((r: any) => r !== '' && r !== null && Number(r) > 0)) {
+          foldCount++;
+        }
+      });
+      if (foldCount < 2) {
+        alert('Por favor, informe os valores das Dobras Cutâneas antes de avançar.');
+        return false;
+      }
+    } else if (step === 6) {
+      if (!asMeta2Meses || !asMeta2Meses.trim()) {
+        alert('Por favor, informe as Metas de 2 Meses antes de concluir.');
+        return false;
+      }
+      if (!asMeta1Ano || !asMeta1Ano.trim()) {
+        alert('Por favor, informe as Metas de 1 Ano antes de concluir.');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const validateReportStep = (step: number): boolean => {
+    if (step === 1) {
+      if (!repClient) {
+        alert('Por favor, selecione o Paciente antes de avançar.');
+        return false;
+      }
+      if (!repDate) {
+        alert('Por favor, informe a Data do relatório antes de avançar.');
+        return false;
+      }
+      if (!repQueixas || repQueixas.length === 0) {
+        alert('Por favor, informe a Queixa Principal do paciente antes de avançar.');
+        return false;
+      }
+    } else if (step === 2) {
+      if ((!repTraumas || !repTraumas.trim()) && (!repDoencas || !repDoencas.trim()) && (!repMedicao || !repMedicao.trim())) {
+        alert('Por favor, preencha o Histórico de Lesões e Hábitos do paciente antes de avançar.');
+        return false;
+      }
+    }
+    return true;
+  };
+
   const changeAsStep = (newStep: number) => {
+    if (newStep > asStep) {
+      const isValid = validateAssessmentStep(asStep);
+      if (!isValid) return;
+    }
     setIsNavigatingStep(true);
     startStepTransition(() => {
       setAsStep(newStep);
@@ -373,6 +451,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const changeRepStep = (newStep: number) => {
+    if (newStep > repActiveStep) {
+      const isValid = validateReportStep(repActiveStep);
+      if (!isValid) return;
+    }
     setIsNavigatingStep(true);
     startStepTransition(() => {
       setRepActiveStep(newStep);
@@ -2559,8 +2641,24 @@ goniometria: {
 
   const handleCreateStrengthTest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!stClient) {
+      alert('Por favor, selecione o Paciente/Aluno.');
+      return;
+    }
+    if (!stDate) {
+      alert('Por favor, informe a Data do teste de força.');
+      return;
+    }
+    if (!stAvaliador) {
+      alert('Por favor, selecione o Avaliador responsável.');
+      return;
+    }
+    if (!stPeso || Number(stPeso) <= 0) {
+      alert('Por favor, informe o Peso Corporal (kg) do aluno no topo do formulário.');
+      return;
+    }
     if (stTestesList.length === 0) {
-      alert('Por favor, adicione pelo menos um teste de movimento.');
+      alert('Por favor, adicione pelo menos um movimento avaliado no teste de força.');
       return;
     }
     try {
