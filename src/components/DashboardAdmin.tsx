@@ -2738,7 +2738,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             </button>
                             <button className="btn btn-secondary btn-sm" title="Baixar Contrato PDF" onClick={() => {
                               const plan = plans.find((p: any) => p._id === (c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId));
-                              downloadContractPDF(c, plan, c.contrato);
+                              downloadContractPDF(c, plan, c.contratoTexto, c.contrato || c.dadosComerciais);
                             }}>
                               <i className="fa-solid fa-file-contract"></i>
                             </button>

@@ -611,8 +611,13 @@ export async function POST(request: Request) {
         creditosReservados: 0,
         creditosMassagemTotal: isAnual ? 1 : 0,
         creditosMassagemUsados: 0,
-        creditosMassagemReservados: 0
+        creditosMassagemReservados: 0,
+        contratoAnexo: contratoAnexo || contratoPdfBase64 || client.dadosComerciais?.contratoAnexo || '',
+        contratoPdfBase64: contratoPdfBase64 || contratoAnexo || client.dadosComerciais?.contratoPdfBase64 || ''
       });
+      if (contratoAnexo || contratoPdfBase64) {
+        client.contratoAnexo = contratoAnexo || contratoPdfBase64;
+      }
       await client.save();
     }
 

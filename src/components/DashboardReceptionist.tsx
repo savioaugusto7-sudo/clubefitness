@@ -1694,7 +1694,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                           {(ct.status === 'assinado' || ct.status === 'pendente') && (
                             <button style={{ ...btnSecondary, fontSize: '0.75rem', padding: '4px 8px', color: '#ef4444', borderColor: '#ef444444' }} onClick={() => handleCancelContract(ct._id)}>Cancelar</button>
                           )}
-                          <button style={{ ...btnSecondary, fontSize: '0.75rem', padding: '4px 8px' }} onClick={() => { const plan = plans.find((p: any) => p._id === (ct.planoId?._id || ct.planoId)); if (plan && ct.contratoTexto) downloadContractPDF(selectedClient, plan, ct.contratoTexto); }}>
+                          <button style={{ ...btnSecondary, fontSize: '0.75rem', padding: '4px 8px' }} onClick={() => { const plan = plans.find((p: any) => p._id === (ct.planoId?._id || ct.planoId)); if (plan) downloadContractPDF(selectedClient, plan, ct.contratoTexto, ct); }}>
                             <i className="fa-solid fa-download" />
                           </button>
                         </div>
@@ -2365,7 +2365,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                             {(ct.status === 'assinado' || ct.status === 'pendente') && (
                               <button style={{ ...btnSecondary, fontSize: '0.75rem', padding: '4px 8px', color: '#ef4444', borderColor: '#ef444444' }} onClick={() => handleCancelContract(ct._id)}>Cancelar</button>
                             )}
-                            <button style={{ ...btnSecondary, fontSize: '0.75rem', padding: '4px 8px' }} onClick={() => { const plan = plans.find((p: any) => p._id === (ct.planoId?._id || ct.planoId)); if (plan && ct.contratoTexto) downloadContractPDF(selectedClient, plan, ct.contratoTexto); }}>
+                            <button style={{ ...btnSecondary, fontSize: '0.75rem', padding: '4px 8px' }} onClick={() => { const plan = plans.find((p: any) => p._id === (ct.planoId?._id || ct.planoId)); if (plan) downloadContractPDF(selectedClient, plan, ct.contratoTexto, ct); }}>
                               <i className="fa-solid fa-download" />
                             </button>
                           </div>

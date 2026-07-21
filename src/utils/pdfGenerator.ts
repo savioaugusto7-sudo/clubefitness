@@ -3315,16 +3315,33 @@ function valorExtenso(valor: number): string {
 // ==========================================================
 // PDF — CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 // ==========================================================
-export function downloadContractPDF(client: any, plan: any, templateOverride?: string, contract?: any) {
+export function downloadContractPDF(client: any, plan: any, templateOverride?: any, contract?: any) {
   if (!client) { alert('Cliente não encontrado.'); return; }
 
-  // Check if contract has an attached custom PDF (e.g. imported/uploaded PDF)
-  const attachedPdf = contract?.contratoAnexo || contract?.contratoPdfBase64 || client?.contratoAnexo || client?.dadosComerciais?.contratoAnexo;
-  if (attachedPdf) {
+  // If contract object was passed as 3rd parameter by mistake
+  if (templateOverride && typeof templateOverride === 'object' && !contract) {
+    contract = templateOverride;
+    templateOverride = undefined;
+  }
+
+  // Thorough scan of all possible attached PDF locations
+  const attachedPdf = 
+    contract?.contratoAnexo || 
+    contract?.contratoPdfBase64 || 
+    contract?.contratoAnexoPdf ||
+    client?.contratoAnexo || 
+    client?.contratoPdfBase64 || 
+    client?.dadosComerciais?.contratoAnexo || 
+    client?.dadosComerciais?.contratoPdfBase64 ||
+    client?.contrato?.contratoAnexo ||
+    client?.contrato?.contratoPdfBase64;
+
+  if (attachedPdf && typeof attachedPdf === 'string' && attachedPdf.trim().length > 50) {
     try {
       let blob: Blob;
-      if (attachedPdf.startsWith('data:')) {
-        const parts = attachedPdf.split(',');
+      const cleanPdf = attachedPdf.trim();
+      if (cleanPdf.startsWith('data:')) {
+        const parts = cleanPdf.split(',');
         const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/pdf';
         const bstr = atob(parts[1]);
         let n = bstr.length;
@@ -3334,7 +3351,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: s
         }
         blob = new Blob([u8arr], { type: mime });
       } else {
-        const bstr = atob(attachedPdf);
+        const bstr = atob(cleanPdf);
         let n = bstr.length;
         const u8arr = new Uint8Array(n);
         while (n--) {
