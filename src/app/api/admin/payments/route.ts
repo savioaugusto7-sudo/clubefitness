@@ -19,10 +19,73 @@ const getAsaasBaseUrl = () => {
   return (process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3').replace(/\/$/, '');
 };
 
+const ensureLocalPaymentsForClients = async () => {
+  try {
+    const clients = await Client.find({
+      $or: [
+        { 'dadosComerciais.valorUnitario': { $gt: 0 } },
+        { 'dadosComerciais.planoId': { $ne: null } }
+      ]
+    }).populate('dadosComerciais.planoId');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    for (const client of clients) {
+      const existingPayments = await Payment.find({ clientId: client._id });
+      if (existingPayments.length === 0) {
+        const com = client.dadosComerciais || {};
+        const planName = (com.planoId as any)?.nome || 'Plano Personalizado';
+        const rawFirstDue = com.dataPrimeiroVencimento || com.dataInicio || todayStr;
+        const firstDueStr = rawFirstDue.includes('T') ? rawFirstDue.split('T')[0] : rawFirstDue;
+
+        const numParcelas = Math.max(1, Number(com.parcelas) || 1);
+        const valorUnitario = Number(com.valorUnitario) || 0;
+        const duracaoQtd = Number(com.duracaoQtd) || 1;
+        const bruto = valorUnitario * duracaoQtd;
+        const desc = Number(com.descontoValor) || 0;
+        let liquido = bruto;
+        if (com.descontoTipo === 'percentual') {
+          liquido = bruto * (1 - desc / 100);
+        } else {
+          liquido = Math.max(0, bruto - desc);
+        }
+        const valorParcela = numParcelas > 0 ? liquido / numParcelas : liquido;
+
+        const recordsToInsert = [];
+        for (let i = 0; i < numParcelas; i++) {
+          const due = new Date(firstDueStr + 'T00:00:00');
+          due.setMonth(due.getMonth() + i);
+          const dueIso = due.toISOString().split('T')[0];
+
+          recordsToInsert.push({
+            clientId: client._id,
+            clientNome: client.dadosPessoais?.nome || 'Sem Nome',
+            planoNome: planName,
+            valor: parseFloat(valorParcela.toFixed(2)),
+            vencimento: dueIso,
+            dataPagamento: '',
+            status: 'Pendente',
+            formaPagamento: (com.formaPagamento || 'PIX').toUpperCase(),
+            parcelaNumero: i + 1,
+            parcelasTotal: numParcelas
+          });
+        }
+
+        if (recordsToInsert.length > 0) {
+          await Payment.insertMany(recordsToInsert);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error ensuring local payments for clients:', err);
+  }
+};
+
 // 1. GET: Query all client payments (mensalidades)
 export async function GET(request: Request) {
   try {
     await dbConnect();
+    await ensureLocalPaymentsForClients();
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status'); // 'Pago', 'Pendente', 'Atrasado'
     const searchQuery = searchParams.get('search') || '';
@@ -60,6 +123,65 @@ export async function POST(request: Request) {
     await dbConnect();
     const body = await request.json();
     const { action } = body;
+
+    // GENERATE LOCAL PAYMENTS FOR CLIENT
+    if (action === 'generate_local_payments') {
+      const { clientId } = body;
+      if (!clientId) {
+        return NextResponse.json({ success: false, error: 'clientId é obrigatório' }, { status: 400 });
+      }
+      const client = await Client.findById(clientId).populate('dadosComerciais.planoId');
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
+      }
+      // Delete existing non-Asaas payments
+      await Payment.deleteMany({ clientId: client._id, formaPagamento: { $ne: 'Asaas' } });
+
+      const com = client.dadosComerciais || {};
+      const planName = (com.planoId as any)?.nome || 'Plano Personalizado';
+      const todayStr = new Date().toISOString().split('T')[0];
+      const rawFirstDue = com.dataPrimeiroVencimento || com.dataInicio || todayStr;
+      const firstDueStr = rawFirstDue.includes('T') ? rawFirstDue.split('T')[0] : rawFirstDue;
+
+      const numParcelas = Math.max(1, Number(com.parcelas) || 1);
+      const valorUnitario = Number(com.valorUnitario) || 0;
+      const duracaoQtd = Number(com.duracaoQtd) || 1;
+      const bruto = valorUnitario * duracaoQtd;
+      const desc = Number(com.descontoValor) || 0;
+      let liquido = bruto;
+      if (com.descontoTipo === 'percentual') {
+        liquido = bruto * (1 - desc / 100);
+      } else {
+        liquido = Math.max(0, bruto - desc);
+      }
+      const valorParcela = numParcelas > 0 ? liquido / numParcelas : liquido;
+
+      const recordsToInsert = [];
+      for (let i = 0; i < numParcelas; i++) {
+        const due = new Date(firstDueStr + 'T00:00:00');
+        due.setMonth(due.getMonth() + i);
+        const dueIso = due.toISOString().split('T')[0];
+
+        recordsToInsert.push({
+          clientId: client._id,
+          clientNome: client.dadosPessoais?.nome || 'Sem Nome',
+          planoNome: planName,
+          valor: parseFloat(valorParcela.toFixed(2)),
+          vencimento: dueIso,
+          dataPagamento: '',
+          status: 'Pendente',
+          formaPagamento: (com.formaPagamento || 'PIX').toUpperCase(),
+          parcelaNumero: i + 1,
+          parcelasTotal: numParcelas
+        });
+      }
+
+      if (recordsToInsert.length > 0) {
+        await Payment.insertMany(recordsToInsert);
+      }
+
+      return NextResponse.json({ success: true, count: recordsToInsert.length });
+    }
 
     // A. CONFIRM MANUAL PAYMENT
     if (action === 'confirm_manual') {

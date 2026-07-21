@@ -325,7 +325,7 @@ export default function GestaoContratosPanel({
     setDcDuracao(com.duracao || 'mensal');
     setDcVigenciaQtd(com.duracaoQtd || 1);
     setDcValorUnitario(com.valorUnitario || 0);
-    setDcVencimento(com.vencimento || '');
+    setDcVencimento(com.dataPrimeiroVencimento || com.dataInicio || new Date().toISOString().split('T')[0]);
     setDcDescontoTipo(com.descontoTipo || 'percentual');
     setDcDescontoValor(com.descontoValor || 0);
     setDcParcelas(com.parcelas || 1);
@@ -388,6 +388,17 @@ export default function GestaoContratosPanel({
       });
       const data = await res.json();
       if (data.success) {
+        // Auto-generate local payment installment records for Financeiro
+        try {
+          await fetch('/api/admin/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'generate_local_payments', clientId: selectedClient._id })
+          });
+        } catch (payErr) {
+          console.error('Error auto-generating payments for client:', payErr);
+        }
+
         alert('Dados comerciais atualizados com sucesso no perfil do aluno!');
         setSelectedClient(data.data);
         fetchData();

@@ -2694,7 +2694,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcObsClin(c.dadosClinicos?.observacoes || '');
                               
                               setDcPlano(c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId || '');
-                              setDcVencimento(c.dadosComerciais?.vencimento || '');
+                              setDcVencimento(c.dadosComerciais?.dataPrimeiroVencimento || c.dadosComerciais?.dataInicio || new Date().toISOString().split('T')[0]);
                               setDcStatus(c.dadosComerciais?.status || 'ativo');
                               setDcFormaPag(c.dadosComerciais?.formaPagamento || 'pix');
                               setDcDuracao(c.dadosComerciais?.duracao || 'mensal');
