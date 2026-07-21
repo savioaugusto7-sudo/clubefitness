@@ -364,6 +364,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [isNavigatingStep, setIsNavigatingStep] = useState(false);
   const [, startStepTransition] = useTransition();
 
+  // Step Confirmation States (Desktop & Mobile)
+  const [asConfirmedSteps, setAsConfirmedSteps] = useState<Record<number, boolean>>({});
+  const [repConfirmedSteps, setRepConfirmedSteps] = useState<Record<number, boolean>>({});
+
+  const confirmAsStep = (step: number) => {
+    setAsConfirmedSteps(prev => ({ ...prev, [step]: true }));
+  };
+
+  const confirmRepStep = (step: number) => {
+    setRepConfirmedSteps(prev => ({ ...prev, [step]: true }));
+  };
+
   // Wizard step validation functions
   const validateAssessmentStep = (step: number): boolean => {
     if (step === 1) {
@@ -5186,6 +5198,27 @@ goniometria: {
 
             <form onSubmit={handleCreateAssessment}>
               <div className="modal-body step-fade-in" key={asStep} style={{ minHeight: '300px' }}>
+                {/* Step Review & Confirmation Banner (Desktop & Mobile) */}
+                <div style={{ marginBottom: '16px' }}>
+                  <button
+                    type="button"
+                    className={`btn-confirm-step ${asConfirmedSteps[asStep] ? 'btn-confirm-step-done' : 'btn-confirm-step-pending'}`}
+                    onClick={() => confirmAsStep(asStep)}
+                  >
+                    {asConfirmedSteps[asStep] ? (
+                      <>
+                        <i className="fa-solid fa-circle-check" style={{ color: '#10b981', fontSize: '1.1rem' }}></i>
+                        Dados desta etapa revisados e confirmados
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-clipboard-check" style={{ color: '#ef4444', fontSize: '1.1rem' }}></i>
+                        ✓ Confirmar e Validar Dados Desta Etapa (Clique para validar)
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 {asStep === 1 && (
                   <>
                     <div className="form-group">
@@ -6519,6 +6552,27 @@ goniometria: {
                     })}
                   </div>
                 )}
+
+                {/* Step Review & Confirmation Banner (Desktop & Mobile) */}
+                <div style={{ marginBottom: '16px' }}>
+                  <button
+                    type="button"
+                    className={`btn-confirm-step ${repConfirmedSteps[repActiveStep] ? 'btn-confirm-step-done' : 'btn-confirm-step-pending'}`}
+                    onClick={() => confirmRepStep(repActiveStep)}
+                  >
+                    {repConfirmedSteps[repActiveStep] ? (
+                      <>
+                        <i className="fa-solid fa-circle-check" style={{ color: '#10b981', fontSize: '1.1rem' }}></i>
+                        Dados desta etapa revisados e confirmados
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-clipboard-check" style={{ color: '#ef4444', fontSize: '1.1rem' }}></i>
+                        ✓ Confirmar e Validar Dados Desta Etapa (Clique para validar)
+                      </>
+                    )}
+                  </button>
+                </div>
 
                 {/* PASSO 1: IDENTIFICAÇÃO E ANAMNESE (Globais + Queixas) */}
                 {repActiveStep === 1 && (
