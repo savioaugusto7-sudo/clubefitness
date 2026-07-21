@@ -31,6 +31,7 @@ export default function GestaoContratosPanel({
   const [contracts, setContracts] = useState<any[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
   const [generatingPayments, setGeneratingPayments] = useState(false);
+  const [renewingValidity, setRenewingValidity] = useState(false);
 
   // Form states (Dados Comerciais)
   const [dcPlano, setDcPlano] = useState('');
@@ -508,6 +509,43 @@ export default function GestaoContratosPanel({
     }
   };
 
+  // Explicitly renew contract validity by +1 cycle for Admin/Reception
+  const handleRenewContractValidity = async (clientTarget: any) => {
+    if (!clientTarget) return;
+    const clientNome = clientTarget.dadosPessoais?.nome || 'Aluno';
+    if (!confirm(`Deseja estender a vigência comercial de ${clientNome} em +1 ciclo e lançar a nova parcela no Financeiro?`)) return;
+
+    try {
+      setRenewingValidity(true);
+      const res = await fetch('/api/contracts/renew', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: clientTarget._id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Vigência Renovada com Sucesso!\n\nAluno: ${clientNome}\nNovo Vencimento da Vigência: ${data.data.vencimentoFormatado}\n\nA nova parcela no valor de R$ ${data.data.pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} foi lançada no Controle Financeiro!`);
+        fetchData();
+        if (selectedClient && selectedClient._id === clientTarget._id) {
+          setSelectedClient({
+            ...selectedClient,
+            dadosComerciais: {
+              ...selectedClient.dadosComerciais,
+              vencimento: data.data.novoVencimento
+            }
+          });
+          setDcVencimento(data.data.novoVencimento);
+        }
+      } else {
+        alert('Erro ao renovar vigência: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao renovar vigência: ' + err.message);
+    } finally {
+      setRenewingValidity(false);
+    }
+  };
+
   // Generate dynamic contract HTML text
   const generateContractText = () => {
     const plan = plans.find(p => p._id === dcPlano);
@@ -951,6 +989,14 @@ export default function GestaoContratosPanel({
                           >
                             <i className="fa-solid fa-file-signature" style={{ marginRight: '6px' }}></i> Gerenciar Contratos
                           </button>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)' }}
+                            onClick={() => handleRenewContractValidity(c)}
+                            title="Estender a vigência comercial em +1 ciclo e lançar a parcela no Financeiro"
+                          >
+                            <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Renovar Vigência
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1350,7 +1396,7 @@ export default function GestaoContratosPanel({
               type="submit"
               className="btn btn-secondary"
               disabled={savingComercial}
-              style={{ flex: '1 1 180px' }}
+              style={{ flex: '1 1 140px' }}
             >
               {savingComercial ? (
                 <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</span>
@@ -1364,12 +1410,26 @@ export default function GestaoContratosPanel({
               className="btn btn-primary"
               disabled={generatingPayments}
               onClick={handleGeneratePaymentsExplicitly}
-              style={{ flex: '1 1 220px', background: '#10b981', borderColor: '#10b981', color: '#ffffff', fontWeight: 'bold' }}
+              style={{ flex: '1 1 200px', background: '#10b981', borderColor: '#10b981', color: '#ffffff', fontWeight: 'bold' }}
             >
               {generatingPayments ? (
                 <span><i className="fa-solid fa-spinner fa-spin"></i> Lançando...</span>
               ) : (
-                <span><i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i> Lançar Parcelas no Financeiro</span>
+                <span><i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i> Lançar Parcelas</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={renewingValidity}
+              onClick={() => handleRenewContractValidity(selectedClient)}
+              style={{ flex: '1 1 180px', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.08)', fontWeight: 'bold' }}
+            >
+              {renewingValidity ? (
+                <span><i className="fa-solid fa-spinner fa-spin"></i> Renovando...</span>
+              ) : (
+                <span><i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i> Renovar Vigência (+1 Ciclo)</span>
               )}
             </button>
           </div>

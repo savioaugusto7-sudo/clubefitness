@@ -56,6 +56,7 @@ const DadosComerciaisSchema = new Schema({
   dataPrimeiroVencimento: { type: String },
   criarRecorrenciaMensal: { type: Boolean, default: false },
   recorrenciaMeses: { type: Number, default: 12 },
+  recorrenciaVigencia: { type: Boolean, default: false },
   responsavelVenda: { type: String, default: '' },
   unidadeContratada: { type: String, default: '' },
   observacoesContratuais: { type: String, default: '' },
