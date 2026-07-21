@@ -19,6 +19,17 @@ const getAsaasBaseUrl = () => {
   return (process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3').replace(/\/$/, '');
 };
 
+function formatFormaPagamento(fp?: string): string {
+  if (!fp) return 'Pix Manual';
+  const lower = fp.toLowerCase();
+  if (lower === 'dinheiro') return 'Dinheiro';
+  if (lower === 'pix') return 'Pix Manual';
+  if (lower === 'cartao' || lower === 'cartão') return 'Cartão Manual';
+  if (lower === 'boleto') return 'Boleto';
+  if (lower === 'asaas') return 'Asaas';
+  return fp;
+}
+
 const ensureLocalPaymentsForClients = async () => {
   try {
     const clients = await Client.find({
@@ -66,7 +77,7 @@ const ensureLocalPaymentsForClients = async () => {
             vencimento: dueIso,
             dataPagamento: isZeroVal ? todayStr : '',
             status: isZeroVal ? 'Pago' : 'Pendente',
-            formaPagamento: (com.formaPagamento || 'PIX').toUpperCase(),
+            formaPagamento: formatFormaPagamento(com.formaPagamento),
             parcelaNumero: i + 1,
             parcelasTotal: numParcelas
           });
@@ -172,7 +183,7 @@ export async function POST(request: Request) {
           vencimento: dueIso,
           dataPagamento: isZeroVal ? todayStr : '',
           status: isZeroVal ? 'Pago' : 'Pendente',
-          formaPagamento: (com.formaPagamento || 'PIX').toUpperCase(),
+          formaPagamento: formatFormaPagamento(com.formaPagamento),
           parcelaNumero: i + 1,
           parcelasTotal: numParcelas
         });

@@ -9,7 +9,7 @@ const PaymentSchema = new Schema({
   vencimento: { type: String, required: true }, // formato YYYY-MM-DD
   dataPagamento: { type: String, default: '' },
   status: { type: String, enum: ['Pendente', 'Pago', 'Atrasado', 'Cancelado'], default: 'Pendente' },
-  formaPagamento: { type: String, enum: ['Asaas', 'Pix Manual', 'Dinheiro', 'Cartão Manual'], required: true },
+  formaPagamento: { type: String, default: 'Dinheiro' },
   asaasPaymentId: { type: String, default: '' }, // se for integrado
   asaasInvoiceUrl: { type: String, default: '' },
   parcelaNumero: { type: Number, default: 1 },
