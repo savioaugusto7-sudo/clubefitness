@@ -357,27 +357,45 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       .finally(() => setLoadingSlots(false));
   }, [bookDate, bookService]);
 
+  const normalizeToISO = (dateStr: string | undefined): string => {
+    if (!dateStr) return '';
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        return `${year}-${month}-${day}`;
+      }
+    }
+    if (dateStr.includes('T')) return dateStr.split('T')[0];
+    return dateStr;
+  };
+
   const rawActiveContract = contracts.find(c => c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo');
+
+  const contractEndISO = normalizeToISO(client?.dadosComerciais?.vencimento) || normalizeToISO(rawActiveContract?.dataFim);
+  const contractStartISO = normalizeToISO(rawActiveContract?.dataInicio || client?.dadosComerciais?.dataInicio) || client?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0];
 
   const activeContract = rawActiveContract ? {
     ...rawActiveContract,
     planoNome: rawActiveContract.planoNome || rawActiveContract.planoId?.nome || client?.dadosComerciais?.planoId?.nome || 'Clube Fitness - Monitorado',
-    dataInicio: rawActiveContract.dataInicio || client?.dadosComerciais?.dataInicio || client?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-    dataFim: client?.dadosComerciais?.vencimento || rawActiveContract.dataFim || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+    dataInicio: contractStartISO,
+    dataFim: contractEndISO || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
   } : (client?.dadosComerciais?.planoId || client?.dadosComerciais?.status === 'ativo' ? {
     _id: client._id,
     planoNome: client.dadosComerciais?.planoId?.nome || client.dadosComerciais?.planoNome || 'Clube Fitness - Monitorado',
-    dataInicio: client.dadosComerciais?.dataInicio || client.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-    dataFim: client.dadosComerciais?.vencimento || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+    dataInicio: contractStartISO,
+    dataFim: contractEndISO || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
     frequencia: client.dadosComerciais?.frequencia || client.frequencia || 3
   } : null);
 
   const getRemainingMonthsList = () => {
     if (!activeContract || !trancamentoDataInicio) return [];
-    const start = trancamentoDataInicio;
-    const end = activeContract.dataFim;
-    const startDate = new Date(start + 'T00:00:00');
-    const endDate = new Date(end + 'T00:00:00');
+    const startISO = normalizeToISO(trancamentoDataInicio);
+    const endISO = normalizeToISO(activeContract.dataFim);
+    const startDate = new Date(startISO + 'T00:00:00');
+    const endDate = new Date(endISO + 'T00:00:00');
     const months = [];
     
     let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
