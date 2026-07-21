@@ -577,8 +577,8 @@ export async function POST(request: Request) {
         planoNome: plan.nome,
         valor: installmentValue,
         vencimento: dueDate,
-        status: status === 'assinado' && i === 0 && formaPagamento !== 'asaas' ? 'Pago' : 'Pendente',
-        dataPagamento: status === 'assinado' && i === 0 && formaPagamento !== 'asaas' ? new Date().toISOString().split('T')[0] : '',
+        status: (installmentValue === 0 || (status === 'assinado' && i === 0 && formaPagamento !== 'asaas')) ? 'Pago' : 'Pendente',
+        dataPagamento: (installmentValue === 0 || (status === 'assinado' && i === 0 && formaPagamento !== 'asaas')) ? new Date().toISOString().split('T')[0] : '',
         formaPagamento: formaPagamento === 'asaas' ? 'Asaas' : 
                         (formaPagamento === 'pix' ? 'Pix Manual' : 
                          (formaPagamento === 'cartao' ? 'Cartão Manual' : 'Dinheiro')),

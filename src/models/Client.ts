@@ -53,6 +53,7 @@ const DadosComerciaisSchema = new Schema({
   formaPagamento: { type: String, default: 'pix' },
   creditosUltimoReset: { type: String },
   dataInicio: { type: String },
+  dataPrimeiroVencimento: { type: String },
   responsavelVenda: { type: String, default: '' },
   unidadeContratada: { type: String, default: '' },
   observacoesContratuais: { type: String, default: '' },

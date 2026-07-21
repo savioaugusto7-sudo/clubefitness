@@ -57,14 +57,15 @@ const ensureLocalPaymentsForClients = async () => {
           due.setMonth(due.getMonth() + i);
           const dueIso = due.toISOString().split('T')[0];
 
+          const isZeroVal = parseFloat(valorParcela.toFixed(2)) === 0;
           recordsToInsert.push({
             clientId: client._id,
             clientNome: client.dadosPessoais?.nome || 'Sem Nome',
             planoNome: planName,
             valor: parseFloat(valorParcela.toFixed(2)),
             vencimento: dueIso,
-            dataPagamento: '',
-            status: 'Pendente',
+            dataPagamento: isZeroVal ? todayStr : '',
+            status: isZeroVal ? 'Pago' : 'Pendente',
             formaPagamento: (com.formaPagamento || 'PIX').toUpperCase(),
             parcelaNumero: i + 1,
             parcelasTotal: numParcelas
@@ -162,14 +163,15 @@ export async function POST(request: Request) {
         due.setMonth(due.getMonth() + i);
         const dueIso = due.toISOString().split('T')[0];
 
+        const isZeroVal = parseFloat(valorParcela.toFixed(2)) === 0;
         recordsToInsert.push({
           clientId: client._id,
           clientNome: client.dadosPessoais?.nome || 'Sem Nome',
           planoNome: planName,
           valor: parseFloat(valorParcela.toFixed(2)),
           vencimento: dueIso,
-          dataPagamento: '',
-          status: 'Pendente',
+          dataPagamento: isZeroVal ? todayStr : '',
+          status: isZeroVal ? 'Pago' : 'Pendente',
           formaPagamento: (com.formaPagamento || 'PIX').toUpperCase(),
           parcelaNumero: i + 1,
           parcelasTotal: numParcelas
