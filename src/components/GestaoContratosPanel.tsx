@@ -27,6 +27,7 @@ export default function GestaoContratosPanel({
   // Navigation & General states
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState('vencimento_asc');
   const [contracts, setContracts] = useState<any[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
 
@@ -223,13 +224,49 @@ export default function GestaoContratosPanel({
     };
   }, [showSignatureModal]);
 
-  // Filter clients
-  const filteredClients = clients.filter(c => {
-    const nome = c.dadosPessoais?.nome || '';
-    const cpf = c.dadosPessoais?.cpf || '';
-    const q = normalizeText(searchQuery);
-    return normalizeText(nome).includes(q) || cpf.includes(q);
-  });
+  // Filter and sort clients
+  const sortedClients = [...clients]
+    .filter(c => {
+      const nome = c.dadosPessoais?.nome || '';
+      const cpf = c.dadosPessoais?.cpf || '';
+      const q = normalizeText(searchQuery);
+      return normalizeText(nome).includes(q) || cpf.includes(q);
+    })
+    .sort((a: any, b: any) => {
+      const comA = a.dadosComerciais || {};
+      const comB = b.dadosComerciais || {};
+      const nomeA = a.dadosPessoais?.nome || '';
+      const nomeB = b.dadosPessoais?.nome || '';
+
+      if (sortOption === 'vencimento_asc') {
+        const vencA = comA.vencimento || '9999-12-31';
+        const vencB = comB.vencimento || '9999-12-31';
+        return vencA.localeCompare(vencB);
+      }
+      if (sortOption === 'vencimento_desc') {
+        const vencA = comA.vencimento || '0000-01-01';
+        const vencB = comB.vencimento || '0000-01-01';
+        return vencB.localeCompare(vencA);
+      }
+      if (sortOption === 'alfabetico_asc') {
+        return nomeA.localeCompare(nomeB, 'pt-BR');
+      }
+      if (sortOption === 'alfabetico_desc') {
+        return nomeB.localeCompare(nomeA, 'pt-BR');
+      }
+      if (sortOption === 'inicio_desc') {
+        const iniA = comA.dataInicio || '0000-01-01';
+        const iniB = comB.dataInicio || '0000-01-01';
+        return iniB.localeCompare(iniA);
+      }
+      if (sortOption === 'status') {
+        const statusOrder: Record<string, number> = { ativo: 1, assinado: 1, congelado: 2, lead: 3, pendente: 4, cancelado: 5 };
+        const orderA = statusOrder[comA.status || 'pendente'] || 99;
+        const orderB = statusOrder[comB.status || 'pendente'] || 99;
+        return orderA - orderB;
+      }
+      return 0;
+    });
 
   // Load contracts for selected client
   const loadContracts = async (clientId: string) => {
@@ -771,15 +808,36 @@ export default function GestaoContratosPanel({
           </p>
         </div>
 
-        <div style={{ marginBottom: '20px', display: 'flex', gap: '12px' }}>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Buscar aluno por nome ou CPF..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ maxWidth: '360px' }}
-          />
+        <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ flex: '1 1 280px', maxWidth: '360px' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Buscar aluno por nome ou CPF..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              <i className="fa-solid fa-arrow-down-short-wide" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i>
+              Ordenar por:
+            </label>
+            <select
+              className="select-custom"
+              value={sortOption}
+              onChange={e => setSortOption(e.target.value)}
+              style={{ minWidth: '230px', fontSize: '0.85rem' }}
+            >
+              <option value="vencimento_asc">⏳ Próximo a Encerrar (Vencimento)</option>
+              <option value="vencimento_desc">📅 Vencimento Mais Distante</option>
+              <option value="alfabetico_asc">🔤 Ordem Alfabética (A - Z)</option>
+              <option value="alfabetico_desc">🔤 Ordem Alfabética (Z - A)</option>
+              <option value="inicio_desc">🆕 Contratos Mais Recentes</option>
+              <option value="status">⚡ Status (Contratos Ativos Primeiro)</option>
+            </select>
+          </div>
         </div>
 
         <div className="content-panel">
@@ -796,7 +854,7 @@ export default function GestaoContratosPanel({
                 </tr>
               </thead>
               <tbody>
-                {filteredClients.map((c: any) => {
+                {sortedClients.map((c: any) => {
                   const com = c.dadosComerciais || {};
                   const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
                   const status = com.status || 'pendente';
@@ -840,7 +898,7 @@ export default function GestaoContratosPanel({
                     </tr>
                   );
                 })}
-                {filteredClients.length === 0 && (
+                {sortedClients.length === 0 && (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
                       Nenhum aluno encontrado correspondente à pesquisa.
