@@ -12,6 +12,16 @@ const normalizeText = (str: string) => {
     .toLowerCase();
 };
 
+const formatDateBR = (dateStr: string | undefined): string => {
+  if (!dateStr) return '-';
+  if (dateStr.includes('/')) return dateStr;
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
 interface DashboardReceptionistProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -29,7 +39,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
 
   // Client detail modal
   const [showClientModal, setShowClientModal] = useState(false);
-  const [clientModalTab, setClientModalTab] = useState<'pessoais' | 'comerciais' | 'contratos'>('pessoais');
+  const [clientModalTab, setClientModalTab] = useState<'pessoais' | 'comerciais' | 'contratos' | 'agendamentos'>('pessoais');
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [clientContracts, setClientContracts] = useState<any[]>([]);
 
@@ -77,6 +87,91 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [mpObservacoes, setMpObservacoes] = useState('');
   const [mpSaving, setMpSaving] = useState(false);
   const [dcAsaasCustomerId, setDcAsaasCustomerId] = useState('');
+
+  // Appointment Edit Modal States (Receptionist)
+  const [showEditAptModal, setShowEditAptModal] = useState(false);
+  const [editAptItem, setEditAptItem] = useState<any>(null);
+  const [editAptDate, setEditAptDate] = useState('');
+  const [editAptTime, setEditAptTime] = useState('');
+  const [editAptService, setEditAptService] = useState('Treino Monitorado');
+  const [editAptAvailableSlots, setEditAptAvailableSlots] = useState<string[]>([]);
+  const [loadingEditAptSlots, setLoadingEditAptSlots] = useState(false);
+  const [savingEditApt, setSavingEditApt] = useState(false);
+
+  useEffect(() => {
+    if (!showEditAptModal || !editAptDate || !editAptService) return;
+    setLoadingEditAptSlots(true);
+    fetch(`/api/available-slots?data=${editAptDate}&servico=${encodeURIComponent(editAptService)}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setEditAptAvailableSlots(d.data || []); })
+      .catch(() => setEditAptAvailableSlots([]))
+      .finally(() => setLoadingEditAptSlots(false));
+  }, [showEditAptModal, editAptDate, editAptService]);
+
+  const handleOpenEditAptModal = (apt: any) => {
+    setEditAptItem(apt);
+    setEditAptDate(apt.data || new Date().toISOString().split('T')[0]);
+    setEditAptTime(apt.horario || '');
+    setEditAptService(apt.servico || 'Treino Monitorado');
+    setShowEditAptModal(true);
+  };
+
+  const handleSaveEditApt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editAptItem) return;
+    if (!editAptTime) {
+      alert('Selecione o novo horário.');
+      return;
+    }
+    setSavingEditApt(true);
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editAptItem._id,
+          data: editAptDate,
+          horario: editAptTime,
+          servico: editAptService
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Agendamento alterado com sucesso!');
+        setShowEditAptModal(false);
+        fetchData();
+      } else {
+        alert('Erro ao alterar agendamento: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Erro de rede: ' + e.message);
+    } finally {
+      setSavingEditApt(false);
+    }
+  };
+
+  const handleCancelApt = async (apt: any) => {
+    if (!confirm(`Deseja realmente cancelar o agendamento de ${apt.servico} do dia ${formatDateBR(apt.data)} às ${apt.horario}? O crédito será estornado.`)) return;
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: apt._id,
+          status: 'cancelado'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Agendamento cancelado com sucesso e crédito estornado!');
+        fetchData();
+      } else {
+        alert('Erro ao cancelar agendamento: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Erro de rede: ' + e.message);
+    }
+  };
 
   const getCreditsForFreq = (freq: number): number => {
     if (freq === 1) return 5;
@@ -1239,14 +1334,14 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
             </div>
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', padding: '0 24px' }}>
-              {(['pessoais', 'comerciais', 'contratos'] as const).map(t => (
+              {(['pessoais', 'comerciais', 'contratos', 'agendamentos'] as const).map(t => (
                 <button key={t} onClick={() => setClientModalTab(t)} style={{
                   background: 'none', border: 'none', padding: '12px 16px', cursor: 'pointer',
                   color: clientModalTab === t ? 'var(--color-primary)' : 'var(--text-muted)',
                   borderBottom: clientModalTab === t ? '2px solid var(--color-primary)' : '2px solid transparent',
-                  fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize'
+                  fontSize: '0.85rem', fontWeight: 600
                 }}>
-                  {t === 'pessoais' ? 'Dados Pessoais' : t === 'comerciais' ? 'Dados Comerciais' : 'Contratos'}
+                  {t === 'pessoais' ? 'Dados Pessoais' : t === 'comerciais' ? 'Dados Comerciais' : t === 'contratos' ? 'Contratos' : 'Agendamentos Futuros'}
                 </button>
               ))}
             </div>
@@ -1615,7 +1710,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                                 <strong style={{ color: '#10b981' }}>Gerada</strong> (Status: <strong style={{ textTransform: 'uppercase' }}>{ct.asaasBillingStatus || 'pendente'}</strong>)
                               </span>
                             ) : (
-                              <strong style={{ color: 'var(--text-dim)' }}>Não Gerada</strong>
+                              <em>Não gerada</em>
                             )}
                           </span>
                         </div>
@@ -1650,6 +1745,72 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                   ))}
                 </div>
               )}
+
+              {clientModalTab === 'agendamentos' && (() => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const clientFutureApts = appointments.filter((a: any) => {
+                  const cId = a.clienteId?._id || a.clienteId;
+                  return cId === selectedClient._id && a.data >= todayStr && a.status !== 'cancelado';
+                });
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <i className="fa-solid fa-calendar-days"></i> Agendamentos Futuros ({clientFutureApts.length})
+                      </h4>
+                    </div>
+
+                    {clientFutureApts.length === 0 ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', background: 'var(--bg-darker)', borderRadius: '8px' }}>
+                        Nenhum agendamento futuro ativo para este aluno.
+                      </div>
+                    ) : (
+                      <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                        <table className="data-table" style={{ fontSize: '0.82rem' }}>
+                          <thead>
+                            <tr>
+                              <th>Data / Hora</th>
+                              <th>Serviço</th>
+                              <th>Status</th>
+                              <th style={{ textAlign: 'center' }}>Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {clientFutureApts.map((apt: any) => (
+                              <tr key={apt._id}>
+                                <td>
+                                  <strong>{formatDateBR(apt.data)}</strong> às <strong>{apt.horario}</strong>
+                                </td>
+                                <td>{apt.servico}</td>
+                                <td><span className="badge badge-success">Confirmado</span></td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      onClick={() => handleOpenEditAptModal(apt)}
+                                    >
+                                      <i className="fa-solid fa-pen-to-square"></i> Reagendar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-danger btn-sm"
+                                      onClick={() => handleCancelApt(apt)}
+                                    >
+                                      <i className="fa-solid fa-ban"></i> Cancelar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2593,6 +2754,76 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                 <div style={{ padding: '15px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                   <button type="button" style={btnSecondary} onClick={() => setShowFixedSchedModal(false)}>Cancelar</button>
                   <button type="submit" style={btnPrimary}>Criar Regra</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* Reagendar Modal (Receptionist) */}
+        {showEditAptModal && editAptItem && (
+          <div style={{ ...modalOverlay, zIndex: 99999 }} onClick={() => setShowEditAptModal(false)}>
+            <div style={{ ...modalBox, maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Reagendar Atendimento</h3>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }} onClick={() => setShowEditAptModal(false)}>
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+              <form onSubmit={handleSaveEditApt}>
+                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={labelStyle}>Serviço</label>
+                    <select style={inputStyle} value={editAptService} onChange={e => setEditAptService(e.target.value)}>
+                      <option value="Treino Monitorado">Treino Monitorado</option>
+                      <option value="Treino Livre">Treino Livre</option>
+                      <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                      <option value="Massagem">Massagem</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Nova Data</label>
+                    <input style={inputStyle} type="date" value={editAptDate} onChange={e => setEditAptDate(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Novo Horário</label>
+                    {loadingEditAptSlots ? (
+                      <div style={{ padding: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Carregando horários disponíveis...
+                      </div>
+                    ) : editAptAvailableSlots.length === 0 ? (
+                      <div style={{ padding: '10px', fontSize: '0.85rem', color: '#ef4444' }}>
+                        Nenhum horário disponível para esta data/serviço.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(75px, 1fr))', gap: '8px', maxHeight: '160px', overflowY: 'auto', padding: '6px', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        {editAptAvailableSlots.map(h => (
+                          <button
+                            type="button"
+                            key={h}
+                            onClick={() => setEditAptTime(h)}
+                            style={{
+                              padding: '8px 4px',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              borderRadius: '6px',
+                              border: editAptTime === h ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
+                              background: editAptTime === h ? 'var(--color-primary-glow)' : 'transparent',
+                              color: editAptTime === h ? 'var(--color-primary)' : 'var(--text-main)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {h}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ padding: '15px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button type="button" style={btnSecondary} onClick={() => setShowEditAptModal(false)}>Cancelar</button>
+                  <button type="submit" style={btnPrimary} disabled={savingEditApt || !editAptTime}>
+                    {savingEditApt ? 'Salvando...' : 'Confirmar Reagendamento'}
+                  </button>
                 </div>
               </form>
             </div>
