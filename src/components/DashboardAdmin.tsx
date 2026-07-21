@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import GestaoContratosPanel from './GestaoContratosPanel';
 import AsaasPanel from './AsaasPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
@@ -4566,7 +4567,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       <label>Plano</label>
                       <select className="select-custom" value={plano} onChange={e => setPlano(e.target.value)}>
                         {(plans.length > 0 ? plans : plansList).map((p: any) => (
-                          <option key={p._id || p.id} value={p._id || p.id}>{p.nome} - R$ {p.preco}</option>
+                          <option key={p._id || p.id} value={p._id || p.id}>{p.nome}</option>
                         ))}
                       </select>
                     </div>
@@ -4686,7 +4687,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     </div>
                     <div className="form-group">
                       <label>{creditOperation === 'add' ? 'Quantidade a Adicionar' : 'Quantidade a Subtrair'}</label>
-                      <input type="number" className="form-control" value={creditAmount} onChange={e => setCreditAmount(Number(e.target.value))} min={1} required />
+                      <input type="number" className="form-control" value={creditAmount} onFocus={selectOnFocus} onChange={e => setCreditAmount(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))} min={1} required />
                     </div>
                   </>
                 )}
@@ -4813,7 +4814,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       </div>
                       <div className="form-group">
                         <label>Valor (R$)</label>
-                        <input type="number" className="form-control" value={finValor} onChange={e => setFinValor(Number(e.target.value))} required />
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-control"
+                          value={finValor ? formatCurrencyBRL(finValor) : ''}
+                          onFocus={selectOnFocus}
+                          onChange={e => {
+                            const rawDigits = e.target.value.replace(/\D/g, '');
+                            const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
+                            setFinValor(num);
+                          }}
+                          placeholder="0,00"
+                          required
+                        />
                       </div>
                     </div>
                     <div className="form-row">

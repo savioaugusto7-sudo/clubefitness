@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import SearchableSelect from './SearchableSelect';
 import GestaoContratosPanel from './GestaoContratosPanel';
 
@@ -1450,7 +1451,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                           }
                         }}>
                           <option value="">Selecione...</option>
-                          {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} — {fmt(p.preco)}</option>)}
+                          {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}</option>)}
                         </select>
                       </div>
                       <div>
@@ -1481,7 +1482,19 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                       </div>
                       <div>
                         <label className="comercial-field-label"><i className="fa-solid fa-money-bill-wave"></i> {dcDuracao === 'semana' ? 'Valor Semanal (R$)' : dcDuracao === 'anual' ? 'Valor Anual (R$)' : 'Valor Mensal (R$)'}</label>
-                        <input type="number" className="form-control" value={dcValorUnitario} onChange={e => setDcValorUnitario(Number(e.target.value))} min={0} />
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-control"
+                          value={dcValorUnitario ? formatCurrencyBRL(dcValorUnitario) : ''}
+                          onFocus={selectOnFocus}
+                          onChange={e => {
+                            const rawDigits = e.target.value.replace(/\D/g, '');
+                            const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
+                            setDcValorUnitario(num);
+                          }}
+                          placeholder="0,00"
+                        />
                       </div>
                     </div>
                   </div>
@@ -1500,11 +1513,28 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                       </div>
                       <div>
                         <label className="comercial-field-label"><i className="fa-solid fa-tags"></i> Valor Desconto</label>
-                        <input type="number" className="form-control" value={dcDescontoValor} onChange={e => setDcDescontoValor(Number(e.target.value))} />
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-control"
+                          value={dcDescontoValor ? (dcDescontoTipo === 'percentual' ? String(dcDescontoValor) : formatCurrencyBRL(dcDescontoValor)) : ''}
+                          onFocus={selectOnFocus}
+                          onChange={e => {
+                            if (dcDescontoTipo === 'percentual') {
+                              const raw = e.target.value.replace(/\D/g, '');
+                              setDcDescontoValor(raw ? Math.min(100, parseInt(raw, 10)) : 0);
+                            } else {
+                              const rawDigits = e.target.value.replace(/\D/g, '');
+                              const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
+                              setDcDescontoValor(num);
+                            }
+                          }}
+                          placeholder={dcDescontoTipo === 'percentual' ? '0%' : '0,00'}
+                        />
                       </div>
                       <div>
                         <label className="comercial-field-label"><i className="fa-solid fa-credit-card"></i> Parcelas</label>
-                        <input type="number" className="form-control" min={1} value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} />
+                        <input type="number" className="form-control" min={1} value={dcParcelas} onFocus={selectOnFocus} onChange={e => setDcParcelas(Math.max(1, parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10)))} />
                       </div>
                     </div>
                   </div>
@@ -2451,7 +2481,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                           }
                         }}>
                           <option value="">Selecione...</option>
-                          {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} — {fmt(p.preco)}</option>)}
+                          {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}</option>)}
                         </select>
                       </div>
                       <div>

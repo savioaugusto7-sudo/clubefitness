@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -969,7 +970,8 @@ export default function GestaoContratosPanel({
                 type="number"
                 className="form-control"
                 value={dcVigenciaQtd}
-                onChange={e => setDcVigenciaQtd(Number(e.target.value))}
+                onFocus={selectOnFocus}
+                onChange={e => setDcVigenciaQtd(Math.max(1, parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10)))}
                 min={1}
                 required
               />
@@ -987,11 +989,22 @@ export default function GestaoContratosPanel({
             <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Desconto Valor</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 className="form-control"
-                value={dcDescontoValor}
-                onChange={e => setDcDescontoValor(Number(e.target.value))}
-                min={0}
+                value={dcDescontoValor ? (dcDescontoTipo === 'percentual' ? String(dcDescontoValor) : formatCurrencyBRL(dcDescontoValor)) : ''}
+                onFocus={selectOnFocus}
+                onChange={e => {
+                  if (dcDescontoTipo === 'percentual') {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setDcDescontoValor(raw ? Math.min(100, parseInt(raw, 10)) : 0);
+                  } else {
+                    const rawDigits = e.target.value.replace(/\D/g, '');
+                    const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
+                    setDcDescontoValor(num);
+                  }
+                }}
+                placeholder={dcDescontoTipo === 'percentual' ? '0%' : '0,00'}
               />
             </div>
           </div>
@@ -1008,11 +1021,17 @@ export default function GestaoContratosPanel({
             <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Valor Unitário (R$)</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 className="form-control"
-                value={dcValorUnitario}
-                onChange={e => setDcValorUnitario(Number(e.target.value))}
-                min={0}
+                value={dcValorUnitario ? formatCurrencyBRL(dcValorUnitario) : ''}
+                onFocus={selectOnFocus}
+                onChange={e => {
+                  const rawDigits = e.target.value.replace(/\D/g, '');
+                  const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
+                  setDcValorUnitario(num);
+                }}
+                placeholder="0,00"
                 required
               />
             </div>
@@ -1057,7 +1076,8 @@ export default function GestaoContratosPanel({
                 type="number"
                 className="form-control"
                 value={dcCreditosTotal}
-                onChange={e => setDcCreditosTotal(Number(e.target.value))}
+                onFocus={selectOnFocus}
+                onChange={e => setDcCreditosTotal(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
                 min={0}
                 required
               />
@@ -1071,7 +1091,8 @@ export default function GestaoContratosPanel({
                 type="number"
                 className="form-control"
                 value={dcCreditosMassagem}
-                onChange={e => setDcCreditosMassagem(Number(e.target.value))}
+                onFocus={selectOnFocus}
+                onChange={e => setDcCreditosMassagem(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
                 min={0}
               />
             </div>
@@ -1081,7 +1102,8 @@ export default function GestaoContratosPanel({
                 type="number"
                 className="form-control"
                 value={dcCreditosEmergencia}
-                onChange={e => setDcCreditosEmergencia(Number(e.target.value))}
+                onFocus={selectOnFocus}
+                onChange={e => setDcCreditosEmergencia(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
                 min={0}
               />
             </div>
@@ -1274,7 +1296,7 @@ export default function GestaoContratosPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {contracts.map(c => {
+                    {contracts.map((c: any) => {
                       const cType = c.assinaturaPresencialImage ? 'Presencial (Touch)' : c.clicksignDocKey ? 'Clicksign' : 'Manual';
                       const st = c.status === 'assinado' ? 'assinado' : (c.clicksignStatus || c.status);
                       const statusColor = st === 'assinado' ? 'var(--color-success)' : st === 'cancelado' ? 'var(--color-danger)' : 'var(--color-warning)';

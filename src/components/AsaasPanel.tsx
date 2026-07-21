@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 
 interface AsaasClientInfo {
   clientId: string;
@@ -634,12 +635,16 @@ export default function AsaasPanel() {
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-dim)' }}>R$</span>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="1"
+                    type="text"
+                    inputMode="decimal"
                     className="form-control"
-                    value={formValor || ''}
-                    onChange={e => setFormValor(Number(e.target.value))}
+                    value={formValor ? formatCurrencyBRL(formValor) : ''}
+                    onFocus={selectOnFocus}
+                    onChange={e => {
+                      const rawDigits = e.target.value.replace(/\D/g, '');
+                      const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
+                      setFormValor(num);
+                    }}
                     placeholder="0,00"
                     style={{ paddingLeft: '36px' }}
                     required
