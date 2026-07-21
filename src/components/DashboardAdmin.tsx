@@ -202,6 +202,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [acAction, setAcAction] = useState<'bloquear' | 'alterar_capacidade' | 'adicionar'>('bloquear');
   const [acCapacity, setAcCapacity] = useState(6);
 
+  // User Management filter & sorting states
+  const [userRoleFilter, setUserRoleFilter] = useState('todos');
+  const [userPlanFilter, setUserPlanFilter] = useState('todos');
+  const [userSortOption, setUserSortOption] = useState('alfabetico_asc');
+
   // Fixed Schedule form states
   const [showFixedSchedModal, setShowFixedSchedModal] = useState(false);
   const [fsClient, setFsClient] = useState('');
@@ -2809,9 +2814,74 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           </div>
 
           <div className="content-panel">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar usurio..." value={getSearchQuery('usuarios')} onChange={e => setSearchQueryForKey('usuarios', e.target.value)} style={{ maxWidth: '300px' }} />
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Buscar por nome ou e-mail..."
+                  value={getSearchQuery('usuarios')}
+                  onChange={e => setSearchQueryForKey('usuarios', e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-filter" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Perfil:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={userRoleFilter}
+                    onChange={e => setUserRoleFilter(e.target.value)}
+                    style={{ minWidth: '150px', fontSize: '0.83rem', padding: '6px 10px' }}
+                  >
+                    <option value="todos">🌐 Todos os Perfis</option>
+                    <option value="aluno">🎓 Alunos</option>
+                    <option value="profissional">🩺 Profissionais</option>
+                    <option value="recepcao">💼 Recepção</option>
+                    <option value="admin">⚡ Administradores</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Plano/Detalhe:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={userPlanFilter}
+                    onChange={e => setUserPlanFilter(e.target.value)}
+                    style={{ minWidth: '170px', fontSize: '0.83rem', padding: '6px 10px' }}
+                  >
+                    <option value="todos">📁 Todos os Planos/Detalhes</option>
+                    {plans.map((p: any) => (
+                      <option key={p._id || p.id} value={p.nome}>{p.nome}</option>
+                    ))}
+                    <option value="Fisioterapia">Fisioterapia</option>
+                    <option value="Educador Físico">Educador Físico</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-arrow-down-short-wide" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Ordenar:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={userSortOption}
+                    onChange={e => setUserSortOption(e.target.value)}
+                    style={{ minWidth: '180px', fontSize: '0.83rem', padding: '6px 10px' }}
+                  >
+                    <option value="alfabetico_asc">🔤 Nome (A - Z)</option>
+                    <option value="alfabetico_desc">🔤 Nome (Z - A)</option>
+                    <option value="perfil">👤 Agrupar por Perfil</option>
+                    <option value="recente">🆕 Mais Recentes</option>
+                  </select>
+                </div>
+              </div>
             </div>
+
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
@@ -2829,10 +2899,68 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = users.filter(u => normalizeText(u.nome).includes(q) || normalizeText(u.email).includes(q));
-                    const totalPages = Math.ceil(filtered.length / size);
+
+                    const filtered = users.filter(u => {
+                      const nome = normalizeText(u.nome || '');
+                      const email = normalizeText(u.email || '');
+                      const matchesSearch = nome.includes(q) || email.includes(q);
+                      if (!matchesSearch) return false;
+
+                      // Role filter
+                      const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.tipo];
+                      if (userRoleFilter !== 'todos') {
+                        if (userRoleFilter === 'aluno' && !userRoles.includes('client')) return false;
+                        if (userRoleFilter === 'profissional' && !userRoles.includes('professional')) return false;
+                        if (userRoleFilter === 'recepcao' && !userRoles.includes('receptionist')) return false;
+                        if (userRoleFilter === 'admin' && !userRoles.includes('admin')) return false;
+                      }
+
+                      // Plan / Detail Filter
+                      if (userPlanFilter !== 'todos') {
+                        const com = u.dadosComerciais || {};
+                        const planName = (com.planoId?.nome || com.planoId || '').toString().toLowerCase();
+                        const profSpec = (u.especialidade || '').toString().toLowerCase();
+                        const target = userPlanFilter.toLowerCase();
+                        if (!planName.includes(target) && !profSpec.includes(target)) return false;
+                      }
+
+                      return true;
+                    });
+
+                    // Dynamic sorting
+                    const sorted = [...filtered].sort((a: any, b: any) => {
+                      const nomeA = a.nome || '';
+                      const nomeB = b.nome || '';
+
+                      if (userSortOption === 'alfabetico_asc') {
+                        return nomeA.localeCompare(nomeB, 'pt-BR');
+                      }
+                      if (userSortOption === 'alfabetico_desc') {
+                        return nomeB.localeCompare(nomeA, 'pt-BR');
+                      }
+                      if (userSortOption === 'recente') {
+                        const dateA = a.createdAt || a._id || '';
+                        const dateB = b.createdAt || b._id || '';
+                        return dateB.localeCompare(dateA);
+                      }
+                      if (userSortOption === 'perfil') {
+                        const rolesA = a.roles && a.roles.length > 0 ? a.roles : [a.tipo];
+                        const rolesB = b.roles && b.roles.length > 0 ? b.roles : [b.tipo];
+                        const getRolePriority = (rList: string[]) => {
+                          if (rList.includes('admin')) return 1;
+                          if (rList.includes('receptionist')) return 2;
+                          if (rList.includes('professional')) return 3;
+                          if (rList.includes('client')) return 4;
+                          return 5;
+                        };
+                        return getRolePriority(rolesA) - getRolePriority(rolesB);
+                      }
+                      return 0;
+                    });
+
+                    const totalPages = Math.ceil(sorted.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+                    const paginated = sorted.slice((curP - 1) * size, curP * size);
 
                     return paginated.map(u => {
                       const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.tipo];
