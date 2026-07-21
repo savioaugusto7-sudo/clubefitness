@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useTransition } from 'react';
 import { useSession } from 'next-auth/react';
 import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
@@ -361,6 +361,25 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   
   // Wizard states
   const [asStep, setAsStep] = useState(1);
+  const [isNavigatingStep, setIsNavigatingStep] = useState(false);
+  const [, startStepTransition] = useTransition();
+
+  const changeAsStep = (newStep: number) => {
+    setIsNavigatingStep(true);
+    startStepTransition(() => {
+      setAsStep(newStep);
+      setTimeout(() => setIsNavigatingStep(false), 120);
+    });
+  };
+
+  const changeRepStep = (newStep: number) => {
+    setIsNavigatingStep(true);
+    startStepTransition(() => {
+      setRepActiveStep(newStep);
+      setTimeout(() => setIsNavigatingStep(false), 120);
+    });
+  };
+
   const [draftOnOpen, setDraftOnOpen] = useState<any>(null);
   const [checkedStDraftClient, setCheckedStDraftClient] = useState<string | null>(null);
   const [checkedRepDraftClient, setCheckedRepDraftClient] = useState<string | null>(null);
@@ -5068,7 +5087,7 @@ goniometria: {
             </div>
 
             <form onSubmit={handleCreateAssessment}>
-              <div className="modal-body" style={{ minHeight: '300px' }}>
+              <div className="modal-body step-fade-in" key={asStep} style={{ minHeight: '300px' }}>
                 {asStep === 1 && (
                   <>
                     <div className="form-group">
@@ -6281,17 +6300,24 @@ goniometria: {
                 )}
               </div>
               <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-                <button type="button" className="btn btn-secondary" onClick={handleCloseAssessment}>Cancelar</button>
+                <button type="button" className="btn btn-secondary" onClick={handleCloseAssessment} disabled={isNavigatingStep}>Cancelar</button>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   {asStep > 1 && (
-                    <button type="button" className="btn btn-secondary" onClick={() => setAsStep(asStep - 1)}>
-                      <i className="fa-solid fa-chevron-left"></i> Voltar
+                    <button type="button" className="btn btn-secondary" onClick={() => changeAsStep(asStep - 1)} disabled={isNavigatingStep}>
+                      {isNavigatingStep ? (
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-chevron-left" style={{ marginRight: '6px' }}></i> Voltar
+                        </>
+                      )}
                     </button>
                   )}
                   {asStep < 6 ? (
                     <button
                       type="button"
                       className="btn btn-primary"
+                      disabled={isNavigatingStep}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -6305,14 +6331,22 @@ goniometria: {
                             setDraftOnOpen(null);
                           }
                         }
-                        setAsStep(prev => Math.min(6, prev + 1));
+                        changeAsStep(Math.min(6, asStep + 1));
                       }}
                       style={{ cursor: 'pointer', zIndex: 10, position: 'relative' }}
                     >
-                      Avançar <i className="fa-solid fa-chevron-right"></i>
+                      {isNavigatingStep ? (
+                        <>
+                          <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Carregando...
+                        </>
+                      ) : (
+                        <>
+                          Avançar <i className="fa-solid fa-chevron-right" style={{ marginLeft: '6px' }}></i>
+                        </>
+                      )}
                     </button>
                   ) : (
-                    <button type="submit" className="btn btn-success">
+                    <button type="submit" className="btn btn-success" disabled={isNavigatingStep}>
                       <i className="fa-solid fa-check"></i> Concluir Avaliação
                     </button>
                   )}
@@ -6337,7 +6371,7 @@ goniometria: {
               <button className="modal-close" onClick={handleCloseReport}>&times;</button>
             </div>
             <form onSubmit={handleCreateReport}>
-              <div className="modal-body" style={{ maxHeight: '74vh', overflowY: 'auto', padding: '20px' }}>
+              <div className="modal-body step-fade-in" key={repActiveStep} style={{ maxHeight: '74vh', overflowY: 'auto', padding: '20px' }}>
                 
 
 
@@ -7529,29 +7563,44 @@ goniometria: {
               <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                 <div>
                   {repActiveStep > 1 && (
-                    <button type="button" className="btn btn-secondary" onClick={() => setRepActiveStep(repActiveStep - 1)}>
-                      Anterior
+                    <button type="button" className="btn btn-secondary" onClick={() => changeRepStep(repActiveStep - 1)} disabled={isNavigatingStep}>
+                      {isNavigatingStep ? (
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-chevron-left" style={{ marginRight: '6px' }}></i> Anterior
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="button" className="btn btn-secondary" onClick={handleCloseReport}>Cancelar</button>
+                  <button type="button" className="btn btn-secondary" onClick={handleCloseReport} disabled={isNavigatingStep}>Cancelar</button>
                   {repActiveStep < 7 ? (
                     <button
                       type="button"
                       className="btn btn-primary"
+                      disabled={isNavigatingStep}
                       onClick={() => {
                         if (!repClient) {
                           alert('Selecione o paciente antes de avançar.');
                           return;
                         }
-                        setRepActiveStep(repActiveStep + 1);
+                        changeRepStep(repActiveStep + 1);
                       }}
                     >
-                      Avançar
+                      {isNavigatingStep ? (
+                        <>
+                          <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Carregando...
+                        </>
+                      ) : (
+                        <>
+                          Avançar <i className="fa-solid fa-chevron-right" style={{ marginLeft: '6px' }}></i>
+                        </>
+                      )}
                     </button>
                   ) : (
-                    <button type="submit" className="btn btn-primary">
+                    <button type="submit" className="btn btn-primary" disabled={isNavigatingStep}>
                       Registrar e Baixar PDF
                     </button>
                   )}

@@ -3490,3 +3490,19 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   }
 }
 
+/* Smooth Step Transition Animation */
+.step-fade-in {
+  animation: fadeInStep 0.22s ease-in-out;
+}
+
+@keyframes fadeInStep {
+  from {
+    opacity: 0.6;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
