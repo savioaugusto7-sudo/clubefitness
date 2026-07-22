@@ -2664,7 +2664,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
                           <td>{c.dadosPessoais?.cpf || '-'}</td>
                           <td>{c.dadosPessoais?.telefone || '-'}</td>
-                          <td>{planName}</td>
+                          <td>
+                            {planName}
+                            {Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia) && (
+                              <div style={{ marginTop: '2px' }}>
+                                <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.62rem', padding: '2px 4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '3px' }}>
+                                  <i className="fa-solid fa-arrows-rotate fa-spin" style={{ fontSize: '0.55rem' }}></i> Recorrência
+                                </span>
+                              </div>
+                            )}
+                          </td>
                           <td>{c.dadosComerciais?.vencimento || '-'}</td>
                           <td style={{ textAlign: 'center' }}><strong>{credDisp}</strong> <small style={{ color: 'var(--text-dim)' }}>(de {credTotal})</small></td>
                           <td style={{ textAlign: 'center' }}>

@@ -30,6 +30,55 @@ function formatFormaPagamento(fp?: string): string {
   return fp;
 }
 
+export async function syncClientPlanValidity(clientId: string): Promise<void> {
+  try {
+    const client = await Client.findById(clientId);
+    if (!client || !client.dadosComerciais) return;
+
+    const com = client.dadosComerciais;
+    const isRecurring = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+
+    // If client does NOT have recurrence active, do not auto-extend validity based on paid installments!
+    if (!isRecurring) return;
+
+    // Find all paid payments (non-zero or zero payments, status === 'Pago')
+    const paidPayments = await Payment.find({
+      clientId: client._id,
+      status: 'Pago'
+    }).sort({ vencimento: 1 });
+
+    if (paidPayments.length === 0) return;
+
+    // Get the highest vencimento date of paid payments
+    const lastPaidPayment = paidPayments[paidPayments.length - 1];
+    const baseDateStr = lastPaidPayment.vencimento;
+
+    if (!baseDateStr) return;
+
+    // Calculate next validity date (+1 cycle / duration based)
+    const baseDate = new Date((baseDateStr.includes('T') ? baseDateStr.split('T')[0] : baseDateStr) + 'T00:00:00');
+    const duracao = com.duracao || 'mensal';
+    const duracaoQtd = Number(com.duracaoQtd) || 1;
+
+    const nextValidityDate = new Date(baseDate);
+    if (duracao === 'semana') {
+      nextValidityDate.setDate(nextValidityDate.getDate() + (duracaoQtd * 7));
+    } else if (duracao === 'anual') {
+      nextValidityDate.setMonth(nextValidityDate.getMonth() + (duracaoQtd * 12));
+    } else {
+      nextValidityDate.setMonth(nextValidityDate.getMonth() + duracaoQtd);
+    }
+
+    const nextValidityIso = nextValidityDate.toISOString().split('T')[0];
+
+    // Update the client commercial validity vencimento
+    com.vencimento = nextValidityIso;
+    await client.save();
+  } catch (error) {
+    console.error('Error syncing client plan validity:', error);
+  }
+}
+
 const ensureLocalPaymentsForClients = async () => {
   try {
     const clients = await Client.find({
@@ -88,6 +137,9 @@ const ensureLocalPaymentsForClients = async () => {
           await Payment.insertMany(recordsToInsert);
         }
       }
+      
+      // Sync client plan validity based on payments
+      await syncClientPlanValidity(client._id);
     }
   } catch (err) {
     console.error('Error ensuring local payments for clients:', err);
@@ -136,6 +188,24 @@ export async function POST(request: Request) {
     await dbConnect();
     const body = await request.json();
     const { action } = body;
+
+    // CANCEL CLIENT RECURRENCE
+    if (action === 'cancel_recurrence') {
+      const { clientId } = body;
+      if (!clientId) {
+        return NextResponse.json({ success: false, error: 'clientId é obrigatório' }, { status: 400 });
+      }
+      const client = await Client.findById(clientId);
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
+      }
+      if (client.dadosComerciais) {
+        client.dadosComerciais.criarRecorrenciaMensal = false;
+        client.dadosComerciais.recorrenciaVigencia = false;
+        await client.save();
+      }
+      return NextResponse.json({ success: true, message: 'Recorrência finalizada com sucesso!' });
+    }
 
     // GENERATE LOCAL PAYMENTS FOR CLIENT
     if (action === 'generate_local_payments') {
@@ -221,6 +291,7 @@ export async function POST(request: Request) {
       if (client && client.dadosComerciais) {
         client.dadosComerciais.status = 'ativo';
         await client.save();
+        await syncClientPlanValidity(client._id);
       }
 
       return NextResponse.json({ success: true, data: payment });

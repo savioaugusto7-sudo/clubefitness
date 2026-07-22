@@ -32,6 +32,7 @@ export default function GestaoContratosPanel({
   const [loadingContracts, setLoadingContracts] = useState(false);
   const [generatingPayments, setGeneratingPayments] = useState(false);
   const [renewingValidity, setRenewingValidity] = useState(false);
+  const [cancelingRecurrence, setCancelingRecurrence] = useState(false);
 
   // Form states (Dados Comerciais)
   const [dcPlano, setDcPlano] = useState('');
@@ -546,6 +547,44 @@ export default function GestaoContratosPanel({
     }
   };
 
+  // Finalize/Cancel client plan recurrence
+  const handleCancelRecurrence = async (clientTarget: any) => {
+    if (!clientTarget) return;
+    const clientNome = clientTarget.dadosPessoais?.nome || 'Aluno';
+    if (!confirm(`Deseja realmente finalizar a recorrência de parcelas e vigência para o aluno ${clientNome}?`)) return;
+
+    try {
+      setCancelingRecurrence(true);
+      const res = await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel_recurrence', clientId: clientTarget._id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Recorrência finalizada com sucesso para ${clientNome}!`);
+        fetchData();
+        if (selectedClient && selectedClient._id === clientTarget._id) {
+          setSelectedClient({
+            ...selectedClient,
+            dadosComerciais: {
+              ...selectedClient.dadosComerciais,
+              criarRecorrenciaMensal: false,
+              recorrenciaVigencia: false
+            }
+          });
+          setDcCriarRecorrencia(false);
+        }
+      } else {
+        alert('Erro ao finalizar recorrência: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro ao finalizar recorrência: ' + err.message);
+    } finally {
+      setCancelingRecurrence(false);
+    }
+  };
+
   // Generate dynamic contract HTML text
   const generateContractText = () => {
     const plan = plans.find(p => p._id === dcPlano);
@@ -963,7 +1002,16 @@ export default function GestaoContratosPanel({
                     <tr key={c._id}>
                       <td style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome || 'Sem Nome'}</td>
                       <td>{c.dadosPessoais?.cpf || '—'}</td>
-                      <td>{plan?.nome || '—'}</td>
+                      <td>
+                         {plan?.nome || '—'}
+                         {Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia) && (
+                           <div style={{ marginTop: '4px' }}>
+                             <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', padding: '3px 6px', background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px' }}>
+                               <i className="fa-solid fa-arrows-rotate fa-spin" style={{ fontSize: '0.6rem' }}></i> Recorrência Ativada
+                             </span>
+                           </div>
+                         )}
+                       </td>
                       <td>
                         {com.dataInicio ? `${new Date(com.dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} até ${com.vencimento ? new Date(com.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}` : '—'}
                       </td>
@@ -990,13 +1038,24 @@ export default function GestaoContratosPanel({
                             <i className="fa-solid fa-file-signature" style={{ marginRight: '6px' }}></i> Gerenciar Contratos
                           </button>
                           <button
-                            className="btn btn-secondary"
-                            style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)' }}
-                            onClick={() => handleRenewContractValidity(c)}
-                            title="Estender a vigência comercial em +1 ciclo e lançar a parcela no Financeiro"
-                          >
-                            <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Renovar Vigência
-                          </button>
+                             className="btn btn-secondary"
+                             style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)' }}
+                             onClick={() => handleRenewContractValidity(c)}
+                             title="Estender a vigência comercial em +1 ciclo e lançar a parcela no Financeiro"
+                           >
+                             <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Renovar Vigência
+                           </button>
+
+                           {Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia) && (
+                             <button
+                               className="btn btn-secondary"
+                               style={{ padding: '6px 10px', fontSize: '0.78rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)' }}
+                               onClick={() => handleCancelRecurrence(c)}
+                               title="Finalizar e encerrar a recorrência mensal deste plano"
+                             >
+                               <i className="fa-solid fa-circle-stop" style={{ marginRight: '4px' }}></i> Finalizar Recorrência
+                             </button>
+                           )}
                         </div>
                       </td>
                     </tr>
@@ -1432,6 +1491,22 @@ export default function GestaoContratosPanel({
                 <span><i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i> Renovar Vigência (+1 Ciclo)</span>
               )}
             </button>
+
+             {Boolean(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) && (
+               <button
+                 type="button"
+                 className="btn btn-secondary"
+                 disabled={cancelingRecurrence}
+                 onClick={() => handleCancelRecurrence(selectedClient)}
+                 style={{ flex: '1 1 180px', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)', fontWeight: 'bold' }}
+               >
+                 {cancelingRecurrence ? (
+                   <span><i className="fa-solid fa-spinner fa-spin"></i> Finalizando...</span>
+                 ) : (
+                   <span><i className="fa-solid fa-circle-stop" style={{ marginRight: '6px' }}></i> Finalizar Recorrência</span>
+                 )}
+               </button>
+             )}
           </div>
         </form>
 
