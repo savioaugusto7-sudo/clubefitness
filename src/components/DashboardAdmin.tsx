@@ -4688,7 +4688,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     </div>
                     <div className="form-group">
                       <label>E-mail de Acesso (Google)</label>
-                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
+                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required />
                     </div>
                     <div className="form-row">
                       <div className="form-group">
@@ -4784,7 +4784,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     </div>
                     <div className="form-group">
                       <label>E-mail de Acesso (Google)</label>
-                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
+                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required />
                     </div>
                     <div className="form-row">
                       <div className="form-group">
@@ -4837,7 +4837,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     </div>
                     <div className="form-group">
                       <label>E-mail de Acesso (Google)</label>
-                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingItem} />
+                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required />
                     </div>
                     <div className="form-group">
                       <label style={{ display: 'block', marginBottom: '8px' }}>Papéis / Classes de Uso (Múltiplos Permitidos)</label>
