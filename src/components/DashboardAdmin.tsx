@@ -943,11 +943,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     }
   };
 
-  // F7   Simulador de Recebimentos
-  const [finTab, setFinTab] = useState<'contas_pagar' | 'recebimentos' | 'mensalidades'>('mensalidades');
-  const [showSimuladorModal, setShowSimuladorModal] = useState(false);
-  const [simClient, setSimClient] = useState<any>(null);
-  const [simForma, setSimForma] = useState<'pix' | 'boleto'>('pix');
+  // F7   Controle Financeiro Tabs
+  const [finTab, setFinTab] = useState<'contas_pagar' | 'mensalidades'>('mensalidades');
 
   // F15/F16  Financial filters
   const [finFilterStatus, setFinFilterStatus] = useState('');
@@ -3481,12 +3478,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             >
               <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i>Contas a Pagar
             </button>
-            <button
-              onClick={() => setFinTab('recebimentos')}
-              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'recebimentos' ? 'var(--color-warning)' : 'var(--text-dim)', borderBottom: finTab === 'recebimentos' ? '3px solid var(--color-warning)' : '3px solid transparent', marginBottom: '-2px' }}
-            >
-              <i className="fa-solid fa-qrcode" style={{ marginRight: '6px' }}></i>Simulador de Recebimentos
-            </button>
+
           </div>
 
           {/* TAB 1: MENSALIDADES */}
@@ -3856,54 +3848,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             </>
           )}
 
-          {/* TAB 3: SIMULADOR DE RECEBIMENTOS */}
-          {finTab === 'recebimentos' && (
-            <>
-              <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '0.875rem' }}>
-                <i className="fa-solid fa-circle-info" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
-                Este simulador permite emitir cobranças PIX/Boleto e registrar pagamentos de mensalidades. As cobranças são <strong>simuladas</strong> (sandbox) e não geram cobranças reais.
-              </div>
-              <div className="content-panel">
-                <div className="table-responsive">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Aluno</th><th>Plano Atual</th><th>Status</th><th>Vencimento</th><th style={{ textAlign: 'center' }}>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {clients.map(c => {
-                        const status = c.dadosComerciais?.status || 'ativo';
-                        const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
-                        const planPreco = c.dadosComerciais?.planoId?.preco || 0;
-                        return (
-                          <tr key={c._id}>
-                            <td><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
-                            <td>{planName}<br/><small style={{ color: 'var(--text-dim)' }}>R$ {planPreco.toFixed(2).replace('.', ',')}/mês</small></td>
-                            <td><span className={`badge ${status === 'ativo' ? 'badge-success' : 'badge-danger'}`}>{status === 'ativo' ? 'Ativo' : 'Vencido'}</span></td>
-                            <td>{c.dadosComerciais?.vencimento || '-'}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                <button className="btn btn-primary btn-sm" onClick={() => { setSimClient(c); setSimForma('pix'); setShowSimuladorModal(true); }}>
-                                  <i className="fa-solid fa-qrcode"></i> Emitir PIX
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => { setSimClient(c); setSimForma('boleto'); setShowSimuladorModal(true); }}>
-                                  <i className="fa-solid fa-barcode"></i> Boleto
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {clients.length === 0 && (
-                        <tr><td colSpan={5}><div className="empty-state-card"><i className="fa-solid fa-users empty-state-icon"></i><div className="empty-state-title">Nenhum aluno cadastrado</div></div></td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
+
         </>
       )}
 
@@ -5317,49 +5262,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
          </div>
        )}
 
-       {/* F7  Simulador de Cobrana */}
-       {showSimuladorModal && simClient && (
-         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowSimuladorModal(false)}>
-           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '95%' }}>
-             <div className="modal-header" style={{ background: 'linear-gradient(135deg,#10b981,#059669)', color: '#fff' }}>
-               <h3><i className={`fa-solid fa-${simForma === 'pix' ? 'qrcode' : 'barcode'}`} style={{ marginRight: '8px' }}></i>Simulador  {simForma === 'pix' ? 'PIX' : 'Boleto'}</h3>
-               <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowSimuladorModal(false)}>&times;</button>
-             </div>
-             <div className="modal-body" style={{ textAlign: 'center' }}>
-               <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', marginBottom: '14px', textAlign: 'left', fontSize: '0.875rem' }}>
-                 <p style={{ margin: '0 0 4px 0' }}><strong>Aluno:</strong> {simClient.dadosPessoais?.nome}</p>
-                 <p style={{ margin: '0 0 4px 0' }}><strong>Valor:</strong> R$ {(simClient.dadosComerciais?.planoId?.preco || 0).toFixed(2).replace('.', ',')}</p>
-                 <p style={{ margin: 0 }}><strong>Forma:</strong> {simForma === 'pix' ? 'Pix' : 'Boleto Bancrio'}</p>
-               </div>
-               {simForma === 'pix' ? (
-                 <div style={{ margin: '0 auto 14px', width: '150px', height: '150px', background: '#fff', border: '2px solid #e5e7eb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                   <i className="fa-solid fa-qrcode" style={{ fontSize: '80px', color: '#111' }}></i>
-                   <small style={{ color: '#888', fontSize: '0.65rem', marginTop: '4px' }}>QR Code Simulado</small>
-                 </div>
-               ) : (
-                 <div style={{ background: '#fff', border: '2px dashed #ccc', borderRadius: '8px', padding: '16px', marginBottom: '12px' }}>
-                   <i className="fa-solid fa-barcode" style={{ fontSize: '55px', color: '#333' }}></i>
-                   <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#555', marginTop: '4px', letterSpacing: '2px' }}>0001 9371 9999 0001 9371 9999</div>
-                   <small style={{ color: '#888', fontSize: '0.65rem' }}>Cdigo simulado</small>
-                 </div>
-               )}
-               <div style={{ display: 'flex', gap: '8px' }}>
-                 <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setSimForma(simForma === 'pix' ? 'boleto' : 'pix')}>
-                   Mudar para {simForma === 'pix' ? 'Boleto' : 'PIX'}
-                 </button>
-                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={async () => {
-                   const valor = simClient.dadosComerciais?.planoId?.preco || 0;
-                   await fetch('/api/financial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ descricao: `Mensalidade  ${simClient.dadosPessoais?.nome}`, categoria: 'Mensalidade', valor, vencimento: new Date().toISOString().split('T')[0], status: 'Pago', forma_pagamento: simForma === 'pix' ? 'Pix' : 'Boleto Bancrio' }) });
-                   setShowSimuladorModal(false); fetchData(); alert('Pagamento registrado!');
-                 }}>
-                   <i className="fa-solid fa-check"></i> Confirmar
-                 </button>
-               </div>
-             </div>
-           </div>
-         </div>
-       )}
-               {/* Modal de Novo Horário Fixo */}
+       {/* Modal de Novo Horário Fixo */}
         {showFixedSchedModal && (
           <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setShowFixedSchedModal(false)}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '95%' }}>
