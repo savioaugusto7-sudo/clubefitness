@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 
@@ -289,7 +289,27 @@ export default function OnboardingPage() {
             );
           })}
 
-          <p style={{ marginTop: 'auto', color: 'var(--text-dim)', fontSize: '0.75rem', lineHeight: 1.5, paddingTop: '32px' }}>
+          <button 
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="btn"
+            style={{ 
+              marginTop: 'auto', 
+              width: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              justifyContent: 'center', 
+              background: 'rgba(239, 68, 68, 0.06)', 
+              borderColor: 'rgba(239, 68, 68, 0.15)', 
+              color: '#ef4444',
+              fontSize: '0.85rem',
+              fontWeight: 600
+            }}
+          >
+            <i className="fa-solid fa-arrow-right-from-bracket"></i> Usar outra conta
+          </button>
+          
+          <p style={{ marginTop: '16px', color: 'var(--text-dim)', fontSize: '0.75rem', lineHeight: 1.5 }}>
             <i className="fa-solid fa-shield-halved" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i>
             Seus dados são protegidos e utilizados exclusivamente para fins de atendimento.
           </p>
@@ -402,7 +422,21 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                <div className="ob-btn-row" style={{ justifyContent: 'flex-end' }}>
+                <div className="ob-btn-row" style={{ justifyContent: 'space-between' }}>
+                  <button 
+                    className="btn" 
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      borderColor: 'rgba(239, 68, 68, 0.15)', 
+                      background: 'rgba(239, 68, 68, 0.04)',
+                      color: '#ef4444' 
+                    }}
+                  >
+                    <i className="fa-solid fa-arrow-right-from-bracket"></i> Usar outra conta
+                  </button>
                   <button className="btn btn-primary" onClick={() => {
                     if (!nome || !dataNascimento || !sexo || !telefone) { setError('Preencha os campos obrigatórios (*).'); return; }
                     setError(''); setStep(2);
