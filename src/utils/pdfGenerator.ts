@@ -693,8 +693,8 @@ export async function downloadReportPDF(report: any) {
       const rdEVA = m.rotacaoDEVA !== undefined ? m.rotacaoDEVA : 0;
       const reEVA = m.rotacaoEEVA !== undefined ? m.rotacaoEEVA : 0;
 
-      maigneSvgHtml = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="158" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
+      const svgContent = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="300" viewBox="0 0 380 300" style="background:#ffffff;">
           <!-- Grid Circles -->
           ${[10, 20, 30, 40, 50].map(val => `
             <circle cx="${cx}" cy="${cy}" r="${val * scale}" stroke="#e2e8f0" fill="none" stroke-width="0.5" />
@@ -709,12 +709,12 @@ export async function downloadReportPDF(report: any) {
           }).join('')}
 
           <!-- Labels for directions -->
-          <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexão (EVA: ${fEVA})</text>
-          <text x="${cx + maxRadius * Math.cos(angles[1]) + 15}" y="${cy + maxRadius * Math.sin(angles[1]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Rot D (EVA: ${rdEVA})</text>
-          <text x="${cx + maxRadius * Math.cos(angles[2]) + 15}" y="${cy + maxRadius * Math.sin(angles[2]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Inc D (EVA: ${idEVA})</text>
-          <text x="${cx}" y="${cy + maxRadius + 18}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Extensão (EVA: ${extEVA})</text>
-          <text x="${cx + maxRadius * Math.cos(angles[4]) - 15}" y="${cy + maxRadius * Math.sin(angles[4]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Inc E (EVA: ${ieEVA})</text>
-          <text x="${cx + maxRadius * Math.cos(angles[5]) - 15}" y="${cy + maxRadius * Math.sin(angles[5]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Rot E (EVA: ${reEVA})</text>
+          <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexao (EVA: ${fEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[1]) + 15}" y="${cy + maxRadius * Math.sin(angles[1]) - 5}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:start;">Rot D (EVA: ${rdEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[2]) + 15}" y="${cy + maxRadius * Math.sin(angles[2]) + 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:start;">Inc D (EVA: ${idEVA})</text>
+          <text x="${cx}" y="${cy + maxRadius + 18}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:middle;">Extensao (EVA: ${extEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[4]) - 15}" y="${cy + maxRadius * Math.sin(angles[4]) + 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:end;">Inc E (EVA: ${ieEVA})</text>
+          <text x="${cx + maxRadius * Math.cos(angles[5]) - 15}" y="${cy + maxRadius * Math.sin(angles[5]) - 5}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:end;">Rot E (EVA: ${reEVA})</text>
 
           <!-- Reference Polygon -->
           <polygon points="${angles.map((ang, idx) => {
@@ -738,6 +738,12 @@ export async function downloadReportPDF(report: any) {
           }).join('')}
         </svg>
       `;
+
+      let base64Svg = '';
+      if (typeof window !== 'undefined') {
+        base64Svg = window.btoa(unescape(encodeURIComponent(svgContent.trim())));
+      }
+      maigneSvgHtml = `<img src="data:image/svg+xml;base64,${base64Svg}" width="200" height="158" style="display:block; margin:0 auto; background:#ffffff;" />`;
 
       maigneTableHtml = `
         <table class="table-data" style="font-size: 7.5px; margin-top: 4px;">
@@ -1333,8 +1339,8 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     const rdEVA = m.rotacaoDEVA !== undefined ? m.rotacaoDEVA : 0;
     const reEVA = m.rotacaoEEVA !== undefined ? m.rotacaoEEVA : 0;
 
-    maigneSvgHtml = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="180" height="142" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
+    const svgContent = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="380" height="300" viewBox="0 0 380 300" style="background:#ffffff;">
         <!-- Grid Circles -->
         ${[10, 20, 30, 40, 50].map(val => `
           <circle cx="${cx}" cy="${cy}" r="${val * scale}" stroke="#e2e8f0" fill="none" stroke-width="0.5" />
@@ -1349,12 +1355,12 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         }).join('')}
 
         <!-- Labels for directions -->
-        <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexão (EVA: ${fEVA})</text>
-        <text x="${cx + maxRadius * Math.cos(angles[1]) + 15}" y="${cy + maxRadius * Math.sin(angles[1]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Rot D (EVA: ${rdEVA})</text>
-        <text x="${cx + maxRadius * Math.cos(angles[2]) + 15}" y="${cy + maxRadius * Math.sin(angles[2]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:start;">Inc D (EVA: ${idEVA})</text>
-        <text x="${cx}" y="${cy + maxRadius + 18}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:middle;">Extensão (EVA: ${extEVA})</text>
-        <text x="${cx + maxRadius * Math.cos(angles[4]) - 15}" y="${cy + maxRadius * Math.sin(angles[4]) + 10}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Inc E (EVA: ${ieEVA})</text>
-        <text x="${cx + maxRadius * Math.cos(angles[5]) - 15}" y="${cy + maxRadius * Math.sin(angles[5]) - 5}" style="font-size:9px; fill:#334155; font-weight:bold; text-anchor:end;">Rot E (EVA: ${reEVA})</text>
+        <text x="${cx}" y="${cy - maxRadius - 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:middle;">Flexao (EVA: ${fEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[1]) + 15}" y="${cy + maxRadius * Math.sin(angles[1]) - 5}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:start;">Rot D (EVA: ${rdEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[2]) + 15}" y="${cy + maxRadius * Math.sin(angles[2]) + 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:start;">Inc D (EVA: ${idEVA})</text>
+        <text x="${cx}" y="${cy + maxRadius + 18}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:middle;">Extensao (EVA: ${extEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[4]) - 15}" y="${cy + maxRadius * Math.sin(angles[4]) + 10}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:end;">Inc E (EVA: ${ieEVA})</text>
+        <text x="${cx + maxRadius * Math.cos(angles[5]) - 15}" y="${cy + maxRadius * Math.sin(angles[5]) - 5}" style="font-size:9.5px; fill:#334155; font-weight:bold; text-anchor:end;">Rot E (EVA: ${reEVA})</text>
 
         <!-- Reference Polygon -->
         <polygon points="${angles.map((ang, idx) => {
@@ -1378,6 +1384,12 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         }).join('')}
       </svg>
     `;
+
+    let base64Svg = '';
+    if (typeof window !== 'undefined') {
+      base64Svg = window.btoa(unescape(encodeURIComponent(svgContent.trim())));
+    }
+    maigneSvgHtml = `<img src="data:image/svg+xml;base64,${base64Svg}" width="180" height="142" style="display:block; margin:0 auto; background:#ffffff;" />`;
   }
 
   // ===== Parse structured Y-Test, Step Down, Termografia =====
