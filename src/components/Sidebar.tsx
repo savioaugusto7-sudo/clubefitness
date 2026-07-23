@@ -21,6 +21,8 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   userName: string;
   userCargo?: string;
+  activeRoles?: string[];
+  onChangeRole?: (newRole: 'admin' | 'receptionist' | 'professional' | 'client') => void;
 }
 
 const categoryConfigs: Record<string, SidebarCategory[]> = {
@@ -166,10 +168,11 @@ const bottomNavConfigs: Record<string, TabConfig[]> = {
   ]
 };
 
-export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo }: SidebarProps) {
+export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo, activeRoles, onChangeRole }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
 
   const categories = categoryConfigs[role] || [];
   const allTabs = categories.flatMap(c => c.tabs);
@@ -303,7 +306,76 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
         </nav>
 
         {/* User Card footer */}
-        <div className="user-profile-section">
+        <div className="user-profile-section" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Active Roles Switcher Drawer */}
+          {activeRoles && activeRoles.length > 1 && showRoleMenu && (
+            <div style={{
+              background: 'rgba(0,0,0,0.15)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '10px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '2px' }}>
+                Alternar para:
+              </span>
+              {activeRoles.map((r: any) => {
+                if (r === role) return null; // skip current role
+                
+                const roleLabels: Record<string, { label: string, icon: string, color: string }> = {
+                  admin: { label: 'Administrador', icon: 'fa-crown', color: '#eab308' },
+                  receptionist: { label: 'Recepção', icon: 'fa-file-signature', color: '#3b82f6' },
+                  professional: { label: 'Profissional', icon: 'fa-user-md', color: '#10b981' },
+                  client: { label: 'Aluno', icon: 'fa-dumbbell', color: '#f97316' }
+                };
+                
+                const info = roleLabels[r] || { label: r, icon: 'fa-user', color: '#94a3b8' };
+                
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => {
+                      onChangeRole?.(r);
+                      setShowRoleMenu(false);
+                    }}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      color: 'var(--text-main)',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'background 0.2s, border-color 0.2s',
+                      width: '100%'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.borderColor = 'var(--color-primary)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                      e.currentTarget.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    <i className={`fa-solid ${info.icon}`} style={{ color: info.color, width: '14px', textAlign: 'center' }}></i>
+                    <span>{info.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <div className="user-badge" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
               <div className="user-avatar" style={{ flexShrink: 0 }}>
@@ -311,8 +383,28 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
               </div>
               <div className="user-info" style={{ overflow: 'hidden' }}>
                 <div className="user-name" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{userName}</div>
-                <div className="user-role" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                  {userCargo || (role === 'admin' ? 'Administrador' : role === 'receptionist' ? 'Recepção' : role === 'professional' ? 'Profissional' : 'Aluno')}
+                <div 
+                  className="user-role" 
+                  style={{ 
+                    whiteSpace: 'nowrap', 
+                    textOverflow: 'ellipsis', 
+                    overflow: 'hidden',
+                    cursor: (activeRoles && activeRoles.length > 1) ? 'pointer' : 'default',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    color: (activeRoles && activeRoles.length > 1) ? 'var(--color-primary)' : 'var(--text-dim)'
+                  }}
+                  onClick={() => {
+                    if (activeRoles && activeRoles.length > 1) {
+                      setShowRoleMenu(!showRoleMenu);
+                    }
+                  }}
+                >
+                  <span>{userCargo || (role === 'admin' ? 'Administrador' : role === 'receptionist' ? 'Recepção' : role === 'professional' ? 'Profissional' : 'Aluno')}</span>
+                  {activeRoles && activeRoles.length > 1 && (
+                    <i className="fa-solid fa-chevron-up" style={{ fontSize: '0.6rem', transition: 'transform 0.2s', transform: showRoleMenu ? 'rotate(180deg)' : 'none' }}></i>
+                  )}
                 </div>
               </div>
             </div>

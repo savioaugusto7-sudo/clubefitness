@@ -120,67 +120,15 @@ export default function DashboardPage() {
         setActiveTab={setActiveTab} 
         userName={user.name || 'Usuário'}
         userCargo={user.cargo}
+        activeRoles={activeRoles}
+        onChangeRole={(newRole) => {
+          setAdminViewMode(newRole);
+          setActiveTab('dashboard');
+        }}
       />
 
       {/* Main Content Area */}
       <main className="main-content" id="mainContent">
-        {/* Multi-Role Switcher Tabs (Only shown if user has more than 1 role) */}
-        {activeRoles.length > 1 && (
-          <div className="role-switcher-container" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            marginBottom: '24px', 
-            background: 'var(--bg-card, #1e293b)', 
-            padding: '6px', 
-            borderRadius: '12px', 
-            border: '1px solid var(--border-color)',
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none'
-          }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 700, padding: '0 8px', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
-              Alternar Modo:
-            </span>
-            {activeRoles.includes('admin') && (
-              <button
-                type="button"
-                className={`role-tab-btn ${adminViewMode === 'admin' ? 'active' : ''}`}
-                onClick={() => { setAdminViewMode('admin'); setActiveTab('dashboard'); }}
-              >
-                👑 Administrador
-              </button>
-            )}
-            {activeRoles.includes('receptionist') && (
-              <button
-                type="button"
-                className={`role-tab-btn ${adminViewMode === 'receptionist' ? 'active' : ''}`}
-                onClick={() => { setAdminViewMode('receptionist'); setActiveTab('dashboard'); }}
-              >
-                📋 Recepção
-              </button>
-            )}
-            {activeRoles.includes('professional') && (
-              <button
-                type="button"
-                className={`role-tab-btn ${adminViewMode === 'professional' ? 'active' : ''}`}
-                onClick={() => { setAdminViewMode('professional'); setActiveTab('dashboard'); }}
-              >
-                👨‍⚕️ Profissional
-              </button>
-            )}
-            {activeRoles.includes('client') && (
-              <button
-                type="button"
-                className={`role-tab-btn ${adminViewMode === 'client' ? 'active' : ''}`}
-                onClick={() => { setAdminViewMode('client'); setActiveTab('dashboard'); }}
-              >
-                🏋️ Aluno
-              </button>
-            )}
-          </div>
-        )}
-
         {/* Dynamic page content */}
         {renderContent()}
       </main>
