@@ -903,31 +903,32 @@ export async function downloadReportPDF(report: any) {
               <thead>
                 <tr style="font-weight:bold;">
                   <th>Articulação / Movimento</th>
-                  <th style="text-align:center; width:25%;">Direito</th>
-                  <th style="text-align:center; width:25%;">Esquerdo</th>
+                  <th style="text-align:center; width:20%;">Referência</th>
+                  <th style="text-align:center; width:20%;">Direito</th>
+                  <th style="text-align:center; width:20%;">Esquerdo</th>
                 </tr>
               </thead>
               <tbody>
                 ${[
-                  { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)' },
-                  { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)' },
-                  { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna' },
-                  { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa' },
-                  { key: 'joelhoFlexao', label: 'Joelho - Flexão' },
-                  { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo' },
-                  { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão Joelho Estendido' },
-                  { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão Joelho Fletido' },
-                  { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar' },
-                  { key: 'ombroRotInt', label: 'Ombro - Rotação Interna' },
-                  { key: 'ombroRotExt', label: 'Ombro - Rotação Externa' },
-                  { key: 'ombroFlexao', label: 'Ombro - Flexão' }
+                  { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', ref: '70-80°' },
+                  { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
+                  { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
+                  { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
+                  { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
+                  { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
+                  { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão Joelho Estendido', ref: '35-45°' },
+                  { key: 'tornozeloDorsi2', label: 'Tornozelo - Dorsiflexão Joelho Fletido', ref: '20°' },
+                  { key: 'tornozeloFlexaoPlantar', label: 'Tornozelo - Flexão Plantar', ref: '40-50°' },
+                  { key: 'ombroRotInt', label: 'Ombro - Rotação Interna', ref: '80-90°' },
+                  { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
+                  { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
                 ].map(row => {
                   const valD = g[row.key + 'D'] || {};
                   const valE = g[row.key + 'E'] || {};
                   const fmtVal = (val: any) => {
                     const sf = val.semForca !== undefined && val.semForca !== null && val.semForca !== '' ? `${val.semForca}°` : '-';
                     const cf = val.comForca !== undefined && val.comForca !== null && val.comForca !== '' ? `${val.comForca}°` : '-';
-                    return `1: ${sf} | 2: ${cf}`;
+                    return `${sf} | ${cf}`;
                   };
                   const d1 = Number(valD.semForca) || 0;
                   const e1 = Number(valE.semForca) || 0;
@@ -947,6 +948,7 @@ export async function downloadReportPDF(report: any) {
                         ${row.label}
                         ${hasAsy ? `<span style="display:inline-block; font-size:6.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0.5px 2px; font-weight:700; margin-left:4px;">⚠️ &gt;10%</span>` : ''}
                       </td>
+                      <td style="text-align:center; color:#64748b;">${row.ref}</td>
                       <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valD)}</td>
                       <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valE)}</td>
                     </tr>
@@ -954,9 +956,6 @@ export async function downloadReportPDF(report: any) {
                 }).join('')}
               </tbody>
             </table>
-            <div style="font-size: 7px; color: #64748b; margin-top: 5px; font-style: italic;">
-              * Legenda Goniometria: 1 e 2 (com ou sem aplicação de força do instrutor).
-            </div>
           </div>
         </div>
 

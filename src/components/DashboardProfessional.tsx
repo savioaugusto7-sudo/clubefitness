@@ -7734,7 +7734,6 @@ goniometria: {
                         </div>
                       </div>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic' }}>* Clique nos nós verdes do gráfico em teia ou use os controles deslizantes para alterar as amplitudes de movimento e dor.</p>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontStyle: 'italic', fontWeight: 600 }}>* Legenda Goniometria: 1 e 2 (com ou sem aplicação de força do instrutor).</p>
                         </>
                       )}
                     </div>
