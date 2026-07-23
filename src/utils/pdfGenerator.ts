@@ -694,7 +694,7 @@ export async function downloadReportPDF(report: any) {
       const reEVA = m.rotacaoEEVA !== undefined ? m.rotacaoEEVA : 0;
 
       maigneSvgHtml = `
-        <svg width="200" height="158" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="158" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
           <!-- Grid Circles -->
           ${[10, 20, 30, 40, 50].map(val => `
             <circle cx="${cx}" cy="${cy}" r="${val * scale}" stroke="#e2e8f0" fill="none" stroke-width="0.5" />
@@ -1163,7 +1163,7 @@ export async function downloadReportPDF(report: any) {
   }
 
   const options = {
-    margin: 0,
+    margin: [10, 0, 10, 0],
     filename: `Relatorio_Fisioterapia_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_${formatDate(report.data).replace(/\//g, '-')}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
@@ -1334,7 +1334,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     const reEVA = m.rotacaoEEVA !== undefined ? m.rotacaoEEVA : 0;
 
     maigneSvgHtml = `
-      <svg width="180" height="142" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="180" height="142" viewBox="0 0 380 300" style="display:block; margin:0 auto; background:#ffffff;">
         <!-- Grid Circles -->
         ${[10, 20, 30, 40, 50].map(val => `
           <circle cx="${cx}" cy="${cy}" r="${val * scale}" stroke="#e2e8f0" fill="none" stroke-width="0.5" />
@@ -1973,7 +1973,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             <div style="display:flex; align-items:center; gap: 8px; margin-top: 2px;">
               <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif;">${pctGordura.toFixed(1)}%</div>
               <!-- Mini Donut em SVG -->
-              <svg width="22" height="22" viewBox="0 0 20 20">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 20 20">
                 <circle cx="10" cy="10" r="8" fill="none" stroke="#f1f5f9" stroke-width="2.5"></circle>
                 <circle cx="10" cy="10" r="8" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="${pctGordura.toFixed(0)} ${100 - pctGordura.toFixed(0)}" stroke-dashoffset="25"></circle>
               </svg>
@@ -2024,7 +2024,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
             <!-- Donut Chart em SVG -->
             <div style="text-align:center; padding-right: 5px;">
-              <svg width="76" height="76" viewBox="0 0 42 42">
+              <svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 42 42">
                 <circle cx="21" cy="21" r="15.91549430918954" fill="none" stroke="#eaeaea" stroke-width="5.5"></circle>
                 <!-- Segmento de Massa Magra (Green) -->
                 <circle cx="21" cy="21" r="15.91549430918954" fill="none" stroke="#10b981" stroke-width="5.5" stroke-dasharray="${pctMassaMagra.toFixed(1)} ${pctGordura.toFixed(1)}" stroke-dashoffset="25"></circle>
@@ -2086,7 +2086,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             <!-- Silhueta com pontos -->
                                     <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
               <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
-              <svg viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                 <!-- Green Dots for Dobras -->
                 <circle cx="43" cy="50" r="3" fill="#10b981" title="Peitoral"></circle>
                 <circle cx="34" cy="65" r="3" fill="#10b981" title="TrÃ­ceps"></circle>
@@ -2126,7 +2126,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             <!-- Silhueta com linhas -->
                                     <div style="width: 80px; height: 160px; position: relative; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px; display: flex; align-items: center; justify-content: center;">
               <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
-              <svg viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                 <!-- Green Lines for Circunferencias -->
                 <line x1="45" y1="30" x2="55" y2="30" stroke="#10b981" stroke-width="2" title="Pescoço"></line>
                 <line x1="38" y1="40" x2="62" y2="40" stroke="#10b981" stroke-width="2" title="Ombros"></line>
