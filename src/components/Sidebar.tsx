@@ -474,10 +474,68 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
       {mobileOpen && (
         <div className="bottom-drawer-overlay" onClick={() => setMobileOpen(false)}>
           <div className="bottom-drawer-content" onClick={e => e.stopPropagation()}>
-            <div className="bottom-drawer-header">
+            <div className="bottom-drawer-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <h4>Mais Opções</h4>
               <button className="drawer-close" onClick={() => setMobileOpen(false)}>&times;</button>
             </div>
+
+            {/* Mobile Role Switcher */}
+            {activeRoles && activeRoles.length > 1 && (
+              <div style={{
+                padding: '14px 16px',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgba(255,255,255,0.01)'
+              }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>
+                  Alternar Modo de Visualização:
+                </div>
+                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                  {activeRoles.map((r: any) => {
+                    const roleLabels: Record<string, { label: string, icon: string, color: string }> = {
+                      admin: { label: 'Admin', icon: 'fa-crown', color: '#eab308' },
+                      receptionist: { label: 'Recepção', icon: 'fa-file-signature', color: '#3b82f6' },
+                      professional: { label: 'Profissional', icon: 'fa-user-md', color: '#10b981' },
+                      client: { label: 'Aluno', icon: 'fa-dumbbell', color: '#f97316' }
+                    };
+                    
+                    const info = roleLabels[r] || { label: r, icon: 'fa-user', color: '#94a3b8' };
+                    const isActive = r === role;
+                    
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => {
+                          if (!isActive) {
+                            onChangeRole?.(r);
+                            setMobileOpen(false);
+                          }
+                        }}
+                        style={{
+                          background: isActive ? 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)' : 'rgba(255, 255, 255, 0.03)',
+                          border: isActive ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '20px',
+                          padding: '6px 14px',
+                          color: '#ffffff',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        <i className={`fa-solid ${info.icon}`} style={{ color: isActive ? '#ffffff' : info.color, fontSize: '0.8rem' }}></i>
+                        <span>{info.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="bottom-drawer-grid">
               {allTabs
                 .filter(tab => !bottomNavConfigs[role]?.some(bt => bt.id === tab.id))
