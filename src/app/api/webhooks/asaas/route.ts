@@ -4,6 +4,7 @@ import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import Payment from '@/models/Payment';
+import { syncClientPlanValidity } from '@/utils/commercial';
 
 export async function POST(request: Request) {
   try {
@@ -42,12 +43,16 @@ export async function POST(request: Request) {
         if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
           dbPayment.status = 'Pago';
           dbPayment.dataPagamento = new Date().toISOString().split('T')[0];
-        } else if (event === 'PAYMENT_OVERDUE') {
-          dbPayment.status = 'Atrasado';
-        } else if (event === 'PAYMENT_DELETED') {
-          dbPayment.status = 'Cancelado';
+          await dbPayment.save();
+          await syncClientPlanValidity(dbPayment.clientId.toString());
+        } else {
+          if (event === 'PAYMENT_OVERDUE') {
+            dbPayment.status = 'Atrasado';
+          } else if (event === 'PAYMENT_DELETED') {
+            dbPayment.status = 'Cancelado';
+          }
+          await dbPayment.save();
         }
-        await dbPayment.save();
         console.log(`Mensalidade avulsa correspondente ao pagamento Asaas ${payment.id} atualizada com status: ${dbPayment.status}.`);
         return NextResponse.json({ success: true, message: 'Mensalidade avulsa atualizada' });
       }
@@ -98,6 +103,7 @@ export async function POST(request: Request) {
         { status: 'Pago', dataPagamento: payment.paymentDate || new Date().toISOString().split('T')[0] }
       );
       console.log(`Mensalidade correspondente ao pagamento Asaas ${payment.id} marcada como Pago.`);
+      await syncClientPlanValidity(client._id.toString());
     } else if (event === 'PAYMENT_OVERDUE') {
       console.log(`Pagamento em atraso no Asaas para contrato: ID=${contract._id}, Aluno=${client.dadosPessoais?.nome}`);
       contract.asaasBillingStatus = 'vencido';

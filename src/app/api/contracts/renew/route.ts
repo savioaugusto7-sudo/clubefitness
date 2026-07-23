@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Client from '@/models/Client';
 import Payment from '@/models/Payment';
+import { syncClientPlanValidity } from '@/utils/commercial';
 
 function formatFormaPagamento(fp?: string): string {
   if (!fp) return 'Pix Manual';
@@ -35,20 +36,33 @@ export async function POST(request: Request) {
     const planName = (com.planoId as any)?.nome || 'Plano Personalizado';
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // Current validity end date
-    const currentEndStr = com.vencimento || com.dataInicio || todayStr;
-    const currentEndObj = new Date((currentEndStr.includes('T') ? currentEndStr.split('T')[0] : currentEndStr) + 'T00:00:00');
+    const baseDateStr = com.dataInicio || todayStr;
+    const baseDate = new Date((baseDateStr.includes('T') ? baseDateStr.split('T')[0] : baseDateStr) + 'T00:00:00');
+    
+    // Count existing payments to project the next cycle index
+    const N = await Payment.countDocuments({ clientId: client._id });
 
-    // Calculate new validity end date (+1 cycle)
-    const newEndObj = new Date(currentEndObj);
+    // Calculate due date of next cycle (start of cycle N + 1): dataInicio + N cycles
+    const nextStartObj = new Date(baseDate);
     if (duracao === 'semana') {
-      newEndObj.setDate(newEndObj.getDate() + (duracaoQtd * 7));
+      nextStartObj.setDate(nextStartObj.getDate() + (N * duracaoQtd * 7));
     } else if (duracao === 'anual') {
-      newEndObj.setMonth(newEndObj.getMonth() + (duracaoQtd * 12));
+      nextStartObj.setMonth(nextStartObj.getMonth() + (N * duracaoQtd * 12));
     } else {
-      newEndObj.setMonth(newEndObj.getMonth() + duracaoQtd);
+      nextStartObj.setMonth(nextStartObj.getMonth() + (N * duracaoQtd));
     }
-    const newEndIso = newEndObj.toISOString().split('T')[0];
+    const nextStartIso = nextStartObj.toISOString().split('T')[0];
+
+    // Calculate validity end date of next cycle (end of cycle N + 1): dataInicio + (N + 1) cycles
+    const nextEndObj = new Date(baseDate);
+    if (duracao === 'semana') {
+      nextEndObj.setDate(nextEndObj.getDate() + ((N + 1) * duracaoQtd * 7));
+    } else if (duracao === 'anual') {
+      nextEndObj.setMonth(nextEndObj.getMonth() + ((N + 1) * duracaoQtd * 12));
+    } else {
+      nextEndObj.setMonth(nextEndObj.getMonth() + ((N + 1) * duracaoQtd));
+    }
+    const newEndIso = nextEndObj.toISOString().split('T')[0];
 
     // Calculate payment for the new cycle
     const valorUnitario = Number(com.valorUnitario) || 0;
@@ -69,7 +83,7 @@ export async function POST(request: Request) {
       clientNome: client.dadosPessoais?.nome || 'Sem Nome',
       planoNome: `${planName} (Renovação)`,
       valor: parseFloat(liquido.toFixed(2)),
-      vencimento: currentEndStr,
+      vencimento: nextStartIso,
       dataPagamento: isZeroVal ? todayStr : '',
       status: isZeroVal ? 'Pago' : 'Pendente',
       formaPagamento: formatFormaPagamento(com.formaPagamento),
@@ -82,15 +96,19 @@ export async function POST(request: Request) {
     client.dadosComerciais.vencimento = newEndIso;
     client.dadosComerciais.status = 'ativo';
     client.dadosComerciais.creditosUsados = 0; // Reset used credits for new cycle
-
     await client.save();
+
+    // If it was created as paid (zero value), trigger sync helper to confirm alignment
+    if (isZeroVal) {
+      await syncClientPlanValidity(client._id.toString());
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Vigência renovada com sucesso!',
       data: {
         novoVencimento: newEndIso,
-        vencimentoFormatado: newEndObj.toLocaleDateString('pt-BR'),
+        vencimentoFormatado: nextEndObj.toLocaleDateString('pt-BR'),
         pagamento: paymentRecord
       }
     });
