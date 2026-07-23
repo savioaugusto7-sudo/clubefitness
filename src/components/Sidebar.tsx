@@ -200,24 +200,16 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
       <aside className="sidebar" id="appSidebar" style={{ display: 'flex', flexDirection: 'column' }}>
         {/* Brand Section */}
         <div className="brand-section">
-          <div className="brand-logo" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            overflow: 'hidden'
-          }}>
+          <div className="brand-logo">
             <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div className="brand-name">CLUBE FITNESS FISIO</div>
         </div>
 
         {/* Menu Search Bar */}
-        <div style={{ padding: '0 16px 12px 16px' }}>
+        <div style={{ padding: '0 8px 16px 8px' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '10px', fontSize: '0.75rem', color: 'var(--text-dim)' }}></i>
+            <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}></i>
             <input
               type="text"
               placeholder="Buscar no menu..."
@@ -225,19 +217,30 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
               onChange={e => setSearchTerm(e.target.value)}
               style={{
                 width: '100%',
-                padding: '6px 10px 6px 28px',
+                padding: '8px 12px 8px 32px',
                 fontSize: '0.78rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                background: 'rgba(255,255,255,0.03)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.02)',
                 color: 'var(--text-main)',
-                outline: 'none'
+                outline: 'none',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+              onFocus={e => {
+                e.target.style.borderColor = 'var(--color-primary)';
+                e.target.style.background = 'rgba(255,255,255,0.04)';
+                e.target.style.boxShadow = '0 0 12px rgba(13, 148, 136, 0.15)';
+              }}
+              onBlur={e => {
+                e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                e.target.style.background = 'rgba(255,255,255,0.02)';
+                e.target.style.boxShadow = 'none';
               }}
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: '0.75rem' }}
+                style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: '0.9rem' }}
               >
                 &times;
               </button>
@@ -246,7 +249,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
         </div>
 
         {/* Dynamic Navigation Menu */}
-        <nav className="nav-menu" style={{ flex: 1, overflowY: 'auto', paddingBottom: '16px' }}>
+        <nav className="nav-menu">
           {categories.map((category) => {
             const matchingTabs = category.tabs.filter(t => 
               !searchTerm || t.label.toLowerCase().includes(searchTerm.toLowerCase())
@@ -258,7 +261,17 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
             const hasActiveTab = category.tabs.some(t => t.id === activeTab);
 
             return (
-              <div key={category.title} style={{ marginBottom: '10px' }}>
+              <div 
+                key={category.title} 
+                style={{ 
+                  marginBottom: '10px',
+                  background: 'rgba(255, 255, 255, 0.01)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.03)',
+                  padding: '2px 0',
+                  transition: 'background-color 0.25s, border-color 0.25s'
+                }}
+              >
                 {/* Category Header */}
                 <div
                   onClick={() => toggleCategory(category.title)}
@@ -266,33 +279,41 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '6px 16px',
-                    fontSize: '0.68rem',
+                    padding: '8px 14px',
+                    fontSize: '0.66rem',
                     fontWeight: 700,
-                    color: hasActiveTab ? 'var(--color-primary)' : 'var(--text-dim)',
-                    letterSpacing: '0.5px',
+                    color: hasActiveTab ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.45)',
+                    letterSpacing: '1px',
                     cursor: 'pointer',
                     userSelect: 'none',
                     textTransform: 'uppercase',
-                    opacity: 0.9
+                    transition: 'color 0.2s'
                   }}
                 >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {category.icon && <i className={`fa-solid ${category.icon}`} style={{ fontSize: '0.72rem' }}></i>}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {category.icon && <i className={`fa-solid ${category.icon}`} style={{ fontSize: '0.75rem', opacity: 0.8 }}></i>}
                     {category.title}
                   </span>
-                  <i className={`fa-solid fa-chevron-${isOpen ? 'down' : 'right'}`} style={{ fontSize: '0.65rem', opacity: 0.7 }}></i>
+                  <i 
+                    className="fa-solid fa-chevron-right" 
+                    style={{ 
+                      fontSize: '0.6rem', 
+                      opacity: 0.5,
+                      transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      transform: isOpen ? 'rotate(90deg)' : 'none'
+                    }}
+                  ></i>
                 </div>
 
                 {/* Category Items */}
                 {isOpen && (
-                  <div style={{ marginTop: '4px' }}>
+                  <div style={{ marginTop: '2px', padding: '0 6px 4px 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {matchingTabs.map((tab) => (
                       <div
                         key={tab.id}
                         className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
                         onClick={() => handleTabClick(tab.id)}
-                        style={{ paddingLeft: '22px' }}
+                        style={{ paddingLeft: '12px' }}
                       >
                         <i className={`fa-solid ${tab.icon}`}></i>
                         <span>{tab.label}</span>
