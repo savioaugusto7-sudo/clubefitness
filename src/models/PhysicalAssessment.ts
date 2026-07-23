@@ -29,6 +29,8 @@ const GoniometriaSchema = new Schema({
 
 const TestesEspeciaisSchema = new Schema({
   oberD: String, oberE: String, thomasD: String, thomasE: String,
+  thomasIliopsoasDStatus: String, thomasIliopsoasEStatus: String,
+  thomasRetofemoralDStatus: String, thomasRetofemoralEStatus: String,
   thomasIliopsoasD: Number, thomasIliopsoasE: Number,
   thomasRetofemoralD: Number, thomasRetofemoralE: Number,
   termografia: String,

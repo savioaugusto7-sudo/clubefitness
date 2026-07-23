@@ -459,6 +459,16 @@ export async function downloadReportPDF(report: any) {
     const ex = report.examesComplementares || [];
     const ort = report.testesOrtopedicos;
 
+    const checkPerimetriaAsymmetry = (valD: any, valE: any) => {
+      const d = parseFloat(valD) || 0;
+      const e = parseFloat(valE) || 0;
+      const max = Math.max(d, e);
+      if (max > 0 && (Math.abs(d - e) / max) > 0.10) {
+        return ` <span style="color:#ef4444; font-weight:bold; font-size:6.5px;">⚠️ (${((Math.abs(d - e) / max) * 100).toFixed(0)}%)</span>`;
+      }
+      return '';
+    };
+
     const hasTermografia = tImg && tImg.realizou === 'sim';
     const hasExames = ex && ex.length > 0;
     const hasMaigne = ort.estrelaMaigne && isMaigneFilled(ort.estrelaMaigne);
@@ -599,19 +609,57 @@ export async function downloadReportPDF(report: any) {
       const sdVal = ort.stepDown;
       const sex = client.dadosPessoais.sexo || 'M';
       let rFactors = [];
-      if (sdVal.quedaPelvica > 5) rFactors.push('Queda Pélvica (>5°)');
-      if (sdVal.aducaoQuadril > 10) rFactors.push('Adução de Quadril (>10°)');
+
+      // Extract values with support for legacy records
+      const qpD = sdVal.quedaPelvicaD !== undefined ? sdVal.quedaPelvicaD : (sdVal.quedaPelvica || 0);
+      const qpE = sdVal.quedaPelvicaE !== undefined ? sdVal.quedaPelvicaE : (sdVal.quedaPelvica || 0);
+      const aqD = sdVal.aducaoQuadrilD !== undefined ? sdVal.aducaoQuadrilD : (sdVal.aducaoQuadril || 0);
+      const aqE = sdVal.aducaoQuadrilE !== undefined ? sdVal.aducaoQuadrilE : (sdVal.aducaoQuadril || 0);
+      const vjD = sdVal.valgoDinamicoJoelhoD !== undefined ? sdVal.valgoDinamicoJoelhoD : (sdVal.valgoDinamicoJoelho || 0);
+      const vjE = sdVal.valgoDinamicoJoelhoE !== undefined ? sdVal.valgoDinamicoJoelhoE : (sdVal.valgoDinamicoJoelho || 0);
+      const prpsD = sdVal.compExcentricoPrpsD !== undefined ? sdVal.compExcentricoPrpsD : (sdVal.compExcentricoPrps || 0);
+      const prpsE = sdVal.compExcentricoPrpsE !== undefined ? sdVal.compExcentricoPrpsE : (sdVal.compExcentricoPrps || 0);
+
+      if (qpD > 5 || qpE > 5) rFactors.push('Queda Pélvica (>5°)');
+      if (aqD > 10 || aqE > 10) rFactors.push('Adução de Quadril (>10°)');
       const limit = sex === 'M' ? 10 : 15;
-      if (sdVal.valgoDinamicoJoelho > limit) rFactors.push(`Valgo Dinâmico (${sdVal.valgoDinamicoJoelho}° > ${limit}°)`);
-      if (sdVal.compExcentricoPrps > 0 && sdVal.compExcentricoPrps < 60) rFactors.push('Comp. Excêntrico reduzido (<60°)');
+      if (vjD > limit || vjE > limit) rFactors.push(`Valgo Dinâmico (D: ${vjD}°, E: ${vjE}° > ${limit}°)`);
+      if ((prpsD > 0 && prpsD < 60) || (prpsE > 0 && prpsE < 60)) rFactors.push('Comp. Excêntrico reduzido (<60°)');
 
       stepDownHtml = `
         <div style="font-size:8px; line-height:1.4; color: #334155;">
-          Queda Pélvica: <strong>${sdVal.quedaPelvica}°</strong> | 
-          Adução Quadril: <strong>${sdVal.aducaoQuadril}°</strong> <br>
-          Valgo Dinâmico: <strong>${sdVal.valgoDinamicoJoelho}°</strong> | 
-          Excêntrico/PRPS: <strong>${sdVal.compExcentricoPrps}°</strong>
-          ${rFactors.length > 0 ? `<div style="margin-top:4px; color:#ef4444; font-weight:bold;">⚠️ Risco: ${rFactors.join(', ')}</div>` : '<div style="margin-top:4px; color:#10b981; font-weight:bold;">✓ Controle Seguro</div>'}
+          <table style="width:100%; border-collapse:collapse; margin-top:2px;">
+            <thead>
+              <tr style="border-bottom: 1px solid #cbd5e1; background: #f8fafc;">
+                <th style="text-align:left; font-size:7.5px; padding:2px;">Controle Dinâmico (Step Down)</th>
+                <th style="text-align:center; font-size:7.5px; padding:2px; width:25%;">Dir.</th>
+                <th style="text-align:center; font-size:7.5px; padding:2px; width:25%;">Esq.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px dashed #e2e8f0;">
+                <td style="font-size:7.5px; padding:2px;">Queda Pélvica (Ref: até 5°)</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${qpD > 5 ? 'color:#ef4444; font-weight:bold;' : ''}">${qpD}°</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${qpE > 5 ? 'color:#ef4444; font-weight:bold;' : ''}">${qpE}°</td>
+              </tr>
+              <tr style="border-bottom:1px dashed #e2e8f0;">
+                <td style="font-size:7.5px; padding:2px;">Adução Quadril (Ref: até 10°)</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${aqD > 10 ? 'color:#ef4444; font-weight:bold;' : ''}">${aqD}°</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${aqE > 10 ? 'color:#ef4444; font-weight:bold;' : ''}">${aqE}°</td>
+              </tr>
+              <tr style="border-bottom:1px dashed #e2e8f0;">
+                <td style="font-size:7.5px; padding:2px;">Valgo Dinâmico Joelho (Ref: M até 10° | F até 15°)</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${vjD > limit ? 'color:#ef4444; font-weight:bold;' : ''}">${vjD}°</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${vjE > limit ? 'color:#ef4444; font-weight:bold;' : ''}">${vjE}°</td>
+              </tr>
+              <tr>
+                <td style="font-size:7.5px; padding:2px;">Excêntrico/PRPS (Ref: acima de 60°)</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${(prpsD > 0 && prpsD < 60) ? 'color:#ef4444; font-weight:bold;' : ''}">${prpsD}°</td>
+                <td style="text-align:center; font-size:7.5px; padding:2px; ${(prpsE > 0 && prpsE < 60) ? 'color:#ef4444; font-weight:bold;' : ''}">${prpsE}°</td>
+              </tr>
+            </tbody>
+          </table>
+          ${rFactors.length > 0 ? `<div style="margin-top:4px; color:#ef4444; font-weight:bold; font-size:7.5px;">⚠️ Risco: ${rFactors.join(', ')}</div>` : '<div style="margin-top:4px; color:#10b981; font-weight:bold; font-size:7.5px;">✓ Controle Seguro</div>'}
         </div>
       `;
     }
@@ -855,8 +903,8 @@ export async function downloadReportPDF(report: any) {
               </thead>
               <tbody>
                 ${[
-                  { key: 'quadrilFlexao1', label: 'Quadril - Flexão com Joelho Fletido' },
-                  { key: 'quadrilFlexao2', label: 'Quadril - Flexão com Joelho Estendido' },
+                  { key: 'quadrilFlexao1', label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)' },
+                  { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)' },
                   { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna' },
                   { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa' },
                   { key: 'joelhoFlexao', label: 'Joelho - Flexão' },
@@ -875,11 +923,26 @@ export async function downloadReportPDF(report: any) {
                     const cf = val.comForca !== undefined && val.comForca !== null && val.comForca !== '' ? `${val.comForca}°` : '-';
                     return `1: ${sf} | 2: ${cf}`;
                   };
+                  const d1 = Number(valD.semForca) || 0;
+                  const e1 = Number(valE.semForca) || 0;
+                  const max1 = Math.max(d1, e1);
+                  const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
+
+                  const d2 = Number(valD.comForca) || 0;
+                  const e2 = Number(valE.comForca) || 0;
+                  const max2 = Math.max(d2, e2);
+                  const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
+
+                  const hasAsy = hasAsy1 || hasAsy2;
+
                   return `
-                    <tr>
-                      <td style="font-weight:600;">${row.label}</td>
-                      <td style="text-align:center;">${fmtVal(valD)}</td>
-                      <td style="text-align:center;">${fmtVal(valE)}</td>
+                    <tr style="${hasAsy ? 'background: rgba(239, 68, 68, 0.05);' : ''}">
+                      <td style="font-weight:600;">
+                        ${row.label}
+                        ${hasAsy ? `<span style="display:inline-block; font-size:6.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0.5px 2px; font-weight:700; margin-left:4px;">⚠️ &gt;10%</span>` : ''}
+                      </td>
+                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valD)}</td>
+                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valE)}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -908,37 +971,33 @@ export async function downloadReportPDF(report: any) {
                   <td style="text-align:center; color:${te.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberD === 'Positivo' ? '700' : 'normal'};">${te.oberD}</td>
                   <td style="text-align:center; color:${te.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.oberE === 'Positivo' ? '700' : 'normal'};">${te.oberE}</td>
                 </tr>
-                <tr>
-                  <td style="font-weight:700;">Teste de Thomas</td>
-                  <td style="text-align:center; color:${te.thomasD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasD === 'Positivo' ? '700' : 'normal'};">
-                    ${(() => {
-                      if (te.thomasD !== 'Positivo') return te.thomasD;
-                      if ((te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '') || (te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '')) {
-                        const iVal = te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `${te.thomasIliopsoasD}°` : '-';
-                        const rVal = te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `${te.thomasRetofemoralD}°` : '-';
-                        return `Positivo (Ilio: ${iVal} / Reto: ${rVal})`;
-                      }
-                      if (te.thomasAnguloD !== undefined && te.thomasAnguloD !== null && te.thomasAnguloD !== '') {
-                        return `Positivo (${te.thomasAnguloD}°)`;
-                      }
-                      return 'Positivo';
-                    })()}
-                  </td>
-                  <td style="text-align:center; color:${te.thomasE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${te.thomasE === 'Positivo' ? '700' : 'normal'};">
-                    ${(() => {
-                      if (te.thomasE !== 'Positivo') return te.thomasE;
-                      if ((te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '') || (te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '')) {
-                        const iVal = te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `${te.thomasIliopsoasE}°` : '-';
-                        const rVal = te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `${te.thomasRetofemoralE}°` : '-';
-                        return `Positivo (Ilio: ${iVal} / Reto: ${rVal})`;
-                      }
-                      if (te.thomasAnguloE !== undefined && te.thomasAnguloE !== null && te.thomasAnguloE !== '') {
-                        return `Positivo (${te.thomasAnguloE}°)`;
-                      }
-                      return 'Positivo';
-                    })()}
-                  </td>
-                </tr>
+                ${(() => {
+                  const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
+                  const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
+                  const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
+                  const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || te.thomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
+
+                  return `
+                    <tr>
+                      <td style="font-weight:700;">Thomas Iliopsoas</td>
+                      <td style="text-align:center; color:${ilioDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioDStatus === 'Positivo' ? '700' : 'normal'};">
+                        ${ilioDStatus === 'Positivo' ? `Positivo (${te.thomasIliopsoasD !== undefined && te.thomasIliopsoasD !== null && te.thomasIliopsoasD !== '' ? `${te.thomasIliopsoasD}°` : '-'})` : 'Negativo'}
+                      </td>
+                      <td style="text-align:center; color:${ilioEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${ilioEStatus === 'Positivo' ? '700' : 'normal'};">
+                        ${ilioEStatus === 'Positivo' ? `Positivo (${te.thomasIliopsoasE !== undefined && te.thomasIliopsoasE !== null && te.thomasIliopsoasE !== '' ? `${te.thomasIliopsoasE}°` : '-'})` : 'Negativo'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-weight:700;">Thomas Retofemoral</td>
+                      <td style="text-align:center; color:${retoDStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoDStatus === 'Positivo' ? '700' : 'normal'};">
+                        ${retoDStatus === 'Positivo' ? `Positivo (${te.thomasRetofemoralD !== undefined && te.thomasRetofemoralD !== null && te.thomasRetofemoralD !== '' ? `${te.thomasRetofemoralD}°` : '-'})` : 'Negativo'}
+                      </td>
+                      <td style="text-align:center; color:${retoEStatus === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${retoEStatus === 'Positivo' ? '700' : 'normal'};">
+                        ${retoEStatus === 'Positivo' ? `Positivo (${te.thomasRetofemoralE !== undefined && te.thomasRetofemoralE !== null && te.thomasRetofemoralE !== '' ? `${te.thomasRetofemoralE}°` : '-'})` : 'Negativo'}
+                      </td>
+                    </tr>
+                  `;
+                })()}
               </tbody>
             </table>
           </div>
@@ -978,15 +1037,15 @@ export async function downloadReportPDF(report: any) {
                 </tr>
                 <tr>
                   <td style="font-weight:600;">Braço Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.braçoD || '-'} / ${report.perimetria.braçoE || '-'} cm</td>
+                  <td style="text-align:right;">${report.perimetria.braçoD || '-'} / ${report.perimetria.braçoE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.braçoD, report.perimetria.braçoE)}</td>
                   <td style="font-weight:600;">Coxa Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.coxaD || '-'} / ${report.perimetria.coxaE || '-'} cm</td>
+                  <td style="text-align:right;">${report.perimetria.coxaD || '-'} / ${report.perimetria.coxaE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.coxaD, report.perimetria.coxaE)}</td>
                 </tr>
                 <tr>
                   <td style="font-weight:600;">Antebraço Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.antebraçoD || '-'} / ${report.perimetria.antebraçoE || '-'} cm</td>
+                  <td style="text-align:right;">${report.perimetria.antebraçoD || '-'} / ${report.perimetria.antebraçoE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.antebraçoD, report.perimetria.antebraçoE)}</td>
                   <td style="font-weight:600;">Panturrilha Dir. / Esq.:</td>
-                  <td style="text-align:right;">${report.perimetria.panturrilhaD || '-'} / ${report.perimetria.panturrilhaE || '-'} cm</td>
+                  <td style="text-align:right;">${report.perimetria.panturrilhaD || '-'} / ${report.perimetria.panturrilhaE || '-'} cm${checkPerimetriaAsymmetry(report.perimetria.panturrilhaD, report.perimetria.panturrilhaE)}</td>
                 </tr>
               </tbody>
             </table>
@@ -1059,6 +1118,20 @@ export async function downloadReportPDF(report: any) {
                 ` : ''}
               </tr>
             </table>
+          </div>
+        </div>
+        ` : ''}
+
+        ${(te && te.customTests && te.customTests.length > 0) ? `
+        <div class="section-card">
+          <div class="section-card-title">Outros Testes Realizados</div>
+          <div class="section-card-content" style="padding: 10px;">
+            ${te.customTests.map((t: any) => `
+              <div style="margin-bottom: 8px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
+                <strong style="color: #0d9488; font-size: 8.5px; display: block; text-transform: uppercase;">${t.nome}</strong>
+                <p style="margin: 3px 0 0 0; font-size: 8px; line-height: 1.4; color: #334155;">${t.resultados}</p>
+              </div>
+            `).join('')}
           </div>
         </div>
         ` : ''}
@@ -1384,21 +1457,40 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     const sex = assessment.dadosMedidos?.sexo || 'M';
     const valLim = sex === 'M' ? 10 : 15;
     const risks: string[] = [];
-    if ((stepDownObj.quedaPelvica || 0) > 5) risks.push('Queda Pélvica &gt;5°');
-    if ((stepDownObj.aducaoQuadril || 0) > 10) risks.push('Adução &gt;10°');
-    if ((stepDownObj.valgoDinamicoJoelho || 0) > valLim) risks.push(`Valgo &gt;${valLim}°`);
-    if (stepDownObj.compExcentricoPrps > 0 && stepDownObj.compExcentricoPrps < 60) risks.push('PRPS &lt;60°');
+
+    // Extract values with support for legacy records
+    const qpD = stepDownObj.quedaPelvicaD !== undefined ? stepDownObj.quedaPelvicaD : (stepDownObj.quedaPelvica || 0);
+    const qpE = stepDownObj.quedaPelvicaE !== undefined ? stepDownObj.quedaPelvicaE : (stepDownObj.quedaPelvica || 0);
+    const aqD = stepDownObj.aducaoQuadrilD !== undefined ? stepDownObj.aducaoQuadrilD : (stepDownObj.aducaoQuadril || 0);
+    const aqE = stepDownObj.aducaoQuadrilE !== undefined ? stepDownObj.aducaoQuadrilE : (stepDownObj.aducaoQuadril || 0);
+    const vjD = stepDownObj.valgoDinamicoJoelhoD !== undefined ? stepDownObj.valgoDinamicoJoelhoD : (stepDownObj.valgoDinamicoJoelho || 0);
+    const vjE = stepDownObj.valgoDinamicoJoelhoE !== undefined ? stepDownObj.valgoDinamicoJoelhoE : (stepDownObj.valgoDinamicoJoelho || 0);
+    const prpsD = stepDownObj.compExcentricoPrpsD !== undefined ? stepDownObj.compExcentricoPrpsD : (stepDownObj.compExcentricoPrps || 0);
+    const prpsE = stepDownObj.compExcentricoPrpsE !== undefined ? stepDownObj.compExcentricoPrpsE : (stepDownObj.compExcentricoPrps || 0);
+
+    if (qpD > 5 || qpE > 5) risks.push('Queda Pélvica &gt;5°');
+    if (aqD > 10 || aqE > 10) risks.push('Adução &gt;10°');
+    if (vjD > valLim || vjE > valLim) risks.push(`Valgo &gt;${valLim}°`);
+    if ((prpsD > 0 && prpsD < 60) || (prpsE > 0 && prpsE < 60)) risks.push('PRPS &lt;60°');
+
     const riskColor = risks.length > 0 ? '#ef4444' : '#10b981';
     const riskLabel = risks.length > 0 ? `⚠ ${risks.join(', ')}` : '✓ Controle adequado';
+
     stepDownRowsHtml = `
     <tr>
-      <td style="padding:3px 0; vertical-align: top;">Step Down</td>
+      <td style="padding:3px 0; vertical-align: top;">Step Down Status</td>
       <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7.5px; color:${riskColor}">${riskLabel}</td>
     </tr>
     <tr>
-      <td style="padding:3px 0; vertical-align: top; font-size:7px;">Step Down Métricas</td>
+      <td style="padding:3px 0; vertical-align: top; font-size:7px;">Step Down D (cm/°)</td>
       <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
-        QP:${stepDownObj.quedaPelvica || 0}° AQ:${stepDownObj.aducaoQuadril || 0}° VJ:${stepDownObj.valgoDinamicoJoelho || 0}° PRPS:${stepDownObj.compExcentricoPrps || 0}°
+        QP:${qpD}° AQ:${aqD}° VJ:${vjD}° PRPS:${prpsD}°
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:3px 0; vertical-align: top; font-size:7px;">Step Down E (cm/°)</td>
+      <td style="text-align:right; font-weight:600; vertical-align: top; font-size: 7px;">
+        QP:${qpE}° AQ:${aqE}° VJ:${vjE}° PRPS:${prpsE}°
       </td>
     </tr>`;
   } else if (stepDownLegacyStr) {
@@ -2217,22 +2309,32 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                     ${assessment.dadosMedidos.testesEspeciais?.oberD || 'Negativo'} / ${assessment.dadosMedidos.testesEspeciais?.oberE || 'Negativo'}
                   </td>
                 </tr>
-                <tr>
-                  <td style="padding:3px 0; vertical-align: top;">Thomas Ilio.</td>
-                  <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? '#ef4444' : '#1e293b'};">
-                    ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasIliopsoasD || 0}°` : 'Neg.'} / 
-                    ${assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasIliopsoasE || 0}°` : 'Neg.'}
-                    ${checkThomasPDFAsymmetry(assessment.dadosMedidos.testesEspeciais?.thomasIliopsoasD, assessment.dadosMedidos.testesEspeciais?.thomasIliopsoasE, 'Iliopsoas')}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:3px 0; vertical-align: top;">Thomas Reto.</td>
-                  <td style="text-align:right; font-weight:600; vertical-align: top; color: ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' || assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? '#ef4444' : '#1e293b'};">
-                    ${assessment.dadosMedidos.testesEspeciais?.thomasD === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasRetofemoralD || 0}°` : 'Neg.'} / 
-                    ${assessment.dadosMedidos.testesEspeciais?.thomasE === 'Positivo' ? `${assessment.dadosMedidos.testesEspeciais.thomasRetofemoralE || 0}°` : 'Neg.'}
-                    ${checkThomasPDFAsymmetry(assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralD, assessment.dadosMedidos.testesEspeciais?.thomasRetofemoralE, 'Retofemoral')}
-                  </td>
-                </tr>
+                ${(() => {
+                  const te = assessment.dadosMedidos.testesEspeciais || {};
+                  const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
+                  const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
+                  const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
+                  const retoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || te.thomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
+
+                  return `
+                    <tr>
+                      <td style="padding:3px 0; vertical-align: top;">Thomas Ilio.</td>
+                      <td style="text-align:right; font-weight:600; vertical-align: top; color: ${ilioDStatus === 'Positivo' || ilioEStatus === 'Positivo' ? '#ef4444' : '#1e293b'};">
+                        ${ilioDStatus === 'Positivo' ? `${te.thomasIliopsoasD || 0}°` : 'Neg.'} / 
+                        ${ilioEStatus === 'Positivo' ? `${te.thomasIliopsoasE || 0}°` : 'Neg.'}
+                        ${checkThomasPDFAsymmetry(te.thomasIliopsoasD, te.thomasIliopsoasE, 'Iliopsoas')}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:3px 0; vertical-align: top;">Thomas Reto.</td>
+                      <td style="text-align:right; font-weight:600; vertical-align: top; color: ${retoDStatus === 'Positivo' || retoEStatus === 'Positivo' ? '#ef4444' : '#1e293b'};">
+                        ${retoDStatus === 'Positivo' ? `${te.thomasRetofemoralD || 0}°` : 'Neg.'} / 
+                        ${retoEStatus === 'Positivo' ? `${te.thomasRetofemoralE || 0}°` : 'Neg.'}
+                        ${checkThomasPDFAsymmetry(te.thomasRetofemoralD, te.thomasRetofemoralE, 'Retofemoral')}
+                      </td>
+                    </tr>
+                  `;
+                })()}
                 ${hasMaigneData ? `
                 <tr>
                   <td style="padding:3px 0; vertical-align: top;">Maigne ADM</td>

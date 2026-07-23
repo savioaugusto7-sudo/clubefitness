@@ -38,6 +38,12 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   // Search
   const [clientSearch, setClientSearch] = useState('');
 
+  // Smart filters states for Clientes (Receptionist)
+  const [clientFilterStatus, setClientFilterStatus] = useState<string>('todos');
+  const [clientFilterPlan, setClientFilterPlan] = useState<string>('todos');
+  const [clientFilterCredits, setClientFilterCredits] = useState<string>('todos');
+  const [clientFilterRecurrence, setClientFilterRecurrence] = useState<string>('todos');
+
   // Client detail modal
   const [showClientModal, setShowClientModal] = useState(false);
   const [clientModalTab, setClientModalTab] = useState<'pessoais' | 'comerciais' | 'contratos' | 'agendamentos'>('pessoais');
@@ -1050,10 +1056,47 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const pendingPayments = financials.filter((f: any) => f.status === 'Pendente' && f.tipo === 'receita');
 
   const filteredClients = clients.filter((c: any) => {
+    // 1. Search Query
     const name = c.dadosPessoais?.nome?.toLowerCase() || '';
     const email = c.dadosPessoais?.email?.toLowerCase() || '';
     const q = clientSearch.toLowerCase();
-    return name.includes(q) || email.includes(q);
+    const matchesSearch = name.includes(q) || email.includes(q);
+    if (!matchesSearch) return false;
+
+    // 2. Status
+    const status = c.dadosComerciais?.status || 'ativo';
+    if (clientFilterStatus !== 'todos' && status !== clientFilterStatus) return false;
+
+    // 3. Plan
+    if (clientFilterPlan !== 'todos') {
+      if (clientFilterPlan === 'personalizado') {
+        if (c.dadosComerciais?.planoId) return false;
+      } else {
+        const planIdStr = c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId;
+        if (planIdStr !== clientFilterPlan) return false;
+      }
+    }
+
+    // 4. Credits
+    const credTotal = c.dadosComerciais?.creditosTotal || 0;
+    const credUsados = c.dadosComerciais?.creditosUsados || 0;
+    const credReservados = c.dadosComerciais?.creditosReservados || 0;
+    const credDisp = Math.max(0, credTotal - credUsados - credReservados);
+
+    if (clientFilterCredits !== 'todos') {
+      if (clientFilterCredits === 'zerado' && credDisp !== 0) return false;
+      if (clientFilterCredits === 'pouco' && (credDisp === 0 || credDisp >= 3)) return false;
+      if (clientFilterCredits === 'suficiente' && credDisp < 3) return false;
+    }
+
+    // 5. Recurrence
+    const hasRecurrence = Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia);
+    if (clientFilterRecurrence !== 'todos') {
+      if (clientFilterRecurrence === 'com' && !hasRecurrence) return false;
+      if (clientFilterRecurrence === 'sem' && hasRecurrence) return false;
+    }
+
+    return true;
   });
 
   const cardStyle = {
@@ -1228,16 +1271,112 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Clientes</h2>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <input
-            placeholder="Buscar por nome ou e-mail..."
-            value={clientSearch}
-            onChange={e => setClientSearch(e.target.value)}
-            style={{ ...inputStyle, width: '240px' }}
-          />
-          <button style={btnPrimary} onClick={() => setShowNewClientModal(true)}>
-            <i className="fa-solid fa-user-plus" style={{ marginRight: '6px' }} />Novo Cliente
-          </button>
+        <button style={btnPrimary} onClick={() => setShowNewClientModal(true)}>
+          <i className="fa-solid fa-user-plus" style={{ marginRight: '6px' }} />Novo Cliente
+        </button>
+      </div>
+
+      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+          
+          {/* Search Input */}
+          <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
+              <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Buscar Aluno
+            </label>
+            <input 
+              type="text" 
+              placeholder="Nome ou e-mail..." 
+              value={clientSearch} 
+              onChange={e => setClientSearch(e.target.value)} 
+              style={{ ...inputStyle, width: '100%' }}
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div style={{ flex: '1 1 130px', minWidth: '110px' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
+              <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i>Status
+            </label>
+            <select 
+              value={clientFilterStatus} 
+              onChange={e => setClientFilterStatus(e.target.value)}
+              style={{ ...inputStyle, width: '100%' }}
+            >
+              <option value="todos">Todos</option>
+              <option value="ativo">Ativo</option>
+              <option value="vencido">Vencido</option>
+            </select>
+          </div>
+
+          {/* Plan Filter */}
+          <div style={{ flex: '1 1 180px', minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
+              <i className="fa-solid fa-award" style={{ marginRight: '4px' }}></i>Plano Atual
+            </label>
+            <select 
+              value={clientFilterPlan} 
+              onChange={e => setClientFilterPlan(e.target.value)}
+              style={{ ...inputStyle, width: '100%' }}
+            >
+              <option value="todos">Todos os Planos</option>
+              <option value="personalizado">Personalizado</option>
+              {plans.map(p => (
+                <option key={p._id} value={p._id}>{p.nome}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Credits Filter */}
+          <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
+              <i className="fa-solid fa-coins" style={{ marginRight: '4px' }}></i>Créditos Restantes
+            </label>
+            <select 
+              value={clientFilterCredits} 
+              onChange={e => setClientFilterCredits(e.target.value)}
+              style={{ ...inputStyle, width: '100%' }}
+            >
+              <option value="todos">Todos</option>
+              <option value="zerado">Sem Créditos (0)</option>
+              <option value="pouco">Poucos (&lt; 3)</option>
+              <option value="suficiente">Com Créditos (&gt;= 3)</option>
+            </select>
+          </div>
+
+          {/* Recurrence Filter */}
+          <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
+              <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i>Recorrência
+            </label>
+            <select 
+              value={clientFilterRecurrence} 
+              onChange={e => setClientFilterRecurrence(e.target.value)}
+              style={{ ...inputStyle, width: '100%' }}
+            >
+              <option value="todos">Todos</option>
+              <option value="com">Com Recorrência</option>
+              <option value="sem">Sem Recorrência</option>
+            </select>
+          </div>
+
+          {/* Reset Button */}
+          {(clientSearch !== '' || clientFilterStatus !== 'todos' || clientFilterPlan !== 'todos' || clientFilterCredits !== 'todos' || clientFilterRecurrence !== 'todos') && (
+            <button 
+              type="button" 
+              onClick={() => {
+                setClientSearch('');
+                setClientFilterStatus('todos');
+                setClientFilterPlan('todos');
+                setClientFilterCredits('todos');
+                setClientFilterRecurrence('todos');
+              }}
+              style={{ ...btnSecondary, height: '38px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <i className="fa-solid fa-xmark"></i> Limpar Filtros
+            </button>
+          )}
+
         </div>
       </div>
 

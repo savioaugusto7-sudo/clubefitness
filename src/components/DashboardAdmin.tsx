@@ -111,6 +111,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setPage(key, 1);
   };
 
+  // Smart filters states for Clientes
+  const [clientsFilterStatus, setClientsFilterStatus] = useState<string>('todos');
+  const [clientsFilterPlan, setClientsFilterPlan] = useState<string>('todos');
+  const [clientsFilterCredits, setClientsFilterCredits] = useState<string>('todos');
+  const [clientsFilterRecurrence, setClientsFilterRecurrence] = useState<string>('todos');
+
+  // Smart filters states for Financeiro (Mensalidades)
+  const [paymentsPlanFilter, setPaymentsPlanFilter] = useState<string>('');
+
   // Close modal on Escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1224,16 +1233,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       totalValue: number;
       paidCount: number;
       totalCount: number;
-      status: 'Pago' | 'Pendente' | 'Atrasado';
+      status: 'Pago' | 'Em Dia' | 'Atrasado';
       proximoVencimento: string;
     }> = {};
 
     payments.forEach(p => {
       if (!grouped[p.clientId]) {
+        // Find client plan in the system (from clients array)
+        const client = clients.find(c => c._id === p.clientId);
+        const planName = client?.dadosComerciais?.planoId?.nome || 'Personalizado';
+
         grouped[p.clientId] = {
           clientId: p.clientId,
           clientNome: p.clientNome,
-          planoNome: p.planoNome,
+          planoNome: planName,
           payments: [],
           totalValue: 0,
           paidCount: 0,
@@ -1270,8 +1283,18 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
     return groupedList.filter((group: any) => {
       const matchesSearch = normalizeText(group.clientNome).includes(normalizeText(paymentsSearch));
-      const matchesStatus = !paymentsStatusFilter || group.status === paymentsStatusFilter;
-      return matchesSearch && matchesStatus;
+      
+      // Map 'Pendente' filter choice to consolidated status 'Em Dia'
+      let targetStatus = paymentsStatusFilter;
+      if (paymentsStatusFilter === 'Pendente') {
+        targetStatus = 'Em Dia';
+      }
+      const matchesStatus = !paymentsStatusFilter || group.status === targetStatus;
+
+      // Filter by plan
+      const matchesPlan = !paymentsPlanFilter || normalizeText(group.planoNome).includes(normalizeText(paymentsPlanFilter));
+
+      return matchesSearch && matchesStatus && matchesPlan;
     });
   };
 
@@ -2621,8 +2644,110 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           </div>
 
           <div className="content-panel">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar aluno..." value={getSearchQuery('clientes')} onChange={e => setSearchQueryForKey('clientes', e.target.value)} style={{ maxWidth: '300px' }} />
+            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+                
+                {/* Search Input */}
+                <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                    <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Buscar Aluno
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Nome, e-mail ou CPF..." 
+                    value={getSearchQuery('clientes')} 
+                    onChange={e => setSearchQueryForKey('clientes', e.target.value)} 
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <div style={{ flex: '1 1 130px', minWidth: '110px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                    <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i>Status
+                  </label>
+                  <select 
+                    className="form-control" 
+                    value={clientsFilterStatus} 
+                    onChange={e => { setClientsFilterStatus(e.target.value); setPage('clientes', 1); }}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="ativo">Ativo</option>
+                    <option value="vencido">Vencido</option>
+                  </select>
+                </div>
+
+                {/* Plan Filter */}
+                <div style={{ flex: '1 1 180px', minWidth: '150px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                    <i className="fa-solid fa-award" style={{ marginRight: '4px' }}></i>Plano Atual
+                  </label>
+                  <select 
+                    className="form-control" 
+                    value={clientsFilterPlan} 
+                    onChange={e => { setClientsFilterPlan(e.target.value); setPage('clientes', 1); }}
+                  >
+                    <option value="todos">Todos os Planos</option>
+                    <option value="personalizado">Personalizado</option>
+                    {plans.map(p => (
+                      <option key={p._id} value={p._id}>{p.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Credits Filter */}
+                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                    <i className="fa-solid fa-coins" style={{ marginRight: '4px' }}></i>Créditos Restantes
+                  </label>
+                  <select 
+                    className="form-control" 
+                    value={clientsFilterCredits} 
+                    onChange={e => { setClientsFilterCredits(e.target.value); setPage('clientes', 1); }}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="zerado">Sem Créditos (0)</option>
+                    <option value="pouco">Poucos (&lt; 3)</option>
+                    <option value="suficiente">Com Créditos (&gt;= 3)</option>
+                  </select>
+                </div>
+
+                {/* Recurrence Filter */}
+                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                    <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i>Recorrência
+                  </label>
+                  <select 
+                    className="form-control" 
+                    value={clientsFilterRecurrence} 
+                    onChange={e => { setClientsFilterRecurrence(e.target.value); setPage('clientes', 1); }}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="com">Com Recorrência</option>
+                    <option value="sem">Sem Recorrência</option>
+                  </select>
+                </div>
+
+                {/* Reset Button */}
+                {(getSearchQuery('clientes') !== '' || clientsFilterStatus !== 'todos' || clientsFilterPlan !== 'todos' || clientsFilterCredits !== 'todos' || clientsFilterRecurrence !== 'todos') && (
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      setSearchQueryForKey('clientes', '');
+                      setClientsFilterStatus('todos');
+                      setClientsFilterPlan('todos');
+                      setClientsFilterCredits('todos');
+                      setClientsFilterRecurrence('todos');
+                      setPage('clientes', 1);
+                    }}
+                    style={{ height: '38px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <i className="fa-solid fa-xmark"></i> Limpar Filtros
+                  </button>
+                )}
+
+              </div>
             </div>
             <div className="table-responsive">
               <table className="data-table">
@@ -2644,7 +2769,47 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q));
+                    const filtered = clients.filter(c => {
+                      // 1. Search Query
+                      const matchesSearch = normalizeText(c.dadosPessoais?.nome).includes(q) || 
+                                           normalizeText(c.dadosPessoais?.email).includes(q) || 
+                                           (c.dadosPessoais?.cpf || '').includes(q);
+                      if (!matchesSearch) return false;
+
+                      // 2. Status
+                      const status = c.dadosComerciais?.status || 'ativo';
+                      if (clientsFilterStatus !== 'todos' && status !== clientsFilterStatus) return false;
+
+                      // 3. Plan
+                      if (clientsFilterPlan !== 'todos') {
+                        if (clientsFilterPlan === 'personalizado') {
+                          if (c.dadosComerciais?.planoId) return false;
+                        } else {
+                          if (c.dadosComerciais?.planoId?._id !== clientsFilterPlan) return false;
+                        }
+                      }
+
+                      // 4. Credits
+                      const credTotal = c.dadosComerciais?.creditosTotal || 0;
+                      const credUsados = c.dadosComerciais?.creditosUsados || 0;
+                      const credReservados = c.dadosComerciais?.creditosReservados || 0;
+                      const credDisp = Math.max(0, credTotal - credUsados - credReservados);
+
+                      if (clientsFilterCredits !== 'todos') {
+                        if (clientsFilterCredits === 'zerado' && credDisp !== 0) return false;
+                        if (clientsFilterCredits === 'pouco' && (credDisp === 0 || credDisp >= 3)) return false;
+                        if (clientsFilterCredits === 'suficiente' && credDisp < 3) return false;
+                      }
+
+                      // 5. Recurrence
+                      const hasRecurrence = Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia);
+                      if (clientsFilterRecurrence !== 'todos') {
+                        if (clientsFilterRecurrence === 'com' && !hasRecurrence) return false;
+                        if (clientsFilterRecurrence === 'sem' && hasRecurrence) return false;
+                      }
+
+                      return true;
+                    });
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
@@ -3489,15 +3654,18 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 const todayStr = new Date().toISOString().split('T')[0];
                 const currentMonthStr = todayStr.substring(0, 7); // YYYY-MM
                 
-                const totalPaidThisMonth = payments
+                const currentGrouped = getGroupedPayments();
+                const filteredPaymentsList = currentGrouped.flatMap(g => g.payments);
+
+                const totalPaidThisMonth = filteredPaymentsList
                   .filter(p => p.status === 'Pago' && p.vencimento.startsWith(currentMonthStr))
                   .reduce((sum, p) => sum + p.valor, 0);
 
-                const totalPendingThisMonth = payments
+                const totalPendingThisMonth = filteredPaymentsList
                   .filter(p => p.status === 'Pendente' && p.vencimento >= todayStr && p.vencimento.startsWith(currentMonthStr))
                   .reduce((sum, p) => sum + p.valor, 0);
 
-                const totalOverdue = payments
+                const totalOverdue = filteredPaymentsList
                   .filter(p => p.status === 'Pendente' && p.vencimento < todayStr)
                   .reduce((sum, p) => sum + p.valor, 0);
 
@@ -3521,15 +3689,34 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
               {/* Filters & Search */}
               <div className="content-panel" style={{ padding: '16px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px' }}>
+                <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
                   <input
                     type="text"
                     className="form-control"
                     placeholder="Buscar por nome do aluno..."
                     value={paymentsSearch}
                     onChange={e => setPaymentsSearch(e.target.value)}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: '200px' }}
                   />
+                  
+                  {/* Plan Filter */}
+                  <select
+                    className="select-custom"
+                    value={paymentsPlanFilter}
+                    onChange={e => setPaymentsPlanFilter(e.target.value)}
+                    style={{ width: '180px' }}
+                  >
+                    <option value="">Todos os Planos</option>
+                    <option value="Personalizado">Personalizado</option>
+                    {Array.from(new Set(payments.map(p => {
+                      const client = clients.find(c => c._id === p.clientId);
+                      return client?.dadosComerciais?.planoId?.nome || 'Personalizado';
+                    }))).filter(name => name && name !== 'Personalizado').sort().map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+
+                  {/* Status Filter */}
                   <select
                     className="select-custom"
                     value={paymentsStatusFilter}
@@ -3541,8 +3728,23 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     <option value="Pendente">Pendente</option>
                     <option value="Atrasado">Atrasado</option>
                   </select>
+
+                  {/* Clear Button */}
+                  {(paymentsSearch || paymentsStatusFilter || paymentsPlanFilter) && (
+                    <button 
+                      className="btn btn-secondary btn-sm" 
+                      onClick={() => {
+                        setPaymentsSearch('');
+                        setPaymentsStatusFilter('');
+                        setPaymentsPlanFilter('');
+                      }}
+                      style={{ fontSize: '0.75rem', height: '38px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <i className="fa-solid fa-xmark"></i> Limpar Filtros
+                    </button>
+                  )}
                 </div>
-                <button className="btn btn-secondary" onClick={handleGlobalSync} disabled={loadingPayments}>
+                <button className="btn btn-secondary" onClick={handleGlobalSync} disabled={loadingPayments} style={{ height: '38px' }}>
                   <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i>Atualizar
                 </button>
               </div>

@@ -1376,8 +1376,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   const latestGoniometry = latestAs?.dadosMedidos?.goniometria || {};
 
                   const goniometryPairs = [
-                    { label: 'Quadril - Flexão Joelho Fletido', dKey: 'quadrilFlexao1D', eKey: 'quadrilFlexao1E' },
-                    { label: 'Quadril - Flexão Joelho Estendido', dKey: 'quadrilFlexao2D', eKey: 'quadrilFlexao2E' },
+                    { label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', dKey: 'quadrilFlexao1D', eKey: 'quadrilFlexao1E' },
+                    { label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', dKey: 'quadrilFlexao2D', eKey: 'quadrilFlexao2E' },
                     { label: 'Quadril - Rotação Interna', dKey: 'quadrilRotIntD', eKey: 'quadrilRotIntE' },
                     { label: 'Quadril - Rotação Externa', dKey: 'quadrilRotExtD', eKey: 'quadrilRotExtE' },
                     { label: 'Joelho - Flexão', dKey: 'joelhoFlexaoD', eKey: 'joelhoFlexaoE' },

@@ -497,10 +497,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asYPLE, setAsYPLE] = useState<number | ''>('');
 
   // Step Down structured states
-  const [asSdPelvica, setAsSdPelvica] = useState<number | ''>('');
-  const [asSdAducao, setAsSdAducao] = useState<number | ''>('');
-  const [asSdValgo, setAsSdValgo] = useState<number | ''>('');
-  const [asSdPrps, setAsSdPrps] = useState<number | ''>('');
+  const [asSdPelvicaD, setAsSdPelvicaD] = useState<number | ''>('');
+  const [asSdPelvicaE, setAsSdPelvicaE] = useState<number | ''>('');
+  const [asSdAducaoD, setAsSdAducaoD] = useState<number | ''>('');
+  const [asSdAducaoE, setAsSdAducaoE] = useState<number | ''>('');
+  const [asSdValgoD, setAsSdValgoD] = useState<number | ''>('');
+  const [asSdValgoE, setAsSdValgoE] = useState<number | ''>('');
+  const [asSdPrpsD, setAsSdPrpsD] = useState<number | ''>('');
+  const [asSdPrpsE, setAsSdPrpsE] = useState<number | ''>('');
 
   // PDF attachment state
   const [asPdfUrl, setAsPdfUrl] = useState('');
@@ -687,8 +691,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const [asOberD, setAsOberD] = useState('Negativo');
   const [asOberE, setAsOberE] = useState('Negativo');
-  const [asThomasD, setAsThomasD] = useState('Negativo');
-  const [asThomasE, setAsThomasE] = useState('Negativo');
+  const [asThomasIliopsoasDStatus, setAsThomasIliopsoasDStatus] = useState('Negativo');
+  const [asThomasIliopsoasEStatus, setAsThomasIliopsoasEStatus] = useState('Negativo');
+  const [asThomasRetofemoralDStatus, setAsThomasRetofemoralDStatus] = useState('Negativo');
+  const [asThomasRetofemoralEStatus, setAsThomasRetofemoralEStatus] = useState('Negativo');
   const [asThomasIliopsoasD, setAsThomasIliopsoasD] = useState('');
   const [asThomasIliopsoasE, setAsThomasIliopsoasE] = useState('');
   const [asThomasRetofemoralD, setAsThomasRetofemoralD] = useState('');
@@ -782,8 +788,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Orthopedic tests
   const [tOberD, setTOberD] = useState('Negativo');
   const [tOberE, setTOberE] = useState('Negativo');
-  const [tThomasD, setTThomasD] = useState('Negativo');
-  const [tThomasE, setTThomasE] = useState('Negativo');
+  const [tThomasIliopsoasDStatus, setTThomasIliopsoasDStatus] = useState('Negativo');
+  const [tThomasIliopsoasEStatus, setTThomasIliopsoasEStatus] = useState('Negativo');
+  const [tThomasRetofemoralDStatus, setTThomasRetofemoralDStatus] = useState('Negativo');
+  const [tThomasRetofemoralEStatus, setTThomasRetofemoralEStatus] = useState('Negativo');
   const [tThomasIliopsoasD, setTThomasIliopsoasD] = useState('');
   const [tThomasIliopsoasE, setTThomasIliopsoasE] = useState('');
   const [tThomasRetofemoralD, setTThomasRetofemoralD] = useState('');
@@ -822,13 +830,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   // Step Down
   const [sdRealizou, setSdRealizou] = useState('nao');
-  const [sdPelvica, setSdPelvica] = useState(0);
-  const [sdAducao, setSdAducao] = useState(0);
-  const [sdValgo, setSdValgo] = useState(0);
-  const [sdPrps, setSdPrps] = useState(0);
+  const [sdPelvicaD, setSdPelvicaD] = useState(0);
+  const [sdPelvicaE, setSdPelvicaE] = useState(0);
+  const [sdAducaoD, setSdAducaoD] = useState(0);
+  const [sdAducaoE, setSdAducaoE] = useState(0);
+  const [sdValgoD, setSdValgoD] = useState(0);
+  const [sdValgoE, setSdValgoE] = useState(0);
+  const [sdPrpsD, setSdPrpsD] = useState(0);
+  const [sdPrpsE, setSdPrpsE] = useState(0);
 
   // Exercicios
   const [repExercicios, setRepExercicios] = useState('');
+  const [repCustomTests, setRepCustomTests] = useState<{ nome: string; resultados: string }[]>([]);
 
   // Strength Test form inputs
   const [stClient, setStClient] = useState('');
@@ -985,14 +998,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asTimerSeconds,
         asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal,
         asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas,
-        asOberD, asOberE, asThomasD, asThomasE, asThomasIliopsoasD, asThomasIliopsoasE,
+        asOberD, asOberE, asThomasIliopsoasDStatus, asThomasIliopsoasEStatus, asThomasRetofemoralDStatus, asThomasRetofemoralEStatus, asThomasIliopsoasD, asThomasIliopsoasE,
         asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou,
         asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE,
-        asStepDownRealizou, asSdPelvica, asSdAducao, asSdValgo, asSdPrps, asMaigneRealizou, asMaigneData, asMaigne, asPostura
+        asStepDownRealizou, asSdPelvicaD, asSdPelvicaE, asSdAducaoD, asSdAducaoE, asSdValgoD, asSdValgoE, asSdPrpsD, asSdPrpsE, asMaigneRealizou, asMaigneData, asMaigne, asPostura
       };
       localStorage.setItem('draft_assessment', JSON.stringify(data));
     }
-  }, [showAssessmentModal, asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs, asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal, asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas, asOberD, asOberE, asThomasD, asThomasE, asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou, asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE, asStepDownRealizou, asSdPelvica, asSdAducao, asSdValgo, asSdPrps, asMaigneRealizou, asMaigneData, asMaigne, asPostura]);
+  }, [showAssessmentModal, asClient, asDate, asWeight, asHeight, asFat, asMassaMagra, asMassaGorda, asObs, asMeta2Meses, asMeta1Ano, asDobrasReadings, asGonio, asCirc, asNivelExperiencia, asFreqSemanal, asObjetivoMeses, asTipoObjetivo, asObjetivoPrincipal, asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas, asOberD, asOberE, asThomasIliopsoasDStatus, asThomasIliopsoasEStatus, asThomasRetofemoralDStatus, asThomasRetofemoralEStatus, asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE, asTermografia, asTermografiaRealizou, asYTestRealizou, asYLenD, asYLenE, asYAntD, asYAntE, asYPMD, asYPME, asYPLD, asYPLE, asStepDownRealizou, asSdPelvicaD, asSdPelvicaE, asSdAducaoD, asSdAducaoE, asSdValgoD, asSdValgoE, asSdPrpsD, asSdPrpsE, asMaigneRealizou, asMaigneData, asMaigne, asPostura]);
 
   useEffect(() => {
     if (showReportModal && repClient) {
@@ -1004,12 +1017,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou,
         repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA,
         mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou,
-        yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps,
-        repCirc, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE
+        yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE,
+        repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE
       };
       localStorage.setItem('draft_report', JSON.stringify(data));
     }
-  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvica, sdAducao, sdValgo, sdPrps, repCirc, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
+  }, [showReportModal, repClient, repAvaliador, repDate, repType, repContent, repPain, repExercicios, gGonio, repQueixas, repTraumas, repCirurgiasRealizou, repCirurgiasList, repDoencas, repTraumasEmo, repMedicao, repDrogas, repSonoHoras, repSonoTipo, repSonoQualidade, repAlimentacaoDor, repAtividadeFisicaQual, repAtividadeFisicaInterfere, repStress, repControleStress, repAtividadeFisica, repTermografiaRealizou, repTermografiaImgB64, repExamesList, repDeRealizou, repDeTipo, repDeAbdBilateral, repDeAbdUnilateral, repDeDorAbd, repMaigneRealizou, mFlex, mFlexEVA, mExt, mExtEVA, mIncD, mIncDEVA, mIncE, mIncEEVA, mRotD, mRotDEVA, mRotE, mRotEEVA, yRealizou, yLenD, yLenE, yAntD, yAntE, yPMD, yPME, yPLD, yPLE, sdRealizou, sdPelvicaD, sdPelvicaE, sdAducaoD, sdAducaoE, sdValgoD, sdValgoE, sdPrpsD, sdPrpsE, repCirc, tThomasIliopsoasDStatus, tThomasIliopsoasEStatus, tThomasRetofemoralDStatus, tThomasRetofemoralEStatus, tThomasIliopsoasD, tThomasIliopsoasE, tThomasRetofemoralD, tThomasRetofemoralE]);
 
   useEffect(() => {
     if (showStModal && stClient) {
@@ -1052,8 +1065,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           if (p.asQueixas) setAsQueixas(p.asQueixas);
           setAsOberD(p.asOberD || 'Negativo');
           setAsOberE(p.asOberE || 'Negativo');
-          setAsThomasD(p.asThomasD || 'Negativo');
-          setAsThomasE(p.asThomasE || 'Negativo');
+          const defaultIlioDStatus = p.asThomasIliopsoasDStatus !== undefined ? p.asThomasIliopsoasDStatus : ((p.asThomasD === 'Positivo' || p.asThomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
+          const defaultIlioEStatus = p.asThomasIliopsoasEStatus !== undefined ? p.asThomasIliopsoasEStatus : ((p.asThomasE === 'Positivo' || p.asThomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
+          const defaultRetoDStatus = p.asThomasRetofemoralDStatus !== undefined ? p.asThomasRetofemoralDStatus : ((p.asThomasD === 'Positivo' || p.asThomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
+          const defaultRetoEStatus = p.asThomasRetofemoralEStatus !== undefined ? p.asThomasRetofemoralEStatus : ((p.asThomasE === 'Positivo' || p.asThomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
+          
+          setAsThomasIliopsoasDStatus(defaultIlioDStatus);
+          setAsThomasIliopsoasEStatus(defaultIlioEStatus);
+          setAsThomasRetofemoralDStatus(defaultRetoDStatus);
+          setAsThomasRetofemoralEStatus(defaultRetoEStatus);
           setAsThomasIliopsoasD(p.asThomasIliopsoasD || '');
           setAsThomasIliopsoasE(p.asThomasIliopsoasE || '');
           setAsThomasRetofemoralD(p.asThomasRetofemoralD || '');
@@ -1066,8 +1086,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setAsYPMD(p.asYPMD || ''); setAsYPME(p.asYPME || '');
           setAsYPLD(p.asYPLD || ''); setAsYPLE(p.asYPLE || '');
           setAsStepDownRealizou(p.asStepDownRealizou || 'nao');
-          setAsSdPelvica(p.asSdPelvica || ''); setAsSdAducao(p.asSdAducao || '');
-          setAsSdValgo(p.asSdValgo || ''); setAsSdPrps(p.asSdPrps || '');
+          setAsSdPelvicaD(p.asSdPelvicaD !== undefined ? p.asSdPelvicaD : (p.asSdPelvica || ''));
+          setAsSdPelvicaE(p.asSdPelvicaE !== undefined ? p.asSdPelvicaE : (p.asSdPelvica || ''));
+          setAsSdAducaoD(p.asSdAducaoD !== undefined ? p.asSdAducaoD : (p.asSdAducao || ''));
+          setAsSdAducaoE(p.asSdAducaoE !== undefined ? p.asSdAducaoE : (p.asSdAducao || ''));
+          setAsSdValgoD(p.asSdValgoD !== undefined ? p.asSdValgoD : (p.asSdValgo || ''));
+          setAsSdValgoE(p.asSdValgoE !== undefined ? p.asSdValgoE : (p.asSdValgo || ''));
+          setAsSdPrpsD(p.asSdPrpsD !== undefined ? p.asSdPrpsD : (p.asSdPrps || ''));
+          setAsSdPrpsE(p.asSdPrpsE !== undefined ? p.asSdPrpsE : (p.asSdPrps || ''));
           setAsMaigneRealizou(p.asMaigneRealizou || 'nao');
           if (p.asMaigneData) setAsMaigneData(p.asMaigneData);
           setAsMaigne(p.asMaigne || '');
@@ -1152,6 +1178,15 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               setRepDeDorAbd(p.repDeDorAbd || 'nao');
               setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
               if (p.repCirc) setRepCirc(p.repCirc);
+              const defaultTIlioDStatus = p.tThomasIliopsoasDStatus !== undefined ? p.tThomasIliopsoasDStatus : ((p.tThomasD === 'Positivo' || p.tThomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
+              const defaultTIlioEStatus = p.tThomasIliopsoasEStatus !== undefined ? p.tThomasIliopsoasEStatus : ((p.tThomasE === 'Positivo' || p.tThomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
+              const defaultTRetoDStatus = p.tThomasRetofemoralDStatus !== undefined ? p.tThomasRetofemoralDStatus : ((p.tThomasD === 'Positivo' || p.tThomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
+              const defaultTRetoEStatus = p.tThomasRetofemoralEStatus !== undefined ? p.tThomasRetofemoralEStatus : ((p.tThomasE === 'Positivo' || p.tThomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
+              
+              setTThomasIliopsoasDStatus(defaultTIlioDStatus);
+              setTThomasIliopsoasEStatus(defaultTIlioEStatus);
+              setTThomasRetofemoralDStatus(defaultTRetoDStatus);
+              setTThomasRetofemoralEStatus(defaultTRetoEStatus);
               setTThomasIliopsoasD(p.tThomasIliopsoasD || '');
               setTThomasIliopsoasE(p.tThomasIliopsoasE || '');
               setTThomasRetofemoralD(p.tThomasRetofemoralD || '');
@@ -1162,8 +1197,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               setYPMD(p.yPMD || ''); setYPME(p.yPME || '');
               setYPLD(p.yPLD || ''); setYPLE(p.yPLE || '');
               setSdRealizou(p.sdRealizou || 'nao');
-              setSdPelvica(p.sdPelvica || ''); setSdAducao(p.sdAducao || '');
-              setSdValgo(p.sdValgo || ''); setSdPrps(p.sdPrps || '');
+              setSdPelvicaD(p.sdPelvicaD !== undefined ? p.sdPelvicaD : (p.sdPelvica || 0));
+              setSdPelvicaE(p.sdPelvicaE !== undefined ? p.sdPelvicaE : (p.sdPelvica || 0));
+              setSdAducaoD(p.sdAducaoD !== undefined ? p.sdAducaoD : (p.sdAducao || 0));
+              setSdAducaoE(p.sdAducaoE !== undefined ? p.sdAducaoE : (p.sdAducao || 0));
+              setSdValgoD(p.sdValgoD !== undefined ? p.sdValgoD : (p.sdValgo || 0));
+              setSdValgoE(p.sdValgoE !== undefined ? p.sdValgoE : (p.sdValgo || 0));
+              setSdPrpsD(p.sdPrpsD !== undefined ? p.sdPrpsD : (p.sdPrps || 0));
+              setSdPrpsE(p.sdPrpsE !== undefined ? p.sdPrpsE : (p.sdPrps || 0));
               if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
             }
           }
@@ -1428,12 +1469,20 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         if (latest.dadosMedidos?.testesEspeciais) {
           setAsOberD(latest.dadosMedidos.testesEspeciais.oberD || 'Negativo');
           setAsOberE(latest.dadosMedidos.testesEspeciais.oberE || 'Negativo');
-          setAsThomasD(latest.dadosMedidos.testesEspeciais.thomasD || 'Negativo');
-          setAsThomasE(latest.dadosMedidos.testesEspeciais.thomasE || 'Negativo');
-          setAsThomasIliopsoasD(latest.dadosMedidos.testesEspeciais.thomasIliopsoasD?.toString() || '');
-          setAsThomasIliopsoasE(latest.dadosMedidos.testesEspeciais.thomasIliopsoasE?.toString() || '');
-          setAsThomasRetofemoralD(latest.dadosMedidos.testesEspeciais.thomasRetofemoralD?.toString() || '');
-          setAsThomasRetofemoralE(latest.dadosMedidos.testesEspeciais.thomasRetofemoralE?.toString() || '');
+          const te = latest.dadosMedidos.testesEspeciais;
+          const defaultIlioD = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
+          const defaultIlioE = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
+          const defaultRetoD = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
+          const defaultRetoE = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || te.thomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
+
+          setAsThomasIliopsoasDStatus(defaultIlioD);
+          setAsThomasIliopsoasEStatus(defaultIlioE);
+          setAsThomasRetofemoralDStatus(defaultRetoD);
+          setAsThomasRetofemoralEStatus(defaultRetoE);
+          setAsThomasIliopsoasD(te.thomasIliopsoasD?.toString() || '');
+          setAsThomasIliopsoasE(te.thomasIliopsoasE?.toString() || '');
+          setAsThomasRetofemoralD(te.thomasRetofemoralD?.toString() || '');
+          setAsThomasRetofemoralE(te.thomasRetofemoralE?.toString() || '');
           setAsTermografia(latest.dadosMedidos.testesEspeciais.termografia || '');
           setAsTermografiaRealizou(latest.dadosMedidos.testesEspeciais.termografia && latest.dadosMedidos.testesEspeciais.termografia.trim() !== '' ? 'sim' : 'nao');
           
@@ -1468,10 +1517,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             try {
               const parsed = JSON.parse(sdVal);
               setAsStepDownRealizou(parsed.realizou || 'sim');
-              setAsSdPelvica(parsed.quedaPelvica ?? '');
-              setAsSdAducao(parsed.aducaoQuadril ?? '');
-              setAsSdValgo(parsed.valgoDinamicoJoelho ?? '');
-              setAsSdPrps(parsed.compExcentricoPrps ?? '');
+              setAsSdPelvicaD(parsed.quedaPelvicaD !== undefined ? parsed.quedaPelvicaD : (parsed.quedaPelvica ?? ''));
+              setAsSdPelvicaE(parsed.quedaPelvicaE !== undefined ? parsed.quedaPelvicaE : (parsed.quedaPelvica ?? ''));
+              setAsSdAducaoD(parsed.aducaoQuadrilD !== undefined ? parsed.aducaoQuadrilD : (parsed.aducaoQuadril ?? ''));
+              setAsSdAducaoE(parsed.aducaoQuadrilE !== undefined ? parsed.aducaoQuadrilE : (parsed.aducaoQuadril ?? ''));
+              setAsSdValgoD(parsed.valgoDinamicoJoelhoD !== undefined ? parsed.valgoDinamicoJoelhoD : (parsed.valgoDinamicoJoelho ?? ''));
+              setAsSdValgoE(parsed.valgoDinamicoJoelhoE !== undefined ? parsed.valgoDinamicoJoelhoE : (parsed.valgoDinamicoJoelho ?? ''));
+              setAsSdPrpsD(parsed.compExcentricoPrpsD !== undefined ? parsed.compExcentricoPrpsD : (parsed.compExcentricoPrps ?? ''));
+              setAsSdPrpsE(parsed.compExcentricoPrpsE !== undefined ? parsed.compExcentricoPrpsE : (parsed.compExcentricoPrps ?? ''));
               setAsStepDown('');
             } catch (err) {
               console.error(err);
@@ -1479,8 +1532,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           } else {
             setAsStepDown(sdVal);
             setAsStepDownRealizou(sdVal && sdVal.trim() !== '' ? 'sim' : 'nao');
-            setAsSdPelvica(''); setAsSdAducao('');
-            setAsSdValgo(''); setAsSdPrps('');
+            setAsSdPelvicaD(''); setAsSdPelvicaE('');
+            setAsSdAducaoD(''); setAsSdAducaoE('');
+            setAsSdValgoD(''); setAsSdValgoE('');
+            setAsSdPrpsD(''); setAsSdPrpsE('');
           }
           const maigneVal = latest.dadosMedidos.testesEspeciais.maigne || '';
           try {
@@ -1610,8 +1665,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         });
         setAsOberD('Negativo');
         setAsOberE('Negativo');
-        setAsThomasD('Negativo');
-        setAsThomasE('Negativo');
+        setAsThomasIliopsoasDStatus('Negativo');
+        setAsThomasIliopsoasEStatus('Negativo');
+        setAsThomasRetofemoralDStatus('Negativo');
+        setAsThomasRetofemoralEStatus('Negativo');
         setAsThomasIliopsoasD('');
         setAsThomasIliopsoasE('');
         setAsThomasRetofemoralD('');
@@ -1626,8 +1683,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setAsYAntD(''); setAsYAntE('');
         setAsYPMD(''); setAsYPME('');
         setAsYPLD(''); setAsYPLE('');
-        setAsSdPelvica(''); setAsSdAducao('');
-        setAsSdValgo(''); setAsSdPrps('');
+        setAsSdPelvicaD(''); setAsSdPelvicaE('');
+        setAsSdAducaoD(''); setAsSdAducaoE('');
+        setAsSdValgoD(''); setAsSdValgoE('');
+        setAsSdPrpsD(''); setAsSdPrpsE('');
         setAsMaigne('');
         setAsMaigneData({
           flexao: 25, flexaoEVA: 0,
@@ -1981,12 +2040,16 @@ goniometria: {
           testesEspeciais: {
             oberD: asOberD,
             oberE: asOberE,
-            thomasD: asThomasD,
-            thomasE: asThomasE,
-            thomasIliopsoasD: asThomasD === 'Positivo' ? (parseFloat(asThomasIliopsoasD) || null) : null,
-            thomasIliopsoasE: asThomasE === 'Positivo' ? (parseFloat(asThomasIliopsoasE) || null) : null,
-            thomasRetofemoralD: asThomasD === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
-            thomasRetofemoralE: asThomasE === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
+            thomasD: asThomasIliopsoasDStatus,
+            thomasE: asThomasIliopsoasEStatus,
+            thomasIliopsoasDStatus: asThomasIliopsoasDStatus,
+            thomasIliopsoasEStatus: asThomasIliopsoasEStatus,
+            thomasRetofemoralDStatus: asThomasRetofemoralDStatus,
+            thomasRetofemoralEStatus: asThomasRetofemoralEStatus,
+            thomasIliopsoasD: asThomasIliopsoasDStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasD) || null) : null,
+            thomasIliopsoasE: asThomasIliopsoasEStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasE) || null) : null,
+            thomasRetofemoralD: asThomasRetofemoralDStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
+            thomasRetofemoralE: asThomasRetofemoralEStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
             termografia: asTermografiaRealizou === 'sim' ? asTermografia : '',
             yTest: asYTestRealizou === 'sim'
               ? (asYLenD !== '' || asYAntD !== ''
@@ -1998,13 +2061,17 @@ goniometria: {
                   : asYTest)
               : '',
             stepDown: asStepDownRealizou === 'sim'
-              ? (asSdPelvica !== '' || asSdAducao !== '' || asSdValgo !== '' || asSdPrps !== ''
+              ? (asSdPelvicaD !== '' || asSdPelvicaE !== '' || asSdAducaoD !== '' || asSdAducaoE !== '' || asSdValgoD !== '' || asSdValgoE !== '' || asSdPrpsD !== '' || asSdPrpsE !== ''
                   ? JSON.stringify({
                       realizou: 'sim',
-                      quedaPelvica: Number(asSdPelvica) || 0,
-                      aducaoQuadril: Number(asSdAducao) || 0,
-                      valgoDinamicoJoelho: Number(asSdValgo) || 0,
-                      compExcentricoPrps: Number(asSdPrps) || 0
+                      quedaPelvicaD: Number(asSdPelvicaD) || 0,
+                      quedaPelvicaE: Number(asSdPelvicaE) || 0,
+                      aducaoQuadrilD: Number(asSdAducaoD) || 0,
+                      aducaoQuadrilE: Number(asSdAducaoE) || 0,
+                      valgoDinamicoJoelhoD: Number(asSdValgoD) || 0,
+                      valgoDinamicoJoelhoE: Number(asSdValgoE) || 0,
+                      compExcentricoPrpsD: Number(asSdPrpsD) || 0,
+                      compExcentricoPrpsE: Number(asSdPrpsE) || 0
                     })
                   : asStepDown)
               : '',
@@ -2277,12 +2344,19 @@ goniometria: {
       const te = latest.dadosMedidos.testesEspeciais;
       if (te.oberD) setTOberD(te.oberD);
       if (te.oberE) setTOberE(te.oberE);
-      if (te.thomasD) setTThomasD(te.thomasD);
-      if (te.thomasE) setTThomasE(te.thomasE);
-      if (te.thomasIliopsoasD) setTThomasIliopsoasD(te.thomasIliopsoasD);
-      if (te.thomasIliopsoasE) setTThomasIliopsoasE(te.thomasIliopsoasE);
-      if (te.thomasRetofemoralD) setTThomasRetofemoralD(te.thomasRetofemoralD);
-      if (te.thomasRetofemoralE) setTThomasRetofemoralE(te.thomasRetofemoralE);
+      const defaultTIlioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
+      const defaultTIlioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
+      const defaultTRetoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
+      const defaultTRetoEStatus = te.thomasRetofemoralEStatus !== undefined ? te.thomasRetofemoralEStatus : ((te.thomasE === 'Positivo' || te.thomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
+
+      setTThomasIliopsoasDStatus(defaultTIlioDStatus);
+      setTThomasIliopsoasEStatus(defaultTIlioEStatus);
+      setTThomasRetofemoralDStatus(defaultTRetoDStatus);
+      setTThomasRetofemoralEStatus(defaultTRetoEStatus);
+      setTThomasIliopsoasD(te.thomasIliopsoasD?.toString() || '');
+      setTThomasIliopsoasE(te.thomasIliopsoasE?.toString() || '');
+      setTThomasRetofemoralD(te.thomasRetofemoralD?.toString() || '');
+      setTThomasRetofemoralE(te.thomasRetofemoralE?.toString() || '');
     }
     if (sections.includes('perimetria') && latest.dadosMedidos?.circunferencias) {
       const c = latest.dadosMedidos.circunferencias;
@@ -2311,8 +2385,14 @@ goniometria: {
         const sd = JSON.parse(latest.dadosMedidos.testesEspeciais.stepDown);
         if (sd?.realizou === 'sim') {
           setSdRealizou('sim');
-          setSdPelvica(sd.quedaPelvica || 0); setSdAducao(sd.aducaoQuadril || 0);
-          setSdValgo(sd.valgoDinamicoJoelho || 0); setSdPrps(sd.compExcentricoPrps || 0);
+          setSdPelvicaD(sd.quedaPelvicaD !== undefined ? sd.quedaPelvicaD : (sd.quedaPelvica || 0));
+          setSdPelvicaE(sd.quedaPelvicaE !== undefined ? sd.quedaPelvicaE : (sd.quedaPelvica || 0));
+          setSdAducaoD(sd.aducaoQuadrilD !== undefined ? sd.aducaoQuadrilD : (sd.aducaoQuadril || 0));
+          setSdAducaoE(sd.aducaoQuadrilE !== undefined ? sd.aducaoQuadrilE : (sd.aducaoQuadril || 0));
+          setSdValgoD(sd.valgoDinamicoJoelhoD !== undefined ? sd.valgoDinamicoJoelhoD : (sd.valgoDinamicoJoelho || 0));
+          setSdValgoE(sd.valgoDinamicoJoelhoE !== undefined ? sd.valgoDinamicoJoelhoE : (sd.valgoDinamicoJoelho || 0));
+          setSdPrpsD(sd.compExcentricoPrpsD !== undefined ? sd.compExcentricoPrpsD : (sd.compExcentricoPrps || 0));
+          setSdPrpsE(sd.compExcentricoPrpsE !== undefined ? sd.compExcentricoPrpsE : (sd.compExcentricoPrps || 0));
         }
       } catch { /* legacy */ }
     }
@@ -2370,11 +2450,16 @@ goniometria: {
 
         payload.testesEspeciais = {
           oberD: tOberD, oberE: tOberE,
-          thomasD: tThomasD, thomasE: tThomasE,
-          thomasIliopsoasD: tThomasIliopsoasD !== '' ? Number(tThomasIliopsoasD) : null,
-          thomasIliopsoasE: tThomasIliopsoasE !== '' ? Number(tThomasIliopsoasE) : null,
-          thomasRetofemoralD: tThomasRetofemoralD !== '' ? Number(tThomasRetofemoralD) : null,
-          thomasRetofemoralE: tThomasRetofemoralE !== '' ? Number(tThomasRetofemoralE) : null
+          thomasD: tThomasIliopsoasDStatus, thomasE: tThomasIliopsoasEStatus,
+          thomasIliopsoasDStatus: tThomasIliopsoasDStatus,
+          thomasIliopsoasEStatus: tThomasIliopsoasEStatus,
+          thomasRetofemoralDStatus: tThomasRetofemoralDStatus,
+          thomasRetofemoralEStatus: tThomasRetofemoralEStatus,
+          thomasIliopsoasD: tThomasIliopsoasDStatus === 'Positivo' ? (parseFloat(tThomasIliopsoasD) || null) : null,
+          thomasIliopsoasE: tThomasIliopsoasEStatus === 'Positivo' ? (parseFloat(tThomasIliopsoasE) || null) : null,
+          thomasRetofemoralD: tThomasRetofemoralDStatus === 'Positivo' ? (parseFloat(tThomasRetofemoralD) || null) : null,
+          thomasRetofemoralE: tThomasRetofemoralEStatus === 'Positivo' ? (parseFloat(tThomasRetofemoralE) || null) : null,
+          customTests: repCustomTests
         };
         payload.perimetria = repCirc;
 
@@ -2402,10 +2487,14 @@ goniometria: {
           },
           stepDown: {
             realizou: sdRealizou,
-            quedaPelvica: Number(sdPelvica),
-            aducaoQuadril: Number(sdAducao),
-            valgoDinamicoJoelho: Number(sdValgo),
-            compExcentricoPrps: Number(sdPrps)
+            quedaPelvicaD: Number(sdPelvicaD),
+            quedaPelvicaE: Number(sdPelvicaE),
+            aducaoQuadrilD: Number(sdAducaoD),
+            aducaoQuadrilE: Number(sdAducaoE),
+            valgoDinamicoJoelhoD: Number(sdValgoD),
+            valgoDinamicoJoelhoE: Number(sdValgoE),
+            compExcentricoPrpsD: Number(sdPrpsD),
+            compExcentricoPrpsE: Number(sdPrpsE)
           },
           discinesiaEscapular: {
             realizou: repDeRealizou,
@@ -2477,7 +2566,24 @@ goniometria: {
             setRepMaigneRealizou('nao');
             setYRealizou('nao');
             setSdRealizou('nao');
+            setTThomasIliopsoasDStatus('Negativo');
+            setTThomasIliopsoasEStatus('Negativo');
+            setTThomasRetofemoralDStatus('Negativo');
+            setTThomasRetofemoralEStatus('Negativo');
+            setTThomasIliopsoasD('');
+            setTThomasIliopsoasE('');
+            setTThomasRetofemoralD('');
+            setTThomasRetofemoralE('');
+            setSdPelvicaD(0);
+            setSdPelvicaE(0);
+            setSdAducaoD(0);
+            setSdAducaoE(0);
+            setSdValgoD(0);
+            setSdValgoE(0);
+            setSdPrpsD(0);
+            setSdPrpsE(0);
             setRepExercicios('');
+            setRepCustomTests([]);
             setRepContent('');
             setRepPdfUrl('');
             setRepPdfAttachName('');
@@ -5587,41 +5693,81 @@ goniometria: {
                         </div>
                       </div>
 
-                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Thomas</h5>
-                        <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
-                          <div style={{ flex: 1 }}>
-                            <label>Lado Direito</label>
-                            <select className="form-control form-control-sm" value={asThomasD} onChange={e => setAsThomasD(e.target.value)}>
-                              <option value="Negativo">Negativo</option>
-                              <option value="Positivo">Positivo</option>
-                            </select>
+                      <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div>
+                          <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Thomas - Iliopsoas</h5>
+                          <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                              <label>Lado Direito</label>
+                              <select className="form-control form-control-sm" value={asThomasIliopsoasDStatus} onChange={e => setAsThomasIliopsoasDStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <label>Lado Esquerdo</label>
+                              <select className="form-control form-control-sm" value={asThomasIliopsoasEStatus} onChange={e => setAsThomasIliopsoasEStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
+                            </div>
                           </div>
-                          <div style={{ flex: 1 }}>
-                            <label>Lado Esquerdo</label>
-                            <select className="form-control form-control-sm" value={asThomasE} onChange={e => setAsThomasE(e.target.value)}>
-                              <option value="Negativo">Negativo</option>
-                              <option value="Positivo">Positivo</option>
-                            </select>
+                          <div style={{ display: 'flex', gap: '12px' }}>
+                            <div style={{ flex: 1 }}>
+                              {asThomasIliopsoasDStatus === 'Positivo' && (
+                                <>
+                                  <label>Iliopsoas D (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasIliopsoasD} onChange={e => setAsThomasIliopsoasD(e.target.value)} />
+                                </>
+                              )}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              {asThomasIliopsoasEStatus === 'Positivo' && (
+                                <>
+                                  <label>Iliopsoas E (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasIliopsoasE} onChange={e => setAsThomasIliopsoasE(e.target.value)} />
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                          {asThomasD === 'Positivo' && (
+
+                        <div>
+                          <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Thomas - Retofemoral</h5>
+                          <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
                             <div style={{ flex: 1 }}>
-                              <label>Iliopsoas D (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasIliopsoasD} onChange={e => setAsThomasIliopsoasD(e.target.value)} />
-                              <label style={{ marginTop: '4px' }}>Retofemoral D (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasRetofemoralD} onChange={e => setAsThomasRetofemoralD(e.target.value)} />
+                              <label>Lado Direito</label>
+                              <select className="form-control form-control-sm" value={asThomasRetofemoralDStatus} onChange={e => setAsThomasRetofemoralDStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
                             </div>
-                          )}
-                          {asThomasE === 'Positivo' && (
                             <div style={{ flex: 1 }}>
-                              <label>Iliopsoas E (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasIliopsoasE} onChange={e => setAsThomasIliopsoasE(e.target.value)} />
-                              <label style={{ marginTop: '4px' }}>Retofemoral E (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasRetofemoralE} onChange={e => setAsThomasRetofemoralE(e.target.value)} />
+                              <label>Lado Esquerdo</label>
+                              <select className="form-control form-control-sm" value={asThomasRetofemoralEStatus} onChange={e => setAsThomasRetofemoralEStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
                             </div>
-                          )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px' }}>
+                            <div style={{ flex: 1 }}>
+                              {asThomasRetofemoralDStatus === 'Positivo' && (
+                                <>
+                                  <label>Retofemoral D (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasRetofemoralD} onChange={e => setAsThomasRetofemoralD(e.target.value)} />
+                                </>
+                              )}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              {asThomasRetofemoralEStatus === 'Positivo' && (
+                                <>
+                                  <label>Retofemoral E (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={asThomasRetofemoralE} onChange={e => setAsThomasRetofemoralE(e.target.value)} />
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -5762,40 +5908,75 @@ goniometria: {
                         </div>
                         {asStepDownRealizou === 'sim' && (
                           <div>
-                            <div className="resp-grid-1-1">
-                              <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Queda Pélvica (Graus)</label>
-                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdPelvica} onChange={e => setAsSdPelvica(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 4" />
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Referência: normal até 5°</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {/* Item 1 */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Queda Pélvica<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: até 5°</span></div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdPelvicaD} onChange={e => setAsSdPelvicaD(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 4" />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdPelvicaE} onChange={e => setAsSdPelvicaE(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 4" />
+                                </div>
                               </div>
-                              <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Adução do Quadril (Graus)</label>
-                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdAducao} onChange={e => setAsSdAducao(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 8" />
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Referência: normal até 10°</span>
+                              
+                              {/* Item 2 */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Adução do Quadril<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: até 10°</span></div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdAducaoD} onChange={e => setAsSdAducaoD(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 8" />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdAducaoE} onChange={e => setAsSdAducaoE(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 8" />
+                                </div>
                               </div>
-                              <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Valgo Dinâmico de Joelho (Graus)</label>
-                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdValgo} onChange={e => setAsSdValgo(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 9" />
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Ref.: Homem até 10°, Mulher até 15°</span>
+
+                              {/* Item 3 */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Valgo Dinâmico Joelho<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: M até 10° | F até 15°</span></div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdValgoD} onChange={e => setAsSdValgoD(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 9" />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdValgoE} onChange={e => setAsSdValgoE(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 9" />
+                                </div>
                               </div>
-                              <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>Ângulo Excêntrico de Quadríceps / PRPS (Graus)</label>
-                                <input type="number" className="form-control form-control-sm" style={{ marginTop: '4px' }} value={asSdPrps} onChange={e => setAsSdPrps(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 65" />
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Referência: normal acima de 60°</span>
+
+                              {/* Item 4 */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Ângulo Excêntrico / PRPS<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: acima de 60°</span></div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdPrpsD} onChange={e => setAsSdPrpsD(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 65" />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                  <input type="number" className="form-control form-control-sm" value={asSdPrpsE} onChange={e => setAsSdPrpsE(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 65" />
+                                </div>
                               </div>
                             </div>
                             {/* Risk alerts */}
                             {(() => {
-                              const qPel = Number(asSdPelvica) || 0;
-                              const adQ = Number(asSdAducao) || 0;
-                              const valJo = Number(asSdValgo) || 0;
-                              const compEx = Number(asSdPrps) || 0;
+                              const qPelD = Number(asSdPelvicaD) || 0;
+                              const qPelE = Number(asSdPelvicaE) || 0;
+                              const adQD = Number(asSdAducaoD) || 0;
+                              const adQE = Number(asSdAducaoE) || 0;
+                              const valJoD = Number(asSdValgoD) || 0;
+                              const valJoE = Number(asSdValgoE) || 0;
+                              const compExD = Number(asSdPrpsD) || 0;
+                              const compExE = Number(asSdPrpsE) || 0;
                               const valLimit = asSex === 'M' ? 10 : 15;
                               const risks: string[] = [];
-                              if (qPel > 5) risks.push('Queda Pélvica elevada (>5°)');
-                              if (adQ > 10) risks.push('Adução de Quadril elevada (>10°)');
-                              if (valJo > valLimit) risks.push(`Valgo Dinâmico elevado (>${valLimit}° para ${asSex === 'M' ? 'Masculino' : 'Feminino'})`);
-                              if (compEx > 0 && compEx < 60) risks.push('Componente Excêntrico reduzido ou PRPS positivo (<60°)');
+                              if (qPelD > 5 || qPelE > 5) risks.push('Queda Pélvica elevada (>5°)');
+                              if (adQD > 10 || adQE > 10) risks.push('Adução de Quadril elevada (>10°)');
+                              if (valJoD > valLimit || valJoE > valLimit) risks.push(`Valgo Dinâmico elevado (>${valLimit}° para ${asSex === 'M' ? 'Masculino' : 'Feminino'})`);
+                              if ((compExD > 0 && compExD < 60) || (compExE > 0 && compExE < 60)) risks.push('Componente Excêntrico reduzido ou PRPS positivo (<60°)');
                               return (
                                 <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', fontSize: '0.78rem' }}>
                                   {risks.length > 0 ? (
@@ -6915,8 +7096,8 @@ goniometria: {
                         </thead>
                         <tbody>
                           {[
-                            { label: 'Quadril - Flexão J. Fletido', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
-                            { label: 'Quadril - Flexão J. Estendido', ref: '100-125°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
+                            { label: 'Quadril - Flexão J. Estendido (Perna Estendida)', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
+                            { label: 'Quadril - Flexão J. Fletido (Perna Dobrada)', ref: '100-125°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
                             { label: 'Quadril - Rotação Interna', ref: '40-45°', keyD: 'quadrilRotIntD', keyE: 'quadrilRotIntE' },
                             { label: 'Quadril - Rotação Externa', ref: '40-45°', keyD: 'quadrilRotExtD', keyE: 'quadrilRotExtE' },
                             { label: 'Joelho - Flexão', ref: '135-150°', keyD: 'joelhoFlexaoD', keyE: 'joelhoFlexaoE' },
@@ -6939,14 +7120,33 @@ goniometria: {
                               });
                             };
 
+                            const checkUIAscGonio = (vd: any, ve: any) => {
+                              const d1 = Number(vd.semForca) || 0;
+                              const e1 = Number(ve.semForca) || 0;
+                              const max1 = Math.max(d1, e1);
+                              const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
+
+                              const d2 = Number(vd.comForca) || 0;
+                              const e2 = Number(ve.comForca) || 0;
+                              const max2 = Math.max(d2, e2);
+                              const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
+
+                              return hasAsy1 || hasAsy2;
+                            };
+                            const hasAsymmetry = checkUIAscGonio(valD, valE);
+
                             return (
-                              <tr key={row.keyD}>
+                              <tr key={row.keyD} style={hasAsymmetry ? { background: 'rgba(239, 68, 68, 0.05)' } : undefined}>
                                 <td>
-                                  <strong>{row.label}</strong> <br/>
+                                  <strong>{row.label}</strong>
+                                  {hasAsymmetry && (
+                                    <span className="badge badge-danger" style={{ fontSize: '0.62rem', padding: '2px 4px', display: 'inline-block', marginLeft: '6px' }}>⚠️ Assimetria &gt;10%</span>
+                                  )}
+                                  <br/>
                                   <small style={{ color: 'var(--text-dim)' }}>Ref: {row.ref}</small>
                                 </td>
                                 {/* Direito */}
-                                <td style={{ background: 'rgba(13,148,136,0.02)' }}>
+                                <td style={{ background: hasAsymmetry ? 'rgba(239, 68, 68, 0.02)' : 'rgba(13,148,136,0.02)' }}>
                                   <input
                                     type="number"
                                     placeholder="1"
@@ -7031,55 +7231,84 @@ goniometria: {
                         </div>
                       </div>
 
-                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
-                        <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Teste de Thomas (Flexores de Quadril)</strong>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <div style={{ flex: 1 }}>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
-                            <select className="form-control form-control-sm" value={tThomasD} onChange={e => setTThomasD(e.target.value)}>
-                              <option value="Negativo">Negativo</option>
-                              <option value="Positivo">Positivo</option>
-                            </select>
+                      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div>
+                          <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Teste de Thomas - Iliopsoas</strong>
+                          <div style={{ display: 'flex', gap: '10px', marginBottom: '6px' }}>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
+                              <select className="form-control form-control-sm" value={tThomasIliopsoasDStatus} onChange={e => setTThomasIliopsoasDStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
+                              <select className="form-control form-control-sm" value={tThomasIliopsoasEStatus} onChange={e => setTThomasIliopsoasEStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
+                            </div>
                           </div>
-                          <div style={{ flex: 1 }}>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
-                            <select className="form-control form-control-sm" value={tThomasE} onChange={e => setTThomasE(e.target.value)}>
-                              <option value="Negativo">Negativo</option>
-                              <option value="Positivo">Positivo</option>
-                            </select>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <div style={{ flex: 1 }}>
+                              {tThomasIliopsoasDStatus === 'Positivo' && (
+                                <div className="form-group" style={{ margin: 0 }}>
+                                  <label style={{ fontSize: '0.70rem' }}>Graus D (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasIliopsoasD} onChange={e => setTThomasIliopsoasD(e.target.value)} />
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              {tThomasIliopsoasEStatus === 'Positivo' && (
+                                <div className="form-group" style={{ margin: 0 }}>
+                                  <label style={{ fontSize: '0.70rem' }}>Graus E (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasIliopsoasE} onChange={e => setTThomasIliopsoasE(e.target.value)} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Teste de Thomas - Retofemoral</strong>
+                          <div style={{ display: 'flex', gap: '10px', marginBottom: '6px' }}>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Direito:</span>
+                              <select className="form-control form-control-sm" value={tThomasRetofemoralDStatus} onChange={e => setTThomasRetofemoralDStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esquerdo:</span>
+                              <select className="form-control form-control-sm" value={tThomasRetofemoralEStatus} onChange={e => setTThomasRetofemoralEStatus(e.target.value)}>
+                                <option value="Negativo">Negativo</option>
+                                <option value="Positivo">Positivo</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <div style={{ flex: 1 }}>
+                              {tThomasRetofemoralDStatus === 'Positivo' && (
+                                <div className="form-group" style={{ margin: 0 }}>
+                                  <label style={{ fontSize: '0.70rem' }}>Graus D (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasRetofemoralD} onChange={e => setTThomasRetofemoralD(e.target.value)} />
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              {tThomasRetofemoralEStatus === 'Positivo' && (
+                                <div className="form-group" style={{ margin: 0 }}>
+                                  <label style={{ fontSize: '0.70rem' }}>Graus E (°)</label>
+                                  <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasRetofemoralE} onChange={e => setTThomasRetofemoralE(e.target.value)} />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    {(tThomasD === 'Positivo' || tThomasE === 'Positivo') && (
-                      <div className="resp-grid-1-1" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
-                        {tThomasD === 'Positivo' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Iliopsoas D (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasIliopsoasD} onChange={e => setTThomasIliopsoasD(e.target.value)} />
-                            </div>
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Retofemoral D (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasRetofemoralD} onChange={e => setTThomasRetofemoralD(e.target.value)} />
-                            </div>
-                          </div>
-                        )}
-                        {tThomasE === 'Positivo' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Iliopsoas E (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasIliopsoasE} onChange={e => setTThomasIliopsoasE(e.target.value)} />
-                            </div>
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Retofemoral E (°)</label>
-                              <input type="number" className="form-control form-control-sm" placeholder="Graus" value={tThomasRetofemoralE} onChange={e => setTThomasRetofemoralE(e.target.value)} />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -7100,6 +7329,32 @@ goniometria: {
                               <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['perimetria'])}>
                                 <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Perimetria
                               </button>
+                            </div>
+                          );
+                        })()}
+
+                        {(() => {
+                          const checkAsy = (d: any, e: any, label: string) => {
+                            const valD = Number(d) || 0;
+                            const valE = Number(e) || 0;
+                            const max = Math.max(valD, valE);
+                            if (max > 0 && (Math.abs(valD - valE) / max) > 0.10) {
+                              return `${label} (${((Math.abs(valD - valE) / max) * 100).toFixed(0)}%)`;
+                            }
+                            return null;
+                          };
+                          const list = [
+                            checkAsy(repCirc.braçoD, repCirc.braçoE, 'Braço'),
+                            checkAsy(repCirc.antebraçoD, repCirc.antebraçoE, 'Antebraço'),
+                            checkAsy(repCirc.coxaD, repCirc.coxaE, 'Coxa'),
+                            checkAsy(repCirc.panturrilhaD, repCirc.panturrilhaE, 'Panturrilha')
+                          ].filter(Boolean);
+
+                          if (list.length === 0) return null;
+                          return (
+                            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.8rem', color: '#ef4444' }}>
+                              <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
+                              <strong>Assimetria significativa (&gt;10%) detectada em:</strong> {list.join(', ')}.
                             </div>
                           );
                         })()}
@@ -7512,29 +7767,57 @@ goniometria: {
 
                       {sdRealizou === 'sim' && (
                         <div>
-                          <div className="resp-grid-1-1" style={{ marginBottom: '10px' }}>
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Queda Pélvica (Graus)</label>
-                              <input type="number" className="form-control form-control-sm" value={sdPelvica || ''} onChange={e => setSdPelvica(Number(e.target.value))} placeholder="Ex: 4..." />
-                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: normal até 5°</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {/* Item 1 */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Queda Pélvica<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: até 5°</span></div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdPelvicaD || ''} onChange={e => setSdPelvicaD(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 4" />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdPelvicaE || ''} onChange={e => setSdPelvicaE(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 4" />
+                              </div>
                             </div>
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Adução do Quadril (Graus)</label>
-                              <input type="number" className="form-control form-control-sm" value={sdAducao || ''} onChange={e => setSdAducao(Number(e.target.value))} placeholder="Ex: 8..." />
-                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: normal até 10°</span>
+                            
+                            {/* Item 2 */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Adução do Quadril<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: até 10°</span></div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdAducaoD || ''} onChange={e => setSdAducaoD(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 8" />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdAducaoE || ''} onChange={e => setSdAducaoE(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 8" />
+                              </div>
                             </div>
-                          </div>
-                          
-                          <div className="resp-grid-1-1">
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Valgo Dinâmico do Joelho (Graus)</label>
-                              <input type="number" className="form-control form-control-sm" value={sdValgo || ''} onChange={e => setSdValgo(Number(e.target.value))} placeholder="Ex: 9..." />
-                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: Homem até 10°, Mulher até 15°</span>
+
+                            {/* Item 3 */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Valgo Dinâmico Joelho<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: M até 10° | F até 15°</span></div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdValgoD || ''} onChange={e => setSdValgoD(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 9" />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdValgoE || ''} onChange={e => setSdValgoE(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 9" />
+                              </div>
                             </div>
-                            <div className="form-group">
-                              <label style={{ fontSize: '0.75rem' }}>Componente Excêntrico de Quadríceps / PRPS (Graus)</label>
-                              <input type="number" className="form-control form-control-sm" value={sdPrps || ''} onChange={e => setSdPrps(Number(e.target.value))} placeholder="Ex: 65..." />
-                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Referência: normal acima de 60°</span>
+
+                            {/* Item 4 */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Ângulo Excêntrico / PRPS<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: acima de 60°</span></div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Direito (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdPrpsD || ''} onChange={e => setSdPrpsD(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 65" />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Esquerdo (°)</label>
+                                <input type="number" className="form-control form-control-sm" value={sdPrpsE || ''} onChange={e => setSdPrpsE(e.target.value === '' ? 0 : Number(e.target.value))} placeholder="Ex: 65" />
+                              </div>
                             </div>
                           </div>
 
@@ -7544,11 +7827,11 @@ goniometria: {
                             const rawSex = selCli?.dadosPessoais?.sexo || 'M';
                             const sex = rawSex === 'masculino' ? 'M' : rawSex === 'feminino' ? 'F' : rawSex === 'outro' ? 'O' : rawSex;
                             let riskFactors = [];
-                            if (sdPelvica > 5) riskFactors.push('Queda Pélvica elevada (> 5°)');
-                            if (sdAducao > 10) riskFactors.push('Adução de Quadril elevada (> 10°)');
+                            if (sdPelvicaD > 5 || sdPelvicaE > 5) riskFactors.push('Queda Pélvica elevada (> 5°)');
+                            if (sdAducaoD > 10 || sdAducaoE > 10) riskFactors.push('Adução de Quadril elevada (> 10°)');
                             const limit = sex === 'M' ? 10 : 15;
-                            if (sdValgo > limit) riskFactors.push(`Valgo Dinâmico elevado (> ${limit}° para sexo ${sex === 'M' ? 'Masculino' : 'Feminino'})`);
-                            if (sdPrps > 0 && sdPrps < 60) riskFactors.push('Componente Excêntrico de Quadríceps reduzido ou PRPS positivo (< 60°)');
+                            if (sdValgoD > limit || sdValgoE > limit) riskFactors.push(`Valgo Dinâmico elevado (> ${limit}° para sexo ${sex === 'M' ? 'Masculino' : 'Feminino'})`);
+                            if ((sdPrpsD > 0 && sdPrpsD < 60) || (sdPrpsE > 0 && sdPrpsE < 60)) riskFactors.push('Componente Excêntrico de Quadríceps reduzido ou PRPS positivo (< 60°)');
 
                             return (
                               <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.8rem', marginTop: '12px' }}>
@@ -7609,6 +7892,43 @@ goniometria: {
                           </div>
                         </div>
                       )}
+                    </div>
+
+                    {/* OUTROS TESTES PERSONALIZADOS */}
+                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginTop: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h5 style={{ margin: 0 }}><i className="fa-solid fa-flask" style={{ color: 'var(--color-primary)', marginRight: '6px', fontSize: '0.8rem' }}></i> Outros Testes Personalizados</h5>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRepCustomTests([...repCustomTests, { nome: '', resultados: '' }])}>
+                          <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Adicionar Teste
+                        </button>
+                      </div>
+
+                      {repCustomTests.map((t, idx) => (
+                        <div key={idx} style={{ background: 'var(--bg-darker)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong style={{ fontSize: '0.8rem', color: 'var(--color-primary)' }}>Teste #{idx + 1}</strong>
+                            <button type="button" className="btn btn-danger btn-sm" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => setRepCustomTests(repCustomTests.filter((_, i) => i !== idx))}>
+                              <i className="fa-solid fa-trash"></i> Remover
+                            </button>
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label style={{ fontSize: '0.75rem' }}>Nome do Teste</label>
+                            <input type="text" className="form-control form-control-sm" value={t.nome} onChange={e => {
+                              const updated = [...repCustomTests];
+                              updated[idx] = { ...updated[idx], nome: e.target.value };
+                              setRepCustomTests(updated);
+                            }} placeholder="Ex: Teste de Lasegue, Phalen, Yergason..." required />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label style={{ fontSize: '0.75rem' }}>Descrição dos Resultados</label>
+                            <textarea className="form-control form-control-sm" rows={2} value={t.resultados} onChange={e => {
+                              const updated = [...repCustomTests];
+                              updated[idx] = { ...updated[idx], resultados: e.target.value };
+                              setRepCustomTests(updated);
+                            }} placeholder="Descreva os achados clínicos e resultados observados..." required />
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
                   </div>
