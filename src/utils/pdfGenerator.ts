@@ -2140,13 +2140,23 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                 <!-- Green Lines for Circunferencias -->
                 <line x1="45" y1="30" x2="55" y2="30" stroke="#10b981" stroke-width="2" title="Pescoço"></line>
-                <line x1="38" y1="40" x2="62" y2="40" stroke="#10b981" stroke-width="2" title="Ombros"></line>
-                <line x1="40" y1="52" x2="60" y2="52" stroke="#10b981" stroke-width="2" title="TÃ³rax"></line>
-                <line x1="44" y1="75" x2="56" y2="75" stroke="#10b981" stroke-width="2" title="Cintura"></line>
-                <line x1="44" y1="84" x2="56" y2="84" stroke="#10b981" stroke-width="2" title="AbdÃ´men"></line>
-                <line x1="42" y1="92" x2="58" y2="92" stroke="#10b981" stroke-width="2" title="Quadril"></line>
-                <line x1="42" y1="125" x2="49" y2="125" stroke="#10b981" stroke-width="2"></line>
-                <line x1="51" y1="125" x2="58" y2="125" stroke="#10b981" stroke-width="2"></line>
+                <line x1="31" y1="38" x2="69" y2="38" stroke="#10b981" stroke-width="2" title="Ombros"></line>
+                <line x1="35" y1="48" x2="65" y2="48" stroke="#10b981" stroke-width="2" title="Tórax"></line>
+                <!-- Braços -->
+                <line x1="29" y1="60" x2="35" y2="60" stroke="#10b981" stroke-width="2" title="Braço Direito"></line>
+                <line x1="65" y1="60" x2="71" y2="60" stroke="#10b981" stroke-width="2" title="Braço Esquerdo"></line>
+                <line x1="41" y1="68" x2="59" y2="68" stroke="#10b981" stroke-width="2" title="Cintura"></line>
+                <!-- Antebraços -->
+                <line x1="27" y1="78" x2="32" y2="78" stroke="#10b981" stroke-width="2" title="Antebraço Direito"></line>
+                <line x1="68" y1="78" x2="73" y2="78" stroke="#10b981" stroke-width="2" title="Antebraço Esquerdo"></line>
+                <line x1="40" y1="78" x2="60" y2="78" stroke="#10b981" stroke-width="2" title="Abdômen"></line>
+                <line x1="39" y1="88" x2="61" y2="88" stroke="#10b981" stroke-width="2" title="Quadril"></line>
+                <!-- Coxas -->
+                <line x1="40" y1="115" x2="48" y2="115" stroke="#10b981" stroke-width="2" title="Coxa Direita"></line>
+                <line x1="52" y1="115" x2="60" y2="115" stroke="#10b981" stroke-width="2" title="Coxa Esquerda"></line>
+                <!-- Panturrilhas -->
+                <line x1="41" y1="155" x2="47" y2="155" stroke="#10b981" stroke-width="2" title="Panturrilha Direita"></line>
+                <line x1="53" y1="155" x2="59" y2="155" stroke="#10b981" stroke-width="2" title="Panturrilha Esquerda"></line>
               </svg>
             </div>
 
