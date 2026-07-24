@@ -1375,6 +1375,26 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 if (evoSubTab === 'mobilidade') {
                   const latestGoniometry = latestAs?.dadosMedidos?.goniometria || {};
 
+                  const getValNum = (val: any) => {
+                    if (!val) return 0;
+                    if (typeof val === 'object') {
+                      return Number(val.semForca) || Number(val.comForca) || 0;
+                    }
+                    const n = parseFloat(val);
+                    return isNaN(n) ? 0 : n;
+                  };
+
+                  const formatGonioValue = (val: any) => {
+                    if (!val) return '-';
+                    if (typeof val === 'object') {
+                      const sem = val.semForca !== undefined && val.semForca !== null && val.semForca !== '' ? `${val.semForca}°` : '-';
+                      const com = val.comForca !== undefined && val.comForca !== null && val.comForca !== '' ? `${val.comForca}°` : '-';
+                      return `${sem} | ${com}`;
+                    }
+                    const n = parseFloat(val);
+                    return isNaN(n) ? '-' : `${n}°`;
+                  };
+
                   const goniometryPairs = [
                     { label: 'Quadril - Flexão Joelho Estendido (Perna Estendida)', dKey: 'quadrilFlexao1D', eKey: 'quadrilFlexao1E' },
                     { label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', dKey: 'quadrilFlexao2D', eKey: 'quadrilFlexao2E' },
@@ -1391,13 +1411,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   ];
 
                   const flaggedAsymmetries = goniometryPairs.map(p => {
-                    const dVal = latestGoniometry[p.dKey] || 0;
-                    const eVal = latestGoniometry[p.eKey] || 0;
-                    const diff = Math.abs(dVal - eVal);
+                    const dVal = latestGoniometry[p.dKey];
+                    const eVal = latestGoniometry[p.eKey];
+                    const dValNum = getValNum(dVal);
+                    const eValNum = getValNum(eVal);
+                    const diff = Math.abs(dValNum - eValNum);
                     return {
                       label: p.label,
-                      dVal,
-                      eVal,
+                      dVal: dValNum,
+                      eVal: eValNum,
                       diff,
                       isAsymmetry: diff > 8
                     };
@@ -1505,14 +1527,16 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               </thead>
                               <tbody>
                                 {goniometryPairs.map(p => {
-                                  const dVal = latestGoniometry[p.dKey] || 0;
-                                  const eVal = latestGoniometry[p.eKey] || 0;
-                                  const diff = Math.abs(dVal - eVal);
+                                  const dVal = latestGoniometry[p.dKey];
+                                  const eVal = latestGoniometry[p.eKey];
+                                  const dValNum = getValNum(dVal);
+                                  const eValNum = getValNum(eVal);
+                                  const diff = Math.abs(dValNum - eValNum);
                                   return (
                                     <tr key={p.dKey}>
                                       <td><strong>{p.label}</strong></td>
-                                      <td className="text-center" style={{ fontWeight: 'bold' }}>{dVal}°</td>
-                                      <td className="text-center" style={{ fontWeight: 'bold' }}>{eVal}°</td>
+                                      <td className="text-center" style={{ fontWeight: 'bold' }}>{formatGonioValue(dVal)}</td>
+                                      <td className="text-center" style={{ fontWeight: 'bold' }}>{formatGonioValue(eVal)}</td>
                                       <td className="text-center">
                                         <span className={`badge ${diff > 8 ? 'badge-danger' : 'badge-success'}`}>
                                           {diff.toFixed(0)}°
