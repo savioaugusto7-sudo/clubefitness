@@ -1525,7 +1525,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const history = assessmentsList
     .filter((a: any) => {
       const aClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId;
-      return aClientId === currentClientId && a.data <= assessment.data && !a.pdf_url;
+      return aClientId === currentClientId && a.data <= assessment.data;
     })
     .sort((a: any, b: any) => a.data.localeCompare(b.data))
     .slice(-3);

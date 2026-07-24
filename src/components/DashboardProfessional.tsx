@@ -509,6 +509,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // PDF attachment state
   const [asPdfUrl, setAsPdfUrl] = useState('');
   const [asPdfAttachName, setAsPdfAttachName] = useState('');
+  const [selectedAsId, setSelectedAsId] = useState<Record<string, string>>({});
 
   // Physio Report PDF attachment state
   const [repPdfUrl, setRepPdfUrl] = useState('');
@@ -4613,79 +4614,146 @@ goniometria: {
           </div>
 
           <div className="content-panel">
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Aluno</th>
-                    <th>Peso / Altura</th>
-                    <th style={{ textAlign: 'center' }}>Gordura Corporal</th>
-                    <th>Massa Magra / Gorda</th>
-                    {isAdmin && <th>Avaliador</th>}
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'avaliacoes';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(assessments.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = assessments.slice((curP - 1) * size, curP * size);
+            {(() => {
+              const listKey = 'avaliacoes';
+              const activeP = getPage(listKey);
+              const size = getPageSize(listKey);
 
-                    return paginated.map(as => (
-                      <tr key={as._id}>
-                        <td data-label="Data"><strong>{as.data}</strong></td>
-                        <td data-label="Aluno"><strong>{as.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td data-label="Peso / Altura">{as.dadosMedidos?.peso} kg / {as.dadosMedidos?.altura} m</td>
-                        <td data-label="% Gordura (BF)" style={{ textAlign: 'center' }}>
-                          <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura}% BF</span>
-                        </td>
-                        <td data-label="Massa Magra / Gorda">
-                          MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
-                        </td>
-                        {isAdmin && <td data-label="Avaliador">{as.avaliadorId?.nome || 'Não Definido'}</td>}
-                        <td data-label="Ações">
-                          <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
-                            logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
-                            downloadAssessmentPDF(as, assessments);
-                          }}>
-                            <i className="fa-solid fa-file-pdf"></i> Laudo PDF
-                          </button>
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                  {assessments.length === 0 && (
-                    <tr>
-                      <td colSpan={isAdmin ? 7 : 6}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-weight-scale empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhuma avaliação física</div>
-                          <div className="empty-state-desc">Não há registros de avaliações físicas.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
-                            <i className="fa-solid fa-plus"></i> Nova Avaliação
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+              // Group assessments by student ID
+              const grouped: Record<string, any[]> = {};
+              assessments.forEach(as => {
+                const cid = as.clienteId?._id || as.clienteId || 'unknown';
+                if (!grouped[cid]) grouped[cid] = [];
+                grouped[cid].push(as);
+              });
+
+              // Sort each student's assessments from most recent to oldest
+              Object.keys(grouped).forEach(cid => {
+                grouped[cid].sort((a, b) => b.data.localeCompare(a.data));
+              });
+
+              // List of unique students with their assessments
+              const studentRows = Object.keys(grouped).map(cid => {
+                const studentAssessments = grouped[cid];
+                const latest = studentAssessments[0];
+                const studentName = latest.clienteId?.dadosPessoais?.nome || 'Aluno Removido';
+                return {
+                  clientId: cid,
+                  name: studentName,
+                  assessments: studentAssessments,
+                  latestDate: latest.data
+                };
+              });
+
+              // Sort students by their most recent assessment date (newest first)
+              studentRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+
+              const totalPages = Math.ceil(studentRows.length / size);
+              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+              const paginated = studentRows.slice((curP - 1) * size, curP * size);
+
+              return (
+                <>
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Data</th>
+                          <th>Aluno</th>
+                          <th>Peso / Altura</th>
+                          <th style={{ textAlign: 'center' }}>Gordura Corporal</th>
+                          <th>Massa Magra / Gorda</th>
+                          {isAdmin && <th>Avaliador</th>}
+                          <th>Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginated.map(row => {
+                          const activeId = selectedAsId[row.clientId] || row.assessments[0]?._id;
+                          const as = row.assessments.find(a => a._id === activeId) || row.assessments[0];
+
+                          if (!as) return null;
+
+                          return (
+                            <tr key={row.clientId}>
+                              <td data-label="Data">
+                                {row.assessments.length > 1 ? (
+                                  <select
+                                    className="form-control"
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '0.8rem',
+                                      width: 'auto',
+                                      background: 'var(--bg-main)',
+                                      color: 'var(--text-main)',
+                                      border: '1px solid var(--border-color)',
+                                      borderRadius: '4px',
+                                      fontWeight: 'bold'
+                                    }}
+                                    value={activeId}
+                                    onChange={(e) => setSelectedAsId(prev => ({ ...prev, [row.clientId]: e.target.value }))}
+                                  >
+                                    {row.assessments.map(item => (
+                                      <option key={item._id} value={item._id} style={{ background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+                                        {item.data}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <strong>{as.data}</strong>
+                                )}
+                              </td>
+                              <td data-label="Aluno"><strong>{row.name}</strong></td>
+                              <td data-label="Peso / Altura">{as.dadosMedidos?.peso} kg / {as.dadosMedidos?.altura} m</td>
+                              <td data-label="% Gordura (BF)" style={{ textAlign: 'center' }}>
+                                <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura}% BF</span>
+                              </td>
+                              <td data-label="Massa Magra / Gorda">
+                                MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
+                              </td>
+                              {isAdmin && <td data-label="Avaliador">{as.avaliadorId?.nome || 'Não Definido'}</td>}
+                              <td data-label="Ações">
+                                <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
+                                  <i className="fa-solid fa-trash"></i>
+                                </button>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                                  logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
+                                  downloadAssessmentPDF(as, assessments);
+                                }}>
+                                  <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {studentRows.length === 0 && (
+                          <tr>
+                            <td colSpan={isAdmin ? 7 : 6}>
+                              <div className="empty-state-card">
+                                <i className="fa-solid fa-weight-scale empty-state-icon"></i>
+                                <div className="empty-state-title">Nenhuma avaliação física</div>
+                                <div className="empty-state-desc">Não há registros de avaliações físicas.</div>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
+                                  <i className="fa-solid fa-plus"></i> Nova Avaliação
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {studentRows.length > 0 && (
+                    <Pagination
+                      currentPage={curP}
+                      totalItems={studentRows.length}
+                      itemsPerPage={size}
+                      onPageChange={page => setPage('avaliacoes', page)}
+                    />
                   )}
-                </tbody>
-              </table>
-            </div>
-            {assessments.length > 0 && (
-              <Pagination
-                currentPage={getPage('avaliacoes')}
-                totalItems={assessments.length}
-                itemsPerPage={getPageSize('avaliacoes')}
-                onPageChange={page => setPage('avaliacoes', page)}
-              />
-            )}
+                </>
+              );
+            })()}
           </div>
         </>
       )}
