@@ -201,7 +201,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
         {/* Brand Section */}
         <div className="brand-section">
           <div className="brand-logo">
-            <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
           </div>
           <div className="brand-name">CLUBE FITNESS FISIO</div>
         </div>

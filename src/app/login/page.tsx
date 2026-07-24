@@ -97,7 +97,7 @@ function LoginContent() {
       <div className="login-card">
         <div className="login-brand">
           <div className="login-logo-circle" style={{ overflow: 'hidden' }}>
-            <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
           </div>
           <h1>CLUBE FITNESS FISIO</h1>
           <p>Gestão Inteligente de Saúde e Treino</p>

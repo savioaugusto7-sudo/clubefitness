@@ -201,7 +201,7 @@ function ChangePasswordCard({ userEmail }: { userEmail: string }) {
     <div className="login-card" style={{ width: '100%', maxWidth: '420px', padding: '32px' }}>
       <div className="login-brand" style={{ marginBottom: '24px' }}>
         <div className="login-logo-circle" style={{ overflow: 'hidden', margin: '0 auto 16px auto' }}>
-          <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
         </div>
         <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px', margin: 0 }}>Cadastrar Nova Senha</h2>
         <p style={{ fontSize: '0.82rem', color: 'var(--text-dim)', margin: 0 }}>

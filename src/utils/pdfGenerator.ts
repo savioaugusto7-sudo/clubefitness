@@ -2099,13 +2099,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                 <!-- Green Dots for Dobras -->
-                <circle cx="43" cy="50" r="3" fill="#10b981" title="Peitoral"></circle>
-                <circle cx="34" cy="65" r="3" fill="#10b981" title="TrÃ­ceps"></circle>
+                <circle cx="44" cy="56" r="3" fill="#10b981" title="Peitoral"></circle>
+                <circle cx="33" cy="65" r="3" fill="#10b981" title="Tríceps"></circle>
                 <circle cx="58" cy="55" r="3" fill="#10b981" title="Subescapular"></circle>
-                <circle cx="41" cy="60" r="3" fill="#10b981" title="Subaxilar"></circle>
-                <circle cx="56" cy="72" r="3" fill="#10b981" title="Supra-ilÃ­aca"></circle>
-                <circle cx="49" cy="74" r="3" fill="#10b981" title="AbdÃ´men"></circle>
-                <circle cx="46" cy="120" r="3" fill="#10b981" title="Coxa"></circle>
+                <circle cx="39" cy="65" r="3" fill="#10b981" title="Subaxilar"></circle>
+                <circle cx="58" cy="82" r="3" fill="#10b981" title="Supra-ilíaca"></circle>
+                <circle cx="44" cy="82" r="3" fill="#10b981" title="Abdômen"></circle>
+                <circle cx="45" cy="130" r="3" fill="#10b981" title="Coxa"></circle>
               </svg>
             </div>
 
@@ -2139,24 +2139,24 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <img src="${avatarB64}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.85;" />
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                 <!-- Green Lines for Circunferencias -->
-                <line x1="45" y1="30" x2="55" y2="30" stroke="#10b981" stroke-width="2" title="Pescoço"></line>
-                <line x1="31" y1="38" x2="69" y2="38" stroke="#10b981" stroke-width="2" title="Ombros"></line>
-                <line x1="35" y1="48" x2="65" y2="48" stroke="#10b981" stroke-width="2" title="Tórax"></line>
+                <line x1="45" y1="38" x2="55" y2="38" stroke="#10b981" stroke-width="2" title="Pescoço"></line>
+                <line x1="31" y1="48" x2="69" y2="48" stroke="#10b981" stroke-width="2" title="Ombros"></line>
+                <line x1="35" y1="60" x2="65" y2="60" stroke="#10b981" stroke-width="2" title="Tórax"></line>
                 <!-- Braços -->
-                <line x1="29" y1="60" x2="35" y2="60" stroke="#10b981" stroke-width="2" title="Braço Direito"></line>
-                <line x1="65" y1="60" x2="71" y2="60" stroke="#10b981" stroke-width="2" title="Braço Esquerdo"></line>
-                <line x1="41" y1="68" x2="59" y2="68" stroke="#10b981" stroke-width="2" title="Cintura"></line>
+                <line x1="32" y1="70" x2="36" y2="70" stroke="#10b981" stroke-width="2" title="Braço Direito"></line>
+                <line x1="64" y1="70" x2="68" y2="70" stroke="#10b981" stroke-width="2" title="Braço Esquerdo"></line>
+                <line x1="41" y1="85" x2="59" y2="85" stroke="#10b981" stroke-width="2" title="Cintura"></line>
                 <!-- Antebraços -->
-                <line x1="27" y1="78" x2="32" y2="78" stroke="#10b981" stroke-width="2" title="Antebraço Direito"></line>
-                <line x1="68" y1="78" x2="73" y2="78" stroke="#10b981" stroke-width="2" title="Antebraço Esquerdo"></line>
-                <line x1="40" y1="78" x2="60" y2="78" stroke="#10b981" stroke-width="2" title="Abdômen"></line>
-                <line x1="39" y1="88" x2="61" y2="88" stroke="#10b981" stroke-width="2" title="Quadril"></line>
+                <line x1="30" y1="90" x2="33" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Direito"></line>
+                <line x1="67" y1="90" x2="70" y2="90" stroke="#10b981" stroke-width="2" title="Antebraço Esquerdo"></line>
+                <line x1="40" y1="94" x2="60" y2="94" stroke="#10b981" stroke-width="2" title="Abdômen"></line>
+                <line x1="38" y1="102" x2="62" y2="102" stroke="#10b981" stroke-width="2" title="Quadril"></line>
                 <!-- Coxas -->
-                <line x1="40" y1="115" x2="48" y2="115" stroke="#10b981" stroke-width="2" title="Coxa Direita"></line>
-                <line x1="52" y1="115" x2="60" y2="115" stroke="#10b981" stroke-width="2" title="Coxa Esquerda"></line>
+                <line x1="42" y1="130" x2="48" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Direita"></line>
+                <line x1="52" y1="130" x2="58" y2="130" stroke="#10b981" stroke-width="2" title="Coxa Esquerda"></line>
                 <!-- Panturrilhas -->
-                <line x1="41" y1="155" x2="47" y2="155" stroke="#10b981" stroke-width="2" title="Panturrilha Direita"></line>
-                <line x1="53" y1="155" x2="59" y2="155" stroke="#10b981" stroke-width="2" title="Panturrilha Esquerda"></line>
+                <line x1="43" y1="165" x2="47" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Direita"></line>
+                <line x1="53" y1="165" x2="57" y2="165" stroke="#10b981" stroke-width="2" title="Panturrilha Esquerda"></line>
               </svg>
             </div>
 

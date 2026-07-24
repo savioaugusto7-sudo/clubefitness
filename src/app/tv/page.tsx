@@ -491,7 +491,7 @@ export default function TVDashboard() {
       {/* Main TV Header */}
       <div className="tv-header">
         <div className="tv-header-brand">
-          <img src="/logo.jpg" alt="Logo" className="tv-header-logo" onError={(e: any) => { e.target.src = 'https://placehold.co/100x100/00ff88/000000?text=CFF' }} />
+          <img src="/logo.jpg" alt="Logo" className="tv-header-logo" style={{ borderRadius: '50%' }} onError={(e: any) => { e.target.src = 'https://placehold.co/100x100/00ff88/000000?text=CFF' }} />
           <div className="tv-header-title-wrapper">
             <div className="tv-header-title">{gymName}</div>
             <div className="tv-header-tagline">Gestão Inteligente de Saúde e Treino</div>
