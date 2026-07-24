@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 type Step = 1 | 2 | 3;
 
@@ -37,6 +37,37 @@ export default function OnboardingPage() {
   const [restricoes, setRestricoes] = useState('');
   const [medicamentos, setMedicamentos] = useState('');
   const [historicoClinico, setHistoricoClinico] = useState('');
+  useEffect(() => {
+    fetch('/api/onboarding')
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && json.data) {
+          const client = json.data;
+          const p = client.dadosPessoais || {};
+          const c = client.dadosClinicos || {};
+
+          if (p.nome) setNome(p.nome);
+          if (p.dataNascimento) setDataNascimento(p.dataNascimento);
+          if (p.sexo) setSexo(p.sexo);
+          if (p.cpf) setCpf(p.cpf);
+          if (p.telefone) setTelefone(p.telefone);
+          if (p.cep) setCep(p.cep);
+          if (p.endereco) setEndereco(p.endereco);
+          if (p.numero) setNumero(p.numero);
+          if (p.complemento) setComplemento(p.complemento);
+          if (p.bairro) setBairro(p.bairro);
+          if (p.cidade) setCidade(p.cidade);
+          if (p.estado) setEstado(p.estado);
+          if (p.estadoCivil) setEstadoCivil(p.estadoCivil);
+          if (p.profissao) setProfissao(p.profissao);
+
+          if (c.lesoes) setLesoes(c.lesoes);
+          if (c.restricoes) setRestricoes(c.restricoes);
+          if (c.medicamentos) setMedicamentos(c.medicamentos);
+          if (c.historicoClinico) setHistoricoClinico(c.historicoClinico);
+        }
+      });
+  }, []);
 
   const buscarCep = async () => {
     const cleaned = cep.replace(/\D/g, '');

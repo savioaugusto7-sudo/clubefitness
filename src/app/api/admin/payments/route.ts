@@ -126,7 +126,7 @@ export async function GET(request: Request) {
     }
 
     // Fetch and sort by due date ascending
-    const payments = await Payment.find(query).sort({ vencimento: 1 }).limit(100);
+    const payments = await Payment.find(query).sort({ vencimento: 1 });
 
     return NextResponse.json({ success: true, data: payments });
   } catch (error: any) {
