@@ -173,16 +173,29 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
           return (
             <div key={idx} className="workout-card-premium" style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '12px',
               padding: '20px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              boxShadow: 'var(--shadow-card)',
+              boxShadow: '0 8px 32px 0 rgba(0,0,0,0.15)',
+              transition: 'all 0.3s ease',
               ...groupStyle
-            }}>
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = `0 12px 40px 0 ${groupColor ? `${groupColor}24` : 'rgba(16, 185, 129, 0.15)'}`;
+              e.currentTarget.style.borderColor = groupColor || 'var(--color-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0,0,0,0.15)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+            }}
+            >
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <span style={{ fontSize: '0.68rem', color: 'var(--color-primary)', background: 'var(--color-primary-glow)', padding: '2px 8px', borderRadius: '8px', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -572,14 +585,28 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const bookDateIsSaturday = bookDate ? new Date(bookDate + 'T12:00:00').getDay() === 6 : false;
 
   return (
-    <div>
+    <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at 50% 0%, #0f172a 0%, #030712 100%)', padding: '4px 0 24px 0' }}>
       {/* 1. View: Painel do Aluno */}
       {activeTab === 'dashboard' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Olá, {client.dadosPessoais?.nome}!</h1>
-              <p>{client.dadosComerciais?.status === 'pendente' ? 'Seu cadastro foi recebido. Aguarde a ativação do seu plano.' : 'Confira seu plano, créditos e próximos treinos.'}</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '2rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Olá, {client.dadosPessoais?.nome}!
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                {client.dadosComerciais?.status === 'pendente' 
+                  ? 'Seu cadastro foi recebido. Aguarde a ativação do seu plano.' 
+                  : 'Confira seu plano, créditos e próximos treinos.'}
+              </p>
             </div>
           </div>
 
@@ -664,43 +691,291 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
             </div>
           ) : (
             <>
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Créditos Disponíveis</h3>
-                <div className="value">{credDisp}</div>
-                <small style={{ color: 'var(--text-dim)' }}>de {credTotal} totais no mês</small>
-              </div>
-              <div className="metric-icon"><i className="fa-solid fa-coins"></i></div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Treinos Agendados</h3>
-                <div className="value">{credReservados}</div>
-              </div>
-              <div className="metric-icon indigo"><i className="fa-solid fa-clock"></i></div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Status do Plano</h3>
-                <div className="value" style={{ 
-                  color: client.dadosComerciais?.status === 'ativo' ? 'var(--color-success)' : 'var(--color-danger)' 
-                }}>
-                  {client.dadosComerciais?.status === 'ativo' ? 'Ativo' : client.dadosComerciais?.status === 'pendente' ? 'Pendente' : 'Vencido'}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '8px' }}>
+            {/* Card 1: Créditos */}
+            {(() => {
+              const pct = credTotal > 0 ? Math.round(((credUsados + credReservados) / credTotal) * 100) : 0;
+              const esgotado = credDisp <= 0 && credTotal > 0;
+              return (
+                <div className="content-panel" style={{ 
+                  margin: 0, 
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : 'var(--color-primary)'}`,
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderLeftWidth: '4px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(16, 185, 129, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.2)';
+                }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'var(--color-primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className="fa-solid fa-coins" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : 'var(--color-primary)' }}></i>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Créditos Disponíveis</h3>
+                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Para agendamento de treinos</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '14px', textAlign: 'center' }}>
+                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: credDisp > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>{credDisp}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Disponíveis</div></div>
+                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{credUsados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usados</div></div>
+                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)' }}>{credReservados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reservados</div></div>
+                  </div>
+                  <div style={{ height: '5px', borderRadius: '5px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : 'var(--color-primary)', borderRadius: '5px', transition: 'width 0.4s' }}></div>
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>{pct}% utilizado de {credTotal} créditos/mês</div>
                 </div>
-              </div>
-              <div className="metric-icon"><i className="fa-solid fa-calendar-check"></i></div>
-            </div>
+              );
+            })()}
+
+            {/* Card 2: Próximo Treino (Boarding Pass) */}
+            {(() => {
+              const now = new Date();
+              const futureApts = appointments.filter((a: any) => {
+                const aptDateTime = new Date(`${a.data}T${a.horario}:00-03:00`);
+                return aptDateTime.getTime() >= now.getTime();
+              }).sort((a: any, b: any) => {
+                const dateA = `${a.data}T${a.horario}`;
+                const dateB = `${b.data}T${b.horario}`;
+                return dateA.localeCompare(dateB);
+              });
+              const nextApt = futureApts[0];
+
+              return (
+                <div className="content-panel" style={{ 
+                  margin: 0, 
+                  borderLeft: `4px solid ${nextApt ? 'var(--color-accent)' : 'var(--text-dim)'}`,
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderLeftWidth: '4px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(99, 102, 241, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.2)';
+                }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: nextApt ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className="fa-solid fa-clock" style={{ fontSize: '18px', color: nextApt ? 'var(--color-accent)' : 'var(--text-dim)' }}></i>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Próximo Treino</h3>
+                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Seu compromisso agendado</p>
+                    </div>
+                  </div>
+
+                  {nextApt ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px dashed rgba(99,102,241,0.2)', borderRadius: '8px', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Serviço</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>{nextApt.servico || 'Treino Monitorado'}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-accent)' }}>{nextApt.horario}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDateBR(nextApt.data)}</div>
+                        </div>
+                      </div>
+                      <button 
+                        className="btn btn-secondary" 
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', width: '100%', marginTop: '4px', borderColor: 'rgba(255,255,255,0.1)' }}
+                        onClick={() => setActiveTab('agendamentos')}
+                      >
+                        <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i> Ver Meus Agendamentos
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', justifyContent: 'center', height: '90px' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Nenhum treino ativo</span>
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ padding: '6px 16px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => setActiveTab('agendar')}
+                      >
+                        <i className="fa-solid fa-calendar-plus"></i> Agendar Agora
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Card 3: Status do Plano */}
+            {(() => {
+              const status = client.dadosComerciais?.status || 'pendente';
+              const isAtivo = status === 'ativo';
+              const venc = client.dadosComerciais?.vencimento;
+              
+              let daysLeftStr = '';
+              if (venc) {
+                const end = new Date(venc + 'T23:59:59');
+                const diffTime = end.getTime() - new Date().getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                daysLeftStr = diffDays > 0 ? `${diffDays} dias restantes` : 'Expirado';
+              }
+
+              return (
+                <div className="content-panel" style={{ 
+                  margin: 0, 
+                  borderLeft: `4px solid ${isAtivo ? '#f59e0b' : 'var(--color-danger)'}`,
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderLeftWidth: '4px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(245, 158, 11, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.2)';
+                }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: isAtivo ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className="fa-solid fa-award" style={{ fontSize: '18px', color: isAtivo ? '#f59e0b' : 'var(--color-danger)' }}></i>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Assinatura & Plano</h3>
+                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Status comercial da sua conta</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Situação:</span>
+                      <span style={{ 
+                        fontSize: '0.7rem', 
+                        fontWeight: 700, 
+                        color: isAtivo ? 'var(--color-success)' : 'var(--color-danger)',
+                        background: isAtivo ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        textTransform: 'uppercase'
+                      }}>
+                        {isAtivo ? 'Plano Ativo' : 'Pendente/Vencido'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Vencimento:</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                        {venc ? formatDateBR(venc) : 'Não informado'}
+                      </span>
+                    </div>
+
+                    {venc && isAtivo && (
+                      <div style={{ marginTop: '4px', background: 'rgba(245, 158, 11, 0.08)', borderRadius: '6px', padding: '6px 10px', textAlign: 'center', fontSize: '0.72rem', color: '#f59e0b', fontWeight: 600 }}>
+                        {daysLeftStr}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
-          <div className="content-panel" style={{ marginTop: '24px' }}>
-            <div className="panel-header">
-              <h2>Detalhes do seu Plano</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginTop: '24px' }}>
+            {/* Detalhes do Plano */}
+            <div className="content-panel" style={{ 
+              margin: 0,
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+            }}>
+              <div className="panel-header" style={{ marginBottom: '16px' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 700 }}><i className="fa-solid fa-file-contract" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Detalhes do seu Contrato</h2>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Plano Contratado</span>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.8rem' }}>{client.dadosComerciais?.planoId?.nome || 'Plano Personalizado'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Frequência de Aulas</span>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.8rem' }}>{client.dadosComerciais?.frequencia} vezes por semana</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Data do Contrato</span>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.8rem' }}>{client.dadosComerciais?.vencimento ? new Date(new Date(client.dadosComerciais.vencimento).setFullYear(new Date(client.dadosComerciais.vencimento).getFullYear() - 1)).toLocaleDateString('pt-BR') : 'Não cadastrada'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Próxima Renovação</span>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.8rem' }}>{client.dadosComerciais?.vencimento ? formatDateBR(client.dadosComerciais.vencimento) : 'A definir'}</strong>
+                </div>
+              </div>
             </div>
-            <div style={{ marginTop: '12px', lineHeight: '1.6' }}>
-              <p>Plano Contratado: <strong>{client.dadosComerciais?.planoId?.nome || 'Plano Personalizado'}</strong></p>
-              <p>Frequência Contratada: <strong>{client.dadosComerciais?.frequencia} vezes por semana</strong></p>
-              <p>Vencimento do Plano: <strong>{formatDateBR(client.dadosComerciais?.vencimento)}</strong></p>
+
+            {/* Ações Rápidas */}
+            <div className="content-panel" style={{ 
+              margin: 0,
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+            }}>
+              <div className="panel-header" style={{ marginBottom: '16px' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 700 }}><i className="fa-solid fa-bolt" style={{ marginRight: '8px', color: 'var(--color-warning)' }}></i>Ações Rápidas</h2>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {[
+                  { tab: 'agendar', icon: 'fa-calendar-plus', title: 'Agendar Aula', desc: 'Marcar horário de treino', color: 'var(--color-primary)' },
+                  { tab: 'evolucao', icon: 'fa-chart-line', title: 'Minha Evolução', desc: 'Ver gráficos e avaliações', color: 'var(--color-info)' },
+                  { tab: 'treino', icon: 'fa-dumbbell', title: 'Ficha de Treino', desc: 'Ver exercícios de hoje', color: 'var(--color-accent)' },
+                  { tab: 'documentos', icon: 'fa-folder-open', title: 'Meus Contratos', desc: 'Visualizar recibos e laudos', color: '#f59e0b' }
+                ].map(action => (
+                  <div 
+                    key={action.tab}
+                    onClick={() => setActiveTab(action.tab)}
+                    style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.04)',
+                      borderRadius: '10px',
+                      padding: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                      e.currentTarget.style.borderColor = action.color;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
+                    }}
+                  >
+                    <i className={`fa-solid ${action.icon}`} style={{ fontSize: '18px', color: action.color, marginBottom: '2px' }}></i>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)' }}>{action.title}</span>
+                    <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{action.desc}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
             </>
@@ -711,14 +986,31 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* 2. View: Agendar Horário */}
       {activeTab === 'agendar' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Agendar Novo Horário</h1>
-              <p>Escolha a data e hora desejada para realizar sua aula.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Agendar Novo Horário
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Escolha a data e hora desejada para realizar sua aula.</p>
             </div>
           </div>
 
-          <div className="content-panel" style={{ maxWidth: '600px' }}>
+          <div className="content-panel" style={{ 
+            maxWidth: '600px',
+            background: 'rgba(22, 29, 45, 0.45)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+            padding: '24px'
+          }}>
             {client?.dadosComerciais?.status === 'lead' ? (
               <div style={{ padding: '20px', textAlign: 'center' }}>
                 <i className="fa-solid fa-user-clock" style={{ fontSize: '2.5rem', color: '#8b5cf6', marginBottom: '12px' }}></i>
@@ -729,9 +1021,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
             ) : (
               <form onSubmit={handleBookAppointment}>
-                <div className="form-group">
-                  <label>Serviço</label>
-                  <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)}>
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>Serviço</label>
+                  <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <option value="Treino Monitorado">Treino Monitorado</option>
                     <option value="Treino Livre">Treino Livre</option>
                     <option value="Emergência">Atendimento de Emergência</option>
@@ -739,7 +1031,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </div>
 
               <div className="form-group" style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600 }}>1. Selecione a Data</label>
+                <label style={{ display: 'block', marginBottom: '12px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                  <span style={{ color: 'var(--color-primary)', marginRight: '6px' }}>1.</span> Selecione a Data
+                </label>
                 
                 {/* Carrossel de datas em formato de cartões (toque rápido) */}
                 <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', margin: '0 -4px' }}>
@@ -758,11 +1052,26 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         alignItems: 'center',
                         padding: '12px 6px',
                         borderRadius: '12px',
-                        border: bookDate === d.dateStr ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
-                        background: bookDate === d.dateStr ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.01)',
+                        border: bookDate === d.dateStr ? '1.5px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.05)',
+                        background: bookDate === d.dateStr ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)',
+                        boxShadow: bookDate === d.dateStr ? '0 0 15px rgba(16,185,129,0.15)' : 'none',
                         cursor: 'pointer',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.3s ease',
                         outline: 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (bookDate !== d.dateStr) {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.borderColor = 'var(--color-primary)';
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (bookDate !== d.dateStr) {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                        }
                       }}
                     >
                       <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 700 }}>{d.dayName}</span>
@@ -774,14 +1083,16 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
 
               <div className="form-group" style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600 }}>2. Selecione o Horário</label>
+                <label style={{ display: 'block', marginBottom: '12px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                  <span style={{ color: 'var(--color-primary)', marginRight: '6px' }}>2.</span> Selecione o Horário
+                </label>
                 {!bookDate ? (
-                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
                     <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px' }}></i>
                     Selecione uma data acima para visualizar os horários disponíveis.
                   </div>
                 ) : loadingSlots ? (
-                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
                     <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
                     Carregando horários disponíveis...
                   </div>
@@ -800,15 +1111,30 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         style={{
                           padding: '10px 6px',
                           borderRadius: '10px',
-                          border: bookTime === h ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
-                          background: bookTime === h ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.015)',
+                          border: bookTime === h ? '1.5px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.05)',
+                          background: bookTime === h ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: bookTime === h ? '0 0 15px rgba(16,185,129,0.1)' : 'none',
                           color: bookTime === h ? 'var(--color-primary)' : 'var(--text-main)',
                           fontSize: '0.84rem',
                           fontWeight: 700,
                           textAlign: 'center',
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease',
+                          transition: 'all 0.3s ease',
                           outline: 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (bookTime !== h) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.borderColor = 'var(--color-primary)';
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (bookTime !== h) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                          }
                         }}
                       >
                         {h}
@@ -819,12 +1145,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
 
               {bookingStatusMsg && (
-                <div style={{ margin: '12px 0', padding: '10px', borderRadius: '8px', background: 'var(--color-primary-glow)', color: 'var(--color-primary)', fontWeight: 600 }}>
+                <div style={{ margin: '16px 0', padding: '12px', borderRadius: '8px', background: 'var(--color-primary-glow)', color: 'var(--color-primary)', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
                   {bookingStatusMsg}
                 </div>
               )}
 
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '12px' }}>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '12px', padding: '12px', fontSize: '0.9rem', fontWeight: 700 }}>
                 Confirmar Agendamento
               </button>
             </form>
@@ -847,15 +1173,25 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
         return (
           <>
-            <div className="view-header">
+            <div className="view-header" style={{ marginBottom: '20px' }}>
               <div className="view-title-group">
-                <h1>Meus Agendamentos</h1>
-                <p>Histórico e acompanhamento de agendamentos realizados.</p>
+                <h1 style={{ 
+                  fontFamily: 'var(--font-title)', 
+                  fontSize: '1.8rem', 
+                  fontWeight: 800, 
+                  background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                  WebkitBackgroundClip: 'text', 
+                  WebkitTextFillColor: 'transparent',
+                  marginBottom: '4px'
+                }}>
+                  Meus Agendamentos
+                </h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Histórico e acompanhamento de agendamentos futuros.</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
+                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   <span>Exibir:</span>
-                  <select value={getPageSize('appointments')} onChange={e => setPageSizeForKey('appointments', Number(e.target.value))}>
+                  <select value={getPageSize('appointments')} onChange={e => setPageSizeForKey('appointments', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
                     <option value={5}>5</option>
                     <option value={8}>8</option>
                     <option value={15}>15</option>
@@ -864,16 +1200,22 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
             </div>
 
-            <div className="content-panel">
+            <div className="content-panel" style={{ 
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+              padding: '20px'
+            }}>
               <div className="table-responsive">
                 <table className="data-table">
                   <thead>
-                    <tr>
-                      <th>Data / Hora</th>
-                      <th>Modalidade</th>
-                      <th>Serviço</th>
-                      <th className="text-center">Status</th>
-                      <th>Ações</th>
+                    <tr style={{ background: 'rgba(0,0,0,0.1)' }}>
+                      <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Data / Hora</th>
+                      <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Modalidade</th>
+                      <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Serviço</th>
+                      <th className="text-center" style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Status</th>
+                      <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -889,12 +1231,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         return (
                           <tr>
                             <td colSpan={5}>
-                              <div className="empty-state-card">
-                                <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
-                                <div className="empty-state-title">Nenhum agendamento futuro</div>
-                                <div className="empty-state-desc">Você não possui aulas ou consultas agendadas para os próximos dias.</div>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={() => setActiveTab('agendar')}>
-                                  <i className="fa-solid fa-calendar-plus"></i> Agendar Agora
+                              <div className="empty-state-card" style={{ padding: '40px 20px', background: 'transparent', border: 'none' }}>
+                                <i className="fa-solid fa-calendar-xmark empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)' }}></i>
+                                <div className="empty-state-title" style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0' }}>Nenhum agendamento futuro</div>
+                                <div className="empty-state-desc" style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Você não possui aulas ou consultas agendadas para os próximos dias.</div>
+                                <button type="button" className="btn btn-primary" onClick={() => setActiveTab('agendar')} style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
+                                  <i className="fa-solid fa-calendar-plus" style={{ marginRight: '6px' }}></i> Agendar Agora
                                 </button>
                               </div>
                             </td>
@@ -903,27 +1245,40 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       }
 
                       return paginated.map(a => (
-                        <tr key={a._id}>
-                          <td data-label="Data / Hora"><strong>{formatDateBR(a.data)}</strong> às {a.horario}</td>
+                        <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <td data-label="Data / Hora" style={{ fontSize: '0.85rem' }}><strong>{formatDateBR(a.data)}</strong> às <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{a.horario}</span></td>
                           <td data-label="Modalidade">
-                            <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
+                            <span className={`badge`} style={{ 
+                              background: a.tipo === 'academia' ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)',
+                              color: a.tipo === 'academia' ? 'var(--color-success)' : 'var(--color-info)',
+                              border: a.tipo === 'academia' ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(59,130,246,0.2)',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase'
+                            }}>
                               {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
                             </span>
                           </td>
-                          <td data-label="Serviço">{a.servico}</td>
+                          <td data-label="Serviço" style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>{a.servico}</td>
                           <td data-label="Status" className="text-center">
-                            <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
+                            <span className={`badge`} style={{
+                              background: a.status === 'presenca' ? 'rgba(16,185,129,0.1)' : (a.status === 'falta' || a.status === 'cancelado') ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                              color: a.status === 'presenca' ? 'var(--color-success)' : (a.status === 'falta' || a.status === 'cancelado') ? 'var(--color-danger)' : 'var(--color-warning)',
+                              border: a.status === 'presenca' ? '1px solid rgba(16,185,129,0.2)' : (a.status === 'falta' || a.status === 'cancelado') ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(245,158,11,0.2)',
+                              fontSize: '0.7rem',
+                              fontWeight: 700
+                            }}>
                               {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
                             </span>
                           </td>
                           <td data-label="Ações">
                             {a.status === 'agendado' && (
-                              <button className="btn btn-danger btn-sm" onClick={() => handleCancelAppointment(a._id)} style={{ width: '100%' }}>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleCancelAppointment(a._id)} style={{ width: '100%', fontSize: '0.72rem', padding: '6px' }}>
                                 Cancelar Agendamento
                               </button>
                             )}
                             {a.status !== 'agendado' && (
-                              <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Indisponível</span>
+                              <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>Indisponível</span>
                             )}
                           </td>
                         </tr>
@@ -934,12 +1289,14 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
 
               {futureApts.length > 0 && (
-                <Pagination
-                  currentPage={getPage('appointments')}
-                  totalItems={futureApts.length}
-                  itemsPerPage={getPageSize('appointments')}
-                  onPageChange={page => setPage('appointments', page)}
-                />
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={getPage('appointments')}
+                    totalItems={futureApts.length}
+                    itemsPerPage={getPageSize('appointments')}
+                    onPageChange={page => setPage('appointments', page)}
+                  />
+                </div>
               )}
             </div>
           </>
@@ -949,27 +1306,43 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* View: Ficha de Treino */}
       {activeTab === 'treino' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Minha Ficha de Treino</h1>
-              <p>Consulte sua rotina de treinos prescrita pelos professores.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Minha Ficha de Treino
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Consulte sua rotina de treinos prescrita pelos professores.</p>
             </div>
           </div>
 
           {workout ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
               {/* Monitorado Category */}
-              <div className="content-panel">
-                <div className="panel-header">
-                  <h2>Treino Monitorado (Academia)</h2>
+              <div className="content-panel" style={{
+                background: 'rgba(22, 29, 45, 0.45)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                padding: '24px'
+              }}>
+                <div className="panel-header" style={{ marginBottom: '16px' }}>
+                  <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-dumbbell" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Treino Monitorado (Academia)</h2>
                 </div>
                 {workout.fichasMonitorado?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.25rem', fontFamily: 'var(--font-title)' }}>
-                      {f.nome} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
+                  <div key={f.id} style={{ marginBottom: '24px', background: 'rgba(0, 0, 0, 0.15)', border: '1px solid rgba(255, 255, 255, 0.03)', padding: '20px', borderRadius: '14px' }}>
+                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.15rem', fontFamily: 'var(--font-title)', fontWeight: 700 }}>
+                      {f.nome} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)' }}>
+                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)' }}>
                         Obs: {f.observacoesGerais}
                       </p>
                     )}
@@ -977,22 +1350,28 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </div>
                 ))}
                 {(!workout.fichasMonitorado || workout.fichasMonitorado.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
-                  <p style={{ color: 'var(--text-muted)' }}>Nenhuma ficha de treino monitorado cadastrada.</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Nenhuma ficha de treino monitorado cadastrada.</p>
                 )}
               </div>
 
               {/* Livre Category */}
-              <div className="content-panel">
-                <div className="panel-header">
-                  <h2>Treino Livre</h2>
+              <div className="content-panel" style={{
+                background: 'rgba(22, 29, 45, 0.45)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                padding: '24px'
+              }}>
+                <div className="panel-header" style={{ marginBottom: '16px' }}>
+                  <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-person-running" style={{ marginRight: '8px', color: 'var(--color-secondary)' }}></i>Treino Livre</h2>
                 </div>
                 {workout.fichasLivre?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.25rem', fontFamily: 'var(--font-title)' }}>
-                      {f.nome} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
+                  <div key={f.id} style={{ marginBottom: '24px', background: 'rgba(0, 0, 0, 0.15)', border: '1px solid rgba(255, 255, 255, 0.03)', padding: '20px', borderRadius: '14px' }}>
+                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.15rem', fontFamily: 'var(--font-title)', fontWeight: 700 }}>
+                      {f.nome} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)' }}>
+                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)' }}>
                         Obs: {f.observacoesGerais}
                       </p>
                     )}
@@ -1000,13 +1379,21 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </div>
                 ))}
                 {(!workout.fichasLivre || workout.fichasLivre.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
-                  <p style={{ color: 'var(--text-muted)' }}>Nenhuma ficha de treino livre cadastrada.</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Nenhuma ficha de treino livre cadastrada.</p>
                 )}
               </div>
             </div>
           ) : (
-            <div className="content-panel" style={{ textAlign: 'center', padding: '40px' }}>
-              <p style={{ color: 'var(--text-muted)' }}>Sua ficha de treino está sendo montada pelos professores.</p>
+            <div className="content-panel" style={{
+              textAlign: 'center',
+              padding: '48px 24px',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+            }}>
+              <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '16px' }}></i>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Sua ficha de treino está sendo montada pelos professores.</p>
             </div>
           )}
         </>
@@ -1015,16 +1402,26 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* View: Minha Evolução */}
       {activeTab === 'evolucao' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Minha Evolução Física</h1>
-              <p>Acompanhe seu progresso de peso, percentual de gordura, força e medidas corporais.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Minha Evolução Física
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acompanhe seu progresso de peso, percentual de gordura, força e medidas corporais.</p>
             </div>
             {assessments.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
+                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   <span>Exibir:</span>
-                  <select value={getPageSize('assessments')} onChange={e => setPageSizeForKey('assessments', Number(e.target.value))}>
+                  <select value={getPageSize('assessments')} onChange={e => setPageSizeForKey('assessments', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
                     <option value={5}>5</option>
                     <option value={8}>8</option>
                     <option value={15}>15</option>
@@ -1038,7 +1435,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
               
               {/* Evolution sub-tabs Segment Control */}
-              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '8px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 {[
                   { id: 'composicao', label: 'Composição Corporal', icon: 'fa-chart-pie' },
                   { id: 'perimetros', label: 'Medidas & Perímetros', icon: 'fa-ruler' },
@@ -1051,16 +1448,30 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     onClick={() => setEvoSubTab(tab.id as any)}
                     className="btn"
                     style={{
-                      padding: '8px 16px',
-                      background: evoSubTab === tab.id ? 'var(--color-primary-glow)' : 'transparent',
-                      borderColor: evoSubTab === tab.id ? 'var(--color-primary)' : 'var(--border-color)',
+                      padding: '8px 18px',
+                      background: evoSubTab === tab.id ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
+                      borderColor: evoSubTab === tab.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
+                      boxShadow: evoSubTab === tab.id ? '0 0 15px rgba(16, 185, 129, 0.15)' : 'none',
                       color: evoSubTab === tab.id ? 'var(--color-primary)' : 'var(--text-muted)',
                       borderRadius: '30px',
                       fontSize: '0.82rem',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (evoSubTab !== tab.id) {
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                        e.currentTarget.style.color = 'var(--text-main)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (evoSubTab !== tab.id) {
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }
                     }}
                   >
                     <i className={`fa-solid ${tab.icon}`}></i> {tab.label}
@@ -1874,150 +2285,209 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* View: Meus Documentos */}
       {activeTab === 'documentos' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Meus Documentos Clínicos</h1>
-              <p>Acesse e baixe seus laudos de fisioterapia e relatórios de avaliações físicas.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Meus Documentos Clínicos
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acesse e baixe seus laudos de fisioterapia e relatórios de avaliações físicas.</p>
             </div>
             {(assessments.length > 0 || reports.length > 0 || strengthTests.length > 0) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
+                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   <span>Exibir:</span>
-                  <select value={getPageSize('documents')} onChange={e => setPageSizeForKey('documents', Number(e.target.value))}>
-                    <option value={5}>5</option>
-                    <option value={8}>8</option>
-                    <option value={15}>15</option>
+                  <select value={getPageSize('documents')} onChange={e => setPageSizeForKey('documents', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
+                    <option value={6}>6</option>
+                    <option value={12}>12</option>
+                    <option value={24}>24</option>
                   </select>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="content-panel">
-            <div className="panel-header">
-              <h2>Arquivos Disponíveis para Download</h2>
+          <div className="content-panel" style={{ 
+            background: 'rgba(22, 29, 45, 0.45)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+            padding: '24px'
+          }}>
+            <div className="panel-header" style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-folder-open" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Arquivos Disponíveis para Download</h2>
             </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th className="text-center">Tipo de Documento</th>
-                    <th>Descrição</th>
-                    <th>Arquivo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'documents';
-                    const size = getPageSize(listKey);
-                    const docs = [
-                      ...assessments.map(a => ({
-                        id: a._id,
-                        data: a.data,
-                        tipo: 'Avaliação Física',
-                        badgeClass: 'badge-success',
-                        desc: 'Métricas corporais e goniometria completa',
-                        rawDoc: a
-                      })),
-                      ...reports.map(r => ({
-                        id: r._id,
-                        data: r.data,
-                        tipo: 'Relatório Fisioterápico',
-                        badgeClass: 'badge-info',
-                        desc: 'Evolução do tratamento de reabilitação e condutas',
-                        rawDoc: r
-                      })),
-                      ...strengthTests.map(st => ({
-                        id: st._id,
-                        data: st.data,
-                        tipo: 'Teste de Força',
-                        badgeClass: 'badge-warning',
-                        desc: 'Métricas de força muscular bilateral e comparativos',
-                        rawDoc: st
-                      }))
-                    ].sort((a, b) => b.data.localeCompare(a.data));
 
-                    const totalItems = docs.length;
-                    const totalPages = Math.ceil(totalItems / size);
-                    const activeP = getPage(listKey);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = docs.slice((curP - 1) * size, curP * size);
+            {(() => {
+              const listKey = 'documents';
+              const size = getPageSize(listKey);
+              const docs = [
+                ...assessments.map(a => ({
+                  id: a._id,
+                  data: a.data,
+                  tipo: 'Avaliação Física',
+                  icon: 'fa-heart-pulse',
+                  color: 'var(--color-success)',
+                  badgeBg: 'rgba(16, 185, 129, 0.1)',
+                  desc: 'Métricas corporais e goniometria completa',
+                  rawDoc: a
+                })),
+                ...reports.map(r => ({
+                  id: r._id,
+                  data: r.data,
+                  tipo: 'Relatório Fisioterápico',
+                  icon: 'fa-file-prescription',
+                  color: 'var(--color-info)',
+                  badgeBg: 'rgba(59, 130, 246, 0.1)',
+                  desc: 'Evolução do tratamento de reabilitação e condutas',
+                  rawDoc: r
+                })),
+                ...strengthTests.map(st => ({
+                  id: st._id,
+                  data: st.data,
+                  tipo: 'Teste de Força',
+                  icon: 'fa-dumbbell',
+                  color: '#f59e0b',
+                  badgeBg: 'rgba(245, 158, 11, 0.1)',
+                  desc: 'Métricas de força muscular bilateral e comparativos',
+                  rawDoc: st
+                }))
+              ].sort((a, b) => b.data.localeCompare(a.data));
 
-                    if (totalItems === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={4}>
-                            <div className="empty-state-card">
-                              <i className="fa-solid fa-folder-open empty-state-icon"></i>
-                              <div className="empty-state-title">Nenhum documento disponível</div>
-                              <div className="empty-state-desc">Não há laudos de fisioterapia, relatórios de avaliação física ou testes de força disponíveis para download no momento.</div>
+              const totalItems = docs.length;
+              const totalPages = Math.ceil(totalItems / size);
+              const activeP = getPage(listKey);
+              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+              const paginated = docs.slice((curP - 1) * size, curP * size);
+
+              if (totalItems === 0) {
+                return (
+                  <div className="empty-state-card" style={{ padding: '40px 20px', background: 'transparent', border: 'none' }}>
+                    <i className="fa-solid fa-folder-open empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)' }}></i>
+                    <div className="empty-state-title" style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0' }}>Nenhum documento disponível</div>
+                    <div className="empty-state-desc" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Não há laudos de fisioterapia, relatórios de avaliação física ou testes de força disponíveis para download no momento.</div>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
+                    {paginated.map(doc => (
+                      <div 
+                        key={doc.id}
+                        style={{
+                          background: 'rgba(0,0,0,0.15)',
+                          border: '1px solid rgba(255,255,255,0.04)',
+                          borderRadius: '14px',
+                          padding: '20px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          transition: 'all 0.3s ease',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.borderColor = doc.color;
+                          e.currentTarget.style.boxShadow = `0 10px 30px 0 ${doc.color}15`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: doc.badgeBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <i className={`fa-solid ${doc.icon}`} style={{ fontSize: '18px', color: doc.color }}></i>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    }
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: 600 }}>{formatDateBR(doc.data)}</span>
+                          </div>
 
-                    return paginated.map(doc => (
-                      <tr key={doc.id}>
-                        <td data-label="Data">{formatDateBR(doc.data)}</td>
-                        <td data-label="Tipo de Documento" className="text-center">
-                          <span className={`badge ${doc.badgeClass}`}>{doc.tipo}</span>
-                        </td>
-                        <td data-label="Descrição">{doc.desc}</td>
-                        <td data-label="Arquivo">
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              if (doc.tipo === 'Avaliação Física') {
-                                downloadAssessmentPDF(doc.rawDoc, assessments);
-                              } else if (doc.tipo === 'Teste de Força') {
-                                downloadStrengthTestPDF(doc.rawDoc, client, doc.rawDoc.profissionalId);
-                              } else {
-                                downloadReportPDF(doc.rawDoc);
-                              }
-                            }}
-                            style={{ width: '100%' }}
-                          >
-                            <i className="fa-solid fa-file-pdf"></i> Baixar PDF
-                          </button>
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
-            </div>
+                          <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{doc.tipo}</h4>
+                          <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: '1.4', margin: '0 0 16px 0' }}>{doc.desc}</p>
+                        </div>
 
-            {assessments.length + reports.length > 0 && (
-              <Pagination
-                currentPage={getPage('documents')}
-                totalItems={assessments.length + reports.length}
-                itemsPerPage={getPageSize('documents')}
-                onPageChange={page => setPage('documents', page)}
-              />
-            )}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            if (doc.tipo === 'Avaliação Física') {
+                              downloadAssessmentPDF(doc.rawDoc, assessments);
+                            } else if (doc.tipo === 'Teste de Força') {
+                              downloadStrengthTestPDF(doc.rawDoc, client, doc.rawDoc.profissionalId);
+                            } else {
+                              downloadReportPDF(doc.rawDoc);
+                            }
+                          }}
+                          style={{ width: '100%', fontSize: '0.75rem', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                        >
+                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i> Baixar PDF
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {totalItems > size && (
+                    <div style={{ marginTop: '24px' }}>
+                      <Pagination
+                        currentPage={curP}
+                        totalItems={totalItems}
+                        itemsPerPage={size}
+                        onPageChange={page => setPage(listKey, page)}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </>
       )}
 
       {activeTab === 'trancamento' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Trancamento de Plano</h1>
-              <p>Tranque semanas do seu plano e redistribua os créditos para os meses restantes.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Trancamento de Plano
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Tranque semanas do seu plano e redistribua os créditos para os meses restantes.</p>
             </div>
           </div>
 
           {!activeContract ? (
-            <div className="content-panel" style={{ textAlign: 'center', padding: '40px' }}>
+            <div className="content-panel" style={{ 
+              textAlign: 'center', 
+              padding: '48px 24px',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+            }}>
               <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '24px', color: 'var(--color-danger)' }}></i>
               </div>
-              <h3>Nenhum Contrato Ativo</h3>
-              <p style={{ color: 'var(--text-muted)' }}>Você não possui nenhum contrato assinado ou ativo no momento para realizar trancamentos.</p>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 8px 0' }}>Nenhum Contrato Ativo</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>Você não possui nenhum contrato assinado ou ativo no momento para realizar trancamentos.</p>
             </div>
           ) : (
             (() => {
@@ -2031,11 +2501,17 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const isDistributionPerfect = sumRedist === creditosCongelados;
 
               return (
-                <div className="trancamento-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+                <div className="trancamento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', alignItems: 'start' }}>
                   {/* Form de Trancamento */}
-                  <div className="content-panel">
-                    <div className="panel-header">
-                      <h2>Solicitar Trancamento</h2>
+                  <div className="content-panel" style={{
+                    background: 'rgba(22, 29, 45, 0.45)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                    padding: '24px'
+                  }}>
+                    <div className="panel-header" style={{ marginBottom: '18px' }}>
+                      <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-lock" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Solicitar Trancamento</h2>
                     </div>
 
                     {trancamentoErrorMsg && (
@@ -2051,34 +2527,35 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       </div>
                     )}
 
-                    <div style={{ background: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Plano: <strong>{activeContract.planoNome}</strong></p>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Vigência: de <strong>{formatDateBR(activeContract.dataInicio)}</strong> até <strong>{formatDateBR(activeContract.dataFim)}</strong></p>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Frequência contratada: <strong>{frequencia}x por semana</strong></p>
-                      <p style={{ margin: '0', fontSize: '0.9rem', color: semanasDisponiveis > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.18)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)', marginBottom: '20px' }}>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Plano: <strong style={{ color: 'var(--text-main)' }}>{activeContract.planoNome}</strong></p>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Vigência: de <strong style={{ color: 'var(--text-main)' }}>{formatDateBR(activeContract.dataInicio)}</strong> até <strong style={{ color: 'var(--text-main)' }}>{formatDateBR(activeContract.dataFim)}</strong></p>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Frequência contratada: <strong style={{ color: 'var(--text-main)' }}>{frequencia}x por semana</strong></p>
+                      <p style={{ margin: '0', fontSize: '0.85rem', color: semanasDisponiveis > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>
                         Semanas já trancadas: <strong>{totalSemanasTrancadas} de 4</strong> (Restam <strong>{semanasDisponiveis}</strong> semanas disponíveis)
                       </p>
                     </div>
 
                     {semanasDisponiveis <= 0 ? (
-                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                         Você já atingiu o limite máximo de 4 semanas trancadas para este contrato.
                       </div>
                     ) : (
                       <form onSubmit={handleRequestTrancamento}>
-                        <div className="form-group">
-                          <label>Data de Início do Trancamento (Selecione no calendário)</label>
+                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                          <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.82rem', fontWeight: 600 }}>Data de Início do Trancamento (Selecione no calendário)</label>
                           <input
                             type="date"
                             className="form-control"
                             value={trancamentoDataInicio}
                             onChange={e => setTrancamentoDataInicio(e.target.value)}
                             required
+                            style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', color: 'var(--text-main)' }}
                           />
                         </div>
 
-                        <div className="form-group">
-                          <label>Quantidade de Semanas a Trancar</label>
+                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                          <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.82rem', fontWeight: 600 }}>Quantidade de Semanas a Trancar</label>
                           <select
                             className="select-custom"
                             value={trancamentoSemanas}
@@ -2086,6 +2563,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               setTrancamentoSemanas(Number(e.target.value));
                               setTrancamentoRedistribuicao({});
                             }}
+                            style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)' }}
                           >
                             {Array.from({ length: semanasDisponiveis }, (_, i) => i + 1).map(n => (
                               <option key={n} value={n}>{n} {n === 1 ? 'semana' : 'semanas'}</option>
@@ -2093,26 +2571,26 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           </select>
                         </div>
 
-                        <div style={{ fontSize: '1rem', fontWeight: 'bold', margin: '15px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ fontSize: '0.92rem', fontWeight: 'bold', margin: '15px 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                           <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)' }}></i>
-                          Créditos a Redistribuir: {creditosCongelados} créditos
+                          Créditos a Redistribuir: <span style={{ color: 'var(--color-primary)' }}>{creditosCongelados} créditos</span>
                         </div>
 
                         {trancamentoDataInicio && (
-                          <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '12px' }}>Redistribuição de Créditos</h3>
-                            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                          <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(0,0,0,0.18)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '10px', color: 'var(--text-main)' }}>Redistribuição de Créditos</h3>
+                            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.4 }}>
                               Escolha como distribuir os {creditosCongelados} créditos entre os meses restantes de vigência do seu contrato:
                             </p>
 
                             {remainingMonths.map(m => (
                               <div key={m.value} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>{m.label}</span>
+                                <span style={{ fontSize: '0.85rem', textTransform: 'capitalize', color: 'var(--text-dim)' }}>{m.label}</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"
-                                    style={{ padding: '2px 8px', minWidth: '28px' }}
+                                    style={{ padding: '2px 8px', minWidth: '28px', border: '1px solid rgba(255,255,255,0.05)' }}
                                     onClick={() => {
                                       const currentVal = trancamentoRedistribuicao[m.value] || 0;
                                       if (currentVal > 0) {
@@ -2125,13 +2603,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                                   >
                                     -
                                   </button>
-                                  <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.9rem' }}>
                                     {trancamentoRedistribuicao[m.value] || 0}
                                   </span>
                                   <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"
-                                    style={{ padding: '2px 8px', minWidth: '28px' }}
+                                    style={{ padding: '2px 8px', minWidth: '28px', border: '1px solid rgba(255,255,255,0.05)' }}
                                     onClick={() => {
                                       const currentVal = trancamentoRedistribuicao[m.value] || 0;
                                       if (sumRedist < creditosCongelados) {
@@ -2148,7 +2626,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               </div>
                             ))}
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
                               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Total Distribuído:</span>
                               <span style={{ 
                                 fontSize: '0.9rem', 
@@ -2159,11 +2637,11 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               </span>
                             </div>
                             {isDistributionPerfect ? (
-                              <small style={{ color: 'var(--color-success)', display: 'block', marginTop: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                              <small style={{ color: 'var(--color-success)', display: 'block', marginTop: '6px', fontSize: '0.75rem', fontWeight: 600 }}>
                                 <i className="fa-solid fa-circle-check"></i> Distribuição perfeita dos créditos!
                               </small>
                             ) : (
-                              <small style={{ color: 'var(--color-warning)', display: 'block', marginTop: '4px', fontSize: '0.75rem' }}>
+                              <small style={{ color: 'var(--color-warning)', display: 'block', marginTop: '6px', fontSize: '0.75rem' }}>
                                 Distribua exatamente os {creditosCongelados} créditos para habilitar o envio.
                               </small>
                             )}
@@ -2174,7 +2652,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           type="submit"
                           className="btn btn-primary"
                           disabled={!isDistributionPerfect || !trancamentoDataInicio}
-                          style={{ width: '100%', marginTop: '20px' }}
+                          style={{ width: '100%', marginTop: '20px', padding: '12px', fontSize: '0.9rem', fontWeight: 700 }}
                         >
                           Confirmar Trancamento e Redistribuir
                         </button>
@@ -2183,39 +2661,55 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </div>
 
                   {/* Histórico de Trancamentos */}
-                  <div className="content-panel">
-                    <div className="panel-header">
-                      <h2>Histórico de Trancamentos</h2>
+                  <div className="content-panel" style={{
+                    background: 'rgba(22, 29, 45, 0.45)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                    padding: '24px'
+                  }}>
+                    <div className="panel-header" style={{ marginBottom: '18px' }}>
+                      <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-history" style={{ marginRight: '8px', color: 'var(--color-secondary)' }}></i>Histórico de Trancamentos</h2>
                     </div>
 
                     <div className="table-responsive">
                       <table className="data-table">
                         <thead>
-                          <tr>
-                            <th>Data Início</th>
-                            <th>Semanas</th>
-                            <th>Créditos</th>
-                            <th>Redistribuição</th>
+                          <tr style={{ background: 'rgba(0,0,0,0.1)' }}>
+                            <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Data Início</th>
+                            <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Semanas</th>
+                            <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Créditos</th>
+                            <th style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Redistribuição</th>
                           </tr>
                         </thead>
                         <tbody>
                           {trancamentosList.length === 0 ? (
                             <tr>
-                              <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                              <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '24px 0' }}>
                                 Nenhum trancamento solicitado ou realizado ainda.
                               </td>
                             </tr>
                           ) : (
                             trancamentosList.map(t => (
-                              <tr key={t._id}>
-                                <td data-label="Data Início"><strong>{formatDateBR(t.dataInicio)}</strong></td>
-                                <td data-label="Semanas">{t.semanas} {t.semanas === 1 ? 'semana' : 'semanas'}</td>
-                                <td data-label="Créditos"><span className="badge badge-info">{t.creditosTrancados} créditos</span></td>
-                                <td data-label="Redistribuição" style={{ fontSize: '0.8rem' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end' }}>
+                              <tr key={t._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                <td data-label="Data Início" style={{ fontSize: '0.85rem' }}><strong>{formatDateBR(t.dataInicio)}</strong></td>
+                                <td data-label="Semanas" style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>{t.semanas} {t.semanas === 1 ? 'semana' : 'semanas'}</td>
+                                <td data-label="Créditos">
+                                  <span className="badge" style={{
+                                    background: 'rgba(59,130,246,0.1)',
+                                    color: 'var(--color-info)',
+                                    border: '1px solid rgba(59,130,246,0.2)',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700
+                                  }}>
+                                    {t.creditosTrancados} créditos
+                                  </span>
+                                </td>
+                                <td data-label="Redistribuição" style={{ fontSize: '0.78rem' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
                                     {t.redistribuicao?.map((r: any) => (
-                                      <div key={r.mesAno} style={{ whiteSpace: 'nowrap' }}>
-                                        {formatMonthYearBR(r.mesAno)}: <strong>+{r.creditos}</strong> cr.
+                                      <div key={r.mesAno} style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                                        {formatMonthYearBR(r.mesAno)}: <strong style={{ color: 'var(--color-success)' }}>+{r.creditos}</strong> cr.
                                       </div>
                                     ))}
                                   </div>
@@ -2238,10 +2732,20 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* View: Meus Créditos */}
       {activeTab === 'creditos' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Meus Créditos</h1>
-              <p>Acompanhe o saldo de cada tipo de crédito do seu plano.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Meus Créditos
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acompanhe o saldo de cada tipo de crédito do seu plano.</p>
             </div>
           </div>
 
@@ -2253,7 +2757,25 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const pct = credTotal > 0 ? Math.round(((credUsados + credReservados) / credTotal) * 100) : 0;
               const esgotado = credDisp <= 0 && credTotal > 0;
               return (
-                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : 'var(--color-primary)'}` }}>
+                <div className="content-panel" style={{ 
+                  margin: 0,
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : 'var(--color-primary)'}`,
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderLeftWidth: '4px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(16, 185, 129, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.2)';
+                }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'var(--color-primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <i className="fa-solid fa-dumbbell" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : 'var(--color-primary)' }}></i>
@@ -2283,7 +2805,29 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const esgotado = emergDisp <= 0 && emergTotal > 0;
               const semPlano = emergTotal === 0;
               return (
-                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'var(--border-color)' : '#f59e0b'}` }}>
+                <div className="content-panel" style={{ 
+                  margin: 0,
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.05)' : '#f59e0b'}`,
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderLeftWidth: '4px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!semPlano) {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(245, 158, 11, 0.15)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!semPlano) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.2)';
+                  }
+                }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#f59e0b' }}></i>
@@ -2319,7 +2863,29 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const esgotado = massDisp <= 0 && massTotal > 0;
               const semPlano = massTotal === 0;
               return (
-                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'var(--border-color)' : '#a855f7'}` }}>
+                <div className="content-panel" style={{ 
+                  margin: 0,
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.05)' : '#a855f7'}`,
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderLeftWidth: '4px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!semPlano) {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(168, 85, 247, 0.15)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!semPlano) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.2)';
+                  }
+                }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(168,85,247,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <i className="fa-solid fa-spa" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#a855f7' }}></i>
@@ -2351,18 +2917,27 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
           </div>
 
           {/* Histórico por tipo */}
-          <div className="content-panel" style={{ marginTop: '24px' }}>
-            <div className="panel-header"><h2>Histórico de Uso</h2></div>
+          <div className="content-panel" style={{ 
+            marginTop: '24px',
+            background: 'rgba(22, 29, 45, 0.45)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+            padding: '24px'
+          }}>
+            <div className="panel-header" style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Histórico de Uso</h2>
+            </div>
             {appointments.filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum').length === 0 ? (
               <p style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>Nenhum agendamento com crédito encontrado.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Data</th>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Serviço</th>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Tipo de Crédito</th>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <th style={{ textAlign: 'left', padding: '12px 10px', fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>Data</th>
+                    <th style={{ textAlign: 'left', padding: '12px 10px', fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>Serviço</th>
+                    <th style={{ textAlign: 'left', padding: '12px 10px', fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>Tipo de Crédito</th>
+                    <th style={{ textAlign: 'left', padding: '12px 10px', fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2374,11 +2949,11 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       const tipoLabel: Record<string, string> = { academia: 'Academia', emergencia: 'Emergência', massagem: 'Massagem' };
                       const statusCor: Record<string, string> = { agendado: 'var(--color-warning)', presenca: 'var(--color-success)', cancelado: 'var(--color-danger)', falta: 'var(--color-danger)' };
                       return (
-                        <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{formatDateBR(a.data)} {a.horario}</td>
-                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{a.servico}</td>
-                          <td style={{ padding: '10px' }}>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}22`, padding: '2px 8px', borderRadius: '8px' }}>
+                        <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <td style={{ padding: '12px 10px', fontSize: '0.82rem', color: 'var(--text-main)' }}>{formatDateBR(a.data)} {a.horario}</td>
+                          <td style={{ padding: '12px 10px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{a.servico}</td>
+                          <td style={{ padding: '12px 10px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}22`, padding: '2px 8px', borderRadius: '8px', border: `1px solid ${tipoCor[a.tipoCredito] || 'var(--text-muted)'}33` }}>
                               {tipoLabel[a.tipoCredito] || a.tipoCredito}
                             </span>
                           </td>
