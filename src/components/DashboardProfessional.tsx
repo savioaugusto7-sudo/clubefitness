@@ -2209,8 +2209,8 @@ goniometria: {
       e.target.value = '';
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      alert('O PDF é muito grande! Escolha um arquivo de até 10 MB.');
+    if (file.size > 4.5 * 1024 * 1024) {
+      alert('O PDF é muito grande! Por favor, escolha um arquivo de até 4 MB para evitar erros de limite de envio do servidor. Você pode comprimir seu arquivo gratuitamente no site ilovepdf.com.');
       e.target.value = '';
       return;
     }
@@ -2235,8 +2235,8 @@ goniometria: {
       e.target.value = '';
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      alert('O PDF é muito grande! Escolha um arquivo de até 10 MB.');
+    if (file.size > 4.5 * 1024 * 1024) {
+      alert('O PDF é muito grande! Por favor, escolha um arquivo de até 4 MB para evitar erros de limite de envio do servidor. Você pode comprimir seu arquivo gratuitamente no site ilovepdf.com.');
       e.target.value = '';
       return;
     }
@@ -6620,7 +6620,7 @@ goniometria: {
                         <div>
                           <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>PDF Complementar da Avaliação</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                            Anexe um PDF externo (imagens, laudo, etc.). Ele será incorporado integralmente ao PDF da avaliação ao baixar. Máx. 10 MB.
+                            Anexe um PDF externo (imagens, laudo, etc.). Ele será incorporado integralmente ao PDF da avaliação ao baixar. Máx. 4 MB. Se necessário, comprima seu arquivo gratuitamente em <a href="https://www.ilovepdf.com/pt/comprimir_pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>ilovepdf.com</a>.
                           </div>
                         </div>
                       </div>
@@ -8039,7 +8039,7 @@ goniometria: {
                         <div>
                           <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Avaliação Postural PDF</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                            Anexe um PDF da avaliação postural do paciente. Ele será incorporado ao final do PDF do relatório. Máx. 10 MB.
+                            Anexe um PDF da avaliação postural do paciente. Ele será incorporado ao final do PDF do relatório. Máx. 4 MB. Se necessário, comprima seu arquivo gratuitamente em <a href="https://www.ilovepdf.com/pt/comprimir_pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>ilovepdf.com</a>.
                           </div>
                         </div>
                       </div>
