@@ -245,11 +245,11 @@ export async function POST(request: Request) {
 
     // --- Restringir serviços permitidos quando o agendamento for feito pelo próprio aluno ---
     if (session && session.user && (session.user as any).role === 'client') {
-      const allowedStudentServices = ['Treino Monitorado', 'Treino Livre', 'Emergência', 'Atendimento de Emergência'];
+      const allowedStudentServices = ['Treino Monitorado', 'Treino Livre', 'Emergência', 'Atendimento de Emergência', 'Massagem'];
       if (!allowedStudentServices.includes(servico)) {
         return NextResponse.json({
           success: false,
-          error: 'Alunos só podem agendar Treino Monitorado, Treino Livre ou Atendimento de Emergência. Outros serviços devem ser agendados com a recepção ou equipe.'
+          error: 'Alunos só podem agendar Treino Monitorado, Treino Livre, Atendimento de Emergência ou Massagem. Outros serviços devem ser agendados com a recepção ou equipe.'
         }, { status: 400 });
       }
     }

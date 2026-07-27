@@ -762,9 +762,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 <div className="form-group" style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>Serviço</label>
                   <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', color: 'var(--text-main)', padding: '10px', borderRadius: '8px' }}>
-                    <option value="Treino Monitorado">Treino Monitorado</option>
-                    <option value="Treino Livre">Treino Livre</option>
-                    <option value="Emergência">Atendimento de Emergência</option>
+                    {bookDateIsSaturday ? (
+                      <option value="Massagem">Massagem</option>
+                    ) : (
+                      <>
+                        <option value="Treino Monitorado">Treino Monitorado</option>
+                        <option value="Treino Livre">Treino Livre</option>
+                        <option value="Emergência">Atendimento de Emergência</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
