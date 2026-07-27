@@ -86,8 +86,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
     currentSaturday.setDate(localNow.getDate() + daysUntilSaturday);
     currentSaturday.setHours(23, 59, 59, 999);
 
-    // Checa se já passou de sexta-feira às 18h ou se é sábado/domingo
-    const nextWeekReleased = (todayDayOfWeek === 5 && todayHours >= 18) || todayDayOfWeek === 6 || todayDayOfWeek === 0;
+    // Checa se já passou de sexta-feira às 18h ou se é sábado
+    const nextWeekReleased = (todayDayOfWeek === 5 && todayHours >= 18) || todayDayOfWeek === 6;
 
     const limitDate = new Date(currentSaturday);
     if (nextWeekReleased) {
@@ -169,28 +169,43 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
         {sheetExercises.map((ex: any, idx: number) => {
           const details = exercises.find((e: any) => e.nome.toLowerCase() === ex.exercicioId.toLowerCase()) || { nome: ex.exercicioId, grupo: 'Geral' };
           const groupColor = getGroupColor(ex.combinaGrupo);
-          const groupStyle = ex.combinaGrupo ? { borderLeft: `5px solid ${groupColor}`, background: 'rgba(255,255,255,0.015)' } : {};
+          const groupStyle = ex.combinaGrupo ? { borderLeft: `4px solid ${groupColor}` } : {};
 
           return (
-            <div key={idx} className="workout-card-premium" style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              boxShadow: 'var(--shadow-card)',
-              ...groupStyle
-            }}>
+            <div 
+              key={idx} 
+              style={{
+                background: 'rgba(22, 29, 45, 0.45)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '14px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                transition: 'all 0.3s ease',
+                ...groupStyle
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.borderColor = ex.combinaGrupo ? groupColor : 'var(--color-primary)';
+                e.currentTarget.style.boxShadow = `0 10px 30px 0 ${ex.combinaGrupo ? groupColor : 'var(--color-primary)'}12`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.15)';
+              }}
+            >
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--color-primary)', background: 'var(--color-primary-glow)', padding: '2px 8px', borderRadius: '8px', fontWeight: 600, textTransform: 'uppercase' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--color-primary)', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700, textTransform: 'uppercase' }}>
                     {details.grupo}
                   </span>
                   {ex.combinaGrupo && (
                     <span style={{ fontSize: '0.68rem', color: '#fff', background: groupColor, padding: '2px 8px', borderRadius: '8px', fontWeight: 700, textTransform: 'uppercase' }}>
-                      Combinado {ex.combinaGrupo}
+                      Conjugado {ex.combinaGrupo}
                     </span>
                   )}
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
@@ -198,47 +213,45 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </span>
                 </div>
 
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.3 }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.35 }}>
                   {details.nome}
                 </h4>
 
                 {ex.combinaGrupo && (
-                  <div style={{ fontSize: '0.72rem', color: groupColor, background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '6px', marginBottom: '12px', fontWeight: 600, border: `1px dashed ${groupColor}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: groupColor, background: `${groupColor}10`, padding: '6px 10px', borderRadius: '6px', marginBottom: '12px', fontWeight: 600, border: `1px dashed ${groupColor}`, textAlign: 'center' }}>
                     <i className="fa-solid fa-circle-nodes"></i> Executar conjugado com {ex.combinaGrupo} (Sem descanso intermediário)
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px', background: 'rgba(0,0,0,0.18)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px', background: 'rgba(0,0,0,0.18)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   <div style={{ textAlign: 'center' }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Séries</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.series || '3'}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.series || '3'}</span>
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Repetições</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.repeticoes || '10'}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.repeticoes || '10'}</span>
                   </div>
-                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px' }}>
+                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Carga</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-primary)' }}>{ex.carga || '-'}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)' }}>{ex.carga || '-'}</span>
                   </div>
-                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px' }}>
+                  <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Descanso</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
                   </div>
-                  <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '4px' }}>
+                  <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Ritmo de Execução</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{ex.ritmo || '2-0-2-0'}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.ritmo || '2-0-2-0'}</span>
                   </div>
                 </div>
 
                 {ex.observacao && (
-                  <div style={{ fontSize: '0.76rem', color: 'var(--color-warning)', background: 'rgba(245,158,11,0.05)', padding: '6px 10px', borderRadius: '6px', marginBottom: '12px', border: '1px solid rgba(245,158,11,0.1)' }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--color-warning)', background: 'rgba(245,158,11,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(245,158,11,0.1)' }}>
                     <strong>Nota:</strong> {ex.observacao}
                   </div>
                 )}
               </div>
-
-              {/* Instruções removidas conforme solicitação */}
             </div>
           );
         })}
@@ -711,14 +724,31 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* 2. View: Agendar Horário */}
       {activeTab === 'agendar' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Agendar Novo Horário</h1>
-              <p>Escolha a data e hora desejada para realizar sua aula.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Agendar Novo Horário
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Escolha a data e hora desejada para realizar sua aula.</p>
             </div>
           </div>
 
-          <div className="content-panel" style={{ maxWidth: '600px' }}>
+          <div className="content-panel" style={{ 
+            maxWidth: '600px',
+            background: 'rgba(22, 29, 45, 0.45)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+            padding: '24px'
+          }}>
             {client?.dadosComerciais?.status === 'lead' ? (
               <div style={{ padding: '20px', textAlign: 'center' }}>
                 <i className="fa-solid fa-user-clock" style={{ fontSize: '2.5rem', color: '#8b5cf6', marginBottom: '12px' }}></i>
@@ -729,9 +759,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
             ) : (
               <form onSubmit={handleBookAppointment}>
-                <div className="form-group">
-                  <label>Serviço</label>
-                  <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)}>
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>Serviço</label>
+                  <select className="select-custom" value={bookService} onChange={e => setBookService(e.target.value)} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', color: 'var(--text-main)', padding: '10px', borderRadius: '8px' }}>
                     <option value="Treino Monitorado">Treino Monitorado</option>
                     <option value="Treino Livre">Treino Livre</option>
                     <option value="Emergência">Atendimento de Emergência</option>
@@ -739,10 +769,21 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </div>
 
               <div className="form-group" style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600 }}>1. Selecione a Data</label>
+                <label style={{ display: 'block', marginBottom: '12px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                  <span style={{ color: 'var(--color-primary)', marginRight: '6px' }}>1.</span> Selecione a Data
+                </label>
                 
-                {/* Carrossel de datas em formato de cartões (toque rápido) */}
-                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', margin: '0 -4px' }}>
+                {/* Carrossel de datas em formato de cartões (toque rápido) com padding extra no final para não cortar sábado 01/08 */}
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '10px', 
+                  overflowX: 'auto', 
+                  paddingBottom: '12px', 
+                  paddingRight: '32px',
+                  scrollbarWidth: 'none', 
+                  WebkitOverflowScrolling: 'touch', 
+                  margin: '0 -4px' 
+                }}>
                   {getNextDays().map((d) => (
                     <button
                       type="button"
@@ -752,17 +793,32 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         setBookTime('');
                       }}
                       style={{
-                        flex: '0 0 68px',
+                        flex: '0 0 72px',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         padding: '12px 6px',
                         borderRadius: '12px',
-                        border: bookDate === d.dateStr ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
-                        background: bookDate === d.dateStr ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.01)',
+                        border: bookDate === d.dateStr ? '1.5px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.05)',
+                        background: bookDate === d.dateStr ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
+                        boxShadow: bookDate === d.dateStr ? '0 0 15px rgba(16,185,129,0.15)' : 'none',
                         cursor: 'pointer',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.3s ease',
                         outline: 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (bookDate !== d.dateStr) {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.borderColor = 'var(--color-primary)';
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (bookDate !== d.dateStr) {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                        }
                       }}
                     >
                       <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 700 }}>{d.dayName}</span>
@@ -774,19 +830,21 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
 
               <div className="form-group" style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600 }}>2. Selecione o Horário</label>
+                <label style={{ display: 'block', marginBottom: '12px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                  <span style={{ color: 'var(--color-primary)', marginRight: '6px' }}>2.</span> Selecione o Horário
+                </label>
                 {!bookDate ? (
-                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                  <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
                     <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px' }}></i>
                     Selecione uma data acima para visualizar os horários disponíveis.
                   </div>
                 ) : loadingSlots ? (
-                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                  <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
                     <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
                     Carregando horários disponíveis...
                   </div>
                 ) : availableSlots.length === 0 ? (
-                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--color-danger)', fontSize: '0.84rem' }}>
+                  <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--color-danger)', fontSize: '0.84rem' }}>
                     <i className="fa-solid fa-ban" style={{ marginRight: '8px' }}></i>
                     Nenhum horário disponível para a data ou serviço selecionado.
                   </div>
@@ -800,15 +858,30 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         style={{
                           padding: '10px 6px',
                           borderRadius: '10px',
-                          border: bookTime === h ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
-                          background: bookTime === h ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.015)',
+                          border: bookTime === h ? '1.5px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.05)',
+                          background: bookTime === h ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: bookTime === h ? '0 0 15px rgba(16,185,129,0.1)' : 'none',
                           color: bookTime === h ? 'var(--color-primary)' : 'var(--text-main)',
                           fontSize: '0.84rem',
                           fontWeight: 700,
                           textAlign: 'center',
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease',
+                          transition: 'all 0.3s ease',
                           outline: 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (bookTime !== h) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.borderColor = 'var(--color-primary)';
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (bookTime !== h) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                          }
                         }}
                       >
                         {h}
@@ -819,12 +892,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </div>
 
               {bookingStatusMsg && (
-                <div style={{ margin: '12px 0', padding: '10px', borderRadius: '8px', background: 'var(--color-primary-glow)', color: 'var(--color-primary)', fontWeight: 600 }}>
+                <div style={{ margin: '16px 0', padding: '12px', borderRadius: '8px', background: 'var(--color-primary-glow)', color: 'var(--color-primary)', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
                   {bookingStatusMsg}
                 </div>
               )}
 
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '12px' }}>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '12px', padding: '12px', fontSize: '0.9rem', fontWeight: 700 }}>
                 Confirmar Agendamento
               </button>
             </form>
@@ -847,129 +920,228 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
         return (
           <>
-            <div className="view-header">
+            <div className="view-header" style={{ marginBottom: '20px' }}>
               <div className="view-title-group">
-                <h1>Meus Agendamentos</h1>
-                <p>Histórico e acompanhamento de agendamentos realizados.</p>
+                <h1 style={{ 
+                  fontFamily: 'var(--font-title)', 
+                  fontSize: '1.8rem', 
+                  fontWeight: 800, 
+                  background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                  WebkitBackgroundClip: 'text', 
+                  WebkitTextFillColor: 'transparent',
+                  marginBottom: '4px'
+                }}>
+                  Meus Agendamentos
+                </h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Histórico e acompanhamento de agendamentos futuros.</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
+                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   <span>Exibir:</span>
-                  <select value={getPageSize('appointments')} onChange={e => setPageSizeForKey('appointments', Number(e.target.value))}>
-                    <option value={5}>5</option>
-                    <option value={8}>8</option>
-                    <option value={15}>15</option>
+                  <select value={getPageSize('appointments')} onChange={e => setPageSizeForKey('appointments', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
+                    <option value={6}>6</option>
+                    <option value={12}>12</option>
+                    <option value={24}>24</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            <div className="content-panel">
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Data / Hora</th>
-                      <th>Modalidade</th>
-                      <th>Serviço</th>
-                      <th className="text-center">Status</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const listKey = 'appointments';
-                      const size = getPageSize(listKey);
-                      const totalPages = Math.ceil(futureApts.length / size);
-                      const activeP = getPage(listKey);
-                      const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                      const paginated = futureApts.slice((curP - 1) * size, curP * size);
+            {(() => {
+              const listKey = 'appointments';
+              const size = getPageSize(listKey);
+              const totalPages = Math.ceil(futureApts.length / size);
+              const activeP = getPage(listKey);
+              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+              const paginated = futureApts.slice((curP - 1) * size, curP * size);
 
-                      if (paginated.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={5}>
-                              <div className="empty-state-card">
-                                <i className="fa-solid fa-calendar-xmark empty-state-icon"></i>
-                                <div className="empty-state-title">Nenhum agendamento futuro</div>
-                                <div className="empty-state-desc">Você não possui aulas ou consultas agendadas para os próximos dias.</div>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={() => setActiveTab('agendar')}>
-                                  <i className="fa-solid fa-calendar-plus"></i> Agendar Agora
-                                </button>
+              if (paginated.length === 0) {
+                return (
+                  <div className="empty-state-card" style={{ 
+                    padding: '48px 24px', 
+                    background: 'rgba(22, 29, 45, 0.45)', 
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    borderRadius: '14px',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                    textAlign: 'center'
+                  }}>
+                    <i className="fa-solid fa-calendar-xmark empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '16px' }}></i>
+                    <div className="empty-state-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>Nenhum agendamento futuro</div>
+                    <div className="empty-state-desc" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '20px', maxWidth: '360px', margin: '0 auto 20px' }}>Você não possui aulas ou consultas agendadas para os próximos dias.</div>
+                    <button type="button" className="btn btn-primary" onClick={() => setActiveTab('agendar')} style={{ padding: '10px 24px', fontSize: '0.85rem', fontWeight: 700 }}>
+                      <i className="fa-solid fa-calendar-plus" style={{ marginRight: '6px' }}></i> Agendar Agora
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '20px' }}>
+                    {paginated.map(a => {
+                      const isAcademia = a.tipo === 'academia';
+                      const cardGlow = isAcademia ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)';
+                      const cardBorder = isAcademia ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)';
+                      const statusColors: Record<string, { bg: string, text: string, border: string }> = {
+                        presenca: { bg: 'rgba(16,185,129,0.1)', text: 'var(--color-success)', border: 'rgba(16,185,129,0.2)' },
+                        falta: { bg: 'rgba(239,68,68,0.1)', text: 'var(--color-danger)', border: 'rgba(239,68,68,0.2)' },
+                        cancelado: { bg: 'rgba(239,68,68,0.1)', text: 'var(--color-danger)', border: 'rgba(239,68,68,0.2)' },
+                        agendado: { bg: 'rgba(245,158,11,0.1)', text: 'var(--color-warning)', border: 'rgba(245,158,11,0.2)' }
+                      };
+                      const status = statusColors[a.status] || statusColors.agendado;
+                      return (
+                        <div 
+                          key={a._id}
+                          style={{
+                            background: 'rgba(22, 29, 45, 0.45)',
+                            backdropFilter: 'blur(12px)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            borderRadius: '14px',
+                            padding: '20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                            transition: 'all 0.3s ease',
+                            position: 'relative',
+                            overflow: 'hidden'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-3px)';
+                            e.currentTarget.style.borderColor = isAcademia ? 'var(--color-primary)' : 'var(--color-info)';
+                            e.currentTarget.style.boxShadow = `0 10px 30px 0 ${cardGlow}`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                            e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.15)';
+                          }}
+                        >
+                          {/* Ticket punch holes visual effect */}
+                          <div style={{ position: 'absolute', left: '-8px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#000', borderRight: '1px solid rgba(255,255,255,0.05)' }}></div>
+                          <div style={{ position: 'absolute', right: '-8px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#000', borderLeft: '1px solid rgba(255,255,255,0.05)' }}></div>
+                          
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                              <span style={{ 
+                                background: isAcademia ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)',
+                                color: isAcademia ? 'var(--color-success)' : 'var(--color-info)',
+                                border: `1px solid ${cardBorder}`,
+                                padding: '2px 8px',
+                                borderRadius: '8px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase'
+                              }}>
+                                {isAcademia ? 'Academia' : 'Fisioterapia'}
+                              </span>
+                              <span style={{
+                                background: status.bg,
+                                color: status.text,
+                                border: `1px solid ${status.border}`,
+                                padding: '2px 8px',
+                                borderRadius: '8px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700
+                              }}>
+                                {a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px dashed rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Data</div>
+                                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{formatDateBR(a.data)}</div>
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      }
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Horário</div>
+                                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary)' }}>{a.horario}</div>
+                              </div>
+                            </div>
 
-                      return paginated.map(a => (
-                        <tr key={a._id}>
-                          <td data-label="Data / Hora"><strong>{formatDateBR(a.data)}</strong> às {a.horario}</td>
-                          <td data-label="Modalidade">
-                            <span className={`badge ${a.tipo === 'academia' ? 'badge-success' : 'badge-info'}`}>
-                              {a.tipo === 'academia' ? 'Academia' : 'Fisioterapia'}
-                            </span>
-                          </td>
-                          <td data-label="Serviço">{a.servico}</td>
-                          <td data-label="Status" className="text-center">
-                            <span className={`badge ${a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-danger' : 'badge-warning'}`}>
-                              {a.status === 'presenca' ? 'Presença Confirmada' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado'}
-                            </span>
-                          </td>
-                          <td data-label="Ações">
-                            {a.status === 'agendado' && (
-                              <button className="btn btn-danger btn-sm" onClick={() => handleCancelAppointment(a._id)} style={{ width: '100%' }}>
-                                Cancelar Agendamento
+                            <div style={{ marginBottom: '20px' }}>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Serviço</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{a.servico}</div>
+                            </div>
+                          </div>
+
+                          <div>
+                            {a.status === 'agendado' ? (
+                              <button 
+                                className="btn btn-danger btn-sm" 
+                                onClick={() => handleCancelAppointment(a._id)} 
+                                style={{ width: '100%', padding: '8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                              >
+                                <i className="fa-solid fa-calendar-minus"></i> Cancelar Agendamento
                               </button>
+                            ) : (
+                              <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.78rem', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '10px' }}>
+                                Ações Indisponíveis
+                              </div>
                             )}
-                            {a.status !== 'agendado' && (
-                              <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Indisponível</span>
-                            )}
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-              {futureApts.length > 0 && (
-                <Pagination
-                  currentPage={getPage('appointments')}
-                  totalItems={futureApts.length}
-                  itemsPerPage={getPageSize('appointments')}
-                  onPageChange={page => setPage('appointments', page)}
-                />
-              )}
-            </div>
+                  {futureApts.length > size && (
+                    <div style={{ marginTop: '24px' }}>
+                      <Pagination
+                        currentPage={curP}
+                        totalItems={futureApts.length}
+                        itemsPerPage={size}
+                        onPageChange={page => setPage(listKey, page)}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </>
         );
       })()}
 
-      {/* View: Ficha de Treino */}
       {activeTab === 'treino' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Minha Ficha de Treino</h1>
-              <p>Consulte sua rotina de treinos prescrita pelos professores.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Minha Ficha de Treino
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Consulte sua rotina de treinos prescrita pelos professores.</p>
             </div>
           </div>
 
           {workout ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
               {/* Monitorado Category */}
-              <div className="content-panel">
-                <div className="panel-header">
-                  <h2>Treino Monitorado (Academia)</h2>
+              <div className="content-panel" style={{ 
+                background: 'rgba(22, 29, 45, 0.45)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                padding: '24px'
+              }}>
+                <div className="panel-header" style={{ marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Treino Monitorado (Academia)</h2>
                 </div>
                 {workout.fichasMonitorado?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.25rem', fontFamily: 'var(--font-title)' }}>
-                      {f.nome} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
+                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', padding: '20px', borderRadius: '12px' }}>
+                    <h3 style={{ color: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
+                      {f.nome} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)' }}>
+                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.84rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)', border: '1px solid rgba(255,255,255,0.03)', borderLeftColor: 'var(--color-primary)' }}>
                         Obs: {f.observacoesGerais}
                       </p>
                     )}
@@ -977,22 +1149,28 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </div>
                 ))}
                 {(!workout.fichasMonitorado || workout.fichasMonitorado.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
-                  <p style={{ color: 'var(--text-muted)' }}>Nenhuma ficha de treino monitorado cadastrada.</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: 0 }}>Nenhuma ficha de treino monitorado cadastrada.</p>
                 )}
               </div>
 
               {/* Livre Category */}
-              <div className="content-panel">
-                <div className="panel-header">
-                  <h2>Treino Livre</h2>
+              <div className="content-panel" style={{ 
+                background: 'rgba(22, 29, 45, 0.45)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                padding: '24px'
+              }}>
+                <div className="panel-header" style={{ marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-person-running" style={{ marginRight: '8px', color: 'var(--color-secondary)' }}></i>Treino Livre</h2>
                 </div>
                 {workout.fichasLivre?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
-                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px' }}>
-                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.25rem', fontFamily: 'var(--font-title)' }}>
-                      {f.nome} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
+                  <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', padding: '20px', borderRadius: '12px' }}>
+                    <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
+                      {f.nome} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
-                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)' }}>
+                      <p style={{ margin: '8px 0 16px 0', fontSize: '0.84rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)', border: '1px solid rgba(255,255,255,0.03)', borderLeftColor: 'var(--color-secondary)' }}>
                         Obs: {f.observacoesGerais}
                       </p>
                     )}
@@ -1000,31 +1178,47 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </div>
                 ))}
                 {(!workout.fichasLivre || workout.fichasLivre.filter((f: any) => f.exercicios?.length > 0).length === 0) && (
-                  <p style={{ color: 'var(--text-muted)' }}>Nenhuma ficha de treino livre cadastrada.</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: 0 }}>Nenhuma ficha de treino livre cadastrada.</p>
                 )}
               </div>
             </div>
           ) : (
-            <div className="content-panel" style={{ textAlign: 'center', padding: '40px' }}>
-              <p style={{ color: 'var(--text-muted)' }}>Sua ficha de treino está sendo montada pelos professores.</p>
+            <div className="content-panel" style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+            }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Sua ficha de treino está sendo montada pelos professores.</p>
             </div>
           )}
         </>
       )}
 
-      {/* View: Minha Evolução */}
       {activeTab === 'evolucao' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Minha Evolução Física</h1>
-              <p>Acompanhe seu progresso de peso, percentual de gordura, força e medidas corporais.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Minha Evolução Física
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acompanhe seu progresso de peso, percentual de gordura, força e medidas corporais.</p>
             </div>
             {assessments.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
+                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   <span>Exibir:</span>
-                  <select value={getPageSize('assessments')} onChange={e => setPageSizeForKey('assessments', Number(e.target.value))}>
+                  <select value={getPageSize('assessments')} onChange={e => setPageSizeForKey('assessments', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
                     <option value={5}>5</option>
                     <option value={8}>8</option>
                     <option value={15}>15</option>
@@ -1038,7 +1232,19 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
               
               {/* Evolution sub-tabs Segment Control */}
-              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                gap: '4px', 
+                background: 'rgba(255, 255, 255, 0.02)', 
+                border: '1px solid rgba(255, 255, 255, 0.05)', 
+                borderRadius: '25px', 
+                padding: '4px',
+                marginBottom: '8px', 
+                overflowX: 'auto', 
+                alignSelf: 'flex-start',
+                scrollbarWidth: 'none', 
+                WebkitOverflowScrolling: 'touch' 
+              }}>
                 {[
                   { id: 'composicao', label: 'Composição Corporal', icon: 'fa-chart-pie' },
                   { id: 'perimetros', label: 'Medidas & Perímetros', icon: 'fa-ruler' },
@@ -1049,18 +1255,21 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     key={tab.id}
                     type="button"
                     onClick={() => setEvoSubTab(tab.id as any)}
-                    className="btn"
                     style={{
-                      padding: '8px 16px',
-                      background: evoSubTab === tab.id ? 'var(--color-primary-glow)' : 'transparent',
-                      borderColor: evoSubTab === tab.id ? 'var(--color-primary)' : 'var(--border-color)',
-                      color: evoSubTab === tab.id ? 'var(--color-primary)' : 'var(--text-muted)',
-                      borderRadius: '30px',
-                      fontSize: '0.82rem',
+                      padding: '8px 18px',
+                      background: evoSubTab === tab.id ? 'var(--color-primary)' : 'transparent',
+                      border: 'none',
+                      color: evoSubTab === tab.id ? '#000' : 'var(--text-muted)',
+                      borderRadius: '20px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      boxShadow: evoSubTab === tab.id ? '0 4px 12px rgba(16, 185, 129, 0.2)' : 'none'
                     }}
                   >
                     <i className={`fa-solid ${tab.icon}`}></i> {tab.label}
@@ -1138,7 +1347,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     };
 
                     return (
-                      <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', marginTop: '10px' }}>
+                      <div style={{ 
+                        background: 'rgba(22, 29, 45, 0.45)', 
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)', 
+                        borderRadius: '14px', 
+                        padding: '20px', 
+                        marginTop: '10px',
+                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+                      }}>
                         <h4 style={{ fontSize: '0.9rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
                           <i className="fa-solid fa-chart-line" style={{ color: 'var(--color-primary)' }}></i> Histórico de Composição Corporal (Gráfico de Linha)
                         </h4>
@@ -1149,7 +1366,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               const gridVal = maxVal - ratio * (maxVal - minVal);
                               return (
                                 <g key={gridIdx}>
-                                  <line x1={pad} y1={gridY} x2={w - pad} y2={gridY} stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="3,3" />
+                                  <line x1={pad} y1={gridY} x2={w - pad} y2={gridY} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" strokeDasharray="3,3" />
                                   <text x={pad - 8} y={gridY + 3} style={{ fill: 'var(--text-dim)', fontSize: '8px', textAnchor: 'end', fontWeight: 'bold' }}>{gridVal.toFixed(0)} kg</text>
                                 </g>
                               );
@@ -1165,7 +1382,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             <path d={getPathData(weights)} fill="none" stroke="#3b82f6" strokeWidth="2.5" />
                             {weights.map((val, idx) => (
                               <g key={idx}>
-                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#3b82f6" stroke="var(--bg-darker)" strokeWidth="1.5" />
+                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#3b82f6" stroke="rgba(22, 29, 45, 0.9)" strokeWidth="1.5" />
                                 <text x={getX(idx)} y={getY(val) - 10} style={{ fill: '#3b82f6', fontSize: '9px', fontWeight: 'bold', textAnchor: 'middle' }}>{val.toFixed(1)}</text>
                               </g>
                             ))}
@@ -1174,7 +1391,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             <path d={getPathData(leanMasses)} fill="none" stroke="#10b981" strokeWidth="2.5" />
                             {leanMasses.map((val, idx) => (
                               <g key={idx}>
-                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#10b981" stroke="var(--bg-darker)" strokeWidth="1.5" />
+                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#10b981" stroke="rgba(22, 29, 45, 0.9)" strokeWidth="1.5" />
                                 <text x={getX(idx)} y={getY(val) - 10} style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold', textAnchor: 'middle' }}>{val.toFixed(1)}</text>
                               </g>
                             ))}
@@ -1183,7 +1400,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             <path d={getPathData(fatMasses)} fill="none" stroke="#ef4444" strokeWidth="2.5" />
                             {fatMasses.map((val, idx) => (
                               <g key={idx}>
-                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ef4444" stroke="var(--bg-darker)" strokeWidth="1.5" />
+                                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ef4444" stroke="rgba(22, 29, 45, 0.9)" strokeWidth="1.5" />
                                 <text x={getX(idx)} y={getY(val) - 10} style={{ fill: '#ef4444', fontSize: '9px', fontWeight: 'bold', textAnchor: 'middle' }}>{val.toFixed(1)}</text>
                               </g>
                             ))}
@@ -1200,39 +1417,111 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                      <div className="metrics-grid" style={{ marginBottom: '0px' }}>
-                        <div className="metric-card">
-                          <div className="metric-info">
-                            <h3>Peso Atual</h3>
-                            <div className="value">{wLatest} kg</div>
+                      <div className="metrics-grid" style={{ marginBottom: '0px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                        <div style={{
+                          background: 'rgba(22, 29, 45, 0.45)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          borderRadius: '14px',
+                          padding: '20px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.borderColor = 'var(--color-primary)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                        }}>
+                          <div>
+                            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px 0' }}>Peso Atual</h3>
+                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)' }}>{wLatest} kg</div>
                             <div style={{ marginTop: '6px' }}>{renderDeltaBadge(wDelta, 'decrease_good')}</div>
                           </div>
-                          <div className="metric-icon"><i className="fa-solid fa-weight-scale"></i></div>
+                          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="fa-solid fa-weight-scale" style={{ fontSize: '18px', color: 'var(--color-primary)' }}></i>
+                          </div>
                         </div>
-                        <div className="metric-card">
-                          <div className="metric-info">
-                            <h3>Gordura Corporal</h3>
-                            <div className="value">{fLatest.toFixed(1)}%</div>
+
+                        <div style={{
+                          background: 'rgba(22, 29, 45, 0.45)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          borderRadius: '14px',
+                          padding: '20px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.borderColor = '#3b82f6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                        }}>
+                          <div>
+                            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px 0' }}>Gordura Corporal</h3>
+                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)' }}>{fLatest.toFixed(1)}%</div>
                             <div style={{ marginTop: '6px' }}>{renderDeltaBadge(fDelta, 'decrease_good', '%')}</div>
                           </div>
-                          <div className="metric-icon danger"><i className="fa-solid fa-percent"></i></div>
+                          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="fa-solid fa-percent" style={{ fontSize: '18px', color: '#3b82f6' }}></i>
+                          </div>
                         </div>
-                        <div className="metric-card">
-                          <div className="metric-info">
-                            <h3>Massa Magra</h3>
-                            <div className="value">{mLatest.toFixed(1)} kg</div>
+
+                        <div style={{
+                          background: 'rgba(22, 29, 45, 0.45)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          borderRadius: '14px',
+                          padding: '20px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.borderColor = '#f59e0b';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                        }}>
+                          <div>
+                            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px 0' }}>Massa Magra</h3>
+                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)' }}>{mLatest.toFixed(1)} kg</div>
                             <div style={{ marginTop: '6px' }}>{renderDeltaBadge(mDelta, 'increase_good')}</div>
                           </div>
-                          <div className="metric-icon"><i className="fa-solid fa-child-strength"></i></div>
+                          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="fa-solid fa-child-strength" style={{ fontSize: '18px', color: '#f59e0b' }}></i>
+                          </div>
                         </div>
                       </div>
 
                       {renderCompositionChart()}
 
                       {/* Assessment History Table */}
-                      <div className="content-panel" style={{ marginTop: '8px' }}>
+                      <div className="content-panel" style={{ 
+                        marginTop: '8px',
+                        background: 'rgba(22, 29, 45, 0.45)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                        padding: '24px'
+                      }}>
                         <div className="panel-header" style={{ marginBottom: '16px' }}>
-                          <h2>Histórico Detalhado</h2>
+                          <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-receipt" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Histórico Detalhado</h2>
                         </div>
                         <div className="table-responsive">
                           <table className="data-table">
@@ -1309,10 +1598,16 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   ];
 
                   return (
-                    <div className="content-panel">
+                    <div className="content-panel" style={{
+                      background: 'rgba(22, 29, 45, 0.45)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                      padding: '24px'
+                    }}>
                       <div className="panel-header" style={{ marginBottom: '20px' }}>
-                        <h2>Comparativo de Circunferências Corporais</h2>
-                        <small style={{ color: 'var(--text-muted)' }}>Comparação entre as duas últimas avaliações ({prevAs?.data ? formatDateBR(prevAs.data) : '-'} vs {formatDateBR(latestAs.data)})</small>
+                        <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-ruler-horizontal" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Comparativo de Circunferências Corporais</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Comparação entre as duas últimas avaliações ({prevAs?.data ? formatDateBR(prevAs.data) : '-'} vs {formatDateBR(latestAs.data)})</p>
                       </div>
 
                       <div className="table-responsive">
@@ -1459,28 +1754,41 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     ];
 
                     return (
-                      <div style={{ background: '#ffffff', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '340px', margin: '0 auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                        <span style={{ fontSize: '0.8rem', color: '#0f172a', fontWeight: 'bold', marginBottom: '8px', fontFamily: 'var(--font-title)' }}>Estrela de Maigne (Rosa dos Ventos Clínica)</span>
-                        <svg width="250" height="250" viewBox="0 0 380 300" style={{ display: 'block', background: '#ffffff' }}>
+                      <div style={{ 
+                        background: 'rgba(22, 29, 45, 0.45)', 
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        borderRadius: '14px', 
+                        padding: '20px', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        maxWidth: '340px', 
+                        margin: '0 auto', 
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)' 
+                      }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 'bold', marginBottom: '12px', fontFamily: 'var(--font-title)' }}>Estrela de Maigne (Rosa dos Ventos Clínica)</span>
+                        <svg width="250" height="250" viewBox="0 0 380 300" style={{ display: 'block', background: 'transparent' }}>
                           {[10, 20, 30, 40, 50].map(val => (
                             <g key={val}>
-                              <circle cx={cx} cy={cy} r={val * scale} fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
+                              <circle cx={cx} cy={cy} r={val * scale} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
                               <text x={cx} y={cy - (val * scale) + 3} style={{ fontSize: '7px', fill: '#94a3b8', textAnchor: 'middle', fontWeight: 'bold' }}>{val}</text>
                             </g>
                           ))}
                           {angles.map((ang, aIdx) => (
-                            <line key={aIdx} x1={cx} y1={cy} x2={cx + 100 * Math.cos(ang)} y2={cy + 100 * Math.sin(ang)} stroke="#94a3b8" strokeWidth="0.75" />
+                            <line key={aIdx} x1={cx} y1={cy} x2={cx + 100 * Math.cos(ang)} y2={cy + 100 * Math.sin(ang)} stroke="rgba(255,255,255,0.12)" strokeWidth="0.75" />
                           ))}
                           {labels.map((lbl, lIdx) => (
-                            <text key={lIdx} x={lbl.x} y={lbl.y} textAnchor={lbl.anchor} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold' }}>{lbl.text}</text>
+                            <text key={lIdx} x={lbl.x} y={lbl.y} textAnchor={lbl.anchor} style={{ fontSize: '9px', fill: 'var(--text-main)', fontWeight: 'bold' }}>{lbl.text}</text>
                           ))}
                           <polygon points={refPoints} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="3,3" />
                           <polygon points={valPoints} fill="rgba(13, 148, 136, 0.15)" stroke="#0d9488" strokeWidth="1.8" />
                           {angles.map((ang, idx) => (
-                            <circle key={idx} cx={cx + clientVals[idx] * scale * Math.cos(ang)} cy={cy + clientVals[idx] * scale * Math.sin(ang)} r="4.5" fill="#0d9488" stroke="#ffffff" strokeWidth="1.2" />
+                            <circle key={idx} cx={cx + clientVals[idx] * scale * Math.cos(ang)} cy={cy + clientVals[idx] * scale * Math.sin(ang)} r="4.5" fill="#0d9488" stroke="var(--bg-main)" strokeWidth="1.2" />
                           ))}
                         </svg>
-                        <div style={{ display: 'flex', gap: '15px', fontSize: '0.7rem', color: '#64748b', marginTop: '6px' }}>
+                        <div style={{ display: 'flex', gap: '15px', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px' }}>
                           <span><span style={{ color: '#f59e0b', fontWeight: 'bold' }}>---</span> Referência Saudável</span>
                           <span><span style={{ color: '#0d9488', fontWeight: 'bold' }}>—</span> Suas amplitudes</span>
                         </div>
@@ -1493,7 +1801,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       
                       {/* Flagged mobility asymmetries */}
                       {flaggedAsymmetries.length > 0 && (
-                        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', padding: '16px', borderRadius: '12px' }}>
+                        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', padding: '16px', borderRadius: '12px' }}>
                           <h5 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 8px 0', fontSize: '0.9rem', fontFamily: 'var(--font-title)' }}>
                             <i className="fa-solid fa-triangle-exclamation"></i> Assimetrias de Mobilidade Detectadas (&gt;8°)
                           </h5>
@@ -1511,11 +1819,20 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                         
                         {/* Goniometry Table */}
-                        <div className="content-panel" style={{ flex: 2, minWidth: '300px', margin: 0 }}>
+                        <div className="content-panel" style={{ 
+                          flex: 2, 
+                          minWidth: '300px', 
+                          margin: 0,
+                          background: 'rgba(22, 29, 45, 0.45)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                          padding: '24px'
+                        }}>
                           <div className="panel-header" style={{ marginBottom: '16px' }}>
-                            <h2>Métricas de Mobilidade (Goniometria)</h2>
+                            <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-arrows-spin" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Métricas de Mobilidade (Goniometria)</h2>
                           </div>
-                          <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                          <div className="table-responsive" style={{ maxHeight: '420px', overflowY: 'auto' }}>
                             <table className="data-table">
                               <thead>
                                 <tr>
@@ -1596,7 +1913,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           const maxCarga = Math.max(...progression.map(p => p.carga), 10);
 
                           return (
-                            <div key={exName} style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                            <div key={exName} style={{ 
+                              background: 'rgba(0,0,0,0.15)', 
+                              border: '1px solid rgba(255,255,255,0.04)', 
+                              borderRadius: '10px', 
+                              padding: '16px' 
+                            }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                                 <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{exName}</strong>
                                 {progression.length > 1 && (
@@ -1619,7 +1941,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                                   return (
                                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', width: '80px', flexShrink: 0 }}>{formatDateBR(p.data)}</span>
-                                      <div style={{ flexGrow: 1, background: 'rgba(255,255,255,0.03)', height: '14px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                                      <div style={{ flexGrow: 1, background: 'rgba(255,255,255,0.03)', height: '14px', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
                                         <div style={{ width: `${pctWidth}%`, height: '100%', background: barColor, borderRadius: '6px', transition: 'width 0.6s ease' }}></div>
                                       </div>
                                       <span style={{ fontSize: '0.75rem', fontWeight: 'bold', width: '45px', textAlign: 'right', color: idx === progression.length - 1 ? 'var(--color-primary)' : 'var(--text-main)' }}>{p.carga} kg</span>
@@ -1638,7 +1960,18 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         {/* Banner de informações da avaliação */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                        <div style={{ 
+                          background: 'rgba(22, 29, 45, 0.45)', 
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)', 
+                          borderRadius: '12px', 
+                          padding: '16px', 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          flexWrap: 'wrap', 
+                          gap: '15px' 
+                        }}>
                           <div>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data da última avaliação:</span>
                             <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{formatDateBR(latestSt.data)}</div>
@@ -1650,7 +1983,14 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         </div>
 
                         {/* Testes de Força Individual */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+                        <div style={{ 
+                          background: 'rgba(22, 29, 45, 0.45)', 
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)', 
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                          borderRadius: '12px', 
+                          padding: '20px' 
+                        }}>
                           <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
                             <i className="fa-solid fa-gauge-simple-high" style={{ color: 'var(--color-accent)', marginRight: '6px' }}></i> Força Muscular Individual por Movimento
                           </h4>
@@ -1694,7 +2034,14 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                         {/* Análise de Simetria e Déficits */}
                         {latestSt.comparativos && latestSt.comparativos.length > 0 && (
-                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+                          <div style={{ 
+                            background: 'rgba(22, 29, 45, 0.45)', 
+                            backdropFilter: 'blur(12px)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)', 
+                            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                            borderRadius: '12px', 
+                            padding: '20px' 
+                          }}>
                             <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
                               <i className="fa-solid fa-arrows-left-right" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Índice de Simetria e Déficits Bilaterais
                             </h4>
@@ -1739,7 +2086,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                         {/* Observações do Fisioterapeuta */}
                         {latestSt.observacoes && (
-                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+                          <div style={{ 
+                            background: 'rgba(22, 29, 45, 0.45)', 
+                            backdropFilter: 'blur(12px)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)', 
+                            borderRadius: '12px', 
+                            padding: '20px' 
+                          }}>
                             <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '8px' }}>
                               <i className="fa-solid fa-comment-medical" style={{ color: 'var(--color-success)', marginRight: '6px' }}></i> Observações do Fisioterapeuta
                             </h4>
@@ -1750,30 +2103,37 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         )}
 
                         {/* Interpretação Clínica dos Resultados */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', marginTop: '16px' }}>
+                        <div style={{ 
+                          background: 'rgba(22, 29, 45, 0.45)', 
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)', 
+                          borderRadius: '12px', 
+                          padding: '20px', 
+                          marginTop: '16px' 
+                        }}>
                           <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '16px' }}>
                             <i className="fa-solid fa-square-poll-vertical" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Interpretação Clínica dos Resultados
                           </h4>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.04)' }}>
+                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.04)' }}>
                               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>&ge; 90% do Valor de Referência</strong>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
                                 <strong>Força normal:</strong> o paciente apresenta força muscular dentro dos parâmetros normativos para sua faixa demográfica. Liberação para progressão de carga ou retorno ao esporte/atividades.
                               </span>
                             </div>
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #3b82f6', background: 'rgba(59, 130, 246, 0.04)' }}>
+                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #3b82f6', background: 'rgba(59, 130, 246, 0.04)' }}>
                               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>75-89% do Valor de Referência</strong>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
                                 <strong>Déficit leve:</strong> força levemente reduzida. Indica necessidade de fortalecimento direcionado, porém funcionalidade preservada para a maioria das atividades de vida diária.
                               </span>
                             </div>
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #f97316', background: 'rgba(249, 115, 22, 0.04)' }}>
+                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #f97316', background: 'rgba(249, 115, 22, 0.04)' }}>
                               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>50-74% do Valor de Referência</strong>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
                                 <strong>Déficit moderado:</strong> comprometimento funcional relevante. Requer programa de reabilitação estruturado com reavaliação periódica. Restrição de atividades de maior demanda.
                               </span>
                             </div>
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #ef4444', background: 'rgba(239, 68, 68, 0.04)' }}>
+                            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', borderLeft: '4px solid #ef4444', background: 'rgba(239, 68, 68, 0.04)' }}>
                               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>&lt; 50% do Valor de Referência</strong>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4', display: 'block' }}>
                                 <strong>Déficit grave:</strong> fraqueza muscular importante com alto impacto funcional. Investigação de causas subjacentes, possível encaminhamento médico e reabilitação intensiva são indicados.
@@ -1800,7 +2160,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
                       {latestSt && computedRatio > 0 && (
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
+                        <div style={{ 
+                          background: 'rgba(22, 29, 45, 0.45)', 
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)', 
+                          borderRadius: '12px', 
+                          padding: '20px' 
+                        }}>
                           <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--text-main)', marginBottom: '12px' }}>
                             <i className="fa-solid fa-shield-halved" style={{ color: 'var(--color-accent)', marginRight: '6px' }}></i> Balanço de Rotadores do Ombro (Estabilidade Articular)
                           </h4>
@@ -1817,7 +2183,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               </span>
                             </div>
                           </div>
-                          <div style={{ marginTop: '16px', background: 'var(--bg-darker)', borderRadius: '8px', padding: '12px', border: '1px solid var(--border-color)' }}>
+                          <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
                               <span>Desequilíbrio (Risco) &lt; 0.66</span>
                               <span>Safe Zone (0.66 - 0.75)</span>
@@ -1847,10 +2213,17 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         </div>
                       )}
 
-                      <div className="content-panel" style={{ margin: 0 }}>
+                      <div className="content-panel" style={{ 
+                        margin: 0,
+                        background: 'rgba(22, 29, 45, 0.45)', 
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)', 
+                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                        padding: '24px'
+                      }}>
                         <div className="panel-header" style={{ marginBottom: '16px' }}>
-                          <h2>Evolução de Carga Máxima (1RM Estimado)</h2>
-                          <small style={{ color: 'var(--text-muted)' }}>Histórico de progressão de carga de exercícios multiarticulares</small>
+                          <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-dumbbell" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Evolução de Carga Máxima (1RM Estimado)</h2>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Histórico de progressão de carga de exercícios multiarticulares</p>
                         </div>
                         {renderStrengthChart()}
                       </div>
@@ -1862,10 +2235,19 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               })()}
             </div>
           ) : (
-            <div className="empty-state-card" style={{ marginTop: '24px' }}>
-              <i className="fa-solid fa-chart-line empty-state-icon"></i>
-              <div className="empty-state-title">Nenhuma avaliação física</div>
-              <div className="empty-state-desc">Você ainda não possui avaliações físicas registradas. Fale com seu fisioterapeuta ou instrutor para agendar uma avaliação.</div>
+            <div className="empty-state-card" style={{ 
+              marginTop: '24px',
+              background: 'rgba(22, 29, 45, 0.45)', 
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)', 
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+              padding: '40px 20px',
+              borderRadius: '14px',
+              textAlign: 'center'
+            }}>
+              <i className="fa-solid fa-chart-line empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)' }}></i>
+              <div className="empty-state-title" style={{ fontSize: '1.1rem', fontWeight: 700, margin: '12px 0' }}>Nenhuma avaliação física</div>
+              <div className="empty-state-desc" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Você ainda não possui avaliações físicas registradas. Fale com seu fisioterapeuta ou instrutor para agendar uma avaliação.</div>
             </div>
           )}
         </>
@@ -1874,150 +2256,210 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* View: Meus Documentos */}
       {activeTab === 'documentos' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Meus Documentos Clínicos</h1>
-              <p>Acesse e baixe seus laudos de fisioterapia e relatórios de avaliações físicas.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Meus Documentos Clínicos
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acesse e baixe seus laudos de fisioterapia e relatórios de avaliações físicas.</p>
             </div>
             {(assessments.length > 0 || reports.length > 0 || strengthTests.length > 0) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
+                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   <span>Exibir:</span>
-                  <select value={getPageSize('documents')} onChange={e => setPageSizeForKey('documents', Number(e.target.value))}>
-                    <option value={5}>5</option>
-                    <option value={8}>8</option>
-                    <option value={15}>15</option>
+                  <select value={getPageSize('documents')} onChange={e => setPageSizeForKey('documents', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
+                    <option value={6}>6</option>
+                    <option value={12}>12</option>
+                    <option value={24}>24</option>
                   </select>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="content-panel">
-            <div className="panel-header">
-              <h2>Arquivos Disponíveis para Download</h2>
+          <div className="content-panel" style={{ 
+            background: 'rgba(22, 29, 45, 0.45)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+            padding: '24px'
+          }}>
+            <div className="panel-header" style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-folder-open" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Arquivos Disponíveis para Download</h2>
             </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th className="text-center">Tipo de Documento</th>
-                    <th>Descrição</th>
-                    <th>Arquivo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'documents';
-                    const size = getPageSize(listKey);
-                    const docs = [
-                      ...assessments.map(a => ({
-                        id: a._id,
-                        data: a.data,
-                        tipo: 'Avaliação Física',
-                        badgeClass: 'badge-success',
-                        desc: 'Métricas corporais e goniometria completa',
-                        rawDoc: a
-                      })),
-                      ...reports.map(r => ({
-                        id: r._id,
-                        data: r.data,
-                        tipo: 'Relatório Fisioterápico',
-                        badgeClass: 'badge-info',
-                        desc: 'Evolução do tratamento de reabilitação e condutas',
-                        rawDoc: r
-                      })),
-                      ...strengthTests.map(st => ({
-                        id: st._id,
-                        data: st.data,
-                        tipo: 'Teste de Força',
-                        badgeClass: 'badge-warning',
-                        desc: 'Métricas de força muscular bilateral e comparativos',
-                        rawDoc: st
-                      }))
-                    ].sort((a, b) => b.data.localeCompare(a.data));
 
-                    const totalItems = docs.length;
-                    const totalPages = Math.ceil(totalItems / size);
-                    const activeP = getPage(listKey);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = docs.slice((curP - 1) * size, curP * size);
+            {(() => {
+              const listKey = 'documents';
+              const size = getPageSize(listKey);
+              const docs = [
+                ...assessments.map(a => ({
+                  id: a._id,
+                  data: a.data,
+                  tipo: 'Avaliação Física',
+                  icon: 'fa-heart-pulse',
+                  color: 'var(--color-success)',
+                  badgeBg: 'rgba(16, 185, 129, 0.1)',
+                  desc: 'Métricas corporais e goniometria completa',
+                  rawDoc: a
+                })),
+                ...reports.map(r => ({
+                  id: r._id,
+                  data: r.data,
+                  tipo: 'Relatório Fisioterápico',
+                  icon: 'fa-file-prescription',
+                  color: 'var(--color-info)',
+                  badgeBg: 'rgba(59, 130, 246, 0.1)',
+                  desc: 'Evolução do tratamento de reabilitação e condutas',
+                  rawDoc: r
+                })),
+                ...strengthTests.map(st => ({
+                  id: st._id,
+                  data: st.data,
+                  tipo: 'Teste de Força',
+                  icon: 'fa-dumbbell',
+                  color: '#f59e0b',
+                  badgeBg: 'rgba(245, 158, 11, 0.1)',
+                  desc: 'Métricas de força muscular bilateral e comparativos',
+                  rawDoc: st
+                }))
+              ].sort((a, b) => b.data.localeCompare(a.data));
 
-                    if (totalItems === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={4}>
-                            <div className="empty-state-card">
-                              <i className="fa-solid fa-folder-open empty-state-icon"></i>
-                              <div className="empty-state-title">Nenhum documento disponível</div>
-                              <div className="empty-state-desc">Não há laudos de fisioterapia, relatórios de avaliação física ou testes de força disponíveis para download no momento.</div>
+              const totalItems = docs.length;
+              const totalPages = Math.ceil(totalItems / size);
+              const activeP = getPage(listKey);
+              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+              const paginated = docs.slice((curP - 1) * size, curP * size);
+
+              if (totalItems === 0) {
+                return (
+                  <div className="empty-state-card" style={{ padding: '40px 20px', background: 'transparent', border: 'none' }}>
+                    <i className="fa-solid fa-folder-open empty-state-icon" style={{ fontSize: '2.5rem', color: 'var(--text-dim)' }}></i>
+                    <div className="empty-state-title" style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0' }}>Nenhum documento disponível</div>
+                    <div className="empty-state-desc" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Não há laudos de fisioterapia, relatórios de avaliação física ou testes de força disponíveis para download no momento.</div>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
+                    {paginated.map(doc => (
+                      <div 
+                        key={doc.id}
+                        style={{
+                          background: 'rgba(0,0,0,0.15)',
+                          border: '1px solid rgba(255,255,255,0.04)',
+                          borderRadius: '14px',
+                          padding: '20px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          transition: 'all 0.3s ease',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.borderColor = doc.color;
+                          e.currentTarget.style.boxShadow = `0 10px 30px 0 ${doc.color}15`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: doc.badgeBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <i className={`fa-solid ${doc.icon}`} style={{ fontSize: '18px', color: doc.color }}></i>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    }
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: 600 }}>{formatDateBR(doc.data)}</span>
+                          </div>
 
-                    return paginated.map(doc => (
-                      <tr key={doc.id}>
-                        <td data-label="Data">{formatDateBR(doc.data)}</td>
-                        <td data-label="Tipo de Documento" className="text-center">
-                          <span className={`badge ${doc.badgeClass}`}>{doc.tipo}</span>
-                        </td>
-                        <td data-label="Descrição">{doc.desc}</td>
-                        <td data-label="Arquivo">
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              if (doc.tipo === 'Avaliação Física') {
-                                downloadAssessmentPDF(doc.rawDoc, assessments);
-                              } else if (doc.tipo === 'Teste de Força') {
-                                downloadStrengthTestPDF(doc.rawDoc, client, doc.rawDoc.profissionalId);
-                              } else {
-                                downloadReportPDF(doc.rawDoc);
-                              }
-                            }}
-                            style={{ width: '100%' }}
-                          >
-                            <i className="fa-solid fa-file-pdf"></i> Baixar PDF
-                          </button>
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
-            </div>
+                          <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{doc.tipo}</h4>
+                          <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: '1.4', margin: '0 0 16px 0' }}>{doc.desc}</p>
+                        </div>
 
-            {assessments.length + reports.length > 0 && (
-              <Pagination
-                currentPage={getPage('documents')}
-                totalItems={assessments.length + reports.length}
-                itemsPerPage={getPageSize('documents')}
-                onPageChange={page => setPage('documents', page)}
-              />
-            )}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            if (doc.tipo === 'Avaliação Física') {
+                              downloadAssessmentPDF(doc.rawDoc, assessments);
+                            } else if (doc.tipo === 'Teste de Força') {
+                              downloadStrengthTestPDF(doc.rawDoc, client, doc.rawDoc.profissionalId);
+                            } else {
+                              downloadReportPDF(doc.rawDoc);
+                            }
+                          }}
+                          style={{ width: '100%', fontSize: '0.75rem', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                        >
+                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i> Baixar PDF
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {totalItems > size && (
+                    <div style={{ marginTop: '24px' }}>
+                      <Pagination
+                        currentPage={curP}
+                        totalItems={totalItems}
+                        itemsPerPage={size}
+                        onPageChange={page => setPage(listKey, page)}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </>
       )}
 
       {activeTab === 'trancamento' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Trancamento de Plano</h1>
-              <p>Tranque semanas do seu plano e redistribua os créditos para os meses restantes.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Trancamento de Plano
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Tranque semanas do seu plano e redistribua os créditos para os meses restantes.</p>
             </div>
           </div>
 
           {!activeContract ? (
-            <div className="content-panel" style={{ textAlign: 'center', padding: '40px' }}>
+            <div className="content-panel" style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              background: 'rgba(22, 29, 45, 0.45)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+              borderRadius: '14px'
+            }}>
               <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '24px', color: 'var(--color-danger)' }}></i>
               </div>
-              <h3>Nenhum Contrato Ativo</h3>
-              <p style={{ color: 'var(--text-muted)' }}>Você não possui nenhum contrato assinado ou ativo no momento para realizar trancamentos.</p>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Nenhum Contrato Ativo</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Você não possui nenhum contrato assinado ou ativo no momento para realizar trancamentos.</p>
             </div>
           ) : (
             (() => {
@@ -2031,11 +2473,17 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const isDistributionPerfect = sumRedist === creditosCongelados;
 
               return (
-                <div className="trancamento-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+                <div className="trancamento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', alignItems: 'start' }}>
                   {/* Form de Trancamento */}
-                  <div className="content-panel">
-                    <div className="panel-header">
-                      <h2>Solicitar Trancamento</h2>
+                  <div className="content-panel" style={{ 
+                    background: 'rgba(22, 29, 45, 0.45)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                    padding: '24px'
+                  }}>
+                    <div className="panel-header" style={{ marginBottom: '20px' }}>
+                      <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-snowflake" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Solicitar Trancamento</h2>
                     </div>
 
                     {trancamentoErrorMsg && (
@@ -2051,34 +2499,42 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       </div>
                     )}
 
-                    <div style={{ background: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Plano: <strong>{activeContract.planoNome}</strong></p>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Vigência: de <strong>{formatDateBR(activeContract.dataInicio)}</strong> até <strong>{formatDateBR(activeContract.dataFim)}</strong></p>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Frequência contratada: <strong>{frequencia}x por semana</strong></p>
-                      <p style={{ margin: '0', fontSize: '0.9rem', color: semanasDisponiveis > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>
-                        Semanas já trancadas: <strong>{totalSemanasTrancadas} de 4</strong> (Restam <strong>{semanasDisponiveis}</strong> semanas disponíveis)
+                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.04)', marginBottom: '20px', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                      <p style={{ margin: '0 0 8px 0' }}>Plano: <strong>{activeContract.planoNome}</strong></p>
+                      <p style={{ margin: '0 0 8px 0' }}>Vigência: de <strong>{formatDateBR(activeContract.dataInicio)}</strong> até <strong>{formatDateBR(activeContract.dataFim)}</strong></p>
+                      <p style={{ margin: '0 0 8px 0' }}>Frequência contratada: <strong>{frequencia}x por semana</strong></p>
+                      <p style={{ margin: '0', color: semanasDisponiveis > 0 ? 'var(--color-primary)' : 'var(--color-danger)', fontWeight: 600 }}>
+                        Semanas já trancadas: {totalSemanasTrancadas} de 4 (Restam {semanasDisponiveis} semanas disponíveis)
                       </p>
                     </div>
 
                     {semanasDisponiveis <= 0 ? (
-                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                         Você já atingiu o limite máximo de 4 semanas trancadas para este contrato.
                       </div>
                     ) : (
                       <form onSubmit={handleRequestTrancamento}>
-                        <div className="form-group">
-                          <label>Data de Início do Trancamento (Selecione no calendário)</label>
+                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                          <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>Data de Início do Trancamento</label>
                           <input
                             type="date"
                             className="form-control"
                             value={trancamentoDataInicio}
                             onChange={e => setTrancamentoDataInicio(e.target.value)}
+                            style={{ 
+                              background: 'rgba(0, 0, 0, 0.25)', 
+                              border: '1px solid rgba(255, 255, 255, 0.06)', 
+                              color: 'var(--text-main)',
+                              borderRadius: '8px',
+                              padding: '10px 14px',
+                              width: '100%'
+                            }}
                             required
                           />
                         </div>
 
-                        <div className="form-group">
-                          <label>Quantidade de Semanas a Trancar</label>
+                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                          <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>Quantidade de Semanas a Trancar</label>
                           <select
                             className="select-custom"
                             value={trancamentoSemanas}
@@ -2086,33 +2542,42 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               setTrancamentoSemanas(Number(e.target.value));
                               setTrancamentoRedistribuicao({});
                             }}
+                            style={{ 
+                              background: 'rgba(0, 0, 0, 0.25)', 
+                              border: '1px solid rgba(255, 255, 255, 0.06)', 
+                              color: 'var(--text-main)',
+                              borderRadius: '8px',
+                              padding: '10px 14px',
+                              width: '100%',
+                              cursor: 'pointer'
+                            }}
                           >
                             {Array.from({ length: semanasDisponiveis }, (_, i) => i + 1).map(n => (
-                              <option key={n} value={n}>{n} {n === 1 ? 'semana' : 'semanas'}</option>
+                              <option key={n} value={n} style={{ background: '#0a0e17' }}>{n} {n === 1 ? 'semana' : 'semanas'}</option>
                             ))}
                           </select>
                         </div>
 
-                        <div style={{ fontSize: '1rem', fontWeight: 'bold', margin: '15px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ fontSize: '0.92rem', fontWeight: 700, margin: '15px 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                           <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)' }}></i>
-                          Créditos a Redistribuir: {creditosCongelados} créditos
+                          Créditos a Redistribuir: <span style={{ color: 'var(--color-primary)' }}>{creditosCongelados} créditos</span>
                         </div>
 
                         {trancamentoDataInicio && (
-                          <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '12px' }}>Redistribuição de Créditos</h3>
-                            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                          <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <h3 style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-main)' }}>Redistribuição de Créditos</h3>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
                               Escolha como distribuir os {creditosCongelados} créditos entre os meses restantes de vigência do seu contrato:
                             </p>
 
                             {remainingMonths.map(m => (
-                              <div key={m.value} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>{m.label}</span>
+                              <div key={m.value} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <span style={{ fontSize: '0.8rem', textTransform: 'capitalize', fontWeight: 600, color: 'var(--text-muted)' }}>{m.label}</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"
-                                    style={{ padding: '2px 8px', minWidth: '28px' }}
+                                    style={{ padding: '2px 8px', minWidth: '28px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                                     onClick={() => {
                                       const currentVal = trancamentoRedistribuicao[m.value] || 0;
                                       if (currentVal > 0) {
@@ -2125,13 +2590,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                                   >
                                     -
                                   </button>
-                                  <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}>
                                     {trancamentoRedistribuicao[m.value] || 0}
                                   </span>
                                   <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"
-                                    style={{ padding: '2px 8px', minWidth: '28px' }}
+                                    style={{ padding: '2px 8px', minWidth: '28px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                                     onClick={() => {
                                       const currentVal = trancamentoRedistribuicao[m.value] || 0;
                                       if (sumRedist < creditosCongelados) {
@@ -2148,22 +2613,22 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                               </div>
                             ))}
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Total Distribuído:</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Total Distribuído:</span>
                               <span style={{ 
-                                fontSize: '0.9rem', 
-                                fontWeight: 700, 
+                                fontSize: '0.85rem', 
+                                fontWeight: 800, 
                                 color: isDistributionPerfect ? 'var(--color-success)' : 'var(--color-danger)'
                               }}>
                                 {sumRedist} de {creditosCongelados}
                               </span>
                             </div>
                             {isDistributionPerfect ? (
-                              <small style={{ color: 'var(--color-success)', display: 'block', marginTop: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                              <small style={{ color: 'var(--color-success)', display: 'block', marginTop: '4px', fontSize: '0.72rem', fontWeight: 700 }}>
                                 <i className="fa-solid fa-circle-check"></i> Distribuição perfeita dos créditos!
                               </small>
                             ) : (
-                              <small style={{ color: 'var(--color-warning)', display: 'block', marginTop: '4px', fontSize: '0.75rem' }}>
+                              <small style={{ color: 'var(--color-warning)', display: 'block', marginTop: '4px', fontSize: '0.72rem', fontWeight: 600 }}>
                                 Distribua exatamente os {creditosCongelados} créditos para habilitar o envio.
                               </small>
                             )}
@@ -2174,16 +2639,22 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                           type="submit"
                           className="btn btn-primary"
                           disabled={!isDistributionPerfect || !trancamentoDataInicio}
-                          style={{ width: '100%', marginTop: '20px' }}
+                          style={{ width: '100%', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
-                          Confirmar Trancamento e Redistribuir
+                          <i className="fa-solid fa-check"></i> Confirmar Trancamento e Redistribuir
                         </button>
                       </form>
                     )}
                   </div>
 
                   {/* Histórico de Trancamentos */}
-                  <div className="content-panel">
+                  <div className="content-panel" style={{ 
+                    background: 'rgba(22, 29, 45, 0.45)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                    padding: '24px'
+                  }}>
                     <div className="panel-header">
                       <h2>Histórico de Trancamentos</h2>
                     </div>
@@ -2238,41 +2709,77 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
       {/* View: Meus Créditos */}
       {activeTab === 'creditos' && (
         <>
-          <div className="view-header">
+          <div className="view-header" style={{ marginBottom: '20px' }}>
             <div className="view-title-group">
-              <h1>Meus Créditos</h1>
-              <p>Acompanhe o saldo de cada tipo de crédito do seu plano.</p>
+              <h1 style={{ 
+                fontFamily: 'var(--font-title)', 
+                fontSize: '1.8rem', 
+                fontWeight: 800, 
+                background: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)', 
+                WebkitBackgroundClip: 'text', 
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '4px'
+              }}>
+                Meus Créditos
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acompanhe o saldo de cada tipo de crédito do seu plano.</p>
             </div>
           </div>
 
           {/* 3 Cards de Crédito */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: '8px' }}>
 
             {/* Academia */}
             {(() => {
               const pct = credTotal > 0 ? Math.round(((credUsados + credReservados) / credTotal) * 100) : 0;
               const esgotado = credDisp <= 0 && credTotal > 0;
               return (
-                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : 'var(--color-primary)'}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'var(--color-primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ 
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '14px',
+                  padding: '24px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : 'var(--color-primary)'}`,
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.borderColor = esgotado ? 'var(--color-danger)' : 'var(--color-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <i className="fa-solid fa-dumbbell" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : 'var(--color-primary)' }}></i>
                     </div>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Créditos de Academia</h3>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Treino Monitorado, Avaliações e Emergências</p>
+                      <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>Créditos de Academia</h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Treino Monitorado e Avaliações</p>
                     </div>
-                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
+                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '14px', textAlign: 'center' }}>
-                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: credDisp > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>{credDisp}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Disponíveis</div></div>
-                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{credUsados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usados</div></div>
-                    <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)' }}>{credReservados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reservados</div></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '18px', textAlign: 'center' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: credDisp > 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}>{credDisp}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Disponíveis</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{credUsados}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Usados</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)' }}>{credReservados}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Reservados</div>
+                    </div>
                   </div>
                   <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : 'var(--color-primary)', borderRadius: '6px', transition: 'width 0.4s' }}></div>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>{pct}% utilizado de {credTotal} créditos/mês</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {credTotal} créditos/mês</div>
                 </div>
               );
             })()}
@@ -2283,30 +2790,58 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const esgotado = emergDisp <= 0 && emergTotal > 0;
               const semPlano = emergTotal === 0;
               return (
-                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'var(--border-color)' : '#f59e0b'}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ 
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '14px',
+                  padding: '24px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#f59e0b'}`,
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.borderColor = esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#f59e0b';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#f59e0b' }}></i>
                     </div>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Créditos de Emergência</h3>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agendamentos de Emergência (Seg–Sex)</p>
+                      <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>Créditos de Emergência</h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agendamentos extras (Seg–Sex)</p>
                     </div>
-                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
+                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
                   </div>
                   {semPlano ? (
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>Seu plano não inclui créditos de emergência.</p>
+                    <div style={{ background: 'rgba(0,0,0,0.1)', borderRadius: '10px', padding: '20px', border: '1px dashed rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '105px' }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', margin: 0, fontWeight: 500 }}>Seu plano atual não inclui créditos de emergência.</p>
+                    </div>
                   ) : (
                     <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '14px', textAlign: 'center' }}>
-                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: emergDisp > 0 ? '#f59e0b' : 'var(--color-danger)' }}>{emergDisp}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Disponíveis</div></div>
-                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{emergUsados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usados</div></div>
-                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)' }}>{emergReservados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reservados</div></div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '18px', textAlign: 'center' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: emergDisp > 0 ? '#f59e0b' : 'var(--color-danger)' }}>{emergDisp}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Disponíveis</div>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{emergUsados}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Usados</div>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)' }}>{emergReservados}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Reservados</div>
+                        </div>
                       </div>
                       <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#f59e0b', borderRadius: '6px', transition: 'width 0.4s' }}></div>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>{pct}% utilizado de {emergTotal} crédito(s)/mês</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {emergTotal} crédito(s)/mês</div>
                     </>
                   )}
                 </div>
@@ -2319,30 +2854,58 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               const esgotado = massDisp <= 0 && massTotal > 0;
               const semPlano = massTotal === 0;
               return (
-                <div className="content-panel" style={{ borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'var(--border-color)' : '#a855f7'}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(168,85,247,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ 
+                  background: 'rgba(22, 29, 45, 0.45)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '14px',
+                  padding: '24px',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                  borderLeft: `4px solid ${esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#a855f7'}`,
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.borderColor = esgotado ? 'var(--color-danger)' : semPlano ? 'rgba(255,255,255,0.1)' : '#a855f7';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: esgotado ? 'rgba(239,68,68,0.12)' : 'rgba(168,85,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <i className="fa-solid fa-spa" style={{ fontSize: '18px', color: esgotado ? 'var(--color-danger)' : '#a855f7' }}></i>
                     </div>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Créditos de Massagem</h3>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Massagem Terapêutica (exclusivo Sábados)</p>
+                      <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>Créditos de Massagem</h3>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sessões aos Sábados</p>
                     </div>
-                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
+                    {esgotado && <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>ESGOTADO</span>}
                   </div>
                   {semPlano ? (
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>Seu plano não inclui créditos de massagem.</p>
+                    <div style={{ background: 'rgba(0,0,0,0.1)', borderRadius: '10px', padding: '20px', border: '1px dashed rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '105px' }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', margin: 0, fontWeight: 500 }}>Seu plano atual não inclui créditos de massagem.</p>
+                    </div>
                   ) : (
                     <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '14px', textAlign: 'center' }}>
-                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: massDisp > 0 ? '#a855f7' : 'var(--color-danger)' }}>{massDisp}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Disponíveis</div></div>
-                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{massUsados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usados</div></div>
-                        <div><div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)' }}>{massReservados}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reservados</div></div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '18px', textAlign: 'center' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: massDisp > 0 ? '#a855f7' : 'var(--color-danger)' }}>{massDisp}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Disponíveis</div>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{massUsados}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Usados</div>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)' }}>{massReservados}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Reservados</div>
+                        </div>
                       </div>
                       <div style={{ height: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: esgotado ? 'var(--color-danger)' : '#a855f7', borderRadius: '6px', transition: 'width 0.4s' }}></div>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>{pct}% utilizado de {massTotal} crédito(s)/mês</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right', fontWeight: 600 }}>{pct}% utilizado de {massTotal} crédito(s)/mês</div>
                     </>
                   )}
                 </div>
@@ -2351,47 +2914,61 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
           </div>
 
           {/* Histórico por tipo */}
-          <div className="content-panel" style={{ marginTop: '24px' }}>
-            <div className="panel-header"><h2>Histórico de Uso</h2></div>
+          <div className="content-panel" style={{ 
+            marginTop: '24px',
+            background: 'rgba(22, 29, 45, 0.45)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+            padding: '24px'
+          }}>
+            <div className="panel-header" style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}><i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>Histórico de Uso</h2>
+            </div>
             {appointments.filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum').length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>Nenhum agendamento com crédito encontrado.</p>
+              <p style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center', fontSize: '0.85rem' }}>Nenhum agendamento com crédito encontrado.</p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Data</th>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Serviço</th>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Tipo de Crédito</th>
-                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appointments
-                    .filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum')
-                    .sort((a: any, b: any) => b.data.localeCompare(a.data))
-                    .map((a: any) => {
-                      const tipoCor: Record<string, string> = { academia: 'var(--color-primary)', emergencia: '#f59e0b', massagem: '#a855f7' };
-                      const tipoLabel: Record<string, string> = { academia: 'Academia', emergencia: 'Emergência', massagem: 'Massagem' };
-                      const statusCor: Record<string, string> = { agendado: 'var(--color-warning)', presenca: 'var(--color-success)', cancelado: 'var(--color-danger)', falta: 'var(--color-danger)' };
-                      return (
-                        <tr key={a._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{formatDateBR(a.data)} {a.horario}</td>
-                          <td style={{ padding: '10px', fontSize: '0.82rem' }}>{a.servico}</td>
-                          <td style={{ padding: '10px' }}>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}22`, padding: '2px 8px', borderRadius: '8px' }}>
-                              {tipoLabel[a.tipoCredito] || a.tipoCredito}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: statusCor[a.status] || 'var(--text-muted)', background: `${statusCor[a.status] || 'var(--text-muted)'}22`, padding: '2px 8px', borderRadius: '8px' }}>
-                              {a.status}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Serviço</th>
+                      <th>Tipo de Crédito</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {appointments
+                      .filter((a: any) => a.tipoCredito && a.tipoCredito !== 'nenhum')
+                      .sort((a: any, b: any) => b.data.localeCompare(a.data))
+                      .map((a: any) => {
+                        const tipoCor: Record<string, string> = { academia: 'var(--color-primary)', emergencia: '#f59e0b', massagem: '#a855f7' };
+                        const tipoLabel: Record<string, string> = { academia: 'Academia', emergencia: 'Emergência', massagem: 'Massagem' };
+                        
+                        let badgeClass = 'badge-success';
+                        if (a.status === 'agendado') badgeClass = 'badge-info';
+                        else if (a.status === 'cancelado') badgeClass = 'badge-danger';
+                        else if (a.status === 'falta') badgeClass = 'badge-warning';
+
+                        return (
+                          <tr key={a._id}>
+                            <td><strong>{formatDateBR(a.data)} {a.horario}</strong></td>
+                            <td>{a.servico}</td>
+                            <td>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tipoCor[a.tipoCredito] || 'var(--text-muted)', background: `${tipoCor[a.tipoCredito] || 'var(--text-muted)'}15`, border: `1px solid ${tipoCor[a.tipoCredito] || 'var(--text-muted)'}30`, padding: '2px 8px', borderRadius: '8px' }}>
+                                {tipoLabel[a.tipoCredito] || a.tipoCredito}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge ${badgeClass}`}>{a.status}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </>
