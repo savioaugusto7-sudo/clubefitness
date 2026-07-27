@@ -1504,7 +1504,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             <div style={{ marginTop: '6px' }}>{renderDeltaBadge(mDelta, 'increase_good')}</div>
                           </div>
                           <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-child-strength" style={{ fontSize: '18px', color: '#f59e0b' }}></i>
+                            <i className="fa-solid fa-dumbbell" style={{ fontSize: '18px', color: '#f59e0b' }}></i>
                           </div>
                         </div>
                       </div>
