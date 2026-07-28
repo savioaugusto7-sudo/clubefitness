@@ -207,6 +207,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Pagination & UX states
   const [pages, setPages] = useState<Record<string, number>>({});
@@ -1902,6 +1903,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const handleCreateAssessment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!asClient) {
       alert('Por favor, selecione um aluno/cliente.');
       return;
@@ -2108,6 +2110,7 @@ goniometria: {
 
       executeAction('Criou Avaliação Física', asClient, async (executorProfId, isCollective) => {
         try {
+          setIsSubmitting(true);
           const res = await fetch('/api/assessments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2133,6 +2136,8 @@ goniometria: {
           }
         } catch (err: any) {
           alert('Erro ao enviar: ' + err.message);
+        } finally {
+          setIsSubmitting(false);
         }
       }, `${clientName} - Data: ${asDate}`);
     } catch (err: any) {
@@ -2406,6 +2411,7 @@ goniometria: {
 
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     try {
       let payload: any = {
         clienteId: repClient,
@@ -2513,6 +2519,7 @@ goniometria: {
       executeAction('Criou Relatório Fisioterápico', repClient, async (executorProfId, isCollective) => {
         payload.profissionalId = executorProfId;
         try {
+          setIsSubmitting(true);
           const res = await fetch('/api/reports', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2600,6 +2607,8 @@ goniometria: {
           }
         } catch (err: any) {
           alert('Erro ao enviar: ' + err.message);
+        } finally {
+          setIsSubmitting(false);
         }
       }, `${clientName} - Tipo: ${repType}`);
     } catch (err: any) {
@@ -2760,6 +2769,7 @@ goniometria: {
 
   const handleCreateStrengthTest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!stClient) {
       alert('Por favor, selecione o Paciente/Aluno.');
       return;
@@ -2798,6 +2808,7 @@ goniometria: {
 
       executeAction('Criou Teste de Força', stClient, async (executorProfId, isCollective) => {
         try {
+          setIsSubmitting(true);
           const res = await fetch('/api/strength-tests', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2821,6 +2832,8 @@ goniometria: {
           }
         } catch (err: any) {
           alert('Erro ao registrar o teste de força: ' + err.message);
+        } finally {
+          setIsSubmitting(false);
         }
       }, `${clientName} - Quantidade: ${stTestesList.length}`);
     } catch (err: any) {
@@ -6726,8 +6739,16 @@ goniometria: {
                       )}
                     </button>
                   ) : (
-                    <button type="submit" className="btn btn-success" disabled={isNavigatingStep}>
-                      <i className="fa-solid fa-check"></i> Concluir Avaliação
+                    <button type="submit" className="btn btn-success" disabled={isNavigatingStep || isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-check"></i> Concluir Avaliação
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
@@ -8139,8 +8160,14 @@ goniometria: {
                       )}
                     </button>
                   ) : (
-                    <button type="submit" className="btn btn-primary" disabled={isNavigatingStep}>
-                      Registrar e Baixar PDF
+                    <button type="submit" className="btn btn-primary" disabled={isNavigatingStep || isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Gravando...
+                        </>
+                      ) : (
+                        'Registrar e Baixar PDF'
+                      )}
                     </button>
                   )}
                 </div>
@@ -8401,8 +8428,16 @@ goniometria: {
                 </div>
               </div>
               <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <button type="button" className="btn btn-secondary" onClick={handleCloseSt}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Registrar Teste de Força</button>
+                <button type="button" className="btn btn-secondary" onClick={handleCloseSt} disabled={isSubmitting}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Registrando...
+                    </>
+                  ) : (
+                    'Registrar Teste de Força'
+                  )}
+                </button>
               </div>
             </form>
           </div>
