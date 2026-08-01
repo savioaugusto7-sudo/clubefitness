@@ -18,10 +18,55 @@ export default function OnboardingPage() {
 
   const [nome, setNome] = useState(user?.name || '');
   const [dataNascimento, setDataNascimento] = useState('');
+  const [dataNascimentoDisplay, setDataNascimentoDisplay] = useState('');
   const [sexo, setSexo] = useState('');
   const [cpf, setCpf] = useState('');
   const [telefone, setTelefone] = useState('');
   const [email] = useState(user?.email || '');
+
+  const convertBrToIso = (brDate: string) => {
+    if (!brDate) return '';
+    const parts = brDate.split('/');
+    if (parts.length === 3 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return '';
+  };
+
+  const handleDateChange = (val: string) => {
+    const digits = val.replace(/\D/g, '');
+    let formatted = '';
+    
+    if (digits.length > 0) {
+      formatted += digits.substring(0, 2);
+    }
+    if (digits.length > 2) {
+      formatted += '/' + digits.substring(2, 4);
+    }
+    if (digits.length > 4) {
+      formatted += '/' + digits.substring(4, 8);
+    }
+    
+    setDataNascimentoDisplay(formatted);
+    const iso = convertBrToIso(formatted);
+    setDataNascimento(iso);
+  };
+
+  const calculateAge = (brDate: string) => {
+    if (brDate.length !== 10) return null;
+    const iso = convertBrToIso(brDate);
+    if (!iso) return null;
+    const birth = new Date(iso);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    if (age < 0 || age > 120) return null;
+    return age;
+  };
 
   const [cep, setCep] = useState('');
   const [endereco, setEndereco] = useState('');
@@ -47,7 +92,15 @@ export default function OnboardingPage() {
           const c = client.dadosClinicos || {};
 
           if (p.nome) setNome(p.nome);
-          if (p.dataNascimento) setDataNascimento(p.dataNascimento);
+          if (p.dataNascimento) {
+            setDataNascimento(p.dataNascimento);
+            const parts = p.dataNascimento.split('-');
+            if (parts.length === 3) {
+              setDataNascimentoDisplay(`${parts[2]}/${parts[1]}/${parts[0]}`);
+            } else {
+              setDataNascimentoDisplay(p.dataNascimento);
+            }
+          }
           if (p.sexo) setSexo(p.sexo);
           if (p.cpf) setCpf(p.cpf);
           if (p.telefone) setTelefone(p.telefone);
@@ -419,7 +472,25 @@ export default function OnboardingPage() {
 
                   <div className="form-group">
                     <label>Data de Nascimento *</label>
-                    <input type="date" className="form-control" value={dataNascimento} onChange={e => setDataNascimento(e.target.value)} />
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      value={dataNascimentoDisplay} 
+                      onChange={e => handleDateChange(e.target.value)} 
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
+                    />
+                    {(() => {
+                      const age = calculateAge(dataNascimentoDisplay);
+                      if (age !== null) {
+                        return (
+                          <small style={{ color: 'var(--color-primary)', display: 'block', marginTop: '4px', fontWeight: 600 }}>
+                            Idade: {age} anos
+                          </small>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   <div className="form-group">
                     <label>Sexo *</label>
@@ -469,7 +540,10 @@ export default function OnboardingPage() {
                     <i className="fa-solid fa-arrow-right-from-bracket"></i> Usar outra conta
                   </button>
                   <button className="btn btn-primary" onClick={() => {
-                    if (!nome || !dataNascimento || !sexo || !telefone) { setError('Preencha os campos obrigatórios (*).'); return; }
+                    if (!nome || !dataNascimentoDisplay || !sexo || !telefone) { setError('Preencha os campos obrigatórios (*).'); return; }
+                    const isoDate = convertBrToIso(dataNascimentoDisplay);
+                    if (!isoDate || isoDate.length !== 10) { setError('A data de nascimento deve estar no formato DD/MM/AAAA e possuir ano com 4 dígitos.'); return; }
+                    setDataNascimento(isoDate);
                     setError(''); setStep(2);
                   }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     Próximo <i className="fa-solid fa-arrow-right"></i>
