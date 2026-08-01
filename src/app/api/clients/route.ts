@@ -5,6 +5,7 @@ import User from '@/models/User';
 import Plan from '@/models/Plan';
 import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
+import { hashPassword } from '@/utils/auth';
 
 export async function GET(request: Request) {
   try {
@@ -62,10 +63,14 @@ export async function POST(request: Request) {
     // 1. Create or Find User
     let user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
+      const defaultPassword = '123456';
+      const hashedPassword = hashPassword(defaultPassword);
       user = await User.create({
         nome: nome || dadosPessoais?.nome || 'Novo Aluno',
         email: email.toLowerCase(),
-        tipo: tipo || 'client'
+        tipo: tipo || 'client',
+        password: hashedPassword,
+        needPasswordChange: true
       });
     }
 

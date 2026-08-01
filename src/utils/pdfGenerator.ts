@@ -10,6 +10,12 @@ function formatDate(dateString: string): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+function safeRemoveWrapper(pdfWrapper: HTMLElement) {
+  if (pdfWrapper && pdfWrapper.parentNode) {
+    pdfWrapper.parentNode.removeChild(pdfWrapper);
+  }
+}
+
 async function getLogoBase64(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   try {
@@ -38,13 +44,13 @@ async function getAvatarBase64(sex: string): Promise<string | null> {
 }
 
 function base64ToBlob(base64: string, mime: string): Blob {
-  const byteCharacters = atob(base64.split(',')[1] || base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  const byteString = atob(base64.split(',')[1] || base64);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
   }
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: mime });
+  return new Blob([ab], { type: mime });
 }
 
 function isMaigneFilled(maigneVal: any): boolean {
@@ -1179,7 +1185,7 @@ export async function downloadReportPDF(report: any) {
   if (report.pdf_url) {
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
       try {
-        document.body.removeChild(pdfWrapper);
+        safeRemoveWrapper(pdfWrapper);
         if (typeof PDFLib === 'undefined') {
           console.warn('A biblioteca de mesclagem (pdf-lib) não foi carregada. Baixando apenas o relatório do sistema...');
           const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
@@ -1208,15 +1214,15 @@ export async function downloadReportPDF(report: any) {
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
     });
   } else {
     html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
       triggerDirectDownload(blob, options.filename);
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
     }).catch((err: any) => {
       console.error('Erro na geração do PDF do relatório:', err);
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
     });
   }
 }
@@ -2621,7 +2627,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
       try {
         // Remover o wrapper da árvore do DOM
-        document.body.removeChild(pdfWrapper);
+        safeRemoveWrapper(pdfWrapper);
 
         // Carregar a biblioteca pdf-lib com fallback resiliente
         if (typeof PDFLib === 'undefined') {
@@ -2667,13 +2673,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
       alert('Erro ao gerar o PDF da avaliação: ' + err.message);
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
     });
   } else if (hasTermografiaImage) {
     // Sem pdf_url mas com imagem de termografia — mesclar via PDFLib
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
       try {
-        document.body.removeChild(pdfWrapper);
+        safeRemoveWrapper(pdfWrapper);
         if (typeof PDFLib === 'undefined') {
           const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
           triggerDirectDownload(rawBlob, filename);
@@ -2700,22 +2706,22 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         console.error('Erro ao adicionar página de termografia:', error);
         const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
         triggerDirectDownload(rawBlob, filename);
-        document.body.removeChild(pdfWrapper);
+        safeRemoveWrapper(pdfWrapper);
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
       alert('Erro ao gerar o PDF da avaliação: ' + err.message);
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
     });
   } else {
     // Fluxo padrão caso não exista PDF anexo nem imagem termografia
     html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
       triggerDirectDownload(blob, filename);
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
       alert('Erro ao gerar o PDF da avaliação (sem anexo): ' + err.message);
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
     });
   }
 }
@@ -2771,10 +2777,10 @@ export function downloadProntuarioPDF(prontuario: any, client: any, profNome = '
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   }).catch((err: any) => {
     console.error('Erro PDF prontuário:', err);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   });
 }
 
@@ -2814,10 +2820,10 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   }).catch((err: any) => {
     console.error('Erro PDF prontuários:', err);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   });
 }
 
@@ -3369,10 +3375,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   }).catch((err: any) => {
     console.error('Erro PDF força:', err);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   });
 }
 
@@ -3691,10 +3697,10 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   }).catch((err: any) => {
     console.error('Erro PDF contrato:', err);
-    document.body.removeChild(pdfWrapper);
+    safeRemoveWrapper(pdfWrapper);
   });
 }
 
@@ -3839,10 +3845,10 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     };
 
     html2pdf().set(options).from(pdfContainer).outputPdf('datauristring').then((pdfBase64: string) => {
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
       resolve(pdfBase64);
     }).catch((err: any) => {
-      document.body.removeChild(pdfWrapper);
+      safeRemoveWrapper(pdfWrapper);
       reject(err);
     });
   });
