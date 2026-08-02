@@ -13,20 +13,21 @@ export async function checkSessionPermission(requiredRoles: string[], targetClie
   }
 
   const user = session.user as any;
-  const userRole = user.role; // 'admin' | 'professional' | 'receptionist' | 'client'
+  const userRoles = user.activeRoles || [user.role || 'client'];
 
   // 1. Administradores Gerais têm acesso livre
-  if (userRole === 'admin') {
+  if (userRoles.includes('admin')) {
     return { authorized: true, user };
   }
 
   // 2. Valida se o cargo do usuário está entre os autorizados na rota
-  if (!requiredRoles.includes(userRole)) {
+  const hasPermission = requiredRoles.some(role => userRoles.includes(role));
+  if (!hasPermission) {
     throw new Error('Acesso não autorizado');
   }
 
   // 3. Caso profissional: restringe o acesso somente aos alunos vinculados a ele
-  if (userRole === 'professional' && targetClientId) {
+  if (userRoles.includes('professional') && targetClientId) {
     if (user.email === 'coletivo@clube.com') {
       return { authorized: true, user };
     }
@@ -37,7 +38,7 @@ export async function checkSessionPermission(requiredRoles: string[], targetClie
   }
 
   // 4. Caso aluno: só permite consultar os seus próprios registros
-  if (userRole === 'client' && targetClientId) {
+  if (userRoles.includes('client') && targetClientId) {
     if (user.clientProfileId !== targetClientId) {
       throw new Error('Acesso negado: Você só pode acessar seus próprios registros');
     }
