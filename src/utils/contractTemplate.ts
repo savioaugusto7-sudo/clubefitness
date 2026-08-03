@@ -81,6 +81,16 @@ function fmtDate(dStr: any) {
   }
 }
 
+function creditosExtenso(n: number): string {
+  const nomes: Record<number, string> = {
+    1: 'um', 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete',
+    8: 'oito', 9: 'nove', 10: 'dez', 11: 'onze', 12: 'doze', 13: 'treze',
+    14: 'quatorze', 15: 'quinze', 16: 'dezesseis', 17: 'dezessete', 18: 'dezoito',
+    19: 'dezenove', 20: 'vinte', 21: 'vinte e um', 22: 'vinte e dois'
+  };
+  return nomes[n] || n.toString();
+}
+
 export interface ContractData {
   clientNome: string;
   clientCpf: string;
@@ -109,6 +119,7 @@ export interface ContractData {
   dataVencimento?: string;
   observacoesContratuais?: string;
   unidadeContratada?: string;
+  creditosMensais?: number;
 }
 
 export function generateContractTemplate(data: ContractData): string {
@@ -195,7 +206,7 @@ export function generateContractTemplate(data: ContractData): string {
 
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA I - OBJETO</h3>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      1.1. O presente Contrato tem por objeto a prestação de serviços de Fisioterapia e condicionamento físico na modalidade <strong>Plano ${data.planNome}</strong>, nos termos previstos neste Contrato (“Serviços”).
+      1.1. O presente Contrato tem por objeto a prestação de serviços de Fisioterapia e condicionamento físico na modalidade <strong>Plano ${data.planNome}</strong>, com a disponibilização de <strong>${data.creditosMensais ? `${data.creditosMensais} (${creditosExtenso(data.creditosMensais)})` : '—'} créditos mensais</strong>, nos termos previstos neste Contrato (“Serviços”).
     </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
       Os serviços prestados serão de inteira e exclusiva responsabilidade técnica do Contratado, devendo zelar pela qualidade, disponibilidade, assertividade e pontualidade dos serviços ora contratados.

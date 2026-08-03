@@ -511,7 +511,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       dataInicio: dcDataInicio,
       dataVencimento: dcVencimento,
       observacoesContratuais: dcObservacoesContratuais,
-      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento
+      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento,
+      creditosMensais: dcFrequencia * 4 + 1
     });
   };
 
