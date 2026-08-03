@@ -178,7 +178,7 @@ export function generateContractTemplate(data: ContractData): string {
 
   const contratanteText = `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, portador(a) do CPF nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}`;
 
-  const contratadoText = `<strong>CONTRATADO:</strong> CLUBE FITNESS FISIO LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.883.492/0001-04, com sede na Avenida dos Bandeirantes, nº 1250, Sion, Belo Horizonte/MG, CEP 30315-380, neste ato representada na forma de seu contrato social`;
+  const contratadoText = `<strong>CONTRATADO:</strong> CLUBE FITNESS FISIO LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.883.492/0001-04, com sede na Rua Senador Lima Guimarães, nº 229, Estoril, Belo Horizonte/MG, CEP 30455-600, neste ato representada na forma de seu contrato social`;
 
   // Generate Date in words for signing
   const now = new Date();
@@ -226,7 +226,7 @@ export function generateContractTemplate(data: ContractData): string {
       2.1 Durante todo o período de vigência do Contrato, o Contratado se obriga a:
     </p>
     <ul style="font-size: 9.5pt; line-height: 1.4; margin-left: 20px; margin-bottom: 8px; text-align: justify;">
-      <li style="margin-bottom: 4px;">Atuar sempre no melhor interest da Contratante, cumprindo e fazendo com que seja cumprida toda a Lei aplicável, comprometendo-se a observar as determinações e diretrizes a serem tomadas pela Contratante;</li>
+      <li style="margin-bottom: 4px;">Atuar sempre no melhor interesse da Contratante, cumprindo e fazendo com que seja cumprida toda a Lei aplicável, comprometendo-se a observar as determinações e diretrizes a serem tomadas pela Contratante;</li>
       <li style="margin-bottom: 4px;">Desempenhar seus serviços sempre com zelo, lealdade e diligência;</li>
       <li style="margin-bottom: 4px;">Utilizar somente dados e documentos apresentados pela Contratante, responsabilizando-se por toda informação repassada a terceiros que não aquelas apresentadas pela Contratante;</li>
       <li style="margin-bottom: 4px;">Respeitar a confidencialidade quanto aos dados, pessoais ou não, e informações que vier a ter acesso em função dos serviços prestados, bem como atuar em conformidade com a Lei Geral de Proteção de Dados Pessoais.</li>
