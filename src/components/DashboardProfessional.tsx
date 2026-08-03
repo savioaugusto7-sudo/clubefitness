@@ -459,7 +459,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setIsNavigatingStep(true);
     startStepTransition(() => {
       setAsStep(newStep);
-      setTimeout(() => setIsNavigatingStep(false), 120);
+      
+      // Reset scroll position of the modal to the top
+      const modalOverlay = document.querySelector('.modal-overlay');
+      if (modalOverlay) {
+        modalOverlay.scrollTop = 0;
+      }
+
+      setTimeout(() => {
+        setIsNavigatingStep(false);
+        // Center the active tab in mobile horizontal scrollbar
+        const activeTabEl = document.querySelector('.wizard-step-bar > div:nth-child(' + newStep + ')');
+        if (activeTabEl) {
+          activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+      }, 120);
     });
   };
 
@@ -471,7 +485,21 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setIsNavigatingStep(true);
     startStepTransition(() => {
       setRepActiveStep(newStep);
-      setTimeout(() => setIsNavigatingStep(false), 120);
+
+      // Reset scroll position of the modal to the top
+      const modalOverlay = document.querySelector('.modal-overlay');
+      if (modalOverlay) {
+        modalOverlay.scrollTop = 0;
+      }
+
+      setTimeout(() => {
+        setIsNavigatingStep(false);
+        // Center the active tab in mobile horizontal scrollbar
+        const activeTabEl = document.querySelector('.physio-wizard-progress > div:nth-child(' + newStep + ')');
+        if (activeTabEl) {
+          activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+      }, 120);
     });
   };
 
@@ -541,10 +569,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const handleCloseAssessment = () => {
     setShowAssessmentModal(false);
     setDraftOnOpen(null);
+    setAsStep(1);
+    setAsConfirmedSteps({});
   };
 
   const handleCloseReport = () => {
     setShowReportModal(false);
+    setRepActiveStep(1);
+    setRepConfirmedSteps({});
   };
 
   const handleCloseSt = () => {
@@ -5363,7 +5395,7 @@ goniometria: {
               {[1, 2, 3, 4, 5, 6].map(step => (
                 <div
                   key={step}
-                  onClick={() => setAsStep(step)}
+                  onClick={() => changeAsStep(step)}
                   style={{
                     flex: '1 0 auto',
                     minWidth: '95px',
@@ -6798,7 +6830,7 @@ goniometria: {
                               alert('Selecione o cliente no Passo 1 antes de navegar.');
                               return;
                             }
-                            setRepActiveStep(s.step);
+                            changeRepStep(s.step);
                           }}
                           style={{
                             flex: '1 0 auto',
