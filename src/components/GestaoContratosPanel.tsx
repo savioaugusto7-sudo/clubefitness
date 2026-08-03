@@ -67,6 +67,12 @@ export default function GestaoContratosPanel({
   const [importPdfName, setImportPdfName] = useState<string>('');
   const [submittingImport, setSubmittingImport] = useState(false);
 
+  // Sales Proposal States
+  const [showProposalModal, setShowProposalModal] = useState(false);
+  const [generatedProposalUrl, setGeneratedProposalUrl] = useState('');
+  const [generatingProposal, setGeneratingProposal] = useState(false);
+  const [activeProposal, setActiveProposal] = useState<any>(null);
+
   // Asaas Search & Link state
   const [dcAsaasCustomerId, setDcAsaasCustomerId] = useState('');
   const [searchingAsaas, setSearchingAsaas] = useState(false);
@@ -97,6 +103,53 @@ export default function GestaoContratosPanel({
       alert('Erro ao buscar no Asaas: ' + err.message);
     } finally {
       setSearchingAsaas(false);
+    }
+  };
+
+  const handleGenerateProposalLink = async () => {
+    if (!selectedClient) return;
+    if (!dcPlano) {
+      alert('Por favor, selecione o plano no formulário antes de gerar a proposta.');
+      return;
+    }
+    setGeneratingProposal(true);
+    try {
+      const plan = plans.find(p => p._id === dcPlano);
+      const calculatedValorLiquido = dcValorUnitario * dcVigenciaQtd;
+      
+      const payload = {
+        clientId: selectedClient._id,
+        planoId: dcPlano,
+        valorAcordado: calculatedValorLiquido,
+        creditosMensais: dcFrequencia * 4 + 1,
+        frequencia: dcFrequencia,
+        duracao: dcDuracao,
+        valorUnitario: dcValorUnitario,
+        vigenciaQtd: dcVigenciaQtd,
+        descontoTipo: dcDescontoTipo,
+        descontoValor: dcDescontoValor,
+        observacoesContratuais: dcObservacoesContratuais,
+        unidadeContratada: dcUnidadeContratada || plan?.unidadeAtendimento || ''
+      };
+
+      const res = await fetch('/api/propostas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        const url = window.location.origin + '/vendas/' + data.data._id;
+        setGeneratedProposalUrl(url);
+        setShowProposalModal(true);
+        setActiveProposal(data.data);
+      } else {
+        alert('Erro ao gerar link de venda: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao gerar proposta: ' + err.message);
+    } finally {
+      setGeneratingProposal(false);
     }
   };
 
@@ -385,6 +438,17 @@ export default function GestaoContratosPanel({
     setDcCriarRecorrencia(Boolean(com.criarRecorrenciaMensal));
     setDcRecorrenciaMeses(com.recorrenciaMeses || 12);
     setDcAsaasCustomerId(com.asaasCustomerId || '');
+
+    // Fetch active proposals for this client
+    setActiveProposal(null);
+    fetch(`/api/propostas?clientId=${client._id}`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && json.data && json.data.length > 0) {
+          setActiveProposal(json.data[0]); // latest proposal
+        }
+      })
+      .catch(() => {});
 
     loadContracts(client._id);
   };
@@ -1046,7 +1110,37 @@ export default function GestaoContratosPanel({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '24px', alignItems: 'start' }}>
         
         {/* Left Column: Commercial settings */}
-        <form onSubmit={handleSaveComercial} className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {activeProposal && activeProposal.status === 'respondida' && (
+            <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', padding: '16px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem' }}>
+              <h4 style={{ margin: '0 0 8px 0', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem', fontWeight: 700 }}>
+                <i className="fa-solid fa-bell"></i> Proposta de Auto-Cadastro Respondida!
+              </h4>
+              <p style={{ margin: '0 0 12px 0', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                O aluno preencheu seus dados cadastrais. Ele escolheu pagar via <strong>{activeProposal.formaPagamentoEscolhida === 'pix' ? 'Pix (1x)' : activeProposal.formaPagamentoEscolhida === 'boleto' ? 'Boleto Bancário' : 'Cartão de Crédito'}</strong> em <strong>{activeProposal.parcelasEscolhidas}x</strong> de <strong>R$ {(activeProposal.valorFinalRecalculado / activeProposal.parcelasEscolhidas).toFixed(2).replace('.', ',')}</strong> (Total: R$ {activeProposal.valorFinalRecalculado.toFixed(2).replace('.', ',')}).
+              </p>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ color: '#fbbf24', borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.06)', padding: '8px 12px', fontSize: '0.8rem', width: '100%', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}
+                onClick={() => {
+                  setDcFormaPag(activeProposal.formaPagamentoEscolhida);
+                  setDcParcelas(activeProposal.parcelasEscolhidas);
+                  if (activeProposal.formaPagamentoEscolhida === 'cartao') {
+                    setDcValorUnitario(activeProposal.valorUnitario * 1.05);
+                  } else {
+                    setDcValorUnitario(activeProposal.valorUnitario);
+                  }
+                  fetchData();
+                  alert('Opções comerciais e cadastrais do aluno carregadas e aplicadas com sucesso!');
+                }}
+              >
+                <i className="fa-solid fa-check"></i> Aplicar Preferências Comerciais ao Formulário
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveComercial} className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', margin: 0 }}>
           {/* BLOCO VÍNCULO E BUSCA ASAAS */}
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
@@ -1461,6 +1555,7 @@ export default function GestaoContratosPanel({
              )}
           </div>
         </form>
+      </div>
 
         {/* Right Column: Issuance & History */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1500,13 +1595,30 @@ export default function GestaoContratosPanel({
                 >
                   <i className="fa-solid fa-file-signature"></i> Enviar p/ Clicksign
                 </button>
-                <button
+                 <button
                   type="button"
                   className="btn btn-secondary"
                   style={{ flex: 1, minWidth: '140px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
                   onClick={() => handleIssueContract('pendente')}
                 >
                   <i className="fa-solid fa-clock"></i> Emitir Pendente
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: '140px', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  onClick={() => handleGenerateProposalLink()}
+                  disabled={generatingProposal}
+                >
+                  {generatingProposal ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin"></i> Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-share-nodes"></i> Gerar Link de Venda
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -1802,6 +1914,54 @@ export default function GestaoContratosPanel({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Proposal URL Modal */}
+      {showProposalModal && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '24px', maxWidth: '500px', width: '90%', boxShadow: 'var(--shadow-card)' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: 'var(--color-primary)', fontFamily: 'var(--font-title)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-share-nodes"></i> Link de Auto-Cadastro Gerado!
+              </h3>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }} onClick={() => setShowProposalModal(false)}>
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '16px' }}>
+              Copie o link abaixo e envie para o aluno via WhatsApp ou E-mail. Ele poderá preencher os próprios dados cadastrais (CPF, CEP, etc.) e escolher a forma de pagamento/parcelas com base nas regras comerciais configuradas.
+            </p>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              <input
+                type="text"
+                readOnly
+                className="form-control"
+                style={{ flex: 1, fontSize: '0.83rem', background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px' }}
+                value={generatedProposalUrl}
+                onClick={e => (e.target as HTMLInputElement).select()}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ background: 'var(--color-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedProposalUrl);
+                  alert('Link copiado para a área de transferência!');
+                }}
+              >
+                <i className="fa-solid fa-copy"></i> Copiar
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowProposalModal(false)}>
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
