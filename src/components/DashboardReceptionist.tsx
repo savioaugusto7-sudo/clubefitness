@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
+import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import SearchableSelect from './SearchableSelect';
 import GestaoContratosPanel from './GestaoContratosPanel';
@@ -751,95 +753,42 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     const plan = plans.find((p: any) => p._id === dcPlano);
     if (!plan || !selectedClient) return 'Selecione um plano para gerar o contrato.';
 
-    const isAnual = dcDuracao === 'anual';
-    let mesesVigencia = 1;
-    let vigenciaText = '1 (um) mês';
-    if (dcDuracao === 'anual') {
-      mesesVigencia = 12;
-      vigenciaText = '12 (doze) meses';
-    } else if (dcDuracao === 'semestral') {
-      mesesVigencia = 6;
-      vigenciaText = '6 (seis) meses';
-    } else if (dcDuracao === 'trimestral') {
-      mesesVigencia = 3;
-      vigenciaText = '3 (três) meses';
-    }
-    const bruto = dcValorUnitario * dcVigenciaQtd;
-    const descVal = Number(dcDescontoValor) || 0;
-    let liquido = bruto;
-    if (dcDescontoTipo === 'percentual') { liquido = bruto * (1 - descVal / 100); }
-    else { liquido = Math.max(0, bruto - descVal); }
-    const nParc = Number(dcParcelas) || 1;
-    const valorParc = liquido / nParc;
-    const fmtV = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    let dataFimStr = '[Data Fim]';
-    if (dcDataInicio) {
-      const start = new Date(dcDataInicio + 'T00:00:00');
-      if (dcDuracao === 'semana') {
-        start.setDate(start.getDate() + (Number(dcVigenciaQtd) || 1) * 7);
-      } else if (dcDuracao === 'mensal') {
-        start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1));
-      } else {
-        start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1) * 12);
-      }
-      dataFimStr = start.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-    }
-    const fmtDate = (d: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '[data]';
-    const dataInicioFormatada = fmtDate(dcDataInicio);
-    const dataContrato = dcDataInicio ? fmtDate(dcDataInicio) : fmtDate(new Date().toISOString().split('T')[0]);
-    const vencimentoFormatado = dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '[Primeiro Vencimento]';
-
-    const creditosMensais = dcFrequencia * 4 + 1;
-    const numeraisExtenso: Record<number, string> = { 1: 'um', 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito', 9: 'nove', 10: 'dez', 11: 'onze', 12: 'doze', 13: 'treze', 17: 'dezessete', 21: 'vinte e um' };
-    const creditosPorExtenso = numeraisExtenso[creditosMensais] || String(creditosMensais);
-    const servicosPadrao = ['Liberação Miofascial', 'Quiropraxia', 'Recuperação (Recovery)', 'Hidrogênioterapia', 'Laserterapia', 'Bota pneumática', 'Eletroterapia', 'Treinos monitorados'];
-    const servicosLista = (plan.servicosPermitidos?.length > 0 ? plan.servicosPermitidos : servicosPadrao)
-      .map((s: string) => '<li>' + s + '</li>').join('');
-
-    const nomeCompleto = dcNome || '[Nome do Contratante]';
-    const cpfVal = dcCpf || '[CPF]';
-    const enderecoCompleto = [dcEndereco, dcNumero ? 'nº ' + dcNumero : '', dcComplemento, dcBairro ? 'Bairro ' + dcBairro : ''].filter(Boolean).join(', ') || '[Endereço]';
-    const cidadeEstado = dcCidade && dcEstado ? dcCidade + '/' + dcEstado : 'Belo Horizonte/MG';
-    const foro = dcCidade || 'Belo Horizonte';
-    const cnpj = '52.883.492/0001-04';
-    const contratadaNome = 'Albert Nunes Queiroz dos Santos LTDA.';
-    const unidade = dcUnidadeContratada || plan.unidadeAtendimento || 'Principal';
-
-    const beneficiosAnuaisHTML = isAnual
-      ? `<ul style="margin-left:24px"><li>01 (uma) sessão de massagem por mês.</li><li>01 (uma) atendimento de emergência terapêutica por mês.</li></ul>`
-      : '<p>Por se tratar de plano Mensal, o CONTRATANTE <strong>não</strong> possui direito aos benefícios exclusivos da modalidade Anual.</p>';
-
-    const congelamentoClausula = isAnual
-      ? '<p><em>Parágrafo Segundo:</em> O CONTRATANTE de plano anual possui o direito de suspender ("congelar") seus créditos por até <strong>30 (trinta) dias</strong> dentro da vigência do plano.</p>'
-      : '';
-
-    const obsHTML = dcObservacoesContratuais
-      ? '<p><strong>5.6 Observações Adicionais</strong><br/>' + dcObservacoesContratuais + '</p>'
-      : '';
-
-    return '<div style="font-family: Times New Roman, Times, serif; font-size: 9.5pt; line-height: 1.6; color: #111;">' +
-      '<p style="text-align: right;">' + dataContrato + '</p>' +
-      '<h2 style="text-align: center; text-transform: uppercase;">Contrato de Prestação de Serviços</h2>' +
-      '<h3>1. Identificação das Partes</h3>' +
-      '<p><strong>1.1 CONTRATANTE</strong><br/>Nome: <strong>' + nomeCompleto + '</strong><br/>CPF: <strong>' + cpfVal + '</strong><br/>Endereço: ' + enderecoCompleto + '<br/>Cidade: <strong>' + cidadeEstado + '</strong></p>' +
-      '<p><strong>1.2 CONTRATADO</strong><br/>Nome: <strong>' + contratadaNome + '</strong><br/>CNPJ: <strong>' + cnpj + '</strong><br/>Unidade: <strong>' + unidade + '</strong></p>' +
-      '<h3>2. Objeto</h3><p>Prestação de serviços de fisioterapia e atividades físicas, com <strong>' + creditosMensais + ' (' + creditosPorExtenso + ') créditos mensais</strong>.</p>' +
-      '<h3>3. Serviços</h3><ul>' + servicosLista + '</ul>' + beneficiosAnuaisHTML +
-      '<h3>4. Valor e Pagamento</h3>' +
-      '<p>Valor ' + (isAnual ? 'anual' : 'mensal') + ': <strong>' + fmtV(liquido) + '</strong> em <strong>' + nParc + 'x de ' + valorParc.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</strong>.<br/>Forma: <strong>' + dcFormaPag.toUpperCase() + '</strong> — Vencimento: <strong>' + vencimentoFormatado + '</strong></p>' +
-      '<h3>5. Cláusulas</h3>' +
-      '<p><strong>5.1 Cancelamento:</strong> Aviso prévio de 6h para cancelamento. Reposição garantida.</p>' +
-      '<p><strong>5.2 Rescisão:</strong> Aviso prévio de 30 dias. Multa de 10% sem aviso.</p>' + congelamentoClausula + obsHTML +
-      '<h3>6. Vigência</h3><p>Duração: <strong>' + vigenciaText + '</strong> — Início: <strong>' + dataInicioFormatada + '</strong></p>' +
-      '<h3>7. Foro</h3><p>Comarca de <strong>' + foro + '</strong>.</p>' +
-      '<div style="display:flex;justify-content:space-between;margin-top:40px;gap:30px;">' +
-      '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>CONTRATANTE</strong><br/>' + nomeCompleto + '<br/><small>CPF: ' + cpfVal + '</small></div></div>' +
-      '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>CONTRATADO</strong><br/>' + contratadaNome + '</div></div>' +
-      '</div><p style="margin-top:20px;text-align:center;">Local e data: _________________________, ' + dataContrato + '</p></div>';
+    return getUnifiedTemplate({
+      clientNome: dcNome,
+      clientCpf: dcCpf,
+      clientNacionalidade: selectedClient.dadosPessoais?.nacionalidade || 'brasileiro(a)',
+      clientEstadoCivil: selectedClient.dadosPessoais?.estadoCivil || 'solteiro(a)',
+      clientProfissao: selectedClient.dadosPessoais?.profissao,
+      clientEmail: selectedClient.dadosPessoais?.email,
+      clientTelefone: selectedClient.dadosPessoais?.telefone,
+      clientEndereco: dcEndereco,
+      clientNumero: dcNumero,
+      clientComplemento: dcComplemento,
+      clientBairro: dcBairro,
+      clientCidade: dcCidade,
+      clientEstado: dcEstado,
+      clientCep: dcCep,
+      planNome: plan.nome,
+      planPreco: (dcValorUnitario * dcVigenciaQtd) || plan.preco || 0,
+      planTipo: plan.tipo,
+      descontoTipo: dcDescontoTipo,
+      descontoValor: dcDescontoValor,
+      parcelas: dcParcelas,
+      formaPagamento: dcFormaPag,
+      dataInicio: dcDataInicio,
+      dataVencimento: dcVencimento,
+      observacoesContratuais: dcObservacoesContratuais,
+      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento
+    });
   };
 
   const handleCreateContract = async (status: 'pendente' | 'assinado' | 'clicksign') => {
+    const validation = validateContractClientData(selectedClient);
+    if (!validation.isValid) {
+      alert(`Não é possível emitir o contrato. Os seguintes dados obrigatórios do aluno estão ausentes:\n\n• ${validation.missingFields.join('\n• ')}\n\nPor favor, complete o cadastro na aba "Dados Pessoais" primeiro.`);
+      return;
+    }
+
     if (status === 'assinado' && !signatureName.trim()) { alert('Informe o nome do assinante.'); return; }
     const plan = plans.find((p: any) => p._id === dcPlano);
     if (!plan) { alert('Plano não encontrado.'); return; }

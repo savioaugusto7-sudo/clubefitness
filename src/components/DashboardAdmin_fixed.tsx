@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
+import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
+import { validateContractClientData } from '@/utils/contractValidator';
 
 interface DashboardAdminProps {
   activeTab: string;
@@ -226,81 +228,42 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     const plan = plans.find((p: any) => p._id === dcPlano);
     if (!plan) return 'Nenhum plano selecionado.';
 
-    const isAnual = plan.tipo === 'Anual';
-    const vigenciaText = isAnual ? '12 (doze) meses' : '1 (um) mês';
-    
-    // Computations
-    const bruto = plan.preco || 0;
-    const descVal = Number(dcDescontoValor) || 0;
-    let liquido = bruto;
-    if (dcDescontoTipo === 'percentual') {
-      liquido = bruto * (1 - descVal / 100);
-    } else {
-      liquido = Math.max(0, bruto - descVal);
-    }
-    const valorParc = liquido / (Number(dcParcelas) || 1);
-    
-    // Calculate ending date
-    let dataFimStr = '';
-    if (dcDataInicio) {
-      const start = new Date(dcDataInicio + 'T00:00:00');
-      start.setMonth(start.getMonth() + (isAnual ? 12 : 1));
-      dataFimStr = start.toLocaleDateString('pt-BR');
-    } else {
-      dataFimStr = '[Data Fim]';
-    }
-
-    const servicosText = plan.servicosPermitidos?.length > 0
-      ? plan.servicosPermitidos.join(', ')
-      : 'Serviços básicos de academia';
-
-    const beneficiosText = plan.beneficiosInclusos?.length > 0
-      ? plan.beneficiosInclusos.join(', ')
-      : 'Benefícios padrão';
-
-    let text = `
-      <h3 style="text-align: center; margin-bottom: 20px;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE CONDICIONAMENTO FÍSICO</h3>
-      <p><strong>CONTRATANTE:</strong> ${dcNome || '[Nome do Aluno]'}, portador do CPF nº ${dcCpf || '[CPF]'}, residente em ${dcEndereco || '[Endereço]'}, nº ${dcNumero || '[Número]'}, ${dcComplemento ? dcComplemento + ', ' : ''}Bairro: ${dcBairro || '[Bairro]'}, Cidade: ${dcCidade || '[Cidade]'}/${dcEstado || '[UF]'}, CEP: ${dcCep || '[CEP]'}.</p>
-      <p><strong>CONTRATADA:</strong> CLUBE FITNESS LTDA, inscrita no CNPJ sob o nº 12.345.678/0001-90, com sede na Unidade ${dcUnidadeContratada || plan.unidadeAtendimento || 'Principal'}.</p>
-      
-      <p><strong>CLÁUSULA PRIMEIRA - DO OBJETO</strong><br/>
-      O objeto do presente contrato é a prestação de serviços de condicionamento físico e bem-estar no plano <strong>${plan.nome}</strong>, abrangendo os seguintes serviços inclusos: ${servicosText}.</p>
-      
-      <p><strong>CLÁUSULA SEGUNDA - DA VIGÊNCIA</strong><br/>
-      O presente contrato terá vigência de <strong>${vigenciaText}</strong>, iniciando-se em <strong>${dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '[Data de Início]'}</strong> e encerrando-se em <strong>${dataFimStr}</strong>.</p>
-      
-      <p><strong>CLÁUSULA TERCEIRA - DOS VALORES E FORMA DE PAGAMENTO</strong><br/>
-      Pela prestação dos serviços contratados, o CONTRATANTE pagará à CONTRATADA o valor líquido total de <strong>R$ ${liquido.toFixed(2).replace('.', ',')}</strong>, parcelado em <strong>${dcParcelas}x de R$ ${valorParc.toFixed(2).replace('.', ',')}</strong>, com vencimento inicial em <strong>${dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '[Primeiro Vencimento]'}</strong>, a ser quitado via <strong>${dcFormaPag.toUpperCase()}</strong>.</p>
-    `;
-
-    if (isAnual) {
-      text += `
-        <p><strong>CLÁUSULA QUARTA - DOS BENEFÍCIOS EXCLUSIVOS DO PLANO ANUAL</strong><br/>
-        O CONTRATANTE terá direito aos seguintes benefícios adicionais inclusos em seu plano: <strong>${beneficiosText}</strong>.</p>
-        
-        <p><strong>CLÁUSULA QUINTA - DO CONGELAMENTO</strong><br/>
-        Por se tratar de plano da modalidade Anual, o CONTRATANTE terá direito a solicitar o congelamento temporário do plano por um período máximo acumulativo de até <strong>30 (trinta) dias</strong> por vigência, devendo formalizar a solicitação por escrito com antecedência mínima de 5 (cinco) dias.</p>
-      `;
-    } else {
-      text += `
-        <p><strong>CLÁUSULA QUARTA - DA AUSÊNCIA DE CONGELAMENTO E BENEFÍCIOS ANUAIS</strong><br/>
-        Por se tratar de plano da modalidade Mensal, o CONTRATANTE declara-se ciente de que <strong>NÃO</strong> possui direito a congelamento temporário do plano e nem aos benefícios exclusivos da modalidade anual (como massagem cortesia ou atendimento de emergência).</p>
-      `;
-    }
-
-    text += `
-      <p><strong>CLÁUSULA ${isAnual ? 'SEXTA' : 'QUINTA'} - DAS DISPOSIÇÕES GERAIS</strong><br/>
-      As partes elegem o foro da comarca da sede da CONTRATADA para dirimir quaisquer dúvidas oriundas deste contrato.</p>
-    `;
-
-    if (dcObservacoesContratuais) {
-      text += `<p><strong>OBSERVAÇÕES ADICIONAIS:</strong><br/>${dcObservacoesContratuais}</p>`;
-    }
-
-    return text;
+    return getUnifiedTemplate({
+      clientNome: dcNome,
+      clientCpf: dcCpf,
+      clientNacionalidade: detailClient.dadosPessoais?.nacionalidade || 'brasileiro(a)',
+      clientEstadoCivil: detailClient.dadosPessoais?.estadoCivil || 'solteiro(a)',
+      clientProfissao: detailClient.dadosPessoais?.profissao,
+      clientEmail: detailClient.dadosPessoais?.email,
+      clientTelefone: detailClient.dadosPessoais?.telefone,
+      clientEndereco: dcEndereco,
+      clientNumero: dcNumero,
+      clientComplemento: dcComplemento,
+      clientBairro: dcBairro,
+      clientCidade: dcCidade,
+      clientEstado: dcEstado,
+      clientCep: dcCep,
+      planNome: plan.nome,
+      planPreco: plan.preco || 0,
+      planTipo: plan.tipo,
+      descontoTipo: dcDescontoTipo,
+      descontoValor: dcDescontoValor,
+      parcelas: dcParcelas,
+      formaPagamento: dcFormaPag,
+      dataInicio: dcDataInicio,
+      dataVencimento: dcVencimento,
+      observacoesContratuais: dcObservacoesContratuais,
+      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento
+    });
   };
 
   const handleCreateContract = async (status: 'pendente' | 'assinado') => {
+    const validation = validateContractClientData(detailClient);
+    if (!validation.isValid) {
+      alert(`Não é possível emitir o contrato. Os seguintes dados obrigatórios do aluno estão ausentes:\n\n• ${validation.missingFields.join('\n• ')}\n\nPor favor, complete o cadastro na aba "Dados Pessoais" primeiro.`);
+      return;
+    }
+
     if (status === 'assinado' && !signatureName.trim()) {
       alert('Por favor, informe o nome do assinante para registrar o aceite digital.');
       return;
@@ -3340,6 +3303,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                            Ao emitir e assinar um novo contrato, o contrato assinado atualmente (se houver) será cancelado automaticamente e substituído pela nova versão comercial.
                          </p>
                          <button className="btn btn-primary" onClick={() => {
+                           const validation = validateContractClientData(detailClient);
+                           if (!validation.isValid) {
+                             alert(`Não é possível abrir o gerador de contrato. Os seguintes dados obrigatórios do aluno estão ausentes:\n\n• ${validation.missingFields.join('\n• ')}\n\nPor favor, complete o cadastro na aba "Dados Pessoais" primeiro.`);
+                             return;
+                           }
                            setSignatureName(detailClient.dadosPessoais?.nome || '');
                            setShowContractPreview(true);
                          }}><i className="fa-solid fa-file-signature"></i> Abrir Simulador e Gerar Contrato</button>

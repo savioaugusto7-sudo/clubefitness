@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Pagination from './Pagination';
 import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
+import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import GestaoContratosPanel from './GestaoContratosPanel';
 import AsaasPanel from './AsaasPanel';
@@ -478,156 +480,49 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   } else {
     descontoReais = Math.min(valorBruto, Number(dcDescontoValor) || 0);
   }
-  const valorLiquido = Math.max(0, valorBruto - descontoReais);
-  const valorParcela = valorLiquido / (Number(dcParcelas) || 1);
-  const hasActiveSignedContract = clientContracts.some(c => c.status === 'assinado' || c.status === 'congelado');
+    const hasActiveSignedContract = clientContracts.some(c => c.status === 'assinado' || c.status === 'congelado');
 
   const generateContractTemplate = () => {
     const plan = plans.find((p: any) => p._id === dcPlano);
     if (!plan) return 'Nenhum plano selecionado.';
 
-    const isAnual = dcDuracao === 'anual';
-    let vigenciaText = '1 (um) mês';
-    if (dcDuracao === 'semana') {
-      vigenciaText = `${dcVigenciaQtd} semana(s)`;
-    } else if (dcDuracao === 'mensal') {
-      vigenciaText = dcVigenciaQtd === 1 ? '1 (um) mês' : `${dcVigenciaQtd} meses`;
-    } else if (dcDuracao === 'anual') {
-      vigenciaText = dcVigenciaQtd === 1 ? '12 (doze) meses (1 ano)' : `${dcVigenciaQtd * 12} meses (${dcVigenciaQtd} anos)`;
-    }
-
-    const bruto = dcValorUnitario * dcVigenciaQtd;
-    const descVal = Number(dcDescontoValor) || 0;
-    let liquido = bruto;
-    if (dcDescontoTipo === 'percentual') {
-      liquido = bruto * (1 - descVal / 100);
-    } else {
-      liquido = Math.max(0, bruto - descVal);
-    }
-    const nParc = Number(dcParcelas) || 1;
-    const valorParc = liquido / nParc;
-    const fmt = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    let dataFimStr = '[Data Fim]';
-    if (dcDataInicio) {
-      const start = new Date(dcDataInicio + 'T00:00:00');
-      if (dcDuracao === 'semana') {
-        start.setDate(start.getDate() + (Number(dcVigenciaQtd) || 1) * 7);
-      } else if (dcDuracao === 'mensal') {
-        start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1));
-      } else {
-        start.setMonth(start.getMonth() + (Number(dcVigenciaQtd) || 1) * 12);
-      }
-      dataFimStr = start.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-    }
-    const fmtDate = (d: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '[data]';
-    const dataInicioFormatada = fmtDate(dcDataInicio);
-    const dataContrato = dcDataInicio ? fmtDate(dcDataInicio) : fmtDate(new Date().toISOString().split('T')[0]);
-    const vencimentoFormatado = dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '[Primeiro Vencimento]';
-
-    const creditosMensais = dcFrequencia * 4 + 1;
-    const numeraisExtenso: Record<number,string> = {1:'um',2:'dois',3:'três',4:'quatro',5:'cinco',6:'seis',7:'sete',8:'oito',9:'nove',10:'dez',11:'onze',12:'doze',13:'treze',17:'dezessete',21:'vinte e um'};
-    const creditosPorExtenso = numeraisExtenso[creditosMensais] || String(creditosMensais);
-
-    const servicosPadrao = ['Liberação Miofascial','Quiropraxia','Recuperação (Recovery)','Hidrogênioterapia','Laserterapia','Bota pneumática','Eletroterapia','Treinos monitorados'];
-    const servicosLista = (plan.servicosPermitidos?.length > 0 ? plan.servicosPermitidos : servicosPadrao)
-      .map((s: string) => '<li>' + s + '</li>').join('');
-
-    const nomeCompleto = dcNome || '[Nome do Contratante]';
-    const cpfVal = dcCpf || '[CPF]';
-    const enderecoCompleto = [dcEndereco, dcNumero ? 'nº ' + dcNumero : '', dcComplemento, dcBairro ? 'Bairro ' + dcBairro : ''].filter(Boolean).join(', ') || '[Endereço completo do Contratante]';
-    const cidadeEstado = dcCidade && dcEstado ? dcCidade + '/' + dcEstado : 'Belo Horizonte/MG';
-    const foro = dcCidade || 'Belo Horizonte';
-    const cnpj = '52.883.492/0001-04';
-    const contratadaNome = 'Albert Nunes Queiroz dos Santos LTDA.';
-    const unidade = dcUnidadeContratada || plan.unidadeAtendimento || 'Principal';
-
-    const beneficiosAnuaisHTML = isAnual
-      ? `<ul style="margin-left:24px"><li>01 (uma) sessão de massagem por mês, no sistema de massoterapia da clínica.</li><li>01 (uma) atendimento de emergência terapêutica por mês, mediante necessidade clínica comprovada pelo fisioterapeuta.</li></ul>
-         <p><em>Dos Atendimentos de Emergência:</em> Adicionalmente, reserva-se ao contratante o direito a 01 (uma) intervenção mensal de caráter emergencial, destinada exclusivamente ao atendimento terapêutico individualizado, mediante comprovação de necessidade.</p>
-         <p><em>Da Gestão Terapêutica e Utilização de Créditos:</em> Na hipótese de o fisioterapeuta responsável identificar a necessidade técnica de atendimentos suplementares ao limite mensal estabelecido, o profissional procederá ao manejo das reservas contratuais disponíveis. Caberá exclusivamente ao fisioterapeuta a avaliação clínica e a gestão da frequência dessas sessões extraordinárias, sem ônus para o contratante.</p>
-         <p>Acesso à unidade ${unidade} com aulas coletivas de acordo com a disponibilidade da unidade.</p>`
-      : '<p>Por se tratar de plano Mensal, o CONTRATANTE <strong>não</strong> possui direito aos benefícios exclusivos da modalidade Anual (massagem cortesia, atendimento de emergência e congelamento de plano).</p>';
-
-    const congelamentoClausula = isAnual
-      ? '<p style="margin: 0 0 4px 0;"><em>Parágrafo Segundo:</em> O CONTRATANTE de plano anual possui o direito de suspender ("congelar") e redistribuir seus créditos por um período de até <strong>30 (trinta) dias</strong> em razão de sua ausência, desde que a utilização ocorra estritamente dentro da vigência do plano contratado, sendo vedada a prorrogação do prazo contratual original.</p>'
-      : '';
-    const paragTerceiro = isAnual ? 'Terceiro' : 'Segundo';
-
-    const obsHTML = dcObservacoesContratuais
-      ? '<p><strong>5.6 Observações Adicionais</strong><br/>' + dcObservacoesContratuais + '</p>'
-      : '';
-
-    const html =
-      '<div style="font-family: Times New Roman, Times, serif; font-size: 9.5pt; line-height: 1.6; color: #111; width: 100%; box-sizing: border-box; padding: 0; margin: 0;">' +
-      '<p style="text-align: right; margin-bottom: 4px;">' + dataContrato + '</p>' +
-      '<p style="text-align: right; margin-bottom: 20px; font-style: italic;">' + contratadaNome + '</p>' +
-      '<h2 style="text-align: center; text-transform: uppercase; font-size: 12pt; margin-bottom: 4px;">Contrato de Prestação de Serviços</h2>' +
-      '<p style="text-align: center; color: #555; font-size: 9pt; margin-bottom: 20px;">Prestação de serviços de fisioterapia, atividades físicas de condicionamento</p>' +
-
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">1. Identificação das Partes</h3>' +
-      '<p style="margin: 0 0 6px 0;"><strong>1.1 CONTRATANTE</strong><br/>Nome: <strong>' + nomeCompleto + '</strong><br/>CPF: <strong>' + cpfVal + '</strong><br/>Endereço: ' + enderecoCompleto + '<br/>Cidade: <strong>' + cidadeEstado + '</strong></p>' +
-      '<p style="margin: 0 0 6px 0;"><strong>1.2 CONTRATADO</strong><br/>Nome: <strong>' + contratadaNome + '</strong><br/>CNPJ: <strong>' + cnpj + '</strong><br/>Unidade: <strong>' + unidade + '</strong><br/>Cidade: <strong>' + cidadeEstado + '</strong></p>' +
-
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">2. Objeto do Contrato</h3>' +
-      '<p style="margin: 0 0 6px 0;">O presente contrato tem por objeto a prestação de serviços de fisioterapia e atividades físicas, com a disponibilização de <strong>' + creditosMensais + ' (' + creditosPorExtenso + ') créditos mensais</strong>, destinados a sessões de atendimento individualizado, conforme descrito na cláusula 3.</p>' +
-
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">3. Serviços a Serem Prestados</h3>' +
-      '<p style="margin: 0 0 4px 0;"><strong>3.1 Técnicas de Atendimento</strong><br/>O CONTRATADO se compromete a prestar os seguintes serviços de fisioterapia e educação física:</p>' +
-      '<ul style="margin: 4px 0 4px 20px; padding: 0;">' + servicosLista + '</ul>' +
-      '<p style="margin: 4px 0;"><strong>3.2 Benefícios Adicionais</strong></p>' +
-      beneficiosAnuaisHTML +
-
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">4. Valor e Forma de Pagamento</h3>' +
-      '<p><strong>4.1 Valor ' + (isAnual ? 'Anual' : 'Mensal') + '</strong><br/>' +
-      'O CONTRATANTE se compromete a pagar ao CONTRATADO o valor ' + (isAnual ? 'anual' : 'mensal') + ' de <strong>' + fmt(liquido) + '</strong>, pago em <strong>' + nParc + 'x de R$ ' + valorParc.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong>.</p>' +
-      '<p><strong>4.2 Forma de Pagamento</strong><br/>' +
-      'O pagamento será realizado mediante <strong>' + dcFormaPag.toUpperCase() + '</strong>, com vencimento inicial em <strong>' + vencimentoFormatado + '</strong>, conforme condições acordadas entre as partes.</p>' +
-
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">5. Cláusulas Específicas</h3>' +
-      '<p style="margin: 0 0 4px 0;"><strong>5.1 Horário e Reposição</strong></p>' +
-      '<p style="margin: 0 0 4px 0;">O CONTRATADO se compromete a agendar os atendimentos com antecedência mínima de 2 (duas) horas; caso contrário, o sistema não permite a marcação.</p>' +
-      '<p style="margin: 0 0 4px 0;">Em caso de cancelamento ou adiamento, o CONTRATADO deverá notificar com pelo menos <strong>6 (seis) horas</strong> de antecedência.</p>' +
-      '<p style="margin: 0 0 4px 0;">A reposição do crédito será garantida mediante o cumprimento da regra de cancelamento.</p>' +
-
-      '<p style="margin: 0 0 4px 0;"><strong>5.2 Planilha de Treinamento</strong></p>' +
-      '<p style="margin: 0 0 4px 0;">O CONTRATADO fornecerá ao CONTRATANTE uma planilha de treinamento personalizada, atualizada mensalmente, com base na evolução clínica e objetivos terapêuticos, para utilização no treino livre. Este deve ser agendado pelo aplicativo, sendo disponibilizadas apenas <strong>3 (três) vagas</strong> por horário para esta modalidade.</p>' +
-
-      '<p style="margin: 0 0 4px 0;"><strong>5.3 Férias e Feriados</strong></p>' +
-      '<p style="margin: 0 0 4px 0;"><em>Parágrafo Primeiro:</em> Em caso de feriados ou recessos da Clínica, o CONTRATADO realizará o ajuste da agenda, assegurando a reposição dos créditos em dias úteis, conforme disponibilidade.</p>' +
-      congelamentoClausula +
-      '<p style="margin: 0 0 4px 0;"><em>Parágrafo ' + paragTerceiro + ':</em> O CONTRATADO reserva-se o direito de recesso anual entre o Natal e o Ano Novo, devendo o CONTRATANTE utilizar seus créditos remanescentes até o dia 24 de dezembro do respectivo ano.</p>' +
-
-      '<p style="margin: 0 0 4px 0;"><strong>5.4 Reajuste Anual</strong></p>' +
-      '<p style="margin: 0 0 4px 0;">O valor dos serviços será reajustado anualmente, com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.</p>' +
-
-      '<p style="margin: 0 0 4px 0;"><strong>5.5 Rescisão do Contrato</strong></p>' +
-      '<p style="margin: 0 0 4px 0;">O CONTRATANTE poderá rescindir o contrato mediante aviso prévio de <strong>30 (trinta) dias</strong>, por escrito.</p>' +
-      '<p style="margin: 0 0 4px 0;">Em caso de rescisão sem aviso prévio ou por escrito, será cobrada uma multa de <strong>10% (dez por cento)</strong> sobre o valor total do mês vigente.</p>' +
-
-      obsHTML +
-
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">6. Prazo de Vigência</h3>' +
-      '<p style="margin: 0 0 4px 0;">O presente contrato terá duração de <strong>' + vigenciaText + '</strong>, iniciando-se em <strong>' + dataInicioFormatada + '</strong>, podendo ser renovado ou rescindido conforme as condições estabelecidas na cláusula 5.5.</p>' +
-
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">7. Foro</h3>' +
-      '<p style="margin: 0 0 4px 0;">Para todos os efeitos legais decorrentes do presente contrato, as partes elegem o foro da Comarca de <strong>' + foro + '</strong>, renunciando a qualquer outro, por mais privilegiado que seja.</p>' +
-
-      '<div style="page-break-inside: avoid !important; break-inside: avoid !important;">' +
-      '<h3 style="font-size: 10pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-top: 16px; margin-bottom: 6px;">8. Assinaturas</h3>' +
-      '<div style="display:flex;justify-content:space-between;margin-top:40px;gap:30px;">' +
-        '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>CONTRATANTE</strong><br/>' + nomeCompleto + '<br/><small>CPF: ' + cpfVal + '</small></div></div>' +
-        '<div style="flex:1;text-align:center;"><div style="border-top:1px solid #333;padding-top:6px;margin-top:30px;"><strong>CONTRATADO</strong><br/>' + contratadaNome + '<br/><small>CNPJ: ' + cnpj + '</small></div></div>' +
-      '</div>' +
-      '<p style="margin-top:20px;text-align:center;">Local e data: _________________________, ' + dataContrato + '</p>' +
-      '</div>' +
-      '</div>';
-
-    return html;
+    return getUnifiedTemplate({
+      clientNome: dcNome,
+      clientCpf: dcCpf,
+      clientNacionalidade: detailClient?.dadosPessoais?.nacionalidade || 'brasileiro(a)',
+      clientEstadoCivil: detailClient?.dadosPessoais?.estadoCivil || 'solteiro(a)',
+      clientProfissao: detailClient?.dadosPessoais?.profissao,
+      clientEmail: detailClient?.dadosPessoais?.email,
+      clientTelefone: detailClient?.dadosPessoais?.telefone,
+      clientEndereco: dcEndereco,
+      clientNumero: dcNumero,
+      clientComplemento: dcComplemento,
+      clientBairro: dcBairro,
+      clientCidade: dcCidade,
+      clientEstado: dcEstado,
+      clientCep: dcCep,
+      planNome: plan.nome,
+      planPreco: (dcValorUnitario * dcVigenciaQtd) || plan.preco || 0,
+      planTipo: plan.tipo,
+      descontoTipo: dcDescontoTipo,
+      descontoValor: dcDescontoValor,
+      parcelas: dcParcelas,
+      formaPagamento: dcFormaPag,
+      dataInicio: dcDataInicio,
+      dataVencimento: dcVencimento,
+      observacoesContratuais: dcObservacoesContratuais,
+      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento
+    });
   };
 
 
   const handleCreateContract = async (status: 'pendente' | 'assinado' | 'clicksign') => {
+    const validation = validateContractClientData(detailClient);
+    if (!validation.isValid) {
+      alert(`Não é possível emitir o contrato. Os seguintes dados obrigatórios do aluno estão ausentes:\n\n• ${validation.missingFields.join('\n• ')}\n\nPor favor, complete o cadastro na aba "Dados Pessoais" primeiro.`);
+      return;
+    }
+
     if (status === 'assinado' && !signatureName.trim()) {
       alert('Por favor, informe o nome do assinante para registrar o aceite digital.');
       return;

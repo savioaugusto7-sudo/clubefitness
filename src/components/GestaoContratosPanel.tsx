@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
+import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
+import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 
 const normalizeText = (str: string) => {
@@ -591,95 +593,44 @@ export default function GestaoContratosPanel({
     if (!plan) return '<p style="color:var(--color-danger);font-weight:bold;">Selecione um plano comercial na coluna da esquerda para gerar a minuta do contrato.</p>';
 
     const pes = selectedClient.dadosPessoais || {};
-    const formattedCpf = pes.cpf || '—';
-    const formattedNome = pes.nome || '—';
-    
-    const isAnual = dcDuracao === 'anual';
-    let vigenciaText = '1 (um) mês';
-    if (dcDuracao === 'semana') {
-      vigenciaText = `${dcVigenciaQtd} semana(s)`;
-    } else if (dcDuracao === 'mensal') {
-      vigenciaText = dcVigenciaQtd === 1 ? '1 (um) mês' : `${dcVigenciaQtd} meses`;
-    } else if (dcDuracao === 'anual') {
-      vigenciaText = dcVigenciaQtd === 1 ? '12 (doze) meses (1 ano)' : `${dcVigenciaQtd * 12} meses (${dcVigenciaQtd} anos)`;
-    }
 
-    const bruto = dcValorUnitario * dcVigenciaQtd;
-    const descVal = Number(dcDescontoValor) || 0;
-    let liquido = bruto;
-    if (dcDescontoTipo === 'percentual') {
-      liquido = bruto * (1 - descVal / 100);
-    } else {
-      liquido = Math.max(0, bruto - descVal);
-    }
-    const valFinal = liquido;
-    const valorParcela = valFinal / (Number(dcParcelas) || 1);
-
-    const formaPagText = ({ pix: 'Pix', boleto: 'Boleto Bancário', cartao: 'Cartão de Crédito/Débito', dinheiro: 'Dinheiro' } as any)[dcFormaPag] || dcFormaPag;
-    const dataContrato = new Date().toLocaleDateString('pt-BR');
-    const servicosList = plan.servicosPermitidos?.length > 0 ? plan.servicosPermitidos.join(', ') : 'Treino Monitorado, Recovery, Fisioterapia';
-
-    const endD = new Date((dcDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
-    if (dcDuracao === 'semana') {
-      endD.setDate(endD.getDate() + (dcVigenciaQtd * 7));
-    } else if (isAnual) {
-      endD.setMonth(endD.getMonth() + (dcVigenciaQtd * 12));
-    } else {
-      endD.setMonth(endD.getMonth() + dcVigenciaQtd);
-    }
-    const dataFimCalculada = endD.toLocaleDateString('pt-BR');
-
-    const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
-
-    let html = `
-      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #000; font-size: 9.5pt;">
-        <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px;">
-          <h1 style="margin: 0; font-size: 15pt; font-weight: bold; color: #10b981;">CLUBE FITNESS FISIO</h1>
-          <p style="margin: 4px 0 0; font-size: 9pt; color: #555;">Prestação de Fisioterapia e Atividades Físicas Personalizadas</p>
-          <h2 style="margin: 10px 0 0; font-size: 12pt; font-weight: bold; text-transform: uppercase;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS E ADESÃO</h2>
-        </div>
-
-        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
-        <p style="margin-bottom: 10px;">
-          <strong>CONTRATADA:</strong> CLUBE FITNESS FISIO, sediada em Belo Horizonte, Minas Gerais.<br/>
-          <strong>CONTRATANTE:</strong> ${formattedNome}, CPF nº ${formattedCpf}, residente em: ${enderecoCompleto}. E-mail: ${pes.email || '—'}, Telefone: ${pes.telefone || '—'}.
-        </p>
-
-        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">2. OBJETO DO CONTRATO</h3>
-        <p style="margin-bottom: 10px;">
-          O objeto deste contrato é a prestação de serviços de condicionamento físico e acompanhamento terapêutico na modalidade <strong>Plano ${plan.nome}</strong>.
-        </p>
-
-        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">3. SERVIÇOS E VIGÊNCIA</h3>
-        <p style="margin-bottom: 10px;">
-          <strong>3.1 Serviços Inclusos:</strong> O aluno terá acesso às seguintes modalidades/serviços: ${servicosList}. Saldo total: ${dcCreditosTotal} créditos mensais.<br/>
-          <strong>3.2 Vigência:</strong> Este contrato vigorará por <strong>${vigenciaText}</strong>, iniciando em <strong>${new Date(dcDataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}</strong> e término em <strong>${dataFimCalculada}</strong>.
-        </p>
-
-        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">4. VALORES E CONDIÇÕES DE PAGAMENTO</h3>
-        <p style="margin-bottom: 10px;">
-          O CONTRATANTE pagará à CONTRATADA o valor líquido total de <strong>R$ ${valFinal.toFixed(2).replace('.', ',')}</strong>, parcelado em <strong>${dcParcelas}x</strong> de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')}</strong> via <strong>${formaPagText}</strong>, com vencimento inicial em <strong>${new Date(dcVencimento + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>.
-        </p>
-
-        <h3 style="font-size: 10pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 15px;">5. CANCELAMENTOS E MULTAS</h3>
-        <p style="margin-bottom: 10px;">
-          Cancelamentos e ausências devem ser avisados com antecedência mínima de 6 (seis) horas. Desistências antes do prazo de vigência acarretarão multa rescisória de 10% do valor restante a vencer.
-        </p>
-
-        <p style="margin-top: 30px; text-align: center;">Belo Horizonte, ${dataContrato}</p>
-        
-        <div style="display: flex; justify-content: space-between; margin-top: 40px; gap: 30px;">
-          <div style="flex: 1; text-align: center;"><div style="border-top: 1px solid #333; padding-top: 6px;"><strong>CONTRATADO</strong><br/><small>Clube Fitness Fisio</small></div></div>
-          <div style="flex: 1; text-align: center;"><div style="border-top: 1px solid #333; padding-top: 6px;"><strong>CONTRATANTE</strong><br/><small>${formattedNome}</small></div></div>
-        </div>
-      </div>
-    `;
-
-    return html;
+    return getUnifiedTemplate({
+      clientNome: pes.nome || '',
+      clientCpf: pes.cpf || '',
+      clientNacionalidade: pes.nacionalidade || 'brasileiro(a)',
+      clientEstadoCivil: pes.estadoCivil || 'solteiro(a)',
+      clientProfissao: pes.profissao,
+      clientEmail: pes.email,
+      clientTelefone: pes.telefone,
+      clientEndereco: pes.endereco,
+      clientNumero: pes.numero,
+      clientComplemento: pes.complemento,
+      clientBairro: pes.bairro,
+      clientCidade: pes.cidade,
+      clientEstado: pes.estado,
+      clientCep: pes.cep,
+      planNome: plan.nome,
+      planPreco: (dcValorUnitario * dcVigenciaQtd) || plan.preco || 0,
+      planTipo: plan.tipo,
+      descontoTipo: dcDescontoTipo,
+      descontoValor: dcDescontoValor,
+      parcelas: dcParcelas,
+      formaPagamento: dcFormaPag,
+      dataInicio: dcDataInicio,
+      dataVencimento: dcVencimento,
+      observacoesContratuais: dcObservacoesContratuais,
+      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento
+    });
   };
 
   // Submit contract (clicksSign, manual pending, or direct signed)
   const handleIssueContract = async (status: 'pendente' | 'clicksign') => {
+    const validation = validateContractClientData(selectedClient);
+    if (!validation.isValid) {
+      alert(`Não é possível emitir o contrato. Os seguintes dados obrigatórios do aluno estão ausentes:\n\n• ${validation.missingFields.join('\n• ')}\n\nPor favor, complete o cadastro na aba "Dados Pessoais" primeiro.`);
+      return;
+    }
+
     const plan = plans.find(p => p._id === dcPlano);
     if (!plan) {
       alert('Selecione um plano comercial.');

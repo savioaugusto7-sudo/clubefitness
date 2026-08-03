@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 
 declare const Chart: any;
 declare const PDFLib: any;
@@ -3531,6 +3532,36 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
   // Benefícios Inclusos do Plano
   const beneficiosList = plan?.beneficiosInclusos || [];
   
+  if (!templateOverride) {
+    templateOverride = getUnifiedTemplate({
+      clientNome: pes.nome || '',
+      clientCpf: pes.cpf || '',
+      clientNacionalidade: pes.nacionalidade || 'brasileiro(a)',
+      clientEstadoCivil: pes.estadoCivil || 'solteiro(a)',
+      clientProfissao: pes.profissao,
+      clientEmail: pes.email,
+      clientTelefone: pes.telefone,
+      clientEndereco: pes.endereco,
+      clientNumero: pes.numero,
+      clientComplemento: pes.complemento,
+      clientBairro: pes.bairro,
+      clientCidade: pes.cidade,
+      clientEstado: pes.estado,
+      clientCep: pes.cep,
+      planNome: planNome,
+      planPreco: basePreco,
+      planTipo: plan?.tipo,
+      descontoTipo: descTipo,
+      descontoValor: descVal,
+      parcelas: numParcelas,
+      formaPagamento: com.formaPagamento,
+      dataInicio: dataInicio,
+      dataVencimento: com.vencimento,
+      observacoesContratuais: com.observacoesContratuais || contract?.observacoesContratuais,
+      unidadeContratada: com.unidadeContratada || plan?.unidadeAtendimento
+    });
+  }
+
   const contratoBody = templateOverride || `
     <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
     <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
@@ -3768,6 +3799,36 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
     const servicosList = plan?.servicosPermitidos?.length > 0 ? plan.servicosPermitidos.join(', ') : 'Treinos Monitorados, Fisioterapia, Recovery, Quiropraxia';
     
+    if (!templateOverride) {
+      templateOverride = getUnifiedTemplate({
+        clientNome: pes.nome || '',
+        clientCpf: pes.cpf || '',
+        clientNacionalidade: pes.nacionalidade || 'brasileiro(a)',
+        clientEstadoCivil: pes.estadoCivil || 'solteiro(a)',
+        clientProfissao: pes.profissao,
+        clientEmail: pes.email,
+        clientTelefone: pes.telefone,
+        clientEndereco: pes.endereco,
+        clientNumero: pes.numero,
+        clientComplemento: pes.complemento,
+        clientBairro: pes.bairro,
+        clientCidade: pes.cidade,
+        clientEstado: pes.estado,
+        clientCep: pes.cep,
+        planNome: planNome,
+        planPreco: basePreco,
+        planTipo: plan?.tipo,
+        descontoTipo: descTipo,
+        descontoValor: descVal,
+        parcelas: numParcelas,
+        formaPagamento: com.formaPagamento,
+        dataInicio: dataInicio,
+        dataVencimento: com.vencimento,
+        observacoesContratuais: com.observacoesContratuais || contract?.observacoesContratuais,
+        unidadeContratada: com.unidadeContratada || plan?.unidadeAtendimento
+      });
+    }
+
     const contratoBody = templateOverride || `
       <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
       <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
