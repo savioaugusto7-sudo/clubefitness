@@ -21,9 +21,6 @@ const ProposalSchema = new Schema({
   parcelasEscolhidas: { type: Number, default: 1 },
   valorFinalRecalculado: { type: Number, default: 0 },
   dadosPreenchidos: {
-    nacionalidade: { type: String, default: '' },
-    estadoCivil: { type: String, default: '' },
-    profissao: { type: String, default: '' },
     telefone: { type: String, default: '' },
     cep: { type: String, default: '' },
     endereco: { type: String, default: '' },

@@ -82,10 +82,7 @@ export async function POST(request: Request) {
         userId: user._id,
         dadosPessoais: {
           nome: user.nome,
-          email: user.email,
-          nacionalidade: 'brasileiro(a)',
-          estadoCivil: 'solteiro(a)',
-          profissao: 'autônomo(a)'
+          email: user.email
         },
         dadosClinicos: {
           lesoes: '',
@@ -180,10 +177,7 @@ export async function PUT(request: Request) {
           userId: user._id,
           dadosPessoais: {
             nome: user.nome,
-            email: user.email,
-            nacionalidade: 'brasileiro(a)',
-            estadoCivil: 'solteiro(a)',
-            profissao: 'autônomo(a)'
+            email: user.email
           },
           dadosClinicos: {
             lesoes: '',

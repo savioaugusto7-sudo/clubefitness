@@ -15,9 +15,6 @@ const DadosPessoaisSchema = new Schema({
   cidade: { type: String },
   estado: { type: String },
   cep: { type: String },
-  nacionalidade: { type: String, default: 'brasileiro(a)' },
-  estadoCivil: { type: String, default: 'solteiro(a)' },
-  profissao: { type: String, default: 'autônomo(a)' }
 }, { _id: false });
 
 const DadosClinicosSchema = new Schema({

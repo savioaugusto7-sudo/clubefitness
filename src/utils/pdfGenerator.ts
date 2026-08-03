@@ -3536,9 +3536,6 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
     templateOverride = getUnifiedTemplate({
       clientNome: pes.nome || '',
       clientCpf: pes.cpf || '',
-      clientNacionalidade: pes.nacionalidade || 'brasileiro(a)',
-      clientEstadoCivil: pes.estadoCivil || 'solteiro(a)',
-      clientProfissao: pes.profissao,
       clientEmail: pes.email,
       clientTelefone: pes.telefone,
       clientEndereco: pes.endereco,
@@ -3567,7 +3564,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
     <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
     <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
       <strong>CONTRATADO:</strong> CLUBE FITNESS FISIO, com sede em Belo Horizonte/MG.<br>
-      <strong>CONTRATANTE:</strong> ${pes.nome || '-'}, de nacionalidade ${pes.nacionalidade || 'brasileiro(a)'}, estado civil ${pes.estadoCivil || 'solteiro(a)'}, ${pes.profissao ? `profissão ${pes.profissao}` : ''}, portador(a) do CPF nº ${pes.cpf || '-'}, nascido(a) em ${fmtDate(pes.dataNascimento)}, e-mail ${pes.email || '-'}, telefones ${pes.telefone || '-'}${pes.telefoneSecundario ? ` / ${pes.telefoneSecundario}` : ''}, residente e domiciliado em: ${enderecoCompleto}.
+      <strong>CONTRATANTE:</strong> ${pes.nome || '-'}, portador(a) do CPF nº ${pes.cpf || '-'}, nascido(a) em ${fmtDate(pes.dataNascimento)}, e-mail ${pes.email || '-'}, telefones ${pes.telefone || '-'}${pes.telefoneSecundario ? ` / ${pes.telefoneSecundario}` : ''}, residente e domiciliado em: ${enderecoCompleto}.
     </p>
 
     <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">2. OBJETO DO CONTRATO</h3>
@@ -3804,9 +3801,6 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
       templateOverride = getUnifiedTemplate({
         clientNome: pes.nome || '',
         clientCpf: pes.cpf || '',
-        clientNacionalidade: pes.nacionalidade || 'brasileiro(a)',
-        clientEstadoCivil: pes.estadoCivil || 'solteiro(a)',
-        clientProfissao: pes.profissao,
         clientEmail: pes.email,
         clientTelefone: pes.telefone,
         clientEndereco: pes.endereco,
@@ -3835,7 +3829,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
       <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">1. IDENTIFICAÇÃO DAS PARTES</h3>
       <p style="font-size:9.5pt;margin-bottom:4px;line-height:1.4;">
         <strong>CONTRATADO:</strong> CLUBE FITNESS FISIO, com sede em Belo Horizonte/MG.<br>
-        <strong>CONTRATANTE:</strong> ${pes.nome || '-'}, de nacionalidade ${pes.nacionalidade || 'brasileiro(a)'}, estado civil ${pes.estadoCivil || 'solteiro(a)'}, ${pes.profissao ? `profissão ${pes.profissao}` : ''}, portador(a) do CPF nº ${pes.cpf || '-'}, nascido(a) em ${fmtDate(pes.dataNascimento)}, e-mail ${pes.email || '-'}, telefones ${pes.telefone || '-'}${pes.telefoneSecundario ? ` / ${pes.telefoneSecundario}` : ''}, residente e domiciliado em: ${enderecoCompleto}.
+        <strong>CONTRATANTE:</strong> ${pes.nome || '-'}, portador(a) do CPF nº ${pes.cpf || '-'}, nascido(a) em ${fmtDate(pes.dataNascimento)}, e-mail ${pes.email || '-'}, telefones ${pes.telefone || '-'}${pes.telefoneSecundario ? ` / ${pes.telefoneSecundario}` : ''}, residente e domiciliado em: ${enderecoCompleto}.
       </p>
       <h3 style="font-size:10pt;font-weight:bold;margin-top:15px;margin-bottom:8px;border-bottom:1px solid #000;padding-bottom:3px;">2. OBJETO DO CONTRATO</h3>
       <p style="font-size:9.5pt;line-height:1.4;">

@@ -661,9 +661,6 @@ export default function GestaoContratosPanel({
     return getUnifiedTemplate({
       clientNome: pes.nome || '',
       clientCpf: pes.cpf || '',
-      clientNacionalidade: pes.nacionalidade || 'brasileiro(a)',
-      clientEstadoCivil: pes.estadoCivil || 'solteiro(a)',
-      clientProfissao: pes.profissao,
       clientEmail: pes.email,
       clientTelefone: pes.telefone,
       clientEndereco: pes.endereco,

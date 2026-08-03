@@ -6919,7 +6919,6 @@ goniometria: {
                           <div><strong>CPF:</strong> {selCli.dadosPessoais?.cpf || '-'}</div>
                           <div><strong>Idade:</strong> {age} anos</div>
                           <div><strong>Gênero:</strong> {selCli.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('M') ? 'Masculino' : 'Feminino'}</div>
-                          <div><strong>Profissão:</strong> {selCli.dadosPessoais?.profissao || '-'}</div>
                           <div><strong>Telefone:</strong> {selCli.dadosPessoais?.telefone || '-'}</div>
                         </div>
                       );

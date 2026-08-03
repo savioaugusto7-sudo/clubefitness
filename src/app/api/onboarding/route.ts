@@ -27,9 +27,6 @@ export async function POST(request: Request) {
       cidade,
       estado,
       cep,
-      nacionalidade,
-      estadoCivil,
-      profissao,
       // dados clínicos
       lesoes,
       restricoes,
@@ -61,9 +58,6 @@ export async function POST(request: Request) {
       cidade: cidade || client.dadosPessoais?.cidade || '',
       estado: estado || client.dadosPessoais?.estado || '',
       cep: cep || client.dadosPessoais?.cep || '',
-      nacionalidade: nacionalidade || client.dadosPessoais?.nacionalidade || 'brasileiro(a)',
-      estadoCivil: estadoCivil || client.dadosPessoais?.estadoCivil || 'solteiro(a)',
-      profissao: profissao || client.dadosPessoais?.profissao || '',
     };
 
     client.dadosClinicos = {

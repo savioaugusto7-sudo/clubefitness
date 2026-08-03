@@ -392,10 +392,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [dcNascimento, setDcNascimento] = useState('');
   const [dcEndereco, setDcEndereco] = useState('');
   const [dcTelefoneSecundario, setDcTelefoneSecundario] = useState('');
-  const [dcEstadoCivil, setDcEstadoCivil] = useState('solteiro(a)');
-  const [dcNacionalidade, setDcNacionalidade] = useState('brasileiro(a)');
-  const [dcProfissao, setDcProfissao] = useState('autônomo(a)');
-  const [dcNumero, setDcNumero] = useState('');
+        const [dcNumero, setDcNumero] = useState('');
   const [dcComplemento, setDcComplemento] = useState('');
   const [dcBairro, setDcBairro] = useState('');
   const [dcCidade, setDcCidade] = useState('');
@@ -489,9 +486,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     return getUnifiedTemplate({
       clientNome: dcNome,
       clientCpf: dcCpf,
-      clientNacionalidade: detailClient?.dadosPessoais?.nacionalidade || 'brasileiro(a)',
-      clientEstadoCivil: detailClient?.dadosPessoais?.estadoCivil || 'solteiro(a)',
-      clientProfissao: detailClient?.dadosPessoais?.profissao,
       clientEmail: detailClient?.dadosPessoais?.email,
       clientTelefone: detailClient?.dadosPessoais?.telefone,
       clientEndereco: dcEndereco,
@@ -2750,9 +2744,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               setDcNascimento(c.dadosPessoais?.dataNascimento || '');
                               setDcEndereco(c.dadosPessoais?.endereco || '');
                               setDcTelefoneSecundario(c.dadosPessoais?.telefoneSecundario || '');
-                              setDcEstadoCivil(c.dadosPessoais?.estadoCivil || 'solteiro(a)');
-                              setDcNacionalidade(c.dadosPessoais?.nacionalidade || 'brasileiro(a)');
-                              setDcProfissao(c.dadosPessoais?.profissao || 'autônomo(a)');
                               setDcNumero(c.dadosPessoais?.numero || '');
                               setDcComplemento(c.dadosPessoais?.complemento || '');
                               setDcBairro(c.dadosPessoais?.bairro || '');
@@ -5256,27 +5247,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                    <input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} />
                  </div>
                </div>
-               <div className="form-row">
-                 <div className="form-group">
-                   <label>Estado Civil</label>
-                   <select className="select-custom" value={dcEstadoCivil} onChange={e => setDcEstadoCivil(e.target.value)}>
-                     <option value="solteiro(a)">Solteiro(a)</option>
-                     <option value="casado(a)">Casado(a)</option>
-                     <option value="divorciado(a)">Divorciado(a)</option>
-                     <option value="viúvo(a)">Viúvo(a)</option>
-                     <option value="união estável">União Estável</option>
-                   </select>
-                 </div>
-                 <div className="form-group">
-                   <label>Nacionalidade</label>
-                   <input className="form-control" value={dcNacionalidade} onChange={e => setDcNacionalidade(e.target.value)} />
-                 </div>
-                 <div className="form-group">
-                   <label>Profissão</label>
-                   <input className="form-control" value={dcProfissao} onChange={e => setDcProfissao(e.target.value)} />
-                 </div>
-               </div>
-               <div className="form-row">
+                              <div className="form-row">
                  <div className="form-group" style={{ flex: 3 }}>
                    <label>Logradouro (Endereço)</label>
                    <input className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua, Avenida, etc." />
@@ -5326,9 +5297,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                          dataNascimento: dcNascimento,
                          endereco: dcEndereco,
                          telefoneSecundario: dcTelefoneSecundario,
-                         estadoCivil: dcEstadoCivil,
-                         nacionalidade: dcNacionalidade,
-                         profissao: dcProfissao,
                          numero: dcNumero,
                          complemento: dcComplemento,
                          bairro: dcBairro,

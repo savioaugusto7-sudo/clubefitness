@@ -199,10 +199,7 @@ export async function DELETE(request: Request) {
       whatsapp: '-',
       endereco: '-',
       sexo: client.dadosPessoais?.sexo || 'O',
-      dataNascimento: client.dadosPessoais?.dataNascimento || '',
-      estadoCivil: 'solteiro(a)',
-      nacionalidade: 'brasileiro(a)',
-      profissao: ''
+      dataNascimento: client.dadosPessoais?.dataNascimento || ''
     };
 
     client.dadosComerciais.status = 'excluido_anonimizado';

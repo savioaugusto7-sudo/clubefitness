@@ -94,9 +94,6 @@ function creditosExtenso(n: number): string {
 export interface ContractData {
   clientNome: string;
   clientCpf: string;
-  clientNacionalidade?: string;
-  clientEstadoCivil?: string;
-  clientProfissao?: string;
   clientEmail?: string;
   clientTelefone?: string;
   clientEndereco?: string;
@@ -169,9 +166,6 @@ export function generateContractTemplate(data: ContractData): string {
 
   // Client Details
   const clientDetails = [
-    data.clientNacionalidade ? `de nacionalidade ${data.clientNacionalidade}` : '',
-    data.clientEstadoCivil ? `estado civil ${data.clientEstadoCivil}` : '',
-    data.clientProfissao ? `profissão ${data.clientProfissao}` : '',
     data.clientEmail ? `e-mail ${data.clientEmail}` : '',
     data.clientTelefone ? `telefone ${data.clientTelefone}` : ''
   ].filter(Boolean).join(', ');

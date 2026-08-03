@@ -66,9 +66,6 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [dcCidade, setDcCidade] = useState('');
   const [dcEstado, setDcEstado] = useState('');
   const [dcCep, setDcCep] = useState('');
-  const [dcEstadoCivil, setDcEstadoCivil] = useState('solteiro(a)');
-  const [dcNacionalidade, setDcNacionalidade] = useState('brasileiro(a)');
-  const [dcProfissao, setDcProfissao] = useState('');
   const [dcPlano, setDcPlano] = useState('');
   const [dcVencimento, setDcVencimento] = useState('');
   const [dcDataInicio, setDcDataInicio] = useState('');
@@ -593,9 +590,6 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     setDcCidade(client.dadosPessoais?.cidade || '');
     setDcEstado(client.dadosPessoais?.estado || '');
     setDcCep(client.dadosPessoais?.cep || '');
-    setDcEstadoCivil(client.dadosPessoais?.estadoCivil || 'solteiro(a)');
-    setDcNacionalidade(client.dadosPessoais?.nacionalidade || 'brasileiro(a)');
-    setDcProfissao(client.dadosPessoais?.profissao || '');
     setDcPlano(client.dadosComerciais?.planoId?._id || client.dadosComerciais?.planoId || '');
     setDcVencimento(client.dadosComerciais?.vencimento || '');
     setDcDataInicio(client.dadosComerciais?.dataInicio || '');
@@ -634,8 +628,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         nome: dcNome, email: dcEmail, cpf: dcCpf, telefone: dcTelefone,
         sexo: dcSexo, dataNascimento: dcNascimento,
         endereco: dcEndereco, numero: dcNumero, complemento: dcComplemento,
-        bairro: dcBairro, cidade: dcCidade, estado: dcEstado, cep: dcCep,
-        estadoCivil: dcEstadoCivil, nacionalidade: dcNacionalidade, profissao: dcProfissao
+        bairro: dcBairro, cidade: dcCidade, estado: dcEstado, cep: dcCep
       }
     };
     const res = await fetch('/api/clients', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -756,9 +749,6 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     return getUnifiedTemplate({
       clientNome: dcNome,
       clientCpf: dcCpf,
-      clientNacionalidade: selectedClient.dadosPessoais?.nacionalidade || 'brasileiro(a)',
-      clientEstadoCivil: selectedClient.dadosPessoais?.estadoCivil || 'solteiro(a)',
-      clientProfissao: selectedClient.dadosPessoais?.profissao,
       clientEmail: selectedClient.dadosPessoais?.email,
       clientTelefone: selectedClient.dadosPessoais?.telefone,
       clientEndereco: dcEndereco,

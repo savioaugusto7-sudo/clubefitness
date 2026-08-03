@@ -19,9 +19,6 @@ export default function VendaPage({ params }: { params: any }) {
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [nacionalidade, setNacionalidade] = useState('brasileiro(a)');
-  const [estadoCivil, setEstadoCivil] = useState('solteiro(a)');
-  const [profissao, setProfissao] = useState('');
 
   // Form States - Endereço
   const [cep, setCep] = useState('');
@@ -54,9 +51,6 @@ export default function VendaPage({ params }: { params: any }) {
           setCpf(pes.cpf || '');
           setEmail(pes.email || '');
           setTelefone(pes.telefone || '');
-          setNacionalidade(pes.nacionalidade || 'brasileiro(a)');
-          setEstadoCivil(pes.estadoCivil || 'solteiro(a)');
-          setProfissao(pes.profissao || '');
           setCep(pes.cep || '');
           setEndereco(pes.endereco || '');
           setNumero(pes.numero || '');
@@ -184,9 +178,6 @@ export default function VendaPage({ params }: { params: any }) {
         cpf,
         email,
         telefone,
-        nacionalidade,
-        estadoCivil,
-        profissao,
         cep,
         endereco,
         numero,
@@ -312,26 +303,6 @@ export default function VendaPage({ params }: { params: any }) {
                 <input className="form-control" type="email" value={email} onChange={(e) => {}} disabled style={{ width: '100%', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-dim)', cursor: 'not-allowed' }} />
               </div>
 
-              <div className="form-group">
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nacionalidade *</label>
-                <input className="form-control" type="text" value={nacionalidade} onChange={(e) => setNacionalidade(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
-              </div>
-
-              <div className="form-group">
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Estado Civil *</label>
-                <select className="select-custom" value={estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} style={{ width: '100%', background: '#0e131f', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }}>
-                  <option value="solteiro(a)">Solteiro(a)</option>
-                  <option value="casado(a)">Casado(a)</option>
-                  <option value="divorciado(a)">Divorciado(a)</option>
-                  <option value="viuvo(a)">Viúvo(a)</option>
-                  <option value="uniao_estavel">União Estável</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Profissão *</label>
-                <input className="form-control" type="text" value={profissao} onChange={(e) => setProfissao(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
-              </div>
             </div>
           </div>
 

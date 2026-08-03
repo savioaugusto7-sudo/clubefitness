@@ -75,8 +75,6 @@ export default function OnboardingPage() {
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
-  const [estadoCivil, setEstadoCivil] = useState('solteiro(a)');
-  const [profissao, setProfissao] = useState('');
 
   const [lesoes, setLesoes] = useState('');
   const [restricoes, setRestricoes] = useState('');
@@ -111,8 +109,6 @@ export default function OnboardingPage() {
           if (p.bairro) setBairro(p.bairro);
           if (p.cidade) setCidade(p.cidade);
           if (p.estado) setEstado(p.estado);
-          if (p.estadoCivil) setEstadoCivil(p.estadoCivil);
-          if (p.profissao) setProfissao(p.profissao);
 
           if (c.lesoes) setLesoes(c.lesoes);
           if (c.restricoes) setRestricoes(c.restricoes);
@@ -151,7 +147,6 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           nome, dataNascimento, sexo, cpf, telefone, email,
           cep, endereco, numero, complemento, bairro, cidade, estado,
-          nacionalidade: 'brasileiro(a)', estadoCivil, profissao,
           lesoes, restricoes, medicamentos, historicoClinico,
           termoAceito: true
         }),
@@ -590,21 +585,6 @@ export default function OnboardingPage() {
                   <div className="form-group">
                     <label>Estado (UF)</label>
                     <input className="form-control" value={estado} onChange={e => setEstado(e.target.value)} placeholder="UF" maxLength={2} />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Estado Civil</label>
-                    <select className="select-custom" value={estadoCivil} onChange={e => setEstadoCivil(e.target.value)}>
-                      <option value="solteiro(a)">Solteiro(a)</option>
-                      <option value="casado(a)">Casado(a)</option>
-                      <option value="divorciado(a)">Divorciado(a)</option>
-                      <option value="viúvo(a)">Viúvo(a)</option>
-                      <option value="união estável">União Estável</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Profissão</label>
-                    <input className="form-control" value={profissao} onChange={e => setProfissao(e.target.value)} placeholder="Sua profissão" />
                   </div>
                 </div>
 
