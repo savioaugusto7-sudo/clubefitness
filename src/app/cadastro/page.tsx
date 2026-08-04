@@ -22,6 +22,7 @@ export default function PublicCadastroPage() {
   const [cpf, setCpf] = useState('');
   const [telefone, setTelefone] = useState('');
   const [email, setEmail] = useState('');
+  const [checkingEmail, setCheckingEmail] = useState(false);
 
   // Step 2: Endereço
   const [cep, setCep] = useState('');
@@ -109,6 +110,35 @@ export default function PublicCadastroPage() {
         setEstado(data.uf || '');
       }
     } catch {}
+  };
+
+  const handleStep1Next = async () => {
+    if (!nome.trim() || !email.trim() || !dataNascimentoDisplay || !sexo || !telefone.trim()) {
+      setError('Preencha todos os campos obrigatórios (*).');
+      return;
+    }
+    const isoDate = convertBrToIso(dataNascimentoDisplay);
+    if (!isoDate || isoDate.length !== 10) {
+      setError('A data de nascimento deve estar no formato DD/MM/AAAA e possuir ano com 4 dígitos.');
+      return;
+    }
+
+    setCheckingEmail(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/leads/onboarding?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data.exists) {
+        setError('Este e-mail já está cadastrado em nosso sistema.');
+        setCheckingEmail(false);
+        return;
+      }
+    } catch (err) {
+      console.error('Erro ao verificar email:', err);
+    }
+    setCheckingEmail(false);
+    setDataNascimento(isoDate);
+    setStep(2);
   };
 
   const handleSubmit = async () => {
@@ -489,14 +519,8 @@ export default function PublicCadastroPage() {
                 )}
 
                 <div className="ob-btn-row" style={{ justifyContent: 'flex-end' }}>
-                  <button className="btn btn-primary" onClick={() => {
-                    if (!nome.trim() || !email.trim() || !dataNascimentoDisplay || !sexo || !telefone.trim()) { setError('Preencha todos os campos obrigatórios (*).'); return; }
-                    const isoDate = convertBrToIso(dataNascimentoDisplay);
-                    if (!isoDate || isoDate.length !== 10) { setError('A data de nascimento deve estar no formato DD/MM/AAAA e possuir ano com 4 dígitos.'); return; }
-                    setDataNascimento(isoDate);
-                    setError(''); setStep(2);
-                  }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Próximo <i className="fa-solid fa-arrow-right"></i>
+                  <button className="btn btn-primary" onClick={handleStep1Next} disabled={checkingEmail} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {checkingEmail ? 'Verificando...' : 'Próximo'} <i className="fa-solid fa-arrow-right"></i>
                   </button>
                 </div>
               </div>

@@ -5,6 +5,22 @@ import User from '@/models/User';
 import Plan from '@/models/Plan';
 import { hashPassword } from '@/utils/auth';
 
+export async function GET(request: Request) {
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get('email');
+    if (!email) {
+      return NextResponse.json({ success: false, error: 'Email é obrigatório.' }, { status: 400 });
+    }
+    const emailClean = email.trim().toLowerCase();
+    const existingUser = await User.findOne({ email: emailClean });
+    return NextResponse.json({ success: true, exists: !!existingUser });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     await dbConnect();
