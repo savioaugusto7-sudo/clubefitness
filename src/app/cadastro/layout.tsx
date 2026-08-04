@@ -17,6 +17,12 @@ export const metadata: Metadata = {
       }
     ]
   },
+  twitter: {
+    card: 'summary',
+    title: 'Clube Fitness Fisio | Cadastro de Aluno',
+    description: 'Preencha seus dados para dar início ao seu atendimento e agendar sua avaliação física personalizada.',
+    images: ['/logo.jpg']
+  },
   metadataBase: new URL('https://clubefitness.vercel.app')
 };
 

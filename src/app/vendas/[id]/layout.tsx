@@ -37,6 +37,12 @@ export async function generateMetadata({
           }
         ]
       },
+      twitter: {
+        card: 'summary',
+        title: titleStr,
+        description: descriptionStr,
+        images: ['/logo.jpg']
+      },
       metadataBase: new URL('https://clubefitness.vercel.app')
     };
   } catch (error) {
