@@ -1,34 +1,56 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import dbConnect from '@/utils/dbConnect';
 import Proposal from '@/models/Proposal';
 
-export async function generateMetadata({ params }: { params: any }): Promise<Metadata> {
-  const unwrappedParams = await params;
-  const id = unwrappedParams.id;
+export async function generateMetadata({
+  params
+}: {
+  params: { id: string }
+}): Promise<Metadata> {
   try {
     await dbConnect();
-    const proposal = await Proposal.findById(id);
-    if (proposal) {
+    const proposal = await Proposal.findById(params.id);
+    if (!proposal) {
       return {
-        title: 'Proposta Comercial - Clube Fitness',
-        description: `Olá! Revise a proposta comercial para o seu plano "${proposal.planoNome}".`,
-        openGraph: {
-          title: 'Proposta Comercial - Clube Fitness',
-          description: `Olá! Revise os detalhes da sua proposta de plano comercial "${proposal.planoNome}" no Clube Fitness, confirme seus dados e escolha a forma de pagamento.`,
-          type: 'website',
-          url: `https://clubefitness.vercel.app/vendas/${id}`,
-        }
+        title: 'Proposta Comercial | Clube Fitness Fisio',
+        description: 'Acesse a sua proposta comercial de prestação de serviços.'
       };
     }
-  } catch (err) {
-    console.error('Error generating metadata:', err);
+
+    const titleStr = `Proposta Comercial - ${proposal.planoNome}`;
+    const descriptionStr = `Acesse a sua proposta comercial negociada para o plano ${proposal.planoNome} no Clube Fitness Fisio. Preencha seus dados para liberação do seu contrato.`;
+
+    return {
+      title: titleStr,
+      description: descriptionStr,
+      openGraph: {
+        title: titleStr,
+        description: descriptionStr,
+        url: `https://clubefitness.vercel.app/vendas/${params.id}`,
+        type: 'website',
+        images: [
+          {
+            url: '/logo.jpg',
+            width: 300,
+            height: 300,
+            alt: 'Logo Clube Fitness Fisio'
+          }
+        ]
+      },
+      metadataBase: new URL('https://clubefitness.vercel.app')
+    };
+  } catch (error) {
+    return {
+      title: 'Proposta Comercial | Clube Fitness Fisio',
+      description: 'Acesse a sua proposta comercial de prestação de serviços.'
+    };
   }
-  return {
-    title: 'Proposta Comercial - Clube Fitness',
-    description: 'Acesse e finalize a assinatura do seu plano fitness.'
-  };
 }
 
-export default function VendasLayout({ children }: { children: React.ReactNode }) {
+export default function VendasLayout({
+  children
+}: {
+  children: React.ReactNode;
+}) {
   return <>{children}</>;
 }
