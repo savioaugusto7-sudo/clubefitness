@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Client from '@/models/Client';
 import User from '@/models/User';
+import Plan from '@/models/Plan';
 import { hashPassword } from '@/utils/auth';
 
 export async function POST(request: Request) {
@@ -61,7 +62,19 @@ export async function POST(request: Request) {
     // Normalize sex
     const normalizedSexo = sexo ? (sexo.trim().toUpperCase().startsWith('F') ? 'F' : (sexo.trim().toUpperCase().startsWith('M') ? 'M' : 'O')) : 'M';
 
-    // 4. Create Client document as lead
+    // 4. Find or dynamically create "Captação" Plan
+    let capPlan = await Plan.findOne({ nome: 'Captação' });
+    if (!capPlan) {
+      capPlan = await Plan.create({
+        nome: 'Captação',
+        preco: 0,
+        tipo: 'Mensal',
+        validadeDias: 30,
+        ativo: true
+      });
+    }
+
+    // 5. Create Client document as lead
     const client = await Client.create({
       userId: user._id,
       codigo,
@@ -92,6 +105,7 @@ export async function POST(request: Request) {
       },
       dadosComerciais: {
         status: 'lead',
+        planoId: capPlan._id,
         frequencia: 3,
         parcelas: 1,
         creditosTotal: 0,

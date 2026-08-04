@@ -538,6 +538,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       case 'suspenso': return '#f59e0b';
       case 'cancelado': return '#6b7280';
       case 'pendente': return '#3b82f6';
+      case 'lead': return '#a855f7'; // Purple badge for leads
       default: return '#6b7280';
     }
   };
@@ -545,7 +546,8 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const statusLabel = (s: string) => {
     const labels: Record<string, string> = {
       ativo: 'Ativo', vencido: 'Vencido', suspenso: 'Suspenso',
-      cancelado: 'Cancelado', pendente: 'Pendente', inativo: 'Inativo'
+      cancelado: 'Cancelado', pendente: 'Pendente', inativo: 'Inativo',
+      lead: 'Captação'
     };
     return labels[s] || s;
   };
@@ -995,7 +997,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const today = new Date().toISOString().split('T')[0];
   const todayApts = appointments.filter((a: any) => (a.date || '').startsWith(today));
   const activeClients = clients.filter((c: any) => c.dadosComerciais?.status === 'ativo');
-  const pendingClients = clients.filter((c: any) => ['vencido', 'pendente'].includes(c.dadosComerciais?.status));
+  const pendingClients = clients.filter((c: any) => ['vencido', 'pendente', 'lead'].includes(c.dadosComerciais?.status));
   const highRiskClients = activeClients.filter((c: any) => getDaysSinceLastAppointment(c._id) > 20);
   const pendingPayments = financials.filter((f: any) => f.status === 'Pendente' && f.tipo === 'receita');
 
@@ -1250,6 +1252,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
               <option value="todos">Todos</option>
               <option value="ativo">Ativo</option>
               <option value="vencido">Vencido</option>
+              <option value="lead">Captação (Leads)</option>
             </select>
           </div>
 

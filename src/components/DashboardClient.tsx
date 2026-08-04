@@ -392,12 +392,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
   const activeContract = rawActiveContract ? {
     ...rawActiveContract,
-    planoNome: rawActiveContract.planoNome || rawActiveContract.planoId?.nome || client?.dadosComerciais?.planoId?.nome || 'Clube Fitness - Monitorado',
+    planoNome: rawActiveContract.planoNome || (rawActiveContract.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : rawActiveContract.planoId?.nome) || (client?.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : client?.dadosComerciais?.planoId?.nome) || 'Clube Fitness - Monitorado',
     dataInicio: contractStartISO,
     dataFim: contractEndISO || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
   } : (client?.dadosComerciais?.planoId || client?.dadosComerciais?.status === 'ativo' ? {
     _id: client._id,
-    planoNome: client.dadosComerciais?.planoId?.nome || client.dadosComerciais?.planoNome || 'Clube Fitness - Monitorado',
+    planoNome: (client.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : client.dadosComerciais?.planoId?.nome) || client.dadosComerciais?.planoNome || 'Clube Fitness - Monitorado',
     dataInicio: contractStartISO,
     dataFim: contractEndISO || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
     frequencia: client.dadosComerciais?.frequencia || client.frequencia || 3
@@ -711,7 +711,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               <h2>Detalhes do seu Plano</h2>
             </div>
             <div style={{ marginTop: '12px', lineHeight: '1.6' }}>
-              <p>Plano Contratado: <strong>{client.dadosComerciais?.planoId?.nome || 'Plano Personalizado'}</strong></p>
+              <p>Plano Contratado: <strong>{client.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : (client.dadosComerciais?.planoId?.nome || 'Plano Personalizado')}</strong></p>
               <p>Frequência Contratada: <strong>{client.dadosComerciais?.frequencia} vezes por semana</strong></p>
               <p>Vencimento do Plano: <strong>{formatDateBR(client.dadosComerciais?.vencimento)}</strong></p>
             </div>
