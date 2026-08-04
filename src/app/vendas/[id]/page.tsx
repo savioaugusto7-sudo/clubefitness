@@ -120,10 +120,32 @@ export default function VendaPage({ params }: { params: any }) {
   // Card applies a +5% markup
   const finalPrice = formaPagamento === 'cartao' ? basePrice * 1.05 : basePrice;
 
+  // Plan duration in months
+  let durationInMonths = 1;
+  if (proposal.duracao === 'anual') {
+    durationInMonths = (proposal.vigenciaQtd || 1) * 12;
+  } else if (proposal.duracao === 'semana') {
+    durationInMonths = 0;
+  } else {
+    durationInMonths = proposal.vigenciaQtd || 1;
+  }
+
   // Max installments
-  const maxInstallments = isAnual
-    ? (formaPagamento === 'cartao' ? 12 : (formaPagamento === 'boleto' ? 10 : 1))
-    : 1;
+  const maxInstallments = (() => {
+    if (formaPagamento === 'cartao') {
+      return 12; // Card always goes up to 12x
+    }
+    if (formaPagamento === 'boleto') {
+      if (durationInMonths >= 12) {
+        return 10; // Annual is up to 10x
+      }
+      if (durationInMonths > 1 && durationInMonths < 12) {
+        return durationInMonths - 1; // e.g. 4 months plan allows up to 3x
+      }
+      return 1; // 1 month or less is 1x
+    }
+    return 1; // Pix/others
+  })();
 
   // Adjust installment index if exceeds max
   const currentInstallments = Math.min(parcelas, maxInstallments);
@@ -313,18 +335,18 @@ export default function VendaPage({ params }: { params: any }) {
               </div>
 
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>E-mail (Para assinatura eletrônica) *</label>
+                <input className="form-control" type="email" value={email} onChange={(e) => {}} disabled style={{ width: '100%', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-dim)', cursor: 'not-allowed' }} />
+              </div>
+
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp *</label>
                 <input className="form-control" type="text" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(99) 99999-9999" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF (Apenas números) *</label>
                 <input className="form-control" type="text" value={cpf} onChange={handleCpfChange} maxLength={11} placeholder="CPF do titular" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
-              </div>
-
-              <div className="form-group">
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>E-mail (Para assinatura eletrônica) *</label>
-                <input className="form-control" type="email" value={email} onChange={(e) => {}} disabled style={{ width: '100%', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-dim)', cursor: 'not-allowed' }} />
               </div>
 
             </div>
@@ -337,7 +359,7 @@ export default function VendaPage({ params }: { params: any }) {
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CEP *</label>
                 <input className="form-control" type="text" value={cep} onChange={handleCepChange} onBlur={handleCepBlur} maxLength={8} placeholder="00000000" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
@@ -347,27 +369,27 @@ export default function VendaPage({ params }: { params: any }) {
                 <input className="form-control" type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Número *</label>
                 <input className="form-control" type="text" value={numero} onChange={(e) => setNumero(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Complemento</label>
                 <input className="form-control" type="text" value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Apto, Bloco, etc." style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Bairro *</label>
                 <input className="form-control" type="text" value={bairro} onChange={(e) => setBairro(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cidade *</label>
                 <input className="form-control" type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>UF Estado *</label>
                 <input className="form-control" type="text" value={estado} onChange={(e) => setEstado(e.target.value)} maxLength={2} placeholder="MG" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
@@ -391,7 +413,14 @@ export default function VendaPage({ params }: { params: any }) {
               <button type="button" onClick={() => handlePaymentChange('boleto')} style={{ flex: 1, minWidth: '130px', padding: '16px', background: formaPagamento === 'boleto' ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)', border: formaPagamento === 'boleto' ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#fff', cursor: 'pointer', transition: 'var(--transition-fast)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-barcode fa-xl" style={{ color: formaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--text-muted)' }}></i>
                 <strong>Boleto Bancário</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{isAnual ? 'Até 10x sem juros' : '1x'}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                  {durationInMonths >= 12 
+                    ? 'Até 10x sem juros' 
+                    : durationInMonths > 1 
+                      ? `Até ${durationInMonths - 1}x` 
+                      : '1x'
+                  }
+                </span>
               </button>
 
               <button type="button" onClick={() => handlePaymentChange('cartao')} style={{ flex: 1, minWidth: '130px', padding: '16px', background: formaPagamento === 'cartao' ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)', border: formaPagamento === 'cartao' ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#fff', cursor: 'pointer', transition: 'var(--transition-fast)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
@@ -424,7 +453,20 @@ export default function VendaPage({ params }: { params: any }) {
                   type="date" 
                   className="form-control" 
                   value={dataVencimento} 
-                  onChange={(e) => setDataVencimento(e.target.value)} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDataVencimento(val);
+                    if (val) {
+                      const sel = new Date(val + 'T00:00:00');
+                      const max = new Date(maxDateStr + 'T00:00:00');
+                      const min = new Date(todayStr + 'T00:00:00');
+                      if (sel > max) {
+                        setDataVencimento(maxDateStr);
+                      } else if (sel < min) {
+                        setDataVencimento(todayStr);
+                      }
+                    }
+                  }} 
                   min={todayStr} 
                   max={maxDateStr} 
                   required 
