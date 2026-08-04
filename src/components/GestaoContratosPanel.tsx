@@ -1580,6 +1580,22 @@ export default function GestaoContratosPanel({
                 <i className="fa-solid fa-book-open" style={{ marginRight: '6px' }}></i> Visualizar Texto Completo do Contrato
               </button>
 
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: '100%', padding: '10px', background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.3)', color: '#3b82f6', fontWeight: 600 }}
+                onClick={() => {
+                  const plan = plans.find(p => p._id === dcPlano);
+                  if (!plan) {
+                    alert('Selecione um plano comercial na coluna da esquerda para gerar o PDF.');
+                    return;
+                  }
+                  downloadContractPDF(selectedClient, plan, generateContractText(), { _id: 'draft' });
+                }}
+              >
+                <i className="fa-solid fa-file-pdf" style={{ marginRight: '6px' }}></i> Baixar PDF do Modelo do Contrato
+              </button>
+
 
 
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1762,7 +1778,22 @@ export default function GestaoContratosPanel({
             <div className="modal-body" style={{ maxHeight: '500px', overflowY: 'auto', background: '#fff', color: '#000', padding: '30px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
               <div dangerouslySetInnerHTML={{ __html: generateContractText() }} />
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ background: '#3b82f6', borderColor: '#3b82f6', display: 'flex', gap: '6px', alignItems: 'center' }}
+                onClick={() => {
+                  const plan = plans.find(p => p._id === dcPlano);
+                  if (!plan) {
+                    alert('Selecione um plano comercial na coluna da esquerda para gerar o PDF.');
+                    return;
+                  }
+                  downloadContractPDF(selectedClient, plan, generateContractText(), { _id: 'draft' });
+                }}
+              >
+                <i className="fa-solid fa-file-pdf"></i> Baixar PDF
+              </button>
               <button className="btn btn-secondary" onClick={() => setShowTextPreview(false)}>Fechar</button>
             </div>
           </div>
