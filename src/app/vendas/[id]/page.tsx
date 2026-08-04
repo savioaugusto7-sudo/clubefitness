@@ -277,6 +277,25 @@ export default function VendaPage({ params }: { params: any }) {
   maxDateObj.setDate(maxDateObj.getDate() + 31);
   const maxDateStr = maxDateObj.toISOString().split('T')[0];
 
+  const isRecorrenteMensalSemVinculo = proposal.criarRecorrenciaMensal && proposal.duracao === 'mensal' && proposal.vigenciaQtd === 1;
+
+  const dataInicioFormatada = proposal.dataInicio 
+    ? new Date(proposal.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') 
+    : new Date(todayStr + 'T00:00:00').toLocaleDateString('pt-BR');
+
+  let dataFimCalculada = '';
+  if (!isRecorrenteMensalSemVinculo) {
+    const startD = new Date((proposal.dataInicio || todayStr) + 'T00:00:00');
+    if (proposal.duracao === 'anual') {
+      startD.setMonth(startD.getMonth() + ((proposal.vigenciaQtd || 1) * 12));
+    } else if (proposal.duracao === 'semana') {
+      startD.setDate(startD.getDate() + ((proposal.vigenciaQtd || 1) * 7));
+    } else {
+      startD.setMonth(startD.getMonth() + (proposal.vigenciaQtd || 1));
+    }
+    dataFimCalculada = startD.toLocaleDateString('pt-BR');
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '40px 20px', fontFamily: 'var(--font-body)' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -306,18 +325,34 @@ export default function VendaPage({ params }: { params: any }) {
               <i className="fa-solid fa-file-invoice-dollar"></i> Proposta Comercial Negociada
             </h3>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
               <div>
                 <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Plano</span>
-                <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '5px 0 0 0' }}>{proposal.planoNome}</p>
+                <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0' }}>{proposal.planoNome}</p>
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block', marginTop: '2px' }}>
+                  {isRecorrenteMensalSemVinculo 
+                    ? 'Mensal Recorrente' 
+                    : `Vigência: ${proposal.duracao === 'semana' ? `${proposal.vigenciaQtd} semana(s)` : proposal.duracao === 'mensal' ? `${proposal.vigenciaQtd} mês(es)` : `${proposal.vigenciaQtd} ano(s)`}`
+                  }
+                </small>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Período de Vigência</span>
+                <p style={{ fontSize: '0.95rem', fontWeight: 700, margin: '5px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <i className="fa-solid fa-calendar-days" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}></i>
+                  {isRecorrenteMensalSemVinculo 
+                    ? `${dataInicioFormatada} (Renovação Automática)` 
+                    : `${dataInicioFormatada} até ${dataFimCalculada}`
+                  }
+                </p>
               </div>
               <div>
                 <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Créditos Mensais</span>
-                <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '5px 0 0 0' }}>{proposal.creditosMensais} sessões</p>
+                <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0' }}>{proposal.creditosMensais} sessões</p>
               </div>
               <div>
                 <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Valor Base Negociado</span>
-                <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '5px 0 0 0', color: 'var(--color-primary)' }}>R$ {basePrice.toFixed(2).replace('.', ',')}</p>
+                <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0', color: 'var(--color-primary)' }}>R$ {basePrice.toFixed(2).replace('.', ',')}</p>
               </div>
             </div>
           </div>

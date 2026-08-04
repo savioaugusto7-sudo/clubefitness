@@ -15,6 +15,9 @@ const ProposalSchema = new Schema({
   descontoValor: { type: Number, default: 0 },
   observacoesContratuais: { type: String, default: '' },
   unidadeContratada: { type: String, default: '' },
+  dataInicio: { type: String, default: '' },
+  criarRecorrenciaMensal: { type: Boolean, default: false },
+  recorrenciaMeses: { type: Number, default: 12 },
 
   status: { type: String, enum: ['pendente', 'respondida', 'aceita', 'recusada'], default: 'pendente' },
   formaPagamentoEscolhida: { type: String, default: '' }, // 'pix', 'boleto', 'cartao'
