@@ -1114,7 +1114,7 @@ export default function GestaoContratosPanel({
                 <i className="fa-solid fa-bell"></i> Proposta de Auto-Cadastro Respondida!
               </h4>
               <p style={{ margin: '0 0 12px 0', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                O aluno preencheu seus dados cadastrais. Ele escolheu pagar via <strong>{activeProposal.formaPagamentoEscolhida === 'pix' ? 'Pix (1x)' : activeProposal.formaPagamentoEscolhida === 'boleto' ? 'Boleto Bancário' : 'Cartão de Crédito'}</strong> em <strong>{activeProposal.parcelasEscolhidas}x</strong> de <strong>R$ {(activeProposal.valorFinalRecalculado / activeProposal.parcelasEscolhidas).toFixed(2).replace('.', ',')}</strong> (Total: R$ {activeProposal.valorFinalRecalculado.toFixed(2).replace('.', ',')}).
+                O aluno preencheu seus dados cadastrais. Ele escolheu pagar via <strong>{activeProposal.formaPagamentoEscolhida === 'pix' ? 'Pix (1x)' : activeProposal.formaPagamentoEscolhida === 'boleto' ? 'Boleto Bancário' : 'Cartão de Crédito'}</strong> em <strong>{activeProposal.parcelasEscolhidas}x</strong> de <strong>R$ {(activeProposal.valorFinalRecalculado / activeProposal.parcelasEscolhidas).toFixed(2).replace('.', ',')}</strong> (Total: R$ {activeProposal.valorFinalRecalculado.toFixed(2).replace('.', ',')}) com o primeiro vencimento em <strong>{activeProposal.dataVencimentoEscolhida ? new Date(activeProposal.dataVencimentoEscolhida + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não definido'}</strong>.
               </p>
               <button 
                 type="button" 
@@ -1123,13 +1123,16 @@ export default function GestaoContratosPanel({
                 onClick={() => {
                   setDcFormaPag(activeProposal.formaPagamentoEscolhida);
                   setDcParcelas(activeProposal.parcelasEscolhidas);
+                  if (activeProposal.dataVencimentoEscolhida) {
+                    setDcVencimento(activeProposal.dataVencimentoEscolhida);
+                  }
                   if (activeProposal.formaPagamentoEscolhida === 'cartao') {
                     setDcValorUnitario(activeProposal.valorUnitario * 1.05);
                   } else {
                     setDcValorUnitario(activeProposal.valorUnitario);
                   }
                   fetchData();
-                  alert('Opções comerciais e cadastrais do aluno carregadas e aplicadas com sucesso!');
+                  alert('Opções comerciais, cadastrais e data de vencimento do aluno carregadas e aplicadas com sucesso!');
                 }}
               >
                 <i className="fa-solid fa-check"></i> Aplicar Preferências Comerciais ao Formulário
@@ -1932,25 +1935,38 @@ export default function GestaoContratosPanel({
               Copie o link abaixo e envie para o aluno via WhatsApp ou E-mail. Ele poderá preencher os próprios dados cadastrais (CPF, CEP, etc.) e escolher a forma de pagamento/parcelas com base nas regras comerciais configuradas.
             </p>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-              <input
-                type="text"
-                readOnly
-                className="form-control"
-                style={{ flex: 1, fontSize: '0.83rem', background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px' }}
-                value={generatedProposalUrl}
-                onClick={e => (e.target as HTMLInputElement).select()}
-              />
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  readOnly
+                  className="form-control"
+                  style={{ flex: 1, fontSize: '0.83rem', background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px' }}
+                  value={generatedProposalUrl}
+                  onClick={e => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ background: 'var(--color-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedProposalUrl);
+                    alert('Link copiado para a área de transferência!');
+                  }}
+                >
+                  <i className="fa-solid fa-copy"></i> Copiar
+                </button>
+              </div>
               <button
                 type="button"
                 className="btn btn-primary"
-                style={{ background: 'var(--color-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}
+                style={{ background: '#25D366', borderColor: '#25D366', color: '#fff', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: '4px', fontWeight: 'bold' }}
                 onClick={() => {
-                  navigator.clipboard.writeText(generatedProposalUrl);
-                  alert('Link copiado para a área de transferência!');
+                  const text = encodeURIComponent(`Olá! Segue o link para revisão e assinatura da sua proposta comercial no Clube Fitness: ${generatedProposalUrl}`);
+                  window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
                 }}
               >
-                <i className="fa-solid fa-copy"></i> Copiar
+                <i className="fa-brands fa-whatsapp fa-lg"></i> Enviar via WhatsApp
               </button>
             </div>
 

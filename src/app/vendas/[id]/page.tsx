@@ -32,6 +32,7 @@ export default function VendaPage({ params }: { params: any }) {
   // Form States - Pagamento
   const [formaPagamento, setFormaPagamento] = useState<'pix' | 'boleto' | 'cartao'>('pix');
   const [parcelas, setParcelas] = useState(1);
+  const [dataVencimento, setDataVencimento] = useState('');
 
   // Validation errors
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -110,7 +111,10 @@ export default function VendaPage({ params }: { params: any }) {
   }
 
   const basePrice = proposal.valorAcordado || 0;
-  const isAnual = proposal.planoTipo === 'Anual' || proposal.planoNome.toLowerCase().includes('anual');
+  const isAnual = proposal.planoTipo === 'Anual' || 
+                  proposal.planoNome.toLowerCase().includes('anual') || 
+                  proposal.duracao === 'anual' || 
+                  proposal.vigenciaQtd >= 12;
 
   // Business Rules for dynamic calculations:
   // Card applies a +5% markup
@@ -161,6 +165,20 @@ export default function VendaPage({ params }: { params: any }) {
     if (!cidade.trim()) errorsList.push('Cidade é obrigatória.');
     if (!estado.trim() || estado.length !== 2) errorsList.push('UF do estado é obrigatória (2 letras).');
 
+    if (!dataVencimento) {
+      errorsList.push('Data do primeiro vencimento é obrigatória.');
+    } else {
+      const selectedDate = new Date(dataVencimento + 'T00:00:00');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const maxDate = new Date(today);
+      maxDate.setDate(maxDate.getDate() + 31);
+      
+      if (selectedDate < today || selectedDate > maxDate) {
+        errorsList.push('A data do primeiro vencimento deve estar entre hoje e os próximos 31 dias.');
+      }
+    }
+
     if (errorsList.length > 0) {
       setValidationErrors(errorsList);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -173,6 +191,7 @@ export default function VendaPage({ params }: { params: any }) {
       formaPagamentoEscolhida: formaPagamento,
       parcelasEscolhidas: currentInstallments,
       valorFinalRecalculado: finalPrice,
+      dataVencimentoEscolhida: dataVencimento,
       dadosPreenchidos: {
         nome,
         cpf,
@@ -231,6 +250,11 @@ export default function VendaPage({ params }: { params: any }) {
     );
   }
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const maxDateObj = new Date();
+  maxDateObj.setDate(maxDateObj.getDate() + 31);
+  const maxDateStr = maxDateObj.toISOString().split('T')[0];
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '40px 20px', fontFamily: 'var(--font-body)' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -288,14 +312,14 @@ export default function VendaPage({ params }: { params: any }) {
                 <input className="form-control" type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group">
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF (Apenas números) *</label>
-                <input className="form-control" type="text" value={cpf} onChange={handleCpfChange} maxLength={11} placeholder="CPF do titular" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp *</label>
+                <input className="form-control" type="text" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(99) 99999-9999" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
               <div className="form-group">
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp *</label>
-                <input className="form-control" type="text" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(99) 99999-9999" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF (Apenas números) *</label>
+                <input className="form-control" type="text" value={cpf} onChange={handleCpfChange} maxLength={11} placeholder="CPF do titular" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
               <div className="form-group">
@@ -392,6 +416,23 @@ export default function VendaPage({ params }: { params: any }) {
                     </button>
                   );
                 })}
+              </div>
+
+              <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Data do Primeiro Vencimento *</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={dataVencimento} 
+                  onChange={(e) => setDataVencimento(e.target.value)} 
+                  min={todayStr} 
+                  max={maxDateStr} 
+                  required 
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} 
+                />
+                <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                  Selecione uma data para o primeiro vencimento entre hoje e os próximos 31 dias.
+                </small>
               </div>
 
               {/* Dynamic total message */}

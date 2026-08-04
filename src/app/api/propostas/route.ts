@@ -116,6 +116,7 @@ export async function PUT(request: Request) {
       formaPagamentoEscolhida,
       parcelasEscolhidas,
       valorFinalRecalculado,
+      dataVencimentoEscolhida,
       dadosPreenchidos
     } = body;
 
@@ -152,6 +153,7 @@ export async function PUT(request: Request) {
     proposal.formaPagamentoEscolhida = formaPagamentoEscolhida;
     proposal.parcelasEscolhidas = parcelasEscolhidas;
     proposal.valorFinalRecalculado = valorFinalRecalculado;
+    proposal.dataVencimentoEscolhida = dataVencimentoEscolhida || '';
     proposal.dadosPreenchidos = dadosPreenchidos;
 
     await proposal.save();

@@ -20,6 +20,7 @@ const ProposalSchema = new Schema({
   formaPagamentoEscolhida: { type: String, default: '' }, // 'pix', 'boleto', 'cartao'
   parcelasEscolhidas: { type: Number, default: 1 },
   valorFinalRecalculado: { type: Number, default: 0 },
+  dataVencimentoEscolhida: { type: String, default: '' },
   dadosPreenchidos: {
     telefone: { type: String, default: '' },
     cep: { type: String, default: '' },
