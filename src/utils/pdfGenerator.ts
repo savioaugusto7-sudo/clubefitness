@@ -3556,7 +3556,11 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
       dataVencimento: com.vencimento,
       observacoesContratuais: com.observacoesContratuais || contract?.observacoesContratuais,
       unidadeContratada: com.unidadeContratada || plan?.unidadeAtendimento,
-      creditosMensais: (Number(com.frequencia) * 4 + 1) || plan?.creditosTotal || 0
+      creditosMensais: (Number(com.frequencia) * 4 + 1) || plan?.creditosTotal || 0,
+      duracao: com.duracao,
+      vigenciaQtd: com.duracaoQtd,
+      criarRecorrenciaMensal: com.criarRecorrenciaMensal,
+      recorrenciaMeses: com.recorrenciaMeses
     });
   }
 
@@ -3821,7 +3825,11 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
         dataVencimento: com.vencimento,
         observacoesContratuais: com.observacoesContratuais || contract?.observacoesContratuais,
         unidadeContratada: com.unidadeContratada || plan?.unidadeAtendimento,
-        creditosMensais: (Number(com.frequencia) * 4 + 1) || plan?.creditosTotal || 0
+        creditosMensais: (Number(com.frequencia) * 4 + 1) || plan?.creditosTotal || 0,
+        duracao: com.duracao,
+        vigenciaQtd: com.duracaoQtd,
+        criarRecorrenciaMensal: com.criarRecorrenciaMensal,
+        recorrenciaMeses: com.recorrenciaMeses
       });
     }
 

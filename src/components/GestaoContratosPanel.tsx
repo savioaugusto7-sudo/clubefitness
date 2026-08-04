@@ -681,7 +681,11 @@ export default function GestaoContratosPanel({
       dataVencimento: dcVencimento,
       observacoesContratuais: dcObservacoesContratuais,
       unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento,
-      creditosMensais: dcFrequencia * 4 + 1
+      creditosMensais: dcFrequencia * 4 + 1,
+      duracao: dcDuracao,
+      vigenciaQtd: dcVigenciaQtd,
+      criarRecorrenciaMensal: dcCriarRecorrencia,
+      recorrenciaMeses: dcRecorrenciaMeses
     });
   };
 

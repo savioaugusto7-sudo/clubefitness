@@ -769,7 +769,11 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       dataVencimento: dcVencimento,
       observacoesContratuais: dcObservacoesContratuais,
       unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento,
-      creditosMensais: dcFrequencia * 4 + 1
+      creditosMensais: dcFrequencia * 4 + 1,
+      duracao: dcDuracao,
+      vigenciaQtd: dcVigenciaQtd,
+      criarRecorrenciaMensal: false,
+      recorrenciaMeses: 12
     });
   };
 

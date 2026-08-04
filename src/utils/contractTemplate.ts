@@ -117,12 +117,13 @@ export interface ContractData {
   observacoesContratuais?: string;
   unidadeContratada?: string;
   creditosMensais?: number;
+  duracao?: string;
+  vigenciaQtd?: number;
+  criarRecorrenciaMensal?: boolean;
+  recorrenciaMeses?: number;
 }
 
 export function generateContractTemplate(data: ContractData): string {
-  const isAnual = (data.planTipo === 'Anual' || data.planNome.toLowerCase().includes('anual'));
-  const vigenciaText = isAnual ? '12 (doze) meses' : '1 (um) mês';
-
   // Calculations
   const precoBase = data.planPreco || 0;
   const descVal = Number(data.descontoValor) || 0;
@@ -136,11 +137,52 @@ export function generateContractTemplate(data: ContractData): string {
   const parcelasCount = Number(data.parcelas) || 1;
   const valorParcela = valorFinal / parcelasCount;
 
+  // Vigencia & Recorrencia rules
+  const customDuracao = data.duracao || 'mensal';
+  const customVigenciaQtd = Number(data.vigenciaQtd) || 1;
+  const isRecorrente = Boolean(data.criarRecorrenciaMensal);
+  const recorrenciaMeses = Number(data.recorrenciaMeses) || 12;
+
+  // Check if it is a monthly contract of 1 month (with or without recurrence)
+  const isMensalSemVinculo = customDuracao === 'mensal' && customVigenciaQtd === 1;
+
+  // official contract isAnual rule
+  const isAnual = !isMensalSemVinculo && (
+    customDuracao === 'anual' || 
+    customVigenciaQtd >= 12 || 
+    (isRecorrente && recorrenciaMeses >= 12) || 
+    (data.planTipo === 'Anual' || data.planNome.toLowerCase().includes('anual'))
+  );
+
+  let vigenciaText = '';
+  if (isRecorrente && isMensalSemVinculo) {
+    vigenciaText = '1 (um) mês';
+  } else if (isRecorrente) {
+    vigenciaText = `${recorrenciaMeses} (${recorrenciaMeses === 12 ? 'doze' : recorrenciaMeses}) meses`;
+  } else if (customDuracao === 'semana') {
+    vigenciaText = `${customVigenciaQtd} semana(s)`;
+  } else if (customDuracao === 'anual') {
+    vigenciaText = `${customVigenciaQtd * 12} meses`;
+  } else {
+    vigenciaText = `${customVigenciaQtd} ${customVigenciaQtd > 1 ? 'meses' : 'mês'}`;
+  }
+
   // Dates
   const todayStr = new Date().toISOString().split('T')[0];
   const dateInicio = data.dataInicio || todayStr;
   const startD = new Date(dateInicio + 'T00:00:00');
-  startD.setMonth(startD.getMonth() + (isAnual ? 12 : 1));
+  
+  if (isRecorrente && isMensalSemVinculo) {
+    startD.setMonth(startD.getMonth() + 1);
+  } else if (isRecorrente) {
+    startD.setMonth(startD.getMonth() + recorrenciaMeses);
+  } else if (customDuracao === 'semana') {
+    startD.setDate(startD.getDate() + (customVigenciaQtd * 7));
+  } else if (customDuracao === 'anual') {
+    startD.setMonth(startD.getMonth() + (customVigenciaQtd * 12));
+  } else {
+    startD.setMonth(startD.getMonth() + customVigenciaQtd);
+  }
   const dateFim = startD.toISOString().split('T')[0];
 
   const dateVenc = data.dataVencimento || todayStr;
@@ -236,7 +278,13 @@ export function generateContractTemplate(data: ContractData): string {
 
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA IV - DO PREÇO E DO PAGAMENTO</h3>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      4.1. Contraprestação. A título de contraprestação pelos serviços a serem prestados pelo Contratado à Contratante, nos termos deste Contrato, será pago o valor líquido de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(valorParcela)})</strong> cada, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados, por meio de <strong>${formaPag}</strong>.
+      4.1. Contraprestação. A título de contraprestação pelos serviços a serem prestados pelo Contratado à Contratante, nos termos deste Contrato, ${
+        isRecorrente && isMensalSemVinculo
+          ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal via <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados.`
+          : isRecorrente
+            ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(recorrenciaMeses)}</strong> mensalidades recorrentes consecutivas por meio de <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados.`
+            : `será pago o valor líquido de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(valorParcela)})</strong> cada, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados, por meio de <strong>${formaPag}</strong>.`
+      }
     </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
       4.2. Mora. Em caso de atraso injustificado no pagamento da Contraprestação, incidirão sobre esta juros de 1% a.m. (um por cento ao mês) e multa compensatória de 2% (dois por cento) até que o valor principal venha a ser pago, salvo quando a Contratada tiver dado causa à mora.
