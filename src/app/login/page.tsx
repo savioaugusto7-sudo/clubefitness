@@ -267,6 +267,10 @@ function LoginContent() {
           </form>
         )}
 
+        <div style={{ marginTop: '24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          Ainda não possui cadastro? <a href="/cadastro" style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>Cadastre-se aqui para iniciar</a>
+        </div>
+
         {process.env.NODE_ENV === 'development' && (
           <>
             <div className="login-divider">
