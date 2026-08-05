@@ -433,7 +433,7 @@ export async function downloadReportPDF(report: any) {
 
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Conduta / Intervenção Realizada em Sessão:</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.conduta}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.conduta || 'Não realizada/registrada nesta sessão.'}</div>
             </div>
 
             <div style="margin-bottom: 10px;">
@@ -1150,7 +1150,7 @@ export async function downloadReportPDF(report: any) {
 
         <div class="section-card">
           <div class="section-card-title">Conduta Fisioterapêutica Aplicada</div>
-          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.conduta}</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.conduta || 'Não realizada/registrada nesta sessão.'}</div>
         </div>
 
         <div class="section-card">

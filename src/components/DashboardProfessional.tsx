@@ -741,6 +741,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [repDate, setRepDate] = useState('');
   const [repPain, setRepPain] = useState(5);
   const [repContent, setRepContent] = useState('');
+  const [incluirConduta, setIncluirConduta] = useState(false);
+  const [incluirPrescricao, setIncluirPrescricao] = useState(false);
   const [repType, setRepType] = useState<'simplificado' | 'completo'>('completo');
   const [repActiveTab, setRepActiveTab] = useState<'anamnese' | 'goniometria' | 'testes'>('anamnese');
   
@@ -1182,8 +1184,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
               setRepDate(p.repDate || '');
               setRepType(p.repType || 'simplificado');
               setRepContent(p.repContent || '');
+              setIncluirConduta(!!p.repContent);
               setRepPain(p.repPain || 5);
               setRepExercicios(p.repExercicios || '');
+              setIncluirPrescricao(!!p.repExercicios);
               if (p.gGonio) setGGonio(p.gGonio);
               if (p.repQueixas) setRepQueixas(p.repQueixas);
               setRepTraumas(p.repTraumas || '');
@@ -2452,8 +2456,8 @@ goniometria: {
         conteudo: {
           queixaPrincipal: repType === 'simplificado' ? repContent : (repQueixas[0]?.dorOnde || 'Anamnese Completa'),
           dorEscala: repType === 'simplificado' ? Number(repPain) : Number(repQueixas[0]?.dorIntensidade || 5),
-          exercicios: repExercicios,
-          conduta: repContent
+          exercicios: repType === 'simplificado' ? repExercicios : (incluirPrescricao ? repExercicios : ''),
+          conduta: repType === 'simplificado' ? repContent : (incluirConduta ? repContent : '')
         },
         pdfName: `Relatorio_Fisioterapia_${Date.now()}.pdf`,
         pdf_url: repPdfUrl || '',
@@ -2623,8 +2627,10 @@ goniometria: {
             setSdPrpsD(0);
             setSdPrpsE(0);
             setRepExercicios('');
+            setIncluirPrescricao(false);
             setRepCustomTests([]);
             setRepContent('');
+            setIncluirConduta(false);
             setRepPdfUrl('');
             setRepPdfAttachName('');
             setRepAvaliador(executorProfId);
@@ -8057,30 +8063,62 @@ goniometria: {
                 {(repActiveStep === 7) && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Conduta & Exercícios Domiciliares</h4>
-                    <div className="form-group">
-                      <label style={{ fontWeight: '600' }}>Conduta Fisioterapêutica Aplicada (Sessão)</label>
-                      <textarea
-                        className="form-control"
-                        rows={6}
-                        value={repContent}
-                        onChange={e => setRepContent(e.target.value)}
-                        placeholder="Ex: Mobilização articular passiva da coluna lombar, liberação miofascial de quadrado lombar, aplicação de agulhamento seco..."
-                        required
-                      />
-                      <small style={{ color: 'var(--text-muted)' }}>Descreva as técnicas manuais, recursos físicos e condutas executadas em sessão.</small>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', background: 'var(--bg-darker)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '10px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
+                        <input
+                          type="checkbox"
+                          checked={incluirConduta}
+                          onChange={e => {
+                            setIncluirConduta(e.target.checked);
+                            if (!e.target.checked) setRepContent('');
+                          }}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+                        />
+                        Habilitar Conduta Fisioterapêutica Aplicada
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
+                        <input
+                          type="checkbox"
+                          checked={incluirPrescricao}
+                          onChange={e => {
+                            setIncluirPrescricao(e.target.checked);
+                            if (!e.target.checked) setRepExercicios('');
+                          }}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+                        />
+                        Habilitar Prescrição de Autocuidado
+                      </label>
                     </div>
 
-                    <div className="form-group">
-                      <label style={{ fontWeight: '600' }}>Prescrição de Autocuidado / Exercícios para Casa</label>
-                      <textarea
-                        className="form-control"
-                        rows={6}
-                        value={repExercicios}
-                        onChange={e => setRepExercicios(e.target.value)}
-                        placeholder="Ex: Ponte pélvica isométrica 3x45s, alongamento de flexores de quadril..."
-                      />
-                      <small style={{ color: 'var(--text-muted)' }}>Indique orientações ergonômicas e exercícios prescritos ao paciente.</small>
-                    </div>
+                    {incluirConduta && (
+                      <div className="form-group">
+                        <label style={{ fontWeight: '600' }}>Conduta Fisioterapêutica Aplicada (Sessão) *</label>
+                        <textarea
+                          className="form-control"
+                          rows={6}
+                          value={repContent}
+                          onChange={e => setRepContent(e.target.value)}
+                          placeholder="Ex: Mobilização articular passiva da coluna lombar, liberação miofascial de quadrado lombar, aplicação de agulhamento seco..."
+                          required
+                        />
+                        <small style={{ color: 'var(--text-muted)' }}>Descreva as técnicas manuais, recursos físicos e condutas executadas em sessão.</small>
+                      </div>
+                    )}
+
+                    {incluirPrescricao && (
+                      <div className="form-group">
+                        <label style={{ fontWeight: '600' }}>Prescrição de Autocuidado / Exercícios para Casa *</label>
+                        <textarea
+                          className="form-control"
+                          rows={6}
+                          value={repExercicios}
+                          onChange={e => setRepExercicios(e.target.value)}
+                          placeholder="Ex: Ponte pélvica isométrica 3x45s, alongamento de flexores de quadril..."
+                          required
+                        />
+                        <small style={{ color: 'var(--text-muted)' }}>Indique orientações ergonômicas e exercícios prescritos ao paciente.</small>
+                      </div>
+                    )}
 
                     {/* PDF Attachment Section */}
                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', marginTop: '8px' }}>
