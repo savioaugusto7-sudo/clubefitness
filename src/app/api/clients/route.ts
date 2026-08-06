@@ -72,6 +72,12 @@ export async function POST(request: Request) {
         password: hashedPassword,
         needPasswordChange: true
       });
+    } else {
+      // Check if client document already exists for this user
+      const clientExists = await Client.findOne({ userId: user._id });
+      if (clientExists) {
+        return NextResponse.json({ success: false, error: 'Este e-mail já possui um perfil de aluno cadastrado no sistema.' }, { status: 400 });
+      }
     }
 
     // 2. Count existing clients to generate sequential code

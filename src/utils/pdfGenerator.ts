@@ -1183,7 +1183,10 @@ export async function downloadReportPDF(report: any) {
     pagebreak: { mode: ['css', 'legacy'] }
   };
 
-  if (report.pdf_url) {
+  const hasAttachedPdf = !!report.pdf_url;
+  const hasExamesPdfs = report.examesComplementares && report.examesComplementares.length > 0;
+
+  if (hasAttachedPdf || hasExamesPdfs) {
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
       try {
         safeRemoveWrapper(pdfWrapper);
@@ -1200,18 +1203,36 @@ export async function downloadReportPDF(report: any) {
         const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
         systemPages.forEach((page: any) => mergedPdf.addPage(page));
 
-        const attachedBlob = base64ToBlob(report.pdf_url, 'application/pdf');
-        const attachedPdfBuffer = await attachedBlob.arrayBuffer();
-        const attachedPdfDoc = await PDFDocument.load(attachedPdfBuffer);
-        const attachedPages = await mergedPdf.copyPages(attachedPdfDoc, attachedPdfDoc.getPageIndices());
-        attachedPages.forEach((page: any) => mergedPdf.addPage(page));
+        if (hasAttachedPdf) {
+          const attachedBlob = base64ToBlob(report.pdf_url, 'application/pdf');
+          const attachedPdfBuffer = await attachedBlob.arrayBuffer();
+          const attachedPdfDoc = await PDFDocument.load(attachedPdfBuffer);
+          const attachedPages = await mergedPdf.copyPages(attachedPdfDoc, attachedPdfDoc.getPageIndices());
+          attachedPages.forEach((page: any) => mergedPdf.addPage(page));
+        }
+
+        if (hasExamesPdfs) {
+          for (const exame of report.examesComplementares) {
+            if (exame.pdfB64) {
+              try {
+                const examBlob = base64ToBlob(exame.pdfB64, 'application/pdf');
+                const examPdfBuffer = await examBlob.arrayBuffer();
+                const examPdfDoc = await PDFDocument.load(examPdfBuffer);
+                const examPages = await mergedPdf.copyPages(examPdfDoc, examPdfDoc.getPageIndices());
+                examPages.forEach((page: any) => mergedPdf.addPage(page));
+              } catch (exErr: any) {
+                console.error(`Erro ao mesclar o exame "${exame.nome}":`, exErr);
+              }
+            }
+          }
+        }
 
         const mergedPdfBytes = await mergedPdf.save();
         const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
         triggerDirectDownload(mergedBlob, options.filename);
       } catch (error: any) {
         console.error('Erro na mesclagem dos PDFs:', error);
-        alert('Erro ao mesclar o PDF anexo com o relatório: ' + error.message);
+        alert('Erro ao mesclar os PDFs anexos com o relatório: ' + error.message);
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
