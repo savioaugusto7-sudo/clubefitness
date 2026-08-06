@@ -28,10 +28,16 @@ export async function POST(request: Request) {
         nome,
         email: email.toLowerCase(),
         tipo: 'professional',
+        roles: ['professional'],
         cargo: cargo || 'Profissional'
       });
     } else {
       user.tipo = 'professional';
+      if (!user.roles) {
+        user.roles = ['professional'];
+      } else if (!user.roles.includes('professional')) {
+        user.roles = [...user.roles, 'professional'];
+      }
       if (cargo) user.cargo = cargo;
       await user.save();
     }
