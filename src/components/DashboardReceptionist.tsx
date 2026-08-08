@@ -7,6 +7,7 @@ import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import SearchableSelect from './SearchableSelect';
 import GestaoContratosPanel from './GestaoContratosPanel';
+import DynamusPanel from './DynamusPanel';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -2947,6 +2948,10 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         )}
       </div>
     );
+  }
+
+  if (activeTab === 'dynamus') {
+    return <DynamusPanel clients={clients} plans={plans} userCargo="Recepcionista" fetchData={fetchData} />;
   }
 
   return null;

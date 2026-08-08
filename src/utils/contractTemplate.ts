@@ -94,6 +94,7 @@ function creditosExtenso(n: number): string {
 export interface ContractData {
   clientNome: string;
   clientCpf: string;
+  clientRg?: string;
   clientEmail?: string;
   clientTelefone?: string;
   clientEndereco?: string;
@@ -220,6 +221,217 @@ export function generateContractTemplate(data: ContractData): string {
   const now = new Date();
   const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const dataAssinaturaExtenso = `${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}`;
+
+  const isMonitorado = data.planNome.toLowerCase().includes('monitorado');
+  if (isMonitorado) {
+    const contratanteTextMonitorado = `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, portador(a) do RG nº ${data.clientRg || '___________'} e inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, doravante denominado(a) simplesmente CONTRATANTE.`;
+
+    const contratadaTextMonitorado = `<strong>CONTRATADA:</strong> CLUBE FITNESS FISIO LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.883.492/0001-04, com sede na Rua Senador Lima Guimarães, nº 229, Estoril, Belo Horizonte/MG, CEP 30455-600, doravante denominada simplesmente CONTRATADA.`;
+
+    let formaVigencia = 'Mensal';
+    if (isAnual) {
+      formaVigencia = 'Anual';
+    } else if (customDuracao === 'mensal') {
+      if (customVigenciaQtd === 3) formaVigencia = 'Trimestral';
+      else if (customVigenciaQtd === 6) formaVigencia = 'Semestral';
+      else if (customVigenciaQtd === 12) formaVigencia = 'Anual';
+    }
+
+    let descontoTextoExtra = '';
+    if (descVal > 0) {
+      if (data.descontoTipo === 'percentual') {
+        descontoTextoExtra = `${descVal}%`;
+      } else {
+        descontoTextoExtra = `R$ ${descVal.toFixed(2).replace('.', ',')} (${valorExtenso(descVal)})`;
+      }
+    } else {
+      descontoTextoExtra = '_____% / R$ __________';
+    }
+
+    const vigenciaPrazoDesc = isAnual ? '12 (doze) meses' : vigenciaText;
+
+    const rescisaoClauses = [];
+    const isOneMonthNoRecur = isMensalSemVinculo && !isRecorrente;
+    if (!isOneMonthNoRecur) {
+      rescisaoClauses.push(`7.1. Este contrato poderá ser rescindido por qualquer das partes, mediante comunicação por escrito com antecedência mínima de 30 (trinta) dias.`);
+    }
+    const nextNum = rescisaoClauses.length + 1;
+    rescisaoClauses.push(`7.${nextNum}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor das mensalidades restantes para o fim do contrato, a título de cláusula penal.`);
+
+    let monitoradoHtml = `
+      <h2 style="font-size: 13pt; font-weight: bold; margin: 10px 0 20px 0; text-transform: uppercase; text-align: center;">TERMO DE ADESÃO A PLANO CLUBE FITNESS MONITORADO</h2>
+
+      <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">
+        ${contratadaTextMonitorado}
+      </p>
+
+      <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">
+        ${contratanteTextMonitorado}
+      </p>
+
+      <p style="font-size: 9.5pt; margin-bottom: 14px; line-height: 1.4; text-align: justify;">
+        As partes acima qualificadas celebram o presente Termo de Adesão, que se regerá pelas seguintes cláusulas e condições:
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA PRIMEIRA - DO OBJETO</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.1. O presente instrumento tem por objeto a prestação de serviços de treinamento personalizado pela CONTRATADA ao(à) CONTRATANTE, conforme o plano selecionado no momento da contratação.
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SEGUNDA - DAS OBRIGAÇÕES DA CONTRATADA</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        2.1. Prestar os serviços de condicionamento físico, treinamento personalizado e acompanhamento profissional com zelo, qualidade e profissionalismo, por meio de profissionais habilitados e qualificados.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        2.2. Disponibilizar instalações, equipamentos e materiais adequados à execução dos serviços.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        2.3. Manter sigilo sobre as informações pessoais e de saúde do(a) CONTRATANTE, nos termos da legislação vigente, em especial a Lei Geral de Proteção de Dados (LGPD).
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        2.4. Orientar o(a) CONTRATANTE sobre os procedimentos, exercícios e condutas a serem adotados durante e após as sessões.
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA TERCEIRA - DAS OBRIGAÇÕES DO(A) CONTRATANTE</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        3.1. Efetuar o pagamento do plano contratado de forma pontual, nos valores e datas acordados.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        3.2. Respeitar as orientações dos profissionais da CONTRATADA, visando à eficácia e segurança do CONTRATANTE.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        3.3. Informar à CONTRATADA sobre qualquer alteração das informações do presente instrumento ou condições de saúde que possam interferir no objeto do contrato.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        3.4. Zelar pelos equipamentos e instalações da CONTRATADA, responsabilizando-se por eventuais danos causados por uso indevido.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        3.5. A(O) CONTRATANTE se compromete a realizar o agendamento dos atendimentos com antecedência mínima de 2 (duas) horas, observado que, após esse prazo, o sistema de agendamento não permitirá novas marcações.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        3.6. Em caso de cancelamento ou remarcação do atendimento, a(o) CONTRATANTE deverá comunicar a CONTRATADA com antecedência mínima de 6 (seis) horas para que tenha direito à restituição do crédito para novo agendamento, conforme as regras estabelecidas neste contrato.
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUARTA - DO PAGAMENTO</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão:
+        ${
+          isRecorrente && isMensalSemVinculo
+            ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
+            : isRecorrente
+              ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(recorrenciaMeses)}</strong> mensalidades recorrentes consecutivas, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
+              : `será pago o valor líquido de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(valorParcela)})</strong> cada, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
+        }
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        4.2. O valor dos serviços será reajustado anualmente, com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        4.3. O pagamento será realizado na forma <strong>${formaVigencia}</strong>, por meio de <strong>${formaPag}</strong>, com vencimento todo dia <strong>${diaVenc}</strong> de cada mês.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        4.4. O atraso no pagamento sujeitará o(a) CONTRATANTE à multa de 2% (dois por cento) sobre o valor devido, acrescido de juros de mora de 1% (um por cento) ao mês.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        4.5. Fica concedido ao CONTRATANTE um desconto de <strong>${descontoTextoExtra}</strong> sobre o valor do plano contratado, conforme negociação entre as partes. O desconto será aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA E PRAZO</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        5.1. O presente contrato tem vigência de <strong>${vigenciaPrazoDesc}</strong>, com início em <strong>${fmtDate(dateInicio)}</strong> e término previsto para <strong>${fmtDate(dateFim)}</strong>.
+      </p>
+      ${
+        (!isAnual && isRecorrente)
+          ? `
+            <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+              5.2. O presente contrato será renovado automaticamente ao término do prazo previsto, em caso de ausência de manifestação em sentido contrário, passando a vigorar por prazo indeterminado.
+            </p>
+          `
+          : ''
+      }
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SEXTA - DO RECESSO</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        6.1. A(O) CONTRATANTE terá um recesso de final de ano compreendido entre o Natal e o primeiro dia útil de janeiro, período este considerado como férias já incluídas no pacote contratado, permanecendo a cobrança do plano normalmente, sem direito à reposição, compensação ou desconto das aulas não realizadas durante o referido recesso.
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SÉTIMA - DA RESCISÃO</h3>
+      ${rescisaoClauses.map(clause => `
+        <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+          ${clause}
+        </p>
+      `).join('')}
+
+      ${
+        isAnual
+          ? `
+            <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA OITAVA - DO CONGELAMENTO DO PLANO</h3>
+            <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+              8.1. Fica assegurado ao(à) CONTRATANTE o direito de solicitar o congelamento (suspensão temporária) do plano pelo período de 30 (trinta) dias, a ser usufruído dentro do prazo de vigência de 12 (doze) meses, contados a partir da assinatura do contrato.
+            </p>
+            <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+              8.1.1. O período de congelamento do contrato poderá ser utilizado de forma fracionada, em contagem semanal, desde que o total dos períodos de congelamento não ultrapasse o limite previsto em cláusula 8.1.
+            </p>
+          `
+          : ''
+      }
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${isAnual ? 'NONA' : 'OITAVA'} - DA RESPONSABILIDADE</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${isAnual ? '9' : '8'}.1. A CONTRATADA não se responsabiliza por lesões ou danos decorrentes do não cumprimento das orientações profissionais por parte do(a) CONTRATANTE ou da omissão de informações relevantes sobre seu estado de saúde.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${isAnual ? '9' : '8'}.2. A responsabilidade da CONTRATADA limita-se à prestação dos serviços nos termos aqui descritos, não garantindo resultados específicos, que podem variar conforme a condição e a resposta individual de cada CONTRATANTE.
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${isAnual ? 'DÉCIMA' : 'NONA'} - DA PROTEÇÃO DE DADOS</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${isAnual ? '10' : '9'}.1. O(A) CONTRATANTE autoriza a CONTRATADA a coletar, armazenar e tratar seus dados pessoais e de saúde estritamente para os fins de execução deste contrato e prestação dos serviços, em conformidade com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados).
+      </p>
+
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${isAnual ? 'DÉCIMA PRIMEIRA' : 'DÉCIMA'} - DO FORO</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${isAnual ? '11' : '10'}.1. Fica eleito o foro da Comarca de Belo Horizonte para dirimir quaisquer controvérsias oriundas do presente contrato, com renúncia a qualquer outro, por mais privilegiado que seja.
+      </p>
+
+      <p style="font-size: 9.5pt; margin-top: 20px; margin-bottom: 20px; line-height: 1.4; text-align: justify;">
+        E, por estarem justas e contratadas, as partes assinam o presente instrumento.
+      </p>
+
+      <p style="font-size: 9.5pt; margin-bottom: 40px; font-weight: bold;">
+        Belo Horizonte/MG, ${dataAssinaturaExtenso}.
+      </p>
+
+      <!-- Signatures -->
+      <div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid;">
+        <div style="flex: 1; text-align: center; margin-right: 20px;">
+          <div style="border-top: 1px solid #333; padding-top: 6px; margin-top: 30px;">
+            <strong>CONTRATANTE:</strong><br/>
+            ${data.clientNome || '[-]'}<br/>
+            <small>CPF: ${data.clientCpf || '[-]'}</small>
+          </div>
+        </div>
+        <div style="flex: 1; text-align: center; margin-left: 20px;">
+          <div style="border-top: 1px solid #333; padding-top: 6px; margin-top: 30px;">
+            <strong>CONTRATADA:</strong><br/>
+            CLUBE FITNESS FISIO LTDA<br/>
+            <small>CNPJ: 52.883.492/0001-04</small>
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (data.observacoesContratuais) {
+      monitoradoHtml += `
+        <div style="margin-top: 30px; font-size: 9.5pt; border-top: 1px solid var(--border-color); padding-top: 10px; page-break-inside: avoid; break-inside: avoid;">
+          <strong>Observações Contratuais:</strong><br/>
+          ${data.observacoesContratuais}
+        </div>
+      `;
+    }
+
+    return monitoradoHtml;
+  }
 
   let html = `
     <h2 style="font-size: 13pt; font-weight: bold; margin: 10px 0 20px 0; text-transform: uppercase; text-align: center;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h2>

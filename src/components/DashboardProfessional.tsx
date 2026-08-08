@@ -335,6 +335,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [repTimerSeconds, setRepTimerSeconds] = useState(0);
   const [stTimerSeconds, setStTimerSeconds] = useState(0);
   const [asPrefilledFields, setAsPrefilledFields] = useState<Record<string, boolean>>({});
+  const [repPrefilledFields, setRepPrefilledFields] = useState<Record<string, boolean>>({});
   const [asMeta2Meses, setAsMeta2Meses] = useState('');
   const [asMeta1Ano, setAsMeta1Ano] = useState('');
 
@@ -1171,85 +1172,235 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   useEffect(() => {
     if (!showReportModal) {
       setCheckedRepDraftClient(null);
+      setRepPrefilledFields({});
       return;
     }
     if (repClient && repClient !== checkedRepDraftClient) {
       setCheckedRepDraftClient(repClient);
-      const draft = localStorage.getItem('draft_report');
-      if (draft) {
-        try {
-          const p = JSON.parse(draft);
-          if (p.repClient === repClient) {
-            if (confirm('Encontramos um rascunho de relatório clínico não salvo para este aluno. Deseja recuperar os dados?')) {
-              setRepDate(p.repDate || '');
-              setRepType(p.repType || 'simplificado');
-              setRepContent(p.repContent || '');
-              setIncluirConduta(!!p.repContent);
-              setRepPain(p.repPain || 5);
-              setRepExercicios(p.repExercicios || '');
-              setIncluirPrescricao(!!p.repExercicios);
-              if (p.gGonio) setGGonio(p.gGonio);
-              if (p.repQueixas) setRepQueixas(p.repQueixas);
-              setRepTraumas(p.repTraumas || '');
-              setRepCirurgiasRealizou(p.repCirurgiasRealizou || 'nao');
-              if (p.repCirurgiasList) setRepCirurgiasList(p.repCirurgiasList);
-              setRepDoencas(p.repDoencas || '');
-              setRepTraumasEmo(p.repTraumasEmo || '');
-              setRepMedicao(p.repMedicao || '');
-              setRepDrogas(p.repDrogas || '');
-              setRepSonoHoras(p.repSonoHoras || 8);
-              setRepSonoTipo(p.repSonoTipo || 'continuo');
-              setRepSonoQualidade(p.repSonoQualidade || 'Bom');
-              setRepAlimentacaoDor(p.repAlimentacaoDor || '');
-              setRepAtividadeFisicaQual(p.repAtividadeFisicaQual || '');
-              setRepAtividadeFisicaInterfere(p.repAtividadeFisicaInterfere || '');
-              setRepStress(p.repStress || 5);
-              setRepControleStress(p.repControleStress || '');
-              setRepAtividadeFisica(p.repAtividadeFisica || 'nao');
-              setRepTermografiaRealizou(p.repTermografiaRealizou || 'nao');
-              setRepTermografiaImgB64(p.repTermografiaImgB64 || '');
-              if (p.repExamesList) setRepExamesList(p.repExamesList);
-              setRepDeRealizou(p.repDeRealizou || 'nao');
-              setRepDeTipo(p.repDeTipo || 'Tipo IV');
-              setRepDeAbdBilateral(p.repDeAbdBilateral || 'nao');
-              setRepDeAbdUnilateral(p.repDeAbdUnilateral || 'nao');
-              setRepDeDorAbd(p.repDeDorAbd || 'nao');
-              setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
-              if (p.repCirc) setRepCirc(p.repCirc);
-              const defaultTIlioDStatus = p.tThomasIliopsoasDStatus !== undefined ? p.tThomasIliopsoasDStatus : ((p.tThomasD === 'Positivo' || p.tThomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
-              const defaultTIlioEStatus = p.tThomasIliopsoasEStatus !== undefined ? p.tThomasIliopsoasEStatus : ((p.tThomasE === 'Positivo' || p.tThomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
-              const defaultTRetoDStatus = p.tThomasRetofemoralDStatus !== undefined ? p.tThomasRetofemoralDStatus : ((p.tThomasD === 'Positivo' || p.tThomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
-              const defaultTRetoEStatus = p.tThomasRetofemoralEStatus !== undefined ? p.tThomasRetofemoralEStatus : ((p.tThomasE === 'Positivo' || p.tThomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
-              
-              setTThomasIliopsoasDStatus(defaultTIlioDStatus);
-              setTThomasIliopsoasEStatus(defaultTIlioEStatus);
-              setTThomasRetofemoralDStatus(defaultTRetoDStatus);
-              setTThomasRetofemoralEStatus(defaultTRetoEStatus);
-              setTThomasIliopsoasD(p.tThomasIliopsoasD || '');
-              setTThomasIliopsoasE(p.tThomasIliopsoasE || '');
-              setTThomasRetofemoralD(p.tThomasRetofemoralD || '');
-              setTThomasRetofemoralE(p.tThomasRetofemoralE || '');
-              setYRealizou(p.yRealizou || 'nao');
-              setYLenD(p.yLenD || ''); setYLenE(p.yLenE || '');
-              setYAntD(p.yAntD || ''); setYAntE(p.yAntE || '');
-              setYPMD(p.yPMD || ''); setYPME(p.yPME || '');
-              setYPLD(p.yPLD || ''); setYPLE(p.yPLE || '');
-              setSdRealizou(p.sdRealizou || 'nao');
-              setSdPelvicaD(p.sdPelvicaD !== undefined ? p.sdPelvicaD : (p.sdPelvica || 0));
-              setSdPelvicaE(p.sdPelvicaE !== undefined ? p.sdPelvicaE : (p.sdPelvica || 0));
-              setSdAducaoD(p.sdAducaoD !== undefined ? p.sdAducaoD : (p.sdAducao || 0));
-              setSdAducaoE(p.sdAducaoE !== undefined ? p.sdAducaoE : (p.sdAducao || 0));
-              setSdValgoD(p.sdValgoD !== undefined ? p.sdValgoD : (p.sdValgo || 0));
-              setSdValgoE(p.sdValgoE !== undefined ? p.sdValgoE : (p.sdValgo || 0));
-              setSdPrpsD(p.sdPrpsD !== undefined ? p.sdPrpsD : (p.sdPrps || 0));
-              setSdPrpsE(p.sdPrpsE !== undefined ? p.sdPrpsE : (p.sdPrps || 0));
-              if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
+      const loadReportData = async () => {
+        let loadedDraft = false;
+        const draft = localStorage.getItem('draft_report');
+        if (draft) {
+          try {
+            const p = JSON.parse(draft);
+            if (p.repClient === repClient) {
+              if (confirm('Encontramos um rascunho de relatório clínico não salvo para este aluno. Deseja recuperar os dados?')) {
+                setRepDate(p.repDate || '');
+                setRepType(p.repType || 'simplificado');
+                setRepContent(p.repContent || '');
+                setIncluirConduta(!!p.repContent);
+                setRepPain(p.repPain || 5);
+                setRepExercicios(p.repExercicios || '');
+                setIncluirPrescricao(!!p.repExercicios);
+                if (p.gGonio) setGGonio(p.gGonio);
+                if (p.repQueixas) setRepQueixas(p.repQueixas);
+                setRepTraumas(p.repTraumas || '');
+                setRepCirurgiasRealizou(p.repCirurgiasRealizou || 'nao');
+                if (p.repCirurgiasList) setRepCirurgiasList(p.repCirurgiasList);
+                setRepDoencas(p.repDoencas || '');
+                setRepTraumasEmo(p.repTraumasEmo || '');
+                setRepMedicao(p.repMedicao || '');
+                setRepDrogas(p.repDrogas || '');
+                setRepSonoHoras(p.repSonoHoras || 8);
+                setRepSonoTipo(p.repSonoTipo || 'continuo');
+                setRepSonoQualidade(p.repSonoQualidade || 'Bom');
+                setRepAlimentacaoDor(p.repAlimentacaoDor || '');
+                setRepAtividadeFisicaQual(p.repAtividadeFisicaQual || '');
+                setRepAtividadeFisicaInterfere(p.repAtividadeFisicaInterfere || '');
+                setRepStress(p.repStress || 5);
+                setRepControleStress(p.repControleStress || '');
+                setRepAtividadeFisica(p.repAtividadeFisica || 'nao');
+                setRepTermografiaRealizou(p.repTermografiaRealizou || 'nao');
+                setRepTermografiaImgB64(p.repTermografiaImgB64 || '');
+                if (p.repExamesList) setRepExamesList(p.repExamesList);
+                setRepDeRealizou(p.repDeRealizou || 'nao');
+                setRepDeTipo(p.repDeTipo || 'Tipo IV');
+                setRepDeAbdBilateral(p.repDeAbdBilateral || 'nao');
+                setRepDeAbdUnilateral(p.repDeAbdUnilateral || 'nao');
+                setRepDeDorAbd(p.repDeDorAbd || 'nao');
+                setRepMaigneRealizou(p.repMaigneRealizou || 'nao');
+                if (p.repCirc) setRepCirc(p.repCirc);
+                const defaultTIlioDStatus = p.tThomasIliopsoasDStatus !== undefined ? p.tThomasIliopsoasDStatus : ((p.tThomasD === 'Positivo' || p.tThomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
+                const defaultTIlioEStatus = p.tThomasIliopsoasEStatus !== undefined ? p.tThomasIliopsoasEStatus : ((p.tThomasE === 'Positivo' || p.tThomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
+                const defaultTRetoDStatus = p.tThomasRetofemoralDStatus !== undefined ? p.tThomasRetofemoralDStatus : ((p.tThomasD === 'Positivo' || p.tThomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
+                const defaultTRetoEStatus = p.tThomasRetofemoralEStatus !== undefined ? p.tThomasRetofemoralEStatus : ((p.tThomasE === 'Positivo' || p.tThomasRetofemoralE > 0) ? 'Positivo' : 'Negativo');
+                
+                setTThomasIliopsoasDStatus(defaultTIlioDStatus);
+                setTThomasIliopsoasEStatus(defaultTIlioEStatus);
+                setTThomasRetofemoralDStatus(defaultTRetoDStatus);
+                setTThomasRetofemoralEStatus(defaultTRetoEStatus);
+                setTThomasIliopsoasD(p.tThomasIliopsoasD || '');
+                setTThomasIliopsoasE(p.tThomasIliopsoasE || '');
+                setTThomasRetofemoralD(p.tThomasRetofemoralD || '');
+                setTThomasRetofemoralE(p.tThomasRetofemoralE || '');
+                setYRealizou(p.yRealizou || 'nao');
+                setYLenD(p.yLenD || ''); setYLenE(p.yLenE || '');
+                setYAntD(p.yAntD || ''); setYAntE(p.yAntE || '');
+                setYPMD(p.yPMD || ''); setYPME(p.yPME || '');
+                setYPLD(p.yPLD || ''); setYPLE(p.yPLE || '');
+                setSdRealizou(p.sdRealizou || 'nao');
+                setSdPelvicaD(p.sdPelvicaD !== undefined ? p.sdPelvicaD : (p.sdPelvica || 0));
+                setSdPelvicaE(p.sdPelvicaE !== undefined ? p.sdPelvicaE : (p.sdPelvica || 0));
+                setSdAducaoD(p.sdAducaoD !== undefined ? p.sdAducaoD : (p.sdAducao || 0));
+                setSdAducaoE(p.sdAducaoE !== undefined ? p.sdAducaoE : (p.sdAducao || 0));
+                setSdValgoD(p.sdValgoD !== undefined ? p.sdValgoD : (p.sdValgo || 0));
+                setSdValgoE(p.sdValgoE !== undefined ? p.sdValgoE : (p.sdValgo || 0));
+                setSdPrpsD(p.sdPrpsD !== undefined ? p.sdPrpsD : (p.sdPrps || 0));
+                setSdPrpsE(p.sdPrpsE !== undefined ? p.sdPrpsE : (p.sdPrps || 0));
+                if (p.repTimerSeconds) setRepTimerSeconds(p.repTimerSeconds);
+                setRepPrefilledFields({});
+                loadedDraft = true;
+              }
             }
+          } catch (e) {
+            console.error('Error loading report draft', e);
           }
-        } catch (e) {
-          console.error('Error loading report draft', e);
         }
-      }
+
+        if (!loadedDraft) {
+          try {
+            const res = await fetch('/api/reports');
+            const json = await res.json();
+            if (json.success && json.data) {
+              const clientReports = json.data
+                .filter((r: any) => {
+                  const rClientId = typeof r.clienteId === 'object' ? r.clienteId?._id : r.clienteId;
+                  return rClientId === repClient;
+                })
+                .sort((a: any, b: any) => b.data.localeCompare(a.data));
+
+              if (clientReports.length > 0) {
+                const latest = clientReports[0];
+                const prefilled: Record<string, boolean> = {};
+                const mark = (key: string) => { prefilled[key] = true; };
+
+                if (latest.anamnese) {
+                  const anamnese = latest.anamnese;
+                  if (anamnese.queixas) {
+                    setRepQueixas(anamnese.queixas);
+                    if (anamnese.queixas.length > 0) mark('anamnese.queixas');
+                  } else {
+                    setRepQueixas([{ dorOnde: '', quandoComecou: '', comoIniciou: '', dorEvolucao: 'estavel', dorIntensidade: 5, dorTodoMomento: 'sim', desencadeiaPiora: '', melhoraDesaparece: '', caracteristicaDor: 'Pontual / Aguda', origens: [] }]);
+                  }
+
+                  if (anamnese.historico) {
+                    const hist = anamnese.historico;
+                    setRepTraumas(hist.traumas || '');
+                    if (hist.traumas) mark('anamnese.historico.traumas');
+
+                    setRepCirurgiasRealizou(hist.cirurgiasRealizou || 'nao');
+                    if (hist.cirurgiasRealizou && hist.cirurgiasRealizou !== 'nao') mark('anamnese.historico.cirurgiasRealizou');
+
+                    setRepCirurgiasList(hist.cirurgias || []);
+                    if (hist.cirurgias && hist.cirurgias.length > 0) mark('anamnese.historico.cirurgias');
+
+                    setRepDoencas(hist.doencasPregressasAtuais || '');
+                    if (hist.doencasPregressasAtuais) mark('anamnese.historico.doencasPregressasAtuais');
+
+                    setRepTraumasEmo(hist.traumasEmocionaisStress || '');
+                    if (hist.traumasEmocionaisStress) mark('anamnese.historico.traumasEmocionaisStress');
+
+                    setRepMedicao(hist.medicacao || '');
+                    if (hist.medicacao) mark('anamnese.historico.medicacao');
+
+                    setRepDrogas(hist.drogasRecreativas || '');
+                    if (hist.drogasRecreativas) mark('anamnese.historico.drogasRecreativas');
+                  } else {
+                    setRepTraumas('');
+                    setRepCirurgiasRealizou('nao');
+                    setRepCirurgiasList([]);
+                    setRepDoencas('');
+                    setRepTraumasEmo('');
+                    setRepMedicao('');
+                    setRepDrogas('');
+                  }
+
+                  if (anamnese.habitos) {
+                    const hab = anamnese.habitos;
+                    setRepSonoHoras(hab.sonoHoras !== undefined ? Number(hab.sonoHoras) : 8);
+                    if (hab.sonoHoras) mark('anamnese.habitos.sonoHoras');
+
+                    setRepSonoTipo(hab.sonoTipo || 'continuo');
+                    if (hab.sonoTipo) mark('anamnese.habitos.sonoTipo');
+
+                    setRepSonoQualidade(hab.sonoQualidade || 'Bom');
+                    if (hab.sonoQualidade) mark('anamnese.habitos.sonoQualidade');
+
+                    setRepAlimentacaoDor(hab.alimentacaoDor || '');
+                    if (hab.alimentacaoDor) mark('anamnese.habitos.alimentacaoDor');
+
+                    setRepAtividadeFisica(hab.atividadeFisicaFaz || 'nao');
+                    if (hab.atividadeFisicaFaz && hab.atividadeFisicaFaz !== 'nao') mark('anamnese.habitos.atividadeFisicaFaz');
+
+                    setRepAtividadeFisicaQual(hab.atividadeFisicaQual || '');
+                    if (hab.atividadeFisicaQual) mark('anamnese.habitos.atividadeFisicaQual');
+
+                    setRepAtividadeFisicaInterfere(hab.atividadeFisicaInterfere || '');
+                    if (hab.atividadeFisicaInterfere) mark('anamnese.habitos.atividadeFisicaInterfere');
+
+                    setRepStress(hab.stressNivel !== undefined ? Number(hab.stressNivel) : 5);
+                    if (hab.stressNivel) mark('anamnese.habitos.stressNivel');
+
+                    setRepControleStress(hab.controleStress || '');
+                    if (hab.controleStress) mark('anamnese.habitos.controleStress');
+                  } else {
+                    setRepSonoHoras(8);
+                    setRepSonoTipo('continuo');
+                    setRepSonoQualidade('Bom');
+                    setRepAlimentacaoDor('');
+                    setRepAtividadeFisica('nao');
+                    setRepAtividadeFisicaQual('');
+                    setRepAtividadeFisicaInterfere('');
+                    setRepStress(5);
+                    setRepControleStress('');
+                  }
+                } else {
+                  setRepQueixas([{ dorOnde: '', quandoComecou: '', comoIniciou: '', dorEvolucao: 'estavel', dorIntensidade: 5, dorTodoMomento: 'sim', desencadeiaPiora: '', melhoraDesaparece: '', caracteristicaDor: 'Pontual / Aguda', origens: [] }]);
+                  setRepTraumas('');
+                  setRepCirurgiasRealizou('nao');
+                  setRepCirurgiasList([]);
+                  setRepDoencas('');
+                  setRepTraumasEmo('');
+                  setRepMedicao('');
+                  setRepDrogas('');
+                  setRepSonoHoras(8);
+                  setRepSonoTipo('continuo');
+                  setRepSonoQualidade('Bom');
+                  setRepAlimentacaoDor('');
+                  setRepAtividadeFisica('nao');
+                  setRepAtividadeFisicaQual('');
+                  setRepAtividadeFisicaInterfere('');
+                  setRepStress(5);
+                  setRepControleStress('');
+                }
+                setRepPrefilledFields(prefilled);
+              } else {
+                setRepQueixas([{ dorOnde: '', quandoComecou: '', comoIniciou: '', dorEvolucao: 'estavel', dorIntensidade: 5, dorTodoMomento: 'sim', desencadeiaPiora: '', melhoraDesaparece: '', caracteristicaDor: 'Pontual / Aguda', origens: [] }]);
+                setRepTraumas('');
+                setRepCirurgiasRealizou('nao');
+                setRepCirurgiasList([]);
+                setRepDoencas('');
+                setRepTraumasEmo('');
+                setRepMedicao('');
+                setRepDrogas('');
+                setRepSonoHoras(8);
+                setRepSonoTipo('continuo');
+                setRepSonoQualidade('Bom');
+                setRepAlimentacaoDor('');
+                setRepAtividadeFisica('nao');
+                setRepAtividadeFisicaQual('');
+                setRepAtividadeFisicaInterfere('');
+                setRepStress(5);
+                setRepControleStress('');
+                setRepPrefilledFields({});
+              }
+            }
+          } catch (err) {
+            console.error('Error prefilling clinical report from db', err);
+          }
+        }
+      };
+      loadReportData();
     }
   }, [showReportModal, repClient, checkedRepDraftClient]);
 
@@ -2320,6 +2471,19 @@ goniometria: {
     setRepExamesList(repExamesList.filter((_, idx) => idx !== index));
   };
 
+  const getRepPrefilledStyle = (key: string) => {
+    return repPrefilledFields[key] ? { color: '#ef4444' } : {};
+  };
+
+  const clearRepPrefill = (key: string) => {
+    setRepPrefilledFields(prev => {
+      if (!prev[key]) return prev;
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+  };
+
   const addQueixa = () => {
     setRepQueixas([...repQueixas, { dorOnde: '', quandoComecou: '', comoIniciou: '', dorEvolucao: 'estavel', dorIntensidade: 5, dorTodoMomento: 'sim', desencadeiaPiora: '', melhoraDesaparece: '', caracteristicaDor: 'Pontual / Aguda', origens: [] }]);
   };
@@ -2330,6 +2494,7 @@ goniometria: {
   
   const updateQueixa = (index: number, field: string, val: any) => {
     setRepQueixas(repQueixas.map((q, idx) => idx === index ? { ...q, [field]: val } : q));
+    clearRepPrefill('anamnese.queixas');
   };
 
   const addCirurgia = () => {
@@ -2342,6 +2507,7 @@ goniometria: {
   
   const updateCirurgia = (index: number, field: string, val: any) => {
     setRepCirurgiasList(repCirurgiasList.map((c, idx) => idx === index ? { ...c, [field]: val } : c));
+    clearRepPrefill('anamnese.historico.cirurgias');
   };
 
   // ========== IMPORT FROM PHYSICAL ASSESSMENT HELPERS ==========
@@ -7070,20 +7236,20 @@ goniometria: {
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Histórico Clínico</h4>
                     <div className="form-group">
                       <label>Traumas Pregressos</label>
-                      <textarea className="form-control" rows={2} value={repTraumas} onChange={e => setRepTraumas(e.target.value)} placeholder="Possíveis lesões primárias / urgências osteopáticas..." />
+                      <textarea className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumas')} rows={2} value={repTraumas} onChange={e => { setRepTraumas(e.target.value); clearRepPrefill('anamnese.historico.traumas'); }} placeholder="Possíveis lesões primárias / urgências osteopáticas..." />
                     </div>
 
                     <div className="form-row">
                       <div className="form-group" style={{ flex: 1 }}>
                         <label>Realizou cirurgias?</label>
-                        <select className="form-control" value={repCirurgiasRealizou} onChange={e => setRepCirurgiasRealizou(e.target.value)}>
+                        <select className="form-control" style={getRepPrefilledStyle('anamnese.historico.cirurgiasRealizou')} value={repCirurgiasRealizou} onChange={e => { setRepCirurgiasRealizou(e.target.value); clearRepPrefill('anamnese.historico.cirurgiasRealizou'); }}>
                           <option value="nao">Não</option>
                           <option value="sim">Sim</option>
                         </select>
                       </div>
                       <div className="form-group" style={{ flex: 2 }}>
                         <label>Doenças pregressas e atuais</label>
-                        <input type="text" className="form-control" value={repDoencas} onChange={e => setRepDoencas(e.target.value)} placeholder="Ex: Diabetes, labirintite, hipertensão..." />
+                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.doencasPregressasAtuais')} value={repDoencas} onChange={e => { setRepDoencas(e.target.value); clearRepPrefill('anamnese.historico.doencasPregressasAtuais'); }} placeholder="Ex: Diabetes, labirintite, hipertensão..." />
                       </div>
                     </div>
 
@@ -7092,8 +7258,8 @@ goniometria: {
                         <strong style={{ fontSize: '0.8rem', display: 'block', marginBottom: '8px' }}>Detalhamento das Cirurgias</strong>
                         {repCirurgiasList.map((c, sIdx) => (
                           <div key={sIdx} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
-                            <input type="date" className="form-control form-control-sm" style={{ width: '130px' }} value={c.data} onChange={e => updateCirurgia(sIdx, 'data', e.target.value)} />
-                            <input type="text" className="form-control form-control-sm" value={c.local} onChange={e => updateCirurgia(sIdx, 'local', e.target.value)} placeholder="Ex: Cirurgia no menisco joelho esquerdo..." />
+                            <input type="date" className="form-control form-control-sm" style={{ width: '130px', ...getRepPrefilledStyle('anamnese.historico.cirurgias') }} value={c.data} onChange={e => updateCirurgia(sIdx, 'data', e.target.value)} />
+                            <input type="text" className="form-control form-control-sm" style={getRepPrefilledStyle('anamnese.historico.cirurgias')} value={c.local} onChange={e => updateCirurgia(sIdx, 'local', e.target.value)} placeholder="Ex: Cirurgia no menisco joelho esquerdo..." />
                             <button type="button" className="btn btn-danger btn-sm" onClick={() => removeCirurgia(sIdx)} style={{ height: '32px' }}><i className="fa-solid fa-trash"></i></button>
                           </div>
                         ))}
@@ -7106,35 +7272,35 @@ goniometria: {
                     <div className="resp-grid-1-1">
                       <div className="form-group">
                         <label>Traumas emocionais / Estresse crônico</label>
-                        <input type="text" className="form-control" value={repTraumasEmo} onChange={e => setRepTraumasEmo(e.target.value)} placeholder="Estresse severo, perdas, efeito sobre SNV..." />
+                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumasEmocionaisStress')} value={repTraumasEmo} onChange={e => { setRepTraumasEmo(e.target.value); clearRepPrefill('anamnese.historico.traumasEmocionaisStress'); }} placeholder="Estresse severo, perdas, efeito sobre SNV..." />
                       </div>
                       <div className="form-group">
                         <label>Medicação em uso</label>
-                        <input type="text" className="form-control" value={repMedicao} onChange={e => setRepMedicao(e.target.value)} placeholder="Remédios que alteram SNV, dor ou inflamação..." />
+                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.medicacao')} value={repMedicao} onChange={e => { setRepMedicao(e.target.value); clearRepPrefill('anamnese.historico.medicacao'); }} placeholder="Remédios que alteram SNV, dor ou inflamação..." />
                       </div>
                     </div>
 
                     <div className="form-group">
                       <label>Uso de drogas recreativas / álcool / tabaco</label>
-                      <input type="text" className="form-control" value={repDrogas} onChange={e => setRepDrogas(e.target.value)} placeholder="Frequência e substâncias..." />
+                      <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.drogasRecreativas')} value={repDrogas} onChange={e => { setRepDrogas(e.target.value); clearRepPrefill('anamnese.historico.drogasRecreativas'); }} placeholder="Frequência e substâncias..." />
                     </div>
 
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px' }}>Hábitos de Vida & Estilo de Vida</h4>
                     <div className="resp-grid-1-1-1">
                       <div className="form-group">
                         <label>Horas sono / noite</label>
-                        <input type="number" className="form-control" min={0} max={24} value={repSonoHoras} onChange={e => setRepSonoHoras(Number(e.target.value))} />
+                        <input type="number" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoHoras')} min={0} max={24} value={repSonoHoras} onChange={e => { setRepSonoHoras(Number(e.target.value)); clearRepPrefill('anamnese.habitos.sonoHoras'); }} />
                       </div>
                       <div className="form-group">
                         <label>Tipo de sono</label>
-                        <select className="form-control" value={repSonoTipo} onChange={e => setRepSonoTipo(e.target.value)}>
+                        <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoTipo')} value={repSonoTipo} onChange={e => { setRepSonoTipo(e.target.value); clearRepPrefill('anamnese.habitos.sonoTipo'); }}>
                           <option value="continuo">Contínuo</option>
                           <option value="acorda">Acorda à noite (intermitente)</option>
                         </select>
                       </div>
                       <div className="form-group">
                         <label>Qualidade do Sono</label>
-                        <select className="form-control" value={repSonoQualidade} onChange={e => setRepSonoQualidade(e.target.value)}>
+                        <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoQualidade')} value={repSonoQualidade} onChange={e => { setRepSonoQualidade(e.target.value); clearRepPrefill('anamnese.habitos.sonoQualidade'); }}>
                           <option value="Excelente">Excelente</option>
                           <option value="Bom">Bom</option>
                           <option value="Regular">Regular</option>
@@ -7145,13 +7311,13 @@ goniometria: {
 
                     <div className="form-group">
                       <label>Alimentação (Influência sobre inflamação/dor)</label>
-                      <input type="text" className="form-control" value={repAlimentacaoDor} onChange={e => setRepAlimentacaoDor(e.target.value)} placeholder="Hábitos, jejum, café, açúcar, queixas intestinais..." />
+                      <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.alimentacaoDor')} value={repAlimentacaoDor} onChange={e => { setRepAlimentacaoDor(e.target.value); clearRepPrefill('anamnese.habitos.alimentacaoDor'); }} placeholder="Hábitos, jejum, café, açúcar, queixas intestinais..." />
                     </div>
 
                     <div className="form-row">
                       <div className="form-group" style={{ flex: 1 }}>
                         <label>Faz atividade física?</label>
-                        <select className="form-control" value={repAtividadeFisica} onChange={e => setRepAtividadeFisica(e.target.value)}>
+                        <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaFaz')} value={repAtividadeFisica} onChange={e => { setRepAtividadeFisica(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaFaz'); }}>
                           <option value="nao">Não</option>
                           <option value="sim">Sim</option>
                         </select>
@@ -7160,11 +7326,11 @@ goniometria: {
                         <>
                           <div className="form-group" style={{ flex: 2 }}>
                             <label>Qual atividade e freq.?</label>
-                            <input type="text" className="form-control" value={repAtividadeFisicaQual} onChange={e => setRepAtividadeFisicaQual(e.target.value)} placeholder="Ex: Musculação 3x/sem..." />
+                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaQual')} value={repAtividadeFisicaQual} onChange={e => { setRepAtividadeFisicaQual(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaQual'); }} placeholder="Ex: Musculação 3x/sem..." />
                           </div>
                           <div className="form-group" style={{ flex: 2 }}>
                             <label>Interfere na dor?</label>
-                            <input type="text" className="form-control" value={repAtividadeFisicaInterfere} onChange={e => setRepAtividadeFisicaInterfere(e.target.value)} placeholder="Ex: Dor diminui no aquecimento..." />
+                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaInterfere')} value={repAtividadeFisicaInterfere} onChange={e => { setRepAtividadeFisicaInterfere(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaInterfere'); }} placeholder="Ex: Dor diminui no aquecimento..." />
                           </div>
                         </>
                       )}
@@ -7173,11 +7339,11 @@ goniometria: {
                     <div className="resp-grid-1-2">
                       <div className="form-group">
                         <label>Geral Estresse (EVA: <strong>{repStress}</strong>/10)</label>
-                        <input type="range" className="form-control" min={0} max={10} value={repStress} onChange={e => setRepStress(Number(e.target.value))} style={{ accentColor: 'var(--color-primary)' }} />
+                        <input type="range" className="form-control" min={0} max={10} value={repStress} onChange={e => { setRepStress(Number(e.target.value)); clearRepPrefill('anamnese.habitos.stressNivel'); }} style={{ accentColor: 'var(--color-primary)', ...getRepPrefilledStyle('anamnese.habitos.stressNivel') }} />
                       </div>
                       <div className="form-group">
                         <label>Mecanismo de controle do estresse</label>
-                        <input type="text" className="form-control" value={repControleStress} onChange={e => setRepControleStress(e.target.value)} placeholder="Ex: Meditação, corrida, leitura, lazer..." />
+                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.controleStress')} value={repControleStress} onChange={e => { setRepControleStress(e.target.value); clearRepPrefill('anamnese.habitos.controleStress'); }} placeholder="Ex: Meditação, corrida, leitura, lazer..." />
                       </div>
                     </div>
                   </div>

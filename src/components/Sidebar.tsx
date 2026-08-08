@@ -54,7 +54,8 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' },
         { id: 'gestao_contratos', label: 'Gestão de Contratos', icon: 'fa-file-signature' },
         { id: 'asaas', label: 'Cobranças Asaas', icon: 'fa-credit-card' },
-        { id: 'controle_creditos', label: 'Controle de Créditos', icon: 'fa-coins' }
+        { id: 'controle_creditos', label: 'Controle de Créditos', icon: 'fa-coins' },
+        { id: 'dynamus', label: 'Consumo Dynamus', icon: 'fa-bolt' }
       ]
     },
     {
@@ -119,7 +120,8 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       icon: 'fa-file-contract',
       tabs: [
         { id: 'mensalidades', label: 'Mensalidades', icon: 'fa-money-bill-wave' },
-        { id: 'contratos', label: 'Contratos', icon: 'fa-file-contract' }
+        { id: 'contratos', label: 'Contratos', icon: 'fa-file-contract' },
+        { id: 'dynamus', label: 'Consumo Dynamus', icon: 'fa-bolt' }
       ]
     }
   ],

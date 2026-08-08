@@ -4,6 +4,7 @@ import Appointment from '@/models/Appointment';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import AgendaConfig from '@/models/AgendaConfig';
+import Plan from '@/models/Plan';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
@@ -33,6 +34,63 @@ const CANCELAMENTO_JANELAS = {
 };
 const AGENDAMENTO_ANTECEDENCIA_MIN = 2;
 
+// Helper para mapeamento de serviços do plano Dynamus e planos convencionais
+function getServiceCreditConfig(servico: string, isDynamus: boolean): { tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum'; cost: number } {
+  const normalized = servico.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  if (isDynamus) {
+    if (
+      normalized.includes('avaliacao fisica') ||
+      normalized.includes('fisioterapica') ||
+      normalized.includes('teste de forca') ||
+      normalized.includes('emergencia')
+    ) {
+      return { tipoCredito: 'academia', cost: 3 };
+    }
+    if (
+      normalized.includes('treino monitorado') ||
+      normalized.includes('recovery') ||
+      normalized.includes('treino livre')
+    ) {
+      return { tipoCredito: 'academia', cost: 1 };
+    }
+    if (normalized.includes('massagem')) {
+      return { tipoCredito: 'massagem', cost: 1 };
+    }
+    return { tipoCredito: 'nenhum', cost: 0 };
+  } else {
+    const cfg = SERVICOS_CONFIG[servico] || { tipoCredito: 'nenhum' };
+    const cost = cfg.tipoCredito !== 'nenhum' ? 1 : 0;
+    return { tipoCredito: cfg.tipoCredito as any, cost };
+  }
+}
+
+// Helper para calcular créditos reservados dinamicamente com base no custo de cada agendamento
+async function getReservadosCredits(clienteId: string, tipoCredito: string, mesAgendamento?: string): Promise<number> {
+  const query: any = {
+    clienteId,
+    status: 'agendado',
+    tipoCredito
+  };
+  if (mesAgendamento) {
+    query.data = new RegExp('^' + mesAgendamento);
+  }
+  
+  const appointments = await Appointment.find(query);
+  
+  const client = await Client.findById(clienteId).populate('dadosComerciais.planoId');
+  const isDynamus = client?.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || false;
+  
+  let totalCost = 0;
+  for (const apt of appointments) {
+    const cfg = getServiceCreditConfig(apt.servico, isDynamus);
+    if (cfg.tipoCredito === tipoCredito) {
+      totalCost += cfg.cost;
+    }
+  }
+  return totalCost;
+}
+
 // Helper: decrementar reservados e mover para usados (ou consumir em cancelamento tardio)
 function applyStatusTransition(
   client: any,
@@ -40,9 +98,14 @@ function applyStatusTransition(
   oldStatus: string,
   newStatus: string,
   diffHoras: number,
-  janelaHoras: number
+  janelaHoras: number,
+  servico: string
 ) {
   if (tipo === 'nenhum') return;
+
+  const isDynamus = client.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || false;
+  const cfg = getServiceCreditConfig(servico, isDynamus);
+  const cost = cfg.cost;
 
   const fields = {
     academia:   { total: 'creditosTotal',            usados: 'creditosUsados',            reservados: 'creditosReservados'            },
@@ -54,33 +117,33 @@ function applyStatusTransition(
 
   // 1. agendado → presenca ou falta
   if (oldStatus === 'agendado' && (newStatus === 'presenca' || newStatus === 'falta')) {
-    com[fields.reservados] = Math.max(0, (com[fields.reservados] || 0) - 1);
-    com[fields.usados] = (com[fields.usados] || 0) + 1;
+    com[fields.reservados] = Math.max(0, (com[fields.reservados] || 0) - cost);
+    com[fields.usados] = (com[fields.usados] || 0) + cost;
   }
   // 2. agendado → cancelado
   else if (oldStatus === 'agendado' && newStatus === 'cancelado') {
-    com[fields.reservados] = Math.max(0, (com[fields.reservados] || 0) - 1);
+    com[fields.reservados] = Math.max(0, (com[fields.reservados] || 0) - cost);
     if (diffHoras < janelaHoras) {
-      com[fields.usados] = (com[fields.usados] || 0) + 1; // cancelamento tardio consome crédito
+      com[fields.usados] = (com[fields.usados] || 0) + cost; // cancelamento tardio consome crédito
     }
   }
   // 3. presenca ou falta → agendado
   else if ((oldStatus === 'presenca' || oldStatus === 'falta') && newStatus === 'agendado') {
-    com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
-    com[fields.reservados] = (com[fields.reservados] || 0) + 1;
+    com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - cost);
+    com[fields.reservados] = (com[fields.reservados] || 0) + cost;
   }
   // 4. cancelado → agendado
   else if (oldStatus === 'cancelado' && newStatus === 'agendado') {
-    com[fields.reservados] = (com[fields.reservados] || 0) + 1;
+    com[fields.reservados] = (com[fields.reservados] || 0) + cost;
     if (diffHoras < janelaHoras) {
-      com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
+      com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - cost);
     }
   }
   // 5. presenca ou falta → cancelado
   else if ((oldStatus === 'presenca' || oldStatus === 'falta') && newStatus === 'cancelado') {
-    com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - 1);
+    com[fields.usados] = Math.max(0, (com[fields.usados] || 0) - cost);
     if (diffHoras < janelaHoras) {
-      com[fields.usados] = (com[fields.usados] || 0) + 1;
+      com[fields.usados] = (com[fields.usados] || 0) + cost;
     }
   }
 }
@@ -123,7 +186,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: `Serviço desconhecido: ${servico}` }, { status: 400 });
     }
 
-    const tipoCredito = servicoConfig.tipoCredito;
+    let tipoCredito = servicoConfig.tipoCredito;
     const tipo = servicoConfig.tipo;
 
     // Restrição da regra de liberação de agenda para alunos (sexta 18h)
@@ -229,11 +292,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // Load client
-    const client = await Client.findById(clienteId);
+    // Load client with plan populated
+    const client = await Client.findById(clienteId).populate('dadosComerciais.planoId');
     if (!client) {
       return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
     }
+
+    const isDynamus = client.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || false;
+    const creditCfg = getServiceCreditConfig(servico, isDynamus);
+    tipoCredito = creditCfg.tipoCredito;
+    const cost = creditCfg.cost;
 
     // --- Bloquear agendamento se cliente for LEAD (Sem Plano) ---
     if (!bypassRestrictions && (client.dadosComerciais?.status === 'lead' || client.dadosComerciais?.status === 'pendente' || !client.dadosComerciais?.status)) {
@@ -273,35 +341,26 @@ export async function POST(request: Request) {
         const total = com.creditosTotal || 0;
         const usados = com.creditosUsados || 0;
         const mesAgendamento = data.slice(0, 7);
-        const reservados = await Appointment.countDocuments({
-          clienteId,
-          status: 'agendado',
-          tipoCredito: 'academia',
-          data: new RegExp('^' + mesAgendamento)
-        });
+        const reservados = await getReservadosCredits(clienteId, tipoCredito, mesAgendamento);
         const disponiveis = Math.max(0, total - usados - reservados);
-        if (disponiveis <= 0) {
-          return NextResponse.json({ success: false, error: 'Créditos de academia insuficientes! O aluno não possui créditos disponíveis para este mês.' }, { status: 400 });
+        if (disponiveis < cost) {
+          return NextResponse.json({ success: false, error: `Créditos de academia insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
         }
       } else if (tipoCredito === 'massagem') {
         const total = com.creditosMassagemTotal || 0;
         const usados = com.creditosMassagemUsados || 0;
-        const reservados = await Appointment.countDocuments({
-          clienteId,
-          status: 'agendado',
-          tipoCredito: 'massagem'
-        });
+        const reservados = await getReservadosCredits(clienteId, tipoCredito);
         const disponiveis = Math.max(0, total - usados - reservados);
-        if (disponiveis <= 0) {
-          return NextResponse.json({ success: false, error: 'Créditos de massagem insuficientes! O aluno não possui créditos de massagem disponíveis.' }, { status: 400 });
+        if (disponiveis < cost) {
+          return NextResponse.json({ success: false, error: `Créditos de massagem insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
         }
       } else if (tipoCredito === 'emergencia') {
         const total = com.creditosEmergenciaTotal || 0;
         const usados = com.creditosEmergenciaUsados || 0;
-        const reservados = com.creditosEmergenciaReservados || 0;
+        const reservados = await getReservadosCredits(clienteId, tipoCredito);
         const disponiveis = Math.max(0, total - usados - reservados);
-        if (disponiveis <= 0) {
-          return NextResponse.json({ success: false, error: 'Créditos de emergência insuficientes! O aluno não possui créditos de emergência disponíveis.' }, { status: 400 });
+        if (disponiveis < cost) {
+          return NextResponse.json({ success: false, error: `Créditos de emergência insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
         }
       }
     }
@@ -343,11 +402,11 @@ export async function POST(request: Request) {
     if (tipoCredito !== 'nenhum') {
       const com = client.dadosComerciais;
       if (tipoCredito === 'academia') {
-        com.creditosReservados = (com.creditosReservados || 0) + 1;
+        com.creditosReservados = (com.creditosReservados || 0) + cost;
       } else if (tipoCredito === 'massagem') {
-        com.creditosMassagemReservados = (com.creditosMassagemReservados || 0) + 1;
+        com.creditosMassagemReservados = (com.creditosMassagemReservados || 0) + cost;
       } else if (tipoCredito === 'emergencia') {
-        com.creditosEmergenciaReservados = (com.creditosEmergenciaReservados || 0) + 1;
+        com.creditosEmergenciaReservados = (com.creditosEmergenciaReservados || 0) + cost;
       }
       client.markModified('dadosComerciais');
       await client.save();
@@ -386,7 +445,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Appointment not found' }, { status: 404 });
     }
 
-    const client = await Client.findById(appointment.clienteId);
+    const client = await Client.findById(appointment.clienteId).populate('dadosComerciais.planoId');
     const oldStatus = appointment.status;
 
     if (client) {
@@ -400,7 +459,7 @@ export async function PUT(request: Request) {
       const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
       const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
 
-      applyStatusTransition(client, tipoCredito, oldStatus, status, diffHoras, janelaHoras);
+      applyStatusTransition(client, tipoCredito, oldStatus, status, diffHoras, janelaHoras, appointment.servico);
       client.markModified('dadosComerciais');
       await client.save();
     }
@@ -429,22 +488,26 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Appointment not found' }, { status: 404 });
     }
 
-    const client = await Client.findById(appointment.clienteId);
+    const client = await Client.findById(appointment.clienteId).populate('dadosComerciais.planoId');
     if (client) {
       const tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum' =
         appointment.tipoCredito ||
         (appointment.consumeCredito ? 'academia' : appointment.servico === 'Massagem' ? 'massagem' : 'nenhum');
 
+      const isDynamus = client.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || false;
+      const cfg = getServiceCreditConfig(appointment.servico, isDynamus);
+      const cost = cfg.cost;
+
       const com = client.dadosComerciais;
       if (tipoCredito === 'academia') {
-        if (appointment.status === 'agendado') com.creditosReservados = Math.max(0, (com.creditosReservados || 0) - 1);
-        else if (appointment.status === 'presenca') com.creditosUsados = Math.max(0, (com.creditosUsados || 0) - 1);
+        if (appointment.status === 'agendado') com.creditosReservados = Math.max(0, (com.creditosReservados || 0) - cost);
+        else if (appointment.status === 'presenca' || appointment.status === 'falta') com.creditosUsados = Math.max(0, (com.creditosUsados || 0) - cost);
       } else if (tipoCredito === 'massagem') {
-        if (appointment.status === 'agendado') com.creditosMassagemReservados = Math.max(0, (com.creditosMassagemReservados || 0) - 1);
-        else if (appointment.status === 'presenca') com.creditosMassagemUsados = Math.max(0, (com.creditosMassagemUsados || 0) - 1);
+        if (appointment.status === 'agendado') com.creditosMassagemReservados = Math.max(0, (com.creditosMassagemReservados || 0) - cost);
+        else if (appointment.status === 'presenca' || appointment.status === 'falta') com.creditosMassagemUsados = Math.max(0, (com.creditosMassagemUsados || 0) - cost);
       } else if (tipoCredito === 'emergencia') {
-        if (appointment.status === 'agendado') com.creditosEmergenciaReservados = Math.max(0, (com.creditosEmergenciaReservados || 0) - 1);
-        else if (appointment.status === 'presenca') com.creditosEmergenciaUsados = Math.max(0, (com.creditosEmergenciaUsados || 0) - 1);
+        if (appointment.status === 'agendado') com.creditosEmergenciaReservados = Math.max(0, (com.creditosEmergenciaReservados || 0) - cost);
+        else if (appointment.status === 'presenca' || appointment.status === 'falta') com.creditosEmergenciaUsados = Math.max(0, (com.creditosEmergenciaUsados || 0) - cost);
       }
       client.markModified('dadosComerciais');
       await client.save();
