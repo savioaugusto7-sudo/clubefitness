@@ -287,6 +287,15 @@ export default function GestaoContratosPanel({
     };
   }, [showSignatureModal]);
 
+  useEffect(() => {
+    if (selectedClient && clients) {
+      const updated = clients.find(c => c._id === selectedClient._id);
+      if (updated) {
+        setSelectedClient(updated);
+      }
+    }
+  }, [clients]);
+
   // Filter and sort clients
   const sortedClients = [...clients]
     .filter(c => {
@@ -684,7 +693,7 @@ export default function GestaoContratosPanel({
       dataVencimento: dcVencimento,
       observacoesContratuais: dcObservacoesContratuais,
       unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento,
-      creditosMensais: dcFrequencia * 4 + 1,
+      creditosMensais: dcCreditosTotal,
       duracao: dcDuracao,
       vigenciaQtd: dcVigenciaQtd,
       criarRecorrenciaMensal: dcCriarRecorrencia,
