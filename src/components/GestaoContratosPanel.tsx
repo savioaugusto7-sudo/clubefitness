@@ -1128,6 +1128,9 @@ export default function GestaoContratosPanel({
                 className="btn btn-secondary" 
                 style={{ color: '#fbbf24', borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.06)', padding: '8px 12px', fontSize: '0.8rem', width: '100%', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}
                 onClick={() => {
+                  if (activeProposal.planoId) {
+                    setDcPlano(activeProposal.planoId._id || activeProposal.planoId);
+                  }
                   setDcFormaPag(activeProposal.formaPagamentoEscolhida);
                   setDcParcelas(activeProposal.parcelasEscolhidas);
                   if (activeProposal.dataVencimentoEscolhida) {
@@ -1138,6 +1141,50 @@ export default function GestaoContratosPanel({
                   } else {
                     setDcValorUnitario(activeProposal.valorUnitario);
                   }
+                  if (activeProposal.dataInicio) {
+                    setDcDataInicio(activeProposal.dataInicio);
+                  }
+                  if (activeProposal.duracao) {
+                    setDcDuracao(activeProposal.duracao);
+                  }
+                  if (activeProposal.vigenciaQtd !== undefined) {
+                    setDcVigenciaQtd(activeProposal.vigenciaQtd);
+                  }
+                  if (activeProposal.frequencia !== undefined) {
+                    setDcFrequencia(activeProposal.frequencia);
+                  }
+                  if (activeProposal.creditosMensais !== undefined) {
+                    setDcCreditosTotal(activeProposal.creditosMensais);
+                  }
+                  if (activeProposal.descontoTipo) {
+                    setDcDescontoTipo(activeProposal.descontoTipo);
+                  }
+                  if (activeProposal.descontoValor !== undefined) {
+                    setDcDescontoValor(activeProposal.descontoValor);
+                  }
+                  if (activeProposal.criarRecorrenciaMensal !== undefined) {
+                    setDcCriarRecorrencia(activeProposal.criarRecorrenciaMensal);
+                  }
+                  if (activeProposal.recorrenciaMeses !== undefined) {
+                    setDcRecorrenciaMeses(activeProposal.recorrenciaMeses);
+                  }
+                  if (activeProposal.observacoesContratuais) {
+                    setDcObservacoesContratuais(activeProposal.observacoesContratuais);
+                  }
+                  if (activeProposal.unidadeContratada) {
+                    setDcUnidadeContratada(activeProposal.unidadeContratada);
+                  }
+
+                  // Fetch fresh client data from database to update personal info (CPF, Address, Phone, etc.)
+                  fetch(`/api/clients?id=${selectedClient._id}`)
+                    .then(res => res.json())
+                    .then(json => {
+                      if (json.success && json.data && json.data.length > 0) {
+                        setSelectedClient(json.data[0]);
+                      }
+                    })
+                    .catch(() => {});
+
                   fetchData();
                   alert('Opções comerciais, cadastrais e data de vencimento do aluno carregadas e aplicadas com sucesso!');
                 }}
