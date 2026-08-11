@@ -16,16 +16,7 @@ export async function GET(request: Request) {
     const { user } = await checkSessionPermission(['admin', 'professional', 'client']);
 
     let query = {};
-    if (user.role === 'professional' && user.email !== 'coletivo@clube.com') {
-      const linkedClients = await Client.find({ profissionalId: user.professionalProfileId }).select('_id');
-      const clientIds = linkedClients.map(c => c._id);
-      query = {
-        $or: [
-          { clienteId: { $in: clientIds } },
-          { avaliadorId: user.professionalProfileId }
-        ]
-      };
-    } else if (user.role === 'client') {
+    if (user.role === 'client') {
       query = { clienteId: user.clientProfileId };
     }
 

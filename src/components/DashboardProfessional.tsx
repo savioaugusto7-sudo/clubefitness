@@ -540,6 +540,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [asPdfUrl, setAsPdfUrl] = useState('');
   const [asPdfAttachName, setAsPdfAttachName] = useState('');
   const [selectedAsId, setSelectedAsId] = useState<Record<string, string>>({});
+  const [selectedRepId, setSelectedRepId] = useState<Record<string, string>>({});
+  const [selectedStId, setSelectedStId] = useState<Record<string, string>>({});
 
   // Physio Report PDF attachment state
   const [repPdfUrl, setRepPdfUrl] = useState('');
@@ -4813,6 +4815,14 @@ goniometria: {
                   <option value={15}>15</option>
                 </select>
               </div>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar aluno por nome..."
+                value={getSearchQuery('avaliacoes')}
+                onChange={e => setSearchQueryForKey('avaliacoes', e.target.value)}
+                style={{ maxWidth: '260px' }}
+              />
               <button className="btn btn-primary" onClick={() => {
                 const draftStr = localStorage.getItem('draft_assessment');
                 if (draftStr) {
@@ -4835,6 +4845,7 @@ goniometria: {
               const listKey = 'avaliacoes';
               const activeP = getPage(listKey);
               const size = getPageSize(listKey);
+              const q = normalizeText(getSearchQuery(listKey));
 
               // Group assessments by student ID
               const grouped: Record<string, any[]> = {};
@@ -4849,8 +4860,8 @@ goniometria: {
                 grouped[cid].sort((a, b) => b.data.localeCompare(a.data));
               });
 
-              // List of unique students with their assessments
-              const studentRows = Object.keys(grouped).map(cid => {
+              // List of unique students with their assessments, filtered by search query
+              const allStudentRows = Object.keys(grouped).map(cid => {
                 const studentAssessments = grouped[cid];
                 const latest = studentAssessments[0];
                 const studentName = latest.clienteId?.dadosPessoais?.nome || 'Aluno Removido';
@@ -4863,7 +4874,10 @@ goniometria: {
               });
 
               // Sort students by their most recent assessment date (newest first)
-              studentRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+              allStudentRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+
+              // Apply search filter
+              const studentRows = q ? allStudentRows.filter(row => normalizeText(row.name).includes(q)) : allStudentRows;
 
               const totalPages = Math.ceil(studentRows.length / size);
               const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
@@ -4992,6 +5006,14 @@ goniometria: {
                   <option value={15}>15</option>
                 </select>
               </div>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar aluno por nome..."
+                value={getSearchQuery('relatorios')}
+                onChange={e => setSearchQueryForKey('relatorios', e.target.value)}
+                style={{ maxWidth: '260px' }}
+              />
               <button className="btn btn-primary" onClick={() => {
                 setRepDate(new Date().toISOString().split('T')[0]);
                 setShowReportModal(true);
@@ -5020,35 +5042,83 @@ goniometria: {
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = reports.filter(r => normalizeText(r.clienteId?.dadosPessoais?.nome || r.clienteId?.nome).includes(q));
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-                    return paginated.map(rep => (
-                      <tr key={rep._id}>
-                        <td data-label="Data"><strong>{rep.data}</strong></td>
-                        <td data-label="Aluno / Paciente"><strong>{rep.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td data-label="Escala de Dor" style={{ textAlign: 'center' }}>
-                          <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
-                            Dor: {rep.conteudo?.dorEscala} / 10
-                          </span>
-                        </td>
-                        <td data-label="Queixa Principal" className="cell-block"><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
-                        {isAdmin && <td data-label="Profissional">{rep.profissionalId?.nome || 'Não Definido'}</td>}
-                        <td data-label="Ações">
-                          <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
-                            logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
-                            downloadReportPDF(rep);
-                          }}>
-                            <i className="fa-solid fa-file-pdf"></i> PDF
-                          </button>
-                        </td>
-                      </tr>
-                    ));
+                    // Group reports by client ID
+                    const grouped: Record<string, any[]> = {};
+                    reports.forEach(rep => {
+                      const cid = rep.clienteId?._id || rep.clienteId || 'unknown';
+                      if (!grouped[cid]) grouped[cid] = [];
+                      grouped[cid].push(rep);
+                    });
+
+                    // Sort each client's reports newest first
+                    Object.keys(grouped).forEach(cid => {
+                      grouped[cid].sort((a, b) => b.data.localeCompare(a.data));
+                    });
+
+                    // Build rows and apply search filter
+                    const allRows = Object.keys(grouped).map(cid => {
+                      const reps = grouped[cid];
+                      const latest = reps[0];
+                      return {
+                        clientId: cid,
+                        name: latest.clienteId?.dadosPessoais?.nome || 'Aluno Removido',
+                        reports: reps,
+                        latestDate: latest.data
+                      };
+                    });
+                    allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+                    const filteredRows = q ? allRows.filter(r => normalizeText(r.name).includes(q)) : allRows;
+
+                    const totalPages = Math.ceil(filteredRows.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = filteredRows.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(row => {
+                      const activeId = selectedRepId[row.clientId] || row.reports[0]?._id;
+                      const rep = row.reports.find(r => r._id === activeId) || row.reports[0];
+                      if (!rep) return null;
+
+                      return (
+                        <tr key={row.clientId}>
+                          <td data-label="Data">
+                            {row.reports.length > 1 ? (
+                              <select
+                                className="form-control"
+                                style={{ padding: '4px 8px', fontSize: '0.8rem', width: 'auto', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px', fontWeight: 'bold' }}
+                                value={activeId}
+                                onChange={e => setSelectedRepId(prev => ({ ...prev, [row.clientId]: e.target.value }))}
+                              >
+                                {row.reports.map(item => (
+                                  <option key={item._id} value={item._id} style={{ background: 'var(--bg-main)', color: 'var(--text-main)' }}>{item.data}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <strong>{rep.data}</strong>
+                            )}
+                          </td>
+                          <td data-label="Aluno / Paciente"><strong>{row.name}</strong></td>
+                          <td data-label="Escala de Dor" style={{ textAlign: 'center' }}>
+                            <span className={`badge ${rep.conteudo?.dorEscala > 6 ? 'badge-danger' : 'badge-warning'}`}>
+                              Dor: {rep.conteudo?.dorEscala} / 10
+                            </span>
+                          </td>
+                          <td data-label="Queixa Principal" className="cell-block"><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
+                          {isAdmin && <td data-label="Profissional">{rep.profissionalId?.nome || 'Não Definido'}</td>}
+                          <td data-label="Ações">
+                            <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                              logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
+                              downloadReportPDF(rep);
+                            }}>
+                              <i className="fa-solid fa-file-pdf"></i> PDF
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
                   })()}
                   {reports.length === 0 && (
                     <tr>
@@ -5070,7 +5140,19 @@ goniometria: {
             {reports.length > 0 && (
               <Pagination
                 currentPage={getPage('relatorios')}
-                totalItems={reports.length}
+                totalItems={(() => {
+                  const q = normalizeText(getSearchQuery('relatorios'));
+                  const grouped: Record<string, boolean> = {};
+                  reports.forEach(r => { const cid = r.clienteId?._id || r.clienteId || 'unknown'; grouped[cid] = true; });
+                  const rows = Object.keys(grouped);
+                  if (!q) return rows.length;
+                  return reports.reduce((acc: string[], r) => {
+                    const cid = r.clienteId?._id || r.clienteId || 'unknown';
+                    const name = r.clienteId?.dadosPessoais?.nome || '';
+                    if (!acc.includes(cid) && normalizeText(name).includes(q)) acc.push(cid);
+                    return acc;
+                  }, []).length;
+                })()}
                 itemsPerPage={getPageSize('relatorios')}
                 onPageChange={page => setPage('relatorios', page)}
               />
@@ -5198,6 +5280,14 @@ goniometria: {
                   <option value={15}>15</option>
                 </select>
               </div>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar aluno por nome..."
+                value={getSearchQuery('testes_forca')}
+                onChange={e => setSearchQueryForKey('testes_forca', e.target.value)}
+                style={{ maxWidth: '260px' }}
+              />
               <button className="btn btn-primary" onClick={() => {
                 setStDate(new Date().toISOString().split('T')[0]);
                 setShowStModal(true);
@@ -5226,12 +5316,43 @@ goniometria: {
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = strengthTests.filter(st => normalizeText(st.clienteId?.dadosPessoais?.nome || st.clienteId?.nome).includes(q));
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-                    return paginated.map(st => {
+                    // Group strength tests by client ID
+                    const grouped: Record<string, any[]> = {};
+                    strengthTests.forEach(st => {
+                      const cid = st.clienteId?._id || st.clienteId || 'unknown';
+                      if (!grouped[cid]) grouped[cid] = [];
+                      grouped[cid].push(st);
+                    });
+
+                    // Sort each client's tests newest first
+                    Object.keys(grouped).forEach(cid => {
+                      grouped[cid].sort((a, b) => b.data.localeCompare(a.data));
+                    });
+
+                    // Build rows and filter by search query
+                    const allRows = Object.keys(grouped).map(cid => {
+                      const sts = grouped[cid];
+                      const latest = sts[0];
+                      return {
+                        clientId: cid,
+                        name: latest.clienteId?.dadosPessoais?.nome || 'Aluno Removido',
+                        tests: sts,
+                        latestDate: latest.data
+                      };
+                    });
+                    allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+                    const filteredRows = q ? allRows.filter(r => normalizeText(r.name).includes(q)) : allRows;
+
+                    const totalPages = Math.ceil(filteredRows.length / size);
+                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                    const paginated = filteredRows.slice((curP - 1) * size, curP * size);
+
+                    return paginated.map(row => {
+                      const activeId = selectedStId[row.clientId] || row.tests[0]?._id;
+                      const st = row.tests.find(t => t._id === activeId) || row.tests[0];
+                      if (!st) return null;
+
                       const isNew = st.testesRealizados && st.testesRealizados.length > 0;
                       let metricaText = '';
                       let statusBadge = null;
@@ -5240,11 +5361,11 @@ goniometria: {
                         const movs = st.testesRealizados.map((t: any) => `${t.articulacao} ${t.movimento} (${t.lado[0]})`);
                         const uniqueMovs = Array.from(new Set(movs)).join(', ');
                         metricaText = uniqueMovs.length > 50 ? uniqueMovs.substring(0, 47) + '...' : uniqueMovs;
-                        
+
                         const hasSevere = st.testesRealizados.some((t: any) => t.classificacao === 'DÉFICIT GRAVE');
                         const hasModerate = st.testesRealizados.some((t: any) => t.classificacao === 'DÉFICIT MODERADO');
                         const hasAsym = st.comparativos?.some((c: any) => c.deficit > 20);
-                        
+
                         if (hasSevere) {
                           statusBadge = <span className="badge badge-danger">Déficit Grave</span>;
                         } else if (hasAsym) {
@@ -5258,7 +5379,7 @@ goniometria: {
                         const supino = st.exercicios?.find((e: any) => e.nome === 'Supino Reto')?.carga || '-';
                         const remada = st.exercicios?.find((e: any) => e.nome === 'Remada Curvada / Máquina')?.carga || '-';
                         metricaText = `Supino: ${supino} kg / Remada: ${remada} kg`;
-                        
+
                         const risco = st.analise?.riscoOmbro;
                         statusBadge = (
                           <span className={`badge ${risco ? 'badge-danger' : 'badge-success'}`}>
@@ -5268,13 +5389,26 @@ goniometria: {
                       }
 
                       return (
-                        <tr key={st._id}>
-                          <td data-label="Data"><strong>{st.data}</strong></td>
-                          <td data-label="Aluno"><strong>{st.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                          <td data-label="Métricas de Força / Cargas">{metricaText}</td>
-                          <td data-label="Avaliação / Risco" style={{ textAlign: 'center' }}>
-                            {statusBadge}
+                        <tr key={row.clientId}>
+                          <td data-label="Data">
+                            {row.tests.length > 1 ? (
+                              <select
+                                className="form-control"
+                                style={{ padding: '4px 8px', fontSize: '0.8rem', width: 'auto', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px', fontWeight: 'bold' }}
+                                value={activeId}
+                                onChange={e => setSelectedStId(prev => ({ ...prev, [row.clientId]: e.target.value }))}
+                              >
+                                {row.tests.map(item => (
+                                  <option key={item._id} value={item._id} style={{ background: 'var(--bg-main)', color: 'var(--text-main)' }}>{item.data}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <strong>{st.data}</strong>
+                            )}
                           </td>
+                          <td data-label="Aluno"><strong>{row.name}</strong></td>
+                          <td data-label="Métricas de Força / Cargas">{metricaText}</td>
+                          <td data-label="Avaliação / Risco" style={{ textAlign: 'center' }}>{statusBadge}</td>
                           {isAdmin && <td data-label="Avaliador">{st.profissionalId?.nome || 'Não Definido'}</td>}
                           <td data-label="Ações">
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
@@ -5311,7 +5445,19 @@ goniometria: {
             {strengthTests.length > 0 && (
               <Pagination
                 currentPage={getPage('testes_forca')}
-                totalItems={strengthTests.length}
+                totalItems={(() => {
+                  const q = normalizeText(getSearchQuery('testes_forca'));
+                  const grouped: Record<string, boolean> = {};
+                  strengthTests.forEach(st => { const cid = st.clienteId?._id || st.clienteId || 'unknown'; grouped[cid] = true; });
+                  const rows = Object.keys(grouped);
+                  if (!q) return rows.length;
+                  return strengthTests.reduce((acc: string[], st) => {
+                    const cid = st.clienteId?._id || st.clienteId || 'unknown';
+                    const name = st.clienteId?.dadosPessoais?.nome || '';
+                    if (!acc.includes(cid) && normalizeText(name).includes(q)) acc.push(cid);
+                    return acc;
+                  }, []).length;
+                })()}
                 itemsPerPage={getPageSize('testes_forca')}
                 onPageChange={page => setPage('testes_forca', page)}
               />

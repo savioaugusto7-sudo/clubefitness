@@ -885,9 +885,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     { id: '6668ab010101010101010103', nome: 'Clube Completo (Fisio + Academia)', preco: 490 }
   ];
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs, resTranc, resContracts, resAc, resLogs] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/professionals'),
@@ -936,7 +936,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
   const handleCreateAgendaConfig = async (e: React.FormEvent) => {

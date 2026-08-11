@@ -421,25 +421,33 @@ export async function downloadReportPDF(report: any) {
               </div>
             </div>
 
+            ${report.conteudo.adm ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Amplitude de Movimento (ADM):</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.adm || 'Não mensurada.'}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.adm}</div>
             </div>
+            ` : ''}
 
+            ${report.conteudo.testes ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Testes Clínicos Realizados:</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.testes || 'Sem testes aplicados.'}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px;">${report.conteudo.testes}</div>
             </div>
+            ` : ''}
 
+            ${report.conteudo.conduta ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Conduta / Intervenção Realizada em Sessão:</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.conduta || 'Não realizada/registrada nesta sessão.'}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.conduta}</div>
             </div>
+            ` : ''}
 
+            ${report.conteudo.exercicios ? `
             <div style="margin-bottom: 10px;">
               <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 8px; display: block; margin-bottom: 2px;">Prescrição de Autocuidado / Exercícios domiciliares:</span>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.exercicios || 'Sem prescrições adicionais.'}</div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; white-space: pre-wrap;">${report.conteudo.exercicios}</div>
             </div>
+            ` : ''}
           </div>
         </div>
 
@@ -1148,15 +1156,19 @@ export async function downloadReportPDF(report: any) {
         </div>
         ` : ''}
 
+        ${report.conteudo.conduta ? `
         <div class="section-card">
           <div class="section-card-title">Conduta Fisioterapêutica Aplicada</div>
-          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.conduta || 'Não realizada/registrada nesta sessão.'}</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.conduta}</div>
         </div>
+        ` : ''}
 
+        ${report.conteudo.exercicios ? `
         <div class="section-card">
           <div class="section-card-title">Prescrição de Autocuidado / Domiciliar</div>
-          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.exercicios || 'Nenhuma prescrição adicional.'}</div>
+          <div class="section-card-content" style="font-size: 8.5px; line-height: 1.5; white-space: pre-wrap; background: #fafafa;">${report.conteudo.exercicios}</div>
         </div>
+        ` : ''}
 
         <!-- Assinatura Profissional -->
         <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #475569;">
@@ -2644,91 +2656,77 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     }
   }
 
-  if (assessment.pdf_url) {
-    // Se tiver anexo em PDF, gerar o PDF do sistema como arraybuffer e concatenar com o anexo
+  const hasExamesPdfs = (assessment.examesComplementares || []).some((e: any) => !!e.pdfB64);
+  const needsMerge = assessment.pdf_url || hasTermografiaImage || hasExamesPdfs;
+
+  if (needsMerge) {
+    // Fluxo unificado: mescla sistema + termografia + postural + exames complementares
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
       try {
-        // Remover o wrapper da árvore do DOM
         safeRemoveWrapper(pdfWrapper);
 
-        // Carregar a biblioteca pdf-lib com fallback resiliente
         if (typeof PDFLib === 'undefined') {
-          console.warn('A biblioteca de manipulação de PDF (pdf-lib) não foi carregada. Baixando apenas o relatório do sistema...');
-          alert('Aviso: A biblioteca de mesclagem (pdf-lib) não pôde ser carregada devido a restrições de rede local ou CORS. O sistema gerará e exibirá o relatório timbrado oficial da avaliação de forma individual, mas o seu PDF anexo não pôde ser mesclado (ele continua salvo no banco de dados).');
-          
+          console.warn('A biblioteca de manipulação de PDF (pdf-lib) não foi carregada.');
+          alert('Aviso: A biblioteca de mesclagem (pdf-lib) não pôde ser carregada. O relatório será baixado sem os PDFs anexos.');
           const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
           triggerDirectDownload(rawBlob, filename);
           return;
         }
+
         const { PDFDocument } = PDFLib;
         const mergedPdf = await PDFDocument.create();
 
-        // Carregar PDF gerado pelo sistema
+        // 1. Páginas do sistema (avaliação)
         const systemPdfDoc = await PDFDocument.load(pdfSystemBuffer);
         const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
         systemPages.forEach((page: any) => mergedPdf.addPage(page));
 
-        // Termografia page 3 if available
-        const termoBytes = await buildTermografiaPagePdf();
-        if (termoBytes) {
-          const termoDoc = await PDFDocument.load(termoBytes);
-          const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
-          termoPages.forEach((page: any) => mergedPdf.addPage(page));
+        // 2. Página de Termografia (imagem → página PDFLib)
+        if (hasTermografiaImage) {
+          const termoBytes = await buildTermografiaPagePdf();
+          if (termoBytes) {
+            const termoDoc = await PDFDocument.load(termoBytes);
+            const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
+            termoPages.forEach((page: any) => mergedPdf.addPage(page));
+          }
         }
 
-        // Carregar e processar o PDF anexo em Base64
-        const attachedBlob = base64ToBlob(assessment.pdf_url, 'application/pdf');
-        const attachedPdfBuffer = await attachedBlob.arrayBuffer();
-        const attachedPdfDoc = await PDFDocument.load(attachedPdfBuffer);
-        const attachedPages = await mergedPdf.copyPages(attachedPdfDoc, attachedPdfDoc.getPageIndices());
-        attachedPages.forEach((page: any) => mergedPdf.addPage(page));
+        // 3. PDF de Avaliação Postural (pdf_url)
+        if (assessment.pdf_url) {
+          try {
+            const posturalBlob = base64ToBlob(assessment.pdf_url, 'application/pdf');
+            const posturalPdfBuffer = await posturalBlob.arrayBuffer();
+            const posturalPdfDoc = await PDFDocument.load(posturalPdfBuffer);
+            const posturalPages = await mergedPdf.copyPages(posturalPdfDoc, posturalPdfDoc.getPageIndices());
+            posturalPages.forEach((page: any) => mergedPdf.addPage(page));
+          } catch (posErr: any) {
+            console.error('Erro ao mesclar PDF de Avaliação Postural:', posErr);
+          }
+        }
 
-        // Salvar PDF final mesclado
+        // 4. PDFs dos Exames Complementares (pdfB64), um por um
+        for (const exame of (assessment.examesComplementares || [])) {
+          if (exame.pdfB64) {
+            try {
+              const examBlob = base64ToBlob(exame.pdfB64, 'application/pdf');
+              const examPdfBuffer = await examBlob.arrayBuffer();
+              const examPdfDoc = await PDFDocument.load(examPdfBuffer);
+              const examPages = await mergedPdf.copyPages(examPdfDoc, examPdfDoc.getPageIndices());
+              examPages.forEach((page: any) => mergedPdf.addPage(page));
+            } catch (exErr: any) {
+              console.error(`Erro ao mesclar exame complementar "${exame.nome}":`, exErr);
+            }
+          }
+        }
+
+        // Salvar e disparar download
         const mergedPdfBytes = await mergedPdf.save();
         const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
         triggerDirectDownload(mergedBlob, filename);
-  
+
       } catch (error: any) {
         console.error('Erro na mesclagem dos PDFs:', error);
-        alert('Erro ao mesclar o PDF anexo com a avaliação do sistema: ' + error.message);
-      }
-    }).catch((err: any) => {
-      console.error('Erro na geração do PDF:', err);
-      alert('Erro ao gerar o PDF da avaliação: ' + err.message);
-      safeRemoveWrapper(pdfWrapper);
-    });
-  } else if (hasTermografiaImage) {
-    // Sem pdf_url mas com imagem de termografia — mesclar via PDFLib
-    html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
-      try {
-        safeRemoveWrapper(pdfWrapper);
-        if (typeof PDFLib === 'undefined') {
-          const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
-          triggerDirectDownload(rawBlob, filename);
-          return;
-        }
-        const { PDFDocument } = PDFLib;
-        const mergedPdf = await PDFDocument.create();
-
-        const systemPdfDoc = await PDFDocument.load(pdfSystemBuffer);
-        const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
-        systemPages.forEach((page: any) => mergedPdf.addPage(page));
-
-        const termoBytes = await buildTermografiaPagePdf();
-        if (termoBytes) {
-          const termoDoc = await PDFDocument.load(termoBytes);
-          const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
-          termoPages.forEach((page: any) => mergedPdf.addPage(page));
-        }
-
-        const mergedPdfBytes = await mergedPdf.save();
-        const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-        triggerDirectDownload(mergedBlob, filename);
-      } catch (error: any) {
-        console.error('Erro ao adicionar página de termografia:', error);
-        const rawBlob = new Blob([pdfSystemBuffer], { type: 'application/pdf' });
-        triggerDirectDownload(rawBlob, filename);
-        safeRemoveWrapper(pdfWrapper);
+        alert('Erro ao mesclar os PDFs da avaliação: ' + error.message);
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);
@@ -2736,7 +2734,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       safeRemoveWrapper(pdfWrapper);
     });
   } else {
-    // Fluxo padrão caso não exista PDF anexo nem imagem termografia
+    // Fluxo padrão — sem anexos
     html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
       triggerDirectDownload(blob, filename);
       safeRemoveWrapper(pdfWrapper);

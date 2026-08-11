@@ -266,9 +266,9 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const valorParcela = valorLiquido / (Number(dcParcelas) || 1);
   const hasActiveSignedContract = clientContracts.some(c => c.status === 'assinado' || c.status === 'congelado');
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [resC, resA, resP, resF, resFs, resAc] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/appointments'),
@@ -294,7 +294,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 

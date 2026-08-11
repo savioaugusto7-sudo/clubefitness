@@ -17,7 +17,7 @@ interface GestaoContratosPanelProps {
   clients: any[];
   plans: any[];
   userCargo: string;
-  fetchData: () => void;
+  fetchData: (silent?: boolean) => void;
 }
 
 export default function GestaoContratosPanel({
@@ -514,9 +514,9 @@ export default function GestaoContratosPanel({
       const data = await res.json();
       if (data.success) {
         alert('Dados comerciais atualizados com sucesso no perfil do aluno!');
-        fetchData();
+        fetchData(true);
         setSelectedClient(data.data);
-        fetchData();
+        fetchData(true);
       } else {
         alert('Erro ao salvar dados comerciais: ' + data.error);
       }
@@ -1194,7 +1194,7 @@ export default function GestaoContratosPanel({
                     })
                     .catch(() => {});
 
-                  fetchData();
+                  fetchData(true);
                   alert('Opções comerciais, cadastrais e data de vencimento do aluno carregadas e aplicadas com sucesso!');
                 }}
               >
