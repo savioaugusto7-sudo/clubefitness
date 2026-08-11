@@ -16,18 +16,12 @@ export async function GET(request: Request) {
     const { user } = await checkSessionPermission(['admin', 'professional', 'client']);
 
     let query = {};
-    if (user.role === 'professional' && user.email !== 'coletivo@clube.com') {
-      const linkedClients = await Client.find({ profissionalId: user.professionalProfileId }).select('_id');
-      const clientIds = linkedClients.map(c => c._id);
-      query = {
-        $or: [
-          { clienteId: { $in: clientIds } },
-          { profissionalId: user.professionalProfileId }
-        ]
-      };
-    } else if (user.role === 'client') {
+    const roles: string[] = (user.activeRoles || [user.role]) as string[];
+    const isClientOnly = roles.includes('client') && !roles.includes('admin') && !roles.includes('professional');
+    if (isClientOnly) {
       query = { clienteId: user.clientProfileId };
     }
+    // admin e professional: query = {} → vê todos os prontuários
 
     const records = await Prontuario.find(query)
       .populate('clienteId')

@@ -16,7 +16,9 @@ export async function GET(request: Request) {
     const { user } = await checkSessionPermission(['admin', 'professional', 'client']);
 
     let query = {};
-    if (user.role === 'client') {
+    const roles: string[] = (user.activeRoles || [user.role]) as string[];
+    const isClientOnly = roles.includes('client') && !roles.includes('admin') && !roles.includes('professional');
+    if (isClientOnly) {
       query = { clienteId: user.clientProfileId };
     }
 
