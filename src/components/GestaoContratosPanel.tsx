@@ -57,6 +57,8 @@ export default function GestaoContratosPanel({
   const [dcCriarRecorrencia, setDcCriarRecorrencia] = useState(false);
   const [dcRecorrenciaMeses, setDcRecorrenciaMeses] = useState(12);
   const [savingComercial, setSavingComercial] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Modals & Triggers
   const [showTextPreview, setShowTextPreview] = useState(false);
@@ -513,15 +515,18 @@ export default function GestaoContratosPanel({
       });
       const data = await res.json();
       if (data.success) {
-        alert('Dados comerciais atualizados com sucesso no perfil do aluno!');
-        fetchData(true);
         setSelectedClient(data.data);
         fetchData(true);
+        setSaveSuccess(true);
+        setSaveError('');
+        setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        alert('Erro ao salvar dados comerciais: ' + data.error);
+        setSaveError('Erro ao salvar: ' + data.error);
+        setTimeout(() => setSaveError(''), 4000);
       }
     } catch (err: any) {
-      alert('Erro ao salvar dados comerciais: ' + err.message);
+      setSaveError('Erro ao salvar: ' + err.message);
+      setTimeout(() => setSaveError(''), 4000);
     } finally {
       setSavingComercial(false);
     }
@@ -1572,6 +1577,34 @@ export default function GestaoContratosPanel({
                 <span><i className="fa-solid fa-floppy-disk"></i> Salvar no Perfil</span>
               )}
             </button>
+
+            {saveSuccess && (
+              <span style={{
+                color: '#10b981',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                alignSelf: 'center',
+                animation: 'fadeIn 0.3s ease'
+              }}>
+                <i className="fa-solid fa-circle-check" /> Salvo com sucesso!
+              </span>
+            )}
+            {saveError && (
+              <span style={{
+                color: '#ef4444',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                alignSelf: 'center'
+              }}>
+                <i className="fa-solid fa-circle-xmark" /> {saveError}
+              </span>
+            )}
 
             <button
               type="button"
