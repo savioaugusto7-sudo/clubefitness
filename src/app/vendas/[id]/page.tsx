@@ -768,10 +768,26 @@ export default function VendaPage({ params }: { params: any }) {
                 </small>
               </div>
 
-              {/* Dynamic total message */}
-              <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Valor Total a Pagar:</span>
-                <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)' }}>R$ {finalPrice.toFixed(2).replace('.', ',')}</span>
+              {/* Resumo da Condição de Pagamento Escolhida */}
+              <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'block', fontWeight: 600 }}>
+                    Resumo do Pagamento:
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                    {formaPagamento === 'pix' && 'Pagamento instantâneo via Pix (à vista)'}
+                    {formaPagamento === 'boleto' && (dataVencimento ? `Primeiro vencimento em ${new Date(dataVencimento + 'T00:00:00').toLocaleDateString('pt-BR')}` : 'Carnê / Boleto Bancário')}
+                    {formaPagamento === 'cartao' && 'Parcelamento no Cartão de Crédito (+5%)'}
+                  </span>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                    {formaPagamento === 'pix' && `Pix: R$ ${finalPrice.toFixed(2).replace('.', ',')} (À vista)`}
+                    {formaPagamento === 'boleto' && `${currentInstallments}x de R$ ${(finalPrice / currentInstallments).toFixed(2).replace('.', ',')} no Boleto`}
+                    {formaPagamento === 'cartao' && `${currentInstallments}x de R$ ${(finalPrice / currentInstallments).toFixed(2).replace('.', ',')} no Cartão`}
+                  </span>
+                </div>
               </div>
               {formaPagamento === 'cartao' && (
                 <p style={{ color: 'var(--color-warning)', fontSize: '0.78rem', margin: '5px 0 0 0', textAlign: 'right' }}>
