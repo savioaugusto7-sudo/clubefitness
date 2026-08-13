@@ -2273,8 +2273,20 @@ export default function GestaoContratosPanel({
                 className="btn btn-primary"
                 style={{ background: '#25D366', borderColor: '#25D366', color: '#fff', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: '4px', fontWeight: 'bold' }}
                 onClick={() => {
-                  const text = encodeURIComponent(`Olá! Segue o link para revisão e assinatura da sua proposta comercial no Clube Fitness: ${generatedProposalUrl}`);
-                  window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+                  const clientName = selectedClient?.dadosPessoais?.nome ? ` *${selectedClient.dadosPessoais.nome}*` : '';
+                  const planName = plans.find(p => p._id === dcPlano)?.nome || '';
+                  const phone = (selectedClient?.dadosPessoais?.telefone || '').replace(/\D/g, '');
+                  const message = 
+                    `🏋️‍♂️ *Olá${clientName}! Tudo bem?*\n\n` +
+                    `Sua proposta comercial do *Clube Fitness Fisio*${planName ? ` para o plano *${planName}*` : ''} está pronta! 📄✨\n\n` +
+                    `Clique no link abaixo para conferir as condições, revisar e assinar seu contrato:\n` +
+                    `${generatedProposalUrl}\n\n` +
+                    `_Qualquer dúvida, estamos à total disposição!_ 💚`;
+                  const text = encodeURIComponent(message);
+                  const whatsappUrl = phone 
+                    ? `https://api.whatsapp.com/send?phone=55${phone}&text=${text}`
+                    : `https://api.whatsapp.com/send?text=${text}`;
+                  window.open(whatsappUrl, '_blank');
                 }}
               >
                 <i className="fa-brands fa-whatsapp fa-lg"></i> Enviar via WhatsApp
