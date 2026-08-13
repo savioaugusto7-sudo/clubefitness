@@ -3,7 +3,6 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { generateContractTemplate } from '@/utils/contractTemplate';
-import { getContractPDFBase64 } from '@/utils/pdfGenerator';
 
 export default function VendaPage({ params }: { params: any }) {
   const router = useRouter();
@@ -237,40 +236,6 @@ export default function VendaPage({ params }: { params: any }) {
     setSubmitting(true);
 
     try {
-      let pdfBase64 = '';
-      try {
-        pdfBase64 = await getContractPDFBase64(
-          {
-            dadosPessoais: {
-              nome,
-              cpf,
-              email,
-              telefone,
-              cep,
-              endereco,
-              numero,
-              complemento,
-              bairro,
-              cidade,
-              estado
-            },
-            dadosComerciais: {
-              planoId: proposal.planoId?._id || proposal.planoId,
-              formaPagamento,
-              duracao: proposal.duracao,
-              vencimento: dataVencimento,
-              parcelas: currentInstallments,
-              dataInicio: proposal.dataInicio,
-              unidadeContratada: proposal.unidadeContratada
-            }
-          },
-          proposal.planoId || { nome: proposal.planoNome, preco: finalPrice, tipo: proposal.planoTipo },
-          contractHtml
-        );
-      } catch (pdfErr) {
-        console.warn('Fallback para HTML base64:', pdfErr);
-      }
-
       const payload = {
         formaPagamentoEscolhida: formaPagamento,
         parcelasEscolhidas: currentInstallments,
@@ -290,7 +255,6 @@ export default function VendaPage({ params }: { params: any }) {
           estado
         },
         dispararClicksign: true,
-        contratoPdfBase64: pdfBase64,
         contratoTexto: contractHtml
       };
 
@@ -305,10 +269,11 @@ export default function VendaPage({ params }: { params: any }) {
         setStep('success');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        alert('Erro ao disparar contrato: ' + data.error);
+        alert('Erro ao emitir contrato: ' + (data.error || 'Falha no processamento.'));
       }
     } catch (err: any) {
-      alert('Erro na conexão: ' + err.message);
+      console.error('Erro no envio da proposta:', err);
+      alert('Erro ao conectar com o servidor: ' + (err.message || 'Verifique sua conexão e tente novamente.'));
     } finally {
       setSubmitting(false);
     }
