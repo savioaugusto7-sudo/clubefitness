@@ -346,10 +346,7 @@ export default function VendaPage({ params }: { params: any }) {
                   }
                 </p>
               </div>
-              <div>
-                <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Créditos Mensais</span>
-                <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0' }}>{proposal.creditosMensais} sessões</p>
-              </div>
+
               <div>
                 <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Valor Base Negociado</span>
                 <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0', color: 'var(--color-primary)' }}>R$ {basePrice.toFixed(2).replace('.', ',')}</p>

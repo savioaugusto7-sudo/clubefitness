@@ -252,8 +252,6 @@ export function generateContractTemplate(data: ContractData): string {
       } else {
         descontoTextoExtra = `R$ ${descVal.toFixed(2).replace('.', ',')} (${valorExtenso(descVal)})`;
       }
-    } else {
-      descontoTextoExtra = '_____% / R$ __________';
     }
 
     const vigenciaPrazoDesc = isAnual ? '12 (doze) meses' : vigenciaText;
@@ -284,6 +282,12 @@ export function generateContractTemplate(data: ContractData): string {
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA PRIMEIRA - DO OBJETO</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
         1.1. O presente instrumento tem por objeto a prestação de serviços de treinamento personalizado pela CONTRATADA ao(à) CONTRATANTE, conforme o plano selecionado no momento da contratação.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.2. Capacidade técnica. O Contratado declara-se, neste ato, perfeitamente apto e capaz tecnicamente para desenvolver os serviços, garantindo perante as Contratantes o correto desempenho dos serviços que vierem a desenvolver no atendimento ao estabelecido neste Contrato.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.3. Livre Negociação. As Partes declaram que negociaram o presente Contrato conjuntamente e que o celebram em mútuo e comum acordo, de modo que a interpretação deste Contrato não será em favor de uma ou de outra Parte, mas sim em consonância com o quanto estabelecido em suas cláusulas e na forma da Lei aplicável.
       </p>
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SEGUNDA - DAS OBRIGAÇÕES DA CONTRATADA</h3>
@@ -322,7 +326,7 @@ export function generateContractTemplate(data: ContractData): string {
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUARTA - DO PAGAMENTO</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão:
+        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}:
         ${
           isRecorrente && isMensalSemVinculo
             ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
@@ -486,6 +490,12 @@ export function generateContractTemplate(data: ContractData): string {
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
         1.1. O presente instrumento tem por objeto a prestação de serviços de treinamento personalizado pela CONTRATADA ao(à) CONTRATANTE, conforme o plano selecionado no momento da contratação.
       </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.2. Capacidade técnica. O Contratado declara-se, neste ato, perfeitamente apto e capaz tecnicamente para desenvolver os serviços, garantindo perante as Contratantes o correto desempenho dos serviços que vierem a desenvolver no atendimento ao estabelecido neste Contrato.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.3. Livre Negociação. As Partes declaram que negociaram o presente Contrato conjuntamente e que o celebram em mútuo e comum acordo, de modo que a interpretação deste Contrato não será em favor de uma ou de outra Parte, mas sim em consonância com o quanto estabelecido em suas cláusulas e na forma da Lei aplicável.
+      </p>
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SEGUNDA - DAS OBRIGAÇÕES DA CONTRATADA</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">2.1. Prestar os serviços de condicionamento físico, treinamento personalizado e acompanhamento profissional com zelo, qualidade e profissionalismo, por meio de profissionais habilitados e qualificados.</p>
@@ -503,7 +513,7 @@ export function generateContractTemplate(data: ContractData): string {
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUARTA - DO PAGAMENTO</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão:
+        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}:
         ${
           isRecorrente && isMensalSemVinculo
             ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
@@ -611,6 +621,12 @@ export function generateContractTemplate(data: ContractData): string {
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA PRIMEIRA - DO OBJETO</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">1.1. O presente instrumento tem por objeto a prestação de serviços de Fisioterapia e condicionamento físico pela CONTRATADA ao(à) CONTRATANTE, conforme o plano selecionado no momento da contratação.</p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.2. Capacidade técnica. O Contratado declara-se, neste ato, perfeitamente apto e capaz tecnicamente para desenvolver os serviços, garantindo perante as Contratantes o correto desempenho dos serviços que vierem a desenvolver no atendimento ao estabelecido neste Contrato.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.3. Livre Negociação. As Partes declaram que negociaram o presente Contrato conjuntamente e que o celebram em mútuo e comum acordo, de modo que a interpretação deste Contrato não será em favor de uma ou de outra Parte, mas sim em consonância com o quanto estabelecido em suas cláusulas e na forma da Lei aplicável.
+      </p>
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SEGUNDA - DAS OBRIGAÇÕES DA CONTRATADA</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">2.1. Prestar os serviços de Fisioterapia e condicionamento físico com zelo, qualidade e profissionalismo, por meio de profissionais habilitados e qualificados.</p>
@@ -627,7 +643,7 @@ export function generateContractTemplate(data: ContractData): string {
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUARTA - DO PAGAMENTO</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão:
+        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}:
         ${
           isRecorrente && isMensalSemVinculo
             ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal via <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
@@ -643,7 +659,7 @@ export function generateContractTemplate(data: ContractData): string {
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA, PRAZO E RECESSOS</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">5.1. O presente contrato tem vigência de <strong>${vigenciaText}</strong>, com início em <strong>${fmtDate(dateInicio)}</strong>.</p>
-      ${!isAnual ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">5.2. O presente contrato será renovado automaticamente ao término do prazo previsto, em caso de ausência de manifestação em sentido contrário, passando a vigorar por prazo indeterminado.</p>` : ''}
+      ${(!isAnual && isRecorrente) ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">5.2. O presente contrato será renovado automaticamente ao término do prazo previsto, em caso de ausência de manifestação em sentido contrário, passando a vigorar por prazo indeterminado.</p>` : ''}
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${!isAnual ? '5.3.' : '5.2.'} A(O) CONTRATANTE declara estar ciente de que os feriados que coincidirem com o dia habitual de treinamento serão considerados como aula ministrada, não gerando direito à reposição, desconto ou compensação.</p>
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SEXTA - DO RECESSO</h3>
@@ -722,10 +738,10 @@ export function generateContractTemplate(data: ContractData): string {
       Caberá ao CONTRATADO, a partir da avaliação e análise realizada por seus profissionais habilitados, definir o plano de tratamento mais adequado ao CONTRATANTE, considerando suas condições físicas, objetivos, necessidades e critérios técnicos. O plano de tratamento poderá ser ajustado sempre que houver necessidade, conforme a evolução do CONTRATANTE ou por recomendação da equipe técnica, visando a melhor condução do atendimento.
     </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      1.2. Capacidade técnica. O Contratado declara-se, neste ato, perfeitamente apto e capaz tecnicamente para desenvolver os serviços, garantindo perante as Contratantes o correct desempenho dos serviços que vierem a desenvolver no atendimento ao estabelecido neste Contrato.
+      1.2. Capacidade técnica. O Contratado declara-se, neste ato, perfeitamente apto e capaz tecnicamente para desenvolver os serviços, garantindo perante as Contratantes o correto desempenho dos serviços que vierem a desenvolver no atendimento ao estabelecido neste Contrato.
     </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      1.4. Livre Negociação. As Partes declaram que negociaram o presente Contrato conjuntamente e que o celebram em mútuo e comum acordo, de modo que a interpretação deste Contrato não será em favor de uma ou de outra Parte, mas sim em consonância com o quanto estabelecido em suas cláusulas e na forma da Lei aplicável.
+      1.3. Livre Negociação. As Partes declaram que negociaram o presente Contrato conjuntamente e que o celebram em mútuo e comum acordo, de modo que a interpretação deste Contrato não será em favor de uma ou de outra Parte, mas sim em consonância com o quanto estabelecido em suas cláusulas e na forma da Lei aplicável.
     </p>
 
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA II - OBRIGAÇÕES DA CONTRATADA</h3>
@@ -749,7 +765,7 @@ export function generateContractTemplate(data: ContractData): string {
 
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA IV - DO PREÇO E DO PAGAMENTO</h3>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      4.1. Contraprestação. A título de contraprestação pelos serviços a serem prestados pelo Contratado à Contratante, nos termos deste Contrato, ${
+      4.1. Contraprestação. A título de contraprestação pelos serviços a serem prestados pelo Contratado à Contratante, nos termos deste Contrato${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}, ${
         isRecorrente && isMensalSemVinculo
           ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal via <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados.`
           : isRecorrente
@@ -763,10 +779,23 @@ export function generateContractTemplate(data: ContractData): string {
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
       4.3. Tributos. Correrá por conta da Contratada o valor correspondente a eventuais tributos incidentes sobre a Remuneração acima prevista, que deverá ser recolhido aos cofres públicos na forma legal.
     </p>
+    ${descVal > 0 ? `
+    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+      4.5. Fica concedido ao CONTRATANTE um desconto de <strong>${
+        data.descontoTipo === 'percentual'
+          ? `${descVal}%`
+          : `R$ ${descVal.toFixed(2).replace('.', ',')} (${valorExtenso(descVal)})`
+      }</strong> sobre o valor do plano contratado, conforme negociação entre as partes. O desconto será aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.
+    </p>
+    ` : ''}
 
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA V - VIGÊNCIA E RESCISÃO</h3>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      5.1. Prazo de vigência. O presente Contrato entra em vigor na data de início dos serviços, em <strong>${fmtDate(dateInicio)}</strong>, e vigorará pelo prazo de <strong>${vigenciaText}</strong>, com término previsto para <strong>${fmtDate(dateFim)}</strong>, com a renovação automática caso não formalizado Distrato por escrito entre as partes.
+      5.1. Prazo de vigência. O presente Contrato entra em vigor na data de início dos serviços, em <strong>${fmtDate(dateInicio)}</strong>, e vigorará pelo prazo de <strong>${vigenciaText}</strong>, com término previsto para <strong>${fmtDate(dateFim)}</strong>${
+        (customDuracao === 'mensal' && !isRecorrente)
+          ? ''
+          : ', com a renovação automática caso não formalizado Distrato por escrito entre as partes'
+      }.
     </p>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
       5.2. Rescisão. Observado o disposto abaixo, qualquer das Partes poderá rescindir e terminar este Contrato, imotivadamente, a qualquer momento, mediante aviso prévio por escrito enviado com antecedência mínima de 30 (trinta) dias à outra Parte.
