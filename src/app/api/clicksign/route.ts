@@ -6,14 +6,15 @@ import Plan from '@/models/Plan';
 
 export const dynamic = 'force-dynamic';
 
-async function syncContractStatus(contract: any, token: string, baseUrl: string) {
+export async function syncContractStatus(contract: any, token: string, baseUrl: string) {
+  if (!contract?.clicksignDocKey) return;
   const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
   const actualEnvelopeId = envelopeId;
   const actualDocumentId = documentId || envelopeId;
 
   try {
     let clicksignStatus = 'pendente';
-    let finishedAt = null;
+    let finishedAt: any = null;
 
     if (actualEnvelopeId && actualEnvelopeId.length === 36) {
       console.log(`Sync status: Fetching clicksign v3 for envelope ${actualEnvelopeId}`);
@@ -36,6 +37,33 @@ async function syncContractStatus(contract: any, token: string, baseUrl: string)
           finishedAt = data.data?.attributes?.finished_at || new Date();
         } else if (status === 'canceled') {
           clicksignStatus = 'cancelado';
+        } else {
+          // Checar também os signatários do envelope
+          try {
+            const signersRes = await fetch(`${baseUrl}/api/v3/envelopes/${actualEnvelopeId}/signers`, {
+              headers: {
+                'Authorization': token,
+                'Content-Type': 'application/vnd.api+json',
+                'Accept': 'application/vnd.api+json'
+              },
+              cache: 'no-store'
+            });
+            if (signersRes.ok) {
+              const signersData = await signersRes.json();
+              const signersList = signersData.data || [];
+              const studentSigner = signersList.find((s: any) => s.id === contract.clicksignSignerKey) || signersList[0];
+              if (studentSigner) {
+                const sStatus = studentSigner.attributes?.status;
+                const sSigned = studentSigner.attributes?.has_signed || studentSigner.attributes?.signed_at;
+                if (sStatus === 'signed' || sSigned) {
+                  clicksignStatus = 'assinado';
+                  finishedAt = studentSigner.attributes?.signed_at || new Date();
+                }
+              }
+            }
+          } catch (sErr) {
+            console.warn('Erro ao checar signatários do envelope:', sErr);
+          }
         }
       } else {
         console.log(`Sync status: Fallback to clicksign v1 for document ${actualDocumentId}`);
@@ -122,8 +150,24 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
+    const contractId = searchParams.get('id');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+
+    const token = process.env.CLICKSIGN_ACCESS_TOKEN;
+    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+
+    if (contractId) {
+      const contract = await Contract.findById(contractId);
+      if (!contract) {
+        return NextResponse.json({ success: false, error: 'Contrato não encontrado' }, { status: 404 });
+      }
+      if (token) {
+        await syncContractStatus(contract, token, baseUrl);
+      }
+      const updatedContract = await Contract.findById(contractId);
+      return NextResponse.json({ success: true, data: updatedContract });
+    }
 
     const query: any = { clicksignDocKey: { $exists: true, $ne: '' } };
     if (status && status !== 'todos') {
@@ -133,9 +177,6 @@ export async function GET(request: Request) {
     const contracts = await Contract.find(query)
       .sort({ createdAt: -1 })
       .limit(200);
-
-    const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
 
     if (token) {
       const pendingContracts = contracts.filter((c: any) => c.status === 'pendente' || c.clicksignStatus === 'pendente');

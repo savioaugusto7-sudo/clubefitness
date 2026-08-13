@@ -345,9 +345,9 @@ export default function GestaoContratosPanel({
     });
 
   // Load contracts for selected client
-  const loadContracts = async (clientId: string) => {
+  const loadContracts = async (clientId: string, silent = false) => {
     try {
-      setLoadingContracts(true);
+      if (!silent) setLoadingContracts(true);
       const res = await fetch(`/api/contracts?clientId=${clientId}`);
       const data = await res.json();
       if (data.success) {
@@ -356,9 +356,23 @@ export default function GestaoContratosPanel({
     } catch (err) {
       console.error('Erro ao carregar histórico de contratos:', err);
     } finally {
-      setLoadingContracts(false);
+      if (!silent) setLoadingContracts(false);
     }
   };
+
+  // Auto-polling for pending contracts on active client view
+  useEffect(() => {
+    if (!selectedClient) return;
+    const hasPending = contracts.some(c => c.clicksignDocKey && (c.status === 'pendente' || c.clicksignStatus === 'pendente'));
+    if (!hasPending) return;
+
+    const interval = setInterval(() => {
+      loadContracts(selectedClient._id, true);
+      fetchData(true);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [selectedClient, contracts]);
 
   // Sync clicksign status
   const handleSyncClicksign = async (contractId: string) => {
@@ -366,9 +380,15 @@ export default function GestaoContratosPanel({
       const res = await fetch(`/api/clicksign?id=${contractId}`);
       const data = await res.json();
       if (data.success) {
-        alert('Status sincronizado com sucesso!');
-        if (selectedClient) loadContracts(selectedClient._id);
-        fetchData();
+        if (data.data?.status === 'assinado' || data.data?.clicksignStatus === 'assinado') {
+          alert('✅ Contrato assinado confirmado na Clicksign! O plano do aluno foi ativado com sucesso.');
+        } else {
+          alert('Status atual na Clicksign: ' + (data.data?.clicksignStatus || data.data?.status || 'Pendente'));
+        }
+        if (selectedClient) {
+          await loadContracts(selectedClient._id);
+          fetchData();
+        }
       } else {
         alert('Erro ao sincronizar: ' + data.error);
       }

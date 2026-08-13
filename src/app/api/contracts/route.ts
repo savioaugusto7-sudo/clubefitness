@@ -6,6 +6,8 @@ import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import { createAsaasCustomer, createAsaasPayment, getAsaasPixQrCode } from '@/utils/asaas';
 
+import { syncContractStatus } from '@/app/api/clicksign/route';
+
 export async function GET(request: Request) {
   try {
     await dbConnect();
@@ -17,9 +19,22 @@ export async function GET(request: Request) {
       query = { clientId };
     }
 
-    const contracts = await Contract.find(query)
+    let contracts = await Contract.find(query)
       .populate('planoId')
       .sort({ versao: -1 });
+
+    const token = process.env.CLICKSIGN_ACCESS_TOKEN;
+    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+
+    if (token) {
+      const pendingClicksign = contracts.filter((c: any) => c.clicksignDocKey && (c.status === 'pendente' || c.clicksignStatus === 'pendente'));
+      if (pendingClicksign.length > 0) {
+        await Promise.all(pendingClicksign.map(c => syncContractStatus(c, token, baseUrl)));
+        contracts = await Contract.find(query)
+          .populate('planoId')
+          .sort({ versao: -1 });
+      }
+    }
 
     return NextResponse.json({ success: true, data: contracts });
   } catch (error: any) {
