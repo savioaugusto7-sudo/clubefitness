@@ -232,8 +232,7 @@ async function createClicksignDocument(
   await handleError(reqAuthRes, 'Criar Requisito de Autenticação via WhatsApp');
 
   // ──────────────────────────────────────────────────────────
-  // PASSO 4c — Adicionar Signatário da Clínica (Albert Nunes Queiroz dos Santos)
-  // Com Assinatura Automática (auth: "auto_signature")
+  // PASSO 4c — Adicionar Signatário da Clínica (Albert Nunes Queiroz dos Santos - E-mail)
   // ──────────────────────────────────────────────────────────
   const adminName = process.env.CLICKSIGN_ADMIN_NAME || 'Albert Nunes Queiroz dos Santos';
   const adminEmail = process.env.CLICKSIGN_ADMIN_EMAIL || 'clubefitnessbh@gmail.com';
@@ -247,59 +246,59 @@ async function createClicksignDocument(
         attributes: {
           name: adminName,
           email: adminEmail,
-          auth: 'auto_signature'
+          communicate_events: {
+            signature_request: 'email',
+            signature_reminder: 'none',
+            document_signed: 'email'
+          }
         }
       }
     })
   });
 
-  if (adminSignerRes.ok) {
-    const adminSignerData = await adminSignerRes.json();
-    const adminSignerId = adminSignerData.data?.id;
+  const adminSignerData = await handleError(adminSignerRes, 'Adicionar Signatário da Clínica');
+  const adminSignerId = adminSignerData.data?.id;
 
-    if (adminSignerId) {
-      // Qualificação da Clínica (Contratada)
-      await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          data: {
-            type: 'requirements',
-            attributes: {
-              action: 'agree',
-              role: 'contractee'
-            },
-            relationships: {
-              document: { data: { type: 'documents', id: documentId } },
-              signer: { data: { type: 'signers', id: adminSignerId } }
-            }
+  if (adminSignerId) {
+    // Qualificação da Clínica (Contratada)
+    const clinicQualRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          type: 'requirements',
+          attributes: {
+            action: 'agree',
+            role: 'contractee'
+          },
+          relationships: {
+            document: { data: { type: 'documents', id: documentId } },
+            signer: { data: { type: 'signers', id: adminSignerId } }
           }
-        })
-      });
+        }
+      })
+    });
+    await handleError(clinicQualRes, 'Criar Requisito de Qualificação da Clínica');
 
-      // Autenticação automática
-      await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          data: {
-            type: 'requirements',
-            attributes: {
-              action: 'provide_evidence',
-              auth: 'auto_signature'
-            },
-            relationships: {
-              document: { data: { type: 'documents', id: documentId } },
-              signer: { data: { type: 'signers', id: adminSignerId } }
-            }
+    // Autenticação da Clínica via E-mail
+    const clinicAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          type: 'requirements',
+          attributes: {
+            action: 'provide_evidence',
+            auth: 'email'
+          },
+          relationships: {
+            document: { data: { type: 'documents', id: documentId } },
+            signer: { data: { type: 'signers', id: adminSignerId } }
           }
-        })
-      });
-    }
-  } else {
-    let errData: any = {};
-    try { errData = await adminSignerRes.json(); } catch {}
-    console.warn('Nota sobre auto_signature do administrador:', errData);
+        }
+      })
+    });
+    await handleError(clinicAuthRes, 'Criar Requisito de Autenticação da Clínica');
   }
 
   // ──────────────────────────────────────────────────────────

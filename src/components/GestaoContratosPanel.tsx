@@ -61,6 +61,7 @@ export default function GestaoContratosPanel({
   const [savingComercial, setSavingComercial] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [issuingContract, setIssuingContract] = useState(false);
 
   // Modals & Triggers
   const [showTextPreview, setShowTextPreview] = useState(false);
@@ -801,6 +802,7 @@ export default function GestaoContratosPanel({
     };
 
     try {
+      setIssuingContract(true);
       const res = await fetch('/api/contracts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -808,7 +810,7 @@ export default function GestaoContratosPanel({
       });
       const data = await res.json();
       if (data.success) {
-        alert(isClicksign ? 'Contrato enviado com sucesso para o WhatsApp do aluno via Clicksign!' : 'Contrato pendente gerado!');
+        alert(isClicksign ? 'Contrato enviado com sucesso para o WhatsApp do aluno e E-mail da clínica via Clicksign!' : 'Contrato pendente gerado!');
         loadContracts(selectedClient._id);
         fetchData();
       } else {
@@ -816,6 +818,8 @@ export default function GestaoContratosPanel({
       }
     } catch (err: any) {
       alert('Erro: ' + err.message);
+    } finally {
+      setIssuingContract(false);
     }
   };
 
@@ -1856,13 +1860,12 @@ export default function GestaoContratosPanel({
                 <i className="fa-solid fa-file-pdf" style={{ marginRight: '6px' }}></i> Baixar PDF do Modelo do Contrato
               </button>
 
-
-
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ flex: 1, minWidth: '140px', background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  disabled={issuingContract}
+                  style={{ flex: 1, minWidth: '140px', background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', opacity: issuingContract ? 0.6 : 1 }}
                   onClick={() => handleOpenSignatureModal()}
                 >
                   <i className="fa-solid fa-hand-pointer"></i> Assinatura Presencial
@@ -1870,16 +1873,22 @@ export default function GestaoContratosPanel({
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: '140px', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  disabled={issuingContract}
+                  style={{ flex: 1, minWidth: '140px', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: issuingContract ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', cursor: issuingContract ? 'not-allowed' : 'pointer' }}
                   onClick={() => handleIssueContract('clicksign')}
-                  title="Enviar link de assinatura diretamente para o WhatsApp do aluno via Clicksign"
+                  title="Enviar link de assinatura diretamente para o WhatsApp do aluno e E-mail da clínica via Clicksign"
                 >
-                  <i className="fa-brands fa-whatsapp" style={{ fontSize: '1.05rem' }}></i> Enviar p/ Clicksign (WhatsApp)
+                  {issuingContract ? (
+                    <span><i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Enviando p/ Clicksign...</span>
+                  ) : (
+                    <span><i className="fa-brands fa-whatsapp" style={{ fontSize: '1.05rem', marginRight: '6px' }}></i> Enviar p/ Clicksign (WhatsApp)</span>
+                  )}
                 </button>
                  <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: '140px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  disabled={issuingContract}
+                  style={{ flex: 1, minWidth: '140px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', opacity: issuingContract ? 0.6 : 1 }}
                   onClick={() => handleIssueContract('pendente')}
                 >
                   <i className="fa-solid fa-clock"></i> Emitir Pendente
@@ -1887,9 +1896,9 @@ export default function GestaoContratosPanel({
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: '140px', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  disabled={generatingProposal || issuingContract}
+                  style={{ flex: 1, minWidth: '140px', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', opacity: (generatingProposal || issuingContract) ? 0.6 : 1 }}
                   onClick={() => handleGenerateProposalLink()}
-                  disabled={generatingProposal}
                 >
                   {generatingProposal ? (
                     <>
@@ -1904,7 +1913,8 @@ export default function GestaoContratosPanel({
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: '100%', color: '#10b981', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.1)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', marginTop: '6px' }}
+                  disabled={issuingContract}
+                  style={{ flex: 1, minWidth: '100%', color: '#10b981', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.1)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', marginTop: '6px', opacity: issuingContract ? 0.6 : 1 }}
                   onClick={() => setShowImportSignedModal(true)}
                 >
                   <i className="fa-solid fa-file-circle-check"></i> Registrar Já Assinado (Anexar PDF)
