@@ -231,8 +231,76 @@ async function createClicksignDocument(
   });
   await handleError(reqAuthRes, 'Criar Requisito de Autenticação via WhatsApp');
 
-  // O contrato emitido pelo sistema já possui os dados e outorga da Contratada (Clube Fitness).
-  // O envelope na Clicksign fica configurado exclusivamente com o Aluno como Contratante (1/1 Assinatura no WhatsApp).
+  // ──────────────────────────────────────────────────────────
+  // PASSO 4c — Adicionar Signatário da Clínica (Albert Nunes Queiroz dos Santos)
+  // Com Assinatura Automática (auth: "auto_signature")
+  // ──────────────────────────────────────────────────────────
+  const adminName = process.env.CLICKSIGN_ADMIN_NAME || 'Albert Nunes Queiroz dos Santos';
+  const adminEmail = process.env.CLICKSIGN_ADMIN_EMAIL || 'clubefitnessbh@gmail.com';
+
+  const adminSignerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      data: {
+        type: 'signers',
+        attributes: {
+          name: adminName,
+          email: adminEmail,
+          auth: 'auto_signature'
+        }
+      }
+    })
+  });
+
+  if (adminSignerRes.ok) {
+    const adminSignerData = await adminSignerRes.json();
+    const adminSignerId = adminSignerData.data?.id;
+
+    if (adminSignerId) {
+      // Qualificação da Clínica (Contratada)
+      await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: 'requirements',
+            attributes: {
+              action: 'agree',
+              role: 'contractee'
+            },
+            relationships: {
+              document: { data: { type: 'documents', id: documentId } },
+              signer: { data: { type: 'signers', id: adminSignerId } }
+            }
+          }
+        })
+      });
+
+      // Autenticação automática
+      await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: 'requirements',
+            attributes: {
+              action: 'provide_evidence',
+              auth: 'auto_signature'
+            },
+            relationships: {
+              document: { data: { type: 'documents', id: documentId } },
+              signer: { data: { type: 'signers', id: adminSignerId } }
+            }
+          }
+        })
+      });
+    }
+  } else {
+    let errData: any = {};
+    try { errData = await adminSignerRes.json(); } catch {}
+    console.warn('Nota sobre auto_signature do administrador:', errData);
+  }
 
   // ──────────────────────────────────────────────────────────
   // PASSO 5 — Ativar Envelope (draft → running)
