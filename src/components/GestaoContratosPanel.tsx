@@ -724,6 +724,11 @@ export default function GestaoContratosPanel({
     let pdfBase64 = '';
 
     if (isClicksign) {
+      const cleanPhone = (selectedClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
+      if (!selectedClient.dadosPessoais?.telefone || cleanPhone.length < 10) {
+        alert('Para enviar via Clicksign (WhatsApp), o aluno deve possuir um número de celular cadastrado com DDD (mínimo 10 dígitos). Por favor, complete o cadastro do aluno na aba "Dados Pessoais".');
+        return;
+      }
       try {
         pdfBase64 = await getContractPDFBase64(
           {
@@ -781,7 +786,7 @@ export default function GestaoContratosPanel({
       });
       const data = await res.json();
       if (data.success) {
-        alert(isClicksign ? 'Contrato enviado para Clicksign com sucesso!' : 'Contrato pendente gerado!');
+        alert(isClicksign ? 'Contrato enviado com sucesso para o WhatsApp do aluno via Clicksign!' : 'Contrato pendente gerado!');
         loadContracts(selectedClient._id);
         fetchData();
       } else {
@@ -1791,10 +1796,11 @@ export default function GestaoContratosPanel({
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: '140px', color: '#818cf8', borderColor: 'rgba(129,140,248,0.4)', background: 'rgba(129,140,248,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                  style={{ flex: 1, minWidth: '140px', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
                   onClick={() => handleIssueContract('clicksign')}
+                  title="Enviar link de assinatura diretamente para o WhatsApp do aluno via Clicksign"
                 >
-                  <i className="fa-solid fa-file-signature"></i> Enviar p/ Clicksign
+                  <i className="fa-brands fa-whatsapp" style={{ fontSize: '1.05rem' }}></i> Enviar p/ Clicksign (WhatsApp)
                 </button>
                  <button
                   type="button"

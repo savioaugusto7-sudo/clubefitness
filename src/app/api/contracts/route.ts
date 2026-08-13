@@ -32,13 +32,27 @@ export async function GET(request: Request) {
 // Integração Clicksign API v3 (Envelope) — documentação oficial
 // https://developers.clicksign.com
 // ============================================================
+function formatE164Phone(phone: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    return `+${digits}`;
+  }
+  if (digits.length === 10 || digits.length === 11) {
+    return `+55${digits}`;
+  }
+  return `+${digits}`;
+}
+
 async function createClicksignDocument(
   fileName: string,
   base64File: string,
   signerEmail: string,
   signerName: string,
   signerCpf: string,
-  _signerBirthday: string  // reservado para uso futuro
+  _signerBirthday: string,  // reservado para uso futuro
+  signerPhone?: string
 ) {
   const token = process.env.CLICKSIGN_ACCESS_TOKEN;
   const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com').replace(/\/$/, '');
@@ -128,12 +142,14 @@ async function createClicksignDocument(
   } else {
     formattedCpf = signerCpf;
   }
+  const formattedPhone = formatE164Phone(signerPhone || '');
   const signerBody: any = {
     data: {
       type: 'signers',
       attributes: {
         name: signerName,
-        email: signerEmail
+        email: signerEmail,
+        ...(formattedPhone ? { phone_number: formattedPhone } : {})
       }
     }
   };
@@ -173,8 +189,8 @@ async function createClicksignDocument(
   await handleError(reqQualRes, 'Criar Requisito de Qualificação');
 
   // ──────────────────────────────────────────────────────────
-  // PASSO 4b — Requisito de Autenticação do Aluno
-  // action: "provide_evidence", auth: "email"
+  // PASSO 4b — Requisito de Autenticação do Aluno (WhatsApp)
+  // action: "provide_evidence", auth: "whatsapp"
   // ──────────────────────────────────────────────────────────
   const reqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
     method: 'POST',
@@ -184,7 +200,7 @@ async function createClicksignDocument(
         type: 'requirements',
         attributes: {
           action: 'provide_evidence',
-          auth: 'email'
+          auth: 'whatsapp'
         },
         relationships: {
           document: { data: { type: 'documents', id: documentId } },
@@ -193,7 +209,7 @@ async function createClicksignDocument(
       }
     })
   });
-  await handleError(reqAuthRes, 'Criar Requisito de Autenticação');
+  await handleError(reqAuthRes, 'Criar Requisito de Autenticação via WhatsApp');
 
   // ──────────────────────────────────────────────────────────
   // PASSO 4c — Adicionar Signatário da Clínica (Contratado)
@@ -444,6 +460,14 @@ export async function POST(request: Request) {
       if (!client.dadosPessoais?.cpf) {
         return NextResponse.json({ success: false, error: 'O aluno precisa de um CPF cadastrado para assinar pela Clicksign.' }, { status: 400 });
       }
+      if (!client.dadosPessoais?.telefone) {
+        return NextResponse.json({ success: false, error: 'O aluno precisa de um número de celular/WhatsApp cadastrado para assinar pela Clicksign.' }, { status: 400 });
+      }
+
+      const cleanPhone = (client.dadosPessoais.telefone || '').replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        return NextResponse.json({ success: false, error: 'O número de celular/WhatsApp do aluno deve conter DDD e pelo menos 10 ou 11 dígitos válidos.' }, { status: 400 });
+      }
 
       const fileName = `Contrato_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_V${versao}.pdf`;
       const base64File = contratoPdfBase64 || contratoHtmlBase64 || `data:text/html;base64,${Buffer.from(contratoTexto || '').toString('base64')}`;
@@ -455,7 +479,8 @@ export async function POST(request: Request) {
           client.dadosPessoais.email,
           client.dadosPessoais.nome,
           client.dadosPessoais.cpf,
-          client.dadosPessoais.nascimento || ''
+          client.dadosPessoais.nascimento || '',
+          client.dadosPessoais.telefone
         );
         clicksignDocKey = cSignResult.docKey;
         clicksignSignerKey = cSignResult.signerKey;

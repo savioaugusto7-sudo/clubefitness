@@ -28,7 +28,12 @@ export function validateContractClientData(client: any): ValidationResult {
   }
 
   if (!pes.telefone?.trim()) {
-    missingFields.push('Telefone');
+    missingFields.push('Telefone/WhatsApp');
+  } else {
+    const cleanPhone = pes.telefone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      missingFields.push('Telefone/WhatsApp (deve conter DDD e pelo menos 10 dígitos)');
+    }
   }
 
   // Address check
