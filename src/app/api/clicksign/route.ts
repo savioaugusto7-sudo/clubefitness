@@ -266,7 +266,7 @@ export async function DELETE(request: Request) {
   }
 }
 
-// Reenviar notificação de e-mail para assinante
+// Reenviar notificação para assinante (WhatsApp / E-mail)
 export async function PUT(request: Request) {
   try {
     await dbConnect();
@@ -286,9 +286,37 @@ export async function PUT(request: Request) {
     }
 
     const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
+    const actualEnvelopeId = envelopeId;
     const actualDocumentId = documentId || envelopeId;
 
-    // Fetch document list to get signature request key
+    if (actualEnvelopeId && actualEnvelopeId.length === 36) {
+      // Clicksign API v3: Disparar notificação do envelope
+      const v3Res = await fetch(`${baseUrl}/api/v3/envelopes/${actualEnvelopeId}/notifications`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token,
+          'Content-Type': 'application/vnd.api+json',
+          'Accept': 'application/vnd.api+json'
+        },
+        body: JSON.stringify({
+          data: {
+            type: 'notifications',
+            attributes: {}
+          }
+        })
+      });
+
+      if (!v3Res.ok) {
+        let errData: any = {};
+        try { errData = await v3Res.json(); } catch {}
+        const detail = (Array.isArray(errData?.errors) && errData.errors[0]?.detail) || errData?.error || `HTTP ${v3Res.status}`;
+        return NextResponse.json({ success: false, error: `Falha ao reenviar: ${detail}` }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: 'Notificação reenviada com sucesso via WhatsApp!' });
+    }
+
+    // Fallback para API v1 (documentos diretos)
     const docRes = await fetch(`${baseUrl}/api/v1/documents/${actualDocumentId}?access_token=${token}`);
     const docData = await docRes.json();
 

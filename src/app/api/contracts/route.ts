@@ -147,7 +147,14 @@ async function createClicksignDocument(
       attributes: {
         name: signerName,
         email: signerEmail,
-        ...(formattedPhone ? { phone_number: formattedPhone } : {})
+        ...(formattedPhone ? {
+          phone_number: formattedPhone,
+          communicate_events: {
+            signature_request: 'whatsapp',
+            signature_reminder: 'whatsapp',
+            document_signed: 'whatsapp'
+          }
+        } : {})
       }
     }
   };
