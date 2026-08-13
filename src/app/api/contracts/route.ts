@@ -5,6 +5,7 @@ import Payment from '@/models/Payment';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import { createAsaasCustomer, createAsaasPayment, getAsaasPixQrCode } from '@/utils/asaas';
+import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
 
 import { syncContractStatus } from '@/app/api/clicksign/route';
 
@@ -120,11 +121,14 @@ export async function createClicksignDocument(
   // ──────────────────────────────────────────────────────────
   // PASSO 2 — Adicionar Documento ao Envelope
   // POST /api/v3/envelopes/:envelope_id/documents
-  // content_base64 deve incluir o prefixo "data:...;base64,"
+  // content_base64 deve incluir o prefixo "data:application/pdf;base64,"
   // ──────────────────────────────────────────────────────────
-  const b64Raw = base64File.includes(',') ? base64File.split(',')[1] : base64File;
-  const mimeType = base64File.startsWith('data:text/html') ? 'text/html' : 'application/pdf';
-  const ext = mimeType === 'text/html' ? 'html' : 'pdf';
+  let finalBase64 = base64File;
+  if (!finalBase64.startsWith('data:application/pdf')) {
+    const rawContent = base64File.includes(',') ? Buffer.from(base64File.split(',')[1], 'base64').toString('utf-8') : base64File;
+    finalBase64 = await generateContractPDFBase64(rawContent);
+  }
+  const b64Raw = finalBase64.includes(',') ? finalBase64.split(',')[1] : finalBase64;
   const safeName = fileName.replace(/\.[^/.]+$/, '');
 
   const docRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/documents`, {
@@ -134,8 +138,8 @@ export async function createClicksignDocument(
       data: {
         type: 'documents',
         attributes: {
-          filename: `${safeName}.${ext}`,
-          content_base64: `data:${mimeType};base64,${b64Raw}`
+          filename: `${safeName}.pdf`,
+          content_base64: `data:application/pdf;base64,${b64Raw}`
         }
       }
     })
@@ -450,7 +454,10 @@ export async function POST(request: Request) {
       }
 
       const fileName = `Contrato_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_V${versao}.pdf`;
-      const base64File = contratoPdfBase64 || contratoHtmlBase64 || `data:text/html;base64,${Buffer.from(contratoTexto || '').toString('base64')}`;
+      let base64File = contratoPdfBase64;
+      if (!base64File || !base64File.startsWith('data:application/pdf')) {
+        base64File = await generateContractPDFBase64(contratoTexto || '');
+      }
 
       try {
         const cSignResult = await createClicksignDocument(

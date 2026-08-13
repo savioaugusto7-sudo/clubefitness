@@ -110,6 +110,7 @@ export async function POST(request: Request) {
 
 import Contract from '@/models/Contract';
 import { createClicksignDocument } from '@/app/api/contracts/route';
+import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
 
 export async function PUT(request: Request) {
   try {
@@ -217,7 +218,10 @@ export async function PUT(request: Request) {
       });
 
       const fileName = `Contrato_${(client.dadosPessoais.nome || 'Aluno').replace(/\s+/g, '_')}_V${versao}.pdf`;
-      const base64File = contratoPdfBase64 || `data:text/html;base64,${Buffer.from(contratoTexto || '').toString('base64')}`;
+      let base64File = contratoPdfBase64;
+      if (!base64File || !base64File.startsWith('data:application/pdf')) {
+        base64File = await generateContractPDFBase64(contratoTexto || '');
+      }
 
       try {
         const cSignResult = await createClicksignDocument(
