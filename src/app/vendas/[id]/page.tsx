@@ -325,18 +325,12 @@ export default function VendaPage({ params }: { params: any }) {
             • Valor Total: R$ {finalPrice.toFixed(2).replace('.', ',')}
           </div>
 
-          <a 
-            href={signatureUrl || `https://api.whatsapp.com`} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="btn btn-primary" 
-            style={{ width: '100%', padding: '16px', background: '#25D366', borderColor: '#25D366', color: '#fff', fontSize: '1.1rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', textDecoration: 'none', marginBottom: '15px' }}
-          >
-            <i className="fa-brands fa-whatsapp fa-xl"></i> Abrir e Assinar no WhatsApp Agora
-          </a>
-
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            Assim que você concluir a assinatura no WhatsApp, seu plano e créditos de treino serão ativados automaticamente.
+          <p style={{ color: 'var(--text-main)', fontSize: '0.95rem', lineHeight: '1.6', margin: '20px 0 0 0' }}>
+            <i className="fa-solid fa-bell" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i>
+            Acesse o aplicativo do <strong>WhatsApp</strong> no seu celular para assinar o documento.<br />
+            <small style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              Assim que você concluir a assinatura, seu plano e créditos de treino serão ativados automaticamente. Você já pode fechar esta página.
+            </small>
           </p>
         </div>
       </div>
