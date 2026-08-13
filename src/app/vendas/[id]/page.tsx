@@ -94,10 +94,15 @@ export default function VendaPage({ params }: { params: any }) {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-darker)', color: 'var(--text-main)' }}>
-        <div style={{ textAlign: 'center' }}>
-          <i className="fa-solid fa-circle-notch fa-spin fa-3x" style={{ color: 'var(--color-primary)', marginBottom: '15px' }}></i>
-          <p style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem' }}>Carregando proposta comercial...</p>
+      <div style={{ minHeight: '100dvh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '20px', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', maxWidth: '360px', width: '100%', margin: '0 auto' }}>
+          <i className="fa-solid fa-circle-notch fa-spin fa-3x" style={{ color: 'var(--color-primary)', marginBottom: '18px', display: 'inline-block' }}></i>
+          <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 700, color: '#fff', margin: '0 0 8px 0', textAlign: 'center' }}>
+            Carregando proposta comercial...
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0, textAlign: 'center' }}>
+            Aguarde um instante enquanto preparamos seu contrato.
+          </p>
         </div>
       </div>
     );
