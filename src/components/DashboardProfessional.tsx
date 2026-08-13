@@ -208,6 +208,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clientFilterScope, setClientFilterScope] = useState<'todos' | 'meus'>('todos');
 
   // Pagination & UX states
   const [pages, setPages] = useState<Record<string, number>>({});
@@ -3996,8 +3997,8 @@ goniometria: {
           <>
             <div className="view-header">
               <div className="view-title-group">
-                <h1>Meus Alunos</h1>
-                <p>Acompanhamento de fichas clínicas e evolução.</p>
+                <h1>Alunos</h1>
+                <p>Acompanhamento de fichas clínicas, testes de força e evolução.</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div className="page-size-selector">
@@ -4012,9 +4013,60 @@ goniometria: {
             </div>
 
             <div className="content-panel">
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <input type="text" className="form-control" placeholder="Buscar aluno por nome, email ou CPF..." value={getSearchQuery('clientes')} onChange={e => setSearchQueryForKey('clientes', e.target.value)} style={{ maxWidth: '300px' }} />
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+                {/* Scope selector */}
+                <div style={{ display: 'inline-flex', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '4px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{
+                      background: clientFilterScope === 'todos' ? 'var(--color-primary)' : 'transparent',
+                      color: clientFilterScope === 'todos' ? '#fff' : 'var(--text-muted)',
+                      fontWeight: 600,
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px 14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => { setClientFilterScope('todos'); setPage('clientes', 1); }}
+                  >
+                    <i className="fa-solid fa-users" style={{ marginRight: '6px' }}></i>
+                    Todos os Alunos ({clients.length})
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{
+                      background: clientFilterScope === 'meus' ? '#10b981' : 'transparent',
+                      color: clientFilterScope === 'meus' ? '#fff' : 'var(--text-muted)',
+                      fontWeight: 600,
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px 14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => { setClientFilterScope('meus'); setPage('clientes', 1); }}
+                  >
+                    <i className="fa-solid fa-star" style={{ marginRight: '6px', color: clientFilterScope === 'meus' ? '#fff' : '#f59e0b' }}></i>
+                    Meus Alunos ({clients.filter(c => {
+                      const linkedProfId = c.profissionalId?._id || c.profissionalId;
+                      return linkedProfId === professionalId;
+                    }).length})
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Buscar aluno por nome, email ou CPF..."
+                  value={getSearchQuery('clientes')}
+                  onChange={e => setSearchQueryForKey('clientes', e.target.value)}
+                  style={{ maxWidth: '320px', minWidth: '220px' }}
+                />
               </div>
+
               <div className="table-responsive">
                 <table className="data-table">
                   <thead>
@@ -4034,7 +4086,7 @@ goniometria: {
                       const size = getPageSize(listKey);
                       const q = normalizeText(getSearchQuery(listKey));
                       const filtered = clients.filter(c => {
-                        if (!isColetivo) {
+                        if (clientFilterScope === 'meus') {
                           const linkedProfId = c.profissionalId?._id || c.profissionalId;
                           if (linkedProfId !== professionalId) {
                             return false;
@@ -4056,20 +4108,29 @@ goniometria: {
                         const stObj = getExamStyleAndIcon(lastStRaw);
                         const planObj = getPlanStyleAndIcon(c.dadosComerciais?.vencimento);
 
+                        const linkedProfId = c.profissionalId?._id || c.profissionalId;
+                        const isMyStudent = linkedProfId === professionalId;
+
                         return (
                           <tr key={c._id}>
                             <td data-label="Aluno">
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <img src={c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
                                 <div>
-                                  <strong style={{ display: 'block' }}>
-                                    {c.dadosPessoais?.nome}
-                                    {isColetivo && (
-                                      <span style={{ fontWeight: 500, fontSize: '0.82rem', color: 'var(--color-primary)', marginLeft: '6px' }}>
-                                        (Prof. {c.profissionalId?.nome || 'Sem Vínculo'}{c.profissionalId?.registro ? ` - ${c.profissionalId.registro}` : ''})
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <strong style={{ display: 'block' }}>
+                                      {c.dadosPessoais?.nome}
+                                    </strong>
+                                    {isMyStudent ? (
+                                      <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                                        <i className="fa-solid fa-star" style={{ marginRight: '3px' }}></i>Meu Aluno
                                       </span>
-                                    )}
-                                  </strong>
+                                    ) : c.profissionalId?.nome ? (
+                                      <span style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                        Prof. {c.profissionalId.nome}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                   <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
                                     {c.dadosPessoais?.telefone || '-'}
                                   </span>
