@@ -151,7 +151,7 @@ async function createClicksignDocument(
           phone_number: formattedPhone,
           communicate_events: {
             signature_request: 'whatsapp',
-            signature_reminder: 'whatsapp',
+            signature_reminder: 'none',
             document_signed: 'whatsapp'
           }
         } : {})
