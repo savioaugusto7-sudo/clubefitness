@@ -285,8 +285,7 @@ async function createClicksignDocument(
             type: 'signers',
             attributes: {
               name: clinicName,
-              email: clinicEmail,
-              documentation: formattedClinicCnpj
+              email: clinicEmail
             }
           }
         })
