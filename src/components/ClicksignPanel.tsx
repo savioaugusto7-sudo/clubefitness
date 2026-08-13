@@ -54,7 +54,13 @@ export default function ClicksignPanel() {
     }
   }, [filterStatus, search]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(() => {
+      fetchData();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const handleResend = async (contractId: string) => {
     setActionLoading(contractId + '_resend');
@@ -101,14 +107,26 @@ export default function ClicksignPanel() {
   return (
     <div className="content-panel">
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <i className="fa-solid fa-file-signature" style={{ color: '#818cf8' }} />
-          Gestão de Contratos Clicksign
-        </h2>
-        <p style={{ color: 'var(--text-dim)', margin: '4px 0 0', fontSize: '0.85rem' }}>
-          Acompanhe, reenvie e gerencie todos os contratos enviados via assinatura eletrônica.
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <i className="fa-solid fa-file-signature" style={{ color: '#818cf8' }} />
+            Gestão de Contratos Clicksign
+          </h2>
+          <p style={{ color: 'var(--text-dim)', margin: '4px 0 0', fontSize: '0.85rem' }}>
+            Acompanhe em tempo real o status de assinatura via WhatsApp dos contratos enviados pela Clicksign.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => fetchData()}
+          disabled={loading}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 16px', background: 'rgba(129, 140, 248, 0.1)', color: '#818cf8', borderColor: 'rgba(129, 140, 248, 0.3)', fontWeight: 600 }}
+        >
+          <i className={`fa-solid fa-arrows-rotate ${loading ? 'fa-spin' : ''}`} />
+          {loading ? 'Sincronizando...' : 'Sincronizar com Clicksign'}
+        </button>
       </div>
 
       {/* KPI Cards */}

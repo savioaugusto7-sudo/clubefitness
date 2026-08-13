@@ -5,6 +5,7 @@ import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator'
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
+import ClicksignPanel from './ClicksignPanel';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -28,6 +29,7 @@ export default function GestaoContratosPanel({
 }: GestaoContratosPanelProps) {
   // Navigation & General states
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [subTab, setSubTab] = useState<'alunos' | 'clicksign'>('alunos');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('vencimento_asc');
   const [contracts, setContracts] = useState<any[]>([]);
@@ -975,14 +977,64 @@ export default function GestaoContratosPanel({
   if (!selectedClient) {
     return (
       <div>
-        <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Gestão Completa de Contratos</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
-            Selecione um aluno para gerenciar dados comerciais, ler minutas de contratos e disparar assinaturas (Clicksign ou Presencial por Touchscreen).
-          </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Gestão Completa de Contratos</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+              Gerencie dados comerciais dos alunos, emita contratos e acompanhe assinaturas eletrônicas na Clicksign.
+            </p>
+          </div>
+
+          {/* Sub-tabs switch */}
+          <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            <button
+              type="button"
+              onClick={() => setSubTab('alunos')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: subTab === 'alunos' ? 'var(--color-primary)' : 'transparent',
+                color: subTab === 'alunos' ? '#fff' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <i className="fa-solid fa-users"></i> Alunos & Emissão
+            </button>
+            <button
+              type="button"
+              onClick={() => setSubTab('clicksign')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: subTab === 'clicksign' ? 'var(--color-primary)' : 'transparent',
+                color: subTab === 'clicksign' ? '#fff' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <i className="fa-brands fa-whatsapp" style={{ color: subTab === 'clicksign' ? '#fff' : '#22c55e' }}></i> Controle Clicksign
+            </button>
+          </div>
         </div>
 
-        <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        {subTab === 'clicksign' ? (
+          <ClicksignPanel />
+        ) : (
+          <>
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ flex: '1 1 280px', maxWidth: '360px' }}>
             <input
               type="text"
@@ -1109,8 +1161,10 @@ export default function GestaoContratosPanel({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
-        </div>
+        </>
+        )}
       </div>
     );
   }

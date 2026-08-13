@@ -32,17 +32,15 @@ export async function GET(request: Request) {
 // Integração Clicksign API v3 (Envelope) — documentação oficial
 // https://developers.clicksign.com
 // ============================================================
-function formatE164Phone(phone: string): string {
+function formatClicksignPhone(phone: string): string {
   if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
+  let digits = phone.replace(/\D/g, '');
   if (!digits) return '';
+  // Se vier com 12 ou 13 dígitos começando com 55 (DDI), remove o 55 para manter os 10 ou 11 dígitos padrão
   if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
-    return `+${digits}`;
+    digits = digits.substring(2);
   }
-  if (digits.length === 10 || digits.length === 11) {
-    return `+55${digits}`;
-  }
-  return `+${digits}`;
+  return digits;
 }
 
 async function createClicksignDocument(
@@ -142,7 +140,7 @@ async function createClicksignDocument(
   } else {
     formattedCpf = signerCpf;
   }
-  const formattedPhone = formatE164Phone(signerPhone || '');
+  const formattedPhone = formatClicksignPhone(signerPhone || '');
   const signerBody: any = {
     data: {
       type: 'signers',
