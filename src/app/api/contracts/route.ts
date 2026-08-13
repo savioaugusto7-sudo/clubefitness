@@ -58,7 +58,7 @@ function formatClicksignPhone(phone: string): string {
   return digits;
 }
 
-async function createClicksignDocument(
+export async function createClicksignDocument(
   fileName: string,
   base64File: string,
   signerEmail: string,

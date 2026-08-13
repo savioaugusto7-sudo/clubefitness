@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { generateContractTemplate } from '@/utils/contractTemplate';
+import { getContractPDFBase64 } from '@/utils/pdfGenerator';
 
 export default function VendaPage({ params }: { params: any }) {
   const router = useRouter();
@@ -12,7 +14,12 @@ export default function VendaPage({ params }: { params: any }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [proposal, setProposal] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+
+  // Workflow steps: 'form' -> 'contract_review' -> 'success'
+  const [step, setStep] = useState<'form' | 'contract_review' | 'success'>('form');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [contractHtml, setContractHtml] = useState('');
+  const [signatureUrl, setSignatureUrl] = useState('');
 
   // Form States - Dados Pessoais
   const [nome, setNome] = useState('');
@@ -111,13 +118,6 @@ export default function VendaPage({ params }: { params: any }) {
   }
 
   const basePrice = proposal.valorAcordado || 0;
-  const isAnual = proposal.planoTipo === 'Anual' || 
-                  proposal.planoNome.toLowerCase().includes('anual') || 
-                  proposal.duracao === 'anual' || 
-                  proposal.vigenciaQtd >= 12;
-
-  // Business Rules for dynamic calculations:
-  // Card applies a +5% markup
   const finalPrice = formaPagamento === 'cartao' ? basePrice * 1.05 : basePrice;
 
   // Plan duration in months
@@ -133,53 +133,36 @@ export default function VendaPage({ params }: { params: any }) {
   // Max installments
   const maxInstallments = (() => {
     if (formaPagamento === 'cartao') {
-      return 12; // Card always goes up to 12x
+      return 12;
     }
     if (formaPagamento === 'boleto') {
       if (durationInMonths >= 12) {
-        return 10; // Annual is up to 10x
+        return 10;
       }
       if (durationInMonths > 1 && durationInMonths < 12) {
-        return durationInMonths - 1; // e.g. 4 months plan allows up to 3x
+        return durationInMonths - 1;
       }
-      return 1; // 1 month or less is 1x
+      return 1;
     }
-    return 1; // Pix/others
+    return 1;
   })();
 
-  // Adjust installment index if exceeds max
   const currentInstallments = Math.min(parcelas, maxInstallments);
-  const installmentValue = finalPrice / currentInstallments;
 
   const handlePaymentChange = (type: 'pix' | 'boleto' | 'cartao') => {
     setFormaPagamento(type);
-    setParcelas(1); // Reset to 1x when payment changes
+    setParcelas(1);
   };
 
-  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '');
-    if (val.length <= 11) {
-      setCpf(val);
-    }
-  };
-
-  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '');
-    if (val.length <= 8) {
-      setCep(val);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleProceedToContractReview = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationErrors([]);
     
-    // Client Side validations to prevent contract emission blocks
     const errorsList: string[] = [];
     if (!nome.trim()) errorsList.push('Nome Completo é obrigatório.');
     if (!cpf.trim() || cpf.length !== 11) errorsList.push('CPF inválido (deve conter 11 dígitos).');
     if (!email.trim() || !email.includes('@')) errorsList.push('E-mail válido é obrigatório.');
-    if (!telefone.trim()) errorsList.push('Telefone é obrigatório.');
+    if (!telefone.trim()) errorsList.push('Telefone / WhatsApp é obrigatório.');
     if (!cep.trim() || cep.length !== 8) errorsList.push('CEP inválido (deve conter 8 dígitos).');
     if (!endereco.trim()) errorsList.push('Endereço (Rua/Avenida) é obrigatório.');
     if (!numero.trim()) errorsList.push('Número residencial é obrigatório.');
@@ -207,29 +190,110 @@ export default function VendaPage({ params }: { params: any }) {
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Gerar minuta HTML do contrato com os dados informados
+    const html = generateContractTemplate({
+      clientNome: nome,
+      clientCpf: cpf,
+      clientEmail: email,
+      clientTelefone: telefone,
+      clientEndereco: endereco,
+      clientNumero: numero,
+      clientComplemento: complemento,
+      clientBairro: bairro,
+      clientCidade: cidade,
+      clientEstado: estado,
+      clientCep: cep,
+      planNome: proposal.planoNome,
+      planPreco: finalPrice,
+      planTipo: proposal.planoTipo,
+      descontoTipo: proposal.descontoTipo,
+      descontoValor: proposal.descontoValor,
+      parcelas: currentInstallments,
+      formaPagamento: formaPagamento,
+      dataInicio: proposal.dataInicio || todayStr,
+      dataVencimento: dataVencimento,
+      observacoesContratuais: proposal.observacoesContratuais,
+      unidadeContratada: proposal.unidadeContratada || 'Clube Fitness',
+      creditosMensais: proposal.creditosMensais || (proposal.frequencia * 4 + 1),
+      duracao: proposal.duracao,
+      vigenciaQtd: proposal.vigenciaQtd,
+      criarRecorrenciaMensal: proposal.criarRecorrenciaMensal,
+      recorrenciaMeses: proposal.recorrenciaMeses
+    });
+
+    setContractHtml(html);
+    setStep('contract_review');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleConfirmAndDispatchClicksign = async () => {
+    if (!acceptedTerms) {
+      alert('Por favor, confirme que você leu e concorda com as cláusulas do contrato.');
+      return;
+    }
+
     setSubmitting(true);
 
-    const payload = {
-      formaPagamentoEscolhida: formaPagamento,
-      parcelasEscolhidas: currentInstallments,
-      valorFinalRecalculado: finalPrice,
-      dataVencimentoEscolhida: dataVencimento,
-      dadosPreenchidos: {
-        nome,
-        cpf,
-        email,
-        telefone,
-        cep,
-        endereco,
-        numero,
-        complemento,
-        bairro,
-        cidade,
-        estado
-      }
-    };
-
     try {
+      let pdfBase64 = '';
+      try {
+        pdfBase64 = await getContractPDFBase64(
+          {
+            dadosPessoais: {
+              nome,
+              cpf,
+              email,
+              telefone,
+              cep,
+              endereco,
+              numero,
+              complemento,
+              bairro,
+              cidade,
+              estado
+            },
+            dadosComerciais: {
+              planoId: proposal.planoId?._id || proposal.planoId,
+              formaPagamento,
+              duracao: proposal.duracao,
+              vencimento: dataVencimento,
+              parcelas: currentInstallments,
+              dataInicio: proposal.dataInicio,
+              unidadeContratada: proposal.unidadeContratada
+            }
+          },
+          proposal.planoId || { nome: proposal.planoNome, preco: finalPrice, tipo: proposal.planoTipo },
+          contractHtml
+        );
+      } catch (pdfErr) {
+        console.warn('Fallback para HTML base64:', pdfErr);
+      }
+
+      const payload = {
+        formaPagamentoEscolhida: formaPagamento,
+        parcelasEscolhidas: currentInstallments,
+        valorFinalRecalculado: finalPrice,
+        dataVencimentoEscolhida: dataVencimento,
+        dadosPreenchidos: {
+          nome,
+          cpf,
+          email,
+          telefone,
+          cep,
+          endereco,
+          numero,
+          complemento,
+          bairro,
+          cidade,
+          estado
+        },
+        dispararClicksign: true,
+        contratoPdfBase64: pdfBase64,
+        contratoTexto: contractHtml
+      };
+
       const res = await fetch(`/api/propostas?id=${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -237,9 +301,11 @@ export default function VendaPage({ params }: { params: any }) {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(true);
+        setSignatureUrl(data.signatureUrl || '');
+        setStep('success');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        alert('Erro ao enviar proposta: ' + data.error);
+        alert('Erro ao disparar contrato: ' + data.error);
       }
     } catch (err: any) {
       alert('Erro na conexão: ' + err.message);
@@ -247,30 +313,6 @@ export default function VendaPage({ params }: { params: any }) {
       setSubmitting(false);
     }
   };
-
-  if (success) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '20px' }}>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '40px', maxWidth: '600px', width: '100%', textAlign: 'center', boxShadow: 'var(--shadow-card)' }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
-            <i className="fa-solid fa-circle-check fa-3x" style={{ color: 'var(--color-primary)' }}></i>
-          </div>
-          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.8rem', marginBottom: '15px', color: 'var(--text-main)' }}>Proposta Enviada com Sucesso!</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: '1.6', marginBottom: '30px' }}>
-            Obrigado, <strong>{nome}</strong>! Seus dados cadastrais foram atualizados no sistema.<br />
-            A recepção do <strong>Clube Fitness Fisio</strong> irá revisar as informações e emitir o seu contrato de prestação de serviços para assinatura eletrônica em instantes.
-          </p>
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '15px', fontSize: '0.85rem', color: 'var(--text-dim)', textAlign: 'left', marginBottom: '30px' }}>
-            <strong>Resumo Escolhido:</strong><br />
-            • Plano: {proposal.planoNome}<br />
-            • Pagamento: {formaPagamento === 'pix' ? 'Pix (1x)' : (formaPagamento === 'boleto' ? `Boleto Bancário (${currentInstallments}x)` : `Cartão de Crédito (${currentInstallments}x)`)}<br />
-            • Valor Total: R$ {finalPrice.toFixed(2).replace('.', ',')}
-          </div>
-          <p style={{ color: 'var(--color-primary)', fontSize: '0.9rem', fontWeight: 600 }}>Você já pode fechar esta página.</p>
-        </div>
-      </div>
-    );
-  }
 
   const todayStr = new Date().toISOString().split('T')[0];
   const maxDateObj = new Date();
@@ -296,14 +338,192 @@ export default function VendaPage({ params }: { params: any }) {
     dataFimCalculada = startD.toLocaleDateString('pt-BR');
   }
 
+  // ==========================================
+  // ETAPA 3: SUCESSO (DISPARADO NO CLICKSIGN)
+  // ==========================================
+  if (step === 'success') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '20px' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '40px', maxWidth: '600px', width: '100%', textAlign: 'center', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ width: '85px', height: '85px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', border: '2px solid #22c55e' }}>
+            <i className="fa-brands fa-whatsapp fa-3x" style={{ color: '#22c55e' }}></i>
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.8rem', marginBottom: '15px', color: 'var(--text-main)' }}>Contrato Enviado para o WhatsApp!</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: '1.6', marginBottom: '25px' }}>
+            Perfeito, <strong>{nome}</strong>! O seu contrato foi gerado e enviado pela <strong>Clicksign</strong> diretamente para o seu WhatsApp no número <strong>{telefone}</strong>.
+          </p>
+
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '16px', fontSize: '0.9rem', color: 'var(--text-dim)', textAlign: 'left', marginBottom: '25px' }}>
+            <strong style={{ color: '#fff', display: 'block', marginBottom: '6px' }}>Resumo Contratado:</strong>
+            • Plano: {proposal.planoNome}<br />
+            • Pagamento: {formaPagamento === 'pix' ? 'Pix (1x)' : (formaPagamento === 'boleto' ? `Boleto Bancário (${currentInstallments}x)` : `Cartão de Crédito (${currentInstallments}x)`)}<br />
+            • Valor Total: R$ {finalPrice.toFixed(2).replace('.', ',')}
+          </div>
+
+          <a 
+            href={signatureUrl || `https://api.whatsapp.com`} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="btn btn-primary" 
+            style={{ width: '100%', padding: '16px', background: '#25D366', borderColor: '#25D366', color: '#fff', fontSize: '1.1rem', fontWeight: 700, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', textDecoration: 'none', marginBottom: '15px' }}
+          >
+            <i className="fa-brands fa-whatsapp fa-xl"></i> Abrir e Assinar no WhatsApp Agora
+          </a>
+
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            Assim que você concluir a assinatura no WhatsApp, seu plano e créditos de treino serão ativados automaticamente.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // ETAPA 2: LEITURA E REVISÃO DO CONTRATO
+  // ==========================================
+  if (step === 'contract_review') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '40px 20px', fontFamily: 'var(--font-body)' }}>
+        <div style={{ maxWidth: '850px', margin: '0 auto' }}>
+          
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <h1 style={{ fontFamily: 'var(--font-title)', fontSize: '1.9rem', fontWeight: 800, color: 'var(--color-primary)' }}>CLUBE FITNESS FISIO</h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>Revisão e Leitura do Contrato de Prestação de Serviços</p>
+          </div>
+
+          {/* Stepper indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>1</span>
+              <span>Dados & Pagamento</span>
+            </div>
+            <i className="fa-solid fa-chevron-right" style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}></i>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', fontWeight: 700, fontSize: '0.9rem' }}>
+              <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--color-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
+              <span>Leitura do Contrato</span>
+            </div>
+            <i className="fa-solid fa-chevron-right" style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}></i>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+              <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
+              <span>Assinatura (Clicksign)</span>
+            </div>
+          </div>
+
+          {/* Contract Content Card */}
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
+            <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '15px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <span>
+                <i className="fa-solid fa-file-contract" style={{ marginRight: '8px' }}></i> Minuta Oficial do Contrato
+              </span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <i className="fa-solid fa-lock" style={{ marginRight: '5px', color: 'var(--color-primary)' }}></i>
+                Ambiente Seguro
+              </span>
+            </h3>
+
+            {/* Scrollable Document Container */}
+            <div style={{ background: '#ffffff', color: '#111827', padding: '30px', borderRadius: '8px', border: '1px solid var(--border-color)', maxHeight: '520px', overflowY: 'auto', lineHeight: '1.6', fontSize: '0.92rem', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)' }}>
+              <div dangerouslySetInnerHTML={{ __html: contractHtml }} />
+            </div>
+
+            {/* Acceptance Checkbox */}
+            <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  style={{ width: '22px', height: '22px', marginTop: '2px', accentColor: '#10b981', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.95rem', color: '#fff', fontWeight: 600, lineHeight: '1.4' }}>
+                  Declaro que li, conferi meus dados cadastrais e concordo integralmente com todas as cláusulas e condições deste contrato de prestação de serviços.
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={submitting}
+              onClick={() => {
+                setStep('form');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              style={{ flex: '1 1 180px', padding: '16px', fontSize: '1rem', fontWeight: 600, borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            >
+              <i className="fa-solid fa-arrow-left"></i> Voltar e Editar Dados
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!acceptedTerms || submitting}
+              onClick={handleConfirmAndDispatchClicksign}
+              style={{
+                flex: '2 1 280px',
+                padding: '16px',
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                borderRadius: 'var(--radius-md)',
+                background: acceptedTerms ? '#22c55e' : 'var(--bg-secondary)',
+                borderColor: acceptedTerms ? '#22c55e' : 'var(--border-color)',
+                color: acceptedTerms ? '#fff' : 'var(--text-dim)',
+                cursor: (acceptedTerms && !submitting) ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
+            >
+              {submitting ? (
+                <>
+                  <i className="fa-solid fa-spinner fa-spin"></i> Gerando contrato e enviando p/ WhatsApp...
+                </>
+              ) : (
+                <>
+                  <i className="fa-brands fa-whatsapp fa-lg"></i> Confirmar e Assinar pelo WhatsApp
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // ETAPA 1: FORMULÁRIO DE DADOS E PAGAMENTO
+  // ==========================================
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '40px 20px', fontFamily: 'var(--font-body)' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '35px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ fontFamily: 'var(--font-title)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-primary)' }}>CLUBE FITNESS FISIO</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '5px' }}>Preencha seus dados para liberação do seu contrato</p>
+        </div>
+
+        {/* Stepper indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', fontWeight: 700, fontSize: '0.9rem' }}>
+            <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--color-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
+            <span>Dados & Pagamento</span>
+          </div>
+          <i className="fa-solid fa-chevron-right" style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}></i>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+            <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
+            <span>Leitura do Contrato</span>
+          </div>
+          <i className="fa-solid fa-chevron-right" style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}></i>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+            <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
+            <span>Assinatura (Clicksign)</span>
+          </div>
         </div>
 
         {/* Validation Errors banner */}
@@ -318,7 +538,7 @@ export default function VendaPage({ params }: { params: any }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleProceedToContractReview}>
           {/* 1. Proposta Comercial */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
             <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '15px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -368,19 +588,18 @@ export default function VendaPage({ params }: { params: any }) {
 
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>E-mail (Para assinatura eletrônica) *</label>
-                <input className="form-control" type="email" value={email} onChange={(e) => {}} disabled style={{ width: '100%', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-dim)', cursor: 'not-allowed' }} />
+                <input className="form-control" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp *</label>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp (Para recebimento do contrato) *</label>
                 <input className="form-control" type="text" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(99) 99999-9999" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF (Apenas números) *</label>
-                <input className="form-control" type="text" value={cpf} onChange={handleCpfChange} maxLength={11} placeholder="CPF do titular" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                <input className="form-control" type="text" value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="12345678900" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
-
             </div>
           </div>
 
@@ -390,10 +609,10 @@ export default function VendaPage({ params }: { params: any }) {
               <i className="fa-solid fa-map-location-dot"></i> 2. Endereço Residencial
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' }}>
+              <div className="form-group">
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CEP *</label>
-                <input className="form-control" type="text" value={cep} onChange={handleCepChange} onBlur={handleCepBlur} maxLength={8} placeholder="00000000" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                <input className="form-control" type="text" value={cep} onChange={(e) => setCep(e.target.value.replace(/\D/g, '').slice(0, 8))} onBlur={handleCepBlur} placeholder="30000000" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -401,82 +620,122 @@ export default function VendaPage({ params }: { params: any }) {
                 <input className="form-control" type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <div className="form-group">
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Número *</label>
                 <input className="form-control" type="text" value={numero} onChange={(e) => setNumero(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <div className="form-group">
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Complemento</label>
-                <input className="form-control" type="text" value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Apto, Bloco, etc." style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                <input className="form-control" type="text" value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Apto, Bloco..." style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <div className="form-group">
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Bairro *</label>
                 <input className="form-control" type="text" value={bairro} onChange={(e) => setBairro(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <div className="form-group">
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cidade *</label>
                 <input className="form-control" type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>UF Estado *</label>
-                <input className="form-control" type="text" value={estado} onChange={(e) => setEstado(e.target.value)} maxLength={2} placeholder="MG" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+              <div className="form-group">
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>UF (Estado) *</label>
+                <input className="form-control" type="text" value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} maxLength={2} placeholder="MG" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
               </div>
             </div>
           </div>
 
-          {/* 4. Opções de Pagamento e Parcelas */}
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '35px', boxShadow: 'var(--shadow-card)' }}>
+          {/* 4. Forma de Pagamento */}
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
             <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className="fa-solid fa-credit-card"></i> 3. Forma de Pagamento e Parcelamento
+              <i className="fa-solid fa-credit-card"></i> 3. Condições de Pagamento
             </h3>
 
-            {/* Payment Method selector buttons */}
-            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '25px' }}>
-              <button type="button" onClick={() => handlePaymentChange('pix')} style={{ flex: 1, minWidth: '130px', padding: '16px', background: formaPagamento === 'pix' ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)', border: formaPagamento === 'pix' ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#fff', cursor: 'pointer', transition: 'var(--transition-fast)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-brands fa-pix fa-xl" style={{ color: formaPagamento === 'pix' ? 'var(--color-primary)' : 'var(--text-muted)' }}></i>
-                <strong>PIX</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Sem desconto</span>
+            {/* Payment Method Selector */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '15px', marginBottom: '25px' }}>
+              <button
+                type="button"
+                onClick={() => handlePaymentChange('pix')}
+                style={{
+                  background: formaPagamento === 'pix' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.02)',
+                  border: `2px solid ${formaPagamento === 'pix' ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                  color: formaPagamento === 'pix' ? 'var(--color-primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <i className="fa-brands fa-pix fa-2x" style={{ display: 'block', marginBottom: '8px' }}></i>
+                Pix
+                <span style={{ display: 'block', fontSize: '0.75rem', marginTop: '4px', opacity: 0.8 }}>À vista (1x)</span>
               </button>
 
-              <button type="button" onClick={() => handlePaymentChange('boleto')} style={{ flex: 1, minWidth: '130px', padding: '16px', background: formaPagamento === 'boleto' ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)', border: formaPagamento === 'boleto' ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#fff', cursor: 'pointer', transition: 'var(--transition-fast)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-barcode fa-xl" style={{ color: formaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--text-muted)' }}></i>
-                <strong>Boleto Bancário</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                  {durationInMonths >= 12 
-                    ? 'Até 10x sem juros' 
-                    : durationInMonths > 1 
-                      ? `Até ${durationInMonths - 1}x` 
-                      : '1x'
-                  }
-                </span>
+              <button
+                type="button"
+                onClick={() => handlePaymentChange('boleto')}
+                style={{
+                  background: formaPagamento === 'boleto' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.02)',
+                  border: `2px solid ${formaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                  color: formaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <i className="fa-solid fa-barcode fa-2x" style={{ display: 'block', marginBottom: '8px' }}></i>
+                Boleto Bancário
+                <span style={{ display: 'block', fontSize: '0.75rem', marginTop: '4px', opacity: 0.8 }}>Até {maxInstallments}x</span>
               </button>
 
-              <button type="button" onClick={() => handlePaymentChange('cartao')} style={{ flex: 1, minWidth: '130px', padding: '16px', background: formaPagamento === 'cartao' ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)', border: formaPagamento === 'cartao' ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#fff', cursor: 'pointer', transition: 'var(--transition-fast)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-credit-card fa-xl" style={{ color: formaPagamento === 'cartao' ? 'var(--color-primary)' : 'var(--text-muted)' }}></i>
-                <strong>Cartão de Crédito</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>+5% de acréscimo</span>
+              <button
+                type="button"
+                onClick={() => handlePaymentChange('cartao')}
+                style={{
+                  background: formaPagamento === 'cartao' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.02)',
+                  border: `2px solid ${formaPagamento === 'cartao' ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                  color: formaPagamento === 'cartao' ? 'var(--color-primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <i className="fa-solid fa-credit-card fa-2x" style={{ display: 'block', marginBottom: '8px' }}></i>
+                Cartão de Crédito
+                <span style={{ display: 'block', fontSize: '0.75rem', marginTop: '4px', opacity: 0.8 }}>Até 12x</span>
               </button>
             </div>
 
-            {/* Installment selection */}
-            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-sm)' }}>
-              <label style={{ display: 'block', marginBottom: '12px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Opções de Parcelamento:</label>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-                {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => {
-                  const val = finalPrice / num;
-                  const active = currentInstallments === num;
-                  return (
-                    <button key={num} type="button" onClick={() => setParcelas(num)} style={{ padding: '12px', background: active ? 'var(--color-primary-glow)' : 'transparent', border: active ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)', borderRadius: '8px', color: '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span><strong>{num}x</strong> de</span>
-                      <strong style={{ color: active ? 'var(--color-primary)' : '#fff' }}>R$ {val.toFixed(2).replace('.', ',')}</strong>
-                    </button>
-                  );
-                })}
+            {/* Installments & Due Date */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '20px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Número de Parcelas</label>
+                <select 
+                  className="form-control" 
+                  value={currentInstallments} 
+                  onChange={(e) => setParcelas(Number(e.target.value))} 
+                  disabled={formaPagamento === 'pix'}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }}
+                >
+                  {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => {
+                    const instVal = finalPrice / num;
+                    return (
+                      <option key={num} value={num} style={{ background: '#1e293b', color: '#fff' }}>
+                        {num}x de R$ {instVal.toFixed(2).replace('.', ',')} {num === 1 ? '(À vista)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
@@ -522,17 +781,10 @@ export default function VendaPage({ params }: { params: any }) {
             </div>
           </div>
 
-          {/* Submit Action */}
-          <button type="submit" disabled={submitting} className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', fontWeight: 700, borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-            {submitting ? (
-              <>
-                <i className="fa-solid fa-circle-notch fa-spin"></i> Enviando proposta comercial...
-              </>
-            ) : (
-              <>
-                <i className="fa-solid fa-paper-plane"></i> Enviar Proposta para Emissão do Contrato
-              </>
-            )}
+          {/* Submit Action -> Step 2 */}
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', fontWeight: 700, borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+            <span>Avançar para Leitura do Contrato</span>
+            <i className="fa-solid fa-arrow-right"></i>
           </button>
         </form>
       </div>

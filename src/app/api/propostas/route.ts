@@ -108,6 +108,9 @@ export async function POST(request: Request) {
   }
 }
 
+import Contract from '@/models/Contract';
+import { createClicksignDocument } from '@/app/api/contracts/route';
+
 export async function PUT(request: Request) {
   try {
     await dbConnect();
@@ -124,7 +127,10 @@ export async function PUT(request: Request) {
       parcelasEscolhidas,
       valorFinalRecalculado,
       dataVencimentoEscolhida,
-      dadosPreenchidos
+      dadosPreenchidos,
+      dispararClicksign,
+      contratoPdfBase64,
+      contratoTexto
     } = body;
 
     const proposal = await Proposal.findById(id);
@@ -164,6 +170,85 @@ export async function PUT(request: Request) {
     proposal.dadosPreenchidos = dadosPreenchidos;
 
     await proposal.save();
+
+    // 3. Se solicitado o disparo no Clicksign, gerar o contrato e acionar o envelope
+    if (dispararClicksign) {
+      const plan = await Plan.findById(proposal.planoId);
+      const isAnual = plan?.tipo === 'Anual' || proposal.duracao === 'anual' || proposal.vigenciaQtd >= 12;
+      const numParcelas = Number(parcelasEscolhidas) || 1;
+      const planVigencia = isAnual ? 12 : 1;
+      const vigenciaMeses = Math.max(planVigencia, numParcelas);
+
+      const startD = new Date((proposal.dataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+      startD.setMonth(startD.getMonth() + vigenciaMeses);
+      const dataFim = startD.toISOString().split('T')[0];
+
+      const count = await Contract.countDocuments({ clientId: client._id });
+      const versao = count + 1;
+
+      const valorLiquido = valorFinalRecalculado || proposal.valorAcordado || plan?.preco || 0;
+      const diaVenc = dataVencimentoEscolhida ? parseInt(dataVencimentoEscolhida.split('-')[2] || '5', 10) : new Date().getDate();
+
+      const newContract = await Contract.create({
+        clientId: client._id,
+        planoId: proposal.planoId,
+        planoNome: proposal.planoNome || plan?.nome,
+        planoTipo: proposal.planoTipo || plan?.tipo,
+        valorBruto: plan?.preco || valorLiquido,
+        descontoTipo: proposal.descontoTipo || 'reais',
+        descontoValor: proposal.descontoValor || 0,
+        valorLiquido,
+        parcelas: numParcelas,
+        formaPagamento: formaPagamentoEscolhida || 'pix',
+        diaVencimento: diaVenc,
+        dataPrimeiroVencimento: dataVencimentoEscolhida || '',
+        dataInicio: proposal.dataInicio || new Date().toISOString().split('T')[0],
+        dataFim,
+        status: 'pendente',
+        contratoTexto: contratoTexto || '',
+        dataEmissao: new Date(),
+        usuarioEmissor: 'Autoatendimento (Link de Vendas)',
+        unidadeContratada: proposal.unidadeContratada || 'Clube Fitness',
+        observacoesContratuais: proposal.observacoesContratuais || '',
+        versao,
+        frequencia: proposal.frequencia || 3,
+        creditosTotal: proposal.creditosMensais || (proposal.frequencia * 4 + 1)
+      });
+
+      const fileName = `Contrato_${(client.dadosPessoais.nome || 'Aluno').replace(/\s+/g, '_')}_V${versao}.pdf`;
+      const base64File = contratoPdfBase64 || `data:text/html;base64,${Buffer.from(contratoTexto || '').toString('base64')}`;
+
+      try {
+        const cSignResult = await createClicksignDocument(
+          fileName,
+          base64File,
+          client.dadosPessoais.email,
+          client.dadosPessoais.nome,
+          client.dadosPessoais.cpf,
+          client.dadosPessoais.dataNascimento || '',
+          client.dadosPessoais.telefone
+        );
+
+        newContract.clicksignDocKey = cSignResult.docKey;
+        newContract.clicksignSignerKey = cSignResult.signerKey;
+        newContract.clicksignUrl = cSignResult.signatureUrl;
+        newContract.clicksignStatus = 'pendente';
+        await newContract.save();
+
+        return NextResponse.json({
+          success: true,
+          data: proposal,
+          contract: newContract,
+          signatureUrl: cSignResult.signatureUrl
+        });
+      } catch (cSignErr: any) {
+        console.error('Erro Clicksign no link de vendas:', cSignErr);
+        return NextResponse.json({
+          success: false,
+          error: `Dados salvos, mas ocorreu uma falha na Clicksign: ${cSignErr.message}`
+        }, { status: 500 });
+      }
+    }
 
     return NextResponse.json({ success: true, data: proposal });
   } catch (error: any) {
