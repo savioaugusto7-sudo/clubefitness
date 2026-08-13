@@ -1114,14 +1114,44 @@ export default function GestaoContratosPanel({
   return (
     <div>
       {/* Workspace Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <button className="btn btn-secondary" onClick={() => setSelectedClient(null)}>
           <i className="fa-solid fa-arrow-left" style={{ marginRight: '6px' }}></i> Voltar para a lista
         </button>
-        <div>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Aluno selecionado: <strong>{selectedClient.dadosPessoais?.nome}</strong> ({selectedClient.dadosPessoais?.cpf || 'Sem CPF'})
-          </span>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          padding: '8px 16px',
+          borderRadius: '8px'
+        }}>
+          <div style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            background: 'rgba(16, 185, 129, 0.15)',
+            color: 'var(--color-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700,
+            fontSize: '0.9rem'
+          }}>
+            {(selectedClient.dadosPessoais?.nome || selectedClient.nome || 'A').charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Aluno Selecionado</div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Sem Nome'}
+            </div>
+          </div>
+          {selectedClient.dadosPessoais?.cpf && (
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderLeft: '1px solid var(--border-color)', paddingLeft: '12px', marginLeft: '4px' }}>
+              CPF: <strong style={{ color: 'var(--text-main)' }}>{selectedClient.dadosPessoais.cpf}</strong>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1209,6 +1239,59 @@ export default function GestaoContratosPanel({
           )}
 
           <form onSubmit={handleSaveComercial} className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', margin: 0 }}>
+          {/* CABEÇALHO DO CLIENTE NO FORMULÁRIO */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: '8px',
+            padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'rgba(16, 185, 129, 0.18)',
+                color: 'var(--color-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: '1.15rem',
+                border: '1px solid rgba(16, 185, 129, 0.4)'
+              }}>
+                {(selectedClient.dadosPessoais?.nome || selectedClient.nome || 'A').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 700, display: 'block' }}>
+                  Aluno em Atendimento
+                </span>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Sem Nome'}
+                </h3>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {selectedClient.dadosPessoais?.cpf && (
+                <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                  CPF: <strong style={{ color: 'var(--text-main)' }}>{selectedClient.dadosPessoais.cpf}</strong>
+                </span>
+              )}
+              {selectedClient.dadosPessoais?.telefone && (
+                <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                  <i className="fa-solid fa-phone" style={{ marginRight: '4px', color: 'var(--color-primary)' }}></i>
+                  {selectedClient.dadosPessoais.telefone}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* BLOCO VÍNCULO E BUSCA ASAAS */}
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
@@ -1658,8 +1741,14 @@ export default function GestaoContratosPanel({
           
           {/* Box 1: Issue actions */}
           <div className="content-panel" style={{ padding: '20px' }}>
-            <h3 style={{ margin: '0 0 14px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-              <i className="fa-solid fa-file-invoice" style={{ marginRight: '8px' }}></i> Emissão de Novo Contrato
+            <h3 style={{ margin: '0 0 14px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <span>
+                <i className="fa-solid fa-file-invoice" style={{ marginRight: '8px' }}></i> Emissão de Novo Contrato
+              </span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', background: 'var(--bg-secondary)', padding: '3px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <i className="fa-solid fa-user" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i>
+                {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Aluno'}
+              </span>
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1746,8 +1835,13 @@ export default function GestaoContratosPanel({
 
           {/* Box 2: Contract History */}
           <div className="content-panel" style={{ padding: '20px' }}>
-            <h3 style={{ margin: '0 0 14px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-              <i className="fa-solid fa-history" style={{ marginRight: '8px' }}></i> Histórico de Contratos Emitidos
+            <h3 style={{ margin: '0 0 14px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <span>
+                <i className="fa-solid fa-history" style={{ marginRight: '8px' }}></i> Histórico de Contratos Emitidos
+              </span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Aluno'}
+              </span>
             </h3>
 
             {loadingContracts ? (
