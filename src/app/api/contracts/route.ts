@@ -237,7 +237,10 @@ async function createClicksignDocument(
   // ──────────────────────────────────────────────────────────
   const clinicEmail = process.env.CLICKSIGN_CLINIC_EMAIL || 'clubefitnessbh@gmail.com';
   const clinicName = process.env.CLICKSIGN_CLINIC_NAME || 'Albert Nunes Queiroz dos Santos LTDA';
-  const clinicCnpj = '52883492000104';
+  const rawClinicCnpj = (process.env.CLICKSIGN_CLINIC_CNPJ || '52883492000104').replace(/\D/g, '');
+  const formattedClinicCnpj = rawClinicCnpj.length === 14 
+    ? `${rawClinicCnpj.substring(0, 2)}.${rawClinicCnpj.substring(2, 5)}.${rawClinicCnpj.substring(5, 8)}/${rawClinicCnpj.substring(8, 12)}-${rawClinicCnpj.substring(12, 14)}`
+    : rawClinicCnpj;
   const clinicBirthday = process.env.CLICKSIGN_CLINIC_BIRTHDAY || '2023-11-14';
 
   let clinicSignerId = '';
@@ -250,7 +253,7 @@ async function createClicksignDocument(
         name: clinicName,
         email: clinicEmail,
         auth: 'auto_signature',
-        documentation: clinicCnpj,
+        documentation: formattedClinicCnpj,
         birthday: clinicBirthday
       }
     }
@@ -270,8 +273,8 @@ async function createClicksignDocument(
     try { errData = await clinicSignerRes.json(); } catch {}
     const detail = (Array.isArray(errData?.errors) && errData.errors[0]?.detail) || errData?.error || errData?.message || '';
 
-    if (detail.includes('auth') || detail.includes('disponível') || detail.includes('auto_signature') || clinicSignerRes.status === 422) {
-      console.warn('Auto-signature não disponível no ambiente de testes, usando assinatura normal.');
+    if (detail.includes('auth') || detail.includes('disponível') || detail.includes('auto_signature') || detail.includes('termo') || clinicSignerRes.status === 422) {
+      console.warn('Auto-signature retornou aviso, tentando com assinatura normal:', detail);
       isFallback = true;
 
       const fallbackRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
@@ -282,7 +285,8 @@ async function createClicksignDocument(
             type: 'signers',
             attributes: {
               name: clinicName,
-              email: clinicEmail
+              email: clinicEmail,
+              documentation: formattedClinicCnpj
             }
           }
         })
@@ -319,8 +323,30 @@ async function createClicksignDocument(
   });
   await handleError(clinicReqQualRes, 'Criar Requisito de Qualificação da Clínica');
 
-  // Se auto_signature falhou e fizemos o fallback, precisamos do requisito de envio de e-mail tradicional
-  if (isFallback) {
+  // Requisito de autenticação da clínica
+  if (!isFallback) {
+    try {
+      await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: 'requirements',
+            attributes: {
+              action: 'provide_evidence',
+              auth: 'auto_signature'
+            },
+            relationships: {
+              document: { data: { type: 'documents', id: documentId } },
+              signer: { data: { type: 'signers', id: clinicSignerId } }
+            }
+          }
+        })
+      });
+    } catch (e) {
+      console.warn('Aviso requirement auto_signature:', e);
+    }
+  } else {
     const clinicReqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
       method: 'POST',
       headers,
