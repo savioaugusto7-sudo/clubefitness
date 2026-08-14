@@ -2364,26 +2364,21 @@ export default function GestaoContratosPanel({
 
             {/* Resumo Financeiro da Renovação */}
             <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Plano:</span>
                 <strong>{activeRenewal.planoNome}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Valor do Último Ciclo:</span>
-                <span>R$ {activeRenewal.valorAnterior.toFixed(2).replace('.', ',')}/mês</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Reajuste Automático (+5%):</span>
-                <span style={{ color: '#10b981', fontWeight: 700 }}>+ R$ {(activeRenewal.valorReajustado - activeRenewal.valorAnterior).toFixed(2).replace('.', ',')}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Vigência do Novo Contrato:</span>
+                <strong style={{ color: '#10b981' }}>
+                  {activeRenewal.vigenciaMeses} meses ({new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR')} até {new Date(activeRenewal.dataFimCalculada + 'T12:00:00').toLocaleDateString('pt-BR')})
+                </strong>
               </div>
               <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Novo Valor da Renovação:</span>
-                <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Valor da Mensalidade:</span>
+                <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#10b981' }}>
                   R$ {activeRenewal.valorReajustado.toFixed(2).replace('.', ',')}/mês
                 </span>
-              </div>
-              <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Início Contínuo: <strong>{new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR')}</strong> | Vigência: <strong>{activeRenewal.vigenciaMeses} meses</strong>
               </div>
             </div>
 

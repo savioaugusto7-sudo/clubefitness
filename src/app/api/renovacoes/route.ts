@@ -4,7 +4,9 @@ import RenewalProposal from '@/models/RenewalProposal';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import Contract from '@/models/Contract';
+import { createClicksignDocument } from '@/app/api/contracts/route';
 import { generateContractTemplate } from '@/utils/contractTemplate';
+import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
 
 // Helper para calcular data + N dias
 function addDays(dateStr: string, days: number): string {
@@ -77,8 +79,8 @@ export async function POST(request: Request) {
     const dataFimAnterior = com.vencimento || lastContract?.dataFim || todayStr;
     const isExpired = dataFimAnterior < todayStr;
 
-    // Regra: Renovação sempre inicia 1 dia após o término anterior
-    const dataInicioRenovacao = addDays(dataFimAnterior, 1);
+    // Regra acordada: Data de Início = Data Fim do contrato atual ou último contrato
+    const dataInicioRenovacao = dataFimAnterior;
 
     const vigenciaMeses = Number(customVigenciaMeses) || Number(com.vigenciaQtd) || lastContract?.vigenciaMeses || 12;
     const dataFimCalculada = addMonths(dataInicioRenovacao, vigenciaMeses);
@@ -89,7 +91,7 @@ export async function POST(request: Request) {
       valorAnterior = Number(com.valorAcordado) || Number(lastContract?.valorLiquido) || Number(plan.preco) || 299;
     }
 
-    // Aplicar reajuste automático de 5%
+    // Aplicar reajuste de 5%
     const reajustePercentual = 5;
     const valorReajustado = Math.round(valorAnterior * (1 + reajustePercentual / 100) * 100) / 100;
 
@@ -129,7 +131,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, dataPrimeiroVencimento, formaPagamento, parcelas, dadosPreenchidos, assinarClicksign } = body;
+    const { id, dataPrimeiroVencimento, formaPagamento, parcelas, dadosPreenchidos } = body;
 
     if (!id || !dataPrimeiroVencimento || !formaPagamento) {
       return NextResponse.json({ success: false, error: 'Dados obrigatórios ausentes (id, dataPrimeiroVencimento, formaPagamento).' }, { status: 400 });
@@ -178,7 +180,65 @@ export async function PUT(request: Request) {
 
     await client.save();
 
-    // 3. Criar registro oficial de Contrato
+    // 3. Gerar template do contrato
+    const pes = client.dadosPessoais || {};
+    const contractHtml = generateContractTemplate({
+      clientNome: pes.nome || 'Aluno',
+      clientCpf: pes.cpf || '—',
+      clientEmail: pes.email || '',
+      clientTelefone: pes.telefone || '',
+      clientEndereco: pes.endereco || '',
+      clientNumero: pes.numero || '',
+      clientComplemento: pes.complemento || '',
+      clientBairro: pes.bairro || '',
+      clientCidade: pes.cidade || 'Belo Horizonte',
+      clientEstado: pes.estado || 'MG',
+      clientCep: pes.cep || '',
+      planNome: renewal.planoNome,
+      planTipo: renewal.planoTipo,
+      planPreco: renewal.valorReajustado,
+      creditosMensais: renewal.creditosMensais,
+      dataInicio: renewal.dataInicioRenovacao,
+      dataVencimento: dataPrimeiroVencimento,
+      formaPagamento,
+      parcelas: Number(parcelas) || 1,
+      vigenciaQtd: renewal.vigenciaMeses,
+      recorrenciaMeses: renewal.vigenciaMeses,
+      criarRecorrenciaMensal: true,
+      unidadeContratada: 'Clube Fitness'
+    });
+
+    // 4. Integração com Clicksign (criação do envelope oficial de assinatura)
+    let clicksignDocKey = '';
+    let clicksignSignerKey = '';
+    let clicksignUrl = '';
+    let clicksignStatus = 'pendente';
+
+    try {
+      const fileName = `Contrato_Renovacao_${(pes.nome || 'Aluno').replace(/\s+/g, '_')}.pdf`;
+      const base64File = await generateContractPDFBase64(contractHtml);
+
+      const cSignResult = await createClicksignDocument(
+        fileName,
+        base64File,
+        pes.email || 'atendimento@clubefitness.com.br',
+        pes.nome || 'Aluno',
+        pes.cpf || '',
+        pes.dataNascimento || '',
+        pes.telefone || ''
+      );
+
+      if (cSignResult && cSignResult.docKey) {
+        clicksignDocKey = cSignResult.docKey;
+        clicksignSignerKey = cSignResult.signerKey;
+        clicksignUrl = cSignResult.signatureUrl || '';
+        clicksignStatus = 'enviado';
+      }
+    } catch (csErr: any) {
+      console.warn('Aviso: Clicksign não pôde ser gerado automaticamente:', csErr.message);
+    }
+
+    // 5. Criar registro oficial de Contrato
     const newContract = await Contract.create({
       clientId: client._id,
       planoId: renewal.planoId._id,
@@ -195,34 +255,41 @@ export async function PUT(request: Request) {
       dataInicio: renewal.dataInicioRenovacao,
       dataFim: renewal.dataFimCalculada,
       vigenciaMeses: renewal.vigenciaMeses,
-      responsavelVenda: 'Auto-Renovação Online (Link do Aluno)',
+      responsavelVenda: 'Auto-Renovação Online (Clicksign)',
       unidadeContratada: 'Clube Fitness',
       frequencia: renewal.frequencia,
       creditosTotal: renewal.creditosMensais,
-      status: 'assinado',
-      assinaturaNome: client.dadosPessoais?.nome || 'Aluno',
-      assinaturaData: new Date(),
-      observacoesContratuais: `Renovação de contrato com reajuste anual de 5% sobre o valor anterior (R$ ${renewal.valorAnterior.toFixed(2)} -> R$ ${renewal.valorReajustado.toFixed(2)}). Início contínuo em ${renewal.dataInicioRenovacao}.`
+      status: 'pendente', // pendente de assinatura Clicksign
+      clicksignDocKey,
+      clicksignSignerKey,
+      clicksignUrl,
+      clicksignStatus,
+      contratoTexto: contractHtml,
+      observacoesContratuais: `Renovação de contrato com reajuste de 5% sobre o valor anterior (R$ ${renewal.valorAnterior.toFixed(2)} -> R$ ${renewal.valorReajustado.toFixed(2)}). Início contínuo em ${renewal.dataInicioRenovacao}.`
     });
 
-    // 4. Atualizar o status da proposta de renovação
+    // 6. Atualizar a proposta de renovação
     renewal.status = 'aceita';
     renewal.dataPrimeiroVencimento = dataPrimeiroVencimento;
     renewal.formaPagamento = formaPagamento;
     renewal.parcelas = Number(parcelas) || 1;
+    renewal.clicksignDocKey = clicksignDocKey;
+    renewal.clicksignUrl = clicksignUrl;
+    renewal.clicksignStatus = clicksignStatus;
     renewal.dadosAceite = {
       ip: request.headers.get('x-forwarded-for') || '127.0.0.1',
       dataHora: new Date(),
       userAgent: request.headers.get('user-agent') || '',
-      nomeAssinante: client.dadosPessoais?.nome || ''
+      nomeAssinante: pes.nome || ''
     };
 
     await renewal.save();
 
     return NextResponse.json({
       success: true,
-      message: 'Renovação concluída com sucesso! Seu plano foi renovado.',
-      contractId: newContract._id
+      message: 'Renovação enviada para o Clicksign com sucesso!',
+      contractId: newContract._id,
+      clicksignUrl
     });
   } catch (error: any) {
     console.error('Erro ao efetivar renovação:', error);
