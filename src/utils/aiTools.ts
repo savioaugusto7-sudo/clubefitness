@@ -10,13 +10,17 @@ import Professional from '@/models/Professional';
 export const AI_SYSTEM_INSTRUCTION = `
 Você é a inteligência artificial oficial do **Clube Fitness & Fisio**, uma academia e clínica integrada de alta performance e saúde em Belo Horizonte.
 
-Sua missão é atuar como um copiloto e assistente administrativo/operacional inteligente e prestativo.
-Você tem acesso a ferramentas de consulta e execução de ações no banco de dados do sistema.
+Sua missão é atuar como um copiloto executivo, inteligente, ágil e prestativo.
+Você tem acesso a ferramentas completas para consultar, criar, alterar e cancelar dados no sistema.
 
-### Suas Diretrizes Principais:
-1. **Comunicação:** Seja sempre profissional, cordial, claro, objetivo e utilize emojis elegantes para destacar informações. Responda em Português do Brasil.
-2. **Uso de Ferramentas:** Quando o usuário perguntar sobre alunos, agendamentos, finanças, planos ou solicitar uma ação (como criar proposta, agendar horário ou checar inadimplência), **SEMPRE execute a ferramenta adequada**.
-3. **Formatação Rica:** Apresente tabelas, listas com marcadores e resumos visuais para facilitar a leitura.
+### 🧠 Diretrizes de Inteligência e Fluidez Contextual:
+1. **Memória de Histórico & Resolução de Pronomes:**
+   - Preste total atenção no histórico recente da conversa.
+   - Quando o usuário disser *"troque esse agendamento para treino livre"*, *"remarque para 17:00"*, *"mude o horário dele"*, *"cancele isso"*, entenda que ele está se referindo ao **aluno/agendamento recém-mencionado ou recém-criado**.
+   - Nesses casos, **NÃO faça perguntas burocráticas** pedindo nome/CPF de novo. Execute diretamente a ferramenta \`alterar_agendamento\` ou \`cancelar_agendamento\`.
+2. **Comportamento Executivo e Ágil:**
+   - Execute ações de forma direta, clara e objetiva.
+   - Responda em Português do Brasil com tom profissional, positivo e emojis elegantes.
 
 ### ⚠️ Regras Rígidas de Segurança e Desambiguação de Alunos:
 1. **NUNCA TROQUE OU ASSUMA UM ALUNO POR APROXIMAÇÃO:** É terminantemente proibido agendar para uma pessoa diferente apenas por ter um sobrenome similar.
@@ -215,7 +219,7 @@ export const geminiToolDeclarations = [
         },
         servico: {
           type: 'STRING',
-          description: 'Nome do serviço (ex: "Treino Monitorado", "Fisioterapia", "Avaliação Física").'
+          description: 'Nome do serviço (ex: "Treino Monitorado", "Treino Livre", "Fisioterapia", "Avaliação Física").'
         },
         tipo: {
           type: 'STRING',
@@ -223,6 +227,68 @@ export const geminiToolDeclarations = [
         }
       },
       required: ['alunoNomeOuId', 'data', 'horario', 'servico']
+    }
+  },
+  {
+    name: 'alterar_agendamento',
+    description: 'Altera o serviço, horário, data ou profissional de um agendamento existente.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        agendamentoId: {
+          type: 'STRING',
+          description: 'ID do agendamento (opcional se puder ser inferido pelo aluno e data).'
+        },
+        alunoNomeOuId: {
+          type: 'STRING',
+          description: 'Nome ou ID do aluno associado ao agendamento.'
+        },
+        dataOriginal: {
+          type: 'STRING',
+          description: 'Data original do agendamento no formato YYYY-MM-DD (opcional).'
+        },
+        novoServico: {
+          type: 'STRING',
+          description: 'Novo serviço desejado (ex: "Treino Livre", "Treino Monitorado", "Fisioterapia", "Avaliação Física").'
+        },
+        novaData: {
+          type: 'STRING',
+          description: 'Nova data no formato YYYY-MM-DD (se for alterar a data).'
+        },
+        novoHorario: {
+          type: 'STRING',
+          description: 'Novo horário no formato HH:MM (se for alterar o horário).'
+        },
+        novoTipo: {
+          type: 'STRING',
+          description: '"academia" ou "consultorio" (opcional).'
+        }
+      }
+    }
+  },
+  {
+    name: 'cancelar_agendamento',
+    description: 'Cancela um agendamento existente no sistema.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        agendamentoId: {
+          type: 'STRING',
+          description: 'ID do agendamento a ser cancelado.'
+        },
+        alunoNomeOuId: {
+          type: 'STRING',
+          description: 'Nome ou ID do aluno do agendamento.'
+        },
+        data: {
+          type: 'STRING',
+          description: 'Data do agendamento YYYY-MM-DD (opcional).'
+        },
+        horario: {
+          type: 'STRING',
+          description: 'Horário do agendamento HH:MM (opcional).'
+        }
+      }
     }
   },
   {
@@ -462,6 +528,99 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
             profissional: professional.nome,
             status: 'agendado'
           }
+        };
+      }
+
+      case 'alterar_agendamento': {
+        const { agendamentoId, alunoNomeOuId, dataOriginal, novoServico, novaData, novoHorario, novoTipo } = args;
+
+        let appt: any = null;
+        if (agendamentoId && agendamentoId.match(/^[0-9a-fA-F]{24}$/)) {
+          appt = await Appointment.findById(agendamentoId);
+        }
+
+        if (!appt && alunoNomeOuId) {
+          const searchResult = await findClientsSafe(alunoNomeOuId);
+          if (searchResult.status === 'EXACT' && searchResult.client) {
+            const query: any = { clienteId: searchResult.client._id, status: 'agendado' };
+            if (dataOriginal) query.data = dataOriginal;
+            appt = await Appointment.findOne(query).sort({ data: -1, horario: -1 });
+          }
+        }
+
+        if (!appt) {
+          // Buscar o último agendamento criado no sistema
+          appt = await Appointment.findOne({ status: 'agendado' }).sort({ createdAt: -1 });
+        }
+
+        if (!appt) {
+          return { erro: 'Não foi possível localizar o agendamento correspondente para alteração.' };
+        }
+
+        if (novoServico) appt.servico = novoServico;
+        if (novaData) appt.data = novaData;
+        if (novoHorario) appt.horario = novoHorario;
+        if (novoTipo) {
+          appt.tipo = novoTipo;
+        } else if (novoServico) {
+          appt.tipo = /fisio|quiropraxia|massagem/i.test(novoServico) ? 'consultorio' : 'academia';
+        }
+
+        await appt.save();
+
+        const populatedAppt: any = await Appointment.findById(appt._id)
+          .populate('clienteId', 'dadosPessoais.nome')
+          .populate('profissionalId', 'nome')
+          .lean();
+
+        return {
+          sucesso: true,
+          mensagem: 'Agendamento atualizado com sucesso!',
+          agendamento: {
+            id: appt._id,
+            aluno: populatedAppt.clienteId?.dadosPessoais?.nome || 'Aluno',
+            servico: appt.servico,
+            tipo: appt.tipo,
+            data: appt.data,
+            horario: appt.horario,
+            profissional: populatedAppt.profissionalId?.nome || 'Profissional',
+            status: appt.status
+          }
+        };
+      }
+
+      case 'cancelar_agendamento': {
+        const { agendamentoId, alunoNomeOuId, data, horario } = args;
+
+        let appt: any = null;
+        if (agendamentoId && agendamentoId.match(/^[0-9a-fA-F]{24}$/)) {
+          appt = await Appointment.findById(agendamentoId);
+        }
+
+        if (!appt && alunoNomeOuId) {
+          const searchResult = await findClientsSafe(alunoNomeOuId);
+          if (searchResult.status === 'EXACT' && searchResult.client) {
+            const query: any = { clienteId: searchResult.client._id, status: 'agendado' };
+            if (data) query.data = data;
+            if (horario) query.horario = horario;
+            appt = await Appointment.findOne(query).sort({ data: -1, horario: -1 });
+          }
+        }
+
+        if (!appt) {
+          appt = await Appointment.findOne({ status: 'agendado' }).sort({ createdAt: -1 });
+        }
+
+        if (!appt) {
+          return { erro: 'Agendamento não encontrado para cancelamento.' };
+        }
+
+        appt.status = 'cancelado';
+        await appt.save();
+
+        return {
+          sucesso: true,
+          mensagem: `Agendamento cancelado com sucesso no sistema.`
         };
       }
 

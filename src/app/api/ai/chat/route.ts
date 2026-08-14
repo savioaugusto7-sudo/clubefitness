@@ -76,7 +76,24 @@ export async function POST(request: Request) {
       });
     }
 
-    // Adicionar mensagem do usuário
+    // 2. Montar histórico de mensagens anteriores para memória contínua da sessão
+    const history: any[] = [];
+    const pastMessages = conversation.messages.slice(-14);
+    for (const msg of pastMessages) {
+      if (msg.role === 'user' && msg.content) {
+        history.push({
+          role: 'user',
+          parts: [{ text: msg.content }]
+        });
+      } else if (msg.role === 'model' && msg.content) {
+        history.push({
+          role: 'model',
+          parts: [{ text: msg.content }]
+        });
+      }
+    }
+
+    // Adicionar mensagem atual do usuário no banco
     conversation.messages.push({
       role: 'user',
       content: message,
@@ -87,11 +104,12 @@ export async function POST(request: Request) {
     const executedToolsRecord: any[] = [];
     let lastErr: any = null;
 
-    // 2. Executar chat com loop de Tool Calling e Fallback de Modelos
+    // 3. Executar chat com histórico, loop de Tool Calling e Fallback de Modelos
     for (const modelName of MODEL_CHAIN) {
       try {
         const chat = ai.chats.create({
           model: modelName,
+          history: history.length > 0 ? history : undefined,
           config: {
             systemInstruction: AI_SYSTEM_INSTRUCTION,
             tools: [{ functionDeclarations: geminiToolDeclarations as any }]
