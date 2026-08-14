@@ -8,6 +8,7 @@ import DashboardAdmin from '@/components/DashboardAdmin';
 import DashboardReceptionist from '@/components/DashboardReceptionist';
 import DashboardProfessional from '@/components/DashboardProfessional';
 import DashboardClient from '@/components/DashboardClient';
+import AiCopilotWidget from '@/components/AiCopilotWidget';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -132,6 +133,9 @@ export default function DashboardPage() {
         {/* Dynamic page content */}
         {renderContent()}
       </main>
+
+      {/* Copiloto Inteligente IA */}
+      <AiCopilotWidget />
     </div>
   );
 }
