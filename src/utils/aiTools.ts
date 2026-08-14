@@ -13,69 +13,160 @@ Você é a inteligência artificial oficial do **Clube Fitness & Fisio**, uma ac
 Sua missão é atuar como um copiloto e assistente administrativo/operacional inteligente e prestativo.
 Você tem acesso a ferramentas de consulta e execução de ações no banco de dados do sistema.
 
-### Suas Diretrizes:
+### Suas Diretrizes Principais:
 1. **Comunicação:** Seja sempre profissional, cordial, claro, objetivo e utilize emojis elegantes para destacar informações. Responda em Português do Brasil.
 2. **Uso de Ferramentas:** Quando o usuário perguntar sobre alunos, agendamentos, finanças, planos ou solicitar uma ação (como criar proposta, agendar horário ou checar inadimplência), **SEMPRE execute a ferramenta adequada**.
 3. **Formatação Rica:** Apresente tabelas, listas com marcadores e resumos visuais para facilitar a leitura.
-4. **Segurança e Veracidade Absoluta:** 
-   - Se uma ferramenta retornar "erro" ou indicar que o aluno não foi encontrado, **NUNCA diga que a ação foi realizada**. 
-   - Reporte exatamente o status real retornado pela ferramenta. Se falhou, explique o motivo e sugira a correção.
+
+### ⚠️ Regras Rígidas de Segurança e Desambiguação de Alunos:
+1. **NUNCA TROQUE OU ASSUMA UM ALUNO POR APROXIMAÇÃO:** É terminantemente proibido agendar para uma pessoa diferente apenas por ter um sobrenome similar.
+2. **SE A FERRAMENTA RETORNAR "MULTIPLOS_ALUNOS_ENCONTRADOS":**
+   - O agendamento **NÃO FOI REALIZADO AINDA**.
+   - Você **DEVE** listar claramente as opções de alunos encontradas (com número, Nome Completo, Telefone/E-mail e Plano).
+   - Peça ao usuário para escolher o aluno correto (ex: *"Encontrei mais de um aluno com esse termo. Por favor, confirme qual deles é o desejado (digite o número ou nome completo):"*).
+3. **SE A FERRAMENTA RETORNAR "NAO_ENCONTRADO":**
+   - Informe que o aluno não foi localizado e solicite o CPF ou o nome completo correto.
+4. **SOMENTE CONFIRME O AGENDAMENTO** quando a ferramenta retornar \`sucesso: true\`.
 `;
 
-// Helper de busca inteligente ranqueada de alunos por partes do nome
-export async function findClientRanked(nameQuery: string): Promise<any> {
-  const query = (nameQuery || '').trim().toLowerCase();
-  if (!query) return null;
+export function normalizeText(str: string): string {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
-  if (query.match(/^[0-9a-fA-F]{24}$/)) {
-    return await Client.findById(query);
+export interface ClientSearchResult {
+  status: 'EXACT' | 'MULTIPLE' | 'NONE';
+  client?: any;
+  candidates?: any[];
+  mensagem?: string;
+}
+
+function formatCandidate(c: any) {
+  return {
+    id: c._id,
+    nome: c.dadosPessoais?.nome || 'Sem nome',
+    email: c.dadosPessoais?.email || '',
+    telefone: c.dadosPessoais?.telefone || '',
+    cpf: c.dadosPessoais?.cpf || '',
+    plano: c.dadosComerciais?.planoId?.nome || 'Sem plano ativo'
+  };
+}
+
+export async function findClientsSafe(nameOrTerm: string): Promise<ClientSearchResult> {
+  const rawTerm = (nameOrTerm || '').trim();
+  if (!rawTerm) {
+    return { status: 'NONE', mensagem: 'Nome ou termo de busca não informado.' };
   }
 
-  const allClients = await Client.find().lean();
-  let bestClient: any = null;
-  let highestScore = 0;
+  // 1. Busca por ID direto
+  if (rawTerm.match(/^[0-9a-fA-F]{24}$/)) {
+    const directClient = await Client.findById(rawTerm).populate('dadosComerciais.planoId').lean();
+    if (directClient) {
+      return { status: 'EXACT', client: directClient };
+    }
+  }
 
-  const tokens = query.split(/\s+/).filter(Boolean);
+  const normQuery = normalizeText(rawTerm);
+  const queryTokens = normQuery.split(/\s+/).filter(t => t.length >= 2);
+  const digits = rawTerm.replace(/\D/g, '');
+
+  const allClients = await Client.find().populate('dadosComerciais.planoId').lean();
+
+  const exactMatches: any[] = [];
+  const strongMatches: any[] = [];
+  const partialMatches: any[] = [];
 
   for (const c of allClients) {
-    const clientName = (c.dadosPessoais?.nome || '').toLowerCase();
-    if (!clientName) continue;
+    const nome = c.dadosPessoais?.nome || '';
+    const email = c.dadosPessoais?.email || '';
+    const cpf = (c.dadosPessoais?.cpf || '').replace(/\D/g, '');
+    const telefone = (c.dadosPessoais?.telefone || '').replace(/\D/g, '');
 
-    if (clientName === query) {
-      return c; // Match exato
-    }
+    const normNome = normalizeText(nome);
+    const normEmail = normalizeText(email);
 
-    if (clientName.includes(query) || query.includes(clientName)) {
-      const score = 50;
-      if (score > highestScore) {
-        highestScore = score;
-        bestClient = c;
-      }
+    // 1. Correspondência exata de CPF ou Telefone
+    if (digits.length >= 8 && (cpf.includes(digits) || telefone.includes(digits))) {
+      exactMatches.push(c);
       continue;
     }
 
-    let score = 0;
-    const clientTokens = clientName.split(/\s+/);
-    tokens.forEach((tok, idx) => {
-      if (clientTokens.some((ct: string) => ct.includes(tok) || tok.includes(ct))) {
-        score += (idx === 0 ? 10 : 3); // Maior peso para primeiro nome
-      }
-    });
+    // 2. Correspondência exata de Nome ou E-mail
+    if (normNome === normQuery || normEmail === normQuery) {
+      exactMatches.push(c);
+      continue;
+    }
 
-    if (score > highestScore) {
-      highestScore = score;
-      bestClient = c;
+    // 3. Correspondência forte (início do nome ou contém a frase inteira)
+    if (normNome.startsWith(normQuery) || (normQuery.length >= 4 && normNome.includes(normQuery))) {
+      strongMatches.push(c);
+      continue;
+    }
+
+    // 4. Correspondência de tokens (partes do nome)
+    const clientTokens = normNome.split(/\s+/);
+    let matchedTokens = 0;
+    for (const qTok of queryTokens) {
+      if (clientTokens.some((ct: string) => ct === qTok || (qTok.length >= 4 && ct.startsWith(qTok)))) {
+        matchedTokens++;
+      }
+    }
+
+    if (matchedTokens > 0) {
+      if (matchedTokens >= queryTokens.length) {
+        strongMatches.push(c);
+      } else {
+        partialMatches.push(c);
+      }
     }
   }
 
-  return highestScore >= 3 ? bestClient : null;
+  if (exactMatches.length === 1) {
+    return { status: 'EXACT', client: exactMatches[0] };
+  }
+  if (exactMatches.length > 1) {
+    return {
+      status: 'MULTIPLE',
+      candidates: exactMatches.map(formatCandidate),
+      mensagem: `Encontrei ${exactMatches.length} cadastros exatos para "${rawTerm}". Por favor, confirme qual deles é o correto:`
+    };
+  }
+
+  // Se houver exatamente 1 match forte e o usuário digitou nome composto
+  if (strongMatches.length === 1 && queryTokens.length >= 2) {
+    return { status: 'EXACT', client: strongMatches[0] };
+  }
+
+  if (strongMatches.length > 0) {
+    return {
+      status: 'MULTIPLE',
+      candidates: strongMatches.map(formatCandidate),
+      mensagem: `Encontrei ${strongMatches.length} aluno(s) correspondente(s) a "${rawTerm}". Por favor, confirme qual deles é o correto:`
+    };
+  }
+
+  if (partialMatches.length > 0) {
+    return {
+      status: 'MULTIPLE',
+      candidates: partialMatches.map(formatCandidate),
+      mensagem: `Nenhum cadastro com nome idêntico, mas localizei estes alunos com termos parecidos:`
+    };
+  }
+
+  return {
+    status: 'NONE',
+    mensagem: `Nenhum aluno encontrado para "${rawTerm}". Verifique a grafia ou confirme se o cadastro foi concluído.`
+  };
 }
 
 // Definição das declarações de funções para o Gemini (Function Calling)
 export const geminiToolDeclarations = [
   {
     name: 'buscar_aluno',
-    description: 'Busca a ficha e dados completos de um aluno pelo nome, CPF ou número de WhatsApp/telefone.',
+    description: 'Busca a ficha e dados completos de um aluno pelo nome, CPF ou número de WhatsApp/telefone. Retorna detalhes cadastrais ou lista de opções para desambiguação.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -106,13 +197,13 @@ export const geminiToolDeclarations = [
   },
   {
     name: 'criar_agendamento',
-    description: 'Realiza um novo agendamento para um aluno no sistema.',
+    description: 'Realiza um novo agendamento para um aluno no sistema após validação segura de identidade.',
     parameters: {
       type: 'OBJECT',
       properties: {
         alunoNomeOuId: {
           type: 'STRING',
-          description: 'Nome ou ID do aluno a ser agendado.'
+          description: 'Nome, ID ou CPF do aluno a ser agendado.'
         },
         data: {
           type: 'STRING',
@@ -210,44 +301,28 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
         const termo = (args.termo || '').trim();
         if (!termo) return { erro: 'Termo de busca vazio.' };
 
-        const regex = new RegExp(termo, 'i');
-        const digits = termo.replace(/\D/g, '');
+        const searchResult = await findClientsSafe(termo);
 
-        const queryOr: any[] = [
-          { 'dadosPessoais.nome': regex },
-          { 'dadosPessoais.email': regex }
-        ];
-        if (digits.length >= 3) {
-          queryOr.push({ 'dadosPessoais.cpf': { $regex: digits } });
-          queryOr.push({ 'dadosPessoais.telefone': { $regex: digits } });
+        if (searchResult.status === 'NONE') {
+          return { mensagem: searchResult.mensagem || `Nenhum aluno encontrado para "${termo}".` };
         }
 
-        let clients = await Client.find({ $or: queryOr })
-          .populate('dadosComerciais.planoId')
-          .limit(5)
-          .lean();
-
-        if (clients.length === 0) {
-          const ranked = await findClientRanked(termo);
-          if (ranked) {
-            clients = [ranked];
-          } else {
-            return { erro: `Nenhum aluno encontrado para o termo "${termo}". Verifique se o nome está correto.` };
-          }
-        }
-
-        const results = await Promise.all(clients.map(async (c: any) => {
-          // Buscar último contrato
-          const lastContract = await Contract.findOne({ clientId: c._id }).sort({ dataEmissao: -1 }).lean();
-          // Buscar últimos agendamentos
-          const lastAppointments = await Appointment.find({ clienteId: c._id })
-            .sort({ data: -1, horario: -1 })
-            .limit(3)
-            .lean();
-          // Buscar pagamentos pendentes
-          const pendingPayments = await Payment.find({ clientId: c._id, status: { $in: ['Pendente', 'Atrasado'] } }).lean();
-
+        if (searchResult.status === 'MULTIPLE') {
           return {
+            multiplosResultados: true,
+            mensagem: searchResult.mensagem,
+            opcoes: searchResult.candidates
+          };
+        }
+
+        const c = searchResult.client;
+        const lastContract = await Contract.findOne({ clientId: c._id }).sort({ dataEmissao: -1 }).lean();
+        const lastAppointments = await Appointment.find({ clienteId: c._id }).sort({ data: -1, horario: -1 }).limit(3).lean();
+        const pendingPayments = await Payment.find({ clientId: c._id, status: { $in: ['Pendente', 'Atrasado'] } }).lean();
+
+        return {
+          total: 1,
+          aluno: {
             id: c._id,
             nome: c.dadosPessoais?.nome,
             telefone: c.dadosPessoais?.telefone,
@@ -274,10 +349,8 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
               servico: a.servico,
               status: a.status
             }))
-          };
-        }));
-
-        return { total: results.length, alunos: results };
+          }
+        };
       }
 
       case 'consultar_agenda': {
@@ -319,14 +392,28 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           return { erro: 'Parâmetros insuficientes para agendamento (aluno, data, horário e serviço são obrigatórios).' };
         }
 
-        const client = await findClientRanked(alunoNomeOuId);
-        if (!client) {
-          return { 
-            erro: `Aluno "${alunoNomeOuId}" não encontrado no sistema. Por favor, verifique o nome cadastrado.` 
+        const searchResult = await findClientsSafe(alunoNomeOuId);
+
+        if (searchResult.status === 'NONE') {
+          return {
+            sucesso: false,
+            motivo: 'NAO_ENCONTRADO',
+            mensagem: searchResult.mensagem || `Nenhum aluno encontrado para "${alunoNomeOuId}". Agendamento não realizado.`
           };
         }
 
-        // Definir automaticamente tipo: academia ou consultorio
+        if (searchResult.status === 'MULTIPLE') {
+          return {
+            sucesso: false,
+            motivo: 'MULTIPLOS_ALUNOS_ENCONTRADOS',
+            mensagem: searchResult.mensagem,
+            opcoes: searchResult.candidates
+          };
+        }
+
+        const client = searchResult.client;
+
+        // Auto-detect tipo (academia vs consultorio)
         let appointmentType = tipo;
         if (!appointmentType || appointmentType === 'todos') {
           if (/fisio|quiropraxia|massagem|consulta/i.test(servico)) {
@@ -336,7 +423,6 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           }
         }
 
-        // Localizar profissional adequado
         let professional = null;
         if (appointmentType === 'academia') {
           professional = await Professional.findOne({ especialidade: /treino|avalia|educa/i });
