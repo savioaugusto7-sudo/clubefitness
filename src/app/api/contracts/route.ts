@@ -13,14 +13,24 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
     const clientId = searchParams.get('clientId');
+    const includeAnexo = searchParams.get('includeAnexo') === 'true';
 
-    let query = {};
-    if (clientId) {
-      query = { clientId };
+    let query: any = {};
+    if (id) {
+      query._id = id;
+    } else if (clientId) {
+      query.clientId = clientId;
     }
 
+    // Excluir base64 pesados das listagens para economizar tráfego e acelerar resposta
+    const selectProjection = (!id && !includeAnexo)
+      ? '-contratoAnexo -assinaturaPresencialImage'
+      : '';
+
     let contracts = await Contract.find(query)
+      .select(selectProjection)
       .populate('planoId')
       .sort({ versao: -1 });
 
@@ -32,6 +42,7 @@ export async function GET(request: Request) {
       if (pendingClicksign.length > 0) {
         await Promise.all(pendingClicksign.map(c => syncContractStatus(c, token, baseUrl)));
         contracts = await Contract.find(query)
+          .select(selectProjection)
           .populate('planoId')
           .sort({ versao: -1 });
       }

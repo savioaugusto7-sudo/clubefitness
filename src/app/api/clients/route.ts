@@ -43,7 +43,8 @@ export async function GET(request: Request) {
     const clients = await Client.find(query)
       .populate('userId')
       .populate('dadosComerciais.planoId')
-      .populate('profissionalId');
+      .populate('profissionalId')
+      .lean();
 
     return NextResponse.json({ success: true, data: clients });
   } catch (error: any) {
