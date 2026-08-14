@@ -19,10 +19,10 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { nome, cpf, planoName, dataAdesao } = body;
+    const { nome, cpf, dataNascimento, sexo, planoName, dataAdesao } = body;
 
-    if (!nome || !cpf || !planoName || !dataAdesao) {
-      return NextResponse.json({ success: false, error: 'Todos os campos são obrigatórios: Nome, CPF, Plano e Data de Adesão.' }, { status: 400 });
+    if (!nome || !cpf || !dataNascimento || !sexo || !planoName || !dataAdesao) {
+      return NextResponse.json({ success: false, error: 'Todos os campos são obrigatórios: Nome, CPF, Data de Nascimento, Sexo, Plano e Data de Adesão.' }, { status: 400 });
     }
 
     const cpfClean = cpf.replace(/\D/g, '');
@@ -87,8 +87,8 @@ export async function POST(request: Request) {
         email: user.email,
         telefone: '(31) 99999-9999', // placeholder phone
         cpf: cpfClean,
-        dataNascimento: '2000-01-01', // placeholder birthdate
-        sexo: 'O',
+        dataNascimento: dataNascimento || '2000-01-01',
+        sexo: sexo || 'O',
         cep: '30000-000',
         endereco: 'Área do Aluno Dynamus',
         numero: 'SN',

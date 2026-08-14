@@ -43,6 +43,7 @@ function getServiceCreditConfig(servico: string, isDynamus: boolean): { tipoCred
       normalized.includes('avaliacao fisica') ||
       normalized.includes('fisioterapica') ||
       normalized.includes('teste de forca') ||
+      normalized.includes('terapia manual') ||
       normalized.includes('emergencia')
     ) {
       return { tipoCredito: 'academia', cost: 3 };
@@ -54,7 +55,7 @@ function getServiceCreditConfig(servico: string, isDynamus: boolean): { tipoCred
     ) {
       return { tipoCredito: 'academia', cost: 1 };
     }
-    if (normalized.includes('massagem')) {
+    if (normalized.includes('massagem') || normalized.includes('massoterapia') || normalized.includes('miofascial')) {
       return { tipoCredito: 'massagem', cost: 1 };
     }
     return { tipoCredito: 'nenhum', cost: 0 };

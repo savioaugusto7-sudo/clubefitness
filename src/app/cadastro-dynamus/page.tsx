@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 export default function DynamusCadastroPage() {
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
+  const [dataNascimento, setDataNascimento] = useState('');
+  const [sexo, setSexo] = useState('M');
   const [planoName, setPlanoName] = useState('Dynamus Semestral');
   const [dataAdesao, setDataAdesao] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
@@ -42,6 +44,12 @@ export default function DynamusCadastroPage() {
     setSaving(true);
     setError('');
 
+    if (!dataNascimento) {
+      setError('Por favor, informe a Data de Nascimento.');
+      setSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/cadastro-dynamus', {
         method: 'POST',
@@ -49,6 +57,8 @@ export default function DynamusCadastroPage() {
         body: JSON.stringify({
           nome,
           cpf,
+          dataNascimento,
+          sexo,
           planoName,
           dataAdesao
         })
@@ -89,6 +99,7 @@ export default function DynamusCadastroPage() {
               onClick={() => {
                 setNome('');
                 setCpf('');
+                setDataNascimento('');
                 setSuccess(false);
               }}
             >
@@ -144,6 +155,34 @@ export default function DynamusCadastroPage() {
             />
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div style={groupStyle}>
+              <label style={labelStyle}>Data de Nascimento</label>
+              <input 
+                type="date" 
+                style={inputStyle} 
+                value={dataNascimento}
+                onChange={e => setDataNascimento(e.target.value)}
+                required
+                disabled={saving}
+              />
+            </div>
+
+            <div style={groupStyle}>
+              <label style={labelStyle}>Sexo</label>
+              <select 
+                style={selectStyle} 
+                value={sexo}
+                onChange={e => setSexo(e.target.value)}
+                disabled={saving}
+              >
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+                <option value="O">Outro / Prefiro não informar</option>
+              </select>
+            </div>
+          </div>
+
           <div style={groupStyle}>
             <label style={labelStyle}>Plano Contratado</label>
             <select 
@@ -158,7 +197,12 @@ export default function DynamusCadastroPage() {
           </div>
 
           <div style={groupStyle}>
-            <label style={labelStyle}>Data de Adesão</label>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <label style={labelStyle}>Data de Adesão</label>
+              <span style={{ fontSize: '0.74rem', color: '#a78bfa', marginTop: '2px', marginBottom: '4px' }}>
+                Data que você contratou seu plano no espaço Dynamus
+              </span>
+            </div>
             <input 
               type="date" 
               style={inputStyle} 
