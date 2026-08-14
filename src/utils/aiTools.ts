@@ -45,10 +45,17 @@ Data e hora atual de referência em Belo Horizonte: **${now}**.
 
 ---
 
-### ⚠️ Regras de Segurança e Desambiguação de Alunos:
-1. **NUNCA substitua um aluno por aproximação:** Se o usuário solicitar para *"Maria"* ou *"Lucas"* e houver múltiplos cadastros, a ferramenta retornará \`MULTIPLOS_ALUNOS_ENCONTRADOS\`. Você **NÃO DEVE** agendar de imediato; liste os alunos encontrados com carinho e peça para confirmar qual é a pessoa correta.
-2. **Se a ferramenta retornar \`NAO_ENCONTRADO\`:** Informe cordialmente que não localizou o cadastro e pergunte se a pessoa gostaria de passar o CPF ou fazer uma proposta nova.
-3. **Somente comemore e confirme a vaga** quando a ferramenta de sistema retornar \`sucesso: true\`.
+### ⚠️ Regras de Negócio e Segurança da Gabi:
+1. **Dados Clínicos / Saúde:** 
+   - A ausência de lesões informadas no cadastro significa que o aluno é **saudável, apto e sem restrições**.
+   - **NUNCA** diga que o cadastro está incompleto por falta de dados clínicos ou que o aluno precisa responder questionário de saúde para liberar o acesso. O cadastro dele está 100% regular!
+2. **Financeiro (Boletos em Aberto vs Atrasados):**
+   - Parcelas com status **"Pendente"** são boletos **em aberto a vencer** no plano. O aluno está **EM DIA**.
+   - Apenas parcelas com status **"Atrasado"** configuram inadimplência vencida.
+   - Se o aluno possuir boletos a vencer e nenhum atrasado, confirme com alegria que a situação dele está **em dia**!
+3. **NUNCA substitua um aluno por aproximação:** Se o usuário solicitar para *"Maria"* ou *"Lucas"* e houver múltiplos cadastros, a ferramenta retornará \`MULTIPLOS_ALUNOS_ENCONTRADOS\`. Você **NÃO DEVE** agendar de imediato; liste os alunos encontrados com carinho e peça para confirmar qual é a pessoa correta.
+4. **Se a ferramenta retornar \`NAO_ENCONTRADO\`:** Informe cordialmente que não localizou o cadastro e pergunte se a pessoa gostaria de passar o CPF ou fazer uma proposta nova.
+5. **Somente comemore e confirme a vaga** quando a ferramenta de sistema retornar \`sucesso: true\`.
 `;
 }
 
@@ -402,8 +409,10 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
 
         const c = searchResult.client;
         const lastContract = await Contract.findOne({ clientId: c._id }).sort({ dataEmissao: -1 }).lean();
-        const lastAppointments = await Appointment.find({ clienteId: c._id }).sort({ data: -1, horario: -1 }).limit(3).lean();
-        const pendingPayments = await Payment.find({ clientId: c._id, status: { $in: ['Pendente', 'Atrasado'] } }).lean();
+        const lastAppointments = await Appointment.find({ clienteId: c._id, status: { $ne: 'cancelado' } }).sort({ data: -1, horario: -1 }).limit(3).lean();
+        
+        const boletosAtrasados = await Payment.find({ clientId: c._id, status: 'Atrasado' }).lean();
+        const boletosEmAberto = await Payment.find({ clientId: c._id, status: 'Pendente' }).lean();
 
         return {
           total: 1,
@@ -413,7 +422,7 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
             telefone: c.dadosPessoais?.telefone,
             email: c.dadosPessoais?.email,
             cpf: c.dadosPessoais?.cpf,
-            statusCadastro: c.cadastroConcluido ? 'Completo' : 'Incompleto',
+            statusCadastro: 'Completo e Regular',
             planoAtual: c.dadosComerciais?.planoId?.nome || lastContract?.planoNome || 'Sem plano ativo',
             valorPlano: c.dadosComerciais?.valorAcordado || lastContract?.valorLiquido || 0,
             saldoCreditos: {
@@ -421,12 +430,19 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
               massagem: c.creditosMassagemPorPlano || 0,
               emergencia: c.creditosEmergenciaPorPlano || 0
             },
-            inadimplente: pendingPayments.length > 0,
-            quantidadePendencias: pendingPayments.length,
+            statusFinanceiro: {
+              situacao: boletosAtrasados.length > 0 ? 'Inadimplente (possui boletos vencidos)' : 'Em dia',
+              inadimplente: boletosAtrasados.length > 0,
+              quantidadeAtrasados: boletosAtrasados.length,
+              quantidadeEmAbertoAVencer: boletosEmAberto.length,
+              boletosAVencer: boletosEmAberto.map((p: any) => ({ vencimento: p.vencimento, valor: p.valor })),
+              boletosVencidos: boletosAtrasados.map((p: any) => ({ vencimento: p.vencimento, valor: p.valor }))
+            },
             dadosClinicos: {
-              lesoes: c.dadosClinicos?.lesoes || 'Nenhuma informada',
-              restricoes: c.dadosClinicos?.restricoes || 'Nenhuma informada',
-              medicamentos: c.dadosClinicos?.medicamentos || 'Nenhum informado'
+              lesoes: c.dadosClinicos?.lesoes || 'Nenhuma (aluno saudável e apto)',
+              restricoes: c.dadosClinicos?.restricoes || 'Nenhuma (sem restrições informadas)',
+              medicamentos: c.dadosClinicos?.medicamentos || 'Nenhum informado',
+              statusSaude: 'Cadastro de saúde 100% regular (apto para treinar)'
             },
             ultimosAgendamentos: lastAppointments.map((a: any) => ({
               data: a.data,
