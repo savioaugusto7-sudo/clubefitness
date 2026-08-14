@@ -204,28 +204,39 @@ export default function AiCopilotWidget() {
           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
         >
-          {/* Avatar da Gabi */}
+          {/* Avatar da Gabi com Foto Real */}
           <div
             style={{
               position: 'relative',
-              width: '36px',
-              height: '36px',
+              width: '38px',
+              height: '38px',
               borderRadius: '50%',
-              background: '#075E54',
+              overflow: 'visible',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '2px solid #fff'
+              flexShrink: 0
             }}
           >
-            <i className="fa-solid fa-headset" style={{ color: '#fff', fontSize: '1.1rem' }}></i>
+            <img
+              src="/gabi.jpg"
+              alt="Gabi"
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '2px solid #fff',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+              }}
+            />
             <span
               style={{
                 position: 'absolute',
                 bottom: '-2px',
                 right: '-2px',
-                width: '10px',
-                height: '10px',
+                width: '11px',
+                height: '11px',
                 borderRadius: '50%',
                 background: '#4ade80',
                 border: '2px solid #075E54',
@@ -278,24 +289,34 @@ export default function AiCopilotWidget() {
               <div
                 style={{
                   position: 'relative',
-                  width: '42px',
-                  height: '42px',
+                  width: '44px',
+                  height: '44px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                  flexShrink: 0
                 }}
               >
-                <i className="fa-solid fa-headset" style={{ color: '#fff', fontSize: '1.2rem' }}></i>
+                <img
+                  src="/gabi.jpg"
+                  alt="Gabi"
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                  }}
+                />
                 <span
                   style={{
                     position: 'absolute',
                     bottom: 0,
                     right: 0,
-                    width: '11px',
-                    height: '11px',
+                    width: '12px',
+                    height: '12px',
                     borderRadius: '50%',
                     background: '#25D366',
                     border: '2px solid #202c33'
@@ -434,45 +455,60 @@ export default function AiCopilotWidget() {
                   )}
 
                   {/* Balão de Mensagem Estilo WhatsApp */}
-                  <div
-                    style={{
-                      background: isUser ? '#005c4b' : '#202c33',
-                      color: '#e9edef',
-                      padding: '10px 14px 6px 14px',
-                      borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                      fontSize: '0.88rem',
-                      lineHeight: '1.5',
-                      maxWidth: '85%',
-                      wordBreak: 'break-word',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                      position: 'relative'
-                    }}
-                  >
-                    <div
-                      style={{ whiteSpace: 'pre-wrap' }}
-                      dangerouslySetInnerHTML={{
-                        __html: msg.content
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                          .replace(/^### (.*$)/gim, '<h4 style="margin:8px 0 4px 0; color:#25D366;">$1</h4>')
-                          .replace(/^## (.*$)/gim, '<h3 style="margin:10px 0 6px 0; color:#25D366;">$1</h3>')
-                          .replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.3); padding:2px 5px; border-radius:4px; font-size:0.85em; color:#a7f3d0;">$1</code>')
-                          .replace(/\n/g, '<br/>')
-                      }}
-                    />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', maxWidth: '88%' }}>
+                    {!isUser && (
+                      <img
+                        src="/gabi.jpg"
+                        alt="Gabi"
+                        style={{
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          marginBottom: '2px',
+                          flexShrink: 0
+                        }}
+                      />
+                    )}
                     <div
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        gap: '4px',
-                        fontSize: '0.68rem',
-                        color: 'rgba(255,255,255,0.45)',
-                        marginTop: '4px'
+                        background: isUser ? '#005c4b' : '#202c33',
+                        color: '#e9edef',
+                        padding: '10px 14px 6px 14px',
+                        borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                        fontSize: '0.88rem',
+                        lineHeight: '1.5',
+                        wordBreak: 'break-word',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                        position: 'relative'
                       }}
                     >
-                      <span>{msg.timeStr || 'agora'}</span>
-                      {isUser && <i className="fa-solid fa-check-double" style={{ color: '#53bdeb' }}></i>}
+                      <div
+                        style={{ whiteSpace: 'pre-wrap' }}
+                        dangerouslySetInnerHTML={{
+                          __html: msg.content
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                            .replace(/^### (.*$)/gim, '<h4 style="margin:8px 0 4px 0; color:#25D366;">$1</h4>')
+                            .replace(/^## (.*$)/gim, '<h3 style="margin:10px 0 6px 0; color:#25D366;">$1</h3>')
+                            .replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.3); padding:2px 5px; border-radius:4px; font-size:0.85em; color:#a7f3d0;">$1</code>')
+                            .replace(/\n/g, '<br/>')
+                        }}
+                      />
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          gap: '4px',
+                          fontSize: '0.68rem',
+                          color: 'rgba(255,255,255,0.45)',
+                          marginTop: '4px'
+                        }}
+                      >
+                        <span>{msg.timeStr || 'agora'}</span>
+                        {isUser && <i className="fa-solid fa-check-double" style={{ color: '#53bdeb' }}></i>}
+                      </div>
                     </div>
                   </div>
                 </div>
