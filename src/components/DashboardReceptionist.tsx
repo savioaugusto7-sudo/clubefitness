@@ -884,22 +884,25 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     setIsSavingFixedSched(true);
 
     try {
-      let finalEndDate = '';
+      let finalEndDate: string | null = '';
       if (fsDurationType === 'contrato') {
         const selectedClientObj = clients.find(c => c._id === fsClient);
-        
-        // 1. Tentar pegar o vencimento comercial do cadastro do aluno
-        if (selectedClientObj?.dadosComerciais?.vencimento) {
-          finalEndDate = selectedClientObj.dadosComerciais.vencimento;
-        }
+        const com = selectedClientObj?.dadosComerciais || {};
+        const hasRecurrence = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
 
-        // 2. Se não tiver no cadastro comercial, buscar na coleção de contratos
-        if (!finalEndDate) {
+        if (hasRecurrence) {
+          // Aluno com recorrência ativada -> Vigência contínua/recorrente sem data final fixa
+          finalEndDate = null;
+        } else if (com.vencimento && com.vencimento >= fsDate) {
+          // 1. Vencimento comercial futuro ou igual à data de início
+          finalEndDate = com.vencimento;
+        } else {
+          // 2. Buscar contrato assinado com dataFim válida (futura)
           const resContracts = await fetch(`/api/contracts?clientId=${fsClient}`);
           const dataContracts = await resContracts.json();
           if (dataContracts.success && Array.isArray(dataContracts.data)) {
             const activeContract = dataContracts.data.find((c: any) => 
-              (c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo' || c.status === 'pendente') && c.dataFim
+              (c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo' || c.status === 'pendente') && c.dataFim && c.dataFim >= fsDate
             );
             if (activeContract && activeContract.dataFim) {
               finalEndDate = activeContract.dataFim;
@@ -907,9 +910,13 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
           }
         }
 
-        // 3. Se ainda assim não encontrou nenhuma vigência
-        if (!finalEndDate) {
-          alert('Não foi encontrada nenhuma data de vigência/vencimento no cadastro ou contrato deste aluno. Por favor, selecione "Definir data final manualmente".');
+        // 3. Se não tem recorrência e não encontrou vigência válida futura
+        if (!hasRecurrence && !finalEndDate) {
+          if (com.vencimento && com.vencimento < fsDate) {
+            alert(`O plano deste aluno expirou em ${new Date(com.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')} (anterior à data de início ${new Date(fsDate + 'T12:00:00').toLocaleDateString('pt-BR')}). Por favor, renove a vigência na Gestão de Contratos, ative a recorrência ou selecione "Definir data final manualmente".`);
+          } else {
+            alert('Não foi encontrada nenhuma data de vigência/vencimento ativa para este aluno. Por favor, selecione "Definir data final manualmente" ou "Sem data final (Indeterminado)".');
+          }
           return;
         }
       } else if (fsDurationType === 'manual') {
@@ -3022,13 +3029,38 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     </select>
                     {fsDurationType === 'contrato' && fsClient && (() => {
                       const selObj = clients.find(c => c._id === fsClient);
-                      const venc = selObj?.dadosComerciais?.vencimento;
-                      return venc ? (
-                        <div style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.76rem', fontWeight: 600 }}>
-                          <i className="fa-solid fa-circle-check"></i>
-                          Vigência do aluno: até {new Date(venc + 'T12:00:00').toLocaleDateString('pt-BR')}
-                        </div>
-                      ) : null;
+                      const com = selObj?.dadosComerciais || {};
+                      const hasRecurrence = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+                      const venc = com.vencimento;
+
+                      if (hasRecurrence) {
+                        return (
+                          <div style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '0.76rem', fontWeight: 700, background: 'rgba(56, 189, 248, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                            <i className="fa-solid fa-arrows-rotate fa-spin" style={{ fontSize: '0.7rem' }}></i>
+                            Recorrência Ativada (Vigência Contínua / Renovação Automática)
+                          </div>
+                        );
+                      }
+
+                      if (venc) {
+                        const isExpired = fsDate ? venc < fsDate : false;
+                        if (isExpired) {
+                          return (
+                            <div style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '0.76rem', fontWeight: 600, background: 'rgba(245, 158, 11, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                              <i className="fa-solid fa-triangle-exclamation"></i>
+                              Plano expirou em {new Date(venc + 'T12:00:00').toLocaleDateString('pt-BR')} (Anterior ao início)
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '0.76rem', fontWeight: 600 }}>
+                            <i className="fa-solid fa-circle-check"></i>
+                            Vigência do contrato: até {new Date(venc + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          </div>
+                        );
+                      }
+
+                      return null;
                     })()}
                   </div>
 
