@@ -59,17 +59,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'ID do aluno é obrigatório.' }, { status: 400 });
     }
 
-    const client = await Client.findById(clientId).populate('dadosComerciais.planoId');
+    // Buscar dados do aluno e último contrato em paralelo para resposta instantânea
+    const [client, lastContract, fallbackPlan] = await Promise.all([
+      Client.findById(clientId).populate('dadosComerciais.planoId').lean(),
+      Contract.findOne({ clientId }).select('dataFim valorLiquido valorBruto vigenciaMeses frequencia').sort({ createdAt: -1 }).lean(),
+      Plan.findOne({ ativo: true }).lean()
+    ]);
+
     if (!client) {
       return NextResponse.json({ success: false, error: 'Aluno não encontrado.' }, { status: 404 });
     }
 
-    // Buscar último contrato assinado/ativo do aluno se existir
-    const lastContract = await Contract.findOne({ clientId: client._id })
-      .sort({ createdAt: -1 });
-
     const com = client.dadosComerciais || {};
-    const plan = com.planoId || (await Plan.findOne({ ativo: true }));
+    const plan = com.planoId || fallbackPlan;
     if (!plan) {
       return NextResponse.json({ success: false, error: 'Nenhum plano comercial configurado.' }, { status: 400 });
     }

@@ -81,12 +81,13 @@ export default function GestaoContratosPanel({
   // Renewal States
   const [showRenewalModal, setShowRenewalModal] = useState(false);
   const [generatedRenewalUrl, setGeneratedRenewalUrl] = useState('');
-  const [generatingRenewal, setGeneratingRenewal] = useState(false);
+  const [generatingRenewalClientId, setGeneratingRenewalClientId] = useState<string | null>(null);
   const [activeRenewal, setActiveRenewal] = useState<any>(null);
   const [renewalTargetClient, setRenewalTargetClient] = useState<any>(null);
 
   const handleGenerateRenewalLink = async (client: any) => {
-    setGeneratingRenewal(true);
+    if (generatingRenewalClientId) return;
+    setGeneratingRenewalClientId(client._id);
     setRenewalTargetClient(client);
     try {
       const res = await fetch('/api/renovacoes', {
@@ -106,7 +107,7 @@ export default function GestaoContratosPanel({
     } catch (err: any) {
       alert('Erro de conexão ao gerar link de renovação: ' + err.message);
     } finally {
-      setGeneratingRenewal(false);
+      setGeneratingRenewalClientId(null);
     }
   };
 
@@ -1195,11 +1196,31 @@ export default function GestaoContratosPanel({
 
                            <button
                              className="btn btn-secondary"
-                             style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)' }}
+                             style={{ 
+                               padding: '6px 10px', 
+                               fontSize: '0.78rem', 
+                               color: '#10b981', 
+                               borderColor: 'rgba(16,185,129,0.3)', 
+                               background: generatingRenewalClientId === c._id ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.08)',
+                               opacity: generatingRenewalClientId && generatingRenewalClientId !== c._id ? 0.5 : 1,
+                               cursor: generatingRenewalClientId ? 'not-allowed' : 'pointer',
+                               display: 'inline-flex',
+                               alignItems: 'center',
+                               gap: '4px'
+                             }}
+                             disabled={Boolean(generatingRenewalClientId)}
                              onClick={() => handleGenerateRenewalLink(c)}
                              title="Gerar link de auto-renovação com reajuste automático de 5% para enviar ao aluno"
                            >
-                             <i className="fa-solid fa-link" style={{ marginRight: '4px' }}></i> Link de Renovação
+                             {generatingRenewalClientId === c._id ? (
+                               <>
+                                 <i className="fa-solid fa-circle-notch fa-spin"></i> Gerando Link...
+                               </>
+                             ) : (
+                               <>
+                                 <i className="fa-solid fa-link"></i> Link de Renovação
+                               </>
+                             )}
                            </button>
 
                            {Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia) && (
