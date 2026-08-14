@@ -178,9 +178,17 @@ export default function AiCopilotWidget() {
 
   return (
     <>
+      <style>{`
+        @media (max-width: 768px) {
+          .gabi-floating-launcher, .gabi-floating-window {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* Botão Flutuante Estilo WhatsApp (Launcher) */}
       {!isOpen && (
         <button
+          className="gabi-floating-launcher"
           onClick={() => setIsOpen(true)}
           style={{
             position: 'fixed',
@@ -254,6 +262,7 @@ export default function AiCopilotWidget() {
       {/* Janela de Chat Estilo WhatsApp */}
       {isOpen && (
         <div
+          className="gabi-floating-window"
           style={{
             position: 'fixed',
             bottom: '20px',

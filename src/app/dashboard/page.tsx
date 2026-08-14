@@ -9,6 +9,7 @@ import DashboardReceptionist from '@/components/DashboardReceptionist';
 import DashboardProfessional from '@/components/DashboardProfessional';
 import DashboardClient from '@/components/DashboardClient';
 import AiCopilotWidget from '@/components/AiCopilotWidget';
+import GabiChatPage from '@/components/GabiChatPage';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -101,6 +102,10 @@ export default function DashboardPage() {
 
   // Render the view according to active tab and role
   const renderContent = () => {
+    if (activeTab === 'gabi') {
+      return <GabiChatPage />;
+    }
+
     if (effectiveRole === 'admin') {
       return <DashboardAdmin activeTab={activeTab} setActiveTab={setActiveTab} />;
     } else if (effectiveRole === 'receptionist') {

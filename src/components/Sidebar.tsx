@@ -71,6 +71,13 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       ]
     },
     {
+      title: 'INTELIGÊNCIA ARTIFICIAL',
+      icon: 'fa-robot',
+      tabs: [
+        { id: 'gabi', label: 'Gabi (Atendente IA)', icon: 'fa-headset' }
+      ]
+    },
+    {
       title: 'PRESCRIÇÕES & RECURSOS',
       icon: 'fa-briefcase-medical',
       tabs: [
@@ -101,6 +108,13 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },
         { id: 'prontuarios', label: 'Prontuários', icon: 'fa-notes-medical' }
       ]
+    },
+    {
+      title: 'INTELIGÊNCIA ARTIFICIAL',
+      icon: 'fa-robot',
+      tabs: [
+        { id: 'gabi', label: 'Gabi (Atendente IA)', icon: 'fa-headset' }
+      ]
     }
   ],
   receptionist: [
@@ -123,6 +137,13 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'contratos', label: 'Contratos', icon: 'fa-file-contract' },
         { id: 'dynamus', label: 'Consumo Dynamus', icon: 'fa-bolt' }
       ]
+    },
+    {
+      title: 'INTELIGÊNCIA ARTIFICIAL',
+      icon: 'fa-robot',
+      tabs: [
+        { id: 'gabi', label: 'Gabi (Atendente IA)', icon: 'fa-headset' }
+      ]
     }
   ],
   client: [
@@ -138,6 +159,13 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'documentos', label: 'Meus Documentos', icon: 'fa-file-pdf' },
         { id: 'creditos', label: 'Meus Créditos', icon: 'fa-coins' },
         { id: 'trancamento', label: 'Trancar Plano', icon: 'fa-snowflake' }
+      ]
+    },
+    {
+      title: 'ATENDIMENTO VIRTUAL',
+      icon: 'fa-robot',
+      tabs: [
+        { id: 'gabi', label: 'Falar com a Gabi (IA)', icon: 'fa-headset' }
       ]
     }
   ]
