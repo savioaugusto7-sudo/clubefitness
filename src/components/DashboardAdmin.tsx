@@ -229,6 +229,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [fsDate, setFsDate] = useState(new Date().toISOString().split('T')[0]);
   const [fsDurationType, setFsDurationType] = useState<'contrato' | 'manual' | 'indeterminado'>('contrato');
   const [fsManualEndDate, setFsManualEndDate] = useState('');
+  const [isSavingFixedSched, setIsSavingFixedSched] = useState(false);
   const [strengthTests, setStrengthTests] = useState<any[]>([]);
   const [exerciseRequests, setExerciseRequests] = useState<any[]>([]);
   const [trancamentosAdminList, setTrancamentosAdminList] = useState<any[]>([]);
@@ -643,6 +644,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   const handleCreateFixedSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingFixedSched) return;
+
     if (!fsClient) {
       alert('Selecione um aluno.');
       return;
@@ -657,6 +660,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       alert('Selecione o horário desejado.');
       return;
     }
+
+    setIsSavingFixedSched(true);
 
     try {
       let finalEndDate = '';
@@ -719,6 +724,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       }
     } catch (err) {
       alert('Erro de conexão ao criar horário fixo.');
+    } finally {
+      setIsSavingFixedSched(false);
     }
   };
 
@@ -5586,9 +5593,30 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   )}
                 </div>
                 <div className="modal-footer" style={{ padding: '15px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px' }}>
-                  <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowFixedSchedModal(false)}>Cancelar</button>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1, background: 'var(--color-primary)' }}>
-                    Criar Regra ({fsSelectedDays.length} {fsSelectedDays.length === 1 ? 'dia' : 'dias'})
+                  <button type="button" className="btn btn-secondary" style={{ flex: 1 }} disabled={isSavingFixedSched} onClick={() => setShowFixedSchedModal(false)}>Cancelar</button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    disabled={isSavingFixedSched}
+                    style={{ 
+                      flex: 1, 
+                      background: 'var(--color-primary)',
+                      opacity: isSavingFixedSched ? 0.75 : 1,
+                      cursor: isSavingFixedSched ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    {isSavingFixedSched ? (
+                      <>
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                        Salvando Horários...
+                      </>
+                    ) : (
+                      `Criar Regra (${fsSelectedDays.length} ${fsSelectedDays.length === 1 ? 'dia' : 'dias'})`
+                    )}
                   </button>
                 </div>
               </form>

@@ -5,77 +5,98 @@ import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import Appointment from '@/models/Appointment';
 
-// Helper para gerar agendamentos reais na grade a partir de uma regra de horário fixo
-async function generateAppointmentsForFixedSchedule(schedule: any) {
+// Helper otimizado para gerar agendamentos reais na grade a partir de regras de horário fixo
+async function generateAppointmentsForFixedSchedules(schedules: any[]) {
   try {
+    if (!schedules || schedules.length === 0) return;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const startDate = new Date(schedule.dataInicio + 'T12:00:00');
-    const effectiveStart = startDate < today ? today : startDate;
+    const defaultProf = await Professional.findOne();
+    const defaultProfId = defaultProf?._id;
 
-    let endDate: Date;
-    if (schedule.dataFim) {
-      endDate = new Date(schedule.dataFim + 'T23:59:59');
-    } else {
-      // Se indeterminado, gera para as próximas 16 semanas (4 meses)
-      endDate = new Date(effectiveStart);
-      endDate.setDate(endDate.getDate() + 16 * 7);
-    }
+    const allAppointmentsToCreate: any[] = [];
+    const allCandidateDatesByClient: { clienteId: string; dateStr: string; horario: string }[] = [];
 
-    // Obter profissional padrão para vinculação do Schema se não houver um específico
-    let profId = schedule.profissionalId;
-    if (!profId) {
-      const defaultProf = await Professional.findOne();
-      profId = defaultProf?._id;
-    }
+    // Pre-calcular todas as datas para todas as regras
+    const scheduleDatePairs: { schedule: any; dateStr: string }[] = [];
 
-    const targetDayOfWeek = Number(schedule.diaSemana); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
-    const current = new Date(effectiveStart);
+    for (const schedule of schedules) {
+      const startDate = new Date((schedule.dataInicio || today.toISOString().split('T')[0]) + 'T12:00:00');
+      const effectiveStart = startDate < today ? today : startDate;
 
-    // Ajustar para o primeiro dia da semana alvo a partir da data de início
-    while (current.getDay() !== targetDayOfWeek) {
-      current.setDate(current.getDate() + 1);
-    }
-
-    const appointmentsToCreate = [];
-
-    while (current <= endDate) {
-      const dateStr = current.toISOString().split('T')[0];
-
-      // Verificar se já existe agendamento neste dia e horário para o aluno
-      const existing = await Appointment.findOne({
-        clienteId: schedule.clienteId,
-        data: dateStr,
-        horario: schedule.horario,
-        status: { $ne: 'cancelado' }
-      });
-
-      if (!existing && profId) {
-        appointmentsToCreate.push({
-          data: dateStr,
-          horario: schedule.horario,
-          tipo: 'academia',
-          servico: schedule.servico || 'Treino Monitorado',
-          consumeCredito: true,
-          tipoCredito: 'academia',
-          profissionalId: profId,
-          clienteId: schedule.clienteId,
-          status: 'agendado',
-          origemHorarioFixo: true,
-          fixedScheduleId: schedule._id
-        });
+      let endDate: Date;
+      if (schedule.dataFim) {
+        endDate = new Date(schedule.dataFim + 'T23:59:59');
+      } else {
+        endDate = new Date(effectiveStart);
+        endDate.setDate(endDate.getDate() + 16 * 7); // 16 semanas
       }
 
-      // Avançar 7 dias (próxima semana)
-      current.setDate(current.getDate() + 7);
+      const targetDayOfWeek = Number(schedule.diaSemana);
+      const current = new Date(effectiveStart);
+
+      while (current.getDay() !== targetDayOfWeek) {
+        current.setDate(current.getDate() + 1);
+      }
+
+      while (current <= endDate) {
+        const dateStr = current.toISOString().split('T')[0];
+        scheduleDatePairs.push({ schedule, dateStr });
+        allCandidateDatesByClient.push({
+          clienteId: String(schedule.clienteId),
+          dateStr,
+          horario: schedule.horario
+        });
+        current.setDate(current.getDate() + 7);
+      }
     }
 
-    if (appointmentsToCreate.length > 0) {
-      await Appointment.insertMany(appointmentsToCreate);
+    if (scheduleDatePairs.length === 0) return;
+
+    // Buscar agendamentos existentes de uma só vez em lote
+    const clientIds = Array.from(new Set(schedules.map(s => s.clienteId)));
+    const dateStrings = Array.from(new Set(scheduleDatePairs.map(p => p.dateStr)));
+
+    const existingAppointments = await Appointment.find({
+      clienteId: { $in: clientIds },
+      data: { $in: dateStrings },
+      status: { $ne: 'cancelado' }
+    }).select('clienteId data horario').lean();
+
+    const existingSet = new Set(
+      existingAppointments.map((a: any) => `${a.clienteId}_${a.data}_${a.horario}`)
+    );
+
+    for (const pair of scheduleDatePairs) {
+      const key = `${pair.schedule.clienteId}_${pair.dateStr}_${pair.schedule.horario}`;
+      if (!existingSet.has(key)) {
+        const profId = pair.schedule.profissionalId || defaultProfId;
+        if (profId) {
+          allAppointmentsToCreate.push({
+            data: pair.dateStr,
+            horario: pair.schedule.horario,
+            tipo: 'academia',
+            servico: pair.schedule.servico || 'Treino Monitorado',
+            consumeCredito: true,
+            tipoCredito: 'academia',
+            profissionalId: profId,
+            clienteId: pair.schedule.clienteId,
+            status: 'agendado',
+            origemHorarioFixo: true,
+            fixedScheduleId: pair.schedule._id
+          });
+          existingSet.add(key); // evitar duplicatas dentro do mesmo lote
+        }
+      }
+    }
+
+    if (allAppointmentsToCreate.length > 0) {
+      await Appointment.insertMany(allAppointmentsToCreate, { ordered: false });
     }
   } catch (err) {
-    console.error('Erro ao gerar agendamentos para horário fixo:', err);
+    console.error('Erro ao gerar agendamentos em lote para horários fixos:', err);
   }
 }
 
@@ -107,9 +128,7 @@ export async function POST(request: Request) {
     // Sincronização em massa de todas as regras existentes
     if (syncAll) {
       const allSchedules = await FixedSchedule.find({});
-      for (const fs of allSchedules) {
-        await generateAppointmentsForFixedSchedule(fs);
-      }
+      await generateAppointmentsForFixedSchedules(allSchedules);
       return NextResponse.json({ success: true, message: 'Todas as regras foram sincronizadas com a grade da agenda.' });
     }
 
@@ -150,10 +169,8 @@ export async function POST(request: Request) {
 
     const createdSchedules = await FixedSchedule.insertMany(itemsToCreate);
 
-    // Gerar agendamentos reais na grade para todas as regras criadas
-    for (const schedule of createdSchedules) {
-      await generateAppointmentsForFixedSchedule(schedule);
-    }
+    // Gerar agendamentos reais em lote de forma instantânea
+    await generateAppointmentsForFixedSchedules(createdSchedules);
 
     return NextResponse.json({ success: true, data: createdSchedules });
   } catch (error: any) {
