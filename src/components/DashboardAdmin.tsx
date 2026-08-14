@@ -223,6 +223,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [showFixedSchedModal, setShowFixedSchedModal] = useState(false);
   const [fsClient, setFsClient] = useState('');
   const [fsDay, setFsDay] = useState(1); // 1 = Monday
+  const [fsSelectedDays, setFsSelectedDays] = useState<number[]>([1, 3, 5]); // default: Seg, Qua, Sex
   const [fsTime, setFsTime] = useState('08:00');
   const [fsService, setFsService] = useState('Treino Monitorado');
   const [fsDate, setFsDate] = useState(new Date().toISOString().split('T')[0]);
@@ -647,6 +648,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       return;
     }
 
+    if (!fsSelectedDays || fsSelectedDays.length === 0) {
+      alert('Selecione pelo menos um dia da semana.');
+      return;
+    }
+
+    if (!fsTime) {
+      alert('Selecione o horário desejado.');
+      return;
+    }
+
     try {
       let finalEndDate = '';
       if (fsDurationType === 'contrato') {
@@ -672,11 +683,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         finalEndDate = fsManualEndDate;
       }
 
+      const slots = fsSelectedDays.map(day => ({
+        diaSemana: Number(day),
+        horario: fsTime
+      }));
+
       const payload = {
         clienteId: fsClient,
         profissionalId: null,
-        diaSemana: Number(fsDay),
-        horario: fsTime,
+        slots,
         servico: fsService,
         dataInicio: fsDate,
         duracaoSemanas: null,
@@ -692,7 +707,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       if (data.success) {
         setShowFixedSchedModal(false);
         setFsClient('');
-        setFsDay(1);
+        setFsSelectedDays([1, 3, 5]);
         setFsTime('08:00');
         setFsService('Treino Monitorado');
         setFsDate(new Date().toISOString().split('T')[0]);
@@ -708,9 +723,25 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   };
 
   const handleDeleteFixedSchedule = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta regra de horário fixo?')) {
+    if (confirm('Tem certeza que deseja excluir este horário fixo e os agendamentos futuros gerados?')) {
       try {
         const res = await fetch(`/api/fixed-schedules?id=${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          fetchData();
+        } else {
+          alert('Erro ao excluir: ' + data.error);
+        }
+      } catch (err) {
+        alert('Erro de rede.');
+      }
+    }
+  };
+
+  const handleDeleteAllClientFixedSchedules = async (clientId: string) => {
+    if (confirm('Tem certeza que deseja remover TODOS os horários fixos e agendamentos futuros deste aluno?')) {
+      try {
+        const res = await fetch(`/api/fixed-schedules?clientId=${clientId}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
           fetchData();
@@ -3316,15 +3347,21 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           <div className="content-panel">
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar por aluno ou profissional..." value={getSearchQuery('agenda_fixa')} onChange={e => setSearchQueryForKey('agenda_fixa', e.target.value)} style={{ maxWidth: '300px' }} />
+              <input 
+                type="text" 
+                className="form-control" 
+                placeholder="Buscar por aluno, CPF ou dia da semana..." 
+                value={getSearchQuery('agenda_fixa')} 
+                onChange={e => setSearchQueryForKey('agenda_fixa', e.target.value)} 
+                style={{ maxWidth: '360px' }} 
+              />
             </div>
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Aluno</th>
-                    <th>Dia da Semana</th>
-                    <th>Horário</th>
+                    <th>Dias & Horários Fixados</th>
                     <th>Serviço</th>
                     <th>Vigência da Regra</th>
                     <th style={{ textAlign: 'center' }}>Ações</th>
@@ -3336,27 +3373,102 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = fixedSchedules.filter(fs => normalizeText(fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome).includes(q) || normalizeText(fs.profissionalId?.nome).includes(q));
+
+                    const daysMapShort: Record<number, string> = {
+                      0: 'Dom', 1: 'Seg', 2: 'Ter', 3: 'Qua', 4: 'Qui', 5: 'Sex', 6: 'Sáb'
+                    };
+
+                    // Agrupar regras por aluno
+                    const groupsMap: Record<string, { client: any, rules: any[], servico: string, dataInicio: string, dataFim: string }> = {};
+
+                    for (const fs of fixedSchedules) {
+                      const cId = fs.clienteId?._id || fs.clienteId || 'sem_id';
+                      if (!groupsMap[cId]) {
+                        groupsMap[cId] = {
+                          client: fs.clienteId,
+                          rules: [],
+                          servico: fs.servico,
+                          dataInicio: fs.dataInicio,
+                          dataFim: fs.dataFim
+                        };
+                      }
+                      groupsMap[cId].rules.push(fs);
+                    }
+
+                    const groupedList = Object.values(groupsMap);
+
+                    const filtered = groupedList.filter(g => {
+                      const nome = normalizeText(g.client?.dadosPessoais?.nome || g.client?.nome || '');
+                      const cpf = (g.client?.dadosPessoais?.cpf || '').replace(/\D/g, '');
+                      const daysText = g.rules.map(r => daysMapShort[r.diaSemana] || '').join(' ').toLowerCase();
+                      return nome.includes(q) || cpf.includes(q.replace(/\D/g, '')) || daysText.includes(q);
+                    });
+
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-                    const daysMap = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                    return paginated.map(g => {
+                      const clientName = g.client?.dadosPessoais?.nome || g.client?.nome || 'Aluno';
+                      const clientCpf = g.client?.dadosPessoais?.cpf || '';
 
-                    return paginated.map(fs => {
-                      const dayLabel = daysMap[fs.diaSemana] || fs.diaSemana;
                       return (
-                        <tr key={fs._id}>
-                          <td><strong>{fs.clienteId?.dadosPessoais?.nome || 'Aluno'}</strong></td>
-                          <td>{dayLabel}</td>
-                          <td>{fs.horario}</td>
-                          <td>{fs.servico}</td>
+                        <tr key={g.client?._id || Math.random()}>
                           <td>
-                            {fs.dataInicio} {fs.dataFim ? `até ${fs.dataFim}` : '(Indeterminado)'}
+                            <strong>{clientName}</strong>
+                            {clientCpf && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CPF: {clientCpf}</div>}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {g.rules.map(r => (
+                                <span 
+                                  key={r._id} 
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 10px',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                    borderRadius: '16px',
+                                    color: '#10b981',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  <i className="fa-solid fa-clock" style={{ fontSize: '0.72rem' }}></i>
+                                  {daysMapShort[r.diaSemana]} {r.horario}
+                                  <button 
+                                    onClick={() => handleDeleteFixedSchedule(r._id)} 
+                                    title="Excluir este horário" 
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#ef4444',
+                                      cursor: 'pointer',
+                                      padding: '0 0 0 4px',
+                                      fontSize: '0.88rem',
+                                      lineHeight: 1
+                                    }}
+                                  >
+                                    &times;
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 600 }}>{g.servico}</td>
+                          <td style={{ fontSize: '0.85rem' }}>
+                            {g.dataInicio} {g.dataFim ? `até ${g.dataFim}` : '(Indeterminado)'}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFixedSchedule(fs._id)} title="Excluir Horário Fixo">
-                              <i className="fa-solid fa-trash"></i>
+                            <button 
+                              className="btn btn-danger btn-sm" 
+                              onClick={() => handleDeleteAllClientFixedSchedules(g.client?._id)} 
+                              title="Excluir Todos os Horários Fixos deste Aluno"
+                              style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                            >
+                              <i className="fa-solid fa-trash" style={{ marginRight: '4px' }}></i> Excluir Todos
                             </button>
                           </td>
                         </tr>
@@ -5362,35 +5474,66 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     />
                   </div>
 
-                  <div className="form-row" style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label>Dia da Semana</label>
-                      <select className="select-custom" value={fsDay} onChange={e => setFsDay(Number(e.target.value))} required>
-                        <option value={1}>Segunda-feira</option>
-                        <option value={2}>Terça-feira</option>
-                        <option value={3}>Quarta-feira</option>
-                        <option value={4}>Quinta-feira</option>
-                        <option value={5}>Sexta-feira</option>
-                        <option value={6}>Sábado</option>
-                      </select>
-                    </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label>Horário</label>
-                      <select className="select-custom" value={fsTime} onChange={e => setFsTime(e.target.value)} required>
-                        <option value="">Selecione...</option>
-                        {getAvailableHours(fsDay, fsService).map(h => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                      {getAvailableHours(fsDay, fsService).length === 0 && (
-                        <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
-                          Nenhum horário com vagas disponíveis neste dia/serviço.
-                        </small>
-                      )}
+                  {/* Seleção de Múltiplos Dias da Semana */}
+                  <div className="form-group" style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                      Dias da Semana Fixados
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {[
+                        { id: 1, label: 'Segunda-feira', short: 'Seg' },
+                        { id: 2, label: 'Terça-feira', short: 'Ter' },
+                        { id: 3, label: 'Quarta-feira', short: 'Qua' },
+                        { id: 4, label: 'Quinta-feira', short: 'Qui' },
+                        { id: 5, label: 'Sexta-feira', short: 'Sex' },
+                        { id: 6, label: 'Sábado', short: 'Sáb' }
+                      ].map(d => {
+                        const isSelected = fsSelectedDays.includes(d.id);
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setFsSelectedDays(fsSelectedDays.filter(day => day !== d.id));
+                              } else {
+                                setFsSelectedDays([...fsSelectedDays, d.id].sort((a, b) => a - b));
+                              }
+                            }}
+                            style={{
+                              padding: '10px 8px',
+                              borderRadius: '10px',
+                              border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
+                              background: isSelected ? 'rgba(16, 185, 129, 0.18)' : 'var(--bg-darker)',
+                              color: isSelected ? '#10b981' : 'var(--text-muted)',
+                              fontWeight: 700,
+                              fontSize: '0.82rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <i className={`fa-solid ${isSelected ? 'fa-square-check' : 'fa-square'}`}></i>
+                            {d.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
                   <div className="form-row" style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>Horário</label>
+                      <select className="select-custom" value={fsTime} onChange={e => setFsTime(e.target.value)} required>
+                        <option value="">Selecione...</option>
+                        {['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'].map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="form-group" style={{ flex: 1 }}>
                       <label>Serviço</label>
                       <select className="select-custom" value={fsService} onChange={e => setFsService(e.target.value)} required>
@@ -5399,19 +5542,40 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
                       </select>
                     </div>
+                  </div>
+
+                  {/* Resumo visual dos dias/horários selecionados */}
+                  {fsSelectedDays.length > 0 && fsTime && (
+                    <div style={{ marginBottom: '15px', padding: '10px 14px', background: 'var(--bg-darker)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Horários que serão fixados:
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {fsSelectedDays.map(dayId => {
+                          const name = ['', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayId];
+                          return (
+                            <span key={dayId} style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.78rem', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                              🟢 {name} às {fsTime}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="form-row" style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
                     <div className="form-group" style={{ flex: 1 }}>
                       <label>Data de Início</label>
                       <input type="date" className="form-control" value={fsDate} onChange={e => setFsDate(e.target.value)} required />
                     </div>
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: '15px' }}>
-                    <label>Tipo de Duração</label>
-                    <select className="select-custom" value={fsDurationType} onChange={e => setFsDurationType(e.target.value as any)} required>
-                      <option value="contrato">Até o fim da vigência do contrato do aluno</option>
-                      <option value="manual">Definir data final manualmente</option>
-                      <option value="indeterminado">Sem data final (Indeterminado)</option>
-                    </select>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>Tipo de Duração</label>
+                      <select className="select-custom" value={fsDurationType} onChange={e => setFsDurationType(e.target.value as any)} required>
+                        <option value="contrato">Até o fim da vigência do contrato</option>
+                        <option value="manual">Definir data final manualmente</option>
+                        <option value="indeterminado">Sem data final (Indeterminado)</option>
+                      </select>
+                    </div>
                   </div>
 
                   {fsDurationType === 'manual' && (
@@ -5423,7 +5587,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 </div>
                 <div className="modal-footer" style={{ padding: '15px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px' }}>
                   <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowFixedSchedModal(false)}>Cancelar</button>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1, background: 'var(--color-primary)' }}>Criar Regra</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1, background: 'var(--color-primary)' }}>
+                    Criar Regra ({fsSelectedDays.length} {fsSelectedDays.length === 1 ? 'dia' : 'dias'})
+                  </button>
                 </div>
               </form>
             </div>
