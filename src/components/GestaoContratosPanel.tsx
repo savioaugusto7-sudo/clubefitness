@@ -2387,19 +2387,26 @@ export default function GestaoContratosPanel({
             <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Plano:</span>
-                <strong>{activeRenewal.planoNome}</strong>
+                <strong>{activeRenewal.planoNome} (Anual)</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Vigência do Novo Contrato:</span>
                 <strong style={{ color: '#10b981' }}>
-                  {activeRenewal.vigenciaMeses} meses ({new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR')} até {new Date(activeRenewal.dataFimCalculada + 'T12:00:00').toLocaleDateString('pt-BR')})
+                  12 meses ({new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR')} até {new Date(activeRenewal.dataFimCalculada + 'T12:00:00').toLocaleDateString('pt-BR')})
                 </strong>
               </div>
               <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Valor da Mensalidade:</span>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Valor Total do Plano:</span>
                 <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#10b981' }}>
-                  R$ {activeRenewal.valorReajustado.toFixed(2).replace('.', ',')}/mês
+                  R$ {activeRenewal.valorReajustado.toFixed(2).replace('.', ',')}
                 </span>
+              </div>
+              <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <span>📄 Boleto até 10x de R$ {(activeRenewal.valorReajustado / 10).toFixed(2).replace('.', ',')}</span>
+                <span>•</span>
+                <span>💳 Cartão até 12x (+5%)</span>
+                <span>•</span>
+                <span>🟢 PIX à vista</span>
               </div>
             </div>
 

@@ -67,18 +67,33 @@ export default function RenovacaoPage({ params }: { params: any }) {
     return d.toISOString().split('T')[0];
   })() : '';
 
-  // Max parcelas conforme forma de pagamento
+  // Regras de pagamento:
+  // PIX: max 1x
+  // Boleto: max 10x
+  // Cartão: +5%, max 12x
+  const baseValue = renewal?.valorReajustado || 0;
+  
+  const currentTotal = (() => {
+    if (formaPagamento === 'cartao') {
+      return Math.round(baseValue * 1.05 * 100) / 100;
+    }
+    return baseValue;
+  })();
+
   const maxInstallments = (() => {
     if (formaPagamento === 'cartao') return 12;
-    if (formaPagamento === 'boleto') return renewal?.vigenciaMeses || 12;
+    if (formaPagamento === 'boleto') return 10;
     return 1;
   })();
 
   const currentInstallments = Math.min(parcelas, maxInstallments);
+  const installmentValue = currentInstallments > 0 ? Math.round((currentTotal / currentInstallments) * 100) / 100 : 0;
 
   const handlePaymentChange = (type: 'pix' | 'boleto' | 'cartao') => {
     setFormaPagamento(type);
-    setParcelas(1);
+    if (type === 'pix') setParcelas(1);
+    else if (type === 'boleto') setParcelas(Math.min(parcelas, 10));
+    else if (type === 'cartao') setParcelas(Math.min(parcelas, 12));
   };
 
   const handleProceedToContractReview = (e: React.FormEvent) => {
@@ -104,15 +119,15 @@ export default function RenovacaoPage({ params }: { params: any }) {
       clientEstado: pes.estado || 'MG',
       clientCep: pes.cep || '',
       planNome: renewal.planoNome,
-      planTipo: renewal.planoTipo,
-      planPreco: renewal.valorReajustado,
+      planTipo: 'Anual',
+      planPreco: currentTotal,
       creditosMensais: renewal.creditosMensais,
       dataInicio: renewal.dataInicioRenovacao,
       dataVencimento: dataPrimeiroVencimento,
       formaPagamento,
       parcelas: currentInstallments,
-      vigenciaQtd: renewal.vigenciaMeses,
-      recorrenciaMeses: renewal.vigenciaMeses,
+      vigenciaQtd: 12,
+      recorrenciaMeses: 12,
       criarRecorrenciaMensal: true,
       unidadeContratada: 'Clube Fitness'
     });
@@ -220,7 +235,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
             </div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 10px 0' }}>Contrato Enviado para Assinatura!</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: 1.6, marginBottom: '24px' }}>
-              Parabéns, <strong>{clientName}</strong>! Sua renovação para o plano <strong>{renewal.planoNome}</strong> (vigência de <strong>{dataInicioFormatada}</strong> até <strong>{dataFimCalculadaFormatada}</strong>) foi gerada e enviada para o <strong>Clicksign</strong>.
+              Parabéns, <strong>{clientName}</strong>! Sua renovação para o plano <strong>{renewal.planoNome} (Anual)</strong> (vigência de <strong>{dataInicioFormatada}</strong> até <strong>{dataFimCalculadaFormatada}</strong>) foi gerada e enviada para o <strong>Clicksign</strong>.
             </p>
 
             <div style={{ background: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.3)', padding: '18px', borderRadius: '14px', marginBottom: '24px', textAlign: 'left' }}>
@@ -284,7 +299,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
               </div>
             </div>
 
-            {/* Card Limpo do Plano e Vigência (Conforme Imagem 1) */}
+            {/* Card Limpo do Plano e Vigência Anual */}
             <div style={{ ...cardStyle, padding: '24px', marginBottom: '20px' }}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-tag" style={{ color: 'var(--color-primary)' }}></i>
@@ -294,21 +309,33 @@ export default function RenovacaoPage({ params }: { params: any }) {
               <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontSize: '0.9rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Plano:</span>
-                  <strong style={{ color: 'var(--text-main)', fontSize: '1rem' }}>{renewal.planoNome}</strong>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '1rem' }}>{renewal.planoNome} (Anual)</strong>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontSize: '0.9rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Vigência do Novo Contrato:</span>
                   <strong style={{ color: '#10b981' }}>
-                    {renewal.vigenciaMeses} meses ({dataInicioFormatada} até {dataFimCalculadaFormatada})
+                    12 meses ({dataInicioFormatada} até {dataFimCalculadaFormatada})
                   </strong>
                 </div>
 
                 <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>Valor da Mensalidade:</span>
-                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)' }}>
-                    R$ {renewal.valorReajustado.toFixed(2).replace('.', ',')}<span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>/mês</span>
-                  </span>
+                  <div>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 700, display: 'block' }}>Valor do Plano:</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {formaPagamento === 'cartao' ? 'Valor Anual (+5% taxa de cartão)' : 'Valor Total Anual'}
+                    </span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                      R$ {currentTotal.toFixed(2).replace('.', ',')}
+                    </span>
+                    {currentInstallments > 1 && (
+                      <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 700, marginTop: '2px' }}>
+                        ({currentInstallments}x de R$ {installmentValue.toFixed(2).replace('.', ',')})
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -344,7 +371,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
               </div>
             </div>
 
-            {/* Forma de Pagamento com Critérios do Link de Venda */}
+            {/* Forma de Pagamento com Regras Específicas */}
             <div style={{ ...cardStyle, padding: '24px', marginBottom: '24px' }}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-credit-card" style={{ color: 'var(--color-primary)' }}></i>
@@ -353,9 +380,9 @@ export default function RenovacaoPage({ params }: { params: any }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
                 {[
-                  { id: 'pix', label: 'PIX', icon: 'fa-qrcode' },
-                  { id: 'cartao', label: 'Cartão', icon: 'fa-credit-card' },
-                  { id: 'boleto', label: 'Boleto', icon: 'fa-barcode' }
+                  { id: 'pix', label: 'PIX (1x)', icon: 'fa-qrcode', desc: 'À vista' },
+                  { id: 'boleto', label: 'Boleto (até 10x)', icon: 'fa-barcode', desc: 'Sem acréscimo' },
+                  { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: '+5% taxa' }
                 ].map(item => (
                   <button
                     key={item.id}
@@ -372,20 +399,21 @@ export default function RenovacaoPage({ params }: { params: any }) {
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: '8px'
+                      gap: '6px'
                     }}
                   >
                     <i className={`fa-solid ${item.icon}`} style={{ fontSize: '1.2rem' }}></i>
-                    {item.label}
+                    <span style={{ fontSize: '0.85rem' }}>{item.label}</span>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted)' }}>{item.desc}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Opções de Parcelamento / Mensalidades */}
-              {maxInstallments > 1 && (
+              {/* Opções de Parcelamento */}
+              {maxInstallments > 1 ? (
                 <div style={{ marginTop: '14px' }}>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                    {formaPagamento === 'cartao' ? 'Número de Parcelas no Cartão:' : 'Mensalidades Recorrentes (Boletos):'}
+                    {formaPagamento === 'cartao' ? 'Número de Parcelas no Cartão (Máx 12x):' : 'Número de Parcelas no Boleto (Máx 10x):'}
                   </label>
                   <select 
                     className="form-control" 
@@ -393,14 +421,21 @@ export default function RenovacaoPage({ params }: { params: any }) {
                     onChange={e => setParcelas(Number(e.target.value))}
                     style={{ padding: '10px 12px', background: 'var(--bg-darker)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px' }}
                   >
-                    {Array.from({ length: maxInstallments }, (_, i) => i + 1).map(num => (
-                      <option key={num} value={num}>
-                        {num === 1 
-                          ? `1x de R$ ${renewal.valorReajustado.toFixed(2).replace('.', ',')}` 
-                          : `${num}x de R$ ${(renewal.valorReajustado).toFixed(2).replace('.', ',')}/mês`}
-                      </option>
-                    ))}
+                    {Array.from({ length: maxInstallments }, (_, i) => i + 1).map(num => {
+                      const parcVal = (currentTotal / num).toFixed(2).replace('.', ',');
+                      return (
+                        <option key={num} value={num}>
+                          {num === 1 
+                            ? `1x de R$ ${currentTotal.toFixed(2).replace('.', ',')} (à vista)` 
+                            : `${num}x de R$ ${parcVal}/mês`}
+                        </option>
+                      );
+                    })}
                   </select>
+                </div>
+              ) : (
+                <div style={{ padding: '10px 12px', background: 'var(--bg-darker)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  ✅ <strong>Pagamento via PIX:</strong> Quitação única à vista no valor de <strong>R$ {currentTotal.toFixed(2).replace('.', ',')}</strong>.
                 </div>
               )}
             </div>
@@ -431,14 +466,14 @@ export default function RenovacaoPage({ params }: { params: any }) {
           </form>
         )}
 
-        {/* ETAPA 2: REVISÃO DO CONTRATO & CLICKSIGN EXCLUSIVO (Conforme Imagem 2) */}
+        {/* ETAPA 2: REVISÃO DO CONTRATO & CLICKSIGN EXCLUSIVO */}
         {step === 'contract_review' && (
           <div>
             <div style={{ ...cardStyle, padding: '24px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <i className="fa-solid fa-file-lines" style={{ color: 'var(--color-primary)' }}></i>
-                  Revisão do Contrato de Prestação de Serviços
+                  Revisão do Contrato de Prestação de Serviços (Anual)
                 </h3>
                 <button 
                   type="button" 
