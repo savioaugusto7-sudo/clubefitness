@@ -6,6 +6,30 @@ import AiConversation from '@/models/AiConversation';
 import { GoogleGenAI } from '@google/genai';
 import { geminiToolDeclarations, executeAiTool, AI_SYSTEM_INSTRUCTION } from '@/utils/aiTools';
 
+const MODEL_CHAIN = [
+  'gemini-3.5-flash',
+  'gemini-3.7-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest'
+];
+
+async function generateWithFallback(ai: any, params: any) {
+  let lastErr = null;
+  for (const model of MODEL_CHAIN) {
+    try {
+      const res = await ai.models.generateContent({
+        ...params,
+        model
+      });
+      return res;
+    } catch (err: any) {
+      console.warn(`Tentativa com modelo ${model} falhou: ${err.message}. Tentando próximo modelo...`);
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
 export async function GET(request: Request) {
   try {
     await dbConnect();
@@ -48,7 +72,7 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ success: false, error: 'Chave GEMINI_API_KEY não configurada no servidor.' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Chave GEMINI_API_KEY não configurada no servidor (adicione nas variáveis de ambiente da Vercel).' }, { status: 500 });
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -116,8 +140,7 @@ export async function POST(request: Request) {
     while (currentIteration < maxIterations) {
       currentIteration++;
 
-      const response: any = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
+      const response: any = await generateWithFallback(ai, {
         contents,
         config: {
           systemInstruction: AI_SYSTEM_INSTRUCTION,
@@ -174,8 +197,7 @@ export async function POST(request: Request) {
 
     if (!finalAnswerText && executedToolsRecord.length > 0) {
       // Se parou por max iterations, fazer uma chamada final sem tools para sintetizar
-      const finalSynth: any = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
+      const finalSynth: any = await generateWithFallback(ai, {
         contents,
         config: {
           systemInstruction: AI_SYSTEM_INSTRUCTION + '\nSintetize a resposta com base nos dados obtidos.'
