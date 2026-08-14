@@ -13,23 +13,6 @@ const MODEL_CHAIN = [
   'gemini-flash-latest'
 ];
 
-async function generateWithFallback(ai: any, params: any) {
-  let lastErr = null;
-  for (const model of MODEL_CHAIN) {
-    try {
-      const res = await ai.models.generateContent({
-        ...params,
-        model
-      });
-      return res;
-    } catch (err: any) {
-      console.warn(`Tentativa com modelo ${model} falhou: ${err.message}. Tentando próximo modelo...`);
-      lastErr = err;
-    }
-  }
-  throw lastErr;
-}
-
 export async function GET(request: Request) {
   try {
     await dbConnect();
@@ -93,123 +76,71 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Montar histórico para o modelo
-    const contents: any[] = [];
-    const recentMessages = conversation.messages.slice(-12);
-
-    for (const msg of recentMessages) {
-      if (msg.role === 'user') {
-        contents.push({ role: 'user', parts: [{ text: msg.content }] });
-      } else if (msg.role === 'model') {
-        const parts: any[] = [];
-        if (msg.content) parts.push({ text: msg.content });
-        if (msg.toolCalls && msg.toolCalls.length > 0) {
-          for (const tc of msg.toolCalls) {
-            parts.push({ functionCall: { name: tc.name, args: tc.args } });
-          }
-        }
-        contents.push({ role: 'model', parts });
-      } else if (msg.role === 'tool') {
-        const parts: any[] = [];
-        if (msg.toolResults && msg.toolResults.length > 0) {
-          for (const tr of msg.toolResults) {
-            parts.push({ functionResponse: { name: tr.name, response: tr.result } });
-          }
-        }
-        contents.push({ role: 'user', parts });
-      }
-    }
-
-    // Adicionar mensagem atual do usuário
-    contents.push({ role: 'user', parts: [{ text: message }] });
-
-    // Adicionar ao documento MongoDB
+    // Adicionar mensagem do usuário
     conversation.messages.push({
       role: 'user',
       content: message,
       createdAt: new Date()
     });
 
-    const executedToolsRecord: any[] = [];
-
-    // 3. Loop de Tool Calling (Recursivo até obter texto final)
-    let currentIteration = 0;
-    const maxIterations = 5;
     let finalAnswerText = '';
+    const executedToolsRecord: any[] = [];
+    let lastErr: any = null;
 
-    while (currentIteration < maxIterations) {
-      currentIteration++;
-
-      const response: any = await generateWithFallback(ai, {
-        contents,
-        config: {
-          systemInstruction: AI_SYSTEM_INSTRUCTION,
-          tools: [{ functionDeclarations: geminiToolDeclarations as any }]
-        }
-      });
-
-      const functionCalls = response.functionCalls;
-
-      if (functionCalls && functionCalls.length > 0) {
-        // O modelo decidiu invocar uma ou mais ferramentas
-        const modelParts: any[] = [];
-        const toolResponseParts: any[] = [];
-        const currentToolCalls: any[] = [];
-        const currentToolResults: any[] = [];
-
-        for (const call of functionCalls) {
-          const fnName = call.name;
-          const fnArgs = call.args || {};
-          currentToolCalls.push({ name: fnName, args: fnArgs });
-
-          // Executar ferramenta no MongoDB
-          const fnResult = await executeAiTool(fnName, fnArgs);
-          currentToolResults.push({ name: fnName, result: fnResult });
-          executedToolsRecord.push({ name: fnName, args: fnArgs, result: fnResult });
-
-          modelParts.push({ functionCall: { name: fnName, args: fnArgs, id: call.id } });
-          toolResponseParts.push({ functionResponse: { name: fnName, response: fnResult, id: call.id } });
-        }
-
-        // Registrar no histórico da chamada
-        contents.push({ role: 'model', parts: modelParts });
-        contents.push({ role: 'user', parts: toolResponseParts });
-
-        conversation.messages.push({
-          role: 'model',
-          content: response.text || '',
-          toolCalls: currentToolCalls,
-          createdAt: new Date()
+    // 2. Executar chat com loop de Tool Calling e Fallback de Modelos
+    for (const modelName of MODEL_CHAIN) {
+      try {
+        const chat = ai.chats.create({
+          model: modelName,
+          config: {
+            systemInstruction: AI_SYSTEM_INSTRUCTION,
+            tools: [{ functionDeclarations: geminiToolDeclarations as any }]
+          }
         });
 
-        conversation.messages.push({
-          role: 'tool',
-          content: 'Resultado da ferramenta executada com sucesso.',
-          toolResults: currentToolResults,
-          createdAt: new Date()
-        });
-      } else {
-        // Resposta de texto final atingida
-        finalAnswerText = response.text || 'Processamento concluído.';
-        break;
+        let chatResponse: any = await chat.sendMessage({ message });
+        let iteration = 0;
+        const maxIterations = 5;
+
+        while (chatResponse.functionCalls && chatResponse.functionCalls.length > 0 && iteration < maxIterations) {
+          iteration++;
+          const toolResponses: any[] = [];
+
+          for (const call of chatResponse.functionCalls) {
+            const fnName = call.name;
+            const fnArgs = call.args || {};
+            const fnResult = await executeAiTool(fnName, fnArgs);
+            executedToolsRecord.push({ name: fnName, args: fnArgs, result: fnResult });
+
+            toolResponses.push({
+              functionResponse: {
+                name: fnName,
+                response: fnResult,
+                id: call.id
+              }
+            });
+          }
+
+          chatResponse = await chat.sendMessage({ message: toolResponses });
+        }
+
+        finalAnswerText = chatResponse.text || 'Operação concluída com sucesso.';
+        break; // Sucesso na execução!
+      } catch (err: any) {
+        console.warn(`Tentativa no modelo ${modelName} falhou: ${err.message}`);
+        lastErr = err;
       }
     }
 
-    if (!finalAnswerText && executedToolsRecord.length > 0) {
-      // Se parou por max iterations, fazer uma chamada final sem tools para sintetizar
-      const finalSynth: any = await generateWithFallback(ai, {
-        contents,
-        config: {
-          systemInstruction: AI_SYSTEM_INSTRUCTION + '\nSintetize a resposta com base nos dados obtidos.'
-        }
-      });
-      finalAnswerText = finalSynth.text || 'Operação realizada com sucesso.';
+    if (!finalAnswerText && lastErr) {
+      throw lastErr;
     }
 
-    // Salvar mensagem final da IA no banco
+    // Salvar resposta final no banco
     conversation.messages.push({
       role: 'model',
       content: finalAnswerText,
+      toolCalls: executedToolsRecord.map(t => ({ name: t.name, args: t.args })),
       createdAt: new Date()
     });
 
