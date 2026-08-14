@@ -78,6 +78,38 @@ export default function GestaoContratosPanel({
   const [generatingProposal, setGeneratingProposal] = useState(false);
   const [activeProposal, setActiveProposal] = useState<any>(null);
 
+  // Renewal States
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [generatedRenewalUrl, setGeneratedRenewalUrl] = useState('');
+  const [generatingRenewal, setGeneratingRenewal] = useState(false);
+  const [activeRenewal, setActiveRenewal] = useState<any>(null);
+  const [renewalTargetClient, setRenewalTargetClient] = useState<any>(null);
+
+  const handleGenerateRenewalLink = async (client: any) => {
+    setGeneratingRenewal(true);
+    setRenewalTargetClient(client);
+    try {
+      const res = await fetch('/api/renovacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: client._id })
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const url = window.location.origin + '/renovacao/' + data.data._id;
+        setGeneratedRenewalUrl(url);
+        setActiveRenewal(data.data);
+        setShowRenewalModal(true);
+      } else {
+        alert('Erro ao gerar link de renovação: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao gerar link de renovação: ' + err.message);
+    } finally {
+      setGeneratingRenewal(false);
+    }
+  };
+
   // Asaas Search & Link state
   const [dcAsaasCustomerId, setDcAsaasCustomerId] = useState('');
   const [searchingAsaas, setSearchingAsaas] = useState(false);
@@ -1159,6 +1191,15 @@ export default function GestaoContratosPanel({
                              title="Estender a vigência comercial em +1 ciclo e lançar a parcela no Financeiro"
                            >
                              <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Renovar Vigência
+                           </button>
+
+                           <button
+                             className="btn btn-secondary"
+                             style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)' }}
+                             onClick={() => handleGenerateRenewalLink(c)}
+                             title="Gerar link de auto-renovação com reajuste automático de 5% para enviar ao aluno"
+                           >
+                             <i className="fa-solid fa-link" style={{ marginRight: '4px' }}></i> Link de Renovação
                            </button>
 
                            {Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia) && (
@@ -2295,6 +2336,122 @@ export default function GestaoContratosPanel({
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setShowProposalModal(false)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Compartilhamento do Link de Renovação */}
+      {showRenewalModal && activeRenewal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, padding: '20px' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '18px', width: '100%', maxWidth: '560px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', fontSize: '1.2rem' }}>
+                  <i className="fa-solid fa-arrows-rotate"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Link de Renovação Gerado!</h3>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Aluno: <strong>{renewalTargetClient?.dadosPessoais?.nome || 'Aluno'}</strong>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowRenewalModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.3rem', cursor: 'pointer' }}>&times;</button>
+            </div>
+
+            {/* Resumo Financeiro da Renovação */}
+            <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Plano:</span>
+                <strong>{activeRenewal.planoNome}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Valor do Último Ciclo:</span>
+                <span>R$ {activeRenewal.valorAnterior.toFixed(2).replace('.', ',')}/mês</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Reajuste Automático (+5%):</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>+ R$ {(activeRenewal.valorReajustado - activeRenewal.valorAnterior).toFixed(2).replace('.', ',')}</span>
+              </div>
+              <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Novo Valor da Renovação:</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
+                  R$ {activeRenewal.valorReajustado.toFixed(2).replace('.', ',')}/mês
+                </span>
+              </div>
+              <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Início Contínuo: <strong>{new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR')}</strong> | Vigência: <strong>{activeRenewal.vigenciaMeses} meses</strong>
+              </div>
+            </div>
+
+            {/* Input com Link e Botão Copiar */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>Link Exclusivo do Aluno:</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  readOnly
+                  className="form-control"
+                  style={{ flex: 1, fontSize: '0.83rem', background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px' }}
+                  value={generatedRenewalUrl}
+                  onClick={e => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ background: 'var(--color-primary)', display: 'flex', gap: '6px', alignItems: 'center', whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedRenewalUrl);
+                    alert('Link de renovação copiado com sucesso!');
+                  }}
+                >
+                  <i className="fa-solid fa-copy"></i> Copiar
+                </button>
+              </div>
+            </div>
+
+            {/* Botão Enviar WhatsApp */}
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: '#25D366', borderColor: '#25D366', color: '#fff', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '14px', borderRadius: '12px', fontWeight: 800, fontSize: '0.95rem' }}
+              onClick={() => {
+                const clientName = renewalTargetClient?.dadosPessoais?.nome || 'Aluno';
+                const phone = (renewalTargetClient?.dadosPessoais?.telefone || '').replace(/\D/g, '');
+                const dataFimFormat = activeRenewal.dataFimAnterior ? new Date(activeRenewal.dataFimAnterior + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+                
+                let message = '';
+                if (activeRenewal.isExpired) {
+                  message = 
+                    `🏋️‍♂️ *Olá, ${clientName}! Tudo bem?*\n\n` +
+                    `Seu último contrato no *Clube Fitness & Fisio* encerrou no dia *${dataFimFormat}*.\n\n` +
+                    `Veja os detalhes exclusivos da sua renovação! Preparamos condições especiais de renovação para reativar o seu plano: 📄✨\n\n` +
+                    `👉 ${generatedRenewalUrl}\n\n` +
+                    `_Qualquer dúvida, estamos à total disposição!_ 💚`;
+                } else {
+                  message = 
+                    `🏋️‍♂️ *Olá, ${clientName}! Tudo bem?*\n\n` +
+                    `Seu plano no *Clube Fitness & Fisio* irá se encerrar no dia *${dataFimFormat}*.\n\n` +
+                    `Veja os detalhes exclusivos da sua renovação e garanta a continuidade dos seus treinos e benefícios sem interrupções! 📄✨\n\n` +
+                    `👉 ${generatedRenewalUrl}\n\n` +
+                    `_Qualquer dúvida, estamos à total disposição!_ 💚`;
+                }
+
+                const text = encodeURIComponent(message);
+                const whatsappUrl = phone 
+                  ? `https://api.whatsapp.com/send?phone=55${phone}&text=${text}`
+                  : `https://api.whatsapp.com/send?text=${text}`;
+                window.open(whatsappUrl, '_blank');
+              }}
+            >
+              <i className="fa-brands fa-whatsapp fa-lg"></i> Enviar Mensagem via WhatsApp
+            </button>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowRenewalModal(false)}>
                 Fechar
               </button>
             </div>
