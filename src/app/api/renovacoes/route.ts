@@ -87,16 +87,33 @@ export async function POST(request: Request) {
       valorUnitario = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(lastContract?.valorLiquido) || Number(plan.preco) || 299;
     }
 
-    const duracaoAnterior = com.duracao || (lastContract?.vigenciaMeses === 1 ? 'mensal' : 'anual');
+    // Identificar com segurança se o contrato anterior é ANUAL ou MENSAL:
+    let isAnual = false;
+    const durLower = String(com.duracao || '').toLowerCase();
+    
+    if (durLower.includes('anual') || durLower.includes('ano') || durLower.includes('12')) {
+      isAnual = true;
+    } else if (Number(com.vigenciaQtd) >= 12 || Number(com.recorrenciaMeses) >= 12) {
+      isAnual = true;
+    } else if (lastContract && (lastContract.planoTipo === 'Anual' || lastContract.vigenciaMeses >= 12)) {
+      isAnual = true;
+    } else if (com.dataInicio && com.vencimento) {
+      const dStart = new Date(com.dataInicio + 'T12:00:00').getTime();
+      const dEnd = new Date(com.vencimento + 'T12:00:00').getTime();
+      const diffDays = Math.abs(dEnd - dStart) / (1000 * 60 * 60 * 24);
+      if (diffDays > 60) {
+        isAnual = true;
+      }
+    }
 
     // Cálculo do valor total anual da renovação:
-    // Se o contrato atual for mensal: valor do mês * 12 com 5% de acréscimo
-    // Se o contrato atual for anual: valorUnitario com 5% de acréscimo
+    // - Se for anual: o valorUnitario já é o total anual do plano -> apenas aplica +5%
+    // - Se for estritamente mensal: valorUnitario é 1 mês -> multiplica por 12 e aplica +5%
     let valorTotalAnual = 0;
-    if (duracaoAnterior === 'mensal' || Number(com.duracaoQtd) === 1) {
-      valorTotalAnual = (valorUnitario * 12) * 1.05;
-    } else {
+    if (isAnual) {
       valorTotalAnual = valorUnitario * 1.05;
+    } else {
+      valorTotalAnual = (valorUnitario * 12) * 1.05;
     }
 
     valorTotalAnual = Math.round(valorTotalAnual * 100) / 100;
