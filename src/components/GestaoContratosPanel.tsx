@@ -2445,22 +2445,33 @@ export default function GestaoContratosPanel({
                 const clientName = renewalTargetClient?.dadosPessoais?.nome || 'Aluno';
                 const phone = (renewalTargetClient?.dadosPessoais?.telefone || '').replace(/\D/g, '');
                 const dataFimFormat = activeRenewal.dataFimAnterior ? new Date(activeRenewal.dataFimAnterior + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+                const planoNome = activeRenewal.planoNome || 'Clube Fitness - Monitorado';
+                const dataInicioFormat = activeRenewal.dataInicioRenovacao ? new Date(activeRenewal.dataInicioRenovacao + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+                const dataFimCalcFormat = activeRenewal.dataFimCalculada ? new Date(activeRenewal.dataFimCalculada + 'T12:00:00').toLocaleDateString('pt-BR') : '';
                 
                 let message = '';
                 if (activeRenewal.isExpired) {
                   message = 
                     `🏋️‍♂️ *Olá, ${clientName}! Tudo bem?*\n\n` +
-                    `Seu último contrato no *Clube Fitness & Fisio* encerrou no dia *${dataFimFormat}*.\n\n` +
-                    `Veja os detalhes exclusivos da sua renovação! Preparamos condições especiais de renovação para reativar o seu plano: 📄✨\n\n` +
+                    `Preparamos as condições exclusivas para a *Renovação do seu Plano* no *Clube Fitness & Fisio*! 📄✨\n\n` +
+                    `📋 *Detalhes da sua Renovação:*\n` +
+                    `• *Plano:* ${planoNome} (Anual)\n` +
+                    `• *Vigência:* 12 meses (${dataInicioFormat} até ${dataFimCalcFormat})\n` +
+                    `• *Pagamento:* Boleto (até 10x), Cartão (até 12x) ou PIX à vista\n\n` +
+                    `Clique no link abaixo para conferir as condições, revisar e assinar digitalmente pelo WhatsApp:\n` +
                     `👉 ${generatedRenewalUrl}\n\n` +
-                    `_Qualquer dúvida, estamos à total disposição!_ 💚`;
+                    `_Qualquer dúvida, estamos à sua inteira disposição!_ 💚`;
                 } else {
                   message = 
                     `🏋️‍♂️ *Olá, ${clientName}! Tudo bem?*\n\n` +
-                    `Seu plano no *Clube Fitness & Fisio* irá se encerrar no dia *${dataFimFormat}*.\n\n` +
-                    `Veja os detalhes exclusivos da sua renovação e garanta a continuidade dos seus treinos e benefícios sem interrupções! 📄✨\n\n` +
+                    `Seu plano atual no *Clube Fitness & Fisio* encerra no dia *${dataFimFormat}*. Preparamos as condições exclusivas da sua *Renovação Anual* para você continuar seus treinos sem interrupções! 📄✨\n\n` +
+                    `📋 *Detalhes da sua Renovação:*\n` +
+                    `• *Plano:* ${planoNome} (Anual)\n` +
+                    `• *Novo Ciclo:* 12 meses (${dataInicioFormat} até ${dataFimCalcFormat})\n` +
+                    `• *Pagamento:* Boleto (até 10x), Cartão (até 12x) ou PIX à vista\n\n` +
+                    `Clique no link abaixo para conferir as condições, revisar e assinar digitalmente pelo WhatsApp:\n` +
                     `👉 ${generatedRenewalUrl}\n\n` +
-                    `_Qualquer dúvida, estamos à total disposição!_ 💚`;
+                    `_Qualquer dúvida, estamos à sua inteira disposição!_ 💚`;
                 }
 
                 const text = encodeURIComponent(message);
