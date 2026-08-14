@@ -41,9 +41,19 @@ export default function PublicCadastroPage() {
 
   const convertBrToIso = (brDate: string) => {
     if (!brDate) return '';
-    const parts = brDate.split('/');
-    if (parts.length === 3 && parts[2].length === 4) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    const clean = brDate.trim().replace(/\D/g, '');
+    if (clean.length === 8) {
+      const day = clean.substring(0, 2);
+      const month = clean.substring(2, 4);
+      const year = clean.substring(4, 8);
+      return `${year}-${month}-${day}`;
+    }
+    const parts = brDate.trim().split(/[/.-]/);
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2].length === 2 ? `19${parts[2]}` : parts[2];
+      if (year.length === 4) return `${year}-${month}-${day}`;
     }
     return '';
   };
@@ -113,32 +123,56 @@ export default function PublicCadastroPage() {
   };
 
   const handleStep1Next = async () => {
-    if (!nome.trim() || !email.trim() || !dataNascimentoDisplay || !sexo || !telefone.trim()) {
-      setError('Preencha todos os campos obrigatórios (*).');
+    setError('');
+    const cleanNome = nome.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanTel = telefone.trim();
+
+    if (!cleanNome) {
+      setError('Por favor, informe seu Nome Completo.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Por favor, informe um E-mail válido.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!dataNascimentoDisplay.trim()) {
+      setError('Por favor, informe sua Data de Nascimento (ex: 30/01/1980).');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     const isoDate = convertBrToIso(dataNascimentoDisplay);
     if (!isoDate || isoDate.length !== 10) {
-      setError('A data de nascimento deve estar no formato DD/MM/AAAA e possuir ano com 4 dígitos.');
+      setError('A data de nascimento deve estar no formato DD/MM/AAAA (ex: 30/01/1980).');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!cleanTel) {
+      setError('Por favor, informe seu Telefone / WhatsApp com DDD.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     setCheckingEmail(true);
-    setError('');
     try {
-      const res = await fetch(`/api/leads/onboarding?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`/api/leads/onboarding?email=${encodeURIComponent(cleanEmail)}`);
       const data = await res.json();
       if (data.exists) {
         setError('Este e-mail já está cadastrado em nosso sistema.');
         setCheckingEmail(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
     } catch (err) {
-      console.error('Erro ao verificar email:', err);
+      console.warn('Verificação de email:', err);
     }
     setCheckingEmail(false);
     setDataNascimento(isoDate);
+    if (!sexo) setSexo('M');
     setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSubmit = async () => {
@@ -568,10 +602,10 @@ export default function PublicCadastroPage() {
                 </div>
 
                 <div className="ob-btn-row">
-                  <button className="btn" onClick={() => setStep(1)} style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                  <button className="btn" onClick={() => { setStep(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
                     <i className="fa-solid fa-arrow-left"></i> Voltar
                   </button>
-                  <button className="btn btn-primary" onClick={() => { setError(''); setStep(3); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button className="btn btn-primary" onClick={() => { setError(''); setStep(3); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     Próximo <i className="fa-solid fa-arrow-right"></i>
                   </button>
                 </div>

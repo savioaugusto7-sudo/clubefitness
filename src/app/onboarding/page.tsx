@@ -26,9 +26,19 @@ export default function OnboardingPage() {
 
   const convertBrToIso = (brDate: string) => {
     if (!brDate) return '';
-    const parts = brDate.split('/');
-    if (parts.length === 3 && parts[2].length === 4) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    const clean = brDate.trim().replace(/\D/g, '');
+    if (clean.length === 8) {
+      const day = clean.substring(0, 2);
+      const month = clean.substring(2, 4);
+      const year = clean.substring(4, 8);
+      return `${year}-${month}-${day}`;
+    }
+    const parts = brDate.trim().split(/[/.-]/);
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2].length === 2 ? `19${parts[2]}` : parts[2];
+      if (year.length === 4) return `${year}-${month}-${day}`;
     }
     return '';
   };
@@ -535,11 +545,25 @@ export default function OnboardingPage() {
                     <i className="fa-solid fa-arrow-right-from-bracket"></i> Usar outra conta
                   </button>
                   <button className="btn btn-primary" onClick={() => {
-                    if (!nome || !dataNascimentoDisplay || !sexo || !telefone) { setError('Preencha os campos obrigatórios (*).'); return; }
+                    setError('');
+                    const cleanNome = nome.trim();
+                    const cleanTel = telefone.trim();
+                    if (!cleanNome || !dataNascimentoDisplay.trim() || !cleanTel) { 
+                      setError('Preencha todos os campos obrigatórios (*).'); 
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      return; 
+                    }
                     const isoDate = convertBrToIso(dataNascimentoDisplay);
-                    if (!isoDate || isoDate.length !== 10) { setError('A data de nascimento deve estar no formato DD/MM/AAAA e possuir ano com 4 dígitos.'); return; }
+                    if (!isoDate || isoDate.length !== 10) { 
+                      setError('A data de nascimento deve estar no formato DD/MM/AAAA (ex: 30/01/1980).'); 
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      return; 
+                    }
                     setDataNascimento(isoDate);
-                    setError(''); setStep(2);
+                    if (!sexo) setSexo('M');
+                    setError(''); 
+                    setStep(2);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     Próximo <i className="fa-solid fa-arrow-right"></i>
                   </button>
