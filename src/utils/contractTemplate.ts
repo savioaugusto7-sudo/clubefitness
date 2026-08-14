@@ -262,7 +262,7 @@ export function generateContractTemplate(data: ContractData): string {
       rescisaoClauses.push(`7.1. Este contrato poderá ser rescindido por qualquer das partes, mediante comunicação por escrito com antecedência mínima de 30 (trinta) dias.`);
     }
     const nextNum = rescisaoClauses.length + 1;
-    rescisaoClauses.push(`7.${nextNum}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor das mensalidades restantes para o fim do contrato, a título de cláusula penal.`);
+    rescisaoClauses.push(`7.${nextNum}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor total do contrato, a título de cláusula penal.`);
 
     let monitoradoHtml = `
       <h2 style="font-size: 13pt; font-weight: bold; margin: 10px 0 20px 0; text-transform: uppercase; text-align: center;">TERMO DE ADESÃO A PLANO CLUBE FITNESS MONITORADO</h2>
@@ -470,7 +470,7 @@ export function generateContractTemplate(data: ContractData): string {
       rescisaoTrat.push(`7.1. Este contrato poderá ser rescindido por qualquer das partes, mediante comunicação por escrito com antecedência mínima de 30 (trinta) dias.`);
     }
     const nextNumTrat = rescisaoTrat.length + 1;
-    rescisaoTrat.push(`7.${nextNumTrat}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor das mensalidades restantes para o fim do contrato, a título de cláusula penal.`);
+    rescisaoTrat.push(`7.${nextNumTrat}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor total do contrato, a título de cláusula penal.`);
 
     let descontoTextoTrat = '';
     if (descVal > 0) {
@@ -595,7 +595,7 @@ export function generateContractTemplate(data: ContractData): string {
       rescisaoProt.push(`7.1. Este contrato poderá ser rescindido por qualquer das partes, mediante comunicação por escrito com antecedência mínima de 30 (trinta) dias.`);
     }
     const nextNumProt = rescisaoProt.length + 1;
-    rescisaoProt.push(`7.${nextNumProt}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor das mensalidades restantes para o fim do contrato, a título de cláusula penal.`);
+    rescisaoProt.push(`7.${nextNumProt}. Em caso de rescisão antecipada por iniciativa do(a) CONTRATANTE, poderá ser cobrada multa de 10% sobre o valor total do contrato, a título de cláusula penal.`);
 
     let descontoTextoProt = '';
     if (descVal > 0) {
