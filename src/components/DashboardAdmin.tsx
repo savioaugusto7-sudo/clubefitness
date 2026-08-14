@@ -666,18 +666,30 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     try {
       let finalEndDate = '';
       if (fsDurationType === 'contrato') {
-        const resContracts = await fetch(`/api/contracts?clientId=${fsClient}`);
-        const dataContracts = await resContracts.json();
-        if (dataContracts.success) {
-          const activeContract = dataContracts.data.find((c: any) => c.status === 'assinado' || c.status === 'congelado');
-          if (activeContract && activeContract.dataFim) {
-            finalEndDate = activeContract.dataFim;
-          } else {
-            alert('Não foi encontrado nenhum contrato ativo/assinado para este aluno. Defina a data final manualmente.');
-            return;
+        const selectedClientObj = clients.find(c => c._id === fsClient);
+        
+        // 1. Tentar pegar o vencimento comercial do cadastro do aluno
+        if (selectedClientObj?.dadosComerciais?.vencimento) {
+          finalEndDate = selectedClientObj.dadosComerciais.vencimento;
+        }
+
+        // 2. Se não tiver no cadastro comercial, buscar na coleção de contratos
+        if (!finalEndDate) {
+          const resContracts = await fetch(`/api/contracts?clientId=${fsClient}`);
+          const dataContracts = await resContracts.json();
+          if (dataContracts.success && Array.isArray(dataContracts.data)) {
+            const activeContract = dataContracts.data.find((c: any) => 
+              (c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo' || c.status === 'pendente') && c.dataFim
+            );
+            if (activeContract && activeContract.dataFim) {
+              finalEndDate = activeContract.dataFim;
+            }
           }
-        } else {
-          alert('Erro ao carregar contratos do aluno.');
+        }
+
+        // 3. Se ainda assim não encontrou nenhuma vigência
+        if (!finalEndDate) {
+          alert('Não foi encontrada nenhuma data de vigência/vencimento no cadastro ou contrato deste aluno. Por favor, selecione "Definir data final manualmente".');
           return;
         }
       } else if (fsDurationType === 'manual') {
@@ -5582,6 +5594,16 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         <option value="manual">Definir data final manualmente</option>
                         <option value="indeterminado">Sem data final (Indeterminado)</option>
                       </select>
+                      {fsDurationType === 'contrato' && fsClient && (() => {
+                        const selObj = clients.find(c => c._id === fsClient);
+                        const venc = selObj?.dadosComerciais?.vencimento;
+                        return venc ? (
+                          <small style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontWeight: 600 }}>
+                            <i className="fa-solid fa-circle-check"></i>
+                            Vigência: até {new Date(venc + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          </small>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
 
