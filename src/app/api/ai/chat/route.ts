@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/utils/dbConnect';
 import AiConversation from '@/models/AiConversation';
 import { GoogleGenAI } from '@google/genai';
-import { geminiToolDeclarations, executeAiTool, AI_SYSTEM_INSTRUCTION } from '@/utils/aiTools';
+import { geminiToolDeclarations, executeAiTool, getGabiSystemInstruction } from '@/utils/aiTools';
 
 const MODEL_CHAIN = [
   'gemini-3.5-flash',
@@ -107,11 +107,12 @@ export async function POST(request: Request) {
     // 3. Executar chat com histórico, loop de Tool Calling e Fallback de Modelos
     for (const modelName of MODEL_CHAIN) {
       try {
+        const nowBH = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
         const chat = ai.chats.create({
           model: modelName,
           history: history.length > 0 ? history : undefined,
           config: {
-            systemInstruction: AI_SYSTEM_INSTRUCTION,
+            systemInstruction: getGabiSystemInstruction(nowBH),
             tools: [{ functionDeclarations: geminiToolDeclarations as any }]
           }
         });

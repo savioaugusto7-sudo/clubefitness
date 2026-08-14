@@ -7,31 +7,50 @@ import Plan from '@/models/Plan';
 import Proposal from '@/models/Proposal';
 import Professional from '@/models/Professional';
 
-export const AI_SYSTEM_INSTRUCTION = `
-Você é a inteligência artificial oficial do **Clube Fitness & Fisio**, uma academia e clínica integrada de alta performance e saúde em Belo Horizonte.
+export function getGabiSystemInstruction(currentDateTimeStr?: string): string {
+  const now = currentDateTimeStr || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
-Sua missão é atuar como um copiloto executivo, inteligente, ágil e prestativo.
-Você tem acesso a ferramentas completas para consultar, criar, alterar e cancelar dados no sistema.
+  return `
+Você é a **Gabi**, a consultora e atendente virtual oficial do **Clube Fitness & Fisio**, uma academia e clínica integrada de saúde e alta performance localizada em Belo Horizonte/MG.
 
-### 🧠 Diretrizes de Inteligência e Fluidez Contextual:
-1. **Memória de Histórico & Resolução de Pronomes:**
-   - Preste total atenção no histórico recente da conversa.
-   - Quando o usuário disser *"troque esse agendamento para treino livre"*, *"remarque para 17:00"*, *"mude o horário dele"*, *"cancele isso"*, entenda que ele está se referindo ao **aluno/agendamento recém-mencionado ou recém-criado**.
-   - Nesses casos, **NÃO faça perguntas burocráticas** pedindo nome/CPF de novo. Execute diretamente a ferramenta \`alterar_agendamento\` ou \`cancelar_agendamento\`.
-2. **Comportamento Executivo e Ágil:**
-   - Execute ações de forma direta, clara e objetiva.
-   - Responda em Português do Brasil com tom profissional, positivo e emojis elegantes.
+Data e hora atual de referência em Belo Horizonte: **${now}**.
 
-### ⚠️ Regras Rígidas de Segurança e Desambiguação de Alunos:
-1. **NUNCA TROQUE OU ASSUMA UM ALUNO POR APROXIMAÇÃO:** É terminantemente proibido agendar para uma pessoa diferente apenas por ter um sobrenome similar.
-2. **SE A FERRAMENTA RETORNAR "MULTIPLOS_ALUNOS_ENCONTRADOS":**
-   - O agendamento **NÃO FOI REALIZADO AINDA**.
-   - Você **DEVE** listar claramente as opções de alunos encontradas (com número, Nome Completo, Telefone/E-mail e Plano).
-   - Peça ao usuário para escolher o aluno correto (ex: *"Encontrei mais de um aluno com esse termo. Por favor, confirme qual deles é o desejado (digite o número ou nome completo):"*).
-3. **SE A FERRAMENTA RETORNAR "NAO_ENCONTRADO":**
-   - Informe que o aluno não foi localizado e solicite o CPF ou o nome completo correto.
-4. **SOMENTE CONFIRME O AGENDAMENTO** quando a ferramenta retornar \`sucesso: true\`.
+---
+
+### 💖 Sua Personalidade e Tom de Voz:
+* **Humana, calorosa, empática e prestativa:** Você conversa de forma natural, simpática e acolhedora, como uma excelente recepcionista e consultora de WhatsApp.
+* **Linguagem Natural de BH:** Fale em Português do Brasil de forma leve e gentil (ex: *"Oi! Tudo bem com você?"*, *"Combinado!"*, *"Já reservei sua vaga com todo prazer!"*), com emojis elegantes e calorosos (😊, 💪, 🏋️‍♀️, 🗓️, 🌟).
+* **Nunca soe robótica:** Evite relatórios mecânicos ou frases prontas de sistema. Se precisar de dados adicionais ou desambiguação, pergunte de forma humana e amigável.
+* **Inteligência Contextual e Memória:** Preste atenção no histórico recente da conversa. Quando o usuário disser *"troque esse agendamento para treino livre"*, *"mude o horário para 17:00"* ou *"cancele esse treino"*, entenda que se refere à última pessoa ou vaga tratada. Execute a ação imediatamente sem fazer perguntas burocráticas repetidas.
+
+---
+
+### 🏢 Base de Conhecimento do Clube Fitness & Fisio:
+* **Estrutura & Localização:** Academia e clínica integradas em Belo Horizonte/MG, com aparelhos modernos, ambiente climatizado, vestiários completos com duchas e estacionamento conveniado.
+* **Horários de Funcionamento:**
+  * Segunda a Sexta: **06:00 às 22:00**
+  * Sábados: **08:00 às 14:00**
+  * Domingos e Feriados: Fechado
+* **Modalidades e Setores:**
+  * **Setor Academia:** Treino Monitorado individualizado (com acompanhamento contínuo de professores na sala), Treino Livre e Avaliação Física por Bioimpedância.
+  * **Setor Consultório:** Fisioterapia Especializada, Quiropraxia, Liberação Miofascial e Massoterapia.
+* **Planos Comerciais:** Planos flexíveis (Mensal, Trimestral, Semestral e Anual) com opções de pagamento via PIX, Cartão de Crédito e Boleto.
+
+---
+
+### 🎟️ REGRA CENTRAL DE AGENDAMENTO (GESTÃO POR VAGAS E CAPACIDADE):
+* **Não amarramos agendamentos a profissionais específicos:** O Clube Fitness trabalha com **vagas por horário** em cada setor (Academia ou Consultório).
+* **Comunicação de Vaga Garantida:** Ao confirmar um agendamento, confirme a **vaga garantida no horário e setor**, e NUNCA diga *"agendado com o professor X"*.
+  * Exemplo correto: *"Prontinho! Sua vaga para o Treino Monitorado na terça-feira às 16:00 está confirmada na Academia! 💪 Te esperamos lá!"*
+
+---
+
+### ⚠️ Regras de Segurança e Desambiguação de Alunos:
+1. **NUNCA substitua um aluno por aproximação:** Se o usuário solicitar para *"Maria"* ou *"Lucas"* e houver múltiplos cadastros, a ferramenta retornará \`MULTIPLOS_ALUNOS_ENCONTRADOS\`. Você **NÃO DEVE** agendar de imediato; liste os alunos encontrados com carinho e peça para confirmar qual é a pessoa correta.
+2. **Se a ferramenta retornar \`NAO_ENCONTRADO\`:** Informe cordialmente que não localizou o cadastro e pergunte se a pessoa gostaria de passar o CPF ou fazer uma proposta nova.
+3. **Somente comemore e confirme a vaga** quando a ferramenta de sistema retornar \`sucesso: true\`.
 `;
+}
 
 export function normalizeText(str: string): string {
   return (str || '')
@@ -166,11 +185,11 @@ export async function findClientsSafe(nameOrTerm: string): Promise<ClientSearchR
   };
 }
 
-// Definição das declarações de funções para o Gemini (Function Calling)
+// Definição das declarações de funções para a Gabi (Function Calling)
 export const geminiToolDeclarations = [
   {
     name: 'buscar_aluno',
-    description: 'Busca a ficha e dados completos de um aluno pelo nome, CPF ou número de WhatsApp/telefone. Retorna detalhes cadastrais ou lista de opções para desambiguação.',
+    description: 'Busca a ficha e dados de um aluno por nome, CPF ou WhatsApp para verificar plano, saldo de créditos, lesões ou pendências financeiras.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -184,24 +203,24 @@ export const geminiToolDeclarations = [
   },
   {
     name: 'consultar_agenda',
-    description: 'Consulta os agendamentos e horários livres de um dia específico para academia (treinos monitorados) ou consultório (fisioterapia, quiropraxia, massagem).',
+    description: 'Consulta as vagas e horários da grade para um dia específico na Academia (Treinos/Avaliação) ou no Consultório (Fisioterapia/Quiropraxia).',
     parameters: {
       type: 'OBJECT',
       properties: {
         data: {
           type: 'STRING',
-          description: 'Data no formato YYYY-MM-DD (ex: 2026-08-14). Se não informado, assume hoje.'
+          description: 'Data no formato YYYY-MM-DD (ex: 2026-08-18). Se não informado, assume hoje.'
         },
         tipo: {
           type: 'STRING',
-          description: 'Tipo de agendamento: "academia", "consultorio" ou "todos".'
+          description: 'Setor da grade: "academia", "consultorio" ou "todos".'
         }
       }
     }
   },
   {
     name: 'criar_agendamento',
-    description: 'Realiza um novo agendamento para um aluno no sistema após validação segura de identidade.',
+    description: 'Reserva uma vaga de atendimento/treino para um aluno em um horário e setor específico.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -211,19 +230,19 @@ export const geminiToolDeclarations = [
         },
         data: {
           type: 'STRING',
-          description: 'Data do agendamento no formato YYYY-MM-DD.'
+          description: 'Data no formato YYYY-MM-DD (ex: 2026-08-18).'
         },
         horario: {
           type: 'STRING',
-          description: 'Horário no formato HH:MM (ex: 09:00, 15:30).'
+          description: 'Horário no formato HH:MM (ex: 09:00, 16:00).'
         },
         servico: {
           type: 'STRING',
-          description: 'Nome do serviço (ex: "Treino Monitorado", "Treino Livre", "Fisioterapia", "Avaliação Física").'
+          description: 'Serviço a ser realizado (ex: "Treino Monitorado", "Treino Livre", "Fisioterapia", "Avaliação Física").'
         },
         tipo: {
           type: 'STRING',
-          description: '"academia" ou "consultorio".'
+          description: 'Setor: "academia" ou "consultorio" (opcional, deduzido automaticamente).'
         }
       },
       required: ['alunoNomeOuId', 'data', 'horario', 'servico']
@@ -231,54 +250,54 @@ export const geminiToolDeclarations = [
   },
   {
     name: 'alterar_agendamento',
-    description: 'Altera o serviço, horário, data ou profissional de um agendamento existente.',
+    description: 'Altera o serviço (ex: para Treino Livre), data ou horário de uma vaga/agendamento existente.',
     parameters: {
       type: 'OBJECT',
       properties: {
         agendamentoId: {
           type: 'STRING',
-          description: 'ID do agendamento (opcional se puder ser inferido pelo aluno e data).'
+          description: 'ID do agendamento (opcional se puder ser inferido pelo contexto ou aluno).'
         },
         alunoNomeOuId: {
           type: 'STRING',
-          description: 'Nome ou ID do aluno associado ao agendamento.'
+          description: 'Nome ou ID do aluno do agendamento.'
         },
         dataOriginal: {
           type: 'STRING',
-          description: 'Data original do agendamento no formato YYYY-MM-DD (opcional).'
+          description: 'Data original do agendamento YYYY-MM-DD (opcional).'
         },
         novoServico: {
           type: 'STRING',
-          description: 'Novo serviço desejado (ex: "Treino Livre", "Treino Monitorado", "Fisioterapia", "Avaliação Física").'
+          description: 'Novo serviço (ex: "Treino Livre", "Treino Monitorado", "Fisioterapia").'
         },
         novaData: {
           type: 'STRING',
-          description: 'Nova data no formato YYYY-MM-DD (se for alterar a data).'
+          description: 'Nova data YYYY-MM-DD (se for trocar a data).'
         },
         novoHorario: {
           type: 'STRING',
-          description: 'Novo horário no formato HH:MM (se for alterar o horário).'
+          description: 'Novo horário HH:MM (se for trocar o horário).'
         },
         novoTipo: {
           type: 'STRING',
-          description: '"academia" ou "consultorio" (opcional).'
+          description: 'Novo setor: "academia" ou "consultorio" (opcional).'
         }
       }
     }
   },
   {
     name: 'cancelar_agendamento',
-    description: 'Cancela um agendamento existente no sistema.',
+    description: 'Cancela e libera a vaga de um agendamento existente no sistema.',
     parameters: {
       type: 'OBJECT',
       properties: {
         agendamentoId: {
           type: 'STRING',
-          description: 'ID do agendamento a ser cancelado.'
+          description: 'ID do agendamento a cancelar.'
         },
         alunoNomeOuId: {
           type: 'STRING',
-          description: 'Nome ou ID do aluno do agendamento.'
+          description: 'Nome ou ID do aluno associado.'
         },
         data: {
           type: 'STRING',
@@ -293,7 +312,7 @@ export const geminiToolDeclarations = [
   },
   {
     name: 'obter_resumo_financeiro',
-    description: 'Obtém o resumo financeiro atual do sistema (faturamento do mês, pagamentos pendentes/atrasados, contagem de inadimplentes e contratos próximos ao vencimento).',
+    description: 'Consulta faturamento do mês, previsão, taxa de adimplência, inadimplentes e contratos prestes a vencer.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -306,7 +325,7 @@ export const geminiToolDeclarations = [
   },
   {
     name: 'gerar_link_vendas',
-    description: 'Cria uma nova proposta comercial no sistema e gera o link público de vendas para envio ao cliente/aluno.',
+    description: 'Cria uma nova proposta comercial e gera o link de vendas (/vendas/[id]) para matrícula do aluno/lead.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -324,7 +343,7 @@ export const geminiToolDeclarations = [
         },
         valorAcordado: {
           type: 'NUMBER',
-          description: 'Valor líquido acordado em Reais (ex: 299.90).'
+          description: 'Valor acordado em Reais (ex: 299.90).'
         },
         formaPagamento: {
           type: 'STRING',
@@ -336,7 +355,7 @@ export const geminiToolDeclarations = [
   },
   {
     name: 'listar_alunos_em_risco',
-    description: 'Lista alunos com alto risco de evasão, que faltaram aos treinos recentemente ou que não agendam há mais de 14 dias.',
+    description: 'Lista alunos com mais de 14 dias sem frequência ou com risco de evasão.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -349,7 +368,7 @@ export const geminiToolDeclarations = [
   },
   {
     name: 'consultar_planos',
-    description: 'Lista todos os planos comerciais cadastrados e ativos no Clube Fitness com seus respectivos preços e modalidades.',
+    description: 'Lista os planos comerciais ativos com preços, validades e características.',
     parameters: {
       type: 'OBJECT',
       properties: {}
@@ -424,31 +443,28 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
         const dataBusca = args.data || todayStr;
         const tipoBusca = args.tipo || 'todos';
 
-        const filter: any = { data: dataBusca };
+        const filter: any = { data: dataBusca, status: { $ne: 'cancelado' } };
         if (tipoBusca !== 'todos' && (tipoBusca === 'academia' || tipoBusca === 'consultorio')) {
           filter.tipo = tipoBusca;
         }
 
         const appointments = await Appointment.find(filter)
           .populate('clienteId', 'dadosPessoais.nome dadosPessoais.telefone')
-          .populate('profissionalId', 'nome')
           .sort({ horario: 1 })
           .lean();
 
         const formatados = appointments.map((a: any) => ({
           horario: a.horario,
           servico: a.servico,
-          tipo: a.tipo,
+          setor: a.tipo === 'consultorio' ? 'Consultório' : 'Academia',
           status: a.status,
-          aluno: a.clienteId?.dadosPessoais?.nome || 'Aluno não identificado',
-          telefone: a.clienteId?.dadosPessoais?.telefone || '',
-          profissional: a.profissionalId?.nome || 'Profissional Geral'
+          aluno: a.clienteId?.dadosPessoais?.nome || 'Aluno'
         }));
 
         return {
           data: dataBusca,
-          totalAgendamentos: formatados.length,
-          agendamentos: formatados
+          totalVagasOcupadas: formatados.length,
+          vagasOcupadasNaGrade: formatados
         };
       }
 
@@ -489,18 +505,10 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           }
         }
 
-        let professional = null;
-        if (appointmentType === 'academia') {
-          professional = await Professional.findOne({ especialidade: /treino|avalia|educa/i });
-        } else {
-          professional = await Professional.findOne({ especialidade: /fisio|quiro/i });
-        }
+        // Profissional padrão geral do sistema para manter integridade do Schema
+        let professional = await Professional.findOne();
         if (!professional) {
-          professional = await Professional.findOne();
-        }
-
-        if (!professional) {
-          return { erro: 'Nenhum profissional disponível no sistema para vincular o agendamento.' };
+          professional = { _id: client._id, nome: 'Equipe Clube Fitness' } as any;
         }
 
         const newAppt = await Appointment.create({
@@ -517,15 +525,14 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
 
         return {
           sucesso: true,
-          mensagem: `Agendamento criado com sucesso no banco de dados!`,
-          agendamento: {
+          mensagem: `Vaga reservada com sucesso no sistema!`,
+          reserva: {
             id: newAppt._id,
             aluno: client.dadosPessoais?.nome,
             servico,
-            tipo: appointmentType,
+            setor: appointmentType === 'consultorio' ? 'Consultório' : 'Academia',
             data,
             horario,
-            profissional: professional.nome,
             status: 'agendado'
           }
         };
@@ -549,7 +556,6 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
         }
 
         if (!appt) {
-          // Buscar o último agendamento criado no sistema
           appt = await Appointment.findOne({ status: 'agendado' }).sort({ createdAt: -1 });
         }
 
@@ -570,20 +576,18 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
 
         const populatedAppt: any = await Appointment.findById(appt._id)
           .populate('clienteId', 'dadosPessoais.nome')
-          .populate('profissionalId', 'nome')
           .lean();
 
         return {
           sucesso: true,
-          mensagem: 'Agendamento atualizado com sucesso!',
-          agendamento: {
+          mensagem: 'Vaga atualizada com sucesso no sistema!',
+          reserva: {
             id: appt._id,
             aluno: populatedAppt.clienteId?.dadosPessoais?.nome || 'Aluno',
             servico: appt.servico,
-            tipo: appt.tipo,
+            setor: appt.tipo === 'consultorio' ? 'Consultório' : 'Academia',
             data: appt.data,
             horario: appt.horario,
-            profissional: populatedAppt.profissionalId?.nome || 'Profissional',
             status: appt.status
           }
         };
@@ -620,7 +624,7 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
 
         return {
           sucesso: true,
-          mensagem: `Agendamento cancelado com sucesso no sistema.`
+          mensagem: `Vaga cancelada e liberada com sucesso na grade.`
         };
       }
 
@@ -630,19 +634,16 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const currentMonthPrefix = args.mesAno || `${year}-${month}`;
 
-        // 1. Pagamentos do mês
         const payments = await Payment.find({ vencimento: { $regex: `^${currentMonthPrefix}` } }).lean();
         const totalRecebido = payments.filter((p: any) => p.status === 'Pago').reduce((acc: number, p: any) => acc + (p.valor || 0), 0);
         const totalPendente = payments.filter((p: any) => p.status === 'Pendente').reduce((acc: number, p: any) => acc + (p.valor || 0), 0);
         const totalAtrasado = payments.filter((p: any) => p.status === 'Atrasado').reduce((acc: number, p: any) => acc + (p.valor || 0), 0);
 
-        // 2. Inadimplentes gerais
         const inadimplentes = await Payment.find({ status: 'Atrasado' })
           .populate('clientId', 'dadosPessoais.nome dadosPessoais.telefone')
           .limit(10)
           .lean();
 
-        // 3. Contratos ativos e a vencer nos próximos 30 dias
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + 30);
         const futureDateStr = futureDate.toISOString().split('T')[0];
@@ -712,8 +713,8 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           sucesso: true,
           propostaId: newProposal._id,
           linkVendas,
-          mensagem: `Proposta gerada para ${nomeLeadOuAluno} com plano ${plan?.nome || planoNome} no valor de R$ ${valorAcordado}.`,
-          instrucoesEnvio: `Envie o link para o cliente: ${linkVendas}`
+          mensagem: `Proposta comercial gerada com sucesso para ${nomeLeadOuAluno} no plano ${plan?.nome || planoNome}.`,
+          linkWhatsApp: `https://wa.me/${(telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${nomeLeadOuAluno}! Segue seu link de matrícula no Clube Fitness: ${linkVendas}`)}`
         };
       }
 
@@ -730,7 +731,7 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
 
         const alunosRisco = [];
         for (const c of clients) {
-          const lastAppt = await Appointment.findOne({ clienteId: c._id })
+          const lastAppt = await Appointment.findOne({ clienteId: c._id, status: { $ne: 'cancelado' } })
             .sort({ data: -1 })
             .lean();
 

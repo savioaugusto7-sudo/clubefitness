@@ -16,22 +16,26 @@ interface MessageItem {
   toolResults?: any[];
   executedTools?: ToolRecord[];
   createdAt?: string | Date;
+  timeStr?: string;
 }
 
 export default function AiCopilotWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<MessageItem[]>([
     {
       role: 'model',
-      content: 'Olá! Sou o **Copiloto Inteligente do Clube Fitness**. Como posso ajudar hoje? Você pode me pedir relatórios financeiros, consultar dados de alunos, verificar horários livres na agenda ou gerar propostas de venda.',
-      createdAt: new Date()
+      content: 'Oi! Sou a **Gabi**, sua atendente e consultora do Clube Fitness & Fisio! 🌟\n\nComo posso te ajudar hoje? Pode me pedir para reservar uma vaga de treino, consultar dados de alunos, ver o financeiro ou tirar qualquer dúvida!',
+      createdAt: new Date(),
+      timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,16 +45,62 @@ export default function AiCopilotWidget() {
     if (isOpen) {
       scrollToBottom();
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, loading]);
+
+  // Inicializar Web Speech API para ditado por voz
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const reco = new SpeechRecognition();
+        reco.continuous = false;
+        reco.interimResults = false;
+        reco.lang = 'pt-BR';
+
+        reco.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+          setIsListening(false);
+        };
+
+        reco.onerror = () => {
+          setIsListening(false);
+        };
+
+        reco.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = reco;
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Reconhecimento de voz não suportado neste navegador. Tente pelo Google Chrome.');
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setIsListening(true);
+      recognitionRef.current.start();
+    }
+  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || input).trim();
     if (!text || loading) return;
 
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const userMsg: MessageItem = {
       role: 'user',
       content: text,
-      createdAt: new Date()
+      createdAt: new Date(),
+      timeStr: nowTime
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -68,6 +118,7 @@ export default function AiCopilotWidget() {
       });
 
       const data = await res.json();
+      const botTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       if (data.success) {
         if (data.conversationId) {
@@ -78,24 +129,27 @@ export default function AiCopilotWidget() {
           role: 'model',
           content: data.response,
           executedTools: data.executedTools || [],
-          createdAt: new Date()
+          createdAt: new Date(),
+          timeStr: botTime
         };
 
         setMessages((prev) => [...prev, botMsg]);
       } else {
         const errorMsg: MessageItem = {
           role: 'model',
-          content: `⚠️ Desculpe, ocorreu uma falha: ${data.error || 'Não foi possível processar sua solicitação.'}`,
-          createdAt: new Date()
+          content: `Oi! Tive uma pequena oscilação ao buscar essa informação: ${data.error || 'Pode repetir por favor?'}`,
+          createdAt: new Date(),
+          timeStr: botTime
         };
         setMessages((prev) => [...prev, errorMsg]);
       }
     } catch (err: any) {
-      console.error('Erro no chat da IA:', err);
+      console.error('Erro no chat da Gabi:', err);
       const networkError: MessageItem = {
         role: 'model',
-        content: `⚠️ Erro de conexão com o servidor da IA: ${err.message}`,
-        createdAt: new Date()
+        content: `Oi! Minha conexão oscilou rapidinho. Pode me enviar novamente? 😊 (${err.message})`,
+        createdAt: new Date(),
+        timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, networkError]);
     } finally {
@@ -108,22 +162,23 @@ export default function AiCopilotWidget() {
     setMessages([
       {
         role: 'model',
-        content: 'Nova conversa iniciada! Como posso te ajudar agora?',
-        createdAt: new Date()
+        content: 'Nova conversa iniciada! Como posso te ajudar agora? 💬',
+        createdAt: new Date(),
+        timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
   };
 
   const quickPrompts = [
-    { label: '📊 Resumo Financeiro', prompt: 'Qual o resumo financeiro deste mês (faturamento, pendências e inadimplentes)?' },
-    { label: '⚠️ Alunos em Risco', prompt: 'Liste os alunos com risco de evasão ou sem treinar há mais de 15 dias.' },
-    { label: '📅 Agenda de Hoje', prompt: 'Quais são os agendamentos e horários para hoje?' },
-    { label: '🏷️ Planos Ativos', prompt: 'Quais planos comerciais temos cadastrados e quais os valores?' }
+    { label: '📊 Resumo do Mês', prompt: 'Gabi, qual o resumo financeiro deste mês (recebido, pendências e inadimplência)?' },
+    { label: '🗓️ Vagas de Hoje', prompt: 'Gabi, quais são as vagas e agendamentos para hoje na academia e consultório?' },
+    { label: '⚠️ Alunos em Risco', prompt: 'Gabi, quais alunos estão há mais de 15 dias sem treinar?' },
+    { label: '🏷️ Planos e Valores', prompt: 'Gabi, me passa a lista de planos e valores ativos da academia?' }
   ];
 
   return (
     <>
-      {/* Botão Flutuante (Launcher) */}
+      {/* Botão Flutuante Estilo WhatsApp (Launcher) */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -132,51 +187,60 @@ export default function AiCopilotWidget() {
             bottom: '24px',
             right: '24px',
             zIndex: 9999,
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
             color: '#fff',
             border: 'none',
             borderRadius: '50px',
-            padding: '14px 22px',
+            padding: '12px 20px',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.4), 0 2px 6px rgba(0,0,0,0.2)',
+            gap: '12px',
+            boxShadow: '0 8px 24px rgba(37, 211, 102, 0.45), 0 2px 8px rgba(0,0,0,0.3)',
             cursor: 'pointer',
             fontWeight: 700,
             fontSize: '0.95rem',
-            transition: 'all 0.25s ease',
-            animation: 'pulse 2s infinite'
+            transition: 'all 0.25s ease'
           }}
           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
         >
+          {/* Avatar da Gabi */}
           <div
             style={{
-              width: '28px',
-              height: '28px',
+              position: 'relative',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
-              background: 'rgba(255,255,255,0.25)',
+              background: '#075E54',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              border: '2px solid #fff'
             }}
           >
-            <i className="fa-solid fa-robot" style={{ fontSize: '1rem' }}></i>
+            <i className="fa-solid fa-headset" style={{ color: '#fff', fontSize: '1.1rem' }}></i>
+            <span
+              style={{
+                position: 'absolute',
+                bottom: '-2px',
+                right: '-2px',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#4ade80',
+                border: '2px solid #075E54',
+                boxShadow: '0 0 6px #4ade80'
+              }}
+            />
           </div>
-          <span>Copiloto IA</span>
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#4ade80',
-              boxShadow: '0 0 8px #4ade80'
-            }}
-          />
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, lineHeight: 1.2 }}>Falar com a Gabi</div>
+            <div style={{ fontSize: '0.72rem', opacity: 0.9, fontWeight: 500 }}>Online • Atendente IA</div>
+          </div>
         </button>
       )}
 
-      {/* Janela de Chat Flutuante */}
+      {/* Janela de Chat Estilo WhatsApp */}
       {isOpen && (
         <div
           style={{
@@ -184,59 +248,71 @@ export default function AiCopilotWidget() {
             bottom: '20px',
             right: '20px',
             width: 'calc(100vw - 40px)',
-            maxWidth: '440px',
-            height: '620px',
+            maxWidth: '430px',
+            height: '630px',
             maxHeight: 'calc(100vh - 40px)',
-            background: '#0f172a',
+            background: '#0b141a',
             border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: '16px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(16, 185, 129, 0.15)',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.7), 0 0 24px rgba(37, 211, 102, 0.2)',
             zIndex: 99999,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            fontFamily: 'var(--font-body, system-ui, sans-serif)'
+            fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)'
           }}
         >
-          {/* Header */}
+          {/* Header Estilo WhatsApp */}
           <div
             style={{
-              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              background: '#202c33',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
-              padding: '14px 18px',
+              padding: '12px 16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              color: '#fff'
+              color: '#e9edef'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  position: 'relative',
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 0 12px rgba(16, 185, 129, 0.4)'
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
                 }}
               >
-                <i className="fa-solid fa-robot" style={{ color: '#fff', fontSize: '1.1rem' }}></i>
+                <i className="fa-solid fa-headset" style={{ color: '#fff', fontSize: '1.2rem' }}></i>
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    width: '11px',
+                    height: '11px',
+                    borderRadius: '50%',
+                    background: '#25D366',
+                    border: '2px solid #202c33'
+                  }}
+                />
               </div>
               <div>
-                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Clube Fitness AI
+                <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 600, color: '#e9edef', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Gabi • Clube Fitness
                 </h4>
-                <div style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                  Online • Gemini Flash
+                <div style={{ fontSize: '0.74rem', color: '#25D366', fontWeight: 500 }}>
+                  {loading ? 'digitando...' : 'Online agora'}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <button
                 onClick={handleNewConversation}
                 title="Nova Conversa"
@@ -244,13 +320,13 @@ export default function AiCopilotWidget() {
                   background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: '8px',
-                  color: '#94a3b8',
+                  color: '#8696a0',
                   padding: '6px 10px',
                   cursor: 'pointer',
                   fontSize: '0.75rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '5px'
+                  gap: '4px'
                 }}
               >
                 <i className="fa-solid fa-plus"></i> Novo
@@ -258,13 +334,13 @@ export default function AiCopilotWidget() {
 
               <button
                 onClick={() => setIsOpen(false)}
-                title="Minimizar"
+                title="Fechar"
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: '#8696a0',
                   cursor: 'pointer',
-                  fontSize: '1.1rem',
+                  fontSize: '1.2rem',
                   padding: '6px'
                 }}
               >
@@ -276,8 +352,8 @@ export default function AiCopilotWidget() {
           {/* Quick Prompts Chips */}
           <div
             style={{
-              padding: '10px 14px',
-              background: 'rgba(255,255,255,0.02)',
+              padding: '8px 12px',
+              background: '#111b21',
               borderBottom: '1px solid rgba(255,255,255,0.05)',
               display: 'flex',
               gap: '6px',
@@ -292,10 +368,10 @@ export default function AiCopilotWidget() {
                 onClick={() => handleSendMessage(qp.prompt)}
                 disabled={loading}
                 style={{
-                  background: 'rgba(16, 185, 129, 0.08)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  background: '#202c33',
+                  border: '1px solid rgba(255,255,255,0.08)',
                   borderRadius: '16px',
-                  color: '#34d399',
+                  color: '#00a884',
                   fontSize: '0.75rem',
                   fontWeight: 600,
                   padding: '5px 12px',
@@ -303,24 +379,26 @@ export default function AiCopilotWidget() {
                   flexShrink: 0,
                   transition: 'all 0.2s ease'
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.08)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#2a3942')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#202c33')}
               >
                 {qp.label}
               </button>
             ))}
           </div>
 
-          {/* Messages Feed */}
+          {/* Mensagens (WhatsApp Wallpaper / Bubbles) */}
           <div
             style={{
               flex: 1,
-              padding: '16px',
+              padding: '14px 16px',
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              gap: '14px',
-              background: '#090d16'
+              gap: '12px',
+              background: '#0b141a',
+              backgroundImage: 'radial-gradient(rgba(255,255,255,0.02) 1px, transparent 1px)',
+              backgroundSize: '20px 20px'
             }}
           >
             {messages.map((msg, index) => {
@@ -335,39 +413,39 @@ export default function AiCopilotWidget() {
                     maxWidth: '100%'
                   }}
                 >
-                  {/* Tool execution badge */}
+                  {/* Badge de Ação Realizada nos Bastidores */}
                   {!isUser && msg.executedTools && msg.executedTools.length > 0 && (
                     <div
                       style={{
-                        fontSize: '0.72rem',
-                        color: '#10b981',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        fontSize: '0.7rem',
+                        color: '#00a884',
+                        background: 'rgba(0, 168, 132, 0.1)',
+                        border: '1px solid rgba(0, 168, 132, 0.25)',
                         borderRadius: '6px',
                         padding: '3px 8px',
-                        marginBottom: '6px',
+                        marginBottom: '4px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '5px'
                       }}
                     >
-                      <i className="fa-solid fa-bolt"></i> Ação executada: {msg.executedTools.map((t) => t.name).join(', ')}
+                      <i className="fa-solid fa-check-double"></i> Ação no sistema: {msg.executedTools.map((t) => t.name.replace(/_/g, ' ')).join(', ')}
                     </div>
                   )}
 
-                  {/* Message Bubble */}
+                  {/* Balão de Mensagem Estilo WhatsApp */}
                   <div
                     style={{
-                      background: isUser ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#1e293b',
-                      color: isUser ? '#fff' : '#f1f5f9',
-                      padding: '12px 16px',
-                      borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      border: isUser ? 'none' : '1px solid rgba(255,255,255,0.07)',
+                      background: isUser ? '#005c4b' : '#202c33',
+                      color: '#e9edef',
+                      padding: '10px 14px 6px 14px',
+                      borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
                       fontSize: '0.88rem',
-                      lineHeight: '1.55',
-                      maxWidth: '88%',
+                      lineHeight: '1.5',
+                      maxWidth: '85%',
                       wordBreak: 'break-word',
-                      boxShadow: isUser ? '0 4px 12px rgba(16, 185, 129, 0.25)' : '0 4px 12px rgba(0,0,0,0.2)'
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                      position: 'relative'
                     }}
                   >
                     <div
@@ -376,52 +454,80 @@ export default function AiCopilotWidget() {
                         __html: msg.content
                           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                           .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                          .replace(/^### (.*$)/gim, '<h4 style="margin:8px 0 4px 0; color:#34d399;">$1</h4>')
-                          .replace(/^## (.*$)/gim, '<h3 style="margin:10px 0 6px 0; color:#34d399;">$1</h3>')
+                          .replace(/^### (.*$)/gim, '<h4 style="margin:8px 0 4px 0; color:#25D366;">$1</h4>')
+                          .replace(/^## (.*$)/gim, '<h3 style="margin:10px 0 6px 0; color:#25D366;">$1</h3>')
                           .replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.3); padding:2px 5px; border-radius:4px; font-size:0.85em; color:#a7f3d0;">$1</code>')
                           .replace(/\n/g, '<br/>')
                       }}
                     />
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        gap: '4px',
+                        fontSize: '0.68rem',
+                        color: 'rgba(255,255,255,0.45)',
+                        marginTop: '4px'
+                      }}
+                    >
+                      <span>{msg.timeStr || 'agora'}</span>
+                      {isUser && <i className="fa-solid fa-check-double" style={{ color: '#53bdeb' }}></i>}
+                    </div>
                   </div>
                 </div>
               );
             })}
 
-            {/* Typing Loader */}
+            {/* Digitando... */}
             {loading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#1e293b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid rgba(255,255,255,0.08)'
-                  }}
-                >
-                  <i className="fa-solid fa-circle-notch fa-spin" style={{ color: '#10b981' }}></i>
-                </div>
-                <span>Processando resposta & consultando dados...</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: '#202c33', borderRadius: '12px', width: 'fit-content', color: '#8696a0', fontSize: '0.8rem' }}>
+                <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366', animation: 'pulse 1s infinite' }}></span>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366', animation: 'pulse 1s infinite 0.2s' }}></span>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366', animation: 'pulse 1s infinite 0.4s' }}></span>
+                </span>
+                <span>Gabi está digitando...</span>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Footer */}
+          {/* Input Footer com Microfone e Envio Estilo WhatsApp */}
           <div
             style={{
-              padding: '12px 14px',
-              background: '#0f172a',
+              padding: '10px 12px',
+              background: '#202c33',
               borderTop: '1px solid rgba(255,255,255,0.08)',
               display: 'flex',
               gap: '8px',
               alignItems: 'center'
             }}
           >
+            {/* Botão Microfone / Gravação de Voz */}
+            <button
+              onClick={toggleListening}
+              type="button"
+              title={isListening ? 'Parar de escutar' : 'Ditar mensagem por voz'}
+              style={{
+                background: isListening ? '#ef4444' : 'rgba(255,255,255,0.08)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '38px',
+                height: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isListening ? '#fff' : '#8696a0',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                flexShrink: 0
+              }}
+            >
+              <i className={`fa-solid ${isListening ? 'fa-microphone-lines fa-fade' : 'fa-microphone'}`}></i>
+            </button>
+
             <input
               type="text"
               value={input}
@@ -432,32 +538,29 @@ export default function AiCopilotWidget() {
                   handleSendMessage();
                 }
               }}
-              placeholder="Digite sua dúvida ou comando para a IA..."
+              placeholder={isListening ? 'Ouvindo sua voz...' : 'Mensagem para a Gabi...'}
               disabled={loading}
               style={{
                 flex: 1,
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                color: '#fff',
+                background: '#2a3942',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '20px',
+                padding: '10px 16px',
+                color: '#e9edef',
                 fontSize: '0.88rem',
-                outline: 'none',
-                transition: 'border-color 0.2s ease'
+                outline: 'none'
               }}
-              onFocus={(e) => (e.target.style.borderColor = '#10b981')}
-              onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.12)')}
             />
 
             <button
               onClick={() => handleSendMessage()}
               disabled={!input.trim() || loading}
               style={{
-                background: input.trim() && !loading ? '#10b981' : 'rgba(255,255,255,0.08)',
+                background: input.trim() && !loading ? '#00a884' : 'rgba(255,255,255,0.08)',
                 border: 'none',
-                borderRadius: '10px',
-                width: '44px',
-                height: '44px',
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -467,7 +570,7 @@ export default function AiCopilotWidget() {
                 flexShrink: 0
               }}
             >
-              <i className="fa-solid fa-paper-plane"></i>
+              <i className="fa-solid fa-paper-plane" style={{ fontSize: '0.95rem' }}></i>
             </button>
           </div>
         </div>
