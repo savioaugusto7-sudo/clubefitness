@@ -2786,10 +2786,15 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
               </thead>
               <tbody>
                 {(() => {
-                  const q = normalizeText(paymentsSearch);
+                  const queryRaw = (paymentsSearch || '').trim();
+                  const q = normalizeText(queryRaw);
+                  const qDigits = queryRaw.replace(/\D/g, '');
 
                   const daysMapShort: Record<number, string> = {
                     0: 'Dom', 1: 'Seg', 2: 'Ter', 3: 'Qua', 4: 'Qui', 5: 'Sex', 6: 'Sáb'
+                  };
+                  const daysFullMap: Record<number, string> = {
+                    0: 'domingo', 1: 'segunda-feira segunda', 2: 'terca-feira terca', 3: 'quarta-feira quarta', 4: 'quinta-feira quinta', 5: 'sexta-feira sexta', 6: 'sabado sabado'
                   };
 
                   // Agrupar por aluno
@@ -2812,10 +2817,19 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                   const groupedList = Object.values(groupsMap);
 
                   const filtered = groupedList.filter(g => {
+                    if (!q) return true;
+
                     const nome = normalizeText(g.client?.dadosPessoais?.nome || g.client?.nome || '');
-                    const cpf = (g.client?.dadosPessoais?.cpf || '').replace(/\D/g, '');
-                    const daysText = g.rules.map(r => daysMapShort[r.diaSemana] || '').join(' ').toLowerCase();
-                    return nome.includes(q) || cpf.includes(q.replace(/\D/g, '')) || daysText.includes(q);
+                    const cpfDigits = (g.client?.dadosPessoais?.cpf || '').replace(/\D/g, '');
+                    const servico = normalizeText(g.servico || '');
+                    const daysText = g.rules.map(r => `${daysMapShort[r.diaSemana] || ''} ${daysFullMap[r.diaSemana] || ''} ${r.horario || ''}`).join(' ').toLowerCase();
+
+                    const matchNome = nome.includes(q);
+                    const matchServico = servico.includes(q);
+                    const matchDays = daysText.includes(q);
+                    const matchCpf = qDigits.length > 0 && cpfDigits.includes(qDigits);
+
+                    return matchNome || matchServico || matchDays || matchCpf;
                   });
 
                   if (filtered.length === 0) {
