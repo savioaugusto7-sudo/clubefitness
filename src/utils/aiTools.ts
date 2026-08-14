@@ -17,8 +17,59 @@ Você tem acesso a ferramentas de consulta e execução de ações no banco de d
 1. **Comunicação:** Seja sempre profissional, cordial, claro, objetivo e utilize emojis elegantes para destacar informações. Responda em Português do Brasil.
 2. **Uso de Ferramentas:** Quando o usuário perguntar sobre alunos, agendamentos, finanças, planos ou solicitar uma ação (como criar proposta, agendar horário ou checar inadimplência), **SEMPRE execute a ferramenta adequada**.
 3. **Formatação Rica:** Apresente tabelas, listas com marcadores e resumos visuais para facilitar a leitura.
-4. **Segurança:** Nunca invente dados que dependam do banco de dados; utilize sempre as ferramentas fornecidas para obter a verdade do sistema.
+4. **Segurança e Veracidade Absoluta:** 
+   - Se uma ferramenta retornar "erro" ou indicar que o aluno não foi encontrado, **NUNCA diga que a ação foi realizada**. 
+   - Reporte exatamente o status real retornado pela ferramenta. Se falhou, explique o motivo e sugira a correção.
 `;
+
+// Helper de busca inteligente ranqueada de alunos por partes do nome
+export async function findClientRanked(nameQuery: string): Promise<any> {
+  const query = (nameQuery || '').trim().toLowerCase();
+  if (!query) return null;
+
+  if (query.match(/^[0-9a-fA-F]{24}$/)) {
+    return await Client.findById(query);
+  }
+
+  const allClients = await Client.find().lean();
+  let bestClient: any = null;
+  let highestScore = 0;
+
+  const tokens = query.split(/\s+/).filter(Boolean);
+
+  for (const c of allClients) {
+    const clientName = (c.dadosPessoais?.nome || '').toLowerCase();
+    if (!clientName) continue;
+
+    if (clientName === query) {
+      return c; // Match exato
+    }
+
+    if (clientName.includes(query) || query.includes(clientName)) {
+      const score = 50;
+      if (score > highestScore) {
+        highestScore = score;
+        bestClient = c;
+      }
+      continue;
+    }
+
+    let score = 0;
+    const clientTokens = clientName.split(/\s+/);
+    tokens.forEach((tok, idx) => {
+      if (clientTokens.some((ct: string) => ct.includes(tok) || tok.includes(ct))) {
+        score += (idx === 0 ? 10 : 3); // Maior peso para primeiro nome
+      }
+    });
+
+    if (score > highestScore) {
+      highestScore = score;
+      bestClient = c;
+    }
+  }
+
+  return highestScore >= 3 ? bestClient : null;
+}
 
 // Definição das declarações de funções para o Gemini (Function Calling)
 export const geminiToolDeclarations = [
@@ -171,13 +222,18 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           queryOr.push({ 'dadosPessoais.telefone': { $regex: digits } });
         }
 
-        const clients = await Client.find({ $or: queryOr })
+        let clients = await Client.find({ $or: queryOr })
           .populate('dadosComerciais.planoId')
           .limit(5)
           .lean();
 
         if (clients.length === 0) {
-          return { mensagem: `Nenhum aluno encontrado para o termo "${termo}".` };
+          const ranked = await findClientRanked(termo);
+          if (ranked) {
+            clients = [ranked];
+          } else {
+            return { erro: `Nenhum aluno encontrado para o termo "${termo}". Verifique se o nome está correto.` };
+          }
         }
 
         const results = await Promise.all(clients.map(async (c: any) => {
@@ -260,27 +316,40 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
       case 'criar_agendamento': {
         const { alunoNomeOuId, data, horario, servico, tipo } = args;
         if (!alunoNomeOuId || !data || !horario || !servico) {
-          return { erro: 'Parâmetros insuficientes para agendamento.' };
+          return { erro: 'Parâmetros insuficientes para agendamento (aluno, data, horário e serviço são obrigatórios).' };
         }
 
-        let client = null;
-        if (alunoNomeOuId.match(/^[0-9a-fA-F]{24}$/)) {
-          client = await Client.findById(alunoNomeOuId);
-        } else {
-          client = await Client.findOne({ 'dadosPessoais.nome': new RegExp(alunoNomeOuId.trim(), 'i') });
-        }
-
+        const client = await findClientRanked(alunoNomeOuId);
         if (!client) {
-          return { erro: `Aluno "${alunoNomeOuId}" não encontrado no sistema. Por favor, confirme o nome exato.` };
+          return { 
+            erro: `Aluno "${alunoNomeOuId}" não encontrado no sistema. Por favor, verifique o nome cadastrado.` 
+          };
         }
 
-        // Buscar um profissional padrão caso não especificado
-        let professional = await Professional.findOne({ ativo: true });
+        // Definir automaticamente tipo: academia ou consultorio
+        let appointmentType = tipo;
+        if (!appointmentType || appointmentType === 'todos') {
+          if (/fisio|quiropraxia|massagem|consulta/i.test(servico)) {
+            appointmentType = 'consultorio';
+          } else {
+            appointmentType = 'academia';
+          }
+        }
+
+        // Localizar profissional adequado
+        let professional = null;
+        if (appointmentType === 'academia') {
+          professional = await Professional.findOne({ especialidade: /treino|avalia|educa/i });
+        } else {
+          professional = await Professional.findOne({ especialidade: /fisio|quiro/i });
+        }
         if (!professional) {
           professional = await Professional.findOne();
         }
 
-        const appointmentType = tipo === 'consultorio' ? 'consultorio' : 'academia';
+        if (!professional) {
+          return { erro: 'Nenhum profissional disponível no sistema para vincular o agendamento.' };
+        }
 
         const newAppt = await Appointment.create({
           data,
@@ -290,19 +359,21 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           consumeCredito: appointmentType === 'academia',
           tipoCredito: appointmentType === 'academia' ? 'academia' : 'nenhum',
           clienteId: client._id,
-          profissionalId: professional?._id,
+          profissionalId: professional._id,
           status: 'agendado'
         });
 
         return {
           sucesso: true,
-          mensagem: `Agendamento confirmado com sucesso!`,
-          detalhes: {
+          mensagem: `Agendamento criado com sucesso no banco de dados!`,
+          agendamento: {
             id: newAppt._id,
             aluno: client.dadosPessoais?.nome,
             servico,
+            tipo: appointmentType,
             data,
             horario,
+            profissional: professional.nome,
             status: 'agendado'
           }
         };
