@@ -22,13 +22,20 @@ export async function GET(request: Request) {
       query = { clienteId: user.clientProfileId };
     }
 
-    const reports = await PhysioReport.find(query)
-      .populate('clienteId', 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status')
-      .populate('profissionalId', 'nome email')
-      .lean();
+    let reports: any[] = [];
+    try {
+      reports = await PhysioReport.find(query)
+        .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
+        .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
+        .lean();
+    } catch (popErr) {
+      console.warn('Populate failed in reports, using raw find:', popErr);
+      reports = await PhysioReport.find(query).lean();
+    }
 
     return NextResponse.json({ success: true, data: reports });
   } catch (error: any) {
+    console.error('Error in GET /api/reports:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

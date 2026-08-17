@@ -22,13 +22,20 @@ export async function GET(request: Request) {
       query = { clienteId: user.clientProfileId };
     }
 
-    const tests = await StrengthTest.find(query)
-      .populate('clienteId', 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status')
-      .populate('profissionalId', 'nome email')
-      .lean();
+    let tests: any[] = [];
+    try {
+      tests = await StrengthTest.find(query)
+        .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
+        .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
+        .lean();
+    } catch (popErr) {
+      console.warn('Populate failed in strength-tests, using raw find:', popErr);
+      tests = await StrengthTest.find(query).lean();
+    }
 
     return NextResponse.json({ success: true, data: tests });
   } catch (error: any) {
+    console.error('Error in GET /api/strength-tests:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

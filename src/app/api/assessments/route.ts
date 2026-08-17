@@ -22,13 +22,20 @@ export async function GET(request: Request) {
       query = { clienteId: user.clientProfileId };
     }
 
-    const assessments = await PhysicalAssessment.find(query)
-      .populate('clienteId', 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status')
-      .populate('avaliadorId', 'nome email')
-      .lean();
+    let assessments: any[] = [];
+    try {
+      assessments = await PhysicalAssessment.find(query)
+        .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
+        .populate({ path: 'avaliadorId', select: 'nome email', strictPopulate: false })
+        .lean();
+    } catch (popErr) {
+      console.warn('Populate failed in assessments, using raw find:', popErr);
+      assessments = await PhysicalAssessment.find(query).lean();
+    }
 
     return NextResponse.json({ success: true, data: assessments });
   } catch (error: any) {
+    console.error('Error in GET /api/assessments:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -1439,40 +1439,31 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setLoading(true);
       }
 
-      // 1. Fetch de Base (Clientes e Profissionais) em background paralelo
-      if (!hasClients || !silent) {
-        fetch('/api/clients')
-          .then(r => r.json())
-          .then(json => {
-            if (json.success && Array.isArray(json.data)) {
-              setClients(json.data);
-              if (json.data.length > 0 && !selectedClient) {
-                setSelectedClient(json.data[0]._id);
-                setFsClient(json.data[0]._id);
-                setAsClient(json.data[0]._id);
-                setRepClient(json.data[0]._id);
-                setStClient(json.data[0]._id);
-                setPrClient(json.data[0]._id);
-              }
-            }
-          })
-          .catch(err => console.error('Erro ao buscar clientes:', err));
-      }
-
-      if (!hasProfs || !silent) {
-        fetch('/api/professionals')
-          .then(r => r.json())
-          .then(json => {
-            if (json.success && Array.isArray(json.data)) {
-              setProfessionals(json.data);
-              if (json.data.length > 0 && !professionalId) {
-                setAsAvaliador(prev => prev || json.data[0]._id);
-                setRepAvaliador(prev => prev || json.data[0]._id);
-                setStAvaliador(prev => prev || json.data[0]._id);
-              }
-            }
-          })
-          .catch(err => console.error('Erro ao buscar profissionais:', err));
+      // 1. Fetch de Base (Clientes e Profissionais) em paralelo
+      if (!hasClients || !hasProfs) {
+        const [resClients, resProfs] = await Promise.all([
+          !hasClients ? fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: clients }),
+          !hasProfs ? fetch('/api/professionals').then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: professionals })
+        ]);
+        if (resClients.success && Array.isArray(resClients.data)) {
+          setClients(resClients.data);
+          if (resClients.data.length > 0 && !selectedClient) {
+            setSelectedClient(resClients.data[0]._id);
+            setFsClient(resClients.data[0]._id);
+            setAsClient(resClients.data[0]._id);
+            setRepClient(resClients.data[0]._id);
+            setStClient(resClients.data[0]._id);
+            setPrClient(resClients.data[0]._id);
+          }
+        }
+        if (resProfs.success && Array.isArray(resProfs.data)) {
+          setProfessionals(resProfs.data);
+          if (resProfs.data.length > 0 && !professionalId) {
+            setAsAvaliador(prev => prev || resProfs.data[0]._id);
+            setRepAvaliador(prev => prev || resProfs.data[0]._id);
+            setStAvaliador(prev => prev || resProfs.data[0]._id);
+          }
+        }
       }
 
       // 2. Fetch específico da aba ativa
@@ -1486,23 +1477,23 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })),
           fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false }))
         ]);
-        if (resAs.success) setAssessments(resAs.data);
-        if (resSt.success) setStrengthTests(resSt.data);
+        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+        if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
       } else if (activeTab === 'treinos_prof') {
         const [resWorkouts, resExs] = await Promise.all([
           fetch('/api/workouts').then(r => r.json()).catch(() => ({ success: false })),
           fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false }))
         ]);
-        if (resWorkouts.success) setWorkouts(resWorkouts.data);
-        if (resExs.success) setExercises(resExs.data);
+        if (resWorkouts.success && Array.isArray(resWorkouts.data)) setWorkouts(resWorkouts.data);
+        if (resExs.success && Array.isArray(resExs.data)) setExercises(resExs.data);
       } else if (activeTab === 'agenda_fixa') {
         const resFS = await fetch('/api/fixed-schedules');
         const jsonFS = await resFS.json();
-        if (jsonFS.success) setFixedSchedules(jsonFS.data);
+        if (jsonFS.success && Array.isArray(jsonFS.data)) setFixedSchedules(jsonFS.data);
       } else if (activeTab === 'avaliacoes') {
         const resAs = await fetch('/api/assessments');
         const jsonAs = await resAs.json();
-        if (jsonAs.success) {
+        if (jsonAs.success && Array.isArray(jsonAs.data)) {
           setAssessments(jsonAs.data);
         }
       } else if (activeTab === 'relatorios') {
@@ -1510,19 +1501,19 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           fetch('/api/reports').then(r => r.json()).catch(() => ({ success: false })),
           fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false }))
         ]);
-        if (resRep.success) setReports(resRep.data);
-        if (resAs.success) setAssessments(resAs.data);
+        if (resRep.success && Array.isArray(resRep.data)) setReports(resRep.data);
+        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
       } else if (activeTab === 'testes_forca') {
         const [resSt, resAs] = await Promise.all([
           fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })),
           fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false }))
         ]);
-        if (resSt.success) setStrengthTests(resSt.data);
-        if (resAs.success) setAssessments(resAs.data);
+        if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
+        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
       } else if (activeTab === 'prontuarios') {
         const resPr = await fetch('/api/prontuarios');
         const jsonPr = await resPr.json();
-        if (jsonPr.success) setProntuarios(jsonPr.data);
+        if (jsonPr.success && Array.isArray(jsonPr.data)) setProntuarios(jsonPr.data);
       }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
