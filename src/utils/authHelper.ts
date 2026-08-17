@@ -1,46 +1,55 @@
+import { cookies } from 'next/headers';
+import { decode } from 'next-auth/jwt';
 import { getServerSession } from 'next-auth';
-import { getToken } from 'next-auth/jwt';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Client from '@/models/Client';
 
 /**
- * Valida a sessão atual e verifica se o usuário tem permissão para acessar o recurso.
- * Utiliza getServerSession e fallback para getToken (JWT do cookie) para máxima resiliência na Vercel.
+ * Validação de sessão 100% resiliente para Serverless Vercel / App Router:
+ * 1. Decodifica diretamente o cookie JWT da requisição via next/headers (0ms, infalível).
+ * 2. Fallback para getServerSession.
  */
 export async function checkSessionPermission(requiredRoles: string[], targetClientId?: string, req?: Request | any) {
   let user: any = null;
 
-  // 1. Tentar via getServerSession
+  // 1. Método Principal: Decodificar o JWT diretamente do Cookie via next/headers
   try {
-    const session = await getServerSession(authOptions);
-    if (session && session.user) {
-      user = session.user;
-    }
-  } catch (sessionErr) {
-    console.warn('[checkSessionPermission] getServerSession error, tentando getToken fallback:', sessionErr);
-  }
+    const cookieStore = await cookies();
+    const tokenCookie = cookieStore.get('next-auth.session-token')?.value || 
+                       cookieStore.get('__Secure-next-auth.session-token')?.value;
 
-  // 2. Fallback: Ler diretamente o JWT do cookie se req estiver disponível
-  if (!user && req) {
-    try {
-      const token = await getToken({
-        req,
+    if (tokenCookie && process.env.NEXTAUTH_SECRET) {
+      const decoded = await decode({
+        token: tokenCookie,
         secret: process.env.NEXTAUTH_SECRET,
       });
-      if (token) {
+
+      if (decoded) {
         user = {
-          id: token.id || token.sub,
-          email: token.email,
-          role: token.role,
-          cargo: token.cargo,
-          activeRoles: token.activeRoles || [token.role || 'client'],
-          clientProfileId: token.clientProfileId || '',
-          professionalProfileId: token.professionalProfileId || '',
-          profileId: token.profileId || '',
+          id: decoded.id || decoded.sub,
+          email: decoded.email,
+          role: decoded.role,
+          cargo: decoded.cargo,
+          activeRoles: decoded.activeRoles || [decoded.role || 'client'],
+          clientProfileId: decoded.clientProfileId || '',
+          professionalProfileId: decoded.professionalProfileId || '',
+          profileId: decoded.profileId || '',
         };
       }
-    } catch (tokenErr) {
-      console.warn('[checkSessionPermission] getToken error:', tokenErr);
+    }
+  } catch (cookieErr) {
+    console.warn('[checkSessionPermission] Cookie decode error:', cookieErr);
+  }
+
+  // 2. Fallback: getServerSession
+  if (!user) {
+    try {
+      const session = await getServerSession(authOptions);
+      if (session && session.user) {
+        user = session.user;
+      }
+    } catch (sessionErr) {
+      console.warn('[checkSessionPermission] getServerSession fallback error:', sessionErr);
     }
   }
 

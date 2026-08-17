@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const _user = User;
     const _prof = Professional;
 
-    const { user } = await checkSessionPermission(['admin', 'receptionist', 'professional', 'client']);
+    const { user } = await checkSessionPermission(['admin', 'receptionist', 'professional', 'client'], undefined, request);
 
     let query: any = { 'dadosComerciais.status': { $ne: 'excluido_anonimizado' } };
 
