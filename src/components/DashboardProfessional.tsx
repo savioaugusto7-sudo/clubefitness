@@ -943,6 +943,16 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [newExGrupo, setNewExGrupo] = useState('PEITO');
   const [newExEquip, setNewExEquip] = useState('BARRA');
   const [newExInst, setNewExInst] = useState('');
+  const [newExGifUrl, setNewExGifUrl] = useState('');
+
+  // Edit Exercise modal states (for updating existing exercises with GIFs/instructions)
+  const [showEditExModal, setShowEditExModal] = useState(false);
+  const [editingExItem, setEditingExItem] = useState<any>(null);
+  const [editExNome, setEditExNome] = useState('');
+  const [editExGrupo, setEditExGrupo] = useState('PEITO');
+  const [editExEquip, setEditExEquip] = useState('BARRA');
+  const [editExInst, setEditExInst] = useState('');
+  const [editExGifUrl, setEditExGifUrl] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -3113,6 +3123,7 @@ goniometria: {
         grupo: newExGrupo,
         equipamento: newExEquip,
         instrucoes: newExInst,
+        gifUrl: newExGifUrl.trim(),
         status: 'pending',
         solicitadoPorNome: (session?.user as any)?.name || session?.user?.email || 'Profissional'
       };
@@ -3126,11 +3137,53 @@ goniometria: {
         setShowNewExModal(false);
         setNewExNome('');
         setNewExInst('');
+        setNewExGifUrl('');
         alert('Solicitação de cadastro de exercício enviada para aprovação do administrador!');
         fetchData();
       }
     } catch (err) {
       alert('Erro ao salvar exercício.');
+    }
+  };
+
+  const handleOpenEditExercise = (ex: any) => {
+    setEditingExItem(ex);
+    setEditExNome(ex.nome || '');
+    setEditExGrupo(ex.grupo || 'PEITO');
+    setEditExEquip(ex.equipamento || 'BARRA');
+    setEditExInst(ex.instrucoes || '');
+    setEditExGifUrl(ex.gifUrl || '');
+    setShowEditExModal(true);
+  };
+
+  const handleSaveEditExercise = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExItem) return;
+    try {
+      const payload = {
+        id: editingExItem._id,
+        nome: editExNome.toUpperCase(),
+        grupo: editExGrupo,
+        equipamento: editExEquip,
+        instrucoes: editExInst,
+        gifUrl: editExGifUrl.trim()
+      };
+      const res = await fetch('/api/exercises', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Exercício atualizado com sucesso!');
+        setShowEditExModal(false);
+        setEditingExItem(null);
+        fetchData();
+      } else {
+        alert('Erro ao atualizar exercício: ' + data.error);
+      }
+    } catch (err) {
+      alert('Erro ao atualizar exercício.');
     }
   };
 
@@ -4433,7 +4486,9 @@ goniometria: {
                           <th>Exercício</th>
                           <th style={{ textAlign: 'center' }}>Grupo</th>
                           <th>Equipamento</th>
+                          <th>Mídia / GIF</th>
                           <th>Instruções</th>
+                          <th style={{ textAlign: 'center', width: '130px' }}>Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4450,13 +4505,43 @@ goniometria: {
                               <td data-label="Exercício"><strong>{ex.nome}</strong></td>
                               <td data-label="Grupo" style={{ textAlign: 'center' }}><span className="badge badge-info">{ex.grupo}</span></td>
                               <td data-label="Equipamento"><code>{ex.equipamento}</code></td>
+                              <td data-label="Mídia / GIF">
+                                {ex.gifUrl ? (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    color: '#10b981',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700
+                                  }}>
+                                    <i className="fa-solid fa-photo-film"></i> GIF / Vídeo
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--text-dim)', fontSize: '0.74rem' }}>Sem mídia</span>
+                                )}
+                              </td>
                               <td data-label="Instruções" className="cell-block"><small style={{ color: 'var(--text-muted)' }}>{ex.instrucoes || 'Nenhuma instrução disponível.'}</small></td>
+                              <td data-label="Ações" style={{ textAlign: 'center' }}>
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', gap: '4px' }}
+                                  onClick={() => handleOpenEditExercise(ex)}
+                                  title="Editar informações ou adicionar/trocar GIF"
+                                >
+                                  <i className="fa-solid fa-edit"></i> {ex.gifUrl ? 'Editar / GIF' : '+ Add GIF'}
+                                </button>
+                              </td>
                             </tr>
                           ));
                         })()}
                         {filteredExercises.length === 0 && (
                           <tr>
-                            <td colSpan={4}>
+                            <td colSpan={6}>
                               <div className="empty-state-card">
                                 <i className="fa-solid fa-dumbbell empty-state-icon"></i>
                                 <div className="empty-state-title">Nenhum exercício encontrado</div>
@@ -8963,6 +9048,56 @@ goniometria: {
                   </div>
                 </div>
                 <div className="form-group">
+                  <label>Demonstração Visual (URL do GIF ou Vídeo MP4 em Loop)</label>
+                  <input
+                    type="url"
+                    className="form-control"
+                    value={newExGifUrl}
+                    onChange={e => setNewExGifUrl(e.target.value)}
+                    placeholder="https://exemplo.com/demonstracao.gif ou .mp4"
+                  />
+                  {newExGifUrl && (
+                    <div style={{
+                      marginTop: '10px',
+                      padding: '10px',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      textAlign: 'center'
+                    }}>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                        <i className="fa-solid fa-eye" style={{ marginRight: '4px' }}></i> Pré-visualização da Demonstração:
+                      </span>
+                      {newExGifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
+                        <video
+                          src={newExGifUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px' }}
+                        />
+                      ) : (
+                        <img
+                          src={newExGifUrl}
+                          alt="Pré-visualização"
+                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain' }}
+                        />
+                      )}
+                      <div style={{ marginTop: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secondary"
+                          style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                          onClick={() => setNewExGifUrl('')}
+                        >
+                          <i className="fa-solid fa-trash"></i> Limpar Mídia
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="form-group">
                   <label>Instruções de Execução</label>
                   <textarea className="form-control" style={{ height: '80px' }} value={newExInst} onChange={e => setNewExInst(e.target.value)} placeholder="Passo a passo da execução do movimento..." />
                 </div>
@@ -8970,6 +9105,109 @@ goniometria: {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowNewExModal(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">Cadastrar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Existing Exercise Modal */}
+      {showEditExModal && editingExItem && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowEditExModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Editar Exercício & Mídia (GIF)</h3>
+              <button className="modal-close" onClick={() => setShowEditExModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleSaveEditExercise}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Nome do Exercício</label>
+                  <input type="text" className="form-control" value={editExNome} onChange={e => setEditExNome(e.target.value)} required />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Grupo Muscular</label>
+                    <select className="select-custom" value={editExGrupo} onChange={e => setEditExGrupo(e.target.value)} required>
+                      <option value="PEITO">Peito</option>
+                      <option value="COSTAS">Costas</option>
+                      <option value="PERNAS">Pernas</option>
+                      <option value="OMBROS">Ombros</option>
+                      <option value="BÍCEPS">Bíceps</option>
+                      <option value="TRÍCEPS">Tríceps</option>
+                      <option value="CORE">Core</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Equipamento</label>
+                    <select className="select-custom" value={editExEquip} onChange={e => setEditExEquip(e.target.value)} required>
+                      <option value="BARRA">Barra</option>
+                      <option value="HALTER">Halter</option>
+                      <option value="POLIA">Polia</option>
+                      <option value="MÁQUINA">Máquina</option>
+                      <option value="PESO CORPORAL">Peso Corporal</option>
+                      <option value="ELÁSTICO">Elástico</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Demonstração Visual (URL do GIF ou Vídeo MP4 em Loop)</label>
+                  <input
+                    type="url"
+                    className="form-control"
+                    value={editExGifUrl}
+                    onChange={e => setEditExGifUrl(e.target.value)}
+                    placeholder="https://exemplo.com/demonstracao.gif ou .mp4"
+                  />
+                  {editExGifUrl && (
+                    <div style={{
+                      marginTop: '10px',
+                      padding: '10px',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      textAlign: 'center'
+                    }}>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                        <i className="fa-solid fa-eye" style={{ marginRight: '4px' }}></i> Pré-visualização da Demonstração:
+                      </span>
+                      {editExGifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
+                        <video
+                          src={editExGifUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px' }}
+                        />
+                      ) : (
+                        <img
+                          src={editExGifUrl}
+                          alt="Pré-visualização"
+                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain' }}
+                        />
+                      )}
+                      <div style={{ marginTop: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secondary"
+                          style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                          onClick={() => setEditExGifUrl('')}
+                        >
+                          <i className="fa-solid fa-trash"></i> Remover Mídia
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Instruções de Execução</label>
+                  <textarea className="form-control" style={{ height: '90px' }} value={editExInst} onChange={e => setEditExInst(e.target.value)} placeholder="Passo a passo da execução do movimento..." />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEditExModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Salvar Alterações</button>
               </div>
             </form>
           </div>

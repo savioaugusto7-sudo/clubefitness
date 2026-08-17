@@ -238,6 +238,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [exGrupo, setExGrupo] = useState('PEITO');
   const [exEquip, setExEquip] = useState('');
   const [exInst, setExInst] = useState('');
+  const [exGifUrl, setExGifUrl] = useState('');
+  const [selectedExerciseRequests, setSelectedExerciseRequests] = useState<string[]>([]);
+  const [isProcessingBulkEx, setIsProcessingBulkEx] = useState(false);
 
   // Fichas de Treino States
   const [selectedClientForWorkout, setSelectedClientForWorkout] = useState<any>(null);
@@ -1604,7 +1607,78 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setExGrupo(item.grupo || 'PEITO');
     setExEquip(item.equipamento || '');
     setExInst(item.instrucoes || '');
+    setExGifUrl(item.gifUrl || '');
     setShowModal(true);
+  };
+
+  const toggleSelectAllExerciseRequests = () => {
+    if (selectedExerciseRequests.length === exerciseRequests.length) {
+      setSelectedExerciseRequests([]);
+    } else {
+      setSelectedExerciseRequests(exerciseRequests.map((ex: any) => ex._id));
+    }
+  };
+
+  const toggleSelectExerciseRequest = (id: string) => {
+    setSelectedExerciseRequests(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkApproveExercises = async () => {
+    if (selectedExerciseRequests.length === 0) return;
+    if (!confirm(`Aprovar todos os ${selectedExerciseRequests.length} exercícios selecionados?`)) return;
+    try {
+      setIsProcessingBulkEx(true);
+      const res = await fetch('/api/exercises', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedExerciseRequests,
+          action: 'approved'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`${selectedExerciseRequests.length} exercício(s) aprovado(s) com sucesso!`);
+        setSelectedExerciseRequests([]);
+        fetchData();
+      } else {
+        alert('Erro ao aprovar exercícios: ' + data.error);
+      }
+    } catch (e) {
+      alert('Erro ao processar aprovação em lote.');
+    } finally {
+      setIsProcessingBulkEx(false);
+    }
+  };
+
+  const handleBulkRejectExercises = async () => {
+    if (selectedExerciseRequests.length === 0) return;
+    if (!confirm(`Rejeitar e excluir os ${selectedExerciseRequests.length} exercícios selecionados?`)) return;
+    try {
+      setIsProcessingBulkEx(true);
+      const res = await fetch('/api/exercises', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedExerciseRequests,
+          action: 'rejected'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`${selectedExerciseRequests.length} solicitação(ões) rejeitada(s) e excluída(s)!`);
+        setSelectedExerciseRequests([]);
+        fetchData();
+      } else {
+        alert('Erro ao rejeitar solicitações: ' + data.error);
+      }
+    } catch (e) {
+      alert('Erro ao processar rejeição em lote.');
+    } finally {
+      setIsProcessingBulkEx(false);
+    }
   };
 
   const handleApproveExercise = async (ex: any) => {
@@ -1619,12 +1693,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           grupo: ex.grupo,
           equipamento: ex.equipamento,
           instrucoes: ex.instrucoes,
+          gifUrl: ex.gifUrl || '',
           status: 'approved'
         })
       });
       const data = await res.json();
       if (data.success) {
         alert('Exercício aprovado com sucesso!');
+        setSelectedExerciseRequests(prev => prev.filter(i => i !== ex._id));
         fetchData();
       } else {
         alert('Erro ao aprovar exercício: ' + data.error);
@@ -1641,6 +1717,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const data = await res.json();
       if (data.success) {
         alert('Solicitação rejeitada e excluída!');
+        setSelectedExerciseRequests(prev => prev.filter(i => i !== id));
         fetchData();
       } else {
         alert('Erro ao rejeitar solicitação: ' + data.error);
@@ -1818,6 +1895,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           grupo: exGrupo,
           equipamento: exEquip,
           instrucoes: exInst,
+          gifUrl: exGifUrl.trim(),
           status: 'approved'
         };
         const res = await fetch('/api/exercises', {
@@ -1828,6 +1906,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         const data = await res.json();
         if (data.success) {
           setShowModal(false);
+          setSelectedExerciseRequests(prev => prev.filter(i => i !== editingItem?._id));
           fetchData();
           alert('Exercício editado e aprovado com sucesso!');
         } else {
@@ -4258,16 +4337,119 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               <h1>Exercícios Solicitados</h1>
               <p>Revise e modere os novos exercícios propostos pelos profissionais de treino.</p>
             </div>
+            {exerciseRequests.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Total pendente: <strong style={{ color: 'var(--color-primary)' }}>{exerciseRequests.length}</strong>
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* Barra de Ações em Lote */}
+          {selectedExerciseRequests.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              padding: '12px 18px',
+              borderRadius: '10px',
+              marginBottom: '16px',
+              gap: '12px',
+              flexWrap: 'wrap',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{
+                  background: 'var(--color-primary)',
+                  color: '#000',
+                  fontWeight: 800,
+                  borderRadius: '50%',
+                  width: '26px',
+                  height: '26px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.85rem'
+                }}>
+                  {selectedExerciseRequests.length}
+                </span>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.92rem' }}>
+                  {selectedExerciseRequests.length === 1 ? 'exercício selecionado' : 'exercícios selecionados'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-sm"
+                  style={{
+                    backgroundColor: 'var(--color-success)',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={handleBulkApproveExercises}
+                  disabled={isProcessingBulkEx}
+                >
+                  <i className="fa-solid fa-check-double"></i>
+                  {isProcessingBulkEx ? 'Processando...' : `Aprovar Selecionados (${selectedExerciseRequests.length})`}
+                </button>
+                <button
+                  className="btn btn-sm"
+                  style={{
+                    backgroundColor: 'var(--color-danger)',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={handleBulkRejectExercises}
+                  disabled={isProcessingBulkEx}
+                >
+                  <i className="fa-solid fa-trash"></i>
+                  Rejeitar Selecionados
+                </button>
+                <button
+                  className="btn btn-sm btn-secondary"
+                  style={{ padding: '8px 14px', borderRadius: '6px', cursor: 'pointer' }}
+                  onClick={() => setSelectedExerciseRequests([])}
+                  disabled={isProcessingBulkEx}
+                >
+                  Desmarcar Todos
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="content-panel">
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th style={{ width: '45px', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        style={{ width: '17px', height: '17px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                        checked={exerciseRequests.length > 0 && selectedExerciseRequests.length === exerciseRequests.length}
+                        onChange={toggleSelectAllExerciseRequests}
+                        title={selectedExerciseRequests.length === exerciseRequests.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                      />
+                    </th>
                     <th>Nome</th>
                     <th>Grupo Muscular</th>
                     <th>Equipamento</th>
+                    <th>Mídia / GIF</th>
                     <th>Instruções</th>
                     <th>Solicitado Por</th>
                     <th style={{ textAlign: 'center', width: '280px' }}>Ações</th>
@@ -4276,48 +4458,82 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 <tbody>
                   {exerciseRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '28px' }}>
                         Nenhuma solicitação de exercício pendente.
                       </td>
                     </tr>
                   ) : (
-                    exerciseRequests.map((ex: any) => (
-                      <tr key={ex._id}>
-                        <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{ex.nome}</td>
-                        <td>{ex.grupo}</td>
-                        <td>{ex.equipamento}</td>
-                        <td style={{ maxWidth: '250px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={ex.instrucoes}>
-                          {ex.instrucoes || '-'}
-                        </td>
-                        <td>{ex.solicitadoPorNome || 'Profissional'}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            className="btn btn-sm"
-                            style={{ backgroundColor: 'var(--color-success)', color: '#fff', marginRight: '6px' }}
-                            onClick={() => handleApproveExercise(ex)}
-                            title="Aprovar Diretamente"
-                          >
-                            <i className="fa-solid fa-check"></i> Aprovar
-                          </button>
-                          <button
-                            className="btn btn-sm"
-                            style={{ backgroundColor: 'var(--color-info)', color: '#fff', marginRight: '6px' }}
-                            onClick={() => handleOpenExerciseRequestModal(ex)}
-                            title="Editar e Aprovar"
-                          >
-                            <i className="fa-solid fa-edit"></i> Editar
-                          </button>
-                          <button
-                            className="btn btn-sm"
-                            style={{ backgroundColor: 'var(--color-danger)', color: '#fff' }}
-                            onClick={() => handleRejectExerciseRequest(ex._id)}
-                            title="Rejeitar e Excluir"
-                          >
-                            <i className="fa-solid fa-trash"></i> Rejeitar
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    exerciseRequests.map((ex: any) => {
+                      const isSelected = selectedExerciseRequests.includes(ex._id);
+                      return (
+                        <tr
+                          key={ex._id}
+                          style={isSelected ? { background: 'rgba(16, 185, 129, 0.07)' } : {}}
+                        >
+                          <td style={{ textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              style={{ width: '17px', height: '17px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                              checked={isSelected}
+                              onChange={() => toggleSelectExerciseRequest(ex._id)}
+                            />
+                          </td>
+                          <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{ex.nome}</td>
+                          <td>{ex.grupo}</td>
+                          <td>{ex.equipamento}</td>
+                          <td>
+                            {ex.gifUrl ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                color: '#10b981',
+                                background: 'rgba(16, 185, 129, 0.12)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700
+                              }}>
+                                <i className="fa-solid fa-photo-film"></i> GIF / Vídeo
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Sem mídia</span>
+                            )}
+                          </td>
+                          <td style={{ maxWidth: '220px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={ex.instrucoes}>
+                            {ex.instrucoes || '-'}
+                          </td>
+                          <td>{ex.solicitadoPorNome || 'Profissional'}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              className="btn btn-sm"
+                              style={{ backgroundColor: 'var(--color-success)', color: '#fff', marginRight: '6px' }}
+                              onClick={() => handleApproveExercise(ex)}
+                              title="Aprovar Diretamente"
+                            >
+                              <i className="fa-solid fa-check"></i> Aprovar
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              style={{ backgroundColor: 'var(--color-info)', color: '#fff', marginRight: '6px' }}
+                              onClick={() => handleOpenExerciseRequestModal(ex)}
+                              title="Editar e Aprovar"
+                            >
+                              <i className="fa-solid fa-edit"></i> Editar
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              style={{ backgroundColor: 'var(--color-danger)', color: '#fff' }}
+                              onClick={() => handleRejectExerciseRequest(ex._id)}
+                              title="Rejeitar e Excluir"
+                            >
+                              <i className="fa-solid fa-trash"></i> Rejeitar
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -5280,6 +5496,56 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         <label>Equipamento</label>
                         <input type="text" className="form-control" value={exEquip} onChange={e => setExEquip(e.target.value)} placeholder="Ex: Halteres, Barra, Máquina..." required />
                       </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Demonstração Visual (URL do GIF ou Vídeo MP4 em Loop)</label>
+                      <input
+                        type="url"
+                        className="form-control"
+                        value={exGifUrl}
+                        onChange={e => setExGifUrl(e.target.value)}
+                        placeholder="https://exemplo.com/demonstracao.gif ou .mp4"
+                      />
+                      {exGifUrl && (
+                        <div style={{
+                          marginTop: '10px',
+                          padding: '10px',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          textAlign: 'center'
+                        }}>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                            <i className="fa-solid fa-eye" style={{ marginRight: '4px' }}></i> Pré-visualização da Demonstração:
+                          </span>
+                          {exGifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
+                            <video
+                              src={exGifUrl}
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              style={{ maxHeight: '200px', maxWidth: '100%', borderRadius: '6px' }}
+                            />
+                          ) : (
+                            <img
+                              src={exGifUrl}
+                              alt="Pré-visualização"
+                              style={{ maxHeight: '200px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain' }}
+                            />
+                          )}
+                          <div style={{ marginTop: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-secondary"
+                              style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                              onClick={() => setExGifUrl('')}
+                            >
+                              <i className="fa-solid fa-trash"></i> Remover GIF
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Instruções de Execução</label>

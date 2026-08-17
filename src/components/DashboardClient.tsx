@@ -223,6 +223,38 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   </div>
                 )}
 
+                {details.gifUrl && (
+                  <div style={{
+                    marginTop: '10px',
+                    marginBottom: '12px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    background: '#000',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                  }}>
+                    {details.gifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
+                      <video
+                        src={details.gifUrl}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        style={{ width: '100%', maxHeight: '160px', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <img
+                        src={details.gifUrl}
+                        alt={details.nome}
+                        loading="lazy"
+                        style={{ width: '100%', maxHeight: '160px', objectFit: 'contain' }}
+                      />
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px', background: 'rgba(0,0,0,0.18)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   <div style={{ textAlign: 'center' }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Séries</span>
@@ -247,9 +279,31 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </div>
 
                 {ex.observacao && (
-                  <div style={{ fontSize: '0.76rem', color: 'var(--color-warning)', background: 'rgba(245,158,11,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(245,158,11,0.1)' }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--color-warning)', background: 'rgba(245,158,11,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(245,158,11,0.1)', marginBottom: '8px' }}>
                     <strong>Nota:</strong> {ex.observacao}
                   </div>
+                )}
+
+                {(details.instrucoes || details.gifUrl) && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-secondary"
+                    style={{
+                      width: '100%',
+                      marginTop: '4px',
+                      fontSize: '0.74rem',
+                      padding: '5px 8px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                    onClick={() => setSelectedExerciseForInstruction(details)}
+                  >
+                    <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary)' }}></i>
+                    {details.gifUrl ? 'Ver Detalhes & Execução' : 'Instruções de Execução'}
+                  </button>
                 )}
               </div>
             </div>
@@ -3033,6 +3087,37 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 Equipamento: {selectedExerciseForInstruction.equipamento || 'Nenhum'}
               </span>
             </div>
+
+            {selectedExerciseForInstruction.gifUrl && (
+              <div style={{
+                marginBottom: '18px',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                background: '#000',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                border: '1px solid rgba(255, 255, 255, 0.08)'
+              }}>
+                {selectedExerciseForInstruction.gifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
+                  <video
+                    src={selectedExerciseForInstruction.gifUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    style={{ width: '100%', maxHeight: '220px', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <img
+                    src={selectedExerciseForInstruction.gifUrl}
+                    alt={selectedExerciseForInstruction.nome}
+                    loading="lazy"
+                    style={{ width: '100%', maxHeight: '220px', objectFit: 'contain' }}
+                  />
+                )}
+              </div>
+            )}
 
             <div style={{ marginBottom: '20px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary)' }}>

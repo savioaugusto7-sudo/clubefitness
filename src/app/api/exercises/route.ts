@@ -50,15 +50,37 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, nome, grupo, equipamento, instrucoes, status } = body;
+    const { id, ids, nome, grupo, equipamento, instrucoes, status, gifUrl, action } = body;
+
+    // Suporte a ações em lote
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      if (action === 'approved' || status === 'approved') {
+        await Exercise.updateMany(
+          { _id: { $in: ids } },
+          { $set: { status: 'approved' } }
+        );
+        return NextResponse.json({ success: true, count: ids.length, message: `${ids.length} exercícios aprovados com sucesso.` });
+      } else if (action === 'rejected' || action === 'delete') {
+        await Exercise.deleteMany({ _id: { $in: ids } });
+        return NextResponse.json({ success: true, count: ids.length, message: `${ids.length} solicitações excluídas com sucesso.` });
+      }
+    }
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing ID' }, { status: 400 });
     }
 
+    const updateData: any = {};
+    if (nome !== undefined) updateData.nome = nome;
+    if (grupo !== undefined) updateData.grupo = grupo;
+    if (equipamento !== undefined) updateData.equipamento = equipamento;
+    if (instrucoes !== undefined) updateData.instrucoes = instrucoes;
+    if (status !== undefined) updateData.status = status;
+    if (gifUrl !== undefined) updateData.gifUrl = gifUrl;
+
     const updated = await Exercise.findByIdAndUpdate(
       id,
-      { nome, grupo, equipamento, instrucoes, status },
+      updateData,
       { new: true }
     );
 
@@ -73,6 +95,13 @@ export async function DELETE(request: Request) {
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const idsParam = searchParams.get('ids');
+
+    if (idsParam) {
+      const ids = idsParam.split(',').filter(Boolean);
+      await Exercise.deleteMany({ _id: { $in: ids } });
+      return NextResponse.json({ success: true, message: `${ids.length} exercícios excluídos` });
+    }
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing ID' }, { status: 400 });
