@@ -1,55 +1,53 @@
-import { cookies } from 'next/headers';
-import { decode } from 'next-auth/jwt';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { cookies } from 'next/headers';
+import { decode } from 'next-auth/jwt';
 import Client from '@/models/Client';
 
 /**
- * Validação de sessão 100% resiliente para Serverless Vercel / App Router:
- * 1. Decodifica diretamente o cookie JWT da requisição via next/headers (0ms, infalível).
- * 2. Fallback para getServerSession.
+ * Validação de sessão e permissão robusta para todas as rotas da aplicação:
+ * 1. Utiliza getServerSession(authOptions) como padrão nativo NextAuth.
+ * 2. Fallback de decodificação direta de cookie se necessário.
  */
 export async function checkSessionPermission(requiredRoles: string[], targetClientId?: string, req?: Request | any) {
   let user: any = null;
 
-  // 1. Método Principal: Decodificar o JWT diretamente do Cookie via next/headers
+  // 1. Método Principal: getServerSession nativo
   try {
-    const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get('next-auth.session-token')?.value || 
-                       cookieStore.get('__Secure-next-auth.session-token')?.value;
-
-    if (tokenCookie && process.env.NEXTAUTH_SECRET) {
-      const decoded = await decode({
-        token: tokenCookie,
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-
-      if (decoded) {
-        user = {
-          id: decoded.id || decoded.sub,
-          email: decoded.email,
-          role: decoded.role,
-          cargo: decoded.cargo,
-          activeRoles: decoded.activeRoles || [decoded.role || 'client'],
-          clientProfileId: decoded.clientProfileId || '',
-          professionalProfileId: decoded.professionalProfileId || '',
-          profileId: decoded.profileId || '',
-        };
-      }
+    const session = await getServerSession(authOptions);
+    if (session && session.user) {
+      user = session.user;
     }
-  } catch (cookieErr) {
-    console.warn('[checkSessionPermission] Cookie decode error:', cookieErr);
+  } catch (sessionErr) {
+    console.warn('[checkSessionPermission] getServerSession error:', sessionErr);
   }
 
-  // 2. Fallback: getServerSession
+  // 2. Fallback: Leitura direta do cookie se getServerSession falhar
   if (!user) {
     try {
-      const session = await getServerSession(authOptions);
-      if (session && session.user) {
-        user = session.user;
+      const cookieStore = await cookies();
+      const tokenCookie = cookieStore.get('next-auth.session-token')?.value || 
+                         cookieStore.get('__Secure-next-auth.session-token')?.value ||
+                         cookieStore.get('__Secure-next-auth.session-token.0')?.value;
+
+      const secret = process.env.NEXTAUTH_SECRET || 'clubefitness-super-secret-jwt-key-2026';
+      if (tokenCookie) {
+        const decoded = await decode({ token: tokenCookie, secret });
+        if (decoded) {
+          user = {
+            id: decoded.id || decoded.sub,
+            email: decoded.email,
+            role: decoded.role,
+            cargo: decoded.cargo,
+            activeRoles: decoded.activeRoles || [decoded.role || 'client'],
+            clientProfileId: decoded.clientProfileId || '',
+            professionalProfileId: decoded.professionalProfileId || '',
+            profileId: decoded.profileId || '',
+          };
+        }
       }
-    } catch (sessionErr) {
-      console.warn('[checkSessionPermission] getServerSession fallback error:', sessionErr);
+    } catch (cookieErr) {
+      console.warn('[checkSessionPermission] Cookie decode fallback error:', cookieErr);
     }
   }
 
@@ -59,7 +57,7 @@ export async function checkSessionPermission(requiredRoles: string[], targetClie
 
   const userRoles = user.activeRoles || [user.role || 'client'];
 
-  // 1. Administradores Gerais têm acesso livre
+  // 1. Administradores Gerais têm acesso livre a tudo
   if (userRoles.includes('admin')) {
     return { authorized: true, user };
   }

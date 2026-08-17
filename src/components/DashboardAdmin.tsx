@@ -970,10 +970,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         jsonClients, jsonProfs, jsonApts, jsonUsers, jsonPlans,
         jsonFin, jsonMed, jsonFs, jsonSt, jsonExs,
         jsonTranc, jsonContracts, jsonAc, jsonLogs
-      ] = await Promise.race([
-        Promise.all(endpoints),
-        new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 8000))
-      ]);
+      ] = await Promise.all(endpoints);
 
       if (jsonClients?.success) setClients(jsonClients.data);
       if (jsonProfs?.success) setProfessionals(jsonProfs.data);

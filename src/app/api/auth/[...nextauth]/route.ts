@@ -197,7 +197,8 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/login',
     error: '/login'
-  }
+  },
+  secret: process.env.NEXTAUTH_SECRET || 'clubefitness-super-secret-jwt-key-2026'
 };
 
 const handler = NextAuth(authOptions);
