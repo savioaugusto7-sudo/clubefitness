@@ -1421,9 +1421,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const fetchData = async (silent = false) => {
     try {
-      const hasBaseData = clients.length > 0 && professionals.length > 0;
-      
-      // Checar se a aba atual já possui dados carregados para evitar spinner bloqueante
+      const hasClients = clients.length > 0;
+      const hasProfs = professionals.length > 0;
+
+      // Checar se a aba atual já possui dados carregados
       let tabHasData = false;
       if (activeTab === 'avaliacoes' && assessments.length > 0) tabHasData = true;
       if (activeTab === 'relatorios' && reports.length > 0) tabHasData = true;
@@ -1433,94 +1434,96 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       if (activeTab === 'agenda_fixa' && fixedSchedules.length > 0) tabHasData = true;
       if ((activeTab === 'dashboard' || activeTab === 'resumo_dia') && appointments.length > 0) tabHasData = true;
 
-      const shouldShowLoading = !silent && (!hasBaseData || !tabHasData);
-      if (shouldShowLoading) {
+      // Só exibe spinner na tela se não temos nenhum dado carregado
+      if (!silent && !tabHasData && !hasClients) {
         setLoading(true);
       }
 
-      // Montar requisições em paralelo
-      const promises: Promise<any>[] = [];
-      const keys: string[] = [];
-
-      // Base: Clients & Professionals
-      if (!hasBaseData || !silent) {
-        promises.push(fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('clients');
-        promises.push(fetch('/api/professionals').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('professionals');
+      // 1. Fetch de Base (Clientes e Profissionais) em background paralelo
+      if (!hasClients || !silent) {
+        fetch('/api/clients')
+          .then(r => r.json())
+          .then(json => {
+            if (json.success && Array.isArray(json.data)) {
+              setClients(json.data);
+              if (json.data.length > 0 && !selectedClient) {
+                setSelectedClient(json.data[0]._id);
+                setFsClient(json.data[0]._id);
+                setAsClient(json.data[0]._id);
+                setRepClient(json.data[0]._id);
+                setStClient(json.data[0]._id);
+                setPrClient(json.data[0]._id);
+              }
+            }
+          })
+          .catch(err => console.error('Erro ao buscar clientes:', err));
       }
 
-      // Específicos por Aba (em paralelo total com a base)
+      if (!hasProfs || !silent) {
+        fetch('/api/professionals')
+          .then(r => r.json())
+          .then(json => {
+            if (json.success && Array.isArray(json.data)) {
+              setProfessionals(json.data);
+              if (json.data.length > 0 && !professionalId) {
+                setAsAvaliador(prev => prev || json.data[0]._id);
+                setRepAvaliador(prev => prev || json.data[0]._id);
+                setStAvaliador(prev => prev || json.data[0]._id);
+              }
+            }
+          })
+          .catch(err => console.error('Erro ao buscar profissionais:', err));
+      }
+
+      // 2. Fetch específico da aba ativa
       if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'clientes') {
-        promises.push(fetch('/api/appointments').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('appointments');
+        const resApts = await fetch('/api/appointments');
+        const jsonApts = await resApts.json();
+        if (jsonApts.success) setAppointments(jsonApts.data);
       }
       if (activeTab === 'clientes') {
-        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('assessments');
-        promises.push(fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('strengthTests');
+        const [resAs, resSt] = await Promise.all([
+          fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resAs.success) setAssessments(resAs.data);
+        if (resSt.success) setStrengthTests(resSt.data);
       } else if (activeTab === 'treinos_prof') {
-        promises.push(fetch('/api/workouts').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('workouts');
-        promises.push(fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('exercises');
+        const [resWorkouts, resExs] = await Promise.all([
+          fetch('/api/workouts').then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resWorkouts.success) setWorkouts(resWorkouts.data);
+        if (resExs.success) setExercises(resExs.data);
       } else if (activeTab === 'agenda_fixa') {
-        promises.push(fetch('/api/fixed-schedules').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('fixedSchedules');
+        const resFS = await fetch('/api/fixed-schedules');
+        const jsonFS = await resFS.json();
+        if (jsonFS.success) setFixedSchedules(jsonFS.data);
       } else if (activeTab === 'avaliacoes') {
-        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('assessments');
+        const resAs = await fetch('/api/assessments');
+        const jsonAs = await resAs.json();
+        if (jsonAs.success) {
+          setAssessments(jsonAs.data);
+        }
       } else if (activeTab === 'relatorios') {
-        promises.push(fetch('/api/reports').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('reports');
-        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('assessments');
+        const [resRep, resAs] = await Promise.all([
+          fetch('/api/reports').then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resRep.success) setReports(resRep.data);
+        if (resAs.success) setAssessments(resAs.data);
       } else if (activeTab === 'testes_forca') {
-        promises.push(fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('strengthTests');
-        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('assessments');
+        const [resSt, resAs] = await Promise.all([
+          fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resSt.success) setStrengthTests(resSt.data);
+        if (resAs.success) setAssessments(resAs.data);
       } else if (activeTab === 'prontuarios') {
-        promises.push(fetch('/api/prontuarios').then(r => r.json()).catch(() => ({ success: false })));
-        keys.push('prontuarios');
+        const resPr = await fetch('/api/prontuarios');
+        const jsonPr = await resPr.json();
+        if (jsonPr.success) setProntuarios(jsonPr.data);
       }
-
-      // Timeout de segurança de 8 segundos
-      const results = await Promise.race([
-        Promise.all(promises),
-        new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 8000))
-      ]);
-
-      results.forEach((json, idx) => {
-        if (!json || !json.success) return;
-        const key = keys[idx];
-        if (key === 'clients') {
-          setClients(json.data);
-          if (json.data.length > 0 && !selectedClient) {
-            setSelectedClient(json.data[0]._id);
-            setFsClient(json.data[0]._id);
-            setAsClient(json.data[0]._id);
-            setRepClient(json.data[0]._id);
-            setStClient(json.data[0]._id);
-            setPrClient(json.data[0]._id);
-          }
-        } else if (key === 'professionals') {
-          setProfessionals(json.data);
-          if (json.data.length > 0 && !professionalId) {
-            setAsAvaliador(prev => prev || json.data[0]._id);
-            setRepAvaliador(prev => prev || json.data[0]._id);
-            setStAvaliador(prev => prev || json.data[0]._id);
-          }
-        } else if (key === 'appointments') setAppointments(json.data);
-        else if (key === 'assessments') setAssessments(json.data);
-        else if (key === 'strengthTests') setStrengthTests(json.data);
-        else if (key === 'workouts') setWorkouts(json.data);
-        else if (key === 'exercises') setExercises(json.data);
-        else if (key === 'fixedSchedules') setFixedSchedules(json.data);
-        else if (key === 'reports') setReports(json.data);
-        else if (key === 'prontuarios') setProntuarios(json.data);
-      });
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
     } finally {
@@ -5012,26 +5015,29 @@ goniometria: {
               // Group assessments by student ID
               const grouped: Record<string, any[]> = {};
               assessments.forEach(as => {
-                const cid = as.clienteId?._id || as.clienteId || 'unknown';
+                const cid = String(as.clienteId?._id || as.clienteId || 'unknown');
                 if (!grouped[cid]) grouped[cid] = [];
                 grouped[cid].push(as);
               });
 
               // Sort each student's assessments from most recent to oldest
               Object.keys(grouped).forEach(cid => {
-                grouped[cid].sort((a, b) => b.data.localeCompare(a.data));
+                grouped[cid].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
               });
 
               // List of unique students with their assessments, filtered by search query
               const allStudentRows = Object.keys(grouped).map(cid => {
                 const studentAssessments = grouped[cid];
                 const latest = studentAssessments[0];
-                const studentName = latest.clienteId?.dadosPessoais?.nome || 'Aluno Removido';
+                const matchedClient = clients.find(c => String(c._id) === cid);
+                const studentName = latest.clienteId?.dadosPessoais?.nome ||
+                                    matchedClient?.dadosPessoais?.nome ||
+                                    'Aluno';
                 return {
                   clientId: cid,
                   name: studentName,
                   assessments: studentAssessments,
-                  latestDate: latest.data
+                  latestDate: latest.data || ''
                 };
               });
 
@@ -5222,11 +5228,15 @@ goniometria: {
                     const allRows = Object.keys(grouped).map(cid => {
                       const reps = grouped[cid];
                       const latest = reps[0];
+                      const matchedClient = clients.find(c => String(c._id) === String(cid));
+                      const studentName = latest.clienteId?.dadosPessoais?.nome ||
+                                          matchedClient?.dadosPessoais?.nome ||
+                                          'Aluno';
                       return {
                         clientId: cid,
-                        name: latest.clienteId?.dadosPessoais?.nome || 'Aluno Removido',
+                        name: studentName,
                         reports: reps,
-                        latestDate: latest.data
+                        latestDate: latest.data || ''
                       };
                     });
                     allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
@@ -5496,11 +5506,15 @@ goniometria: {
                     const allRows = Object.keys(grouped).map(cid => {
                       const sts = grouped[cid];
                       const latest = sts[0];
+                      const matchedClient = clients.find(c => String(c._id) === String(cid));
+                      const studentName = latest.clienteId?.dadosPessoais?.nome ||
+                                          matchedClient?.dadosPessoais?.nome ||
+                                          'Aluno';
                       return {
                         clientId: cid,
-                        name: latest.clienteId?.dadosPessoais?.nome || 'Aluno Removido',
+                        name: studentName,
                         tests: sts,
-                        latestDate: latest.data
+                        latestDate: latest.data || ''
                       };
                     });
                     allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
@@ -5671,15 +5685,24 @@ goniometria: {
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
                     const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = prontuarios.filter(p => normalizeText(p.clienteId?.dadosPessoais?.nome || p.clienteId?.nome).includes(q));
+                    const filtered = prontuarios.filter(p => {
+                      const cid = String(p.clienteId?._id || p.clienteId || '');
+                      const matched = clients.find(c => String(c._id) === cid);
+                      const name = p.clienteId?.dadosPessoais?.nome || p.clienteId?.nome || matched?.dadosPessoais?.nome || '';
+                      return normalizeText(name).includes(q);
+                    });
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-                    return paginated.map(pr => (
+                    return paginated.map(pr => {
+                      const cid = String(pr.clienteId?._id || pr.clienteId || '');
+                      const matched = clients.find(c => String(c._id) === cid);
+                      const studentName = pr.clienteId?.dadosPessoais?.nome || matched?.dadosPessoais?.nome || 'Aluno';
+                      return (
                       <tr key={pr._id}>
                         <td data-label="Data"><strong>{formatDateBR(pr.data)}</strong></td>
-                        <td data-label="Aluno / Paciente"><strong>{pr.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
+                        <td data-label="Aluno / Paciente"><strong>{studentName}</strong></td>
                         <td data-label="Anotações Médicas" className="cell-block"><small style={{ color: 'var(--text-main)' }}>{(pr.conteudo || '').substring(0, 120)}{(pr.conteudo || '').length > 120 ? '...' : ''}</small></td>
                         <td data-label="Ações" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
@@ -5695,7 +5718,8 @@ goniometria: {
                           </button>
                         </td>
                       </tr>
-                    ));
+                      );
+                    });
                   })()}
                   {prontuarios.length === 0 && (
                     <tr>
