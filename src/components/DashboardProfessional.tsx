@@ -1422,35 +1422,40 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
 
 
+  // Helper: fetch with AbortController timeout (prevents requests hanging indefinitely)
+  const fetchWithTimeout = async (url: string, options: any = {}, timeoutMs = 6000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
+      return await res.json();
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        console.warn(`[fetchWithTimeout] ${url} timed out after ${timeoutMs}ms`);
+      } else {
+        console.warn(`[fetchWithTimeout] ${url} error:`, err.message);
+      }
+      return { success: false, error: err.name === 'AbortError' ? 'timeout' : err.message, data: [] };
+    }
+  };
+
   const fetchData = async (silent = false) => {
     try {
       const hasClients = clients.length > 0;
       const hasProfs = professionals.length > 0;
 
-      // Checar se a aba atual já possui dados carregados
-      let tabHasData = false;
-      if (activeTab === 'avaliacoes' && assessments.length > 0) tabHasData = true;
-      if (activeTab === 'relatorios' && reports.length > 0) tabHasData = true;
-      if (activeTab === 'testes_forca' && strengthTests.length > 0) tabHasData = true;
-      if (activeTab === 'prontuarios' && prontuarios.length > 0) tabHasData = true;
-      if (activeTab === 'treinos_prof' && workouts.length > 0) tabHasData = true;
-      if (activeTab === 'agenda_fixa' && fixedSchedules.length > 0) tabHasData = true;
-      if ((activeTab === 'dashboard' || activeTab === 'resumo_dia') && appointments.length > 0) tabHasData = true;
-
-      // Só exibe spinner na tela se não temos nenhum dado carregado
-      if (!silent && !tabHasData && !hasClients) {
-        setLoading(true);
-      }
-
-      // 1. Fetch de Base (Clientes e Profissionais) em paralelo
+      // 1. Fetch de Base (Clientes e Profissionais) em paralelo com timeout
       if (!hasClients || !hasProfs) {
+        if (!silent && !hasClients) setLoading(true);
         const [resClients, resProfs] = await Promise.all([
-          !hasClients ? fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: clients }),
-          !hasProfs ? fetch('/api/professionals').then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: professionals })
+          !hasClients ? fetchWithTimeout('/api/clients', { cache: 'no-store' }, 8000) : Promise.resolve({ success: true, data: clients }),
+          !hasProfs ? fetchWithTimeout('/api/professionals', { cache: 'no-store' }, 8000) : Promise.resolve({ success: true, data: professionals })
         ]);
-        if (resClients.success && Array.isArray(resClients.data)) {
+        if (resClients.success && Array.isArray(resClients.data) && resClients.data.length > 0) {
           setClients(resClients.data);
-          if (resClients.data.length > 0 && !selectedClient) {
+          if (!selectedClient) {
             setSelectedClient(resClients.data[0]._id);
             setFsClient(resClients.data[0]._id);
             setAsClient(resClients.data[0]._id);
@@ -1459,9 +1464,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             setPrClient(resClients.data[0]._id);
           }
         }
-        if (resProfs.success && Array.isArray(resProfs.data)) {
+        if (resProfs.success && Array.isArray(resProfs.data) && resProfs.data.length > 0) {
           setProfessionals(resProfs.data);
-          if (resProfs.data.length > 0 && !professionalId) {
+          if (!professionalId) {
             setAsAvaliador(prev => prev || resProfs.data[0]._id);
             setRepAvaliador(prev => prev || resProfs.data[0]._id);
             setStAvaliador(prev => prev || resProfs.data[0]._id);
@@ -1469,126 +1474,79 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
       }
 
-      // Helper: log full API response for debugging
-      const logApiResponse = (endpoint: string, json: any) => {
-        if (json.auth_required) {
-          console.error(`[fetchData] ${endpoint} → auth_required! auth_error:`, json.auth_error);
-        } else if (json.server_error) {
-          console.error(`[fetchData] ${endpoint} → server_error:`, json.server_error);
-        } else if (!json.success) {
-          console.error(`[fetchData] ${endpoint} → success:false, error:`, json.error);
-        } else {
-          console.log(`[fetchData] ${endpoint} → OK, count:`, Array.isArray(json.data) ? json.data.length : 'N/A');
-        }
-      };
-
-      // 2. Fetch específico da aba ativa
+      // 2. Fetch específico da aba ativa com cache SWR
       if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'clientes') {
-        const resApts = await fetch('/api/appointments');
-        const jsonApts = await resApts.json();
-        if (jsonApts.success) setAppointments(jsonApts.data);
+        const jsonApts = await fetchWithTimeout('/api/appointments', { cache: 'no-store' }, 6000);
+        if (jsonApts.success && Array.isArray(jsonApts.data)) setAppointments(jsonApts.data);
       }
+
       if (activeTab === 'clientes') {
         const [resAs, resSt] = await Promise.all([
-          fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false }))
+          fetchWithTimeout('/api/assessments', { cache: 'no-store' }, 6000),
+          fetchWithTimeout('/api/strength-tests', { cache: 'no-store' }, 6000)
         ]);
-        logApiResponse('/api/assessments', resAs);
-        logApiResponse('/api/strength-tests', resSt);
         if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
         if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
       } else if (activeTab === 'treinos_prof') {
         const [resWorkouts, resExs] = await Promise.all([
-          fetch('/api/workouts').then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false }))
+          fetchWithTimeout('/api/workouts', { cache: 'no-store' }, 6000),
+          fetchWithTimeout('/api/exercises', { cache: 'no-store' }, 6000)
         ]);
         if (resWorkouts.success && Array.isArray(resWorkouts.data)) setWorkouts(resWorkouts.data);
         if (resExs.success && Array.isArray(resExs.data)) setExercises(resExs.data);
       } else if (activeTab === 'agenda_fixa') {
-        const resFS = await fetch('/api/fixed-schedules');
-        const jsonFS = await resFS.json();
+        const jsonFS = await fetchWithTimeout('/api/fixed-schedules', { cache: 'no-store' }, 6000);
         if (jsonFS.success && Array.isArray(jsonFS.data)) setFixedSchedules(jsonFS.data);
       } else if (activeTab === 'avaliacoes') {
-        // Retry loop: up to 3 attempts with 4s delay (handles Vercel cold start)
-        setIsRetrying(true);
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const resAs = await fetch('/api/assessments', { cache: 'no-store' });
-            const jsonAs = await resAs.json();
-            logApiResponse('/api/assessments (attempt ' + (attempt + 1) + ')', jsonAs);
-            if (jsonAs.success && Array.isArray(jsonAs.data) && jsonAs.data.length > 0) {
-              setAssessments(jsonAs.data);
-              setClinicalLoadedOnce(true);
-              break;
-            } else if (jsonAs.success && Array.isArray(jsonAs.data)) {
-              // Got empty but no error — may be legitimate empty OR cold start
-              setAssessments([]);
-              setClinicalLoadedOnce(true);
-            }
-          } catch (retryErr) {
-            console.warn('[fetchData] assessment attempt', attempt + 1, 'failed:', retryErr);
+        const needsRetry = assessments.length === 0;
+        if (needsRetry) setIsRetrying(true);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const jsonAs = await fetchWithTimeout('/api/assessments', { cache: 'no-store' }, 6000);
+          if (jsonAs.success && Array.isArray(jsonAs.data)) {
+            setAssessments(jsonAs.data);
+            if (jsonAs.data.length > 0) break;
           }
-          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
+          if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }
         setIsRetrying(false);
       } else if (activeTab === 'relatorios') {
-        setIsRetrying(true);
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const [resRep, resAs] = await Promise.all([
-              fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] })),
-              fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] }))
-            ]);
-            logApiResponse('/api/reports (attempt ' + (attempt + 1) + ')', resRep);
-            if (resRep.success && Array.isArray(resRep.data)) { setReports(resRep.data); }
-            if (resAs.success && Array.isArray(resAs.data)) { setAssessments(resAs.data); }
-            if (resRep.success && Array.isArray(resRep.data)) {
-              setClinicalLoadedOnce(true);
-              break;
-            }
-          } catch (retryErr) {
-            console.warn('[fetchData] reports attempt', attempt + 1, 'failed:', retryErr);
-          }
-          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
+        const needsRetry = reports.length === 0;
+        if (needsRetry) setIsRetrying(true);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const [resRep, resAs] = await Promise.all([
+            fetchWithTimeout('/api/reports', { cache: 'no-store' }, 6000),
+            fetchWithTimeout('/api/assessments', { cache: 'no-store' }, 6000)
+          ]);
+          if (resRep.success && Array.isArray(resRep.data)) setReports(resRep.data);
+          if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+          if (resRep.success && Array.isArray(resRep.data) && resRep.data.length > 0) break;
+          if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }
         setIsRetrying(false);
       } else if (activeTab === 'testes_forca') {
-        setIsRetrying(true);
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const [resSt, resAs] = await Promise.all([
-              fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] })),
-              fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] }))
-            ]);
-            logApiResponse('/api/strength-tests (attempt ' + (attempt + 1) + ')', resSt);
-            if (resSt.success && Array.isArray(resSt.data)) { setStrengthTests(resSt.data); }
-            if (resAs.success && Array.isArray(resAs.data)) { setAssessments(resAs.data); }
-            if (resSt.success && Array.isArray(resSt.data)) {
-              setClinicalLoadedOnce(true);
-              break;
-            }
-          } catch (retryErr) {
-            console.warn('[fetchData] strength-tests attempt', attempt + 1, 'failed:', retryErr);
-          }
-          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
+        const needsRetry = strengthTests.length === 0;
+        if (needsRetry) setIsRetrying(true);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const [resSt, resAs] = await Promise.all([
+            fetchWithTimeout('/api/strength-tests', { cache: 'no-store' }, 6000),
+            fetchWithTimeout('/api/assessments', { cache: 'no-store' }, 6000)
+          ]);
+          if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
+          if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+          if (resSt.success && Array.isArray(resSt.data) && resSt.data.length > 0) break;
+          if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }
         setIsRetrying(false);
       } else if (activeTab === 'prontuarios') {
-        setIsRetrying(true);
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const resPr = await fetch('/api/prontuarios', { cache: 'no-store' });
-            const jsonPr = await resPr.json();
-            logApiResponse('/api/prontuarios (attempt ' + (attempt + 1) + ')', jsonPr);
-            if (jsonPr.success && Array.isArray(jsonPr.data)) {
-              setProntuarios(jsonPr.data);
-              setClinicalLoadedOnce(true);
-              break;
-            }
-          } catch (retryErr) {
-            console.warn('[fetchData] prontuarios attempt', attempt + 1, 'failed:', retryErr);
+        const needsRetry = prontuarios.length === 0;
+        if (needsRetry) setIsRetrying(true);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const jsonPr = await fetchWithTimeout('/api/prontuarios', { cache: 'no-store' }, 6000);
+          if (jsonPr.success && Array.isArray(jsonPr.data)) {
+            setProntuarios(jsonPr.data);
+            if (jsonPr.data.length > 0) break;
           }
-          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
+          if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }
         setIsRetrying(false);
       }
@@ -1596,16 +1554,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       console.error('Error fetching dashboard data:', e);
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   };
 
   useEffect(() => {
-    // Reset clinical loaded flag when switching to a clinical tab
-    const clinicalTabs = ['avaliacoes', 'relatorios', 'testes_forca', 'prontuarios'];
-    if (clinicalTabs.includes(activeTab)) {
-      setClinicalLoadedOnce(false);
-    }
-    fetchData();
+    // Stale-While-Revalidate: fetch in background, don't reset state to blank
+    fetchData(true);
     setSelectedClientForWorkout(null);
     setEditingWorkoutData(null);
   }, [activeTab]);
@@ -1615,14 +1570,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const warmUp = () => {
       const endpoints = ['/api/assessments', '/api/reports', '/api/strength-tests', '/api/prontuarios'];
       endpoints.forEach(ep => {
-        fetch(ep, { cache: 'no-store' })
-          .then(r => r.json())
-          .then(json => console.log('[keep-alive]', ep, 'warmed up, count:', Array.isArray(json.data) ? json.data.length : 0))
-          .catch(err => console.warn('[keep-alive]', ep, 'failed:', err.message));
+        fetchWithTimeout(ep, { cache: 'no-store' }, 5000).catch(() => {});
       });
     };
-    // Warm up after 2s so it doesn't block the initial dashboard render
-    const timer = setTimeout(warmUp, 2000);
+    const timer = setTimeout(warmUp, 1500);
     return () => clearTimeout(timer);
   }, []);
 
