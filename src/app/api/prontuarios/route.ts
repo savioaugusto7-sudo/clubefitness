@@ -34,7 +34,10 @@ export async function GET(request: Request) {
       records = await Prontuario.find(query).lean();
     }
 
-    return NextResponse.json({ success: true, data: records });
+    return NextResponse.json(
+      { success: true, data: records },
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
+    );
   } catch (error: any) {
     console.error('Error in GET /api/prontuarios:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -2339,6 +2339,9 @@ goniometria: {
           if (data.success) {
             localStorage.removeItem('draft_assessment');
             setShowAssessmentModal(false);
+            if (data.data) {
+              setAssessments(prev => [data.data, ...prev.filter(a => a._id !== data.data._id)]);
+            }
             fetchData();
             alert('Avaliação física criada com sucesso!');
           } else {
@@ -2824,6 +2827,9 @@ goniometria: {
             setRepPdfAttachName('');
             setRepAvaliador(executorProfId);
 
+            if (data.data) {
+              setReports(prev => [data.data, ...prev.filter(r => r._id !== data.data._id)]);
+            }
             fetchData();
             alert('Relatório fisioterápico criado com sucesso!');
             if (data.data) {
@@ -4979,6 +4985,15 @@ goniometria: {
                 onChange={e => setSearchQueryForKey('avaliacoes', e.target.value)}
                 style={{ maxWidth: '260px' }}
               />
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                title="Sincronizar e recarregar dados do servidor"
+                onClick={() => fetchData(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-rotate"></i> Atualizar
+              </button>
               <button className="btn btn-primary" onClick={() => {
                 const draftStr = localStorage.getItem('draft_assessment');
                 if (draftStr) {
@@ -5173,6 +5188,15 @@ goniometria: {
                 onChange={e => setSearchQueryForKey('relatorios', e.target.value)}
                 style={{ maxWidth: '260px' }}
               />
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                title="Sincronizar e recarregar dados do servidor"
+                onClick={() => fetchData(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-rotate"></i> Atualizar
+              </button>
               <button className="btn btn-primary" onClick={() => {
                 setRepDate(new Date().toISOString().split('T')[0]);
                 setShowReportModal(true);
@@ -5451,6 +5475,15 @@ goniometria: {
                 onChange={e => setSearchQueryForKey('testes_forca', e.target.value)}
                 style={{ maxWidth: '260px' }}
               />
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                title="Sincronizar e recarregar dados do servidor"
+                onClick={() => fetchData(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-rotate"></i> Atualizar
+              </button>
               <button className="btn btn-primary" onClick={() => {
                 setStDate(new Date().toISOString().split('T')[0]);
                 setShowStModal(true);
@@ -5650,6 +5683,15 @@ goniometria: {
                   <option value={15}>15</option>
                 </select>
               </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                title="Sincronizar e recarregar dados do servidor"
+                onClick={() => fetchData(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-rotate"></i> Atualizar
+              </button>
               <button className="btn btn-primary" onClick={() => {
                 setPrDate(new Date().toISOString().split('T')[0]);
                 setShowProntuarioModal(true);
