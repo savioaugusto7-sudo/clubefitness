@@ -1,18 +1,53 @@
 import { getServerSession } from 'next-auth';
+import { getToken } from 'next-auth/jwt';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Client from '@/models/Client';
 
 /**
  * Valida a sessão atual e verifica se o usuário tem permissão para acessar o recurso.
- * Lança um erro caso o usuário não esteja autenticado ou não possua autorização.
+ * Utiliza getServerSession e fallback para getToken (JWT do cookie) para máxima resiliência na Vercel.
  */
-export async function checkSessionPermission(requiredRoles: string[], targetClientId?: string) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
+export async function checkSessionPermission(requiredRoles: string[], targetClientId?: string, req?: Request | any) {
+  let user: any = null;
+
+  // 1. Tentar via getServerSession
+  try {
+    const session = await getServerSession(authOptions);
+    if (session && session.user) {
+      user = session.user;
+    }
+  } catch (sessionErr) {
+    console.warn('[checkSessionPermission] getServerSession error, tentando getToken fallback:', sessionErr);
+  }
+
+  // 2. Fallback: Ler diretamente o JWT do cookie se req estiver disponível
+  if (!user && req) {
+    try {
+      const token = await getToken({
+        req,
+        secret: process.env.NEXTAUTH_SECRET,
+      });
+      if (token) {
+        user = {
+          id: token.id || token.sub,
+          email: token.email,
+          role: token.role,
+          cargo: token.cargo,
+          activeRoles: token.activeRoles || [token.role || 'client'],
+          clientProfileId: token.clientProfileId || '',
+          professionalProfileId: token.professionalProfileId || '',
+          profileId: token.profileId || '',
+        };
+      }
+    } catch (tokenErr) {
+      console.warn('[checkSessionPermission] getToken error:', tokenErr);
+    }
+  }
+
+  if (!user) {
     throw new Error('Não autenticado');
   }
 
-  const user = session.user as any;
   const userRoles = user.activeRoles || [user.role || 'client'];
 
   // 1. Administradores Gerais têm acesso livre

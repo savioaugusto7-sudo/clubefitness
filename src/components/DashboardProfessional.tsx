@@ -1503,8 +1503,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         for (let attempt = 0; attempt < 2; attempt++) {
           const jsonAs = await fetchWithTimeout('/api/assessments', { cache: 'no-store' }, 6000);
           if (jsonAs.success && Array.isArray(jsonAs.data)) {
-            setAssessments(jsonAs.data);
-            if (jsonAs.data.length > 0) break;
+            if (jsonAs.data.length > 0) {
+              setAssessments(jsonAs.data);
+              break;
+            } else if (!jsonAs.auth_required && !jsonAs.server_error) {
+              setAssessments(prev => (prev.length > 0 ? prev : []));
+            }
           }
           if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }
@@ -1517,8 +1521,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             fetchWithTimeout('/api/reports', { cache: 'no-store' }, 6000),
             fetchWithTimeout('/api/assessments', { cache: 'no-store' }, 6000)
           ]);
-          if (resRep.success && Array.isArray(resRep.data)) setReports(resRep.data);
-          if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+          if (resRep.success && Array.isArray(resRep.data)) {
+            if (resRep.data.length > 0) setReports(resRep.data);
+            else if (!resRep.auth_required && !resRep.server_error) setReports(prev => (prev.length > 0 ? prev : []));
+          }
+          if (resAs.success && Array.isArray(resAs.data) && resAs.data.length > 0) {
+            setAssessments(resAs.data);
+          }
           if (resRep.success && Array.isArray(resRep.data) && resRep.data.length > 0) break;
           if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }
@@ -1531,8 +1540,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             fetchWithTimeout('/api/strength-tests', { cache: 'no-store' }, 6000),
             fetchWithTimeout('/api/assessments', { cache: 'no-store' }, 6000)
           ]);
-          if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
-          if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+          if (resSt.success && Array.isArray(resSt.data)) {
+            if (resSt.data.length > 0) setStrengthTests(resSt.data);
+            else if (!resSt.auth_required && !resSt.server_error) setStrengthTests(prev => (prev.length > 0 ? prev : []));
+          }
+          if (resAs.success && Array.isArray(resAs.data) && resAs.data.length > 0) {
+            setAssessments(resAs.data);
+          }
           if (resSt.success && Array.isArray(resSt.data) && resSt.data.length > 0) break;
           if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }
@@ -1543,8 +1557,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         for (let attempt = 0; attempt < 2; attempt++) {
           const jsonPr = await fetchWithTimeout('/api/prontuarios', { cache: 'no-store' }, 6000);
           if (jsonPr.success && Array.isArray(jsonPr.data)) {
-            setProntuarios(jsonPr.data);
-            if (jsonPr.data.length > 0) break;
+            if (jsonPr.data.length > 0) {
+              setProntuarios(jsonPr.data);
+              break;
+            } else if (!jsonPr.auth_required && !jsonPr.server_error) {
+              setProntuarios(prev => (prev.length > 0 ? prev : []));
+            }
           }
           if (attempt === 0 && needsRetry) await new Promise(r => setTimeout(r, 1500));
         }

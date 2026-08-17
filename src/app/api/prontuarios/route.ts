@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     let user: any = null;
     let authError: string | null = null;
     try {
-      const result = await checkSessionPermission(['admin', 'professional', 'client']);
+      const result = await checkSessionPermission(['admin', 'professional', 'client'], undefined, request);
       user = result.user;
     } catch (authErr: any) {
       authError = authErr.message;
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     
-    await checkSessionPermission(['admin', 'professional']);
+    await checkSessionPermission(['admin', 'professional'], undefined, request);
 
     const body = await request.json();
     const { clienteId, profissionalId, data, conteudo } = body;
@@ -92,7 +92,7 @@ export async function DELETE(request: Request) {
   try {
     await dbConnect();
     
-    await checkSessionPermission(['admin', 'professional']);
+    await checkSessionPermission(['admin', 'professional'], undefined, request);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
