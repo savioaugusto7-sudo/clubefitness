@@ -9,19 +9,32 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
 
-    // Register schemas
     const _client = Client;
     const _prof = Professional;
 
-    const { user } = await checkSessionPermission(['admin', 'professional', 'client']);
+    let user: any = null;
+    let authError: string | null = null;
+    try {
+      const result = await checkSessionPermission(['admin', 'professional', 'client']);
+      user = result.user;
+    } catch (authErr: any) {
+      authError = authErr.message;
+      console.error('[prontuarios GET] Auth error:', authErr.message);
+    }
 
-    let query = {};
+    if (!user) {
+      return NextResponse.json(
+        { success: true, data: [], auth_required: true, auth_error: authError },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+
     const roles: string[] = (user.activeRoles || [user.role]) as string[];
+    let query: any = {};
     const isClientOnly = roles.includes('client') && !roles.includes('admin') && !roles.includes('professional');
     if (isClientOnly) {
       query = { clienteId: user.clientProfileId };
     }
-    // admin e professional: query = {} → vê todos os prontuários
 
     let records: any[] = [];
     try {
@@ -30,19 +43,24 @@ export async function GET(request: Request) {
         .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
         .lean();
     } catch (popErr) {
-      console.warn('Populate failed in prontuarios, using raw find:', popErr);
+      console.warn('[prontuarios GET] Populate failed, using raw find:', popErr);
       records = await Prontuario.find(query).lean();
     }
 
+    console.log('[prontuarios GET] returning', records.length, 'records');
     return NextResponse.json(
       { success: true, data: records },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
     );
   } catch (error: any) {
-    console.error('Error in GET /api/prontuarios:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[prontuarios GET] Fatal error:', error.message);
+    return NextResponse.json(
+      { success: true, data: [], server_error: error.message },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 }
+
 
 export async function POST(request: Request) {
   try {

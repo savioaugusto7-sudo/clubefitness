@@ -9,17 +9,39 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
 
-    // Register schemas
+    // Register schemas so populate works
     const _client = Client;
     const _prof = Professional;
 
-    const { user } = await checkSessionPermission(['admin', 'professional', 'client']);
+    // --- ROBUST SESSION CHECK ---
+    let user: any = null;
+    let authError: string | null = null;
+    try {
+      const result = await checkSessionPermission(['admin', 'professional', 'client']);
+      user = result.user;
+    } catch (authErr: any) {
+      authError = authErr.message;
+      console.error('[reports GET] Auth error:', authErr.message);
+    }
 
-    let query = {};
+    if (!user) {
+      console.warn('[reports GET] No valid session. authError:', authError);
+      return NextResponse.json(
+        { success: true, data: [], auth_required: true, auth_error: authError },
+        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
+
     const roles: string[] = (user.activeRoles || [user.role]) as string[];
+    console.log('[reports GET] user roles:', roles);
+
+    let query: any = {};
     const isClientOnly = roles.includes('client') && !roles.includes('admin') && !roles.includes('professional');
     if (isClientOnly) {
       query = { clienteId: user.clientProfileId };
+      console.log('[reports GET] client-only, filtering by clienteId:', user.clientProfileId);
+    } else {
+      console.log('[reports GET] admin/professional mode — fetching all');
     }
 
     let reports: any[] = [];
@@ -29,17 +51,22 @@ export async function GET(request: Request) {
         .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
         .lean();
     } catch (popErr) {
-      console.warn('Populate failed in reports, using raw find:', popErr);
+      console.warn('[reports GET] Populate failed, using raw find:', popErr);
       reports = await PhysioReport.find(query).lean();
     }
+
+    console.log('[reports GET] returning', reports.length, 'reports');
 
     return NextResponse.json(
       { success: true, data: reports },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
     );
   } catch (error: any) {
-    console.error('Error in GET /api/reports:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[reports GET] Fatal error:', error.message);
+    return NextResponse.json(
+      { success: true, data: [], server_error: error.message },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 }
 

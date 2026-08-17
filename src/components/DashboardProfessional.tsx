@@ -1466,6 +1466,19 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
       }
 
+      // Helper: log full API response for debugging
+      const logApiResponse = (endpoint: string, json: any) => {
+        if (json.auth_required) {
+          console.error(`[fetchData] ${endpoint} → auth_required! auth_error:`, json.auth_error);
+        } else if (json.server_error) {
+          console.error(`[fetchData] ${endpoint} → server_error:`, json.server_error);
+        } else if (!json.success) {
+          console.error(`[fetchData] ${endpoint} → success:false, error:`, json.error);
+        } else {
+          console.log(`[fetchData] ${endpoint} → OK, count:`, Array.isArray(json.data) ? json.data.length : 'N/A');
+        }
+      };
+
       // 2. Fetch específico da aba ativa
       if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'clientes') {
         const resApts = await fetch('/api/appointments');
@@ -1477,6 +1490,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })),
           fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false }))
         ]);
+        logApiResponse('/api/assessments', resAs);
+        logApiResponse('/api/strength-tests', resSt);
         if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
         if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
       } else if (activeTab === 'treinos_prof') {
@@ -1491,28 +1506,37 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         const jsonFS = await resFS.json();
         if (jsonFS.success && Array.isArray(jsonFS.data)) setFixedSchedules(jsonFS.data);
       } else if (activeTab === 'avaliacoes') {
-        const resAs = await fetch('/api/assessments');
+        const resAs = await fetch('/api/assessments', { cache: 'no-store' });
         const jsonAs = await resAs.json();
+        logApiResponse('/api/assessments', jsonAs);
         if (jsonAs.success && Array.isArray(jsonAs.data)) {
           setAssessments(jsonAs.data);
+          console.log('[fetchData] setAssessments called with', jsonAs.data.length, 'items');
+        } else {
+          console.warn('[fetchData] assessments NOT set. jsonAs:', JSON.stringify(jsonAs).substring(0, 200));
         }
       } else if (activeTab === 'relatorios') {
         const [resRep, resAs] = await Promise.all([
-          fetch('/api/reports').then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false }))
+          fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
         ]);
+        logApiResponse('/api/reports', resRep);
+        logApiResponse('/api/assessments', resAs);
         if (resRep.success && Array.isArray(resRep.data)) setReports(resRep.data);
         if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
       } else if (activeTab === 'testes_forca') {
         const [resSt, resAs] = await Promise.all([
-          fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false }))
+          fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
         ]);
+        logApiResponse('/api/strength-tests', resSt);
+        logApiResponse('/api/assessments', resAs);
         if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
         if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
       } else if (activeTab === 'prontuarios') {
-        const resPr = await fetch('/api/prontuarios');
+        const resPr = await fetch('/api/prontuarios', { cache: 'no-store' });
         const jsonPr = await resPr.json();
+        logApiResponse('/api/prontuarios', jsonPr);
         if (jsonPr.success && Array.isArray(jsonPr.data)) setProntuarios(jsonPr.data);
       }
     } catch (e) {
