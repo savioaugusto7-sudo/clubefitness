@@ -23,8 +23,9 @@ export async function GET(request: Request) {
     }
 
     const assessments = await PhysicalAssessment.find(query)
-      .populate('clienteId')
-      .populate('avaliadorId');
+      .populate('clienteId', 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status')
+      .populate('avaliadorId', 'nome email')
+      .lean();
 
     return NextResponse.json({ success: true, data: assessments });
   } catch (error: any) {

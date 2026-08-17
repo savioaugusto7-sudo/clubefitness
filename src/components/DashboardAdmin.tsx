@@ -947,56 +947,52 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   const fetchData = async (silent = false) => {
     try {
-      if (!silent) setLoading(true);
-      const [resClients, resProfs, resApts, resUsers, resPlans, resFin, resMed, resFs, resSt, resExs, resTranc, resContracts, resAc, resLogs] = await Promise.all([
-        fetch('/api/clients'),
-        fetch('/api/professionals'),
-        fetch('/api/appointments'),
-        fetch('/api/users'),
-        fetch('/api/plans'),
-        fetch('/api/financial'),
-        fetch('/api/medications'),
-        fetch('/api/fixed-schedules'),
-        fetch('/api/strength-tests'),
-        fetch('/api/exercises?status=pending'),
-        fetch('/api/trancamentos'),
-        fetch('/api/contracts'),
-        fetch('/api/admin/agenda-config'),
-        fetch('/api/admin/activity-logs')
-      ]);
-      const jsonClients = await resClients.json();
-      const jsonProfs = await resProfs.json();
-      const jsonApts = await resApts.json();
-      const jsonUsers = await resUsers.json();
-      const jsonPlans = await resPlans.json();
-      const jsonFin = await resFin.json();
-      const jsonMed = await resMed.json();
-      const jsonFs = await resFs.json();
-      const jsonSt = await resSt.json();
-      const jsonExs = await resExs.json();
-      const jsonTranc = await resTranc.json();
-      const jsonContracts = await resContracts.json();
-      const jsonAc = await resAc.json();
-      const jsonLogs = await resLogs.json();
+      if (!silent && clients.length === 0) setLoading(true);
 
-      if (jsonClients.success) setClients(jsonClients.data);
-      if (jsonProfs.success) setProfessionals(jsonProfs.data);
-      if (jsonApts.success) setAppointments(jsonApts.data);
-      if (jsonUsers.success) setUsers(jsonUsers.data);
-      if (jsonPlans.success) setPlans(jsonPlans.data);
-      if (jsonFin.success) setFinancials(jsonFin.data);
-      if (jsonMed.success) setMedications(jsonMed.data);
-      if (jsonFs.success) setFixedSchedules(jsonFs.data);
-      if (jsonSt.success) setStrengthTests(jsonSt.data);
-      if (jsonExs.success) setExerciseRequests(jsonExs.data);
-      if (jsonTranc.success) setTrancamentosAdminList(jsonTranc.data);
-      if (jsonContracts.success) setContractsAdminList(jsonContracts.data);
-      if (jsonAc.success) setAgendaConfigs(jsonAc.data);
-      if (jsonLogs.success) setActivityLogs(jsonLogs.data);
+      const endpoints = [
+        fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/professionals').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/appointments').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/users').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/plans').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/financial').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/medications').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/fixed-schedules').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/exercises?status=pending').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/trancamentos').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/contracts').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/admin/agenda-config').then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/admin/activity-logs').then(r => r.json()).catch(() => ({ success: false }))
+      ];
+
+      const [
+        jsonClients, jsonProfs, jsonApts, jsonUsers, jsonPlans,
+        jsonFin, jsonMed, jsonFs, jsonSt, jsonExs,
+        jsonTranc, jsonContracts, jsonAc, jsonLogs
+      ] = await Promise.race([
+        Promise.all(endpoints),
+        new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 8000))
+      ]);
+
+      if (jsonClients?.success) setClients(jsonClients.data);
+      if (jsonProfs?.success) setProfessionals(jsonProfs.data);
+      if (jsonApts?.success) setAppointments(jsonApts.data);
+      if (jsonUsers?.success) setUsers(jsonUsers.data);
+      if (jsonPlans?.success) setPlans(jsonPlans.data);
+      if (jsonFin?.success) setFinancials(jsonFin.data);
+      if (jsonMed?.success) setMedications(jsonMed.data);
+      if (jsonFs?.success) setFixedSchedules(jsonFs.data);
+      if (jsonSt?.success) setStrengthTests(jsonSt.data);
+      if (jsonExs?.success) setExerciseRequests(jsonExs.data);
+      if (jsonTranc?.success) setTrancamentosAdminList(jsonTranc.data);
+      if (jsonContracts?.success) setContractsAdminList(jsonContracts.data);
+      if (jsonAc?.success) setAgendaConfigs(jsonAc.data);
+      if (jsonLogs?.success) setActivityLogs(jsonLogs.data);
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   };
   const handleCreateAgendaConfig = async (e: React.FormEvent) => {

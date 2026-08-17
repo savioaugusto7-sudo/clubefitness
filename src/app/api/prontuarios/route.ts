@@ -24,8 +24,9 @@ export async function GET(request: Request) {
     // admin e professional: query = {} → vê todos os prontuários
 
     const records = await Prontuario.find(query)
-      .populate('clienteId')
-      .populate('profissionalId');
+      .populate('clienteId', 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status')
+      .populate('profissionalId', 'nome email')
+      .lean();
 
     return NextResponse.json({ success: true, data: records });
   } catch (error: any) {

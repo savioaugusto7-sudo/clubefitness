@@ -23,8 +23,9 @@ export async function GET(request: Request) {
     }
 
     const tests = await StrengthTest.find(query)
-      .populate('clienteId')
-      .populate('profissionalId');
+      .populate('clienteId', 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status')
+      .populate('profissionalId', 'nome email')
+      .lean();
 
     return NextResponse.json({ success: true, data: tests });
   } catch (error: any) {

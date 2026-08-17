@@ -1419,92 +1419,108 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
 
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      const hasBaseData = clients.length > 0 && professionals.length > 0;
       
-      // Always fetch clients first
-      const resClients = await fetch('/api/clients');
-      const jsonClients = await resClients.json();
-      if (jsonClients.success) {
-        setClients(jsonClients.data);
-        if (jsonClients.data.length > 0) {
-          // Initialize defaults
-          setSelectedClient(jsonClients.data[0]._id);
-          setFsClient(jsonClients.data[0]._id);
-          setAsClient(jsonClients.data[0]._id);
-          setRepClient(jsonClients.data[0]._id);
-          setStClient(jsonClients.data[0]._id);
-          setPrClient(jsonClients.data[0]._id);
-        }
+      // Checar se a aba atual já possui dados carregados para evitar spinner bloqueante
+      let tabHasData = false;
+      if (activeTab === 'avaliacoes' && assessments.length > 0) tabHasData = true;
+      if (activeTab === 'relatorios' && reports.length > 0) tabHasData = true;
+      if (activeTab === 'testes_forca' && strengthTests.length > 0) tabHasData = true;
+      if (activeTab === 'prontuarios' && prontuarios.length > 0) tabHasData = true;
+      if (activeTab === 'treinos_prof' && workouts.length > 0) tabHasData = true;
+      if (activeTab === 'agenda_fixa' && fixedSchedules.length > 0) tabHasData = true;
+      if ((activeTab === 'dashboard' || activeTab === 'resumo_dia') && appointments.length > 0) tabHasData = true;
+
+      const shouldShowLoading = !silent && (!hasBaseData || !tabHasData);
+      if (shouldShowLoading) {
+        setLoading(true);
       }
 
-      // Fetch professionals list
-      const resProfs = await fetch('/api/professionals');
-      const jsonProfs = await resProfs.json();
-      if (jsonProfs.success) {
-        setProfessionals(jsonProfs.data);
-        if (jsonProfs.data.length > 0 && !professionalId) {
-          setAsAvaliador(prev => prev || jsonProfs.data[0]._id);
-          setRepAvaliador(prev => prev || jsonProfs.data[0]._id);
-          setStAvaliador(prev => prev || jsonProfs.data[0]._id);
-        }
+      // Montar requisições em paralelo
+      const promises: Promise<any>[] = [];
+      const keys: string[] = [];
+
+      // Base: Clients & Professionals
+      if (!hasBaseData || !silent) {
+        promises.push(fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('clients');
+        promises.push(fetch('/api/professionals').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('professionals');
       }
 
+      // Específicos por Aba (em paralelo total com a base)
       if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'clientes') {
-        const resApts = await fetch('/api/appointments');
-        const jsonApts = await resApts.json();
-        if (jsonApts.success) setAppointments(jsonApts.data);
+        promises.push(fetch('/api/appointments').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('appointments');
       }
       if (activeTab === 'clientes') {
-        const [resAs, resSt] = await Promise.all([
-          fetch('/api/assessments'),
-          fetch('/api/strength-tests')
-        ]);
-        const jsonAs = await resAs.json();
-        const jsonSt = await resSt.json();
-        if (jsonAs.success) setAssessments(jsonAs.data);
-        if (jsonSt.success) setStrengthTests(jsonSt.data);
+        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('assessments');
+        promises.push(fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('strengthTests');
       } else if (activeTab === 'treinos_prof') {
-        const [resWorkouts, resExs] = await Promise.all([
-          fetch('/api/workouts'),
-          fetch('/api/exercises')
-        ]);
-        const jsonWorkouts = await resWorkouts.json();
-        const jsonExs = await resExs.json();
-        if (jsonWorkouts.success) setWorkouts(jsonWorkouts.data);
-        if (jsonExs.success) setExercises(jsonExs.data);
+        promises.push(fetch('/api/workouts').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('workouts');
+        promises.push(fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('exercises');
       } else if (activeTab === 'agenda_fixa') {
-        const resFS = await fetch('/api/fixed-schedules');
-        const jsonFS = await resFS.json();
-        if (jsonFS.success) setFixedSchedules(jsonFS.data);
+        promises.push(fetch('/api/fixed-schedules').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('fixedSchedules');
       } else if (activeTab === 'avaliacoes') {
-        const resAs = await fetch('/api/assessments');
-        const jsonAs = await resAs.json();
-        if (jsonAs.success) setAssessments(jsonAs.data);
+        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('assessments');
       } else if (activeTab === 'relatorios') {
-        const [resRep, resAs] = await Promise.all([
-          fetch('/api/reports'),
-          fetch('/api/assessments')
-        ]);
-        const jsonRep = await resRep.json();
-        const jsonAs = await resAs.json();
-        if (jsonRep.success) setReports(jsonRep.data);
-        if (jsonAs.success) setAssessments(jsonAs.data);
+        promises.push(fetch('/api/reports').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('reports');
+        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('assessments');
       } else if (activeTab === 'testes_forca') {
-        const [resSt, resAs] = await Promise.all([
-          fetch('/api/strength-tests'),
-          fetch('/api/assessments')
-        ]);
-        const jsonSt = await resSt.json();
-        const jsonAs = await resAs.json();
-        if (jsonSt.success) setStrengthTests(jsonSt.data);
-        if (jsonAs.success) setAssessments(jsonAs.data);
+        promises.push(fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('strengthTests');
+        promises.push(fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('assessments');
       } else if (activeTab === 'prontuarios') {
-        const resPr = await fetch('/api/prontuarios');
-        const jsonPr = await resPr.json();
-        if (jsonPr.success) setProntuarios(jsonPr.data);
+        promises.push(fetch('/api/prontuarios').then(r => r.json()).catch(() => ({ success: false })));
+        keys.push('prontuarios');
       }
+
+      // Timeout de segurança de 8 segundos
+      const results = await Promise.race([
+        Promise.all(promises),
+        new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 8000))
+      ]);
+
+      results.forEach((json, idx) => {
+        if (!json || !json.success) return;
+        const key = keys[idx];
+        if (key === 'clients') {
+          setClients(json.data);
+          if (json.data.length > 0 && !selectedClient) {
+            setSelectedClient(json.data[0]._id);
+            setFsClient(json.data[0]._id);
+            setAsClient(json.data[0]._id);
+            setRepClient(json.data[0]._id);
+            setStClient(json.data[0]._id);
+            setPrClient(json.data[0]._id);
+          }
+        } else if (key === 'professionals') {
+          setProfessionals(json.data);
+          if (json.data.length > 0 && !professionalId) {
+            setAsAvaliador(prev => prev || json.data[0]._id);
+            setRepAvaliador(prev => prev || json.data[0]._id);
+            setStAvaliador(prev => prev || json.data[0]._id);
+          }
+        } else if (key === 'appointments') setAppointments(json.data);
+        else if (key === 'assessments') setAssessments(json.data);
+        else if (key === 'strengthTests') setStrengthTests(json.data);
+        else if (key === 'workouts') setWorkouts(json.data);
+        else if (key === 'exercises') setExercises(json.data);
+        else if (key === 'fixedSchedules') setFixedSchedules(json.data);
+        else if (key === 'reports') setReports(json.data);
+        else if (key === 'prontuarios') setProntuarios(json.data);
+      });
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
     } finally {
