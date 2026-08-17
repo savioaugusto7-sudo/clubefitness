@@ -254,6 +254,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [prontuarios, setProntuarios] = useState<any[]>([]);
   const [exercises, setExercises] = useState<any[]>([]);
   const [workouts, setWorkouts] = useState<any[]>([]);
+  // Retry / loading states for clinical tabs (cold-start protection)
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [clinicalLoadedOnce, setClinicalLoadedOnce] = useState(false);
 
   // Form modals state
   const [showAptModal, setShowAptModal] = useState(false);
@@ -1506,38 +1509,88 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         const jsonFS = await resFS.json();
         if (jsonFS.success && Array.isArray(jsonFS.data)) setFixedSchedules(jsonFS.data);
       } else if (activeTab === 'avaliacoes') {
-        const resAs = await fetch('/api/assessments', { cache: 'no-store' });
-        const jsonAs = await resAs.json();
-        logApiResponse('/api/assessments', jsonAs);
-        if (jsonAs.success && Array.isArray(jsonAs.data)) {
-          setAssessments(jsonAs.data);
-          console.log('[fetchData] setAssessments called with', jsonAs.data.length, 'items');
-        } else {
-          console.warn('[fetchData] assessments NOT set. jsonAs:', JSON.stringify(jsonAs).substring(0, 200));
+        // Retry loop: up to 3 attempts with 4s delay (handles Vercel cold start)
+        setIsRetrying(true);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const resAs = await fetch('/api/assessments', { cache: 'no-store' });
+            const jsonAs = await resAs.json();
+            logApiResponse('/api/assessments (attempt ' + (attempt + 1) + ')', jsonAs);
+            if (jsonAs.success && Array.isArray(jsonAs.data) && jsonAs.data.length > 0) {
+              setAssessments(jsonAs.data);
+              setClinicalLoadedOnce(true);
+              break;
+            } else if (jsonAs.success && Array.isArray(jsonAs.data)) {
+              // Got empty but no error — may be legitimate empty OR cold start
+              setAssessments([]);
+              setClinicalLoadedOnce(true);
+            }
+          } catch (retryErr) {
+            console.warn('[fetchData] assessment attempt', attempt + 1, 'failed:', retryErr);
+          }
+          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
         }
+        setIsRetrying(false);
       } else if (activeTab === 'relatorios') {
-        const [resRep, resAs] = await Promise.all([
-          fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
-        ]);
-        logApiResponse('/api/reports', resRep);
-        logApiResponse('/api/assessments', resAs);
-        if (resRep.success && Array.isArray(resRep.data)) setReports(resRep.data);
-        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+        setIsRetrying(true);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const [resRep, resAs] = await Promise.all([
+              fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] })),
+              fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] }))
+            ]);
+            logApiResponse('/api/reports (attempt ' + (attempt + 1) + ')', resRep);
+            if (resRep.success && Array.isArray(resRep.data)) { setReports(resRep.data); }
+            if (resAs.success && Array.isArray(resAs.data)) { setAssessments(resAs.data); }
+            if (resRep.success && Array.isArray(resRep.data)) {
+              setClinicalLoadedOnce(true);
+              break;
+            }
+          } catch (retryErr) {
+            console.warn('[fetchData] reports attempt', attempt + 1, 'failed:', retryErr);
+          }
+          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
+        }
+        setIsRetrying(false);
       } else if (activeTab === 'testes_forca') {
-        const [resSt, resAs] = await Promise.all([
-          fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
-        ]);
-        logApiResponse('/api/strength-tests', resSt);
-        logApiResponse('/api/assessments', resAs);
-        if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
-        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+        setIsRetrying(true);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const [resSt, resAs] = await Promise.all([
+              fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] })),
+              fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false, data: [] }))
+            ]);
+            logApiResponse('/api/strength-tests (attempt ' + (attempt + 1) + ')', resSt);
+            if (resSt.success && Array.isArray(resSt.data)) { setStrengthTests(resSt.data); }
+            if (resAs.success && Array.isArray(resAs.data)) { setAssessments(resAs.data); }
+            if (resSt.success && Array.isArray(resSt.data)) {
+              setClinicalLoadedOnce(true);
+              break;
+            }
+          } catch (retryErr) {
+            console.warn('[fetchData] strength-tests attempt', attempt + 1, 'failed:', retryErr);
+          }
+          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
+        }
+        setIsRetrying(false);
       } else if (activeTab === 'prontuarios') {
-        const resPr = await fetch('/api/prontuarios', { cache: 'no-store' });
-        const jsonPr = await resPr.json();
-        logApiResponse('/api/prontuarios', jsonPr);
-        if (jsonPr.success && Array.isArray(jsonPr.data)) setProntuarios(jsonPr.data);
+        setIsRetrying(true);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const resPr = await fetch('/api/prontuarios', { cache: 'no-store' });
+            const jsonPr = await resPr.json();
+            logApiResponse('/api/prontuarios (attempt ' + (attempt + 1) + ')', jsonPr);
+            if (jsonPr.success && Array.isArray(jsonPr.data)) {
+              setProntuarios(jsonPr.data);
+              setClinicalLoadedOnce(true);
+              break;
+            }
+          } catch (retryErr) {
+            console.warn('[fetchData] prontuarios attempt', attempt + 1, 'failed:', retryErr);
+          }
+          if (attempt < 2) await new Promise(r => setTimeout(r, 4000));
+        }
+        setIsRetrying(false);
       }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
@@ -1547,10 +1600,31 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   useEffect(() => {
+    // Reset clinical loaded flag when switching to a clinical tab
+    const clinicalTabs = ['avaliacoes', 'relatorios', 'testes_forca', 'prontuarios'];
+    if (clinicalTabs.includes(activeTab)) {
+      setClinicalLoadedOnce(false);
+    }
     fetchData();
     setSelectedClientForWorkout(null);
     setEditingWorkoutData(null);
   }, [activeTab]);
+
+  // Keep-alive: warm up serverless functions in background when dashboard loads
+  useEffect(() => {
+    const warmUp = () => {
+      const endpoints = ['/api/assessments', '/api/reports', '/api/strength-tests', '/api/prontuarios'];
+      endpoints.forEach(ep => {
+        fetch(ep, { cache: 'no-store' })
+          .then(r => r.json())
+          .then(json => console.log('[keep-alive]', ep, 'warmed up, count:', Array.isArray(json.data) ? json.data.length : 0))
+          .catch(err => console.warn('[keep-alive]', ep, 'failed:', err.message));
+      });
+    };
+    // Warm up after 2s so it doesn't block the initial dashboard render
+    const timer = setTimeout(warmUp, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Carregar dados e histórico do aluno automaticamente ao selecioná-lo
   useEffect(() => {
@@ -5158,14 +5232,22 @@ goniometria: {
                         {studentRows.length === 0 && (
                           <tr>
                             <td colSpan={isAdmin ? 7 : 6}>
-                              <div className="empty-state-card">
-                                <i className="fa-solid fa-weight-scale empty-state-icon"></i>
-                                <div className="empty-state-title">Nenhuma avaliação física</div>
-                                <div className="empty-state-desc">Não há registros de avaliações físicas.</div>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
-                                  <i className="fa-solid fa-plus"></i> Nova Avaliação
-                                </button>
-                              </div>
+                              {isRetrying ? (
+                                <div className="empty-state-card">
+                                  <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
+                                  <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
+                                  <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                                </div>
+                              ) : (
+                                <div className="empty-state-card">
+                                  <i className="fa-solid fa-weight-scale empty-state-icon"></i>
+                                  <div className="empty-state-title">Nenhuma avaliação física</div>
+                                  <div className="empty-state-desc">Não há registros de avaliações físicas.</div>
+                                  <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
+                                    <i className="fa-solid fa-plus"></i> Nova Avaliação
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         )}
@@ -5334,14 +5416,22 @@ goniometria: {
                   {reports.length === 0 && (
                     <tr>
                       <td colSpan={isAdmin ? 6 : 5}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-file-medical empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum relatório clínico</div>
-                          <div className="empty-state-desc">Não há laudos ou relatórios de evolução fisioterápica.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); }}>
-                            <i className="fa-solid fa-plus"></i> Novo Relatório
-                          </button>
-                        </div>
+                        {isRetrying ? (
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
+                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
+                            <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                          </div>
+                        ) : (
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-file-medical empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum relatório clínico</div>
+                            <div className="empty-state-desc">Não há laudos ou relatórios de evolução fisioterápica.</div>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); }}>
+                              <i className="fa-solid fa-plus"></i> Novo Relatório
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
@@ -5652,14 +5742,22 @@ goniometria: {
                   {strengthTests.length === 0 && (
                     <tr>
                       <td colSpan={isAdmin ? 6 : 5}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-dumbbell empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum teste de força</div>
-                          <div className="empty-state-desc">Não há avaliações de força muscular registradas.</div>
-                          <button className="btn btn-primary btn-sm" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
-                            <i className="fa-solid fa-plus"></i> Novo Teste
-                          </button>
-                        </div>
+                        {isRetrying ? (
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
+                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
+                            <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                          </div>
+                        ) : (
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum teste de força</div>
+                            <div className="empty-state-desc">Não há avaliações de força muscular registradas.</div>
+                            <button className="btn btn-primary btn-sm" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
+                              <i className="fa-solid fa-plus"></i> Novo Teste
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
@@ -5781,14 +5879,22 @@ goniometria: {
                   {prontuarios.length === 0 && (
                     <tr>
                       <td colSpan={5}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-clipboard-question empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum prontuário</div>
-                          <div className="empty-state-desc">Não há anotações ou evoluções de prontuário registradas.</div>
-                          <button className="btn btn-primary btn-sm" onClick={() => { setPrDate(new Date().toISOString().split('T')[0]); setShowProntuarioModal(true); }}>
-                            <i className="fa-solid fa-plus"></i> Nova Anotação
-                          </button>
-                        </div>
+                        {isRetrying ? (
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
+                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
+                            <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                          </div>
+                        ) : (
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-clipboard-question empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum prontuário</div>
+                            <div className="empty-state-desc">Não há anotações ou evoluções de prontuário registradas.</div>
+                            <button className="btn btn-primary btn-sm" onClick={() => { setPrDate(new Date().toISOString().split('T')[0]); setShowProntuarioModal(true); }}>
+                              <i className="fa-solid fa-plus"></i> Nova Anotação
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
