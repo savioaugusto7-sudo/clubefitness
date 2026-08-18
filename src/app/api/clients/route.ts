@@ -7,6 +7,8 @@ import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { hashPassword } from '@/utils/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const maxDuration = 30;
 
 export async function GET(request: Request) {
@@ -25,31 +27,33 @@ export async function GET(request: Request) {
 
     let query: any = { 'dadosComerciais.status': { $ne: 'excluido_anonimizado' } };
 
-    // Professionals can only list their own linked clients (except for collective account)
-    // Commented out as any professional can perform actions with any student (evaluations, tests, presences, lack)
-    // if (user.role === 'professional' && user.email !== 'coletivo@clube.com') {
-    //   query.profissionalId = user.professionalProfileId;
-    // }
-
     // Clients can only fetch their own profile
     if (user.role === 'client') {
       query._id = user.clientProfileId;
     }
 
     if (id) {
-      query._id = id; // Allow fetching details by ID for historical checks
+      query._id = id;
     } else if (userId) {
       query.userId = userId;
     }
 
-    const clients = await Client.find(query)
-      .populate('userId')
-      .populate('dadosComerciais.planoId')
-      .populate('profissionalId')
-      .lean();
+    let clients: any[] = [];
+    try {
+      clients = await Client.find(query)
+        .populate({ path: 'userId', select: 'email role activeRoles' })
+        .populate({ path: 'dadosComerciais.planoId', select: 'nome valor status' })
+        .populate({ path: 'profissionalId', select: 'nome email' })
+        .lean()
+        .maxTimeMS(8000);
+    } catch (popErr: any) {
+      console.warn('[clients GET] Populate timed out, falling back to raw find:', popErr.message);
+      clients = await Client.find(query).lean().maxTimeMS(5000);
+    }
 
     return NextResponse.json({ success: true, data: clients });
   } catch (error: any) {
+    console.error('[clients GET] Error:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -222,6 +226,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-
-
-

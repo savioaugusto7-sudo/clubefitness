@@ -1422,23 +1422,30 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
 
 
+  const safeFetchJson = async (url: string) => {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) {
+        console.warn(`[DashProf] Fetch ${url} returned status ${res.status}`);
+        return { success: false, error: `HTTP ${res.status}` };
+      }
+      return await res.json();
+    } catch (e: any) {
+      console.error(`[DashProf] Network error on ${url}:`, e.message);
+      return { success: false, error: e.message };
+    }
+  };
+
   const refreshAssessments = async () => {
     console.log('[DashProf] refreshAssessments called');
     setLoading(true);
     try {
       const t0 = Date.now();
-      const res = await fetch('/api/assessments?t=' + Date.now(), { cache: 'no-store' });
-      console.log('[DashProf] refreshAssessments response status:', res.status, 'in', Date.now() - t0, 'ms');
-      const json = await res.json();
-      console.log('[DashProf] refreshAssessments json:', { success: json?.success, count: json?.data?.length, server_error: json?.server_error });
+      const json = await safeFetchJson('/api/assessments?t=' + Date.now());
+      console.log('[DashProf] refreshAssessments in', Date.now() - t0, 'ms:', { success: json?.success, count: json?.data?.length });
       if (json?.success && Array.isArray(json.data)) {
         setAssessments(json.data);
-        console.log('[DashProf] setAssessments called with', json.data.length, 'items');
-      } else {
-        console.warn('[DashProf] refreshAssessments: unexpected response', json);
       }
-    } catch (e) {
-      console.error('[DashProf] Error refreshing assessments:', e);
     } finally {
       setLoading(false);
     }
@@ -1447,13 +1454,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const refreshReports = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/reports', { cache: 'no-store' });
-      const json = await res.json();
+      const json = await safeFetchJson('/api/reports?t=' + Date.now());
       if (json?.success && Array.isArray(json.data)) {
         setReports(json.data);
       }
-    } catch (e) {
-      console.error('Error refreshing reports:', e);
     } finally {
       setLoading(false);
     }
@@ -1462,13 +1466,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const refreshStrengthTests = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/strength-tests', { cache: 'no-store' });
-      const json = await res.json();
+      const json = await safeFetchJson('/api/strength-tests?t=' + Date.now());
       if (json?.success && Array.isArray(json.data)) {
         setStrengthTests(json.data);
       }
-    } catch (e) {
-      console.error('Error refreshing strength tests:', e);
     } finally {
       setLoading(false);
     }
@@ -1477,13 +1478,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const refreshProntuarios = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/prontuarios', { cache: 'no-store' });
-      const json = await res.json();
+      const json = await safeFetchJson('/api/prontuarios?t=' + Date.now());
       if (json?.success && Array.isArray(json.data)) {
         setProntuarios(json.data);
       }
-    } catch (e) {
-      console.error('Error refreshing prontuarios:', e);
     } finally {
       setLoading(false);
     }
@@ -1492,7 +1490,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const fetchData = async (silent = false) => {
     console.log('[DashProf] fetchData called, silent=' + silent + ', activeTab=' + activeTab);
     try {
-      // ALWAYS show loading on first load to prevent empty state flash
       setLoading(true);
 
       const promises: Promise<any>[] = [];
@@ -1500,8 +1497,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       // Base loads
       if (clients.length === 0) {
         promises.push(
-          fetch('/api/clients', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/clients')
             .then(res => {
               if (res?.success && Array.isArray(res.data)) {
                 setClients(res.data);
@@ -1515,14 +1511,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 }
               }
             })
-            .catch(() => {})
         );
       }
 
       if (professionals.length === 0) {
         promises.push(
-          fetch('/api/professionals', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/professionals')
             .then(res => {
               if (res?.success && Array.isArray(res.data)) {
                 setProfessionals(res.data);
@@ -1533,103 +1527,66 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
                 }
               }
             })
-            .catch(() => {})
         );
       }
 
       // Active tab specific load
       if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia') {
         promises.push(
-          fetch('/api/appointments', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/appointments')
             .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
-            .catch(() => {})
         );
       } else if (activeTab === 'avaliacoes') {
-        console.log('[DashProf] Fetching /api/assessments...');
         promises.push(
-          fetch('/api/assessments?t=' + Date.now(), { cache: 'no-store' })
-            .then(r => { console.log('[DashProf] /api/assessments status:', r.status); return r.json(); })
+          safeFetchJson('/api/assessments?t=' + Date.now())
             .then(res => {
-              console.log('[DashProf] /api/assessments result:', { success: res?.success, count: res?.data?.length, server_error: res?.server_error });
               if (res?.success && Array.isArray(res.data)) {
                 setAssessments(res.data);
-                console.log('[DashProf] setAssessments done with', res.data.length, 'items');
+                console.log('[DashProf] assessments loaded:', res.data.length);
               }
             })
-            .catch(err => { console.error('[DashProf] /api/assessments FETCH ERROR:', err); })
         );
       } else if (activeTab === 'relatorios') {
         promises.push(
-          fetch('/api/reports', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/reports?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setReports(res.data); })
-            .catch(() => {})
-        );
-        promises.push(
-          fetch('/api/assessments', { cache: 'no-store' })
-            .then(r => r.json())
-            .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
-            .catch(() => {})
         );
       } else if (activeTab === 'testes_forca') {
         promises.push(
-          fetch('/api/strength-tests', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/strength-tests?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setStrengthTests(res.data); })
-            .catch(() => {})
-        );
-        promises.push(
-          fetch('/api/assessments', { cache: 'no-store' })
-            .then(r => r.json())
-            .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
-            .catch(() => {})
         );
       } else if (activeTab === 'prontuarios') {
         promises.push(
-          fetch('/api/prontuarios', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/prontuarios?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setProntuarios(res.data); })
-            .catch(() => {})
         );
       } else if (activeTab === 'treinos_prof') {
         promises.push(
-          fetch('/api/workouts', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/workouts')
             .then(res => { if (res?.success && Array.isArray(res.data)) setWorkouts(res.data); })
-            .catch(() => {})
         );
         promises.push(
-          fetch('/api/exercises', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/exercises')
             .then(res => { if (res?.success && Array.isArray(res.data)) setExercises(res.data); })
-            .catch(() => {})
         );
       } else if (activeTab === 'agenda_fixa') {
         promises.push(
-          fetch('/api/fixed-schedules', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/fixed-schedules')
             .then(res => { if (res?.success && Array.isArray(res.data)) setFixedSchedules(res.data); })
-            .catch(() => {})
         );
       } else if (activeTab === 'clientes') {
         promises.push(
-          fetch('/api/appointments', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/appointments')
             .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
-            .catch(() => {})
         );
         promises.push(
-          fetch('/api/assessments', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/assessments?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
-            .catch(() => {})
         );
         promises.push(
-          fetch('/api/strength-tests', { cache: 'no-store' })
-            .then(r => r.json())
+          safeFetchJson('/api/strength-tests?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setStrengthTests(res.data); })
-            .catch(() => {})
         );
       }
 

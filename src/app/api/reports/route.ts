@@ -13,11 +13,6 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
 
-    // Register schemas so populate works
-    const _client = Client;
-    const _prof = Professional;
-
-    // --- PARAMETERS & QUERY ---
     const { searchParams } = new URL(request.url);
     const paramClientId = searchParams.get('clientId');
 
@@ -26,26 +21,18 @@ export async function GET(request: Request) {
       query = { clienteId: paramClientId };
     }
 
-    let reports: any[] = [];
-    try {
-      reports = await PhysioReport.find(query)
-        .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
-        .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
-        .sort({ data: -1 })
-        .lean();
-    } catch (popErr) {
-      console.warn('[reports GET] Populate failed, using raw find:', popErr);
-      reports = await PhysioReport.find(query).sort({ data: -1 }).lean();
-    }
-
-    console.log('[reports GET] returning', reports.length, 'reports');
+    // Fast query without populate - frontend matches client names by ID
+    const reports = await PhysioReport.find(query)
+      .sort({ data: -1 })
+      .lean()
+      .maxTimeMS(8000);
 
     return NextResponse.json(
       { success: true, data: reports },
-      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   } catch (error: any) {
-    console.error('[reports GET] Fatal error:', error.message);
+    console.error('[reports GET] Error:', error.message);
     return NextResponse.json(
       { success: true, data: [], server_error: error.message },
       { headers: { 'Cache-Control': 'no-store' } }
@@ -81,7 +68,6 @@ export async function POST(request: Request) {
       tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
 
-    // Populate so the PDF generator has access to client and professional names
     const populatedReport = await PhysioReport.findById(report._id)
       .populate('clienteId')
       .populate('profissionalId');

@@ -13,9 +13,6 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
 
-    const _client = Client;
-    const _prof = Professional;
-
     // --- PARAMETERS & QUERY ---
     const { searchParams } = new URL(request.url);
     const paramClientId = searchParams.get('clientId');
@@ -25,25 +22,17 @@ export async function GET(request: Request) {
       query = { clienteId: paramClientId };
     }
 
-    let tests: any[] = [];
-    try {
-      tests = await StrengthTest.find(query)
-        .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
-        .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
-        .sort({ data: -1 })
-        .lean();
-    } catch (popErr) {
-      console.warn('[strength-tests GET] Populate failed, using raw find:', popErr);
-      tests = await StrengthTest.find(query).sort({ data: -1 }).lean();
-    }
+    const tests = await StrengthTest.find(query)
+      .sort({ data: -1 })
+      .lean()
+      .maxTimeMS(8000);
 
-    console.log('[strength-tests GET] returning', tests.length, 'tests');
     return NextResponse.json(
       { success: true, data: tests },
-      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   } catch (error: any) {
-    console.error('[strength-tests GET] Fatal error:', error.message);
+    console.error('[strength-tests GET] Error:', error.message);
     return NextResponse.json(
       { success: true, data: [], server_error: error.message },
       { headers: { 'Cache-Control': 'no-store' } }
