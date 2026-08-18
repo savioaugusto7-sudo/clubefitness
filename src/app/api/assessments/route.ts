@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 
     // Light select projection for instant dashboard table rendering (<150ms)
     const assessments = await PhysicalAssessment.find(query)
-      .select('clienteId avaliadorId data dadosMedidos.peso dadosMedidos.altura dadosMedidos.sexo dadosMedidos.idade resultadosCalculados.percentualGordura resultadosCalculados.massaMagra resultadosCalculados.massaGorda createdAt')
+      .select('clienteId avaliadorId data dadosMedidos.peso dadosMedidos.altura dadosMedidos.sexo dadosMedidos.idade resultadosCalculados.percentualGordura resultadosCalculados.massaMagra resultadosCalculados.massaGorda resultadosCalculados.imc resultadosCalculados.rcq createdAt')
       .sort({ data: -1 })
       .lean()
       .maxTimeMS(4000);

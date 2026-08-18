@@ -2011,7 +2011,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <!-- Massa Total -->
           <div style="border-right: 1px solid #f1f5f9; padding-right: 10px;">
             <span style="font-size: 8px; color: #64748b; font-weight: 600; text-transform: uppercase;">Massa Total</span>
-            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${assessment.dadosMedidos.peso.toFixed(1)} <span style="font-size:10px; font-weight:500;">kg</span></div>
+            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${(Number(assessment.dadosMedidos?.peso) || 0).toFixed(1)} <span style="font-size:10px; font-weight:500;">kg</span></div>
             <div class="bar-progress-container">
               <div class="bar-progress-fill" style="width: 75%; background: #10b981;"></div>
             </div>
@@ -2035,7 +2035,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <!-- Massa Magra -->
           <div style="border-right: 1px solid #f1f5f9; padding-right: 10px; padding-left: 5px;">
             <span style="font-size: 8px; color: #64748b; font-weight: 600; text-transform: uppercase;">Massa Magra</span>
-            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${assessment.resultadosCalculados.massaMagra.toFixed(1)} <span style="font-size:10px; font-weight:500;">kg</span></div>
+            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${(Number(assessment.resultadosCalculados?.massaMagra) || 0).toFixed(1)} <span style="font-size:10px; font-weight:500;">kg</span></div>
             <div class="bar-progress-container">
               <div class="bar-progress-fill" style="width: 80%; background: #10b981;"></div>
             </div>
@@ -2045,7 +2045,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <!-- IMC -->
           <div style="padding-left: 5px;">
             <span style="font-size: 8px; color: #64748b; font-weight: 600; text-transform: uppercase;">IMC</span>
-            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${assessment.resultadosCalculados.imc.toFixed(1)}</div>
+            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${(Number(assessment.resultadosCalculados?.imc) || 0).toFixed(1)}</div>
             <!-- Régua colorida do IMC -->
             <div style="display:flex; height: 5px; border-radius: 2.5px; overflow:hidden; margin-top: 5px; background: #e2e8f0; width: 100%;">
               <div style="flex:18.5; background:#3b82f6;"></div> <!-- Baixo -->
@@ -2066,11 +2066,11 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <div style="display:flex; justify-content:space-between; align-items: center; gap: 10px;">
             <table class="table-data" style="flex:1;">
               <tr style="background:#f8fafc; font-weight:600;"><td style="padding:4px 8px;">Componente</td><td style="padding:4px 8px;">Medido</td></tr>
-              <tr><td>Massa Total</td><td style="font-weight:600;">${assessment.dadosMedidos.peso.toFixed(1)} kg</td></tr>
-              <tr><td>Massa Magra</td><td style="font-weight:600; color:#10b981;">${assessment.resultadosCalculados.massaMagra.toFixed(1)} kg (${pctMassaMagra.toFixed(1)}%)</td></tr>
-              <tr><td>Massa Gorda</td><td style="font-weight:600; color:#ef4444;">${assessment.resultadosCalculados.massaGorda.toFixed(1)} kg (${pctGordura.toFixed(1)}%)</td></tr>
+              <tr><td>Massa Total</td><td style="font-weight:600;">${(Number(assessment.dadosMedidos?.peso) || 0).toFixed(1)} kg</td></tr>
+              <tr><td>Massa Magra</td><td style="font-weight:600; color:#10b981;">${(Number(assessment.resultadosCalculados?.massaMagra) || 0).toFixed(1)} kg (${pctMassaMagra.toFixed(1)}%)</td></tr>
+              <tr><td>Massa Gorda</td><td style="font-weight:600; color:#ef4444;">${(Number(assessment.resultadosCalculados?.massaGorda) || 0).toFixed(1)} kg (${pctGordura.toFixed(1)}%)</td></tr>
               <tr><td>Gordura Corporal</td><td style="font-weight:600; color:#f59e0b;">${pctGordura.toFixed(1)}%</td></tr>
-              <tr><td>IMC / RCQ</td><td style="font-weight:600;">${assessment.resultadosCalculados.imc.toFixed(1)} / ${assessment.resultadosCalculados.rcq.toFixed(2)}</td></tr>
+              <tr><td>IMC / RCQ</td><td style="font-weight:600;">${(Number(assessment.resultadosCalculados?.imc) || 0).toFixed(1)} / ${(Number(assessment.resultadosCalculados?.rcq) || 0).toFixed(2)}</td></tr>
             </table>
 
             <!-- Donut Chart em SVG -->
@@ -2101,7 +2101,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <!-- RCQ -->
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px; text-align:center;">
                 <span style="font-size:7.5px; color:#64748b; font-weight:600; text-transform:uppercase;">RCQ</span>
-                <div style="font-size:14px; font-weight:700; color:#0f172a; margin: 1px 0;">${assessment.resultadosCalculados.rcq.toFixed(2)}</div>
+                <div style="font-size:14px; font-weight:700; color:#0f172a; margin: 1px 0;">${(Number(assessment.resultadosCalculados?.rcq) || 0).toFixed(2)}</div>
                 <div class="metric-badge ${assessment.resultadosCalculados.rcqClassificacao.includes('Alto') ? 'badge-red' : (assessment.resultadosCalculados.rcqClassificacao.includes('Moderado') ? 'badge-orange' : 'badge-green')}" style="font-size: 6px; padding: 1px 4px;">
                   ${assessment.resultadosCalculados.rcqClassificacao}
                 </div>
@@ -2451,10 +2451,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               ${history.map((h: any) => `
                 <tr>
                   <td style="padding:4px;"><strong>${formatDate(h.data)}</strong></td>
-                  <td style="padding:4px; text-align:right;">${h.dadosMedidos.peso.toFixed(1)} kg</td>
-                  <td style="padding:4px; text-align:right; color:#c2410c; font-weight:600;">${h.resultadosCalculados.percentualGordura.toFixed(1)}%</td>
-                  <td style="padding:4px; text-align:right; color:#15803d; font-weight:600;">${h.resultadosCalculados.massaMagra.toFixed(1)} kg</td>
-                  <td style="padding:4px; text-align:right;">${h.resultadosCalculados.imc.toFixed(1)}</td>
+                  <td style="padding:4px; text-align:right;">${(Number(h.dadosMedidos?.peso) || 0).toFixed(1)} kg</td>
+                  <td style="padding:4px; text-align:right; color:#c2410c; font-weight:600;">${(Number(h.resultadosCalculados?.percentualGordura) || 0).toFixed(1)}%</td>
+                  <td style="padding:4px; text-align:right; color:#15803d; font-weight:600;">${(Number(h.resultadosCalculados?.massaMagra) || 0).toFixed(1)} kg</td>
+                  <td style="padding:4px; text-align:right;">${(Number(h.resultadosCalculados?.imc) || 0).toFixed(1)}</td>
                 </tr>
               `).join('')}
             </tbody>
