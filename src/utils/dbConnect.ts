@@ -20,7 +20,7 @@ async function dbConnect() {
     return cached.conn;
   }
 
-  // 2. If existing promise is pending and valid, wait for it
+  // 2. If existing promise is pending, wait for it
   if (cached.promise && mongoose.connection.readyState === 2) {
     try {
       cached.conn = await cached.promise;
@@ -31,15 +31,15 @@ async function dbConnect() {
     }
   }
 
-  // 3. Establish connection with primary readPreference to prevent connection 2 timeouts
+  // 3. Force IPv4 (family: 4) to eliminate slow IPv6 DNS/handshake timeouts on serverless
   const opts: mongoose.ConnectOptions = {
     bufferCommands: false,
     maxPoolSize: 10,
     minPoolSize: 0,
-    serverSelectionTimeoutMS: 5000,
-    connectTimeoutMS: 8000,
-    socketTimeoutMS: 10000,
-    readPreference: 'primary',
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    family: 4,
     retryReads: true,
     retryWrites: true,
   };
