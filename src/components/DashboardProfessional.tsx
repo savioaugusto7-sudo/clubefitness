@@ -207,6 +207,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
+  const getProfessionalName = (profField: any) => {
+    if (!profField) return 'Não Definido';
+    if (typeof profField === 'object' && profField.nome) return profField.nome;
+    const pid = typeof profField === 'object' ? (profField._id || profField.userId) : profField;
+    const found = professionals.find(p => String(p._id) === String(pid) || String(p.userId) === String(pid));
+    return found?.nome || 'Não Definido';
+  };
+
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientFilterScope, setClientFilterScope] = useState<'todos' | 'meus'>('todos');
@@ -5197,7 +5205,7 @@ goniometria: {
                               <td data-label="Massa Magra / Gorda">
                                 MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
                               </td>
-                              {isAdmin && <td data-label="Avaliador">{as.avaliadorId?.nome || 'Não Definido'}</td>}
+                              {isAdmin && <td data-label="Avaliador">{getProfessionalName(as.avaliadorId)}</td>}
                               <td data-label="Ações">
                                 <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
                                   <i className="fa-solid fa-trash"></i>
@@ -5430,7 +5438,7 @@ goniometria: {
                             </span>
                           </td>
                           <td data-label="Queixa Principal" className="cell-block"><small style={{ color: 'var(--text-muted)' }}>{rep.conteudo?.queixaPrincipal || '-'}</small></td>
-                          {isAdmin && <td data-label="Profissional">{rep.profissionalId?.nome || 'Não Definido'}</td>}
+                          {isAdmin && <td data-label="Profissional">{getProfessionalName(rep.profissionalId)}</td>}
                           <td data-label="Ações">
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
                               <i className="fa-solid fa-trash"></i>
@@ -5800,7 +5808,7 @@ goniometria: {
                           <td data-label="Aluno"><strong>{row.name}</strong></td>
                           <td data-label="Métricas de Força / Cargas">{metricaText}</td>
                           <td data-label="Avaliação / Risco" style={{ textAlign: 'center' }}>{statusBadge}</td>
-                          {isAdmin && <td data-label="Avaliador">{st.profissionalId?.nome || 'Não Definido'}</td>}
+                          {isAdmin && <td data-label="Avaliador">{getProfessionalName(st.profissionalId)}</td>}
                           <td data-label="Ações">
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
                               <i className="fa-solid fa-trash"></i>
