@@ -5,6 +5,9 @@ import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

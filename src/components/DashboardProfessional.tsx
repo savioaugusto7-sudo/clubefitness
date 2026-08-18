@@ -1427,16 +1427,16 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       if (!silent && clients.length === 0) setLoading(true);
 
       const endpoints = [
-        fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/professionals').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/appointments').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/assessments').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/reports').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/strength-tests').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/prontuarios').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/workouts').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/fixed-schedules').then(r => r.json()).catch(() => ({ success: false }))
+        fetch('/api/clients', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/professionals', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/appointments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/prontuarios', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/workouts', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/exercises', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+        fetch('/api/fixed-schedules', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
       ];
 
       const [
