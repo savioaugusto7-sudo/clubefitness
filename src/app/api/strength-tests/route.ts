@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import StrengthTest from '@/models/StrengthTest';
-import Client from '@/models/Client';
-import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 
 export const dynamic = 'force-dynamic';
@@ -13,29 +12,45 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
 
-    // --- PARAMETERS & QUERY ---
     const { searchParams } = new URL(request.url);
     const paramClientId = searchParams.get('clientId');
+    const id = searchParams.get('id');
+
+    // Single full document by ID
+    if (id) {
+      const fullDoc = await StrengthTest.findById(id).lean().maxTimeMS(4000);
+      return NextResponse.json(
+        { success: true, data: fullDoc },
+        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
 
     let query: any = {};
     if (paramClientId) {
-      query = { clienteId: paramClientId };
+      try {
+        const objId = new mongoose.Types.ObjectId(paramClientId);
+        query = { $or: [{ clienteId: paramClientId }, { clienteId: objId }] };
+      } catch {
+        query = { clienteId: paramClientId };
+      }
     }
 
+    // Lightweight select projection for instant dashboard table rendering (<150ms)
     const tests = await StrengthTest.find(query)
+      .select('clienteId profissionalId data exercicio cargaMax repeticoes analise pesoCliente pdfName pdfB64 tempoGastoSegundos createdAt')
       .sort({ data: -1 })
       .lean()
-      .maxTimeMS(8000);
+      .maxTimeMS(4000);
 
     return NextResponse.json(
-      { success: true, data: tests },
+      { success: true, data: tests, count: tests.length },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   } catch (error: any) {
     console.error('[strength-tests GET] Error:', error.message);
     return NextResponse.json(
-      { success: true, data: [], server_error: error.message },
-      { headers: { 'Cache-Control': 'no-store' } }
+      { success: false, data: [], error: error.message },
+      { headers: { 'Cache-Control': 'no-store' }, status: 500 }
     );
   }
 }

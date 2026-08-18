@@ -91,6 +91,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const [clients, setClients] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
 
   // Assessor selection state
   const [asAvaliador, setAsAvaliador] = useState(professionalId || '6668ab030303030303030302');
@@ -5201,11 +5202,42 @@ goniometria: {
                                 <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
                                   <i className="fa-solid fa-trash"></i>
                                 </button>
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
-                                  logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
-                                  downloadAssessmentPDF(as, assessments);
-                                }}>
-                                  <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  disabled={generatingPdfId === as._id}
+                                  style={{ minWidth: '110px' }}
+                                  onClick={async () => {
+                                    try {
+                                      setGeneratingPdfId(as._id);
+                                      logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
+                                      let fullAs = as;
+                                      try {
+                                        const res = await fetch(`/api/assessments?id=${as._id}`, { cache: 'no-store' });
+                                        const json = await res.json();
+                                        if (json?.success && json.data) {
+                                          fullAs = json.data;
+                                        }
+                                      } catch (fetchErr) {
+                                        console.warn('Fallback to local assessment object:', fetchErr);
+                                      }
+                                      await downloadAssessmentPDF(fullAs, assessments);
+                                    } catch (err) {
+                                      console.error('Error generating assessment PDF:', err);
+                                    } finally {
+                                      setGeneratingPdfId(null);
+                                    }
+                                  }}
+                                >
+                                  {generatingPdfId === as._id ? (
+                                    <>
+                                      <i className="fa-solid fa-spinner fa-spin"></i> Gerando PDF...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fa-solid fa-file-pdf"></i> Laudo PDF
+                                    </>
+                                  )}
                                 </button>
                               </td>
                             </tr>
@@ -5384,11 +5416,42 @@ goniometria: {
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteReport(rep._id)}>
                               <i className="fa-solid fa-trash"></i>
                             </button>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
-                              logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
-                              downloadReportPDF(rep);
-                            }}>
-                              <i className="fa-solid fa-file-pdf"></i> PDF
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              disabled={generatingPdfId === rep._id}
+                              style={{ minWidth: '85px' }}
+                              onClick={async () => {
+                                try {
+                                  setGeneratingPdfId(rep._id);
+                                  logPdfDownload('Laudo/Relatório Clínico', rep.clienteId?._id || rep.clienteId, rep.clienteId?.dadosPessoais?.nome || 'Aluno', rep.data);
+                                  let fullRep = rep;
+                                  try {
+                                    const res = await fetch(`/api/reports?id=${rep._id}`, { cache: 'no-store' });
+                                    const json = await res.json();
+                                    if (json?.success && json.data) {
+                                      fullRep = json.data;
+                                    }
+                                  } catch (fetchErr) {
+                                    console.warn('Fallback to local report object:', fetchErr);
+                                  }
+                                  await downloadReportPDF(fullRep);
+                                } catch (err) {
+                                  console.error('Error generating report PDF:', err);
+                                } finally {
+                                  setGeneratingPdfId(null);
+                                }
+                              }}
+                            >
+                              {generatingPdfId === rep._id ? (
+                                <>
+                                  <i className="fa-solid fa-spinner fa-spin"></i> Gerando...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fa-solid fa-file-pdf"></i> PDF
+                                </>
+                              )}
                             </button>
                           </td>
                         </tr>
@@ -5710,11 +5773,42 @@ goniometria: {
                             <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteStrengthTest(st._id)}>
                               <i className="fa-solid fa-trash"></i>
                             </button>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
-                              logPdfDownload('Teste de Força Muscular', st.clienteId?._id || st.clienteId, st.clienteId?.dadosPessoais?.nome || 'Aluno', st.data);
-                              downloadStrengthTestPDF(st, st.clienteId, st.profissionalId);
-                            }}>
-                              <i className="fa-solid fa-file-pdf color-danger"></i> Análise PDF
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              disabled={generatingPdfId === st._id}
+                              style={{ minWidth: '110px' }}
+                              onClick={async () => {
+                                try {
+                                  setGeneratingPdfId(st._id);
+                                  logPdfDownload('Teste de Força Muscular', st.clienteId?._id || st.clienteId, st.clienteId?.dadosPessoais?.nome || 'Aluno', st.data);
+                                  let fullSt = st;
+                                  try {
+                                    const res = await fetch(`/api/strength-tests?id=${st._id}`, { cache: 'no-store' });
+                                    const json = await res.json();
+                                    if (json?.success && json.data) {
+                                      fullSt = json.data;
+                                    }
+                                  } catch (fetchErr) {
+                                    console.warn('Fallback to local strength test object:', fetchErr);
+                                  }
+                                  await downloadStrengthTestPDF(fullSt, fullSt.clienteId || st.clienteId, fullSt.profissionalId || st.profissionalId);
+                                } catch (err) {
+                                  console.error('Error generating strength test PDF:', err);
+                                } finally {
+                                  setGeneratingPdfId(null);
+                                }
+                              }}
+                            >
+                              {generatingPdfId === st._id ? (
+                                <>
+                                  <i className="fa-solid fa-spinner fa-spin"></i> Gerando...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fa-solid fa-file-pdf color-danger"></i> Análise PDF
+                                </>
+                              )}
                             </button>
                           </td>
                         </tr>

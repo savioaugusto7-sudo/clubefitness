@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import PhysioReport from '@/models/PhysioReport';
-import Client from '@/models/Client';
-import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 
 export const dynamic = 'force-dynamic';
@@ -15,27 +14,43 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const paramClientId = searchParams.get('clientId');
+    const id = searchParams.get('id');
+
+    // Single full document by ID (for modal / PDF download)
+    if (id) {
+      const fullDoc = await PhysioReport.findById(id).lean().maxTimeMS(4000);
+      return NextResponse.json(
+        { success: true, data: fullDoc },
+        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
 
     let query: any = {};
     if (paramClientId) {
-      query = { clienteId: paramClientId };
+      try {
+        const objId = new mongoose.Types.ObjectId(paramClientId);
+        query = { $or: [{ clienteId: paramClientId }, { clienteId: objId }] };
+      } catch {
+        query = { clienteId: paramClientId };
+      }
     }
 
-    // Fast query without populate - frontend matches client names by ID
+    // Lightweight select projection for instant dashboard table rendering (<150ms)
     const reports = await PhysioReport.find(query)
+      .select('clienteId profissionalId data conteudo anamnese.escalaDor anamnese.queixaPrincipal pdfName pdf_url tempoGastoSegundos createdAt')
       .sort({ data: -1 })
       .lean()
-      .maxTimeMS(8000);
+      .maxTimeMS(4000);
 
     return NextResponse.json(
-      { success: true, data: reports },
+      { success: true, data: reports, count: reports.length },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   } catch (error: any) {
     console.error('[reports GET] Error:', error.message);
     return NextResponse.json(
-      { success: true, data: [], server_error: error.message },
-      { headers: { 'Cache-Control': 'no-store' } }
+      { success: false, data: [], error: error.message },
+      { headers: { 'Cache-Control': 'no-store' }, status: 500 }
     );
   }
 }
