@@ -1422,81 +1422,202 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
 
 
+  const refreshAssessments = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/assessments', { cache: 'no-store' });
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data)) {
+        setAssessments(json.data);
+      }
+    } catch (e) {
+      console.error('Error refreshing assessments:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshReports = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/reports', { cache: 'no-store' });
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data)) {
+        setReports(json.data);
+      }
+    } catch (e) {
+      console.error('Error refreshing reports:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshStrengthTests = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/strength-tests', { cache: 'no-store' });
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data)) {
+        setStrengthTests(json.data);
+      }
+    } catch (e) {
+      console.error('Error refreshing strength tests:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshProntuarios = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/prontuarios', { cache: 'no-store' });
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data)) {
+        setProntuarios(json.data);
+      }
+    } catch (e) {
+      console.error('Error refreshing prontuarios:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
 
-      // 1. Initial base load (Clients & Professionals) if not loaded yet
-      if (clients.length === 0 || professionals.length === 0) {
-        const [resClients, resProfs] = await Promise.all([
-          clients.length === 0 ? fetch('/api/clients', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: clients }),
-          professionals.length === 0 ? fetch('/api/professionals', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: professionals })
-        ]);
-        if (resClients?.success && Array.isArray(resClients.data)) {
-          setClients(resClients.data);
-          if (resClients.data.length > 0 && !selectedClient) {
-            setSelectedClient(resClients.data[0]._id);
-            setFsClient(resClients.data[0]._id);
-            setAsClient(resClients.data[0]._id);
-            setRepClient(resClients.data[0]._id);
-            setStClient(resClients.data[0]._id);
-            setPrClient(resClients.data[0]._id);
-          }
-        }
-        if (resProfs?.success && Array.isArray(resProfs.data)) {
-          setProfessionals(resProfs.data);
-          if (!professionalId && resProfs.data.length > 0) {
-            setAsAvaliador(prev => prev || resProfs.data[0]._id);
-            setRepAvaliador(prev => prev || resProfs.data[0]._id);
-            setStAvaliador(prev => prev || resProfs.data[0]._id);
-          }
-        }
+      const promises: Promise<any>[] = [];
+
+      // Base loads
+      if (clients.length === 0) {
+        promises.push(
+          fetch('/api/clients', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => {
+              if (res?.success && Array.isArray(res.data)) {
+                setClients(res.data);
+                if (res.data.length > 0 && !selectedClient) {
+                  setSelectedClient(res.data[0]._id);
+                  setFsClient(res.data[0]._id);
+                  setAsClient(res.data[0]._id);
+                  setRepClient(res.data[0]._id);
+                  setStClient(res.data[0]._id);
+                  setPrClient(res.data[0]._id);
+                }
+              }
+            })
+            .catch(() => {})
+        );
       }
 
-      // 2. Fetch specific tab data on-demand (Fast & Light)
-      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia') {
-        const resApts = await fetch('/api/appointments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
-        if (resApts.success && Array.isArray(resApts.data)) setAppointments(resApts.data);
-      } else if (activeTab === 'avaliacoes') {
-        const resAs = await fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
-        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
-      } else if (activeTab === 'relatorios') {
-        const [resRep, resAs] = await Promise.all([
-          fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
-        ]);
-        if (resRep.success && Array.isArray(resRep.data)) setReports(resRep.data);
-        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
-      } else if (activeTab === 'testes_forca') {
-        const [resSt, resAs] = await Promise.all([
-          fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
-        ]);
-        if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
-        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
-      } else if (activeTab === 'prontuarios') {
-        const resPr = await fetch('/api/prontuarios', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
-        if (resPr.success && Array.isArray(resPr.data)) setProntuarios(resPr.data);
-      } else if (activeTab === 'treinos_prof') {
-        const [resWorkouts, resExs] = await Promise.all([
-          fetch('/api/workouts', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/exercises', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
-        ]);
-        if (resWorkouts.success && Array.isArray(resWorkouts.data)) setWorkouts(resWorkouts.data);
-        if (resExs.success && Array.isArray(resExs.data)) setExercises(resExs.data);
-      } else if (activeTab === 'agenda_fixa') {
-        const resFs = await fetch('/api/fixed-schedules', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
-        if (resFs.success && Array.isArray(resFs.data)) setFixedSchedules(resFs.data);
-      } else if (activeTab === 'clientes') {
-        const [resApts, resAs, resSt] = await Promise.all([
-          fetch('/api/appointments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-          fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
-        ]);
-        if (resApts.success && Array.isArray(resApts.data)) setAppointments(resApts.data);
-        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
-        if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
+      if (professionals.length === 0) {
+        promises.push(
+          fetch('/api/professionals', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => {
+              if (res?.success && Array.isArray(res.data)) {
+                setProfessionals(res.data);
+                if (!professionalId && res.data.length > 0) {
+                  setAsAvaliador(prev => prev || res.data[0]._id);
+                  setRepAvaliador(prev => prev || res.data[0]._id);
+                  setStAvaliador(prev => prev || res.data[0]._id);
+                }
+              }
+            })
+            .catch(() => {})
+        );
       }
+
+      // Active tab specific load
+      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia') {
+        promises.push(
+          fetch('/api/appointments', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
+            .catch(() => {})
+        );
+      } else if (activeTab === 'avaliacoes') {
+        promises.push(
+          fetch('/api/assessments', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
+            .catch(() => {})
+        );
+      } else if (activeTab === 'relatorios') {
+        promises.push(
+          fetch('/api/reports', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setReports(res.data); })
+            .catch(() => {})
+        );
+        promises.push(
+          fetch('/api/assessments', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
+            .catch(() => {})
+        );
+      } else if (activeTab === 'testes_forca') {
+        promises.push(
+          fetch('/api/strength-tests', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setStrengthTests(res.data); })
+            .catch(() => {})
+        );
+        promises.push(
+          fetch('/api/assessments', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
+            .catch(() => {})
+        );
+      } else if (activeTab === 'prontuarios') {
+        promises.push(
+          fetch('/api/prontuarios', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setProntuarios(res.data); })
+            .catch(() => {})
+        );
+      } else if (activeTab === 'treinos_prof') {
+        promises.push(
+          fetch('/api/workouts', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setWorkouts(res.data); })
+            .catch(() => {})
+        );
+        promises.push(
+          fetch('/api/exercises', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setExercises(res.data); })
+            .catch(() => {})
+        );
+      } else if (activeTab === 'agenda_fixa') {
+        promises.push(
+          fetch('/api/fixed-schedules', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setFixedSchedules(res.data); })
+            .catch(() => {})
+        );
+      } else if (activeTab === 'clientes') {
+        promises.push(
+          fetch('/api/appointments', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
+            .catch(() => {})
+        );
+        promises.push(
+          fetch('/api/assessments', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
+            .catch(() => {})
+        );
+        promises.push(
+          fetch('/api/strength-tests', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setStrengthTests(res.data); })
+            .catch(() => {})
+        );
+      }
+
+      await Promise.all(promises);
     } catch (e) {
       console.error('Error fetching dashboard professional data:', e);
     } finally {
@@ -4974,7 +5095,7 @@ goniometria: {
                 type="button" 
                 className="btn btn-secondary" 
                 title="Sincronizar e recarregar dados do servidor"
-                onClick={() => fetchData(false)}
+                onClick={refreshAssessments}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <i className="fa-solid fa-rotate"></i> Atualizar
@@ -5185,7 +5306,7 @@ goniometria: {
                 type="button" 
                 className="btn btn-secondary" 
                 title="Sincronizar e recarregar dados do servidor"
-                onClick={() => fetchData(false)}
+                onClick={refreshReports}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <i className="fa-solid fa-rotate"></i> Atualizar
@@ -5480,7 +5601,7 @@ goniometria: {
                 type="button" 
                 className="btn btn-secondary" 
                 title="Sincronizar e recarregar dados do servidor"
-                onClick={() => fetchData(false)}
+                onClick={refreshStrengthTests}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <i className="fa-solid fa-rotate"></i> Atualizar
@@ -5696,7 +5817,7 @@ goniometria: {
                 type="button" 
                 className="btn btn-secondary" 
                 title="Sincronizar e recarregar dados do servidor"
-                onClick={() => fetchData(false)}
+                onClick={refreshProntuarios}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <i className="fa-solid fa-rotate"></i> Atualizar
