@@ -29,10 +29,11 @@ export async function GET(request: Request) {
       records = await Prontuario.find(query)
         .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
         .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
+        .sort({ data: -1 })
         .lean();
     } catch (popErr) {
       console.warn('[prontuarios GET] Populate failed, using raw find:', popErr);
-      records = await Prontuario.find(query).lean();
+      records = await Prontuario.find(query).sort({ data: -1 }).lean();
     }
 
     console.log('[prontuarios GET] returning', records.length, 'records');

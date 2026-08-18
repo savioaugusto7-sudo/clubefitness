@@ -29,10 +29,11 @@ export async function GET(request: Request) {
       tests = await StrengthTest.find(query)
         .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
         .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
+        .sort({ data: -1 })
         .lean();
     } catch (popErr) {
       console.warn('[strength-tests GET] Populate failed, using raw find:', popErr);
-      tests = await StrengthTest.find(query).lean();
+      tests = await StrengthTest.find(query).sort({ data: -1 }).lean();
     }
 
     console.log('[strength-tests GET] returning', tests.length, 'tests');

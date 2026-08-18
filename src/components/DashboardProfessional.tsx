@@ -1424,54 +1424,79 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const fetchData = async (silent = false) => {
     try {
-      if (!silent && clients.length === 0) setLoading(true);
+      if (!silent) setLoading(true);
 
-      const endpoints = [
-        fetch('/api/clients', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/professionals', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/appointments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/prontuarios', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/workouts', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/exercises', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
-        fetch('/api/fixed-schedules', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
-      ];
-
-      const [
-        jsonClients, jsonProfs, jsonApts,
-        jsonAs, jsonRep, jsonSt, jsonPr,
-        jsonWorkouts, jsonExs, jsonFs
-      ] = await Promise.all(endpoints);
-
-      if (jsonClients?.success && Array.isArray(jsonClients.data)) {
-        setClients(jsonClients.data);
-        if (jsonClients.data.length > 0 && !selectedClient) {
-          setSelectedClient(jsonClients.data[0]._id);
-          setFsClient(jsonClients.data[0]._id);
-          setAsClient(jsonClients.data[0]._id);
-          setRepClient(jsonClients.data[0]._id);
-          setStClient(jsonClients.data[0]._id);
-          setPrClient(jsonClients.data[0]._id);
+      // 1. Initial base load (Clients & Professionals) if not loaded yet
+      if (clients.length === 0 || professionals.length === 0) {
+        const [resClients, resProfs] = await Promise.all([
+          clients.length === 0 ? fetch('/api/clients', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: clients }),
+          professionals.length === 0 ? fetch('/api/professionals', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })) : Promise.resolve({ success: true, data: professionals })
+        ]);
+        if (resClients?.success && Array.isArray(resClients.data)) {
+          setClients(resClients.data);
+          if (resClients.data.length > 0 && !selectedClient) {
+            setSelectedClient(resClients.data[0]._id);
+            setFsClient(resClients.data[0]._id);
+            setAsClient(resClients.data[0]._id);
+            setRepClient(resClients.data[0]._id);
+            setStClient(resClients.data[0]._id);
+            setPrClient(resClients.data[0]._id);
+          }
+        }
+        if (resProfs?.success && Array.isArray(resProfs.data)) {
+          setProfessionals(resProfs.data);
+          if (!professionalId && resProfs.data.length > 0) {
+            setAsAvaliador(prev => prev || resProfs.data[0]._id);
+            setRepAvaliador(prev => prev || resProfs.data[0]._id);
+            setStAvaliador(prev => prev || resProfs.data[0]._id);
+          }
         }
       }
-      if (jsonProfs?.success && Array.isArray(jsonProfs.data)) {
-        setProfessionals(jsonProfs.data);
-        if (!professionalId && jsonProfs.data.length > 0) {
-          setAsAvaliador(prev => prev || jsonProfs.data[0]._id);
-          setRepAvaliador(prev => prev || jsonProfs.data[0]._id);
-          setStAvaliador(prev => prev || jsonProfs.data[0]._id);
-        }
+
+      // 2. Fetch specific tab data on-demand (Fast & Light)
+      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia') {
+        const resApts = await fetch('/api/appointments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
+        if (resApts.success && Array.isArray(resApts.data)) setAppointments(resApts.data);
+      } else if (activeTab === 'avaliacoes') {
+        const resAs = await fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
+        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+      } else if (activeTab === 'relatorios') {
+        const [resRep, resAs] = await Promise.all([
+          fetch('/api/reports', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resRep.success && Array.isArray(resRep.data)) setReports(resRep.data);
+        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+      } else if (activeTab === 'testes_forca') {
+        const [resSt, resAs] = await Promise.all([
+          fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
+        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+      } else if (activeTab === 'prontuarios') {
+        const resPr = await fetch('/api/prontuarios', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
+        if (resPr.success && Array.isArray(resPr.data)) setProntuarios(resPr.data);
+      } else if (activeTab === 'treinos_prof') {
+        const [resWorkouts, resExs] = await Promise.all([
+          fetch('/api/workouts', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/exercises', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resWorkouts.success && Array.isArray(resWorkouts.data)) setWorkouts(resWorkouts.data);
+        if (resExs.success && Array.isArray(resExs.data)) setExercises(resExs.data);
+      } else if (activeTab === 'agenda_fixa') {
+        const resFs = await fetch('/api/fixed-schedules', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }));
+        if (resFs.success && Array.isArray(resFs.data)) setFixedSchedules(resFs.data);
+      } else if (activeTab === 'clientes') {
+        const [resApts, resAs, resSt] = await Promise.all([
+          fetch('/api/appointments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/assessments', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/strength-tests', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+        if (resApts.success && Array.isArray(resApts.data)) setAppointments(resApts.data);
+        if (resAs.success && Array.isArray(resAs.data)) setAssessments(resAs.data);
+        if (resSt.success && Array.isArray(resSt.data)) setStrengthTests(resSt.data);
       }
-      if (jsonApts?.success && Array.isArray(jsonApts.data)) setAppointments(jsonApts.data);
-      if (jsonAs?.success && Array.isArray(jsonAs.data)) setAssessments(jsonAs.data);
-      if (jsonRep?.success && Array.isArray(jsonRep.data)) setReports(jsonRep.data);
-      if (jsonSt?.success && Array.isArray(jsonSt.data)) setStrengthTests(jsonSt.data);
-      if (jsonPr?.success && Array.isArray(jsonPr.data)) setProntuarios(jsonPr.data);
-      if (jsonWorkouts?.success && Array.isArray(jsonWorkouts.data)) setWorkouts(jsonWorkouts.data);
-      if (jsonExs?.success && Array.isArray(jsonExs.data)) setExercises(jsonExs.data);
-      if (jsonFs?.success && Array.isArray(jsonFs.data)) setFixedSchedules(jsonFs.data);
     } catch (e) {
       console.error('Error fetching dashboard professional data:', e);
     } finally {

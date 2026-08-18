@@ -31,10 +31,11 @@ export async function GET(request: Request) {
       assessments = await PhysicalAssessment.find(query)
         .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
         .populate({ path: 'avaliadorId', select: 'nome email', strictPopulate: false })
+        .sort({ data: -1 })
         .lean();
     } catch (popErr) {
       console.warn('[assessments GET] Populate failed, using raw find:', popErr);
-      assessments = await PhysicalAssessment.find(query).lean();
+      assessments = await PhysicalAssessment.find(query).sort({ data: -1 }).lean();
     }
 
     console.log('[assessments GET] returning', assessments.length, 'assessments');

@@ -30,10 +30,11 @@ export async function GET(request: Request) {
       reports = await PhysioReport.find(query)
         .populate({ path: 'clienteId', select: 'dadosPessoais.nome dadosPessoais.cpf dadosPessoais.sexo dadosPessoais.dataNascimento dadosComerciais.status', strictPopulate: false })
         .populate({ path: 'profissionalId', select: 'nome email', strictPopulate: false })
+        .sort({ data: -1 })
         .lean();
     } catch (popErr) {
       console.warn('[reports GET] Populate failed, using raw find:', popErr);
-      reports = await PhysioReport.find(query).lean();
+      reports = await PhysioReport.find(query).sort({ data: -1 }).lean();
     }
 
     console.log('[reports GET] returning', reports.length, 'reports');
