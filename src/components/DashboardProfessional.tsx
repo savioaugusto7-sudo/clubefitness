@@ -5094,11 +5094,11 @@ goniometria: {
                         {studentRows.length === 0 && (
                           <tr>
                             <td colSpan={isAdmin ? 7 : 6}>
-                              {isRetrying ? (
+                              {(loading || isRetrying) ? (
                                 <div className="empty-state-card">
                                   <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
-                                  <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
-                                  <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                                  <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Carregando avaliações...</div>
+                                  <div className="empty-state-desc">Buscando dados do servidor.</div>
                                 </div>
                               ) : (
                                 <div className="empty-state-card">
@@ -5278,11 +5278,11 @@ goniometria: {
                   {reports.length === 0 && (
                     <tr>
                       <td colSpan={isAdmin ? 6 : 5}>
-                        {isRetrying ? (
+                        {(loading || isRetrying) ? (
                           <div className="empty-state-card">
                             <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
-                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
-                            <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Carregando relatórios...</div>
+                            <div className="empty-state-desc">Buscando dados do servidor.</div>
                           </div>
                         ) : (
                           <div className="empty-state-card">
@@ -5604,11 +5604,11 @@ goniometria: {
                   {strengthTests.length === 0 && (
                     <tr>
                       <td colSpan={isAdmin ? 6 : 5}>
-                        {isRetrying ? (
+                        {(loading || isRetrying) ? (
                           <div className="empty-state-card">
                             <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
-                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
-                            <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Carregando testes de força...</div>
+                            <div className="empty-state-desc">Buscando dados do servidor.</div>
                           </div>
                         ) : (
                           <div className="empty-state-card">
@@ -5741,11 +5741,11 @@ goniometria: {
                   {prontuarios.length === 0 && (
                     <tr>
                       <td colSpan={5}>
-                        {isRetrying ? (
+                        {(loading || isRetrying) ? (
                           <div className="empty-state-card">
                             <i className="fa-solid fa-rotate fa-spin empty-state-icon" style={{ color: 'var(--primary)' }}></i>
-                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Verificando dados...</div>
-                            <div className="empty-state-desc">Aguardando resposta do servidor. Pode levar alguns segundos.</div>
+                            <div className="empty-state-title" style={{ color: 'var(--primary)' }}>Carregando prontuários...</div>
+                            <div className="empty-state-desc">Buscando dados do servidor.</div>
                           </div>
                         ) : (
                           <div className="empty-state-card">
