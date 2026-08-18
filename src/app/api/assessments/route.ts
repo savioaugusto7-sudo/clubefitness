@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import PhysicalAssessment from '@/models/PhysicalAssessment';
 import { checkSessionPermission } from '@/utils/authHelper';
@@ -16,32 +17,32 @@ export async function GET(request: Request) {
 
     let query: any = {};
     if (paramClientId) {
-      query = { clienteId: paramClientId };
+      // Allow matching by string or ObjectId
+      try {
+        const objId = new mongoose.Types.ObjectId(paramClientId);
+        query = { $or: [{ clienteId: paramClientId }, { clienteId: objId }] };
+      } catch {
+        query = { clienteId: paramClientId };
+      }
     }
 
-    let assessments: any[] = [];
-
-    // 1. Primary fast query
-    try {
-      assessments = await PhysicalAssessment.find(query)
-        .sort({ data: -1 })
-        .lean()
-        .maxTimeMS(5000);
-    } catch (findErr: any) {
-      console.warn('[assessments GET] find error, falling back to native collection:', findErr.message);
-      // 2. Native driver fallback (bypasses all Mongoose schema cast issues)
-      const rawDocs = await PhysicalAssessment.collection
-        .find(query)
-        .sort({ data: -1 })
-        .toArray();
-      
-      assessments = rawDocs.map((doc: any) => ({
-        ...doc,
-        _id: doc._id?.toString() || doc._id,
-        clienteId: doc.clienteId?.toString() || doc.clienteId,
-        avaliadorId: doc.avaliadorId?.toString() || doc.avaliadorId,
-      }));
+    // Direct native MongoDB collection query - instantaneous and bypasses all Mongoose schema cast overhead
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
     }
+
+    const rawDocs = await db.collection('physicalassessments')
+      .find(query)
+      .sort({ data: -1 })
+      .toArray();
+
+    const assessments = rawDocs.map((doc: any) => ({
+      ...doc,
+      _id: doc._id?.toString() || doc._id,
+      clienteId: doc.clienteId?.toString() || doc.clienteId,
+      avaliadorId: doc.avaliadorId?.toString() || doc.avaliadorId,
+    }));
 
     return NextResponse.json(
       { success: true, data: assessments, count: assessments.length },
