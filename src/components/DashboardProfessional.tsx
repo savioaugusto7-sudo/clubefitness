@@ -5221,7 +5221,26 @@ goniometria: {
                                       } catch (fetchErr) {
                                         console.warn('Fallback to local assessment object:', fetchErr);
                                       }
-                                      await downloadAssessmentPDF(fullAs, assessments);
+
+                                      // Hydrate real client & professional data for proper PDF header and filename
+                                      const cid = fullAs.clienteId?._id || fullAs.clienteId;
+                                      const matchedClient = clients.find(c => String(c._id) === String(cid));
+                                      if (matchedClient) {
+                                        fullAs.clienteId = matchedClient;
+                                      }
+                                      const pid = fullAs.avaliadorId?._id || fullAs.avaliadorId;
+                                      const matchedProf = professionals.find(p => String(p._id) === String(pid));
+                                      if (matchedProf) {
+                                        fullAs.avaliadorId = matchedProf;
+                                      }
+
+                                      const hydratedAssessments = assessments.map(item => {
+                                        const itemCid = item.clienteId?._id || item.clienteId;
+                                        const c = clients.find(cl => String(cl._id) === String(itemCid));
+                                        return c ? { ...item, clienteId: c } : item;
+                                      });
+
+                                      await downloadAssessmentPDF(fullAs, hydratedAssessments);
                                     } catch (err) {
                                       console.error('Error generating assessment PDF:', err);
                                     } finally {
@@ -5435,6 +5454,19 @@ goniometria: {
                                   } catch (fetchErr) {
                                     console.warn('Fallback to local report object:', fetchErr);
                                   }
+
+                                  // Hydrate real client & professional data
+                                  const repCid = fullRep.clienteId?._id || fullRep.clienteId;
+                                  const matchedClient = clients.find(c => String(c._id) === String(repCid));
+                                  if (matchedClient) {
+                                    fullRep.clienteId = matchedClient;
+                                  }
+                                  const repPid = fullRep.profissionalId?._id || fullRep.profissionalId;
+                                  const matchedProf = professionals.find(p => String(p._id) === String(repPid));
+                                  if (matchedProf) {
+                                    fullRep.profissionalId = matchedProf;
+                                  }
+
                                   await downloadReportPDF(fullRep);
                                 } catch (err) {
                                   console.error('Error generating report PDF:', err);
@@ -5792,7 +5824,20 @@ goniometria: {
                                   } catch (fetchErr) {
                                     console.warn('Fallback to local strength test object:', fetchErr);
                                   }
-                                  await downloadStrengthTestPDF(fullSt, fullSt.clienteId || st.clienteId, fullSt.profissionalId || st.profissionalId);
+
+                                  // Hydrate real client & professional data
+                                  const stCid = fullSt.clienteId?._id || fullSt.clienteId;
+                                  const matchedClient = clients.find(c => String(c._id) === String(stCid));
+                                  if (matchedClient) {
+                                    fullSt.clienteId = matchedClient;
+                                  }
+                                  const stPid = fullSt.profissionalId?._id || fullSt.profissionalId;
+                                  const matchedProf = professionals.find(p => String(p._id) === String(stPid));
+                                  if (matchedProf) {
+                                    fullSt.profissionalId = matchedProf;
+                                  }
+
+                                  await downloadStrengthTestPDF(fullSt, fullSt.clienteId || matchedClient || st.clienteId, fullSt.profissionalId || matchedProf || st.profissionalId);
                                 } catch (err) {
                                   console.error('Error generating strength test PDF:', err);
                                 } finally {

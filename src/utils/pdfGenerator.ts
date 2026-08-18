@@ -54,6 +54,55 @@ function base64ToBlob(base64: string, mime: string): Blob {
   return new Blob([ab], { type: mime });
 }
 
+function parseGonioField(raw: any): { semForca: string; comForca: string; numSemForca: number; numComForca: number } {
+  if (raw === null || raw === undefined || raw === '') {
+    return { semForca: '', comForca: '', numSemForca: 0, numComForca: 0 };
+  }
+  if (typeof raw === 'number') {
+    return { semForca: String(raw), comForca: String(raw), numSemForca: raw, numComForca: raw };
+  }
+  if (typeof raw === 'string') {
+    if (raw.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(raw);
+        const sf = parsed.semForca !== undefined && parsed.semForca !== null ? String(parsed.semForca) : '';
+        const cf = parsed.comForca !== undefined && parsed.comForca !== null ? String(parsed.comForca) : '';
+        return {
+          semForca: sf,
+          comForca: cf,
+          numSemForca: Number(sf) || 0,
+          numComForca: Number(cf) || 0,
+        };
+      } catch {}
+    }
+    const n = Number(raw);
+    if (!isNaN(n) && raw.trim() !== '') {
+      return { semForca: raw, comForca: raw, numSemForca: n, numComForca: n };
+    }
+    return { semForca: raw, comForca: raw, numSemForca: 0, numComForca: 0 };
+  }
+  if (typeof raw === 'object') {
+    const sf = raw.semForca !== undefined && raw.semForca !== null && raw.semForca !== '' ? String(raw.semForca) : '';
+    const cf = raw.comForca !== undefined && raw.comForca !== null && raw.comForca !== '' ? String(raw.comForca) : '';
+    return {
+      semForca: sf,
+      comForca: cf,
+      numSemForca: Number(sf) || 0,
+      numComForca: Number(cf) || 0,
+    };
+  }
+  return { semForca: '', comForca: '', numSemForca: 0, numComForca: 0 };
+}
+
+function formatGonioDisplay(raw: any): string {
+  const p = parseGonioField(raw);
+  if (!p.semForca && !p.comForca) return '-';
+  if (p.semForca && p.comForca && p.semForca !== p.comForca) {
+    return `${p.semForca}° | ${p.comForca}°`;
+  }
+  return `${p.comForca || p.semForca}°`;
+}
+
 function isMaigneFilled(maigneVal: any): boolean {
   if (!maigneVal) return false;
   try {
@@ -938,20 +987,18 @@ export async function downloadReportPDF(report: any) {
                   { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
                   { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
                 ].map(row => {
-                  const valD = g[row.key + 'D'] || {};
-                  const valE = g[row.key + 'E'] || {};
-                  const fmtVal = (val: any) => {
-                    const sf = val.semForca !== undefined && val.semForca !== null && val.semForca !== '' ? `${val.semForca}°` : '-';
-                    const cf = val.comForca !== undefined && val.comForca !== null && val.comForca !== '' ? `${val.comForca}°` : '-';
-                    return `${sf} | ${cf}`;
-                  };
-                  const d1 = Number(valD.semForca) || 0;
-                  const e1 = Number(valE.semForca) || 0;
+                  const valD = g[row.key + 'D'];
+                  const valE = g[row.key + 'E'];
+                  const pD = parseGonioField(valD);
+                  const pE = parseGonioField(valE);
+
+                  const d1 = pD.numSemForca;
+                  const e1 = pE.numSemForca;
                   const max1 = Math.max(d1, e1);
                   const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
 
-                  const d2 = Number(valD.comForca) || 0;
-                  const e2 = Number(valE.comForca) || 0;
+                  const d2 = pD.numComForca;
+                  const e2 = pE.numComForca;
                   const max2 = Math.max(d2, e2);
                   const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
 
@@ -964,8 +1011,8 @@ export async function downloadReportPDF(report: any) {
                         ${hasAsy ? `<span style="display:inline-block; font-size:6.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0.5px 2px; font-weight:700; margin-left:4px;">⚠️ &gt;10%</span>` : ''}
                       </td>
                       <td style="text-align:center; color:#64748b;">${row.ref}</td>
-                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valD)}</td>
-                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valE)}</td>
+                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valD)}</td>
+                      <td style="text-align:center; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valE)}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -2274,20 +2321,18 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
                 ].map(row => {
                   const g = assessment.dadosMedidos.goniometria || {};
-                  const valD = g[row.key + 'D'] || {};
-                  const valE = g[row.key + 'E'] || {};
-                  const fmtVal = (val: any) => {
-                    const sf = val.semForca !== undefined && val.semForca !== null && val.semForca !== '' ? `${val.semForca}°` : '-';
-                    const cf = val.comForca !== undefined && val.comForca !== null && val.comForca !== '' ? `${val.comForca}°` : '-';
-                    return `${sf} | ${cf}`;
-                  };
-                  const d1 = Number(valD.semForca) || 0;
-                  const e1 = Number(valE.semForca) || 0;
+                  const valD = g[row.key + 'D'];
+                  const valE = g[row.key + 'E'];
+                  const pD = parseGonioField(valD);
+                  const pE = parseGonioField(valE);
+
+                  const d1 = pD.numSemForca;
+                  const e1 = pE.numSemForca;
                   const max1 = Math.max(d1, e1);
                   const hasAsy1 = max1 > 0 && (Math.abs(d1 - e1) / max1) > 0.10;
 
-                  const d2 = Number(valD.comForca) || 0;
-                  const e2 = Number(valE.comForca) || 0;
+                  const d2 = pD.numComForca;
+                  const e2 = pE.numComForca;
                   const max2 = Math.max(d2, e2);
                   const hasAsy2 = max2 > 0 && (Math.abs(d2 - e2) / max2) > 0.10;
 
@@ -2300,8 +2345,8 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                         ${hasAsy ? `<span style="display:inline-block; font-size:5.5px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:3px; padding:0 2px; font-weight:700; margin-left:2px;">⚠️ &gt;10%</span>` : ''}
                       </td>
                       <td style="text-align:center; color:#64748b; padding: 3px 6px; font-size:7.2px;">${row.ref}</td>
-                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valD)}</td>
-                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${fmtVal(valE)}</td>
+                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valD)}</td>
+                      <td style="text-align:center; padding: 3px 6px; font-size:7.2px; ${hasAsy ? 'color:#ef4444; font-weight:bold;' : ''}">${formatGonioDisplay(valE)}</td>
                     </tr>
                   `;
                 }).join('')}
