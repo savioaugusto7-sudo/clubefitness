@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const paramClientId = searchParams.get('clientId');
     const id = searchParams.get('id');
 
-    // Single full document by ID (for modal / PDF download)
+    // Single full document by ID (for modal / PDF download with heavy base64/thermography)
     if (id) {
       const fullDoc = await PhysioReport.findById(id).lean().maxTimeMS(4000);
       return NextResponse.json(
@@ -35,9 +35,9 @@ export async function GET(request: Request) {
       }
     }
 
-    // Lightweight select projection for instant dashboard table rendering (<150ms)
+    // Ultra-lightweight select projection: strictly what table needs, excluding heavy base64/termografia
     const reports = await PhysioReport.find(query)
-      .select('clienteId profissionalId data conteudo anamnese.escalaDor anamnese.queixaPrincipal pdfName pdf_url tempoGastoSegundos createdAt')
+      .select('clienteId profissionalId data conteudo.queixaPrincipal conteudo.dorEscala pdfName createdAt')
       .sort({ data: -1 })
       .lean()
       .maxTimeMS(4000);

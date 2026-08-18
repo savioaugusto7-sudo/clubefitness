@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const paramClientId = searchParams.get('clientId');
     const id = searchParams.get('id');
 
-    // Single full document by ID
+    // Single full document by ID (with all detailed test results & PDF data)
     if (id) {
       const fullDoc = await StrengthTest.findById(id).lean().maxTimeMS(4000);
       return NextResponse.json(
@@ -35,9 +35,9 @@ export async function GET(request: Request) {
       }
     }
 
-    // Lightweight select projection for instant dashboard table rendering (<150ms)
+    // Lightweight select projection for instant dashboard table rendering (<100ms)
     const tests = await StrengthTest.find(query)
-      .select('clienteId profissionalId data exercicio cargaMax repeticoes analise pesoCliente pdfName pdfB64 tempoGastoSegundos createdAt')
+      .select('clienteId profissionalId data exercicio cargaMax repeticoes analise.riscoOmbro exercicios pesoCliente pdfName createdAt')
       .sort({ data: -1 })
       .lean()
       .maxTimeMS(4000);
