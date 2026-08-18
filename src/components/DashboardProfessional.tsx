@@ -1423,15 +1423,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
 
   const refreshAssessments = async () => {
+    console.log('[DashProf] refreshAssessments called');
     setLoading(true);
     try {
-      const res = await fetch('/api/assessments', { cache: 'no-store' });
+      const t0 = Date.now();
+      const res = await fetch('/api/assessments?t=' + Date.now(), { cache: 'no-store' });
+      console.log('[DashProf] refreshAssessments response status:', res.status, 'in', Date.now() - t0, 'ms');
       const json = await res.json();
+      console.log('[DashProf] refreshAssessments json:', { success: json?.success, count: json?.data?.length, server_error: json?.server_error });
       if (json?.success && Array.isArray(json.data)) {
         setAssessments(json.data);
+        console.log('[DashProf] setAssessments called with', json.data.length, 'items');
+      } else {
+        console.warn('[DashProf] refreshAssessments: unexpected response', json);
       }
     } catch (e) {
-      console.error('Error refreshing assessments:', e);
+      console.error('[DashProf] Error refreshing assessments:', e);
     } finally {
       setLoading(false);
     }
@@ -1483,8 +1490,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const fetchData = async (silent = false) => {
+    console.log('[DashProf] fetchData called, silent=' + silent + ', activeTab=' + activeTab);
     try {
-      if (!silent) setLoading(true);
+      // ALWAYS show loading on first load to prevent empty state flash
+      setLoading(true);
 
       const promises: Promise<any>[] = [];
 
@@ -1537,11 +1546,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             .catch(() => {})
         );
       } else if (activeTab === 'avaliacoes') {
+        console.log('[DashProf] Fetching /api/assessments...');
         promises.push(
-          fetch('/api/assessments', { cache: 'no-store' })
-            .then(r => r.json())
-            .then(res => { if (res?.success && Array.isArray(res.data)) setAssessments(res.data); })
-            .catch(() => {})
+          fetch('/api/assessments?t=' + Date.now(), { cache: 'no-store' })
+            .then(r => { console.log('[DashProf] /api/assessments status:', r.status); return r.json(); })
+            .then(res => {
+              console.log('[DashProf] /api/assessments result:', { success: res?.success, count: res?.data?.length, server_error: res?.server_error });
+              if (res?.success && Array.isArray(res.data)) {
+                setAssessments(res.data);
+                console.log('[DashProf] setAssessments done with', res.data.length, 'items');
+              }
+            })
+            .catch(err => { console.error('[DashProf] /api/assessments FETCH ERROR:', err); })
         );
       } else if (activeTab === 'relatorios') {
         promises.push(
@@ -1627,7 +1643,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   useEffect(() => {
-    fetchData(true);
+    console.log('[DashProf] useEffect[activeTab] triggered, tab=' + activeTab);
+    fetchData(false);
     setSelectedClientForWorkout(null);
     setEditingWorkoutData(null);
   }, [activeTab]);
