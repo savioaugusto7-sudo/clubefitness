@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 import { cookies } from 'next/headers';
 import { decode } from 'next-auth/jwt';
 import Client from '@/models/Client';

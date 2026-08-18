@@ -4,7 +4,7 @@ import PhysicalAssessment from '@/models/PhysicalAssessment';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 
 export const maxDuration = 30;
 

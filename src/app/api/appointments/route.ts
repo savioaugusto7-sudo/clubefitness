@@ -6,7 +6,7 @@ import Professional from '@/models/Professional';
 import AgendaConfig from '@/models/AgendaConfig';
 import Plan from '@/models/Plan';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 
 export const maxDuration = 30;
 

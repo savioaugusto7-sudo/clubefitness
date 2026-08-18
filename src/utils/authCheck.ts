@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 
 /**
  * Returns true if the logged-in user is the test admin (admin@clube.com)

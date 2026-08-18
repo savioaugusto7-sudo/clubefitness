@@ -3,7 +3,7 @@ import dbConnect from '@/utils/dbConnect';
 import Appointment from '@/models/Appointment';
 import AgendaConfig from '@/models/AgendaConfig';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 
 export const maxDuration = 30;
 
