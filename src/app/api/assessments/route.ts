@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import PhysicalAssessment from '@/models/PhysicalAssessment';
-import Client from '@/models/Client';
-import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 
 export const dynamic = 'force-dynamic';
@@ -21,27 +19,42 @@ export async function GET(request: Request) {
       query = { clienteId: paramClientId };
     }
 
-    // Fast query: NO populate, only essential fields for the dashboard table
-    // Frontend already has clients[] and professionals[] loaded and matches by ID
-    const assessments = await PhysicalAssessment.find(query)
-      .select('clienteId avaliadorId data dadosMedidos.peso dadosMedidos.altura dadosMedidos.sexo dadosMedidos.idade resultadosCalculados metas observacoes pdfName pdf_url createdAt')
-      .sort({ data: -1 })
-      .lean()
-      .maxTimeMS(8000);
+    let assessments: any[] = [];
+
+    // 1. Primary fast query
+    try {
+      assessments = await PhysicalAssessment.find(query)
+        .sort({ data: -1 })
+        .lean()
+        .maxTimeMS(5000);
+    } catch (findErr: any) {
+      console.warn('[assessments GET] find error, falling back to native collection:', findErr.message);
+      // 2. Native driver fallback (bypasses all Mongoose schema cast issues)
+      const rawDocs = await PhysicalAssessment.collection
+        .find(query)
+        .sort({ data: -1 })
+        .toArray();
+      
+      assessments = rawDocs.map((doc: any) => ({
+        ...doc,
+        _id: doc._id?.toString() || doc._id,
+        clienteId: doc.clienteId?.toString() || doc.clienteId,
+        avaliadorId: doc.avaliadorId?.toString() || doc.avaliadorId,
+      }));
+    }
 
     return NextResponse.json(
-      { success: true, data: assessments },
+      { success: true, data: assessments, count: assessments.length },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   } catch (error: any) {
     console.error('[assessments GET] Error:', error.message);
     return NextResponse.json(
-      { success: true, data: [], server_error: error.message },
-      { headers: { 'Cache-Control': 'no-store' } }
+      { success: false, data: [], error: error.message },
+      { headers: { 'Cache-Control': 'no-store' }, status: 500 }
     );
   }
 }
-
 
 export async function POST(request: Request) {
   try {
