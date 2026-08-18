@@ -25,23 +25,11 @@ export async function GET(request: Request) {
       }
     }
 
-    const db = mongoose.connection.db;
-    if (!db) {
-      throw new Error('Database connection not established');
-    }
-
-    // Direct native query with primary readPreference to avoid secondary connection timeouts
-    const rawDocs = await db.collection('physicalassessments', { readPreference: 'primary' })
-      .find(query)
+    // Fast, proven query identical to /api/debug/health
+    const assessments = await PhysicalAssessment.find(query)
       .sort({ data: -1 })
-      .toArray();
-
-    const assessments = rawDocs.map((doc: any) => ({
-      ...doc,
-      _id: doc._id?.toString() || doc._id,
-      clienteId: doc.clienteId?.toString() || doc.clienteId,
-      avaliadorId: doc.avaliadorId?.toString() || doc.avaliadorId,
-    }));
+      .lean()
+      .maxTimeMS(4000);
 
     return NextResponse.json(
       { success: true, data: assessments, count: assessments.length },
