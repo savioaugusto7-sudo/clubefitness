@@ -6,6 +6,8 @@ import AiConversation from '@/models/AiConversation';
 import { GoogleGenAI } from '@google/genai';
 import { geminiToolDeclarations, executeAiTool, getGabiSystemInstruction } from '@/utils/aiTools';
 
+export const maxDuration = 30;
+
 const MODEL_CHAIN = [
   'gemini-3.5-flash',
   'gemini-3.7-flash',

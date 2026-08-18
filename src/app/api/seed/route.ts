@@ -20,6 +20,8 @@ import Exercise from '@/models/Exercise';
 import ActivityLog from '@/models/ActivityLog';
 import { hashPassword } from '@/utils/auth';
 
+export const maxDuration = 30;
+
 // Static ObjectIDs for stable references
 const ids = {
   plans: {

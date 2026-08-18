@@ -4,6 +4,8 @@ import ActivityLog from '@/models/ActivityLog';
 import Professional from '@/models/Professional';
 import Client from '@/models/Client';
 
+export const maxDuration = 30;
+
 export async function GET() {
   try {
     await dbConnect();

@@ -5,6 +5,8 @@ import AgendaConfig from '@/models/AgendaConfig';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+export const maxDuration = 30;
+
 const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number; tipo: 'academia' | 'consultorio' }> = {
   'Treino Monitorado':        { vagasOcupadas: 1, tipo: 'academia'    },
   'Treino Livre':             { vagasOcupadas: 0, tipo: 'academia'    },

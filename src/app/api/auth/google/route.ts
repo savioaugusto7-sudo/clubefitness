@@ -3,6 +3,8 @@ import { google } from 'googleapis';
 import dbConnect from '@/utils/dbConnect';
 import Professional from '@/models/Professional';
 
+export const maxDuration = 30;
+
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,

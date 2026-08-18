@@ -6,6 +6,8 @@ import Professional from '@/models/Professional';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

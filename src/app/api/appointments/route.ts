@@ -8,6 +8,8 @@ import Plan from '@/models/Plan';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+export const maxDuration = 30;
+
 // Configuração de Serviços — Regras de Crédito e Capacidade
 const SERVICOS_CONFIG: Record<string, {
   tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum';

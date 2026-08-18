@@ -5,6 +5,8 @@ import dbConnect from '@/utils/dbConnect';
 import User from '@/models/User';
 import { hashPassword } from '@/utils/auth';
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     await dbConnect();

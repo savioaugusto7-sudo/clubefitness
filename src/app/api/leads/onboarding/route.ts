@@ -5,6 +5,8 @@ import User from '@/models/User';
 import Plan from '@/models/Plan';
 import { hashPassword } from '@/utils/auth';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

@@ -5,6 +5,7 @@ import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 export async function syncContractStatus(contract: any, token: string, baseUrl: string) {
   if (!contract?.clicksignDocKey) return;

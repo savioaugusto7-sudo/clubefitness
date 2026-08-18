@@ -5,6 +5,8 @@ import Client from '@/models/Client';
 import Contract from '@/models/Contract';
 import { syncClientPlanValidity } from '@/utils/commercial';
 
+export const maxDuration = 30;
+
 const getAsaasHeaders = () => {
   const token = process.env.ASAAS_API_KEY;
   if (!token) {

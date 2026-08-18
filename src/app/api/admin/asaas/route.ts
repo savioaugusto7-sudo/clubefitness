@@ -6,6 +6,8 @@ import Plan from '@/models/Plan';
 import { getAsaasPaymentDetails, getAsaasPixQrCode, createAsaasCustomer, createAsaasPayment, createAsaasSubscription, getAsaasInstallmentPayments, getAsaasSubscriptionPayments } from '@/utils/asaas';
 import Payment from '@/models/Payment';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

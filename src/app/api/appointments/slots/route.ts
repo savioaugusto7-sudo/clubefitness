@@ -5,6 +5,8 @@ import AgendaConfig from '@/models/AgendaConfig';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 
+export const maxDuration = 30;
+
 const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number }> = {
   'Treino Monitorado': { vagasOcupadas: 1 },
   'Treino Livre':      { vagasOcupadas: 0 },

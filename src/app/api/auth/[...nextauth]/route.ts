@@ -7,6 +7,8 @@ import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import { verifyPassword } from '@/utils/auth';
 
+export const maxDuration = 30;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({

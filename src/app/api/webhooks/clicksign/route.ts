@@ -4,6 +4,8 @@ import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     await dbConnect();

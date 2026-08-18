@@ -3,6 +3,8 @@ import dbConnect from '@/utils/dbConnect';
 import Exercise from '@/models/Exercise';
 import * as XLSX from 'xlsx';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

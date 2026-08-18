@@ -6,6 +6,8 @@ import Plan from '@/models/Plan';
 import Payment from '@/models/Payment';
 import { syncClientPlanValidity } from '@/utils/commercial';
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     await dbConnect();

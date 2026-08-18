@@ -5,6 +5,8 @@ import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import Appointment from '@/models/Appointment';
 
+export const maxDuration = 30;
+
 // Helper otimizado para gerar agendamentos reais na grade a partir de regras de horário fixo
 async function generateAppointmentsForFixedSchedules(schedules: any[]) {
   try {

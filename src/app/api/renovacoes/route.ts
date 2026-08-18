@@ -8,6 +8,8 @@ import { createClicksignDocument } from '@/app/api/contracts/route';
 import { generateContractTemplate } from '@/utils/contractTemplate';
 import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
 
+export const maxDuration = 30;
+
 // Helper para calcular data + N meses
 function addMonths(dateStr: string, months: number): string {
   const d = new Date(dateStr + 'T12:00:00');

@@ -112,6 +112,8 @@ import Contract from '@/models/Contract';
 import { createClicksignDocument } from '@/app/api/contracts/route';
 import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
 
+export const maxDuration = 30;
+
 export async function PUT(request: Request) {
   try {
     await dbConnect();

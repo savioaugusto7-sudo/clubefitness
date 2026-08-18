@@ -7,6 +7,8 @@ import StrengthTest from '@/models/StrengthTest';
 import Prontuario from '@/models/Prontuario';
 import { checkSessionPermission } from '@/utils/authHelper';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

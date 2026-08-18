@@ -4,6 +4,8 @@ import Trancamento from '@/models/Trancamento';
 import Client from '@/models/Client';
 import Contract from '@/models/Contract';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

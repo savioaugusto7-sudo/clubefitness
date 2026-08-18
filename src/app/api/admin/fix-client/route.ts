@@ -3,6 +3,8 @@ import dbConnect from '@/utils/dbConnect';
 import Client from '@/models/Client';
 import User from '@/models/User';
 
+export const maxDuration = 30;
+
 // Rota de admin para gerenciar usuários
 // GET /api/admin/fix-client?email=X&secret=clubefix2024&action=make-admin
 // GET /api/admin/fix-client?email=X&secret=clubefix2024&action=fix-comercial

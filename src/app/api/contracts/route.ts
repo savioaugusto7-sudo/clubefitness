@@ -9,6 +9,8 @@ import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
 
 import { syncContractStatus } from '@/app/api/clicksign/route';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

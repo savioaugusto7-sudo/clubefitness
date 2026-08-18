@@ -3,6 +3,8 @@ import dbConnect from '@/utils/dbConnect';
 import Professional from '@/models/Professional';
 import User from '@/models/User';
 
+export const maxDuration = 30;
+
 export async function GET() {
   try {
     await dbConnect();

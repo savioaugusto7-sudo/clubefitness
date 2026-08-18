@@ -4,6 +4,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/utils/dbConnect';
 import Client from '@/models/Client';
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);

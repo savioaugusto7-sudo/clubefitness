@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Medication from '@/models/Medication';
 
+export const maxDuration = 30;
+
 export async function GET() {
   try {
     await dbConnect();

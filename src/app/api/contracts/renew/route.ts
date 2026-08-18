@@ -4,6 +4,8 @@ import Client from '@/models/Client';
 import Payment from '@/models/Payment';
 import { syncClientPlanValidity } from '@/utils/commercial';
 
+export const maxDuration = 30;
+
 function formatFormaPagamento(fp?: string): string {
   if (!fp) return 'Pix Manual';
   const lower = fp.toLowerCase();

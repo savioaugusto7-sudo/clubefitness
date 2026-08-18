@@ -7,6 +7,8 @@ import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { hashPassword } from '@/utils/auth';
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

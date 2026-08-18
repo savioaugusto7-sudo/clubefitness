@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import mongoose from 'mongoose';
 
+export const maxDuration = 30;
+
 // Rota para limpar todos os dados fictícios do banco
 // GET /api/admin/clean-demo?secret=clubefix2024
 export async function GET(request: Request) {

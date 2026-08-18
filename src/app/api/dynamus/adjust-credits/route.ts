@@ -4,6 +4,8 @@ import Client from '@/models/Client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);

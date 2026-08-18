@@ -7,6 +7,8 @@ import Plan from '@/models/Plan';
 import { isRestrictedForTestAdmin } from '@/utils/authCheck';
 import { hashPassword } from '@/utils/auth';
 
+export const maxDuration = 30;
+
 export async function GET() {
   try {
     await dbConnect();

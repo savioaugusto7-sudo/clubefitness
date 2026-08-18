@@ -5,6 +5,8 @@ import User from '@/models/User';
 import Plan from '@/models/Plan';
 import crypto from 'crypto';
 
+export const maxDuration = 30;
+
 function calculateExpirationDate(dataAdesao: string, planName: string): string {
   const date = new Date(dataAdesao + 'T12:00:00');
   if (planName.toLowerCase().includes('semestral')) {
