@@ -15,25 +15,13 @@ export async function GET(request: Request) {
     const _client = Client;
     const _prof = Professional;
 
-    // --- SESSION CHECK ---
-    let user: any = null;
-    try {
-      const result = await checkSessionPermission(['admin', 'professional', 'client', 'receptionist'], undefined, request);
-      user = result.user;
-    } catch (authErr: any) {
-      console.warn('[strength-tests GET] Session check notice:', authErr.message);
-    }
+    // --- PARAMETERS & QUERY ---
+    const { searchParams } = new URL(request.url);
+    const paramClientId = searchParams.get('clientId');
 
-    // Build query based on role - only restrict if strictly a pure student
     let query: any = {};
-    if (user) {
-      const roles: string[] = (user.activeRoles || [user.role || 'client']) as string[];
-      const isStaff = roles.some(r => ['admin', 'professional', 'receptionist'].includes(r)) ||
-                      ['admin', 'professional', 'receptionist'].includes(user.role);
-
-      if (!isStaff && user.clientProfileId) {
-        query = { clienteId: user.clientProfileId };
-      }
+    if (paramClientId) {
+      query = { clienteId: paramClientId };
     }
 
     let tests: any[] = [];
