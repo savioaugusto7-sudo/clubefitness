@@ -2,58 +2,56 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
- */
-let cached = (global as any).mongoose;
-
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
-}
+// Set bufferCommands to false so Mongoose fails immediately instead of hanging
+mongoose.set('bufferCommands', false);
 
 async function dbConnect() {
   if (!MONGODB_URI) {
     throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
   }
 
-  // If we have a cached connection AND it's still connected, reuse it
-  if (cached.conn && mongoose.connection.readyState === 1) {
-    return cached.conn;
+  // 1. If already fully connected, reuse immediately
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
   }
 
-  // If the connection is in a bad state, reset the cache
-  if (cached.conn && mongoose.connection.readyState !== 1) {
-    cached.conn = null;
-    cached.promise = null;
+  // 2. If connecting right now, wait a short moment for it to finish
+  if (mongoose.connection.readyState === 2) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Connection timeout while connecting')), 4000);
+        mongoose.connection.once('connected', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        mongoose.connection.once('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      });
+      return mongoose.connection;
+    } catch {
+      // If waiting failed, disconnect and try fresh connection below
+      try { await mongoose.disconnect(); } catch {}
+    }
   }
 
-  if (!cached.promise) {
-    const opts = {
-      maxPoolSize: 5,
-      minPoolSize: 1,
-      serverSelectionTimeoutMS: 8000,
-      socketTimeoutMS: 20000,
-      connectTimeoutMS: 8000,
-      maxIdleTimeMS: 30000,
-      heartbeatFrequencyMS: 10000,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongooseInstance) => {
-      return mongooseInstance;
-    });
-  }
+  // 3. Establish fresh connection with strict serverless options
+  const opts = {
+    bufferCommands: false,
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+    socketTimeoutMS: 10000,
+  };
 
   try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    cached.conn = null;
-    throw e;
+    const conn = await mongoose.connect(MONGODB_URI, opts);
+    return conn.connection;
+  } catch (error: any) {
+    console.error('[dbConnect] Connection error:', error.message);
+    throw error;
   }
-
-  return cached.conn;
 }
 
 export default dbConnect;
