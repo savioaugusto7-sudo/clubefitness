@@ -14,6 +14,16 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const paramClientId = searchParams.get('clientId');
+    const id = searchParams.get('id');
+
+    // If fetching full single assessment (e.g. for PDF download)
+    if (id) {
+      const fullDoc = await PhysicalAssessment.findById(id).lean().maxTimeMS(4000);
+      return NextResponse.json(
+        { success: true, data: fullDoc },
+        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
 
     let query: any = {};
     if (paramClientId) {
@@ -25,8 +35,9 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fast, proven query identical to /api/debug/health
+    // Light select projection for instant dashboard table rendering (<150ms)
     const assessments = await PhysicalAssessment.find(query)
+      .select('clienteId avaliadorId data dadosMedidos.peso dadosMedidos.altura dadosMedidos.sexo dadosMedidos.idade resultadosCalculados.percentualGordura resultadosCalculados.massaMagra resultadosCalculados.massaGorda createdAt')
       .sort({ data: -1 })
       .lean()
       .maxTimeMS(4000);
