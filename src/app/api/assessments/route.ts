@@ -17,7 +17,6 @@ export async function GET(request: Request) {
 
     let query: any = {};
     if (paramClientId) {
-      // Allow matching by string or ObjectId
       try {
         const objId = new mongoose.Types.ObjectId(paramClientId);
         query = { $or: [{ clienteId: paramClientId }, { clienteId: objId }] };
@@ -26,13 +25,13 @@ export async function GET(request: Request) {
       }
     }
 
-    // Direct native MongoDB collection query - instantaneous and bypasses all Mongoose schema cast overhead
     const db = mongoose.connection.db;
     if (!db) {
       throw new Error('Database connection not established');
     }
 
-    const rawDocs = await db.collection('physicalassessments')
+    // Direct native query with primary readPreference to avoid secondary connection timeouts
+    const rawDocs = await db.collection('physicalassessments', { readPreference: 'primary' })
       .find(query)
       .sort({ data: -1 })
       .toArray();
