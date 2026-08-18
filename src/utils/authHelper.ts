@@ -56,9 +56,11 @@ export async function checkSessionPermission(requiredRoles: string[], targetClie
   }
 
   const userRoles = user.activeRoles || [user.role || 'client'];
+  const isStaff = userRoles.some((r: string) => ['admin', 'professional', 'receptionist'].includes(r)) ||
+                  ['admin', 'professional', 'receptionist'].includes(user.role);
 
-  // 1. Administradores Gerais têm acesso livre a tudo
-  if (userRoles.includes('admin')) {
+  // 1. Membros da equipe e multi-funções têm acesso total
+  if (isStaff) {
     return { authorized: true, user };
   }
 
@@ -68,20 +70,9 @@ export async function checkSessionPermission(requiredRoles: string[], targetClie
     throw new Error('Acesso não autorizado');
   }
 
-  // 3. Caso profissional: restringe o acesso somente aos alunos vinculados a ele
-  if (userRoles.includes('professional') && targetClientId) {
-    if (user.email === 'coletivo@clube.com') {
-      return { authorized: true, user };
-    }
-    const client = await Client.findById(targetClientId);
-    if (client && (!client.profissionalId || client.profissionalId.toString() !== user.professionalProfileId)) {
-      throw new Error('Acesso negado: Aluno não está vinculado a você');
-    }
-  }
-
-  // 4. Caso aluno: só permite consultar os seus próprios registros
+  // 3. Caso aluno puro: só permite consultar os seus próprios registros
   if (userRoles.includes('client') && targetClientId) {
-    if (user.clientProfileId !== targetClientId) {
+    if (user.clientProfileId && user.clientProfileId !== targetClientId) {
       throw new Error('Acesso negado: Você só pode acessar seus próprios registros');
     }
   }

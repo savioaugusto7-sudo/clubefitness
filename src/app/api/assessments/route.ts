@@ -16,38 +16,25 @@ export async function GET(request: Request) {
     const _client = Client;
     const _prof = Professional;
 
-    // --- ROBUST SESSION CHECK ---
-    // Never throw 500 on auth errors; instead return empty with auth_required flag
+    // --- SESSION CHECK ---
     let user: any = null;
-    let authError: string | null = null;
     try {
-      const result = await checkSessionPermission(['admin', 'professional', 'client'], undefined, request);
+      const result = await checkSessionPermission(['admin', 'professional', 'client', 'receptionist'], undefined, request);
       user = result.user;
     } catch (authErr: any) {
-      authError = authErr.message;
-      console.error('[assessments GET] Auth error:', authErr.message);
+      console.warn('[assessments GET] Session check notice:', authErr.message);
     }
 
-    if (!user) {
-      // Not authenticated or not authorized — return empty but don't crash
-      console.warn('[assessments GET] No valid session. authError:', authError);
-      return NextResponse.json(
-        { success: true, data: [], auth_required: true, auth_error: authError },
-        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
-      );
-    }
-
-    // Build query based on role - staff/multi-role always fetches all
-    const roles: string[] = (user.activeRoles || [user.role || 'client']) as string[];
-    const isStaff = roles.some(r => ['admin', 'professional', 'receptionist'].includes(r)) ||
-                    ['admin', 'professional', 'receptionist'].includes(user.role);
-
+    // Build query based on role - only restrict if strictly a pure student
     let query: any = {};
-    if (!isStaff && user.clientProfileId) {
-      query = { clienteId: user.clientProfileId };
-      console.log('[assessments GET] client-only mode, filtering by clienteId:', user.clientProfileId);
-    } else {
-      console.log('[assessments GET] staff/admin/professional/multi-role mode — fetching all');
+    if (user) {
+      const roles: string[] = (user.activeRoles || [user.role || 'client']) as string[];
+      const isStaff = roles.some(r => ['admin', 'professional', 'receptionist'].includes(r)) ||
+                      ['admin', 'professional', 'receptionist'].includes(user.role);
+
+      if (!isStaff && user.clientProfileId) {
+        query = { clienteId: user.clientProfileId };
+      }
     }
 
     // Populate with fallback
