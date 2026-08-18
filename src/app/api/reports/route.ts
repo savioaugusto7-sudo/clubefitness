@@ -35,16 +35,17 @@ export async function GET(request: Request) {
       );
     }
 
-    const roles: string[] = (user.activeRoles || [user.role]) as string[];
-    console.log('[reports GET] user roles:', roles);
+    // Build query based on role - staff/multi-role always fetches all
+    const roles: string[] = (user.activeRoles || [user.role || 'client']) as string[];
+    const isStaff = roles.some(r => ['admin', 'professional', 'receptionist'].includes(r)) ||
+                    ['admin', 'professional', 'receptionist'].includes(user.role);
 
     let query: any = {};
-    const isClientOnly = roles.includes('client') && !roles.includes('admin') && !roles.includes('professional');
-    if (isClientOnly) {
+    if (!isStaff && user.clientProfileId) {
       query = { clienteId: user.clientProfileId };
       console.log('[reports GET] client-only, filtering by clienteId:', user.clientProfileId);
     } else {
-      console.log('[reports GET] admin/professional mode — fetching all');
+      console.log('[reports GET] staff/admin/professional/multi-role mode — fetching all');
     }
 
     let reports: any[] = [];

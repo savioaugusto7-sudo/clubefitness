@@ -37,17 +37,17 @@ export async function GET(request: Request) {
       );
     }
 
-    // Build query based on role
-    const roles: string[] = (user.activeRoles || [user.role]) as string[];
-    console.log('[assessments GET] user roles:', roles, '| professionalProfileId:', user.professionalProfileId);
+    // Build query based on role - staff/multi-role always fetches all
+    const roles: string[] = (user.activeRoles || [user.role || 'client']) as string[];
+    const isStaff = roles.some(r => ['admin', 'professional', 'receptionist'].includes(r)) ||
+                    ['admin', 'professional', 'receptionist'].includes(user.role);
 
     let query: any = {};
-    const isClientOnly = roles.includes('client') && !roles.includes('admin') && !roles.includes('professional');
-    if (isClientOnly) {
+    if (!isStaff && user.clientProfileId) {
       query = { clienteId: user.clientProfileId };
       console.log('[assessments GET] client-only mode, filtering by clienteId:', user.clientProfileId);
     } else {
-      console.log('[assessments GET] admin/professional mode — fetching all');
+      console.log('[assessments GET] staff/admin/professional/multi-role mode — fetching all');
     }
 
     // Populate with fallback

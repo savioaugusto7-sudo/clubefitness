@@ -32,10 +32,13 @@ export async function GET(request: Request) {
       );
     }
 
-    const roles: string[] = (user.activeRoles || [user.role]) as string[];
+    // Build query based on role - staff/multi-role always fetches all
+    const roles: string[] = (user.activeRoles || [user.role || 'client']) as string[];
+    const isStaff = roles.some(r => ['admin', 'professional', 'receptionist'].includes(r)) ||
+                    ['admin', 'professional', 'receptionist'].includes(user.role);
+
     let query: any = {};
-    const isClientOnly = roles.includes('client') && !roles.includes('admin') && !roles.includes('professional');
-    if (isClientOnly) {
+    if (!isStaff && user.clientProfileId) {
       query = { clienteId: user.clientProfileId };
     }
 
