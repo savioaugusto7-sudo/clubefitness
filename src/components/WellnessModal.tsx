@@ -18,24 +18,32 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
   const [errorMessage, setErrorMessage] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [summaryResult, setSummaryResult] = useState<WellnessResult | null>(null);
+  const loadedAptIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      // Se já houver wellness prévio no agendamento, pré-carrega
-      if (appointment?.wellness?.realizado) {
-        setSono(appointment.wellness.sono || 3);
-        setFadiga(appointment.wellness.fadiga || 3);
-        setDorMuscular(appointment.wellness.dorMuscular || 2);
-      } else {
-        setSono(3);
-        setFadiga(3);
-        setDorMuscular(2);
+    if (isOpen && appointment) {
+      const currentId = String(appointment._id || '');
+      if (loadedAptIdRef.current !== currentId) {
+        loadedAptIdRef.current = currentId;
+        if (appointment?.wellness?.realizado) {
+          setSono(appointment.wellness.sono || 3);
+          setFadiga(appointment.wellness.fadiga || 3);
+          setDorMuscular(appointment.wellness.dorMuscular || 2);
+        } else {
+          setSono(3);
+          setFadiga(3);
+          setDorMuscular(2);
+        }
+        setErrorMessage('');
+        setShowSummary(false);
+        setSummaryResult(null);
       }
-      setErrorMessage('');
+    } else if (!isOpen) {
+      loadedAptIdRef.current = null;
       setShowSummary(false);
       setSummaryResult(null);
     }
-  }, [isOpen, appointment]);
+  }, [isOpen, appointment?._id]);
 
   if (!isOpen || !appointment) return null;
 

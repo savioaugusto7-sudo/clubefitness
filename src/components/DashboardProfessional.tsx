@@ -10129,6 +10129,68 @@ goniometria: {
                   </tbody>
                 </table>
               </div>
+
+              <h4 style={{ color: 'var(--color-primary)', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
+                <span style={{ marginRight: '6px' }}>🧘</span> Histórico de Wellness & Prontidão Diária
+              </h4>
+              <div className="table-responsive" style={{ marginBottom: '24px' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Sono</th>
+                      <th>Fadiga</th>
+                      <th>Dor Muscular</th>
+                      <th>Score</th>
+                      <th>Status / Conduta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const clientWellnessApts = appointments
+                        .filter(a => ((a.clienteId?._id || a.clienteId) === detailClient._id) && a.wellness?.realizado)
+                        .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+
+                      if (clientWellnessApts.length === 0) {
+                        return <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhum questionário Wellness registrado para este aluno.</td></tr>;
+                      }
+
+                      return clientWellnessApts.map(a => {
+                        const w = a.wellness;
+                        const formattedDate = a.data ? a.data.split('-').reverse().join('/') : '-';
+                        return (
+                          <tr key={a._id}>
+                            <td data-label="Data"><strong>{formattedDate}</strong> <small style={{ color: 'var(--text-muted)' }}>{a.horario}</small></td>
+                            <td data-label="Sono">{w.sono}/10</td>
+                            <td data-label="Fadiga">{w.fadiga}/10</td>
+                            <td data-label="Dor">{w.dorMuscular}/10</td>
+                            <td data-label="Score">
+                              <strong style={{ color: w.statusColor || '#10b981' }}>{w.score}/30</strong>
+                            </td>
+                            <td data-label="Status / Conduta">
+                              <span style={{
+                                padding: '3px 8px',
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                background: w.status === 'otimo' ? 'rgba(16,185,129,0.15)' : w.status === 'moderado' ? 'rgba(234,179,8,0.15)' : w.status === 'ruim' ? 'rgba(249,115,22,0.15)' : 'rgba(239,68,68,0.15)',
+                                color: w.statusColor || '#10b981',
+                                display: 'inline-block',
+                                marginBottom: '2px'
+                              }}>
+                                {w.statusLabel}
+                              </span>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                                👉 {w.conduta}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             </div>
             <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
               <button className="btn btn-primary" onClick={async () => {
