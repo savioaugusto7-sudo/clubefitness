@@ -479,22 +479,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
             </div>
           </div>
 
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            padding: '6px 14px',
-            borderRadius: '10px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <i className="fa-solid fa-stopwatch" style={{ color: '#eab308', fontSize: '0.9rem' }}></i>
-            <div>
-              <div style={{ fontSize: '0.66rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 700 }}>Tempo Médio</div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#eab308' }}>~{metrics.tempoMinutos} min</div>
-            </div>
-          </div>
-
           <button
             type="button"
             className="btn btn-primary"
