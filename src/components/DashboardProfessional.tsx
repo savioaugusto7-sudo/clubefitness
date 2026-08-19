@@ -9380,54 +9380,121 @@ goniometria: {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Demonstração Visual (URL do GIF ou Vídeo MP4 em Loop)</label>
-                  <input
-                    type="url"
-                    className="form-control"
-                    value={newExGifUrl}
-                    onChange={e => setNewExGifUrl(e.target.value)}
-                    placeholder="https://exemplo.com/demonstracao.gif ou .mp4"
-                  />
-                  {newExGifUrl && (
-                    <div style={{
-                      marginTop: '10px',
-                      padding: '10px',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      textAlign: 'center'
-                    }}>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                        <i className="fa-solid fa-eye" style={{ marginRight: '4px' }}></i> Pré-visualização da Demonstração:
-                      </span>
-                      {newExGifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
-                        <video
-                          src={newExGifUrl}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px' }}
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Demonstração Visual (GIF ou Vídeo do Exercício)</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Opcional</span>
+                  </label>
+
+                  <div style={{
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    background: 'rgba(0, 0, 0, 0.2)'
+                  }}>
+                    {/* File Upload Selector */}
+                    <div style={{ marginBottom: '10px' }}>
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '12px',
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          border: '2px dashed rgba(16, 185, 129, 0.35)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          color: '#10b981',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.08)'}
+                      >
+                        <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.2rem' }}></i>
+                        <span>📁 Escolher Arquivo GIF ou Vídeo do Dispositivo</span>
+                        <input
+                          type="file"
+                          accept="image/gif,image/webp,video/mp4,video/webm"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 8 * 1024 * 1024) {
+                              alert('O arquivo selecionado é maior que 8MB. Por favor, escolha um GIF ou vídeo mais leve.');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setNewExGifUrl(ev.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }}
                         />
-                      ) : (
-                        <img
-                          src={newExGifUrl}
-                          alt="Pré-visualização"
-                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain' }}
-                        />
-                      )}
-                      <div style={{ marginTop: '6px' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-secondary"
-                          style={{ fontSize: '0.72rem', padding: '2px 8px' }}
-                          onClick={() => setNewExGifUrl('')}
-                        >
-                          <i className="fa-solid fa-trash"></i> Limpar Mídia
-                        </button>
-                      </div>
+                      </label>
                     </div>
-                  )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '8px 0' }}>
+                      <div style={{ flexGrow: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ou cole o link da web</span>
+                      <div style={{ flexGrow: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
+                    </div>
+
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={newExGifUrl.startsWith('data:') ? '[Arquivo carregado do dispositivo]' : newExGifUrl}
+                      onChange={e => {
+                        if (!newExGifUrl.startsWith('data:') || e.target.value === '') {
+                          setNewExGifUrl(e.target.value);
+                        }
+                      }}
+                      placeholder="https://exemplo.com/exercicio.gif"
+                      disabled={newExGifUrl.startsWith('data:')}
+                    />
+
+                    {newExGifUrl && (
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '12px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        textAlign: 'center'
+                      }}>
+                        <span style={{ display: 'block', fontSize: '0.78rem', color: '#10b981', marginBottom: '8px', fontWeight: 600 }}>
+                          <i className="fa-solid fa-circle-check" style={{ marginRight: '5px' }}></i> Pré-visualização da Demonstração:
+                        </span>
+                        {newExGifUrl.match(/\.(mp4|webm)($|\?)/i) || newExGifUrl.startsWith('data:video/') ? (
+                          <video
+                            src={newExGifUrl}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}
+                          />
+                        ) : (
+                          <img
+                            src={newExGifUrl}
+                            alt="Pré-visualização"
+                            style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain', border: '1px solid rgba(255,255,255,0.1)' }}
+                          />
+                        )}
+                        <div style={{ marginTop: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger"
+                            style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                            onClick={() => setNewExGifUrl('')}
+                          >
+                            <i className="fa-solid fa-trash"></i> Remover GIF
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Instruções de Execução</label>
@@ -9483,54 +9550,121 @@ goniometria: {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Demonstração Visual (URL do GIF ou Vídeo MP4 em Loop)</label>
-                  <input
-                    type="url"
-                    className="form-control"
-                    value={editExGifUrl}
-                    onChange={e => setEditExGifUrl(e.target.value)}
-                    placeholder="https://exemplo.com/demonstracao.gif ou .mp4"
-                  />
-                  {editExGifUrl && (
-                    <div style={{
-                      marginTop: '10px',
-                      padding: '10px',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      textAlign: 'center'
-                    }}>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                        <i className="fa-solid fa-eye" style={{ marginRight: '4px' }}></i> Pré-visualização da Demonstração:
-                      </span>
-                      {editExGifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
-                        <video
-                          src={editExGifUrl}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px' }}
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Demonstração Visual (GIF ou Vídeo do Exercício)</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Opcional</span>
+                  </label>
+
+                  <div style={{
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    background: 'rgba(0, 0, 0, 0.2)'
+                  }}>
+                    {/* File Upload Selector */}
+                    <div style={{ marginBottom: '10px' }}>
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '12px',
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          border: '2px dashed rgba(16, 185, 129, 0.35)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          color: '#10b981',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.08)'}
+                      >
+                        <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.2rem' }}></i>
+                        <span>📁 Escolher Arquivo GIF ou Vídeo do Dispositivo</span>
+                        <input
+                          type="file"
+                          accept="image/gif,image/webp,video/mp4,video/webm"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 8 * 1024 * 1024) {
+                              alert('O arquivo selecionado é maior que 8MB. Por favor, escolha um GIF ou vídeo mais leve.');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setEditExGifUrl(ev.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }}
                         />
-                      ) : (
-                        <img
-                          src={editExGifUrl}
-                          alt="Pré-visualização"
-                          style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain' }}
-                        />
-                      )}
-                      <div style={{ marginTop: '6px' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-secondary"
-                          style={{ fontSize: '0.72rem', padding: '2px 8px' }}
-                          onClick={() => setEditExGifUrl('')}
-                        >
-                          <i className="fa-solid fa-trash"></i> Remover Mídia
-                        </button>
-                      </div>
+                      </label>
                     </div>
-                  )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '8px 0' }}>
+                      <div style={{ flexGrow: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ou cole o link da web</span>
+                      <div style={{ flexGrow: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
+                    </div>
+
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editExGifUrl.startsWith('data:') ? '[Arquivo carregado do dispositivo]' : editExGifUrl}
+                      onChange={e => {
+                        if (!editExGifUrl.startsWith('data:') || e.target.value === '') {
+                          setEditExGifUrl(e.target.value);
+                        }
+                      }}
+                      placeholder="https://exemplo.com/exercicio.gif"
+                      disabled={editExGifUrl.startsWith('data:')}
+                    />
+
+                    {editExGifUrl && (
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '12px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        textAlign: 'center'
+                      }}>
+                        <span style={{ display: 'block', fontSize: '0.78rem', color: '#10b981', marginBottom: '8px', fontWeight: 600 }}>
+                          <i className="fa-solid fa-circle-check" style={{ marginRight: '5px' }}></i> Pré-visualização da Demonstração:
+                        </span>
+                        {editExGifUrl.match(/\.(mp4|webm)($|\?)/i) || editExGifUrl.startsWith('data:video/') ? (
+                          <video
+                            src={editExGifUrl}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}
+                          />
+                        ) : (
+                          <img
+                            src={editExGifUrl}
+                            alt="Pré-visualização"
+                            style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain', border: '1px solid rgba(255,255,255,0.1)' }}
+                          />
+                        )}
+                        <div style={{ marginTop: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger"
+                            style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                            onClick={() => setEditExGifUrl('')}
+                          >
+                            <i className="fa-solid fa-trash"></i> Remover GIF
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Instruções de Execução</label>
