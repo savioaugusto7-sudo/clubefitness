@@ -6,6 +6,18 @@ import { authOptions } from '@/lib/authOptions';
 
 export const maxDuration = 30;
 
+function calculateExpirationDate(dataAdesao: string, periodicidade: string): string {
+  if (!dataAdesao) return '';
+  const date = new Date(dataAdesao + 'T12:00:00');
+  if (isNaN(date.getTime())) return '';
+  if (periodicidade.toLowerCase().includes('semestral')) {
+    date.setMonth(date.getMonth() + 6);
+  } else {
+    date.setMonth(date.getMonth() + 12);
+  }
+  return date.toISOString().split('T')[0];
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,15 +28,15 @@ export async function POST(request: Request) {
     const userObj = session.user as any;
     const userRole = userObj.role || 'client';
     if (userRole !== 'admin' && userRole !== 'receptionist') {
-      return NextResponse.json({ success: false, error: 'Apenas administradores e recepção podem ajustar créditos.' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Apenas administradores e recepção podem ajustar dados Dynamus.' }, { status: 403 });
     }
 
     await dbConnect();
     const body = await request.json();
-    const { clientId, tipoCredito, operacao, quantidade, motivo } = body;
+    const { clientId, tipoCredito, operacao, quantidade, dataInicio, periodicidade } = body;
 
-    if (!clientId || !tipoCredito || !operacao || !quantidade || quantidade <= 0) {
-      return NextResponse.json({ success: false, error: 'Parâmetros inválidos para ajuste de crédito.' }, { status: 400 });
+    if (!clientId) {
+      return NextResponse.json({ success: false, error: 'Identificador do aluno não fornecido.' }, { status: 400 });
     }
 
     const client = await Client.findById(clientId);
@@ -36,42 +48,51 @@ export async function POST(request: Request) {
       client.dadosComerciais = {};
     }
 
-    const qtd = Number(quantidade);
+    let alterouVigencia = false;
 
-    if (tipoCredito === 'geral') {
-      const atual = client.dadosComerciais.creditosTotal || 0;
-      if (operacao === 'adicionar') {
-        client.dadosComerciais.creditosTotal = atual + qtd;
-      } else {
-        client.dadosComerciais.creditosTotal = Math.max(0, atual - qtd);
+    // 1. Atualizar vigência / periodicidade se fornecidos
+    if (dataInicio) {
+      client.dadosComerciais.dataInicio = dataInicio;
+      alterouVigencia = true;
+    }
+
+    if (periodicidade) {
+      const isSemestral = periodicidade.toLowerCase().includes('semestral');
+      client.dadosComerciais.duracao = isSemestral ? 'semestral' : 'anual';
+      client.dadosComerciais.parcelas = isSemestral ? 6 : 12;
+      alterouVigencia = true;
+    }
+
+    if (alterouVigencia) {
+      const baseData = client.dadosComerciais.dataInicio || new Date().toISOString().split('T')[0];
+      const dur = client.dadosComerciais.duracao || 'anual';
+      client.dadosComerciais.vencimento = calculateExpirationDate(baseData, dur);
+    }
+
+    // 2. Ajustar créditos se fornecidos
+    if (tipoCredito && operacao && quantidade && Number(quantidade) > 0) {
+      const qtd = Number(quantidade);
+      if (tipoCredito === 'geral') {
+        const atual = client.dadosComerciais.creditosTotal || 0;
+        client.dadosComerciais.creditosTotal = operacao === 'adicionar' ? atual + qtd : Math.max(0, atual - qtd);
+      } else if (tipoCredito === 'recovery') {
+        const atual = client.dadosComerciais.creditosRecoveryTotal || 0;
+        client.dadosComerciais.creditosRecoveryTotal = operacao === 'adicionar' ? atual + qtd : Math.max(0, atual - qtd);
+      } else if (tipoCredito === 'massagem') {
+        const atual = client.dadosComerciais.creditosMassagemTotal || 0;
+        client.dadosComerciais.creditosMassagemTotal = operacao === 'adicionar' ? atual + qtd : Math.max(0, atual - qtd);
       }
-    } else if (tipoCredito === 'recovery') {
-      const atual = client.dadosComerciais.creditosRecoveryTotal || 0;
-      if (operacao === 'adicionar') {
-        client.dadosComerciais.creditosRecoveryTotal = atual + qtd;
-      } else {
-        client.dadosComerciais.creditosRecoveryTotal = Math.max(0, atual - qtd);
-      }
-    } else if (tipoCredito === 'massagem') {
-      const atual = client.dadosComerciais.creditosMassagemTotal || 0;
-      if (operacao === 'adicionar') {
-        client.dadosComerciais.creditosMassagemTotal = atual + qtd;
-      } else {
-        client.dadosComerciais.creditosMassagemTotal = Math.max(0, atual - qtd);
-      }
-    } else {
-      return NextResponse.json({ success: false, error: 'Tipo de crédito inválido (geral, recovery ou massagem).' }, { status: 400 });
     }
 
     await client.save();
 
     return NextResponse.json({
       success: true,
-      message: `Créditos de ${tipoCredito} ${operacao === 'adicionar' ? 'adicionados' : 'removidos'} com sucesso.`,
+      message: 'Dados do aluno Dynamus atualizados com sucesso.',
       client
     });
   } catch (error: any) {
-    console.error('Erro ao ajustar créditos Dynamus:', error);
+    console.error('Erro ao ajustar dados Dynamus:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
