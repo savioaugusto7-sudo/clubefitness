@@ -23,6 +23,77 @@ function toValidObjectId(val: any, fallback?: string): mongoose.Types.ObjectId |
   return fallback ? new mongoose.Types.ObjectId(fallback) : null;
 }
 
+function calculatePollock7BFHelper(sumDobras: number, age: number, sex: string): number {
+  if (sumDobras <= 0) return 0;
+  const isFemale = (sex || '').trim().toUpperCase().startsWith('F');
+  let densidade = 0;
+  if (!isFemale) {
+    densidade = 1.112 - (0.00043499 * sumDobras) + (0.00000055 * sumDobras * sumDobras) - (0.00028826 * (age || 30));
+  } else {
+    densidade = 1.097 - (0.00046971 * sumDobras) + (0.00000056 * sumDobras * sumDobras) - (0.00012828 * (age || 30));
+  }
+  if (densidade <= 0) return 0;
+  const bf = ((4.95 / densidade) - 4.50) * 100;
+  return Math.max(3, Math.min(60, Number(bf.toFixed(1))));
+}
+
+function hydrateAssessmentResults(asDoc: any) {
+  if (!asDoc) return asDoc;
+  const dm = asDoc.dadosMedidos || {};
+  let rc = asDoc.resultadosCalculados || {};
+
+  const peso = Number(dm.peso) || 0;
+  let altura = Number(dm.altura) || 0;
+  if (altura > 3) altura = altura / 100;
+  const idade = Number(dm.idade) || 30;
+  const sexo = dm.sexo || 'M';
+
+  // Extrair soma das dobras se disponível
+  let sumDobras = Number(dm.somaDobras) || 0;
+  if (sumDobras <= 0 && dm.dobras) {
+    const d = dm.dobras;
+    sumDobras = (Number(d.peitoral) || 0) + (Number(d.triceps) || 0) + (Number(d.subescapular) || 0) +
+                (Number(d.subaxilar) || 0) + (Number(d.suprailiaca) || 0) + (Number(d.abdomen) || 0) +
+                (Number(d.coxa) || 0) + (Number(d.panturrilha) || 0);
+  }
+
+  let bf = Number(rc.percentualGordura) || 0;
+  if (bf <= 0 && sumDobras > 0) {
+    bf = calculatePollock7BFHelper(sumDobras, idade, sexo);
+  }
+
+  let mg = Number(rc.massaGorda) || 0;
+  let mm = Number(rc.massaMagra) || 0;
+  if ((mg <= 0 || mm <= 0) && peso > 0 && bf > 0) {
+    mg = Number(((peso * bf) / 100).toFixed(1));
+    mm = Number((peso - mg).toFixed(1));
+  }
+
+  let imc = Number(rc.imc) || 0;
+  if ((imc <= 1 || imc > 100) && peso > 0 && altura > 0) {
+    imc = Number((peso / (altura * altura)).toFixed(1));
+  }
+
+  let imcClass = rc.imcClassificacao;
+  if (!imcClass || imcClass === '-' || (imcClass === 'Baixo peso' && imc >= 18.5)) {
+    if (imc < 18.5) imcClass = 'Baixo peso';
+    else if (imc < 25) imcClass = 'Normal';
+    else if (imc < 30) imcClass = 'Sobrepeso';
+    else imcClass = 'Obesidade';
+  }
+
+  asDoc.resultadosCalculados = {
+    ...rc,
+    percentualGordura: bf,
+    massaGorda: mg,
+    massaMagra: mm,
+    imc,
+    imcClassificacao: imcClass
+  };
+
+  return asDoc;
+}
+
 export async function GET(request: Request) {
   try {
     await dbConnect();
@@ -49,7 +120,7 @@ export async function GET(request: Request) {
           .maxTimeMS(4000);
 
         return NextResponse.json(
-          { success: true, draft: draft || null },
+          { success: true, draft: draft ? hydrateAssessmentResults(draft) : null },
           { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
         );
       } catch {
@@ -65,7 +136,7 @@ export async function GET(request: Request) {
       }
       const fullDoc = await PhysicalAssessment.findById(validId).lean().maxTimeMS(4000);
       return NextResponse.json(
-        { success: true, data: fullDoc },
+        { success: true, data: fullDoc ? hydrateAssessmentResults(fullDoc) : null },
         { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
       );
     }
@@ -81,15 +152,17 @@ export async function GET(request: Request) {
       query.status = { $ne: 'rascunho' };
     }
 
-    // Projeção rápida para a tabela
+    // Projeção completa e rápida para a tabela
     const assessments = await PhysicalAssessment.find(query)
-      .select('clienteId avaliadorId data status isDraft dadosMedidos.peso dadosMedidos.altura dadosMedidos.sexo dadosMedidos.idade resultadosCalculados.percentualGordura resultadosCalculados.massaMagra resultadosCalculados.massaGorda resultadosCalculados.imc resultadosCalculados.rcq createdAt updatedAt')
+      .select('clienteId avaliadorId data status isDraft dadosMedidos.peso dadosMedidos.altura dadosMedidos.sexo dadosMedidos.idade dadosMedidos.dobras dadosMedidos.somaDobras resultadosCalculados.percentualGordura resultadosCalculados.massaMagra resultadosCalculados.massaGorda resultadosCalculados.imc resultadosCalculados.rcq createdAt updatedAt')
       .sort({ data: -1, createdAt: -1 })
       .lean()
       .maxTimeMS(4000);
 
+    const hydratedList = (assessments || []).map(item => hydrateAssessmentResults(item));
+
     return NextResponse.json(
-      { success: true, data: assessments, count: assessments.length },
+      { success: true, data: hydratedList, count: hydratedList.length },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   } catch (error: any) {
@@ -143,6 +216,13 @@ export async function POST(request: Request) {
     const validAvaliadorId = toValidObjectId(avaliadorId, '6668ab030303030303030302') || new mongoose.Types.ObjectId('6668ab030303030303030302');
     const isDraftSave = status === 'rascunho' || isDraft === true;
 
+    // Calcular e hidratar resultados antes de salvar
+    const tempDoc = hydrateAssessmentResults({
+      dadosMedidos: dadosMedidos || {},
+      resultadosCalculados: resultadosCalculados || {}
+    });
+    const finalResultados = tempDoc.resultadosCalculados;
+
     // 1. Caso seja Auto-Save Silencioso na Nuvem (Rascunho)
     if (isDraftSave) {
       let existingDraft = null;
@@ -160,7 +240,7 @@ export async function POST(request: Request) {
 
       if (existingDraft) {
         existingDraft.dadosMedidos = dadosMedidos || existingDraft.dadosMedidos;
-        existingDraft.resultadosCalculados = resultadosCalculados || existingDraft.resultadosCalculados;
+        existingDraft.resultadosCalculados = finalResultados || existingDraft.resultadosCalculados;
         existingDraft.metas = metas || existingDraft.metas;
         existingDraft.observacoes = observacoes !== undefined ? observacoes : existingDraft.observacoes;
         existingDraft.tempoGastoSegundos = Number(tempoGastoSegundos) || existingDraft.tempoGastoSegundos;
@@ -179,7 +259,7 @@ export async function POST(request: Request) {
         avaliadorId: validAvaliadorId,
         data,
         dadosMedidos: dadosMedidos || {},
-        resultadosCalculados: resultadosCalculados || {},
+        resultadosCalculados: finalResultados || {},
         metas: metas || {},
         observacoes: observacoes || '',
         pdfName: pdfName || '',
@@ -212,7 +292,7 @@ export async function POST(request: Request) {
       if (validAvaliadorId) assessmentDoc.avaliadorId = validAvaliadorId;
       assessmentDoc.data = data;
       assessmentDoc.dadosMedidos = dadosMedidos;
-      assessmentDoc.resultadosCalculados = resultadosCalculados;
+      assessmentDoc.resultadosCalculados = finalResultados;
       assessmentDoc.metas = metas;
       assessmentDoc.observacoes = observacoes || '';
       assessmentDoc.pdfName = pdfName || assessmentDoc.pdfName;
@@ -231,7 +311,7 @@ export async function POST(request: Request) {
       avaliadorId: validAvaliadorId,
       data,
       dadosMedidos: dadosMedidos || {},
-      resultadosCalculados: resultadosCalculados || {},
+      resultadosCalculados: finalResultados || {},
       metas: metas || {},
       observacoes: observacoes || '',
       pdfName: pdfName || '',

@@ -5581,12 +5581,41 @@ goniometria: {
                                 if (altVal > 3) altVal = parseFloat((altVal / 100).toFixed(2));
                                 return `${pesoVal} kg / ${altVal > 0 ? `${altVal.toFixed(2)} m` : '-'}`;
                               })()}</td>
-                              <td data-label="% Gordura (BF)" style={{ textAlign: 'center' }}>
-                                <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura || 0}% BF</span>
-                              </td>
+                              <td data-label="% Gordura (BF)" style={{ textAlign: 'center' }}>{(() => {
+                                let bf = Number(as.resultadosCalculados?.percentualGordura) || 0;
+                                if (bf <= 0 && as.dadosMedidos?.somaDobras) {
+                                  const s7 = Number(as.dadosMedidos.somaDobras);
+                                  const age = Number(as.dadosMedidos.idade) || 30;
+                                  const sex = as.dadosMedidos.sexo || 'M';
+                                  if (s7 > 0) {
+                                    const isF = (sex || '').trim().toUpperCase().startsWith('F');
+                                    let d = !isF ? (1.112 - (0.00043499 * s7) + (0.00000055 * s7 * s7) - (0.00028826 * age))
+                                                 : (1.097 - (0.00046971 * s7) + (0.00000056 * s7 * s7) - (0.00012828 * age));
+                                    if (d > 0) {
+                                      bf = parseFloat((((4.95 / d) - 4.5) * 100).toFixed(1));
+                                    }
+                                  }
+                                }
+                                return (
+                                  <span className="badge badge-warning">{bf > 0 ? `${bf}% BF` : '0% BF'}</span>
+                                );
+                              })()}</td>
                               <td data-label="Massa Magra / Gorda">{(() => {
                                 const pesoVal = Number(as.dadosMedidos?.peso) || 0;
-                                const bfVal = Number(as.resultadosCalculados?.percentualGordura) || 0;
+                                let bfVal = Number(as.resultadosCalculados?.percentualGordura) || 0;
+                                if (bfVal <= 0 && as.dadosMedidos?.somaDobras) {
+                                  const s7 = Number(as.dadosMedidos.somaDobras);
+                                  const age = Number(as.dadosMedidos.idade) || 30;
+                                  const sex = as.dadosMedidos.sexo || 'M';
+                                  if (s7 > 0) {
+                                    const isF = (sex || '').trim().toUpperCase().startsWith('F');
+                                    let d = !isF ? (1.112 - (0.00043499 * s7) + (0.00000055 * s7 * s7) - (0.00028826 * age))
+                                                 : (1.097 - (0.00046971 * s7) + (0.00000056 * s7 * s7) - (0.00012828 * age));
+                                    if (d > 0) {
+                                      bfVal = parseFloat((((4.95 / d) - 4.5) * 100).toFixed(1));
+                                    }
+                                  }
+                                }
                                 let mmVal = Number(as.resultadosCalculados?.massaMagra) || 0;
                                 let mgVal = Number(as.resultadosCalculados?.massaGorda) || 0;
                                 if (pesoVal > 0 && bfVal > 0 && (mmVal <= 0 || mgVal <= 0)) {
