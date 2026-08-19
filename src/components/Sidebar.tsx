@@ -51,6 +51,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       title: 'COMERCIAL & FINANCEIRO',
       icon: 'fa-wallet',
       tabs: [
+        { id: 'movimentos_links', label: 'Movimentos via Link', icon: 'fa-satellite-dish' },
         { id: 'financeiro', label: 'Financeiro', icon: 'fa-wallet' },
         { id: 'gestao_contratos', label: 'Gestão de Contratos', icon: 'fa-file-signature' },
         { id: 'asaas', label: 'Cobranças Asaas', icon: 'fa-credit-card' },

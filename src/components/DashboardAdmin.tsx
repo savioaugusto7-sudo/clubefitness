@@ -108,6 +108,31 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   // Search states
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
+  const [linkMovements, setLinkMovements] = useState<any[]>([]);
+  const [loadingLinkMovements, setLoadingLinkMovements] = useState(false);
+  const [linkMovementTypeFilter, setLinkMovementTypeFilter] = useState<string>('todos');
+  const [selectedLinkMovementDetails, setSelectedLinkMovementDetails] = useState<any>(null);
+
+  const fetchLinkMovements = async () => {
+    setLoadingLinkMovements(true);
+    try {
+      const res = await fetch('/api/admin/link-movements');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setLinkMovements(json.data);
+      }
+    } catch (e) {
+      console.error('Error fetching link movements:', e);
+    } finally {
+      setLoadingLinkMovements(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'movimentos_links') {
+      fetchLinkMovements();
+    }
+  }, [activeTab]);
   const getSearchQuery = (key: string) => searchQueries[key] || '';
   const setSearchQueryForKey = (key: string, query: string) => {
     setSearchQueries(prev => ({ ...prev, [key]: query }));
@@ -986,6 +1011,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       if (jsonContracts?.success) setContractsAdminList(jsonContracts.data);
       if (jsonAc?.success) setAgendaConfigs(jsonAc.data);
       if (jsonLogs?.success) setActivityLogs(jsonLogs.data);
+      fetchLinkMovements();
     } catch (e) {
       console.error('Error fetching admin dashboard data:', e);
     } finally {
@@ -3610,6 +3636,391 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               />
             )}
           </div>
+        </>
+      )}
+
+      {/* View: Movimentos Realizados via Link */}
+      {activeTab === 'movimentos_links' && (
+        <>
+          <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div className="view-title-group">
+              <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-satellite-dish" style={{ color: '#10b981' }}></i>
+                Movimentos Realizados via Link
+              </h1>
+              <p>Acompanhe em tempo real os links preenchidos por clientes e todas as informações enviadas.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button 
+                className="btn btn-secondary btn-sm" 
+                onClick={fetchLinkMovements} 
+                disabled={loadingLinkMovements}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className={`fa-solid fa-arrows-rotate ${loadingLinkMovements ? 'fa-spin' : ''}`}></i>
+                Atualizar
+              </button>
+            </div>
+          </div>
+
+          {/* Cards de Resumo */}
+          {(() => {
+            const total = linkMovements.length;
+            const cadastros = linkMovements.filter(m => m.tipo === 'cadastro').length;
+            const dynamus = linkMovements.filter(m => m.tipo === 'dynamus').length;
+            const vendas = linkMovements.filter(m => m.tipo === 'venda').length;
+
+            return (
+              <div className="metrics-grid" style={{ marginBottom: '24px' }}>
+                <div className="metric-card">
+                  <div className="metric-info">
+                    <h3>Total de Movimentos</h3>
+                    <div className="value">{total}</div>
+                  </div>
+                  <div className="metric-icon"><i className="fa-solid fa-link"></i></div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-info">
+                    <h3>Cadastros via Link</h3>
+                    <div className="value">{cadastros}</div>
+                  </div>
+                  <div className="metric-icon" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.15)' }}><i className="fa-solid fa-user-plus"></i></div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-info">
+                    <h3>Cadastros / Compras Dynamus</h3>
+                    <div className="value">{dynamus}</div>
+                  </div>
+                  <div className="metric-icon" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)' }}><i className="fa-solid fa-bolt"></i></div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-info">
+                    <h3>Links de Venda / Pagamentos</h3>
+                    <div className="value">{vendas}</div>
+                  </div>
+                  <div className="metric-icon" style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.15)' }}><i className="fa-solid fa-credit-card"></i></div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Filtros e Busca */}
+          <div className="content-panel" style={{ marginBottom: '24px', padding: '16px 20px' }}>
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', flex: 1, minWidth: '280px' }}>
+                <div style={{ position: 'relative', flex: 1, minWidth: '220px', maxWidth: '380px' }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Buscar por aluno, telefone, CPF ou e-mail..."
+                    value={getSearchQuery('movimentos_links')}
+                    onChange={e => setSearchQueryForKey('movimentos_links', e.target.value)}
+                    style={{ paddingLeft: '34px' }}
+                  />
+                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}></i>
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'todos', label: 'Todos' },
+                    { id: 'cadastro', label: 'Cadastros' },
+                    { id: 'dynamus', label: 'Dynamus' },
+                    { id: 'venda', label: 'Vendas/Pagamentos' },
+                    { id: 'clicksign', label: 'Clicksign' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`btn btn-sm ${linkMovementTypeFilter === tab.id ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => {
+                        setLinkMovementTypeFilter(tab.id);
+                        setPage('movimentos_links', 1);
+                      }}
+                      style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="page-size-selector">
+                  <span>Exibir:</span>
+                  <select value={getPageSize('movimentos_links')} onChange={e => setPageSizeForKey('movimentos_links', Number(e.target.value))}>
+                    <option value={8}>8</option>
+                    <option value={15}>15</option>
+                    <option value={30}>30</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabela de Movimentos */}
+          <div className="content-panel">
+            {loadingLinkMovements ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div className="spinner"></div>
+                <p style={{ marginTop: '12px', color: 'var(--text-dim)' }}>Carregando movimentos de links...</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '140px' }}>Data / Hora</th>
+                      <th style={{ width: '180px' }}>Cliente</th>
+                      <th style={{ width: '170px' }}>Link Preenchido</th>
+                      <th>Informações Informadas pelo Cliente</th>
+                      <th style={{ textAlign: 'center', width: '260px' }}>Ações Rápidas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const q = normalizeText(getSearchQuery('movimentos_links'));
+                      const filtered = linkMovements.filter(m => {
+                        if (linkMovementTypeFilter !== 'todos' && m.tipo !== linkMovementTypeFilter) {
+                          return false;
+                        }
+                        if (q) {
+                          const nome = normalizeText(m.cliente?.nome || '');
+                          const tel = (m.cliente?.telefone || '').replace(/\D/g, '');
+                          const cpf = (m.cliente?.cpf || '').replace(/\D/g, '');
+                          const email = normalizeText(m.cliente?.email || '');
+                          const link = normalizeText(m.linkNome || '');
+                          const qDigits = q.replace(/\D/g, '');
+
+                          const matchNome = nome.includes(q);
+                          const matchEmail = email.includes(q);
+                          const matchLink = link.includes(q);
+                          const matchTel = qDigits.length > 0 && tel.includes(qDigits);
+                          const matchCpf = qDigits.length > 0 && cpf.includes(qDigits);
+
+                          return matchNome || matchEmail || matchLink || matchTel || matchCpf;
+                        }
+                        return true;
+                      });
+
+                      const size = getPageSize('movimentos_links');
+                      const activeP = getPage('movimentos_links');
+                      const totalPages = Math.ceil(filtered.length / size);
+                      const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                      const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+                      if (paginated.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={5}>
+                              <div className="empty-state-card">
+                                <i className="fa-solid fa-satellite-dish empty-state-icon"></i>
+                                <div className="empty-state-title">Nenhum movimento encontrado</div>
+                                <div className="empty-state-desc">Não foram encontrados preenchimentos de links com os filtros atuais.</div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return paginated.map(m => {
+                        const clientName = m.cliente?.nome || 'Aluno';
+                        const cleanPhone = (m.cliente?.telefone || '').replace(/\D/g, '');
+                        const fullPhone = cleanPhone.length <= 11 ? '55' + cleanPhone : cleanPhone;
+                        const dateFormatted = (() => {
+                          if (!m.createdAt) return '-';
+                          const d = new Date(m.createdAt);
+                          if (isNaN(d.getTime())) return m.createdAt;
+                          return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        })();
+
+                        return (
+                          <tr key={m._id}>
+                            <td data-label="Data / Hora" style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                              <i className="fa-regular fa-clock" style={{ marginRight: '5px', color: 'var(--text-muted)' }}></i>
+                              <strong>{dateFormatted}</strong>
+                            </td>
+                            <td data-label="Cliente">
+                              <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{clientName}</div>
+                              {m.cliente?.telefone && (
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                  <i className="fa-solid fa-phone" style={{ fontSize: '0.7rem', marginRight: '4px' }}></i>
+                                  {m.cliente.telefone}
+                                </div>
+                              )}
+                              {m.cliente?.email && (
+                                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '1px' }}>
+                                  {m.cliente.email}
+                                </div>
+                              )}
+                            </td>
+                            <td data-label="Link Preenchido">
+                              <span 
+                                style={{ 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: '6px', 
+                                  padding: '4px 10px', 
+                                  borderRadius: '20px', 
+                                  fontSize: '0.78rem', 
+                                  fontWeight: 700,
+                                  background: `${m.badgeColor}20`,
+                                  color: m.badgeColor,
+                                  border: `1px solid ${m.badgeColor}40`
+                                }}
+                              >
+                                {m.tipo === 'dynamus' && <i className="fa-solid fa-bolt"></i>}
+                                {m.tipo === 'cadastro' && <i className="fa-solid fa-user-plus"></i>}
+                                {m.tipo === 'venda' && <i className="fa-solid fa-credit-card"></i>}
+                                {m.tipo === 'clicksign' && <i className="fa-solid fa-file-signature"></i>}
+                                {m.tipoLabel}
+                              </span>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'monospace' }}>
+                                {m.linkUrl}
+                              </div>
+                            </td>
+                            <td data-label="Informações Preenchidas">
+                              {m.infoList && m.infoList.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  {m.infoList.map((info: any, idx: number) => (
+                                    <div key={idx} style={{ fontSize: '0.8rem', lineHeight: '1.3' }}>
+                                      <strong style={{ color: 'var(--text-secondary)' }}>• {info.label}:</strong>{' '}
+                                      <span style={{ color: 'var(--text-main)' }}>{info.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dados básicos de cadastro</span>
+                              )}
+                            </td>
+                            <td data-label="Ações Rápidas" style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                {cleanPhone && (
+                                  <a
+                                    href={`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(`Olá, ${clientName}! Recebemos a sua solicitação no Clube Fitness Fisio. Como podemos te ajudar?`)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-success btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600 }}
+                                    title="Chamar no WhatsApp"
+                                  >
+                                    <i className="fa-brands fa-whatsapp"></i> WhatsApp
+                                  </a>
+                                )}
+
+                                {m.tipo === 'dynamus' && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-warning btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, background: '#f59e0b', borderColor: '#f59e0b', color: '#000' }}
+                                    onClick={() => {
+                                      setSearchQueryForKey('dynamus', clientName);
+                                      setActiveTab('dynamus');
+                                    }}
+                                    title="Ir para Consumo Dynamus deste aluno"
+                                  >
+                                    <i className="fa-solid fa-bolt"></i> Consumo Dynamus
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                  onClick={() => {
+                                    setSearchQueryForKey('gestao_contratos', clientName);
+                                    setActiveTab('gestao_contratos');
+                                  }}
+                                  title="Ir para Gestão de Contratos deste aluno"
+                                >
+                                  <i className="fa-solid fa-file-signature"></i> Contratos
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                  onClick={() => {
+                                    setSearchQueryForKey('clientes', clientName);
+                                    setActiveTab('clientes');
+                                  }}
+                                  title="Ver cadastro completo em Clientes"
+                                >
+                                  <i className="fa-solid fa-user"></i> Ver Aluno
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                  onClick={() => setSelectedLinkMovementDetails(m)}
+                                  title="Ver todas as informações brutas"
+                                >
+                                  <i className="fa-solid fa-eye"></i> Detalhes
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Paginação */}
+            {linkMovements.length > 0 && (
+              <Pagination
+                currentPage={getPage('movimentos_links')}
+                totalItems={linkMovements.length}
+                itemsPerPage={getPageSize('movimentos_links')}
+                onPageChange={page => setPage('movimentos_links', page)}
+              />
+            )}
+          </div>
+
+          {/* Modal de Detalhes Brutos do Movimento */}
+          {selectedLinkMovementDetails && (
+            <div className="modal-backdrop" onClick={() => setSelectedLinkMovementDetails(null)}>
+              <div className="modal-container" style={{ maxWidth: '650px' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-satellite-dish" style={{ color: '#10b981' }}></i>
+                    Detalhes do Movimento de Link
+                  </h3>
+                  <button type="button" className="btn-close" onClick={() => setSelectedLinkMovementDetails(null)}>&times;</button>
+                </div>
+                <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                  <div style={{ background: 'var(--bg-card, #1e293b)', padding: '14px', borderRadius: '8px', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>{selectedLinkMovementDetails.cliente?.nome}</div>
+                    <div style={{ fontSize: '0.84rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                      {selectedLinkMovementDetails.tipoLabel} • {selectedLinkMovementDetails.linkUrl}
+                    </div>
+                  </div>
+
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-secondary)' }}>Informações Enviadas:</h4>
+                  <table className="data-table" style={{ width: '100%', marginBottom: '16px' }}>
+                    <tbody>
+                      {selectedLinkMovementDetails.infoList?.map((info: any, idx: number) => (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 600, width: '40%' }}>{info.label}</td>
+                          <td>{info.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-muted)' }}>Dados Brutos (JSON):</h4>
+                  <pre style={{ background: '#0f172a', color: '#38bdf8', padding: '12px', borderRadius: '6px', fontSize: '0.75rem', overflowX: 'auto', maxHeight: '200px' }}>
+                    {JSON.stringify(selectedLinkMovementDetails.raw, null, 2)}
+                  </pre>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setSelectedLinkMovementDetails(null)}>Fechar</button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
