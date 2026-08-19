@@ -421,26 +421,46 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
             <i className="fa-solid fa-arrow-left"></i> Voltar para Lista
           </button>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ 
-                background: 'linear-gradient(135deg, #10b981, #059669)', 
-                color: '#fff', 
-                padding: '3px 8px', 
-                borderRadius: '6px', 
-                fontSize: '0.72rem', 
-                fontWeight: 900,
-                letterSpacing: '0.5px',
-                textTransform: 'uppercase'
-              }}>
-                Ficha Clínica
-              </span>
-              <h2 style={{ margin: 0, color: '#ffffff', fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.3px' }}>
-                Ficha de Treino do Aluno
-              </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 900,
+              fontSize: '1.15rem',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              {(clientName || 'A').charAt(0).toUpperCase()}
             </div>
-            <div style={{ color: '#94a3b8', fontSize: '0.86rem', marginTop: '2px' }}>
-              Aluno: <strong style={{ color: '#38bdf8', fontWeight: 700 }}>{clientName}</strong>
+
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, color: '#ffffff', fontSize: '1.4rem', fontWeight: 900, letterSpacing: '-0.3px' }}>
+                  {clientName}
+                </h2>
+                <span style={{ 
+                  background: 'rgba(16, 185, 129, 0.18)', 
+                  color: '#10b981', 
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  padding: '2px 8px', 
+                  borderRadius: '6px', 
+                  fontSize: '0.72rem', 
+                  fontWeight: 800,
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase'
+                }}>
+                  Ficha de Treino
+                </span>
+              </div>
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i className="fa-solid fa-dumbbell" style={{ color: '#10b981' }}></i> Prescrição e Acompanhamento Clínico
+              </div>
             </div>
           </div>
         </div>
