@@ -127,6 +127,8 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   const [manualService, setManualService] = useState('Treino Monitorado');
   const [manualProfId, setManualProfId] = useState('');
   const [clientSearchText, setClientSearchText] = useState('');
+  const [isBookingManual, setIsBookingManual] = useState(false);
+  const [bookingError, setBookingError] = useState('');
 
   // States para Modal Customizado de Confirmação de Deleção
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -504,18 +506,35 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   };
 
   const handleManualBook = async () => {
-    if (!manualClientId) {
-      alert('Selecione o cliente.');
+    setBookingError('');
+    let targetClientId = manualClientId;
+    
+    // Se o cliente não foi explicitamente clicado, tenta inferir pelo texto digitado
+    if (!targetClientId && clientSearchText.trim()) {
+      const searchNorm = normalizeText(clientSearchText.trim());
+      const exactMatch = clients.find(c => normalizeText(c.dadosPessoais?.nome) === searchNorm);
+      const partialMatch = clients.find(c => normalizeText(c.dadosPessoais?.nome).includes(searchNorm));
+      const chosen = exactMatch || partialMatch;
+      if (chosen) {
+        targetClientId = chosen._id;
+        setManualClientId(chosen._id);
+        setClientSearchText(chosen.dadosPessoais?.nome || clientSearchText);
+      }
+    }
+
+    if (!targetClientId) {
+      setBookingError('Por favor, selecione um aluno na lista.');
       return;
     }
 
+    setIsBookingManual(true);
     const defaultProfId = professionals[0]?._id || '6668ab030303030303030302';
 
     const payload = {
       data: selectedDate,
       horario: selectedSlot?.horario,
       servico: manualService,
-      clienteId: manualClientId,
+      clienteId: targetClientId,
       profissionalId: defaultProfId,
       bypassRestrictions: true
     };
@@ -531,9 +550,10 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         showFeedback('Cliente agendado com sucesso!', 'success');
         setManualClientId('');
         setClientSearchText('');
+        setBookingError('');
         
         const newApt = data.data;
-        const c = clients.find(cl => cl._id === manualClientId);
+        const c = clients.find(cl => cl._id === targetClientId);
         const p = professionals.find(pr => pr._id === defaultProfId);
         newApt.clienteId = c;
         newApt.profissionalId = p;
@@ -547,10 +567,14 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         }
         fetchSlotsAndConfigs();
       } else {
+        setBookingError(data.error || 'Erro ao agendar cliente.');
         showFeedback(data.error || 'Erro ao agendar cliente', 'danger');
       }
-    } catch (err) {
+    } catch (err: any) {
+      setBookingError('Erro de conexão ao realizar agendamento.');
       showFeedback('Erro de conexão ao realizar agendamento.', 'danger');
+    } finally {
+      setIsBookingManual(false);
     }
   };
 
@@ -1233,8 +1257,39 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                     </select>
                   </div>
 
-                  <button className="btn btn-primary" onClick={handleManualBook} style={{ alignSelf: 'flex-end', marginTop: '6px' }}>
-                    Confirmar Agendamento
+                  {bookingError && (
+                    <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-triangle-exclamation"></i> {bookingError}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleManualBook}
+                    disabled={isBookingManual}
+                    style={{
+                      alignSelf: 'flex-end',
+                      marginTop: '6px',
+                      minWidth: '200px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontWeight: 700,
+                      opacity: isBookingManual ? 0.7 : 1,
+                      cursor: isBookingManual ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isBookingManual ? (
+                      <>
+                        <i className="fa-solid fa-spinner fa-spin"></i> Agendando...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-calendar-check"></i> Confirmar Agendamento
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
