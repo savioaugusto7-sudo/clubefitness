@@ -29,30 +29,29 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
   const [rawWorkoutDoc, setRawWorkoutDoc] = useState<any>(null);
   const [todayWellness, setTodayWellness] = useState<any>(null);
 
-  // 1. Carregar banco de exercícios, treinos existentes e Wellness do aluno
+  // 1. Carregar banco de exercícios, treinos existentes e Wellness do aluno em paralelo
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
       try {
         setIsLoading(true);
-        // 1.1 Buscar lista de exercícios
-        const resEx = await fetch('/api/exercises');
-        const dataEx = await resEx.json();
+
+        const [resEx, resWorkouts, resApts] = await Promise.all([
+          fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })),
+          fetch(`/api/workouts?clientId=${clientId}`).then(r => r.json()).catch(() => ({ success: false })),
+          fetch(`/api/appointments?t=${Date.now()}`).then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+
         let loadedExercises: any[] = [];
-        if (dataEx.success && Array.isArray(dataEx.data)) {
-          loadedExercises = dataEx.data;
+        if (resEx?.success && Array.isArray(resEx.data)) {
+          loadedExercises = resEx.data;
           if (isMounted) setExercises(loadedExercises);
         }
 
-        // 1.2 Buscar treino existente do aluno no MongoDB
-        const resWorkouts = await fetch(`/api/workouts?clientId=${clientId}`);
-        const dataWorkouts = await resWorkouts.json();
-        
-        if (dataWorkouts.success && dataWorkouts.data && isMounted) {
-          const w = dataWorkouts.data;
+        if (resWorkouts?.success && resWorkouts.data && isMounted) {
+          const w = resWorkouts.data;
           setRawWorkoutDoc(w);
 
-          // Identificar se há fichasMonitorado ou fichasLivre
           const monitorado = w.fichasMonitorado || [];
           const livre = w.fichasLivre || [];
           const chosenCategory = (monitorado.length > 0 && monitorado.some((s: any) => s.exercicios?.length > 0))
@@ -92,31 +91,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
           }
         }
 
-        // 1.3 Buscar Wellness de hoje do aluno (via agendamento e logs)
-        try {
-          const resApts = await fetch('/api/appointments');
-          const dataApts = await resApts.json();
-          if (dataApts.success && Array.isArray(dataApts.data) && isMounted) {
-            const hojeISO = new Date().toISOString().split('T')[0];
-            const studentApts = dataApts.data.filter((a: any) => 
-              String(a.clienteId?._id || a.clienteId) === String(clientId)
-            );
-            // Pegar o mais recente de hoje com wellness ou o último realizado
-            const withWellness = studentApts.find((a: any) => a.data === hojeISO && a.wellness?.realizado) ||
-                                 studentApts.find((a: any) => a.wellness?.realizado);
-            if (withWellness?.wellness) {
-              setTodayWellness(withWellness.wellness);
-            }
+        if (resApts?.success && Array.isArray(resApts.data) && isMounted) {
+          const hojeISO = new Date().toISOString().split('T')[0];
+          const studentApts = resApts.data.filter((a: any) => 
+            String(a.clienteId?._id || a.clienteId) === String(clientId)
+          );
+          const withWellness = studentApts.find((a: any) => a.data === hojeISO && a.wellness?.realizado) ||
+                               studentApts.find((a: any) => a.wellness?.realizado);
+          if (withWellness?.wellness) {
+            setTodayWellness(withWellness.wellness);
           }
-
-          if (!todayWellness) {
-            const resW = await fetch(`/api/wellness?clientId=${clientId}`);
-            const dataW = await resW.json();
-            if (dataW.success && Array.isArray(dataW.data) && dataW.data.length > 0 && isMounted) {
-              setTodayWellness(dataW.data[0]);
-            }
-          }
-        } catch (e) {}
+        }
 
       } catch (err) {
         console.error('Erro ao carregar dados do treino:', err);
@@ -503,88 +488,98 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
               </div>
               
               <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {workoutItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '14px',
-                      padding: '14px 16px',
-                      background: 'rgba(255,255,255,0.02)',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-color)',
-                      flexWrap: 'wrap'
-                    }}
-                  >
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', width: '24px' }}>
-                      {index + 1}
-                    </div>
-                    <div style={{ flex: 1, minWidth: '180px' }}>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main, #fff)' }}>{item.nome}</div>
-                      <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem' }}>{item.grupo}</div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Séries</div>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={item.series}
-                          onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
-                          style={{ width: '60px', textAlign: 'center', padding: '4px' }}
-                        />
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Reps</div>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          value={item.reps}
-                          onChange={e => updateItem(item.id, 'reps', e.target.value)}
-                          style={{ width: '65px', textAlign: 'center', padding: '4px' }}
-                        />
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Carga (kg)</div>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={item.carga}
-                          onChange={e => updateItem(item.id, 'carga', Number(e.target.value))}
-                          style={{ width: '70px', textAlign: 'center', padding: '4px' }}
-                        />
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Desc. (s)</div>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={item.descanso}
-                          onChange={e => updateItem(item.id, 'descanso', Number(e.target.value))}
-                          style={{ width: '65px', textAlign: 'center', padding: '4px' }}
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => removeItem(item.id)}
-                      style={{ color: '#ef4444', padding: '6px 10px', marginLeft: 'auto' }}
-                      title="Remover Exercício"
-                    >
-                      <i className="fa-solid fa-trash"></i>
-                    </button>
+                {isLoading ? (
+                  <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2.5rem', color: 'var(--color-primary)', marginBottom: '16px', display: 'block' }}></i>
+                    <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-main, #fff)' }}>Carregando ficha de treino do aluno...</p>
+                    <small style={{ color: 'var(--text-muted)' }}>Sincronizando exercícios e cargas com o banco de dados</small>
                   </div>
-                ))}
+                ) : (
+                  <>
+                    {workoutItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '14px',
+                          padding: '14px 16px',
+                          background: 'rgba(255,255,255,0.02)',
+                          borderRadius: '12px',
+                          border: '1px solid var(--border-color)',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', width: '24px' }}>
+                          {index + 1}
+                        </div>
+                        <div style={{ flex: 1, minWidth: '180px' }}>
+                          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main, #fff)' }}>{item.nome}</div>
+                          <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem' }}>{item.grupo}</div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Séries</div>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={item.series}
+                              onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
+                              style={{ width: '60px', textAlign: 'center', padding: '4px' }}
+                            />
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Reps</div>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              value={item.reps}
+                              onChange={e => updateItem(item.id, 'reps', e.target.value)}
+                              style={{ width: '65px', textAlign: 'center', padding: '4px' }}
+                            />
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Carga (kg)</div>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={item.carga}
+                              onChange={e => updateItem(item.id, 'carga', Number(e.target.value))}
+                              style={{ width: '70px', textAlign: 'center', padding: '4px' }}
+                            />
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Desc. (s)</div>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={item.descanso}
+                              onChange={e => updateItem(item.id, 'descanso', Number(e.target.value))}
+                              style={{ width: '65px', textAlign: 'center', padding: '4px' }}
+                            />
+                          </div>
+                        </div>
 
-                {workoutItems.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-muted)' }}>
-                    <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.25, display: 'block' }}></i>
-                    <p style={{ margin: 0 }}>Nenhum exercício na Ficha {activeTabLetter}. Selecione exercícios no painel lateral à esquerda para adicionar.</p>
-                  </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => removeItem(item.id)}
+                          style={{ color: '#ef4444', padding: '6px 10px', marginLeft: 'auto' }}
+                          title="Remover Exercício"
+                        >
+                          <i className="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    ))}
+
+                    {workoutItems.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-muted)' }}>
+                        <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.25, display: 'block' }}></i>
+                        <p style={{ margin: 0 }}>Nenhum exercício na Ficha {activeTabLetter}. Selecione exercícios no painel lateral à esquerda para adicionar.</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

@@ -57,11 +57,9 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
     setErrorMessage('');
     try {
       await onConfirm({ sono, fadiga, dorMuscular });
-      setSummaryResult(currentResult);
-      setShowSummary(true);
+      onClose();
     } catch (err: any) {
       setErrorMessage(err.message || 'Erro ao registrar questionário Wellness.');
-    } finally {
       setIsSaving(false);
     }
   };

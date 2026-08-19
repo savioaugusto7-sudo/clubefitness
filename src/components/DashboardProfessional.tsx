@@ -1756,7 +1756,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       // Active tab specific load
       if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia') {
         promises.push(
-          safeFetchJson('/api/appointments')
+          safeFetchJson('/api/appointments?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
         );
       } else if (activeTab === 'avaliacoes') {
@@ -4117,7 +4117,15 @@ goniometria: {
                             </div>
                             <div style={{ marginTop: '8px', width: '100%' }}>
                               {client._id && (
-                                <button className="btn btn-primary btn-sm" style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 600 }} onClick={() => window.open(`/dashboard?activeTab=treinos_prof&workoutClientId=${client._id}`, '_blank')}>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 700 }}
+                                  onClick={() => {
+                                    setBuilderClient(client);
+                                    setShowWorkoutBuilder(true);
+                                  }}
+                                >
                                   <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
                                 </button>
                               )}
@@ -4297,6 +4305,56 @@ goniometria: {
                                           </div>
                                         </div>
                                       </div>
+
+                                      {/* Badge Wellness do Dia se preenchido */}
+                                      {a.wellness?.realizado && (
+                                        <div style={{
+                                          background: a.wellness.status === 'otimo' ? 'rgba(16,185,129,0.12)' : a.wellness.status === 'moderado' ? 'rgba(234,179,8,0.12)' : a.wellness.status === 'ruim' ? 'rgba(249,115,22,0.12)' : 'rgba(239,68,68,0.12)',
+                                          border: `1px solid ${a.wellness.statusColor || '#10b981'}`,
+                                          borderRadius: '8px',
+                                          padding: '8px 10px',
+                                          fontSize: '0.76rem',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'space-between',
+                                          gap: '6px'
+                                        }}>
+                                          <div>
+                                            <div style={{ fontWeight: 800, color: a.wellness.statusColor || '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                              <span>🧘</span> Wellness: {a.wellness.score}/30 • {a.wellness.statusLabel}
+                                            </div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-main, #fff)', marginTop: '2px' }}>
+                                              👉 {a.wellness.conduta}
+                                            </div>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setWellnessApt(a);
+                                              setShowWellnessModal(true);
+                                            }}
+                                            title="Ver detalhes do Wellness"
+                                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+                                          >
+                                            Ver
+                                          </button>
+                                        </div>
+                                      )}
+
+                                      {/* Botão Abrir Ficha de Treino */}
+                                      {client._id && (
+                                        <button 
+                                          type="button"
+                                          className="btn btn-primary btn-sm" 
+                                          style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 700, fontSize: '0.82rem' }} 
+                                          onClick={() => {
+                                            setBuilderClient(client);
+                                            setShowWorkoutBuilder(true);
+                                          }}
+                                        >
+                                          <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
+                                        </button>
+                                      )}
 
                                       {/* Rodapé de Ações do Card */}
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -10336,6 +10394,18 @@ goniometria: {
         appointment={wellnessApt}
         onConfirm={handleConfirmWellness}
       />
+
+      {/* 10. Workout Builder In-App Overlay */}
+      {showWorkoutBuilder && builderClient && (
+        <WorkoutBuilder
+          onClose={() => {
+            setShowWorkoutBuilder(false);
+            setBuilderClient(null);
+          }}
+          clientId={builderClient._id}
+          clientName={builderClient.dadosPessoais?.nome || 'Aluno'}
+        />
+      )}
     </div>
   );
 }
