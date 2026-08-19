@@ -103,6 +103,38 @@ function formatGonioDisplay(raw: any): string {
   return `${p.comForca || p.semForca}°`;
 }
 
+function parseDobraValue(val: any): number {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return val;
+  if (Array.isArray(val)) {
+    const nums = val.map(Number).filter(n => !isNaN(n) && n > 0);
+    if (nums.length === 0) return 0;
+    return Number((nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1));
+  }
+  if (typeof val === 'string') {
+    const n = Number(val);
+    if (!isNaN(n)) return n;
+  }
+  return 0;
+}
+
+function calculatePollock7BF(sumDobras: number, age: number, sex: string): number {
+  if (sumDobras <= 0) return 0;
+  const isFemale = (sex || '').trim().toUpperCase().startsWith('F');
+  let densidade = 0;
+  if (!isFemale) {
+    // Jackson & Pollock 7 dobras - Homens
+    densidade = 1.112 - (0.00043499 * sumDobras) + (0.00000055 * sumDobras * sumDobras) - (0.00028826 * (age || 30));
+  } else {
+    // Jackson & Pollock 7 dobras - Mulheres
+    densidade = 1.097 - (0.00046971 * sumDobras) + (0.00000056 * sumDobras * sumDobras) - (0.00012828 * (age || 30));
+  }
+  if (densidade <= 0) return 0;
+  // Siri equation: ((4.95 / D) - 4.50) * 100
+  const bf = ((4.95 / densidade) - 4.50) * 100;
+  return Math.max(3, Math.min(60, Number(bf.toFixed(1))));
+}
+
 function isMaigneFilled(maigneVal: any): boolean {
   if (!maigneVal) return false;
   try {
@@ -1716,12 +1748,85 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     return `${numVal}°${getGonStatusDot(movement, numVal)}`;
   }
 
-  // Cálculos de composição corporal
-  const pctGordura = assessment.resultadosCalculados.percentualGordura;
+  // 1. Extração segura de dobras individuais e soma
+  const dobrasObj = assessment.dadosMedidos?.dobras || {};
+  const dobrasReadingsObj = assessment.dadosMedidos?.dobrasReadings || {};
+
+  const getDobraVal = (key: string): number => {
+    const directVal = parseDobraValue(dobrasObj[key]);
+    if (directVal > 0) return directVal;
+    const readingVal = parseDobraValue(dobrasReadingsObj[key]);
+    return readingVal;
+  };
+
+  const dPeitoral = getDobraVal('peitoral');
+  const dTriceps = getDobraVal('triceps');
+  const dSubescapular = getDobraVal('subescapular');
+  const dSubaxilar = getDobraVal('subaxilar');
+  const dSuprailiaca = getDobraVal('suprailiaca');
+  const dAbdomen = getDobraVal('abdomen');
+  const dCoxa = getDobraVal('coxa');
+  const dPanturrilha = getDobraVal('panturrilha');
+
+  const calculatedSomaDobras = dPeitoral + dTriceps + dSubescapular + dSubaxilar + dSuprailiaca + dAbdomen + dCoxa;
+  const finalSomaDobras = Number(assessment.dadosMedidos?.somaDobras) > 0 
+    ? Number(assessment.dadosMedidos?.somaDobras) 
+    : (calculatedSomaDobras > 0 ? calculatedSomaDobras : 0);
+
+  // 2. Extração segura de peso, altura, idade e sexo
+  const currentSex = assessment.dadosMedidos?.sexo || client.dadosPessoais?.sexo || 'M';
+  const currentAge = Number(assessment.dadosMedidos?.idade) || Number(client.dadosPessoais?.idade) || 30;
+  const currentPeso = Number(assessment.dadosMedidos?.peso) || 70;
+  const currentAltura = Number(assessment.dadosMedidos?.altura) || 1.75;
+
+  // 3. Percentual de gordura (salvo ou recalculado por Pollock 7 Dobras)
+  let pctGordura = Number(assessment.resultadosCalculados?.percentualGordura) || 0;
+  if (pctGordura <= 0 && finalSomaDobras > 0) {
+    pctGordura = calculatePollock7BF(finalSomaDobras, currentAge, currentSex);
+  }
+  if (pctGordura <= 0) pctGordura = 15.0;
+
   const pctMassaMagra = 100 - pctGordura;
-  
-  // Percentuais de referência
-  // Pollock 7 Dobras Reference table from user's image
+
+  // 4. Massa Magra e Massa Gorda (salvo ou recalculado)
+  let massaGorda = Number(assessment.resultadosCalculados?.massaGorda) || 0;
+  let massaMagra = Number(assessment.resultadosCalculados?.massaMagra) || 0;
+  if (massaGorda <= 0 || massaMagra <= 0) {
+    massaGorda = Number((currentPeso * (pctGordura / 100)).toFixed(1));
+    massaMagra = Number((currentPeso - massaGorda).toFixed(1));
+  }
+
+  // 5. IMC e Classificação (salvo ou recalculado)
+  let imc = Number(assessment.resultadosCalculados?.imc) || 0;
+  if (imc <= 0 && currentPeso > 0 && currentAltura > 0) {
+    imc = Number((currentPeso / (currentAltura * currentAltura)).toFixed(1));
+  }
+  let imcClassification = assessment.resultadosCalculados?.imcClassificacao;
+  if (!imcClassification || imcClassification === '-') {
+    if (imc < 18.5) imcClassification = 'Baixo peso';
+    else if (imc < 25) imcClassification = 'Normal';
+    else if (imc < 30) imcClassification = 'Sobrepeso';
+    else imcClassification = 'Obesidade';
+  }
+
+  // 6. RCQ e Classificação
+  const circObj = assessment.dadosMedidos?.circunferencias || {};
+  const cinturaVal = Number(circObj.cintura) || 0;
+  const quadrilVal = Number(circObj.quadril) || 1;
+  let rcq = Number(assessment.resultadosCalculados?.rcq) || 0;
+  if (rcq <= 0 && cinturaVal > 0 && quadrilVal > 0) {
+    rcq = Number((cinturaVal / quadrilVal).toFixed(2));
+  }
+  let rcqClassification = assessment.resultadosCalculados?.rcqClassificacao;
+  if (!rcqClassification || rcqClassification === '-') {
+    if (currentSex === 'M') {
+      rcqClassification = rcq > 0.95 ? 'Alto Risco' : (rcq >= 0.88 ? 'Risco Moderado' : 'Baixo Risco');
+    } else {
+      rcqClassification = rcq > 0.86 ? 'Alto Risco' : (rcq >= 0.78 ? 'Risco Moderado' : 'Baixo Risco');
+    }
+  }
+
+  // Percentuais de referência Pollock 7 Dobras
   const referenceBF = {
     M: [
       { ageMin: 7, ageMax: 10, p10: 11.5, p30: 13.2, p50: 15.8, p70: 19.4, p90: 25.5 },
@@ -1744,9 +1849,6 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       { ageMin: 60, ageMax: 200, p10: 23.1, p30: 27.5, p50: 30.5, p70: 34.2, p90: 38.5 }
     ]
   };
-
-  const currentSex = assessment.dadosMedidos.sexo || client.dadosPessoais?.sexo || 'M';
-  const currentAge = assessment.dadosMedidos.idade || client.dadosPessoais?.idade || 30;
   
   const bfList = (referenceBF as any)[currentSex] || referenceBF['M'];
   const bfRow = bfList.find((r: any) => currentAge >= r.ageMin && currentAge <= r.ageMax) || bfList[bfList.length - 1];
@@ -2073,7 +2175,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <!-- Mini Donut em SVG -->
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 20 20">
                 <circle cx="10" cy="10" r="8" fill="none" stroke="#f1f5f9" stroke-width="2.5"></circle>
-                <circle cx="10" cy="10" r="8" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="${pctGordura.toFixed(0)} ${100 - pctGordura.toFixed(0)}" stroke-dashoffset="25"></circle>
+                <circle cx="10" cy="10" r="8" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="${pctGordura.toFixed(0)} ${(100 - pctGordura).toFixed(0)}" stroke-dashoffset="25"></circle>
               </svg>
             </div>
             <div class="metric-badge ${bfBadgeClass}">${bfClassification}</div>
@@ -2082,7 +2184,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <!-- Massa Magra -->
           <div style="border-right: 1px solid #f1f5f9; padding-right: 10px; padding-left: 5px;">
             <span style="font-size: 8px; color: #64748b; font-weight: 600; text-transform: uppercase;">Massa Magra</span>
-            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${(Number(assessment.resultadosCalculados?.massaMagra) || 0).toFixed(1)} <span style="font-size:10px; font-weight:500;">kg</span></div>
+            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${massaMagra.toFixed(1)} <span style="font-size:10px; font-weight:500;">kg</span></div>
             <div class="bar-progress-container">
               <div class="bar-progress-fill" style="width: 80%; background: #10b981;"></div>
             </div>
@@ -2092,7 +2194,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <!-- IMC -->
           <div style="padding-left: 5px;">
             <span style="font-size: 8px; color: #64748b; font-weight: 600; text-transform: uppercase;">IMC</span>
-            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${(Number(assessment.resultadosCalculados?.imc) || 0).toFixed(1)}</div>
+            <div style="font-size: 18px; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-top: 2px;">${imc.toFixed(1)}</div>
             <!-- Régua colorida do IMC -->
             <div style="display:flex; height: 5px; border-radius: 2.5px; overflow:hidden; margin-top: 5px; background: #e2e8f0; width: 100%;">
               <div style="flex:18.5; background:#3b82f6;"></div> <!-- Baixo -->
@@ -2100,7 +2202,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <div style="flex:5; background:#f59e0b;"></div>    <!-- Sobrepeso -->
               <div style="flex:5; background:#ef4444;"></div>    <!-- Obeso -->
             </div>
-            <div class="metric-badge badge-green">${assessment.resultadosCalculados.imcClassificacao}</div>
+            <div class="metric-badge badge-green">${imcClassification}</div>
           </div>
         </div>
       </div>
@@ -2113,11 +2215,11 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
           <div style="display:flex; justify-content:space-between; align-items: center; gap: 10px;">
             <table class="table-data" style="flex:1;">
               <tr style="background:#f8fafc; font-weight:600;"><td style="padding:4px 8px;">Componente</td><td style="padding:4px 8px;">Medido</td></tr>
-              <tr><td>Massa Total</td><td style="font-weight:600;">${(Number(assessment.dadosMedidos?.peso) || 0).toFixed(1)} kg</td></tr>
-              <tr><td>Massa Magra</td><td style="font-weight:600; color:#10b981;">${(Number(assessment.resultadosCalculados?.massaMagra) || 0).toFixed(1)} kg (${pctMassaMagra.toFixed(1)}%)</td></tr>
-              <tr><td>Massa Gorda</td><td style="font-weight:600; color:#ef4444;">${(Number(assessment.resultadosCalculados?.massaGorda) || 0).toFixed(1)} kg (${pctGordura.toFixed(1)}%)</td></tr>
+              <tr><td>Massa Total</td><td style="font-weight:600;">${currentPeso.toFixed(1)} kg</td></tr>
+              <tr><td>Massa Magra</td><td style="font-weight:600; color:#10b981;">${massaMagra.toFixed(1)} kg (${pctMassaMagra.toFixed(1)}%)</td></tr>
+              <tr><td>Massa Gorda</td><td style="font-weight:600; color:#ef4444;">${massaGorda.toFixed(1)} kg (${pctGordura.toFixed(1)}%)</td></tr>
               <tr><td>Gordura Corporal</td><td style="font-weight:600; color:#f59e0b;">${pctGordura.toFixed(1)}%</td></tr>
-              <tr><td>IMC / RCQ</td><td style="font-weight:600;">${(Number(assessment.resultadosCalculados?.imc) || 0).toFixed(1)} / ${(Number(assessment.resultadosCalculados?.rcq) || 0).toFixed(2)}</td></tr>
+              <tr><td>IMC / RCQ</td><td style="font-weight:600;">${imc.toFixed(1)} / ${rcq.toFixed(2)}</td></tr>
             </table>
 
             <!-- Donut Chart em SVG -->
@@ -2200,19 +2302,19 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             <div style="flex:1;">
               <table class="table-data" style="font-size: 8px;">
                 <tr><td style="font-weight:600; padding:3px 6px;">Região</td><td style="font-weight:600; padding:3px 6px; text-align:right;">Valor</td></tr>
-                <tr><td style="padding:2.5px 6px;">Peitoral</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.dobras.peitoral || 0} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Tríceps</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.dobras.triceps || 0} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Subescapular</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.dobras.subescapular || 0} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Subaxilar (Axilar Média)</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.dobras.subaxilar || 0} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Supra-ilíaca</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.dobras.suprailiaca || 0} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Abdômen</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.dobras.abdomen || 0} mm</td></tr>
-                <tr><td style="padding:2.5px 6px;">Coxa</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.dobras.coxa || 0} mm</td></tr>
+                <tr><td style="padding:2.5px 6px;">Peitoral</td><td style="text-align:right; font-weight:600;">${dPeitoral} mm</td></tr>
+                <tr><td style="padding:2.5px 6px;">Tríceps</td><td style="text-align:right; font-weight:600;">${dTriceps} mm</td></tr>
+                <tr><td style="padding:2.5px 6px;">Subescapular</td><td style="text-align:right; font-weight:600;">${dSubescapular} mm</td></tr>
+                <tr><td style="padding:2.5px 6px;">Subaxilar (Axilar Média)</td><td style="text-align:right; font-weight:600;">${dSubaxilar} mm</td></tr>
+                <tr><td style="padding:2.5px 6px;">Supra-ilíaca</td><td style="text-align:right; font-weight:600;">${dSuprailiaca} mm</td></tr>
+                <tr><td style="padding:2.5px 6px;">Abdômen</td><td style="text-align:right; font-weight:600;">${dAbdomen} mm</td></tr>
+                <tr><td style="padding:2.5px 6px;">Coxa</td><td style="text-align:right; font-weight:600;">${dCoxa} mm</td></tr>
               </table>
             </div>
           </div>
 
           <div style="display:flex; justify-content:center; margin-top:8px; border-top:1px dashed #cbd5e1; padding-top:6px; font-size:9px; font-family:'Outfit', sans-serif;">
-            <div>Soma das Dobras: <strong style="color:#10b981; font-size:11px;">${assessment.dadosMedidos.somaDobras || 124} mm</strong></div>
+            <div>Soma das Dobras: <strong style="color:#10b981; font-size:11px;">${finalSomaDobras} mm</strong></div>
           </div>
         </div>
 
