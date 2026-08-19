@@ -8,6 +8,7 @@ import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import DadosClinicosPanel from './DadosClinicosPanel';
+import WellnessModal from './WellnessModal';
 
 export const normalizeText = (str: string) => {
   return (str || '')
@@ -278,6 +279,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [detailClient, setDetailClient] = useState<any>(null);
   const [clientDetailTab, setClientDetailTab] = useState('agendamentos');
   const [showNewExModal, setShowNewExModal] = useState(false);
+  const [showWellnessModal, setShowWellnessModal] = useState(false);
+  const [wellnessApt, setWellnessApt] = useState<any>(null);
 
   // Emergency modal state
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
@@ -2311,7 +2314,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const handleUpdateAptStatus = async (id: string, status: string) => {
-    // If confirming presence for an emergency appointment, open special modal
+    // If confirming presence, open the corresponding interactive check-in flow
     if (status === 'presenca') {
       const apt = appointments.find((a: any) => a._id === id);
       if (apt?.servico === 'Emergência') {
@@ -2326,6 +2329,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         setShowEmergencyModal(true);
         return;
       }
+
+      // Mandatory Daily Wellness Questionnaire for all other services
+      setWellnessApt(apt);
+      setShowWellnessModal(true);
+      return;
     }
 
     const apt = appointments.find((a: any) => a._id === id);
@@ -2346,6 +2354,38 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         console.error(err);
       }
     }, `${clientName} - ${details}`);
+  };
+
+  const handleConfirmWellness = async (wellnessData: { sono: number; fadiga: number; dorMuscular: number }) => {
+    if (!wellnessApt) return;
+    const targetClientId = wellnessApt.clienteId?._id || wellnessApt.clienteId || null;
+    const clientName = wellnessApt.clienteId?.dadosPessoais?.nome || wellnessApt.clienteId?.nome || '';
+
+    return new Promise<void>((resolve, reject) => {
+      executeAction('Confirmou Presença e Preencheu Wellness', targetClientId, async (executorProfId, isCollective) => {
+        try {
+          const res = await fetch('/api/appointments', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: wellnessApt._id,
+              status: 'presenca',
+              wellness: wellnessData,
+              profissionalId: executorProfId
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            fetchData();
+            resolve();
+          } else {
+            reject(new Error(data.error || 'Erro ao registrar presença com wellness.'));
+          }
+        } catch (err: any) {
+          reject(err);
+        }
+      }, `${clientName} - Wellness: Sono ${wellnessData.sono}, Fadiga ${wellnessData.fadiga}, Dor ${wellnessData.dorMuscular}`);
+    });
   };
 
   const handleSaveEmergencyResolution = async () => {
@@ -10186,6 +10226,17 @@ goniometria: {
           </div>
         </div>
       )}
+
+      {/* 9. Wellness Questionnaire Modal */}
+      <WellnessModal
+        isOpen={showWellnessModal}
+        onClose={() => {
+          setShowWellnessModal(false);
+          setWellnessApt(null);
+        }}
+        appointment={wellnessApt}
+        onConfirm={handleConfirmWellness}
+      />
     </div>
   );
 }

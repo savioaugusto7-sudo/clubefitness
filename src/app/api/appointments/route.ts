@@ -437,7 +437,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, status } = body;
+    const { id, status, wellness, profissionalId } = body;
 
     if (!id || !status) {
       return NextResponse.json({ success: false, error: 'Missing appointment ID or status' }, { status: 400 });
@@ -446,6 +446,69 @@ export async function PUT(request: Request) {
     const appointment = await Appointment.findById(id);
     if (!appointment) {
       return NextResponse.json({ success: false, error: 'Appointment not found' }, { status: 404 });
+    }
+
+    // Regra Obrigatória: Para confirmar presença, o Questionário Wellness deve ser preenchido
+    if (status === 'presenca') {
+      if (!wellness || !wellness.sono || !wellness.fadiga || !wellness.dorMuscular) {
+        // Se o agendamento já tinha wellness salvo anteriormente, mantém; senão bloqueia
+        if (!appointment.wellness?.realizado) {
+          return NextResponse.json({
+            success: false,
+            error: 'Preencha o Questionário Wellness para concluir o registro da presença.',
+            requiresWellness: true
+          }, { status: 400 });
+        }
+      } else {
+        const { calculateWellness } = await import('@/utils/wellnessHelper');
+        const WellnessLog = (await import('@/models/WellnessLog')).default;
+        
+        const wResult = calculateWellness(wellness.sono, wellness.fadiga, wellness.dorMuscular);
+        const agora = new Date();
+        const dataPreenchimento = appointment.data || agora.toISOString().split('T')[0];
+        const horarioPreenchimento = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+        const profId = profissionalId || body.executorProfId || appointment.profissionalId;
+
+        appointment.wellness = {
+          realizado: true,
+          sono: Number(wellness.sono),
+          fadiga: Number(wellness.fadiga),
+          dorMuscular: Number(wellness.dorMuscular),
+          score: wResult.score,
+          status: wResult.status,
+          statusLabel: wResult.statusLabel,
+          statusColor: wResult.statusColor,
+          conduta: wResult.conduta,
+          regrasAtivadas: wResult.regrasAtivadas,
+          dataPreenchimento,
+          horarioPreenchimento,
+          profissionalId: profId
+        };
+
+        // Gravar no log histórico longitudinal
+        try {
+          if (WellnessLog) {
+            await WellnessLog.create({
+              clienteId: appointment.clienteId,
+              appointmentId: appointment._id,
+              profissionalId: profId,
+              data: dataPreenchimento,
+              horario: horarioPreenchimento,
+              sono: Number(wellness.sono),
+              fadiga: Number(wellness.fadiga),
+              dorMuscular: Number(wellness.dorMuscular),
+              score: wResult.score,
+              status: wResult.status,
+              statusLabel: wResult.statusLabel,
+              statusColor: wResult.statusColor,
+              conduta: wResult.conduta,
+              regrasAtivadas: wResult.regrasAtivadas
+            });
+          }
+        } catch (wErr) {
+          console.warn('Erro ao salvar WellnessLog:', wErr);
+        }
+      }
     }
 
     const client = await Client.findById(appointment.clienteId).populate('dadosComerciais.planoId');
@@ -470,7 +533,7 @@ export async function PUT(request: Request) {
     appointment.status = status;
     await appointment.save();
 
-    return NextResponse.json({ success: true, data: appointment });
+    return NextResponse.json({ success: true, data: appointment, wellness: appointment.wellness });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
