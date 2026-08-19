@@ -17,30 +17,30 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
   const regrasAtivadas: string[] = [];
 
   // Regras de Segurança Críticas (Prioritárias)
-  // 1. Sono >= 8 + Fadiga >= 7 -> Repouso Total / Avaliação Fisioterapêutica
+  // 1. Sono >= 8 + Fadiga >= 7 -> Recovery
   if (s >= 8 && f >= 7) {
     regrasAtivadas.push('Sono Crítico (≥8) + Fadiga Severa (≥7)');
     return {
       score,
       status: 'critico',
-      statusLabel: 'Estado Crítico / Avaliação',
+      statusLabel: 'Estado Crítico',
       statusColor: '#ef4444',
       statusBadgeBg: 'rgba(239, 68, 68, 0.15)',
-      conduta: 'Repouso Total / Avaliação Fisioterapêutica',
+      conduta: 'Recovery',
       regrasAtivadas
     };
   }
 
-  // 2. Fadiga >= 7 + Dor >= 6 -> Treino Regenerativo ou Repouso
+  // 2. Fadiga >= 7 + Dor >= 6 -> Treino Livre ou Repouso
   if (f >= 7 && d >= 6) {
     regrasAtivadas.push('Fadiga Severa (≥7) + Dor Muscular Alta (≥6)');
     return {
       score,
       status: 'ruim',
-      statusLabel: 'Estado Ruim / Regenerativo',
+      statusLabel: 'Estado Ruim',
       statusColor: '#f97316',
       statusBadgeBg: 'rgba(249, 115, 22, 0.15)',
-      conduta: 'Treino Regenerativo ou Repouso',
+      conduta: 'Treino Livre ou Repouso',
       regrasAtivadas
     };
   }
@@ -68,7 +68,7 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
       statusLabel: 'Estado Ótimo',
       statusColor: '#10b981',
       statusBadgeBg: 'rgba(16, 185, 129, 0.15)',
-      conduta: 'Treino Completo de Alta Carga Liberado',
+      conduta: 'Treino de Alta Carga Liberado',
       regrasAtivadas
     };
   }
@@ -101,7 +101,7 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
       statusLabel: 'Estado Ruim',
       statusColor: '#f97316',
       statusBadgeBg: 'rgba(249, 115, 22, 0.15)',
-      conduta: 'Treino Regenerativo ou Repouso',
+      conduta: 'Treino Livre ou Repouso',
       regrasAtivadas
     };
   } else {
@@ -111,7 +111,7 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
       statusLabel: 'Estado Crítico',
       statusColor: '#ef4444',
       statusBadgeBg: 'rgba(239, 68, 68, 0.15)',
-      conduta: 'Repouso Total',
+      conduta: 'Recovery',
       regrasAtivadas
     };
   }
