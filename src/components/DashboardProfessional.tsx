@@ -305,6 +305,30 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   // Workout editor tab states
   const [workoutSearch, setWorkoutSearch] = useState('');
+  const [evoSubTab, setEvoSubTab] = useState<'composicao' | 'perimetros' | 'mobilidade' | 'forca'>('composicao');
+  const [savedDraftInfo, setSavedDraftInfo] = useState<any>(null);
+
+  // Check on load if there's any unsaved assessment draft in localStorage
+  useEffect(() => {
+    try {
+      const draft = localStorage.getItem('draft_assessment');
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        const hasContent = parsed.asClient || parsed.asWeight || parsed.asDobrasReadings || parsed.asGonio || parsed.asMeta2Meses;
+        if (hasContent) {
+          const matchedStudent = clients.find(c => String(c._id) === String(parsed.asClient));
+          setSavedDraftInfo({
+            studentName: matchedStudent?.dadosPessoais?.nome || '',
+            asDate: parsed.asDate || '',
+            raw: parsed
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading saved draft info:', e);
+    }
+  }, [clients]);
+
   const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises'>('clients');
   const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
   const [workoutPlanFilter, setWorkoutPlanFilter] = useState<string>('all');
@@ -1157,13 +1181,31 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           setAsSdPrpsD(p.asSdPrpsD !== undefined ? p.asSdPrpsD : (p.asSdPrps || ''));
           setAsSdPrpsE(p.asSdPrpsE !== undefined ? p.asSdPrpsE : (p.asSdPrps || ''));
           setAsMaigneRealizou(p.asMaigneRealizou || 'nao');
-          if (p.asMaigneData) setAsMaigneData(p.asMaigneData);
-          setAsMaigne(p.asMaigne || '');
+          if (p.asMaigne) setAsMaigne(p.asMaigne);
           if (p.asTimerSeconds) setAsTimerSeconds(p.asTimerSeconds);
-        } else {
-          localStorage.removeItem('draft_assessment');
         }
+        // NOTE: Never remove draft_assessment on cancel to preserve user data from accidental loss
       } catch(e) { console.error('Error loading assessment draft', e); }
+    }
+  };
+
+  const handleRestoreDraftDirectly = () => {
+    try {
+      const draft = localStorage.getItem('draft_assessment');
+      if (!draft) {
+        alert('Nenhum rascunho encontrado na memória deste aparelho.');
+        return;
+      }
+      const parsed = JSON.parse(draft);
+      if (parsed.asClient) {
+        setAsClient(parsed.asClient);
+      }
+      setShowAssessmentModal(true);
+      setTimeout(() => {
+        loadAssessmentDraft(true, parsed);
+      }, 100);
+    } catch (e) {
+      alert('Erro ao carregar rascunho: ' + e);
     }
   };
 
@@ -3647,6 +3689,76 @@ goniometria: {
 
   return (
     <div>
+      {/* Emergency Unsaved Assessment Draft Rescue Banner */}
+      {savedDraftInfo && (
+        <div style={{
+          margin: '0 0 24px 0',
+          padding: '16px 20px',
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%)',
+          border: '1px solid #f59e0b',
+          borderLeft: '6px solid #f59e0b',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '14px',
+          boxShadow: '0 4px 20px rgba(245, 158, 11, 0.15)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              background: '#f59e0b',
+              color: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem',
+              fontWeight: 'bold',
+              flexShrink: 0
+            }}>
+              <i className="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 4px 0', color: '#fbbf24', fontSize: '1rem', fontWeight: 700 }}>
+                ⚠️ Rascunho de Avaliação Física Encontrado neste Aparelho!
+              </h4>
+              <p style={{ margin: 0, color: 'var(--text-main, #fff)', fontSize: '0.84rem' }}>
+                Há uma avaliação não salva ({savedDraftInfo.studentName ? `Aluno: ${savedDraftInfo.studentName}` : 'Dados preenchidos'} {savedDraftInfo.asDate ? `- Data: ${savedDraftInfo.asDate}` : ''}). Clique abaixo para recuperar os dados e salvar com segurança.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700, padding: '8px 16px', fontSize: '0.88rem' }}
+              onClick={handleRestoreDraftDirectly}
+            >
+              <i className="fa-solid fa-file-circle-check" style={{ marginRight: '6px' }}></i>
+              Recuperar Avaliação Agora
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+              onClick={() => {
+                try {
+                  navigator.clipboard.writeText(JSON.stringify(savedDraftInfo.raw, null, 2));
+                  alert('Dados brutos do rascunho copiados com sucesso para sua área de transferência!');
+                } catch {
+                  alert('Rascunho: ' + JSON.stringify(savedDraftInfo.raw));
+                }
+              }}
+            >
+              <i className="fa-solid fa-copy"></i> Copiar Backup
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 0. View: Resumo do Dia */}
       {activeTab === 'resumo_dia' && (
         <>
