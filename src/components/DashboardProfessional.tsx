@@ -2464,7 +2464,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
     try {
       const p = parseFloat(asWeight) || 0;
-      const a = parseFloat(asHeight) || 0;
+      let a = parseFloat(asHeight) || 0;
+      if (a > 3) {
+        a = parseFloat((a / 100).toFixed(2)); // Normaliza cm para m (ex: 154 -> 1.54)
+      }
       
       // IMC
       let imc = 0;
@@ -2475,6 +2478,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         else if (imc < 25) imcClass = 'Normal';
         else if (imc < 30) imcClass = 'Sobrepeso';
         else imcClass = 'Obesidade';
+      }
+
+      let finalFat = parseFloat(asFat) || 0;
+      let finalMM = parseFloat(asMassaMagra) || 0;
+      let finalMG = parseFloat(asMassaGorda) || 0;
+      if (p > 0 && finalFat > 0 && (finalMM <= 0 || finalMG <= 0)) {
+        finalMG = parseFloat(((p * finalFat) / 100).toFixed(1));
+        finalMM = parseFloat((p - finalMG).toFixed(1));
       }
 
       // RCQ
@@ -2638,9 +2649,9 @@ goniometria: {
           imcClassificacao: imcClass,
           rcq,
           rcqClassificacao: rcqClass,
-          percentualGordura: Number(asFat) || 0,
-          massaMagra: Number(asMassaMagra) || 0,
-          massaGorda: Number(asMassaGorda) || 0
+          percentualGordura: finalFat,
+          massaMagra: finalMM,
+          massaGorda: finalMG
         },
         metas: {
           metaGorduraValor: metaGorduraVal,
@@ -5564,13 +5575,26 @@ goniometria: {
                                 )}
                               </td>
                               <td data-label="Aluno"><strong>{row.name}</strong></td>
-                              <td data-label="Peso / Altura">{as.dadosMedidos?.peso} kg / {as.dadosMedidos?.altura} m</td>
+                              <td data-label="Peso / Altura">{(() => {
+                                const pesoVal = Number(as.dadosMedidos?.peso) || 0;
+                                let altVal = Number(as.dadosMedidos?.altura) || 0;
+                                if (altVal > 3) altVal = parseFloat((altVal / 100).toFixed(2));
+                                return `${pesoVal} kg / ${altVal > 0 ? `${altVal.toFixed(2)} m` : '-'}`;
+                              })()}</td>
                               <td data-label="% Gordura (BF)" style={{ textAlign: 'center' }}>
-                                <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura}% BF</span>
+                                <span className="badge badge-warning">{as.resultadosCalculados?.percentualGordura || 0}% BF</span>
                               </td>
-                              <td data-label="Massa Magra / Gorda">
-                                MM: {as.resultadosCalculados?.massaMagra} kg / MG: {as.resultadosCalculados?.massaGorda} kg
-                              </td>
+                              <td data-label="Massa Magra / Gorda">{(() => {
+                                const pesoVal = Number(as.dadosMedidos?.peso) || 0;
+                                const bfVal = Number(as.resultadosCalculados?.percentualGordura) || 0;
+                                let mmVal = Number(as.resultadosCalculados?.massaMagra) || 0;
+                                let mgVal = Number(as.resultadosCalculados?.massaGorda) || 0;
+                                if (pesoVal > 0 && bfVal > 0 && (mmVal <= 0 || mgVal <= 0)) {
+                                  mgVal = parseFloat(((pesoVal * bfVal) / 100).toFixed(1));
+                                  mmVal = parseFloat((pesoVal - mgVal).toFixed(1));
+                                }
+                                return `MM: ${mmVal.toFixed(1)} kg / MG: ${mgVal.toFixed(1)} kg`;
+                              })()}</td>
                               {isAdmin && <td data-label="Avaliador">{getProfessionalName(as.avaliadorId)}</td>}
                               <td data-label="Ações">
                                 <button className="btn btn-danger btn-sm" style={{ marginRight: '8px' }} onClick={() => handleDeleteAssessment(as._id)}>
@@ -10164,8 +10188,24 @@ goniometria: {
                         return <tr><td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '12px' }}>Nenhuma avaliação cadastrada.</td></tr>;
                       }
                       return clientAssessments.map(as => {
-                        const fatText = as.resultadosCalculados?.percentualGordura ? `${as.resultadosCalculados.percentualGordura.toFixed(1)}%` : '-';
-                        const imcText = as.resultadosCalculados?.imc ? `${as.resultadosCalculados.imc.toFixed(1)} (${as.resultadosCalculados.imcClassificacao || ''})` : '-';
+                        const fatText = as.resultadosCalculados?.percentualGordura ? `${Number(as.resultadosCalculados.percentualGordura).toFixed(1)}%` : '-';
+                        
+                        const pesoVal = Number(as.dadosMedidos?.peso) || 0;
+                        let altVal = Number(as.dadosMedidos?.altura) || 0;
+                        if (altVal > 3) altVal = parseFloat((altVal / 100).toFixed(2));
+                        let imcVal = Number(as.resultadosCalculados?.imc) || 0;
+                        if ((imcVal <= 1 || imcVal > 100) && pesoVal > 0 && altVal > 0) {
+                          imcVal = parseFloat((pesoVal / (altVal * altVal)).toFixed(1));
+                        }
+                        let imcClassText = as.resultadosCalculados?.imcClassificacao;
+                        if (!imcClassText || imcClassText === '-' || (imcClassText === 'Baixo peso' && imcVal >= 18.5)) {
+                          if (imcVal < 18.5) imcClassText = 'Baixo peso';
+                          else if (imcVal < 25) imcClassText = 'Normal';
+                          else if (imcVal < 30) imcClassText = 'Sobrepeso';
+                          else imcClassText = 'Obesidade';
+                        }
+                        const imcText = imcVal > 0 ? `${imcVal.toFixed(1)} (${imcClassText})` : '-';
+
                         return (
                           <tr key={as._id}>
                             <td data-label="Data">{(() => {
@@ -10178,9 +10218,22 @@ goniometria: {
                             <td data-label="IMC">{imcText}</td>
                             {isAdmin && <td data-label="Avaliador">{as.avaliadorId?.nome || 'Não Definido'}</td>}
                             <td data-label="Ações">
-                              <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
-                                logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
-                                downloadAssessmentPDF(as, assessments);
+                              <button type="button" className="btn btn-secondary btn-sm" onClick={async () => {
+                                try {
+                                  logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, detailClient.dadosPessoais?.nome || 'Aluno', as.data);
+                                  let fullAs = as;
+                                  try {
+                                    const res = await fetch(`/api/assessments?id=${as._id}`, { cache: 'no-store' });
+                                    const json = await res.json();
+                                    if (json?.success && json.data) fullAs = json.data;
+                                  } catch (e) {
+                                    console.warn(e);
+                                  }
+                                  fullAs.clienteId = detailClient;
+                                  await downloadAssessmentPDF(fullAs, assessments);
+                                } catch (err) {
+                                  console.error(err);
+                                }
                               }}>
                                 <i className="fa-solid fa-file-pdf"></i> Laudo PDF
                               </button>

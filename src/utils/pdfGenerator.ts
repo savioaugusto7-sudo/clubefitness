@@ -1420,10 +1420,15 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     prof.registro = 'CREF/CREFITO';
   }
 
+  const dadosMedidos = assessment.dadosMedidos || {};
+  const testesEspeciais = dadosMedidos.testesEspeciais || {};
+  const circunferencias = dadosMedidos.circunferencias || {};
+  const dobras = dadosMedidos.dobras || {};
+
   let maigneObj = { flexao: 25, flexaoEVA: 0, extensao: 25, extensaoEVA: 0, inclinacaoD: 25, inclinacaoDEVA: 0, inclinacaoE: 25, inclinacaoEEVA: 0, rotacaoD: 25, rotacaoDEVA: 0, rotacaoE: 25, rotacaoEEVA: 0, observacoes: '' };
   let hasMaigneData = false;
-  if (assessment.dadosMedidos.testesEspeciais?.maigne) {
-    const rawMaigne = assessment.dadosMedidos.testesEspeciais.maigne;
+  if (testesEspeciais.maigne) {
+    const rawMaigne = testesEspeciais.maigne;
     if (isMaigneFilled(rawMaigne)) {
       if (typeof rawMaigne === 'string' && rawMaigne.startsWith('{')) {
         try {
@@ -1511,7 +1516,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   }
 
   // ===== Parse structured Y-Test, Step Down, Termografia =====
-  const rawYTest = assessment.dadosMedidos.testesEspeciais?.yTest || '';
+  const rawYTest = testesEspeciais.yTest || '';
   let yTestObj: any = null;
   let yTestLegacyStr = '';
   if (rawYTest) {
@@ -1522,7 +1527,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     } catch { yTestLegacyStr = rawYTest; }
   }
 
-  const rawStepDown = assessment.dadosMedidos.testesEspeciais?.stepDown || '';
+  const rawStepDown = testesEspeciais.stepDown || '';
   let stepDownObj: any = null;
   let stepDownLegacyStr = '';
   if (rawStepDown) {
@@ -1533,7 +1538,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
     } catch { stepDownLegacyStr = rawStepDown; }
   }
 
-  const rawTermografia = assessment.dadosMedidos.testesEspeciais?.termografia || '';
+  const rawTermografia = testesEspeciais.termografia || '';
   const hasTermografiaImage = rawTermografia && rawTermografia.startsWith('data:');
   const termografiaIsRealizado = rawTermografia && rawTermografia.trim().length > 0;
 
@@ -1777,7 +1782,12 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const currentSex = assessment.dadosMedidos?.sexo || client.dadosPessoais?.sexo || 'M';
   const currentAge = Number(assessment.dadosMedidos?.idade) || Number(client.dadosPessoais?.idade) || 30;
   const currentPeso = Number(assessment.dadosMedidos?.peso) || 70;
-  const currentAltura = Number(assessment.dadosMedidos?.altura) || 1.75;
+  
+  let rawAltura = Number(assessment.dadosMedidos?.altura) || 1.75;
+  if (rawAltura > 3) {
+    rawAltura = rawAltura / 100; // Normaliza altura digitada em cm (ex: 154 -> 1.54)
+  }
+  const currentAltura = rawAltura > 0 ? Number(rawAltura.toFixed(2)) : 1.75;
 
   // 3. Percentual de gordura (salvo ou recalculado por Pollock 7 Dobras)
   let pctGordura = Number(assessment.resultadosCalculados?.percentualGordura) || 0;
@@ -1792,17 +1802,21 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   let massaGorda = Number(assessment.resultadosCalculados?.massaGorda) || 0;
   let massaMagra = Number(assessment.resultadosCalculados?.massaMagra) || 0;
   if (massaGorda <= 0 || massaMagra <= 0) {
-    massaGorda = Number((currentPeso * (pctGordura / 100)).toFixed(1));
-    massaMagra = Number((currentPeso - massaGorda).toFixed(1));
+    if (pctGordura > 0 && currentPeso > 0) {
+      massaGorda = Number((currentPeso * (pctGordura / 100)).toFixed(1));
+      massaMagra = Number((currentPeso - massaGorda).toFixed(1));
+    }
   }
 
   // 5. IMC e Classificação (salvo ou recalculado)
   let imc = Number(assessment.resultadosCalculados?.imc) || 0;
-  if (imc <= 0 && currentPeso > 0 && currentAltura > 0) {
-    imc = Number((currentPeso / (currentAltura * currentAltura)).toFixed(1));
+  if (imc <= 1 || imc > 100) {
+    if (currentPeso > 0 && currentAltura > 0) {
+      imc = Number((currentPeso / (currentAltura * currentAltura)).toFixed(1));
+    }
   }
   let imcClassification = assessment.resultadosCalculados?.imcClassificacao;
-  if (!imcClassification || imcClassification === '-') {
+  if (!imcClassification || imcClassification === '-' || (imcClassification === 'Baixo peso' && imc >= 18.5)) {
     if (imc < 18.5) imcClassification = 'Baixo peso';
     else if (imc < 25) imcClassification = 'Normal';
     else if (imc < 30) imcClassification = 'Sobrepeso';
