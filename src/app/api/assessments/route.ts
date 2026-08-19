@@ -2,11 +2,26 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import PhysicalAssessment from '@/models/PhysicalAssessment';
+import '@/models/Client';
+import '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const maxDuration = 30;
+
+function toValidObjectId(val: any, fallback?: string): mongoose.Types.ObjectId | null {
+  if (!val) return fallback ? new mongoose.Types.ObjectId(fallback) : null;
+  const str = String(val).trim();
+  if (mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str)) {
+    try {
+      return new mongoose.Types.ObjectId(str);
+    } catch {
+      return fallback ? new mongoose.Types.ObjectId(fallback) : null;
+    }
+  }
+  return fallback ? new mongoose.Types.ObjectId(fallback) : null;
+}
 
 export async function GET(request: Request) {
   try {
@@ -20,9 +35,10 @@ export async function GET(request: Request) {
     // Se estiver buscando um rascunho específico de um aluno
     if (isDraftQuery && paramClientId) {
       try {
-        const objId = new mongoose.Types.ObjectId(paramClientId);
+        const objId = toValidObjectId(paramClientId);
+        const queryClient = objId ? { $in: [paramClientId, objId] } : paramClientId;
         const draft = await PhysicalAssessment.findOne({
-          clienteId: { $in: [paramClientId, objId] },
+          clienteId: queryClient,
           $or: [
             { status: 'rascunho' },
             { isDraft: true }
@@ -43,7 +59,11 @@ export async function GET(request: Request) {
 
     // Se estiver buscando um documento completo específico (ex: download de PDF)
     if (id) {
-      const fullDoc = await PhysicalAssessment.findById(id).lean().maxTimeMS(4000);
+      const validId = toValidObjectId(id);
+      if (!validId) {
+        return NextResponse.json({ success: false, error: 'ID inválido' }, { status: 400 });
+      }
+      const fullDoc = await PhysicalAssessment.findById(validId).lean().maxTimeMS(4000);
       return NextResponse.json(
         { success: true, data: fullDoc },
         { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
@@ -52,12 +72,8 @@ export async function GET(request: Request) {
 
     let query: any = {};
     if (paramClientId) {
-      try {
-        const objId = new mongoose.Types.ObjectId(paramClientId);
-        query.clienteId = { $in: [paramClientId, objId] };
-      } catch {
-        query.clienteId = paramClientId;
-      }
+      const objId = toValidObjectId(paramClientId);
+      query.clienteId = objId ? { $in: [paramClientId, objId] } : paramClientId;
     }
 
     // Por padrão na listagem, omitir rascunhos em aberto da tabela oficial a menos que explicitamente pedido
@@ -91,7 +107,13 @@ export async function POST(request: Request) {
     
     await checkSessionPermission(['admin', 'professional'], undefined, request);
 
-    const body = await request.json();
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, error: 'Corpo da requisição inválido (JSON inválido).' }, { status: 400 });
+    }
+
     const { 
       id,
       draftId,
@@ -113,16 +135,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes (cliente e data).' }, { status: 400 });
     }
 
+    const validClienteId = toValidObjectId(clienteId);
+    if (!validClienteId) {
+      return NextResponse.json({ success: false, error: 'ID do cliente inválido.' }, { status: 400 });
+    }
+
+    const validAvaliadorId = toValidObjectId(avaliadorId, '6668ab030303030303030302') || new mongoose.Types.ObjectId('6668ab030303030303030302');
     const isDraftSave = status === 'rascunho' || isDraft === true;
 
     // 1. Caso seja Auto-Save Silencioso na Nuvem (Rascunho)
     if (isDraftSave) {
       let existingDraft = null;
-      if (draftId || id) {
-        existingDraft = await PhysicalAssessment.findById(draftId || id);
-      } else {
+      const validDraftId = toValidObjectId(draftId || id);
+      if (validDraftId) {
+        existingDraft = await PhysicalAssessment.findById(validDraftId);
+      }
+      
+      if (!existingDraft) {
         existingDraft = await PhysicalAssessment.findOne({
-          clienteId,
+          clienteId: validClienteId,
           $or: [{ status: 'rascunho' }, { isDraft: true }]
         }).sort({ updatedAt: -1 });
       }
@@ -136,7 +167,7 @@ export async function POST(request: Request) {
         existingDraft.data = data || existingDraft.data;
         existingDraft.status = 'rascunho';
         existingDraft.isDraft = true;
-        if (avaliadorId) existingDraft.avaliadorId = avaliadorId;
+        if (validAvaliadorId) existingDraft.avaliadorId = validAvaliadorId;
 
         await existingDraft.save();
         return NextResponse.json({ success: true, data: existingDraft, autoSaved: true });
@@ -144,8 +175,8 @@ export async function POST(request: Request) {
 
       // Se não havia rascunho anterior, cria um novo rascunho
       const newDraft = await PhysicalAssessment.create({
-        clienteId,
-        avaliadorId: avaliadorId || '6668ab030303030303030302',
+        clienteId: validClienteId,
+        avaliadorId: validAvaliadorId,
         data,
         dadosMedidos: dadosMedidos || {},
         resultadosCalculados: resultadosCalculados || {},
@@ -163,19 +194,22 @@ export async function POST(request: Request) {
 
     // 2. Caso seja Conclusão e Finalização Oficial da Avaliação
     let assessmentDoc = null;
-    if (draftId || id) {
-      assessmentDoc = await PhysicalAssessment.findById(draftId || id);
-    } else {
+    const validDocId = toValidObjectId(draftId || id);
+    if (validDocId) {
+      assessmentDoc = await PhysicalAssessment.findById(validDocId);
+    }
+    
+    if (!assessmentDoc) {
       // Buscar se havia rascunho em aberto para promover a concluído
       assessmentDoc = await PhysicalAssessment.findOne({
-        clienteId,
+        clienteId: validClienteId,
         $or: [{ status: 'rascunho' }, { isDraft: true }]
       }).sort({ updatedAt: -1 });
     }
 
     if (assessmentDoc) {
-      assessmentDoc.clienteId = clienteId;
-      if (avaliadorId) assessmentDoc.avaliadorId = avaliadorId;
+      assessmentDoc.clienteId = validClienteId;
+      if (validAvaliadorId) assessmentDoc.avaliadorId = validAvaliadorId;
       assessmentDoc.data = data;
       assessmentDoc.dadosMedidos = dadosMedidos;
       assessmentDoc.resultadosCalculados = resultadosCalculados;
@@ -193,14 +227,14 @@ export async function POST(request: Request) {
 
     // Criar nova avaliação diretamente como concluída
     const assessment = await PhysicalAssessment.create({
-      clienteId,
-      avaliadorId: avaliadorId || '6668ab030303030303030302',
+      clienteId: validClienteId,
+      avaliadorId: validAvaliadorId,
       data,
-      dadosMedidos,
-      resultadosCalculados,
-      metas,
-      observacoes,
-      pdfName,
+      dadosMedidos: dadosMedidos || {},
+      resultadosCalculados: resultadosCalculados || {},
+      metas: metas || {},
+      observacoes: observacoes || '',
+      pdfName: pdfName || '',
       pdf_url: pdf_url || '',
       tempoGastoSegundos: Number(tempoGastoSegundos) || 0,
       status: 'concluido',
@@ -209,8 +243,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: assessment });
   } catch (error: any) {
-    console.error('[assessments POST] Error:', error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[assessments POST] Error:', error?.message || error);
+    return NextResponse.json({ success: false, error: error?.message || 'Erro interno ao salvar avaliação física.' }, { status: 500 });
   }
 }
 
@@ -227,7 +261,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing ID' }, { status: 400 });
     }
 
-    await PhysicalAssessment.findByIdAndDelete(id);
+    const validId = toValidObjectId(id);
+    if (!validId) {
+      return NextResponse.json({ success: false, error: 'ID inválido' }, { status: 400 });
+    }
+
+    await PhysicalAssessment.findByIdAndDelete(validId);
     return NextResponse.json({ success: true, message: 'Physical assessment deleted' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

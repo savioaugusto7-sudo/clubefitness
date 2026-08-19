@@ -2678,7 +2678,15 @@ goniometria: {
               tempoGastoSegundos: asTimerSeconds
             })
           });
-          const data = await res.json();
+          
+          let data: any = {};
+          try {
+            data = await res.json();
+          } catch {
+            const rawText = await res.text().catch(() => '');
+            throw new Error(rawText || `Servidor retornou status ${res.status}`);
+          }
+
           if (data.success) {
             localStorage.removeItem('draft_assessment');
             setActiveDraftId(null);
@@ -2689,10 +2697,10 @@ goniometria: {
             fetchData();
             alert('Avaliação física concluída e laudo gerado com sucesso!');
           } else {
-            alert('Erro ao criar avaliação física: ' + data.error);
+            alert('Não foi possível salvar a avaliação: ' + (data.error || 'Erro desconhecido.'));
           }
         } catch (err: any) {
-          alert('Erro ao enviar: ' + err.message);
+          alert('Erro ao salvar avaliação física: ' + err.message);
         } finally {
           setIsSubmitting(false);
         }
@@ -3097,7 +3105,15 @@ goniometria: {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          const data = await res.json();
+          
+          let data: any = {};
+          try {
+            data = await res.json();
+          } catch {
+            const rawText = await res.text().catch(() => '');
+            throw new Error(rawText || `Servidor retornou status ${res.status}`);
+          }
+
           if (data.success) {
             localStorage.removeItem('draft_report');
             setShowReportModal(false);
@@ -3180,10 +3196,10 @@ goniometria: {
               downloadReportPDF(data.data);
             }
           } else {
-            alert('Erro ao criar relatório: ' + data.error);
+            alert('Não foi possível salvar o relatório: ' + (data.error || 'Erro desconhecido.'));
           }
         } catch (err: any) {
-          alert('Erro ao enviar: ' + err.message);
+          alert('Erro ao salvar relatório: ' + err.message);
         } finally {
           setIsSubmitting(false);
         }

@@ -2,11 +2,26 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import PhysioReport from '@/models/PhysioReport';
+import '@/models/Client';
+import '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const maxDuration = 30;
+
+function toValidObjectId(val: any, fallback?: string): mongoose.Types.ObjectId | null {
+  if (!val) return fallback ? new mongoose.Types.ObjectId(fallback) : null;
+  const str = String(val).trim();
+  if (mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str)) {
+    try {
+      return new mongoose.Types.ObjectId(str);
+    } catch {
+      return fallback ? new mongoose.Types.ObjectId(fallback) : null;
+    }
+  }
+  return fallback ? new mongoose.Types.ObjectId(fallback) : null;
+}
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +33,11 @@ export async function GET(request: Request) {
 
     // Single full document by ID (for modal / PDF download with heavy base64/thermography)
     if (id) {
-      const fullDoc = await PhysioReport.findById(id).lean().maxTimeMS(4000);
+      const validId = toValidObjectId(id);
+      if (!validId) {
+        return NextResponse.json({ success: false, error: 'ID inválido' }, { status: 400 });
+      }
+      const fullDoc = await PhysioReport.findById(validId).lean().maxTimeMS(4000);
       return NextResponse.json(
         { success: true, data: fullDoc },
         { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
@@ -27,12 +46,8 @@ export async function GET(request: Request) {
 
     let query: any = {};
     if (paramClientId) {
-      try {
-        const objId = new mongoose.Types.ObjectId(paramClientId);
-        query = { $or: [{ clienteId: paramClientId }, { clienteId: objId }] };
-      } catch {
-        query = { clienteId: paramClientId };
-      }
+      const objId = toValidObjectId(paramClientId);
+      query = objId ? { $or: [{ clienteId: paramClientId }, { clienteId: objId }] } : { clienteId: paramClientId };
     }
 
     // Ultra-lightweight select projection: strictly what table needs, excluding heavy base64/termografia
@@ -61,16 +76,29 @@ export async function POST(request: Request) {
     
     await checkSessionPermission(['admin', 'professional'], undefined, request);
 
-    const body = await request.json();
-    const { clienteId, profissionalId, data, conteudo, anamnese, goniometria, testesEspeciais, termografia, testesOrtopedicos, pdfName, pdf_url, tempoGastoSegundos } = body;
-
-    if (!clienteId || !profissionalId || !data || !conteudo) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, error: 'JSON inválido no corpo da requisição.' }, { status: 400 });
     }
 
+    const { clienteId, profissionalId, data, conteudo, anamnese, goniometria, testesEspeciais, termografia, testesOrtopedicos, pdfName, pdf_url, tempoGastoSegundos } = body;
+
+    if (!clienteId || !data || !conteudo) {
+      return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes (cliente, data, conteúdo).' }, { status: 400 });
+    }
+
+    const validClienteId = toValidObjectId(clienteId);
+    if (!validClienteId) {
+      return NextResponse.json({ success: false, error: 'ID do cliente inválido.' }, { status: 400 });
+    }
+
+    const validProfId = toValidObjectId(profissionalId, '6668ab030303030303030302') || new mongoose.Types.ObjectId('6668ab030303030303030302');
+
     const report = await PhysioReport.create({
-      clienteId,
-      profissionalId,
+      clienteId: validClienteId,
+      profissionalId: validProfId,
       data,
       conteudo,
       anamnese,
@@ -78,18 +106,20 @@ export async function POST(request: Request) {
       testesEspeciais,
       termografia,
       testesOrtopedicos,
-      pdfName,
+      pdfName: pdfName || '',
       pdf_url: pdf_url || '',
       tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
 
     const populatedReport = await PhysioReport.findById(report._id)
       .populate('clienteId')
-      .populate('profissionalId');
+      .populate('profissionalId')
+      .lean();
 
-    return NextResponse.json({ success: true, data: populatedReport });
+    return NextResponse.json({ success: true, data: populatedReport || report });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[reports POST] Error:', error?.message || error);
+    return NextResponse.json({ success: false, error: error?.message || 'Erro interno ao salvar relatório fisioterápico.' }, { status: 500 });
   }
 }
 
@@ -106,7 +136,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing ID' }, { status: 400 });
     }
 
-    await PhysioReport.findByIdAndDelete(id);
+    const validId = toValidObjectId(id);
+    if (!validId) {
+      return NextResponse.json({ success: false, error: 'ID inválido' }, { status: 400 });
+    }
+
+    await PhysioReport.findByIdAndDelete(validId);
     return NextResponse.json({ success: true, message: 'Physiotherapy report deleted' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
