@@ -1,4 +1,8 @@
 import mongoose, { Schema, model, models } from 'mongoose';
+import Plan from './Plan';
+
+// Ensure Plan is registered for population
+const _plan = Plan;
 
 const DadosPessoaisSchema = new Schema({
   nome: { type: String, required: true },

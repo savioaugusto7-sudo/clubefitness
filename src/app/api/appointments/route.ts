@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
-import Appointment from '@/models/Appointment';
+import Plan from '@/models/Plan';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import AgendaConfig from '@/models/AgendaConfig';
-import Plan from '@/models/Plan';
+import Appointment from '@/models/Appointment';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
 export const maxDuration = 30;
+
+// Force registration of all Mongoose models in global scope
+const _models = { Plan, Client, Professional, AgendaConfig, Appointment };
 
 // Configuração de Serviços — Regras de Crédito e Capacidade
 const SERVICOS_CONFIG: Record<string, {
@@ -181,6 +184,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await dbConnect();
+    const _p = Plan;
+    const _c = Client;
+    const _pr = Professional;
+    const _a = Appointment;
     const body = await request.json();
     const { data, horario, servico, profissionalId: requestedProfId, clienteId, bypassRestrictions } = body;
 
@@ -436,6 +443,10 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     await dbConnect();
+    const _p = Plan;
+    const _c = Client;
+    const _pr = Professional;
+    const _a = Appointment;
     const body = await request.json();
     const { id, status, wellness, profissionalId } = body;
 
