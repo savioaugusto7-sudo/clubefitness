@@ -306,28 +306,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Workout editor tab states
   const [workoutSearch, setWorkoutSearch] = useState('');
   const [evoSubTab, setEvoSubTab] = useState<'composicao' | 'perimetros' | 'mobilidade' | 'forca'>('composicao');
-  const [savedDraftInfo, setSavedDraftInfo] = useState<any>(null);
 
-  // Check on load if there's any unsaved assessment draft in localStorage
-  useEffect(() => {
-    try {
-      const draft = localStorage.getItem('draft_assessment');
-      if (draft) {
-        const parsed = JSON.parse(draft);
-        const hasContent = parsed.asClient || parsed.asWeight || parsed.asDobrasReadings || parsed.asGonio || parsed.asMeta2Meses;
-        if (hasContent) {
-          const matchedStudent = clients.find(c => String(c._id) === String(parsed.asClient));
-          setSavedDraftInfo({
-            studentName: matchedStudent?.dadosPessoais?.nome || '',
-            asDate: parsed.asDate || '',
-            raw: parsed
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('Error reading saved draft info:', e);
-    }
-  }, [clients]);
+  // Cloud Auto-Save states for Physical Assessments
+  const [cloudSaveStatus, setCloudSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [cloudLastSavedTime, setCloudLastSavedTime] = useState<string>('');
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
 
   const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises'>('clients');
   const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
@@ -1184,30 +1167,216 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           if (p.asMaigne) setAsMaigne(p.asMaigne);
           if (p.asTimerSeconds) setAsTimerSeconds(p.asTimerSeconds);
         }
-        // NOTE: Never remove draft_assessment on cancel to preserve user data from accidental loss
       } catch(e) { console.error('Error loading assessment draft', e); }
     }
   };
 
-  const handleRestoreDraftDirectly = () => {
-    try {
-      const draft = localStorage.getItem('draft_assessment');
-      if (!draft) {
-        alert('Nenhum rascunho encontrado na memória deste aparelho.');
-        return;
+  // Seamless Cloud Draft Auto-Restoration on modal open or client change
+  useEffect(() => {
+    if (!showAssessmentModal || !asClient) return;
+
+    let isMounted = true;
+    const fetchCloudDraft = async () => {
+      try {
+        const res = await fetch(`/api/assessments?draft=true&clientId=${asClient}`);
+        const json = await res.json();
+        if (json.success && json.draft && isMounted) {
+          const d = json.draft;
+          setActiveDraftId(d._id);
+          setCloudSaveStatus('saved');
+          if (d.data) setAsDate(d.data);
+          if (d.avaliadorId) setAsAvaliador(typeof d.avaliadorId === 'object' ? d.avaliadorId._id : d.avaliadorId);
+          if (d.dadosMedidos) {
+            const dm = d.dadosMedidos;
+            if (dm.peso) setAsWeight(String(dm.peso));
+            if (dm.altura) setAsHeight(String(dm.altura));
+            if (dm.idade) setAsAge(dm.idade);
+            if (dm.sexo) setAsSex(dm.sexo);
+            if (dm.objetivoPrincipal) setAsObjetivoPrincipal(dm.objetivoPrincipal);
+            if (dm.tipoObjetivo) setAsTipoObjetivo(dm.tipoObjetivo);
+            if (dm.nivelExperiencia) setAsNivelExperiencia(dm.nivelExperiencia);
+            if (dm.freqSemanal) setAsFreqSemanal(dm.freqSemanal);
+            if (dm.objetivoMeses) setAsObjetivoMeses(dm.objetivoMeses);
+            if (dm.saudeGeral) {
+              if (dm.saudeGeral.pressaoArterial) setAsPressao(dm.saudeGeral.pressaoArterial);
+              if (dm.saudeGeral.sono) setAsSono(dm.saudeGeral.sono);
+              if (dm.saudeGeral.nutricao) setAsNutricao(dm.saudeGeral.nutricao);
+              if (dm.saudeGeral.atividadeFisica) setAsAtivFisica(dm.saudeGeral.atividadeFisica);
+              if (dm.saudeGeral.medicamentos) setAsMedicamentos(dm.saudeGeral.medicamentos);
+              if (dm.saudeGeral.cirurgias) setAsCirurgias(dm.saudeGeral.cirurgias);
+              if (dm.saudeGeral.queixas) setAsQueixas(dm.saudeGeral.queixas);
+            }
+            if (dm.circunferencias) {
+              setAsCirc(dm.circunferencias);
+            }
+            if (dm.dobras) {
+              setAsDobras(dm.dobras);
+            }
+            if (dm.dobrasReadings) {
+              setAsDobrasReadings(dm.dobrasReadings);
+            }
+            if (dm.somaDobras) {
+              setAsSomaDobras(dm.somaDobras);
+            }
+            if (dm.goniometria) {
+              setAsGonio(dm.goniometria);
+            }
+            if (dm.testesEspeciais) {
+              const te = dm.testesEspeciais;
+              if (te.oberD) setAsOberD(te.oberD);
+              if (te.oberE) setAsOberE(te.oberE);
+              if (te.thomasIliopsoasDStatus) setAsThomasIliopsoasDStatus(te.thomasIliopsoasDStatus);
+              if (te.thomasIliopsoasEStatus) setAsThomasIliopsoasEStatus(te.thomasIliopsoasEStatus);
+              if (te.thomasRetofemoralDStatus) setAsThomasRetofemoralDStatus(te.thomasRetofemoralDStatus);
+              if (te.thomasRetofemoralEStatus) setAsThomasRetofemoralEStatus(te.thomasRetofemoralEStatus);
+              if (te.thomasIliopsoasD) setAsThomasIliopsoasD(String(te.thomasIliopsoasD));
+              if (te.thomasIliopsoasE) setAsThomasIliopsoasE(String(te.thomasIliopsoasE));
+              if (te.thomasRetofemoralD) setAsThomasRetofemoralD(String(te.thomasRetofemoralD));
+              if (te.thomasRetofemoralE) setAsThomasRetofemoralE(String(te.thomasRetofemoralE));
+              if (te.termografia) {
+                setAsTermografiaRealizou('sim');
+                setAsTermografia(te.termografia);
+              }
+            }
+            if (dm.postura) setAsPostura(dm.postura);
+          }
+          if (d.metas) {
+            if (d.metas.objetivo2Meses) setAsMeta2Meses(d.metas.objetivo2Meses);
+            if (d.metas.objetivo1Ano) setAsMeta1Ano(d.metas.objetivo1Ano);
+          }
+          if (d.observacoes) setAsObs(d.observacoes);
+          if (d.tempoGastoSegundos) setAsTimerSeconds(d.tempoGastoSegundos);
+          return;
+        }
+
+        // Fallback local se não houver rascunho na nuvem
+        const localDraft = localStorage.getItem('draft_assessment');
+        if (localDraft && isMounted) {
+          try {
+            const p = JSON.parse(localDraft);
+            if (String(p.asClient) === String(asClient)) {
+              loadAssessmentDraft(true, p);
+            }
+          } catch (e) {}
+        }
+      } catch (err) {
+        console.warn('Error fetching cloud draft:', err);
       }
-      const parsed = JSON.parse(draft);
-      if (parsed.asClient) {
-        setAsClient(parsed.asClient);
+    };
+
+    fetchCloudDraft();
+    return () => { isMounted = false; };
+  }, [showAssessmentModal, asClient]);
+
+  // Continuous Cloud Auto-Save Debounce Effect (1.5s)
+  useEffect(() => {
+    if (!showAssessmentModal || !asClient) return;
+
+    setCloudSaveStatus('saving');
+    const timer = setTimeout(async () => {
+      try {
+        const p = parseFloat(asWeight) || 0;
+        const a = parseFloat(asHeight) || 0;
+        let imc = 0;
+        if (p > 0 && a > 0) imc = parseFloat((p / (a * a)).toFixed(2));
+
+        const payload = {
+          draftId: activeDraftId,
+          clienteId: asClient,
+          avaliadorId: asAvaliador || professionalId || '6668ab030303030303030302',
+          data: asDate || new Date().toISOString().split('T')[0],
+          dadosMedidos: {
+            idade: Number(asAge),
+            peso: p,
+            altura: a,
+            sexo: asSex,
+            objetivoPrincipal: asObjetivoPrincipal,
+            tipoObjetivo: asTipoObjetivo,
+            nivelExperiencia: asNivelExperiencia,
+            freqSemanal: Number(asFreqSemanal),
+            objetivoMeses: Number(asObjetivoMeses),
+            saudeGeral: {
+              pressaoArterial: asPressao,
+              sono: asSono,
+              nutricao: asNutricao,
+              atividadeFisica: asAtivFisica,
+              medicamentos: asMedicamentos,
+              cirurgias: asCirurgias,
+              queixas: asQueixas
+            },
+            circunferencias: asCirc,
+            dobras: asDobras,
+            dobrasReadings: asDobrasReadings,
+            somaDobras: asSomaDobras,
+            percentil: 50,
+            goniometria: asGonio,
+            testesEspeciais: {
+              oberD: asOberD,
+              oberE: asOberE,
+              thomasD: asThomasIliopsoasDStatus,
+              thomasE: asThomasIliopsoasEStatus,
+              thomasIliopsoasDStatus: asThomasIliopsoasDStatus,
+              thomasIliopsoasEStatus: asThomasIliopsoasEStatus,
+              thomasRetofemoralDStatus: asThomasRetofemoralDStatus,
+              thomasRetofemoralEStatus: asThomasRetofemoralEStatus,
+              thomasIliopsoasD: asThomasIliopsoasDStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasD) || null) : null,
+              thomasIliopsoasE: asThomasIliopsoasEStatus === 'Positivo' ? (parseFloat(asThomasIliopsoasE) || null) : null,
+              thomasRetofemoralD: asThomasRetofemoralDStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralD) || null) : null,
+              thomasRetofemoralE: asThomasRetofemoralEStatus === 'Positivo' ? (parseFloat(asThomasRetofemoralE) || null) : null,
+              termografia: asTermografiaRealizou === 'sim' ? asTermografia : '',
+              yTest: asYTestRealizou === 'sim' ? asYTest : '',
+              stepDown: asStepDownRealizou === 'sim' ? asStepDown : '',
+              maigne: asMaigneRealizou === 'sim' ? JSON.stringify({ ...asMaigneData, observacoes: asMaigne }) : ''
+            },
+            postura: asPostura
+          },
+          resultadosCalculados: {
+            imc,
+            percentualGordura: Number(asFat) || 0,
+            massaMagra: Number(asMassaMagra) || 0,
+            massaGorda: Number(asMassaGorda) || 0
+          },
+          metas: {
+            objetivo2Meses: asMeta2Meses,
+            objetivo1Ano: asMeta1Ano
+          },
+          observacoes: asObs,
+          tempoGastoSegundos: asTimerSeconds,
+          status: 'rascunho',
+          isDraft: true
+        };
+
+        const res = await fetch('/api/assessments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        if (json.success && json.data?._id) {
+          setActiveDraftId(json.data._id);
+          setCloudSaveStatus('saved');
+          const now = new Date();
+          setCloudLastSavedTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`);
+        } else {
+          setCloudSaveStatus('error');
+        }
+      } catch (err) {
+        console.warn('Silent cloud auto-save error:', err);
+        setCloudSaveStatus('error');
       }
-      setShowAssessmentModal(true);
-      setTimeout(() => {
-        loadAssessmentDraft(true, parsed);
-      }, 100);
-    } catch (e) {
-      alert('Erro ao carregar rascunho: ' + e);
-    }
-  };
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [
+    showAssessmentModal, asClient, asDate, asWeight, asHeight, asAge, asSex,
+    asObjetivoPrincipal, asTipoObjetivo, asNivelExperiencia, asFreqSemanal, asObjetivoMeses,
+    asPressao, asSono, asNutricao, asAtivFisica, asMedicamentos, asCirurgias, asQueixas,
+    asCirc, asDobras, asDobrasReadings, asSomaDobras, asGonio, asOberD, asOberE,
+    asThomasIliopsoasDStatus, asThomasIliopsoasEStatus, asThomasRetofemoralDStatus, asThomasRetofemoralEStatus,
+    asThomasIliopsoasD, asThomasIliopsoasE, asThomasRetofemoralD, asThomasRetofemoralE,
+    asPostura, asMeta2Meses, asMeta1Ano, asObs, asTimerSeconds
+  ]);
 
   useEffect(() => {
     if (!showStModal) {
@@ -2457,6 +2626,9 @@ goniometria: {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...payload,
+              draftId: activeDraftId,
+              status: 'concluido',
+              isDraft: false,
               avaliadorId: executorProfId,
               metas: {
                 ...payload.metas,
@@ -2469,12 +2641,13 @@ goniometria: {
           const data = await res.json();
           if (data.success) {
             localStorage.removeItem('draft_assessment');
+            setActiveDraftId(null);
             setShowAssessmentModal(false);
             if (data.data) {
               setAssessments(prev => [data.data, ...prev.filter(a => a._id !== data.data._id)]);
             }
             fetchData();
-            alert('Avaliação física criada com sucesso!');
+            alert('Avaliação física concluída e laudo gerado com sucesso!');
           } else {
             alert('Erro ao criar avaliação física: ' + data.error);
           }
@@ -3689,76 +3862,6 @@ goniometria: {
 
   return (
     <div>
-      {/* Emergency Unsaved Assessment Draft Rescue Banner */}
-      {savedDraftInfo && (
-        <div style={{
-          margin: '0 0 24px 0',
-          padding: '16px 20px',
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%)',
-          border: '1px solid #f59e0b',
-          borderLeft: '6px solid #f59e0b',
-          borderRadius: '10px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '14px',
-          boxShadow: '0 4px 20px rgba(245, 158, 11, 0.15)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '50%',
-              background: '#f59e0b',
-              color: '#000',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.2rem',
-              fontWeight: 'bold',
-              flexShrink: 0
-            }}>
-              <i className="fa-solid fa-clock-rotate-left"></i>
-            </div>
-            <div>
-              <h4 style={{ margin: '0 0 4px 0', color: '#fbbf24', fontSize: '1rem', fontWeight: 700 }}>
-                ⚠️ Rascunho de Avaliação Física Encontrado neste Aparelho!
-              </h4>
-              <p style={{ margin: 0, color: 'var(--text-main, #fff)', fontSize: '0.84rem' }}>
-                Há uma avaliação não salva ({savedDraftInfo.studentName ? `Aluno: ${savedDraftInfo.studentName}` : 'Dados preenchidos'} {savedDraftInfo.asDate ? `- Data: ${savedDraftInfo.asDate}` : ''}). Clique abaixo para recuperar os dados e salvar com segurança.
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700, padding: '8px 16px', fontSize: '0.88rem' }}
-              onClick={handleRestoreDraftDirectly}
-            >
-              <i className="fa-solid fa-file-circle-check" style={{ marginRight: '6px' }}></i>
-              Recuperar Avaliação Agora
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '8px 12px' }}
-              onClick={() => {
-                try {
-                  navigator.clipboard.writeText(JSON.stringify(savedDraftInfo.raw, null, 2));
-                  alert('Dados brutos do rascunho copiados com sucesso para sua área de transferência!');
-                } catch {
-                  alert('Rascunho: ' + JSON.stringify(savedDraftInfo.raw));
-                }
-              }}
-            >
-              <i className="fa-solid fa-copy"></i> Copiar Backup
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 0. View: Resumo do Dia */}
       {activeTab === 'resumo_dia' && (
         <>
@@ -6286,16 +6389,37 @@ goniometria: {
 
       {/* 3. Physical Assessment Modal */}
       {showAssessmentModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
-          <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <h3 style={{ margin: 0 }}>Nova Avaliação Física Fisioterapêutica</h3>
                 <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
                   ⏱️ Tempo: {formatTimer(asTimerSeconds)}
                 </span>
+                {/* Cloud Auto-Save Live Status Indicator */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', padding: '4px 10px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                  <i className="fa-solid fa-cloud"></i>
+                  {cloudSaveStatus === 'saving' ? (
+                    <span><i className="fa-solid fa-arrows-rotate fa-spin" style={{ marginRight: '4px' }}></i> Salvando na nuvem...</span>
+                  ) : cloudSaveStatus === 'saved' ? (
+                    <span>✓ Salvo na nuvem automaticamente {cloudLastSavedTime ? `às ${cloudLastSavedTime}` : ''}</span>
+                  ) : (
+                    <span>✓ Proteção Contínua Ativa</span>
+                  )}
+                </div>
               </div>
-              <button className="modal-close" onClick={handleCloseAssessment}>&times;</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleCloseAssessment}
+                  style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                >
+                  Pausar e Fechar
+                </button>
+                <button className="modal-close" onClick={handleCloseAssessment}>&times;</button>
+              </div>
             </div>
             
             {/* Wizard Steps indicator */}

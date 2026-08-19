@@ -82,8 +82,11 @@ const PhysicalAssessmentSchema = new Schema({
   observacoes: { type: String, default: '' },
   pdfName: { type: String },
   pdf_url: { type: String, default: '' },
-  tempoGastoSegundos: { type: Number, default: 0 }
+  tempoGastoSegundos: { type: Number, default: 0 },
+  status: { type: String, enum: ['rascunho', 'concluido'], default: 'concluido' },
+  isDraft: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default models.PhysicalAssessment || model('PhysicalAssessment', PhysicalAssessmentSchema);
+
 
