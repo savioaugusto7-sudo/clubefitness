@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { calculateWellness } from '@/utils/wellnessHelper';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -21,21 +20,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
   const [selectedMuscle, setSelectedMuscle] = useState('Todos');
   const [search, setSearch] = useState('');
   
-  const [workoutName, setWorkoutName] = useState('Treino A - Hipertrofia');
-  const [workoutGoal, setWorkoutGoal] = useState('Hipertrofia');
+  const [activeCategory, setActiveCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
+  const [activeTabLetter, setActiveTabLetter] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
+  const [workoutName, setWorkoutName] = useState('Ficha A');
+  const [workoutGoal, setWorkoutGoal] = useState('');
   const [workoutItems, setWorkoutItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTabLetter, setActiveTabLetter] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
   const [rawWorkoutDoc, setRawWorkoutDoc] = useState<any>(null);
   const [todayWellness, setTodayWellness] = useState<any>(null);
 
-  // 1. Carregar banco de exercícios e treino existente do aluno
+  // 1. Carregar banco de exercícios, treinos existentes e Wellness do aluno
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
       try {
         setIsLoading(true);
-        // Buscar lista de exercícios
+        // 1.1 Buscar lista de exercícios
         const resEx = await fetch('/api/exercises');
         const dataEx = await resEx.json();
         let loadedExercises: any[] = [];
@@ -44,7 +44,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
           if (isMounted) setExercises(loadedExercises);
         }
 
-        // Buscar treino existente do aluno
+        // 1.2 Buscar treino existente do aluno no MongoDB
         const resWorkouts = await fetch(`/api/workouts?clientId=${clientId}`);
         const dataWorkouts = await resWorkouts.json();
         
@@ -52,60 +52,69 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
           const w = dataWorkouts.data;
           setRawWorkoutDoc(w);
 
-          // Se tiver estrutura por categorias (musculacao -> [Ficha A, Ficha B...])
-          if (w.musculacao && Array.isArray(w.musculacao) && w.musculacao.length > 0) {
-            const sheetA = w.musculacao.find((s: any) => s.id === 'A') || w.musculacao[0];
-            if (sheetA) {
-              setWorkoutName(sheetA.nome || 'Treino A');
-              setWorkoutGoal(sheetA.observacoesGerais || 'Hipertrofia');
+          // Identificar se há fichasMonitorado ou fichasLivre
+          const monitorado = w.fichasMonitorado || [];
+          const livre = w.fichasLivre || [];
+          const chosenCategory = (monitorado.length > 0 && monitorado.some((s: any) => s.exercicios?.length > 0))
+            ? 'fichasMonitorado'
+            : (livre.length > 0 && livre.some((s: any) => s.exercicios?.length > 0))
+            ? 'fichasLivre'
+            : 'fichasMonitorado';
+
+          setActiveCategory(chosenCategory);
+          const activeSheets = w[chosenCategory] || [];
+          const initialSheet = activeSheets.find((s: any) => s.id === 'A') || activeSheets[0] || { id: 'A', nome: 'Ficha A', exercicios: [] };
+
+          if (initialSheet) {
+            setActiveTabLetter(initialSheet.id || 'A');
+            setWorkoutName(initialSheet.nome || `Ficha ${initialSheet.id || 'A'}`);
+            setWorkoutGoal(initialSheet.observacoesGerais || '');
+            
+            const items = (initialSheet.exercicios || []).map((ex: any, idx: number) => {
+              const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
+              const matchedDbEx = loadedExercises.find(e => e.nome === exName || e._id === exName);
+              const grupo = matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral';
               
-              const items = (sheetA.exercicios || []).map((ex: any, idx: number) => {
-                const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
-                const matchedDbEx = loadedExercises.find(e => e.nome === exName || e._id === exName);
-                const grupo = matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral';
-                
-                return {
-                  _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
-                  id: String(Date.now() + idx),
-                  nome: exName || 'Exercício',
-                  grupo,
-                  series: Number(ex.series) || 3,
-                  reps: ex.repeticoes || '10',
-                  carga: parseFloat(String(ex.carga).replace('kg', '')) || 0,
-                  descanso: parseInt(String(ex.descanso).replace('s', '')) || 60,
-                  observacao: ex.observacao || ''
-                };
-              });
-              setWorkoutItems(items);
-            }
-          } else if (Array.isArray(w.exercicios) && w.exercicios.length > 0) {
-            // Estrutura plana legada
-            if (w.nome) setWorkoutName(w.nome);
-            if (w.objetivo) setWorkoutGoal(w.objetivo);
-            const items = w.exercicios.map((ex: any, idx: number) => {
-              const exObj = typeof ex.exercicioId === 'object' ? ex.exercicioId : loadedExercises.find(e => e._id === ex.exercicioId) || {};
               return {
-                _id: exObj._id || ex.exercicioId || `ex_${idx}`,
-                id: String(Date.now() + idx),
-                nome: exObj.nome || 'Exercício',
-                grupo: exObj.grupo || exObj.grupo_muscular || 'Geral',
+                _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
+                id: String(Date.now() + idx + Math.random()),
+                nome: exName || 'Exercício',
+                grupo,
                 series: Number(ex.series) || 3,
-                reps: ex.repeticoes || '10',
-                carga: parseFloat(String(ex.carga_sugerida || ex.carga || '0').replace('kg', '')) || 0,
-                descanso: Number(ex.descanso) || 60,
-                observacao: ex.observacoes || ''
+                reps: String(ex.repeticoes || '12'),
+                carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
+                descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
+                observacao: ex.observacao || ex.observacoes || '',
+                ritmo: ex.ritmo || '2-0-2-0'
               };
             });
             setWorkoutItems(items);
           }
         }
 
-        // Buscar Wellness do Aluno (logs mais recentes)
+        // 1.3 Buscar Wellness de hoje do aluno (via agendamento e logs)
         try {
-          const resW = await fetch(`/api/wellness?clientId=${clientId}`);
-          const dataW = await resW.json();
-          if (dataW.success && Array.isArray(dataW.data) && dataW.data.length > 0 && isMounted) {
-            setTodayWellness(dataW.data[0]);
+          const resApts = await fetch('/api/appointments');
+          const dataApts = await resApts.json();
+          if (dataApts.success && Array.isArray(dataApts.data) && isMounted) {
+            const hojeISO = new Date().toISOString().split('T')[0];
+            const studentApts = dataApts.data.filter((a: any) => 
+              String(a.clienteId?._id || a.clienteId) === String(clientId)
+            );
+            // Pegar o mais recente de hoje com wellness ou o último realizado
+            const withWellness = studentApts.find((a: any) => a.data === hojeISO && a.wellness?.realizado) ||
+                                 studentApts.find((a: any) => a.wellness?.realizado);
+            if (withWellness?.wellness) {
+              setTodayWellness(withWellness.wellness);
+            }
+          }
+
+          if (!todayWellness) {
+            const resW = await fetch(`/api/wellness?clientId=${clientId}`);
+            const dataW = await resW.json();
+            if (dataW.success && Array.isArray(dataW.data) && dataW.data.length > 0 && isMounted) {
+              setTodayWellness(dataW.data[0]);
+            }
           }
         } catch (e) {}
 
@@ -120,40 +129,42 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
     return () => { isMounted = false; };
   }, [clientId]);
 
-  // Troca de sub-ficha (A, B, C, D, E) se o documento possuir múltiplas fichas
-  const handleChangeSheet = (letter: 'A' | 'B' | 'C' | 'D' | 'E') => {
+  // Troca de sub-ficha (A, B, C, D, E)
+  const handleChangeSheet = (letter: 'A' | 'B' | 'C' | 'D' | 'E', categoryOverride?: 'fichasMonitorado' | 'fichasLivre') => {
     setActiveTabLetter(letter);
-    if (rawWorkoutDoc?.musculacao && Array.isArray(rawWorkoutDoc.musculacao)) {
-      const sheet = rawWorkoutDoc.musculacao.find((s: any) => s.id === letter);
-      if (sheet) {
-        setWorkoutName(sheet.nome || `Treino ${letter}`);
-        setWorkoutGoal(sheet.observacoesGerais || 'Hipertrofia');
-        const items = (sheet.exercicios || []).map((ex: any, idx: number) => {
-          const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
-          const matchedDbEx = exercises.find(e => e.nome === exName || e._id === exName);
-          return {
-            _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
-            id: String(Date.now() + idx),
-            nome: exName || 'Exercício',
-            grupo: matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral',
-            series: Number(ex.series) || 3,
-            reps: ex.repeticoes || '10',
-            carga: parseFloat(String(ex.carga).replace('kg', '')) || 0,
-            descanso: parseInt(String(ex.descanso).replace('s', '')) || 60,
-            observacao: ex.observacao || ''
-          };
-        });
-        setWorkoutItems(items);
-      } else {
-        setWorkoutName(`Treino ${letter}`);
-        setWorkoutItems([]);
-      }
+    const cat = categoryOverride || activeCategory;
+    const sheets = rawWorkoutDoc?.[cat] || [];
+    const sheet = sheets.find((s: any) => s.id === letter);
+    if (sheet) {
+      setWorkoutName(sheet.nome || `Ficha ${letter}`);
+      setWorkoutGoal(sheet.observacoesGerais || '');
+      const items = (sheet.exercicios || []).map((ex: any, idx: number) => {
+        const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
+        const matchedDbEx = exercises.find(e => e.nome === exName || e._id === exName);
+        return {
+          _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
+          id: String(Date.now() + idx + Math.random()),
+          nome: exName || 'Exercício',
+          grupo: matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral',
+          series: Number(ex.series) || 3,
+          reps: String(ex.repeticoes || '12'),
+          carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
+          descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
+          observacao: ex.observacao || ex.observacoes || '',
+          ritmo: ex.ritmo || '2-0-2-0'
+        };
+      });
+      setWorkoutItems(items);
+    } else {
+      setWorkoutName(`Ficha ${letter}`);
+      setWorkoutGoal('');
+      setWorkoutItems([]);
     }
   };
 
   const muscles = ['Todos', 'Peito', 'Costas', 'Pernas', 'Ombros', 'Braços', 'Core', 'Cardio'];
 
-  // Filtro inteligente e abrangente por grupo muscular
+  // Filtro abrangente por grupo muscular
   const filteredExercises = exercises.filter(e => {
     const rawGroup = normalizeText(e.grupo || e.grupo_muscular || '');
     const searchNormalized = normalizeText(search);
@@ -178,14 +189,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
   const addToWorkout = (ex: any) => {
     const newEx = {
       _id: ex._id,
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random(),
       nome: ex.nome,
       grupo: ex.grupo || ex.grupo_muscular || 'Geral',
       series: 3,
-      reps: '10',
+      reps: '12',
       carga: 10,
       descanso: 60,
-      observacao: ''
+      observacao: '',
+      ritmo: '2-0-2-0'
     };
     setWorkoutItems(prev => [...prev, newEx]);
   };
@@ -209,58 +221,43 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
 
   const handleSave = async () => {
     try {
-      // Se tivermos a estrutura por categorias, preservamos e atualizamos a ficha ativa
-      let payload: any = {};
-      if (rawWorkoutDoc?.musculacao && Array.isArray(rawWorkoutDoc.musculacao)) {
-        const updatedCategory = [...rawWorkoutDoc.musculacao];
-        const sheetIndex = updatedCategory.findIndex((s: any) => s.id === activeTabLetter);
-        const currentSheetPayload = {
-          id: activeTabLetter,
-          nome: workoutName,
-          observacoesGerais: workoutGoal,
-          exercicios: workoutItems.map(item => ({
-            exercicioId: item.nome,
-            series: Number(item.series) || 3,
-            repeticoes: String(item.reps || '10'),
-            carga: `${item.carga}kg`,
-            descanso: `${item.descanso}s`,
-            observacao: item.observacao || '',
-            ritmo: '2-0-2-0',
-            combinaGrupo: ''
-          }))
-        };
+      const currentSheetPayload = {
+        id: activeTabLetter,
+        nome: workoutName,
+        ultimaAtualizacao: new Date().toISOString().split('T')[0],
+        observacoesGerais: workoutGoal,
+        exercicios: workoutItems.map(item => ({
+          exercicioId: item.nome,
+          series: Number(item.series) || 3,
+          repeticoes: String(item.reps || '12'),
+          carga: `${item.carga}kg`,
+          descanso: `${item.descanso}s`,
+          observacao: item.observacao || '',
+          ritmo: item.ritmo || '2-0-2-0',
+          combinaGrupo: ''
+        }))
+      };
 
-        if (sheetIndex !== -1) {
-          updatedCategory[sheetIndex] = currentSheetPayload;
-        } else {
-          updatedCategory.push(currentSheetPayload);
-        }
+      const existingSheets = rawWorkoutDoc?.[activeCategory] || [
+        { id: 'A', nome: 'Ficha A', exercicios: [] },
+        { id: 'B', nome: 'Ficha B', exercicios: [] },
+        { id: 'C', nome: 'Ficha C', exercicios: [] }
+      ];
 
-        payload = {
-          clienteId: clientId,
-          musculacao: updatedCategory,
-          fisioterapia: rawWorkoutDoc.fisioterapia || [],
-          hidroginastica: rawWorkoutDoc.hidroginastica || [],
-          pilates: rawWorkoutDoc.pilates || []
-        };
+      const sheetIdx = existingSheets.findIndex((s: any) => s.id === activeTabLetter);
+      let updatedSheets = [...existingSheets];
+      if (sheetIdx !== -1) {
+        updatedSheets[sheetIdx] = currentSheetPayload;
       } else {
-        // Formato padrão
-        payload = {
-          clienteId: clientId,
-          profissionalId: '6668ab030303030303030302',
-          nome: workoutName,
-          objetivo: workoutGoal,
-          status: 'ativo',
-          exercicios: workoutItems.map(item => ({
-            exercicioId: item._id,
-            series: Number(item.series) || 3,
-            repeticoes: String(item.reps || '10'),
-            carga_sugerida: `${item.carga}kg`,
-            descanso: Number(item.descanso) || 60,
-            observacoes: item.observacao || ''
-          }))
-        };
+        updatedSheets.push(currentSheetPayload);
       }
+
+      const payload = {
+        clientId,
+        category: activeCategory,
+        workoutData: updatedSheets,
+        [activeCategory]: updatedSheets
+      };
 
       const res = await fetch('/api/workouts', {
         method: 'POST',
@@ -269,7 +266,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
       });
       const data = await res.json();
       if (data.success || res.ok) {
-        alert('Treino salvo com sucesso no sistema!');
+        alert('Ficha de treino salva com sucesso!');
         onClose();
       } else {
         alert('Erro ao salvar treino: ' + (data.error || 'Falha na requisição'));
@@ -291,7 +288,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
           <div>
             <h2 style={{ margin: 0, color: 'var(--color-primary)', fontSize: '1.2rem', fontWeight: 800 }}>
               <i className="fa-solid fa-dumbbell" style={{ marginRight: '8px' }}></i>
-              Editor Avançado de Treino
+              Ficha de Treino do Aluno
             </h2>
             <div style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>
               Aluno: <strong style={{ color: '#fff' }}>{clientName}</strong>
@@ -301,7 +298,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
 
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
           <div style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>Volume de Carga Previsto:</span>
+            <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>Volume Previsto:</span>
             <strong style={{ marginLeft: '8px', fontSize: '1.05rem', color: 'var(--color-primary)' }}>{Math.round(calculateTotalLoad())} kg</strong>
           </div>
           <button className="btn btn-primary" onClick={handleSave} style={{ gap: '6px', fontWeight: 700, padding: '8px 20px' }}>
@@ -313,7 +310,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
       {/* BANNER WELLNESS DE PRONTIDÃO DO ALUNO */}
       {todayWellness && (
         <div style={{
-          background: todayWellness.statusColor ? `${todayWellness.statusColor}22` : 'rgba(16, 185, 129, 0.15)',
+          background: todayWellness.status === 'otimo' ? 'rgba(16, 185, 129, 0.18)' : todayWellness.status === 'moderado' ? 'rgba(234, 179, 8, 0.18)' : todayWellness.status === 'ruim' ? 'rgba(249, 115, 22, 0.18)' : 'rgba(239, 68, 68, 0.18)',
           borderBottom: `2px solid ${todayWellness.statusColor || '#10b981'}`,
           padding: '10px 24px',
           display: 'flex',
@@ -323,26 +320,26 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
           gap: '10px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '1.3rem' }}>🧘</span>
+            <span style={{ fontSize: '1.4rem' }}>🧘</span>
             <div>
-              <span style={{ fontWeight: 800, color: todayWellness.statusColor || '#10b981', fontSize: '0.9rem' }}>
+              <span style={{ fontWeight: 800, color: todayWellness.statusColor || '#10b981', fontSize: '0.92rem' }}>
                 WELLNESS DO DIA: {todayWellness.statusLabel || 'Estado Registrado'} (Score: {todayWellness.score}/30)
               </span>
-              <span style={{ color: 'var(--text-main, #fff)', fontSize: '0.85rem', marginLeft: '10px' }}>
+              <span style={{ color: 'var(--text-main, #fff)', fontSize: '0.84rem', marginLeft: '12px' }}>
                 • Sono: <strong>{todayWellness.sono}/10</strong> | Fadiga: <strong>{todayWellness.fadiga}/10</strong> | Dor Muscular: <strong>{todayWellness.dorMuscular}/10</strong>
               </span>
             </div>
           </div>
           <div style={{
-            background: todayWellness.statusColor ? `${todayWellness.statusColor}33` : 'rgba(16, 185, 129, 0.25)',
+            background: todayWellness.statusColor || '#10b981',
             color: '#fff',
-            padding: '4px 12px',
+            padding: '4px 14px',
             borderRadius: '20px',
-            fontSize: '0.82rem',
-            fontWeight: 700,
-            border: `1px solid ${todayWellness.statusColor || '#10b981'}`
+            fontSize: '0.84rem',
+            fontWeight: 800,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
           }}>
-            🎯 Conduta: {todayWellness.conduta || 'Treino Liberado'}
+            🎯 {todayWellness.conduta || 'Treino Liberado'}
           </div>
         </div>
       )}
@@ -424,28 +421,65 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
         <div style={{ flex: 1, padding: '24px 30px', overflowY: 'auto', background: '#0a0f1d' }}>
           <div style={{ maxWidth: '880px', margin: '0 auto' }}>
             
-            {/* Abas de Ficha (A, B, C, D, E) */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Ficha:</span>
-              {(['A', 'B', 'C', 'D', 'E'] as const).map(letter => (
+            {/* Seletor de Modalidade e Abas de Ficha */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Ficha:</span>
+                {(['A', 'B', 'C', 'D', 'E'] as const).map(letter => (
+                  <button
+                    key={letter}
+                    type="button"
+                    onClick={() => handleChangeSheet(letter)}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '8px',
+                      border: activeTabLetter === letter ? '2px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
+                      background: activeTabLetter === letter ? 'var(--color-primary)' : 'rgba(255,255,255,0.03)',
+                      color: activeTabLetter === letter ? '#fff' : 'var(--text-muted)',
+                      fontWeight: 800,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Ficha {letter}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <button
-                  key={letter}
                   type="button"
-                  onClick={() => handleChangeSheet(letter)}
+                  onClick={() => { setActiveCategory('fichasMonitorado'); handleChangeSheet(activeTabLetter, 'fichasMonitorado'); }}
                   style={{
-                    padding: '6px 16px',
-                    borderRadius: '8px',
-                    border: activeTabLetter === letter ? '2px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
-                    background: activeTabLetter === letter ? 'var(--color-primary)' : 'rgba(255,255,255,0.03)',
-                    color: activeTabLetter === letter ? '#fff' : 'var(--text-muted)',
-                    fontWeight: 800,
-                    fontSize: '0.88rem',
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: activeCategory === 'fichasMonitorado' ? 'var(--color-primary)' : 'transparent',
+                    color: activeCategory === 'fichasMonitorado' ? '#fff' : 'var(--text-muted)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
                     cursor: 'pointer'
                   }}
                 >
-                  Ficha {letter}
+                  Treino Monitorado
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory('fichasLivre'); handleChangeSheet(activeTabLetter, 'fichasLivre'); }}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: activeCategory === 'fichasLivre' ? 'var(--color-primary)' : 'transparent',
+                    color: activeCategory === 'fichasLivre' ? '#fff' : 'var(--text-muted)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Treino Livre
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -454,15 +488,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
                 <input type="text" className="form-control" value={workoutName} onChange={e => setWorkoutName(e.target.value)} />
               </div>
               <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
-                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Objetivo / Foco</label>
-                <select className="select-custom" value={workoutGoal} onChange={e => setWorkoutGoal(e.target.value)}>
-                  <option value="Hipertrofia">Hipertrofia</option>
-                  <option value="Emagrecimento">Emagrecimento</option>
-                  <option value="Resistência">Resistência</option>
-                  <option value="Força">Força Máxima</option>
-                  <option value="Reabilitação">Reabilitação Fisioterapêutica</option>
-                  <option value="Condicionamento">Condicionamento Geral</option>
-                </select>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Observações / Foco</label>
+                <input type="text" className="form-control" placeholder="Ex: Hipertrofia Peitoral e Tríceps" value={workoutGoal} onChange={e => setWorkoutGoal(e.target.value)} />
               </div>
             </div>
 
@@ -470,7 +497,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>
                   <i className="fa-solid fa-list-check" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
-                  Exercícios da Ficha {activeTabLetter}
+                  Exercícios da Ficha {activeTabLetter} ({activeCategory === 'fichasMonitorado' ? 'Monitorado' : 'Livre'})
                 </h3>
                 <span className="badge badge-info">{workoutItems.length} exercícios</span>
               </div>

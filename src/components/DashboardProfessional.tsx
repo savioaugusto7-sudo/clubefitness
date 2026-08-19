@@ -4057,7 +4057,7 @@ goniometria: {
                         const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : 'Agendado';
                         return (
                           <div key={a._id} className="metric-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', margin: 0, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
                               <div>
                                 <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>{a.horario}</span>
                                 <h3 style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</h3>
@@ -4067,6 +4067,43 @@ goniometria: {
                                 <span className={`badge ${statusClass}`}>{statusText}</span>
                               </div>
                             </div>
+
+                            {/* Badge Wellness do Dia se preenchido */}
+                            {a.wellness?.realizado && (
+                              <div style={{
+                                background: a.wellness.status === 'otimo' ? 'rgba(16,185,129,0.12)' : a.wellness.status === 'moderado' ? 'rgba(234,179,8,0.12)' : a.wellness.status === 'ruim' ? 'rgba(249,115,22,0.12)' : 'rgba(239,68,68,0.12)',
+                                border: `1px solid ${a.wellness.statusColor || '#10b981'}`,
+                                borderRadius: '8px',
+                                padding: '8px 10px',
+                                fontSize: '0.76rem',
+                                marginTop: '4px',
+                                marginBottom: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '6px'
+                              }}>
+                                <div>
+                                  <div style={{ fontWeight: 800, color: a.wellness.statusColor || '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span>🧘</span> Wellness: {a.wellness.score}/30 • {a.wellness.statusLabel}
+                                  </div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-main, #fff)', marginTop: '2px' }}>
+                                    👉 {a.wellness.conduta}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWellnessApt(a);
+                                    setShowWellnessModal(true);
+                                  }}
+                                  title="Ver detalhes do Wellness"
+                                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+                                >
+                                  Ver
+                                </button>
+                              </div>
+                            )}
                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px', width: '100%' }}>
                               <button className="btn btn-sm" style={{ flex: 1, background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
                                 <i className="fa-solid fa-check"></i> Presença
