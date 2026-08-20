@@ -49,12 +49,11 @@
   --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
-/* Calibração de Escala Raiz Desktop (Entrega nativamente em 100% o enquadramento perfeito de 75%) */
+/* Calibração de Escala e Layout Fluido com Rolagem Horizontal */
 html {
   font-size: 13.5px;
-  overflow-x: hidden !important;
+  overflow-x: auto;
   width: 100%;
-  max-width: 100vw;
 }
 
 @media (max-width: 768px) {
@@ -79,35 +78,33 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   width: 100%;
-  max-width: 100vw;
   display: flex;
-  overflow-x: hidden !important;
+  overflow-x: auto;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.2);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-dim);
+  background: var(--color-primary);
 }
 
 /* Layout Principal */
 .app-container {
   display: flex;
   width: 100%;
-  max-width: 100vw;
   min-height: 100vh;
   position: relative;
-  overflow-x: hidden !important;
+  overflow-x: auto;
 }
 
 /* Barra Lateral (Sidebar) */
@@ -321,14 +318,15 @@ select {
 /* Área de Conteúdo Principal */
 main.main-content {
   margin-left: var(--sidebar-width);
-  flex-grow: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   width: calc(100% - var(--sidebar-width));
-  max-width: calc(100vw - var(--sidebar-width));
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 24px 28px;
+  padding: 20px 24px;
   position: relative;
+  overflow-x: auto;
   transition: var(--transition-normal);
 }
 
@@ -337,14 +335,15 @@ main.main-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  gap: 16px;
+  margin-bottom: 18px;
+  gap: 14px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .view-title-group h1 {
   font-family: var(--font-title);
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   font-weight: 700;
   letter-spacing: -0.3px;
   margin-bottom: 3px;
@@ -365,9 +364,11 @@ main.main-content {
 /* Cartões Informativos (Métricas) */
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 16px;
-  margin-bottom: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+  width: 100%;
+  min-width: 0;
 }
 
 .metric-card {

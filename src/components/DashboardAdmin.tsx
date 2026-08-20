@@ -2101,14 +2101,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
                   {expiredClients.map(c => (
-                    <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444' }}></i>
-                        <span style={{ fontSize: '0.85rem' }}>
+                    <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.1)', width: '100%', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px', minWidth: 0 }}>
+                        <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', flexShrink: 0 }}></i>
+                        <span style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>
                           O plano de <strong>{c.dadosPessoais?.nome}</strong> venceu em <strong>{c.dadosComerciais?.vencimento ? new Date(c.dadosComerciais.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</strong>. Status atual: <strong>Vencido</strong>.
                         </span>
                       </div>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => alert('Notificação enviada ao aluno!')}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => alert('Notificação enviada ao aluno!')} style={{ flexShrink: 0 }}>
                         Notificar
                       </button>
                     </div>
@@ -2124,14 +2124,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     };
                     const diasRestantesTexto = diasRestantesNomes[metrics.diasRestantes] || '';
                     return (
-                      <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(245, 158, 11, 0.1)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <i className="fa-solid fa-clock-rotate-left" style={{ color: '#f59e0b' }}></i>
-                          <span style={{ fontSize: '0.85rem' }}>
+                      <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(245, 158, 11, 0.1)', width: '100%', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px', minWidth: 0 }}>
+                          <i className="fa-solid fa-clock-rotate-left" style={{ color: '#f59e0b', flexShrink: 0 }}></i>
+                          <span style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>
                             <strong>Risco de Evasão Semanal</strong>: <strong>{c.dadosPessoais?.nome}</strong> contratou <strong>{metrics.frequenciaSemanal}x/sem</strong>, mas realizou <strong>{metrics.realizados}</strong> e agendou <strong>{metrics.agendados}</strong> treinos. Restam apenas <strong>{metrics.diasRestantes}</strong> dias úteis na semana {diasRestantesTexto} para <strong>{metrics.pendentes}</strong> treino(s) pendente(s).
                           </span>
                         </div>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={() => sendPreventiveAlert(c)} style={{ background: '#10b981', borderColor: '#10b981' }}>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => sendPreventiveAlert(c)} style={{ background: '#10b981', borderColor: '#10b981', flexShrink: 0 }}>
                           <i className="fa-brands fa-whatsapp" style={{ marginRight: '6px' }}></i> Engajar
                         </button>
                       </div>
