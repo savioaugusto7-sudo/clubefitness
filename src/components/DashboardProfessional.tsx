@@ -6,6 +6,7 @@ import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
 import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
+import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import DadosClinicosPanel from './DadosClinicosPanel';
 import WellnessModal from './WellnessModal';
@@ -50,10 +51,40 @@ export const getServiceColor = (service: string) => {
 };
 
 export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number, max: number }, F: { min: number, max: number } }>> = {
+  "Quadril": {
+    "Abdução": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Adução": { M: { min: 20, max: 30 }, F: { min: 16, max: 25 } },
+    "Rotação Interna": { M: { min: 16, max: 24 }, F: { min: 14, max: 20 } },
+    "Rotação Externa": { M: { min: 16, max: 24 }, F: { min: 14, max: 20 } },
+    "Flexão": { M: { min: 30, max: 42 }, F: { min: 25, max: 36 } },
+    "Extensão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } }
+  },
+  "Joelho": {
+    "Extensão": { M: { min: 50, max: 70 }, F: { min: 40, max: 55 } },
+    "Flexão": { M: { min: 30, max: 45 }, F: { min: 24, max: 36 } }
+  },
+  "Coluna / Tronco": {
+    "Extensão": { M: { min: 70, max: 100 }, F: { min: 50, max: 75 } },
+    "Flexão": { M: { min: 50, max: 75 }, F: { min: 35, max: 55 } },
+    "Rotação": { M: { min: 25, max: 40 }, F: { min: 20, max: 30 } }
+  },
   "Ombro": {
     "Abdução": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
-    "Rotação Externa Neutro": { M: { min: 12, max: 16 }, F: { min: 12, max: 16 } },
-    "Rotação Externa 90° de Abdução": { M: { min: 14, max: 18 }, F: { min: 14, max: 18 } }
+    "Rotação Externa": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
+    "Rotação Interna": { M: { min: 20, max: 28 }, F: { min: 15, max: 22 } },
+    "Flexão": { M: { min: 18, max: 26 }, F: { min: 14, max: 20 } }
+  },
+  "Membro Superior": {
+    "Supino": { M: { min: 60, max: 90 }, F: { min: 35, max: 55 } },
+    "Remada": { M: { min: 50, max: 80 }, F: { min: 30, max: 50 } },
+    "Puxada": { M: { min: 50, max: 75 }, F: { min: 30, max: 45 } },
+    "Desenvolvimento": { M: { min: 40, max: 60 }, F: { min: 25, max: 40 } }
+  },
+  "Tornozelo": {
+    "Inversão": { M: { min: 15, max: 22 }, F: { min: 12, max: 18 } },
+    "Eversão": { M: { min: 12, max: 18 }, F: { min: 10, max: 15 } },
+    "Flexão Plantar": { M: { min: 45, max: 65 }, F: { min: 35, max: 50 } },
+    "Dorsiflexão": { M: { min: 15, max: 22 }, F: { min: 12, max: 18 } }
   },
   "Cotovelo": {
     "Flexão": { M: { min: 20, max: 30 }, F: { min: 15, max: 22 } },
@@ -62,21 +93,6 @@ export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min:
   "Punho": {
     "Flexão": { M: { min: 10, max: 18 }, F: { min: 7, max: 13 } },
     "Extensão": { M: { min: 8, max: 15 }, F: { min: 6, max: 11 } }
-  },
-  "Tornozelo": {
-    "Inversão": { M: { min: 15, max: 22 }, F: { min: 12, max: 18 } },
-    "Eversão": { M: { min: 12, max: 18 }, F: { min: 10, max: 15 } },
-    "Flexão Plantar": { M: { min: 40, max: 55 }, F: { min: 30, max: 45 } }
-  },
-  "Joelho": {
-    "Extensão": { M: { min: 45, max: 60 }, F: { min: 35, max: 50 } },
-    "Flexão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } }
-  },
-  "Quadril": {
-    "Flexão": { M: { min: 30, max: 42 }, F: { min: 25, max: 36 } },
-    "Abdução": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
-    "Adução": { M: { min: 15, max: 20 }, F: { min: 15, max: 20 } },
-    "Extensão": { M: { min: 25, max: 30 }, F: { min: 25, max: 30 } }
   }
 };
 
@@ -6966,52 +6982,58 @@ goniometria: {
                   <>
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Flexibilidade & Goniometria (ADM em Graus)</h4>
                     
-                    {/* Alertas de assimetria inline */}
+                    {/* Alertas Biomecânicos & Prevenção de Lesões em Tempo Real */}
                     {(() => {
-                      const warnings: string[] = [];
-                      const checkAsymmetry = (dObj: any, eObj: any, label: string) => {
-                        const d = dObj && typeof dObj === 'object' ? Number(dObj.semForca) || 0 : Number(dObj) || 0;
-                        const e = eObj && typeof eObj === 'object' ? Number(eObj.semForca) || 0 : Number(eObj) || 0;
-                        const max = Math.max(d, e);
-                        if (max > 0 && (Math.abs(d - e) / max) > 0.10) {
-                          warnings.push(label);
-                        }
-                      };
-                      
-                      checkAsymmetry(asGonio.quadrilFlexao1D, asGonio.quadrilFlexao1E, 'Quadril - Flexão 1');
-                      checkAsymmetry(asGonio.quadrilFlexao2D, asGonio.quadrilFlexao2E, 'Quadril - Flexão 2');
-                      checkAsymmetry(asGonio.quadrilRotIntD, asGonio.quadrilRotIntE, 'Quadril - Rotação Interna');
-                      checkAsymmetry(asGonio.quadrilRotExtD, asGonio.quadrilRotExtE, 'Quadril - Rotação Externa');
-                      checkAsymmetry(asGonio.joelhoFlexaoD, asGonio.joelhoFlexaoE, 'Joelho - Flexão');
-                      checkAsymmetry(asGonio.joelhoPopliteoD, asGonio.joelhoPopliteoE, 'Joelho - Poplíteo');
-                      checkAsymmetry(asGonio.tornozeloDorsi1D, asGonio.tornozeloDorsi1E, 'Tornozelo - Dorsi 1');
-                      checkAsymmetry(asGonio.tornozeloDorsi2D, asGonio.tornozeloDorsi2E, 'Tornozelo - Dorsi 2');
-                      checkAsymmetry(asGonio.tornozeloFlexaoPlantarD, asGonio.tornozeloFlexaoPlantarE, 'Tornozelo - Flexão Plantar');
-                      checkAsymmetry(asGonio.ombroRotIntD, asGonio.ombroRotIntE, 'Ombro - Rotação Interna');
-                      checkAsymmetry(asGonio.ombroRotExtD, asGonio.ombroRotExtE, 'Ombro - Rotação Externa');
-                      checkAsymmetry(asGonio.ombroFlexaoD, asGonio.ombroFlexaoE, 'Ombro - Flexão');
-                      
-                      const thomasIlioMax = Math.max(parseFloat(asThomasIliopsoasD) || 0, parseFloat(asThomasIliopsoasE) || 0);
-                      if (thomasIlioMax > 0 && (Math.abs((parseFloat(asThomasIliopsoasD) || 0) - (parseFloat(asThomasIliopsoasE) || 0)) / thomasIlioMax) > 0.10) {
-                        warnings.push('Teste de Thomas - Iliopsoas');
-                      }
-                      
-                      const thomasRetoMax = Math.max(parseFloat(asThomasRetofemoralD) || 0, parseFloat(asThomasRetofemoralE) || 0);
-                      if (thomasRetoMax > 0 && (Math.abs((parseFloat(asThomasRetofemoralD) || 0) - (parseFloat(asThomasRetofemoralE) || 0)) / thomasRetoMax) > 0.10) {
-                        warnings.push('Teste de Thomas - Retofemoral');
-                      }
+                      const biomechanicAlerts = calculateGoniometryAlerts(asGonio);
+                      if (biomechanicAlerts.length === 0) return null;
 
-                      if (warnings.length > 0) {
-                        return (
-                          <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '12px', color: '#ef4444' }}>
-                            <strong><i className="fa-solid fa-triangle-exclamation"></i> Assimetria Significativa Detectada (&gt;10%):</strong>
-                            <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
-                              {warnings.map((w, idx) => <li key={idx}>{w}</li>)}
-                            </ul>
+                      return (
+                        <div style={{
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          marginBottom: '18px',
+                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                            <span style={{ color: '#ef4444', fontSize: '1.2rem' }}>
+                              <i className="fa-solid fa-triangle-exclamation"></i>
+                            </span>
+                            <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                              Alertas Biomecânicos & Fatores de Risco Ortopédico ({biomechanicAlerts.length})
+                            </strong>
                           </div>
-                        );
-                      }
-                      return null;
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '10px' }}>
+                            {biomechanicAlerts.map((al, idx) => (
+                              <div key={idx} style={{
+                                background: al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                                border: `1px solid ${al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+                                borderRadius: '8px',
+                                padding: '10px 12px'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                  <strong style={{ fontSize: '0.82rem', color: al.tipo === 'critico' ? '#ef4444' : '#f59e0b' }}>
+                                    {al.titulo} {al.lado ? `(${al.lado})` : ''}
+                                  </strong>
+                                  {al.valorCalculado && (
+                                    <span className="badge" style={{ fontSize: '0.7rem', background: '#000', color: '#fff' }}>
+                                      {al.valorCalculado}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '4px' }}>
+                                  {al.descricao}
+                                </div>
+                                <div style={{ fontSize: '0.73rem', color: '#fca5a5', marginTop: '3px', fontWeight: 600 }}>
+                                  ⚠️ Risco: {al.riscoClinico}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
                     })()}
 
                     <div>
@@ -7035,16 +7057,17 @@ goniometria: {
                           </thead>
                           <tbody>
                             {[
-                              { label: 'Quadril - Flexão 1', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
-                              { label: 'Quadril - Flexão 2', ref: '100-125°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
-                              { label: 'Quadril - Rotação Interna', ref: '40-45°', keyD: 'quadrilRotIntD', keyE: 'quadrilRotIntE' },
-                              { label: 'Quadril - Rotação Externa', ref: '40-45°', keyD: 'quadrilRotExtD', keyE: 'quadrilRotExtE' },
+                              { label: 'Quadril - Flexão 1 (Estend.)', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
+                              { label: 'Quadril - Flexão (Joelho Flet.)', ref: '120-135°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
+                              { label: 'Quadril - Rotação Interna', ref: '40-45° (Soma ≥85°)', keyD: 'quadrilRotIntD', keyE: 'quadrilRotIntE' },
+                              { label: 'Quadril - Rotação Externa', ref: '40-45° (≥35°)', keyD: 'quadrilRotExtD', keyE: 'quadrilRotExtE' },
+                              { label: 'Teste KFBO (Cabeça Fíbula)', ref: 'Dif ≤ 15 cm', keyD: 'kfboD', keyE: 'kfboE' },
                               { label: 'Joelho - Flexão', ref: '135-150°', keyD: 'joelhoFlexaoD', keyE: 'joelhoFlexaoE' },
                               { label: 'Joelho - Poplíteo', ref: '155-160°', keyD: 'joelhoPopliteoD', keyE: 'joelhoPopliteoE' },
-                              { label: 'Tornozelo - Dorsi 1', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
-                              { label: 'Tornozelo - Dorsi 2', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
+                              { label: 'Tornozelo - Dorsi 1 (Lunge)', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
+                              { label: 'Tornozelo - Dorsi 2 (Joelho Est.)', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
                               { label: 'Tornozelo - F. Plantar', ref: '40-50°', keyD: 'tornozeloFlexaoPlantarD', keyE: 'tornozeloFlexaoPlantarE' },
-                              { label: 'Ombro - Rotação Interna', ref: '80-90°', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
+                              { label: 'Ombro - Rotação Interna', ref: '80-90° (GIRD ≤20°)', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
                               { label: 'Ombro - Rotação Externa', ref: '80-100°', keyD: 'ombroRotExtD', keyE: 'ombroRotExtE' },
                               { label: 'Ombro - Flexão', ref: '180°', keyD: 'ombroFlexaoD', keyE: 'ombroFlexaoE' }
                             ].map(row => {
@@ -8650,6 +8673,48 @@ goniometria: {
                       );
                     })()}
 
+                    {/* Alertas Biomecânicos no Relatório Clínico */}
+                    {(() => {
+                      const biomechanicAlerts = calculateGoniometryAlerts(gGonio);
+                      if (biomechanicAlerts.length === 0) return null;
+
+                      return (
+                        <div style={{
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          borderRadius: '10px',
+                          padding: '12px 16px',
+                          marginBottom: '14px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ color: '#ef4444' }}>
+                              <i className="fa-solid fa-triangle-exclamation"></i>
+                            </span>
+                            <strong style={{ fontSize: '0.85rem', color: '#f8fafc' }}>
+                              Alertas Biomecânicos & Riscos Ortopédicos ({biomechanicAlerts.length})
+                            </strong>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '8px' }}>
+                            {biomechanicAlerts.map((al, idx) => (
+                              <div key={idx} style={{
+                                background: al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                                border: `1px solid ${al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                                borderRadius: '6px',
+                                padding: '8px 10px',
+                                fontSize: '0.72rem'
+                              }}>
+                                <strong style={{ color: al.tipo === 'critico' ? '#ef4444' : '#f59e0b', display: 'block' }}>
+                                  {al.titulo} {al.lado ? `(${al.lado})` : ''} - {al.valorCalculado || ''}
+                                </strong>
+                                <div style={{ color: '#cbd5e1', marginTop: '2px' }}>{al.descricao}</div>
+                                <div style={{ color: '#fca5a5', marginTop: '2px', fontWeight: 600 }}>⚠️ {al.riscoClinico}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                       <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 10 }}>
@@ -8667,16 +8732,17 @@ goniometria: {
                         </thead>
                         <tbody>
                           {[
-                            { label: 'Quadril - Flexão J. Estendido (Perna Estendida)', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
-                            { label: 'Quadril - Flexão J. Fletido (Perna Dobrada)', ref: '100-125°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
-                            { label: 'Quadril - Rotação Interna', ref: '40-45°', keyD: 'quadrilRotIntD', keyE: 'quadrilRotIntE' },
-                            { label: 'Quadril - Rotação Externa', ref: '40-45°', keyD: 'quadrilRotExtD', keyE: 'quadrilRotExtE' },
+                            { label: 'Quadril - Flexão 1 (Estendido)', ref: '70-80°', keyD: 'quadrilFlexao1D', keyE: 'quadrilFlexao1E' },
+                            { label: 'Quadril - Flexão 2 (Joelho Flet.)', ref: '120-135°', keyD: 'quadrilFlexao2D', keyE: 'quadrilFlexao2E' },
+                            { label: 'Quadril - Rotação Interna', ref: '40-45° (Soma ≥85°)', keyD: 'quadrilRotIntD', keyE: 'quadrilRotIntE' },
+                            { label: 'Quadril - Rotação Externa', ref: '40-45° (≥35°)', keyD: 'quadrilRotExtD', keyE: 'quadrilRotExtE' },
+                            { label: 'Teste KFBO (Cabeça Fíbula)', ref: 'Dif ≤ 15 cm', keyD: 'kfboD', keyE: 'kfboE' },
                             { label: 'Joelho - Flexão', ref: '135-150°', keyD: 'joelhoFlexaoD', keyE: 'joelhoFlexaoE' },
                             { label: 'Joelho - Ângulo Poplíteo', ref: '155-160°', keyD: 'joelhoPopliteoD', keyE: 'joelhoPopliteoE' },
-                            { label: 'Tornozelo - Dorsi 1', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
-                            { label: 'Tornozelo - Dorsi 2', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
+                            { label: 'Tornozelo - Dorsi 1 (Lunge)', ref: '35-45°', keyD: 'tornozeloDorsi1D', keyE: 'tornozeloDorsi1E' },
+                            { label: 'Tornozelo - Dorsi 2 (Joelho Est.)', ref: '20°', keyD: 'tornozeloDorsi2D', keyE: 'tornozeloDorsi2E' },
                             { label: 'Tornozelo - Flexão Plantar', ref: '40-50°', keyD: 'tornozeloFlexaoPlantarD', keyE: 'tornozeloFlexaoPlantarE' },
-                            { label: 'Ombro - Rotação Interna', ref: '80-90°', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
+                            { label: 'Ombro - Rotação Interna', ref: '80-90° (GIRD ≤20°)', keyD: 'ombroRotIntD', keyE: 'ombroRotIntE' },
                             { label: 'Ombro - Rotação Externa', ref: '80-100°', keyD: 'ombroRotExtD', keyE: 'ombroRotExtE' },
                             { label: 'Ombro - Flexão', ref: '180°', keyD: 'ombroFlexaoD', keyE: 'ombroFlexaoE' }
                           ].map(row => {
@@ -10007,6 +10073,62 @@ goniometria: {
                             ))}
                           </tbody>
                         </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Alertas de Razões Musculares & Prevenção de Lesões */}
+                {(() => {
+                  const selectedClientObj = clients.find(c => String(c._id) === String(stClient));
+                  const clientSex: 'M' | 'F' = selectedClientObj?.dadosPessoais?.sexo === 'F' ? 'F' : 'M';
+                  const clientWeight = Number(stPeso) || Number(selectedClientObj?.dadosPessoais?.peso) || 70;
+                  const strengthAlerts = calculateStrengthTestAlerts(stTestesList, clientWeight, clientSex);
+
+                  if (strengthAlerts.length === 0) return null;
+
+                  return (
+                    <div style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <span style={{ color: '#ef4444', fontSize: '1.2rem' }}>
+                          <i className="fa-solid fa-shield-halved"></i>
+                        </span>
+                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                          Razões Musculares, Desequilíbrios e Riscos Ortopédicos ({strengthAlerts.length})
+                        </strong>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '10px' }}>
+                        {strengthAlerts.map((al, idx) => (
+                          <div key={idx} style={{
+                            background: al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                            border: `1px solid ${al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                            borderRadius: '8px',
+                            padding: '10px 12px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <strong style={{ fontSize: '0.82rem', color: al.tipo === 'critico' ? '#ef4444' : '#f59e0b' }}>
+                                {al.titulo}
+                              </strong>
+                              {al.valorCalculado && (
+                                <span className="badge" style={{ fontSize: '0.7rem', background: '#000', color: '#fff' }}>
+                                  {al.valorCalculado} (Ref: {al.referenciaIdeal})
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '4px' }}>
+                              {al.descricao}
+                            </div>
+                            <div style={{ fontSize: '0.73rem', color: '#fca5a5', marginTop: '3px', fontWeight: 600 }}>
+                              ⚠️ Risco Clínico: {al.riscoClinico}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );

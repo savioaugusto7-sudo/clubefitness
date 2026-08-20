@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
+import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
 
 declare const Chart: any;
 declare const PDFLib: any;
@@ -2428,6 +2429,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   { key: 'quadrilFlexao2', label: 'Quadril - Flexão Joelho Fletido (Perna Dobrada)', ref: '100-125°' },
                   { key: 'quadrilRotInt', label: 'Quadril - Rotação Interna', ref: '40-45°' },
                   { key: 'quadrilRotExt', label: 'Quadril - Rotação Externa', ref: '40-45°' },
+                  { key: 'kfbo', label: 'Teste KFBO (Cabeça da Fíbula)', ref: 'Dif ≤ 15 cm' },
                   { key: 'joelhoFlexao', label: 'Joelho - Flexão', ref: '135-150°' },
                   { key: 'joelhoPopliteo', label: 'Joelho - Ângulo Poplíteo', ref: '155-160°' },
                   { key: 'tornozeloDorsi1', label: 'Tornozelo - Dorsiflexão Joelho Estendido', ref: '35-45°' },
@@ -2477,9 +2479,9 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <table class="table-data" style="width: 100%; border-collapse: collapse; font-size: 7.5px;">
                 <thead>
                   <tr style="font-weight:bold; background: rgba(0,0,0,0.02);">
-                    <th style="padding: 4px 6px; font-size: 7.5px;">Teste Clínico Especial</th>
-                    <th style="text-align:center; width:28%; padding: 4px 6px; font-size: 7.5px;">Direito</th>
-                    <th style="text-align:center; width:28%; padding: 4px 6px; font-size: 7.5px;">Esquerdo</th>
+                    <th style="padding: 4px 6px; font-size: 7.5px;">Teste Especial</th>
+                    <th style="text-align:center; padding: 4px 6px; font-size: 7.5px;">Direito</th>
+                    <th style="text-align:center; padding: 4px 6px; font-size: 7.5px;">Esquerdo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2532,18 +2534,8 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   ` : ''}
                   ${hasMaigneData && maigneObj.observacoes && maigneObj.observacoes.trim() !== '' ? `
                   <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne Obs.</td>
-                    <td colSpan="2" style="vertical-align: top; padding: 3px 6px; font-size: 7px; line-height: 1.2;">
-                      ${maigneObj.observacoes}
-                    </td>
-                  </tr>
-                  ` : ''}
-                  ${testesEspeciais.maigne && !hasMaigneData && !testesEspeciais.maigne.startsWith('{') && testesEspeciais.maigne.trim() !== '' ? `
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne Obs.</td>
-                    <td colSpan="2" style="vertical-align: top; padding: 3px 6px; font-size: 7px; line-height: 1.2;">
-                      ${testesEspeciais.maigne}
-                    </td>
+                    <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Obs. Maigne</td>
+                    <td colSpan="2" style="padding: 3px 6px; vertical-align: top; font-size: 6.8px; color: #475569;">${maigneObj.observacoes}</td>
                   </tr>
                   ` : ''}
                   ${stepDownRowsHtml}
@@ -2565,6 +2557,29 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             ` : ''}
           </div>
         </div>
+
+        <!-- Alertas Biomecânicos Detectados no Laudo -->
+        ${(() => {
+          const pdfAlerts = calculateGoniometryAlerts(dadosMedidos.goniometria);
+          if (pdfAlerts.length === 0) return '';
+
+          return `
+            <div style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 6px; padding: 6px 8px; margin-top: 6px;">
+              <div style="font-size: 8px; font-weight: 700; color: #b91c1c; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                <span>⚠️</span> Alertas Biomecânicos & Fatores de Risco Ortopédico (${pdfAlerts.length})
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px;">
+                ${pdfAlerts.map(a => `
+                  <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 4px; padding: 4px 6px; font-size: 6.8px;">
+                    <strong style="color: ${a.tipo === 'critico' ? '#b91c1c' : '#c2410c'};">${a.titulo} ${a.lado ? `(${a.lado})` : ''} - ${a.valorCalculado || ''}</strong>
+                    <div style="color: #475569; margin-top: 1px;">${a.descricao}</div>
+                    <div style="color: #dc2626; font-weight: 600; margin-top: 1px;">Risco: ${a.riscoClinico}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        })()}
 
         <div style="margin-top:6px; font-size:7px; color:#64748b; display:flex; gap:10px; justify-content:center;">
           <span>Legenda de Referência:</span>
@@ -3376,6 +3391,35 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
         <!-- Observações -->
         ${observationHtml}
+
+        <!-- Razões Musculares, Desequilíbrios e Riscos Ortopédicos -->
+        ${(() => {
+          const clientWeight = Number(peso) || 70;
+          const strengthAlerts = calculateStrengthTestAlerts(st.testesRealizados || [], clientWeight, sex === 'F' ? 'F' : 'M');
+          if (strengthAlerts.length === 0) return '';
+
+          return `
+            <div class="section-card" style="margin-top: 10px; border: 1px solid #fca5a5;">
+              <div class="section-card-title" style="background: #991b1b;">
+                ⚠️ Razões Musculares, Desequilíbrios e Riscos Ortopédicos (${strengthAlerts.length})
+              </div>
+              <div class="section-card-content" style="padding: 8px 10px; background: #fff5f5;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                  ${strengthAlerts.map(a => `
+                    <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 4px; padding: 5px 8px; font-size: 8px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="color: ${a.tipo === 'critico' ? '#b91c1c' : '#c2410c'}; font-size: 8.5px;">${a.titulo}</strong>
+                        ${a.valorCalculado ? `<span style="font-weight:bold; background:#0f172a; color:#ffffff; padding:1px 4px; border-radius:3px; font-size:7px;">${a.valorCalculado}</span>` : ''}
+                      </div>
+                      <div style="color: #475569; margin-top: 2px; font-size: 7.5px;">${a.descricao} (Ref: ${a.referenciaIdeal})</div>
+                      <div style="color: #dc2626; font-weight: 600; margin-top: 2px; font-size: 7.5px;">⚠️ Risco Clínico: ${a.riscoClinico}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        })()}
 
         <!-- Interpretação Clínica dos Resultados -->
         <div class="section-card" style="margin-top: 15px;">
