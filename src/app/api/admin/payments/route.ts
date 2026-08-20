@@ -103,8 +103,7 @@ const ensureLocalPaymentsForClients = async () => {
 // 1. GET: Query all client payments (mensalidades)
 export async function GET(request: Request) {
   try {
-    // Desativado: parcelas são geradas estritamente pelo botão "Lançar Parcelas no Financeiro"
-    // await ensureLocalPaymentsForClients();
+    await dbConnect();
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status'); // 'Pago', 'Pendente', 'Atrasado'
     const searchQuery = searchParams.get('search') || '';
