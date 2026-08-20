@@ -2669,8 +2669,8 @@ goniometria: {
       const client = clients.find(c => c._id === asClient);
       const clientName = client?.dadosPessoais?.nome || '';
 
-      if (asPdfUrl && asPdfUrl.length > 2.6 * 1024 * 1024) {
-        alert('O arquivo PDF anexado excede o limite seguro de 1.8 MB para envio à nuvem.\n\nPor favor, remova o anexo e comprima-o gratuitamente em https://www.ilovepdf.com/pt/comprimir_pdf antes de salvar.');
+      if (asPdfUrl && asPdfUrl.length > 1.8 * 1024 * 1024) {
+        alert('O arquivo PDF anexado excede o limite seguro de 1.2 MB para envio à nuvem.\n\nPor favor, remova o anexo e comprima-o no ilovepdf.com (usando Compressão Extrema/Média) antes de salvar.');
         return;
       }
 
@@ -2795,9 +2795,9 @@ goniometria: {
       e.target.value = '';
       return;
     }
-    if (file.size > 1.8 * 1024 * 1024) {
+    if (file.size > 1.2 * 1024 * 1024) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.8 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo gratuitamente em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Leva menos de 10 segundos).`);
+      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.2 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo gratuitamente em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Dica: Escolha "Boa Compressão" ou "Compressão Extrema").`);
       e.target.value = '';
       return;
     }
@@ -2822,9 +2822,9 @@ goniometria: {
       e.target.value = '';
       return;
     }
-    if (file.size > 1.8 * 1024 * 1024) {
+    if (file.size > 1.2 * 1024 * 1024) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.8 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo gratuitamente em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Leva menos de 10 segundos).`);
+      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.2 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo gratuitamente em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Dica: Escolha "Boa Compressão" ou "Compressão Extrema").`);
       e.target.value = '';
       return;
     }
@@ -7914,7 +7914,7 @@ goniometria: {
                         <div>
                           <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>PDF Complementar da Avaliação</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                            Anexe um PDF externo (fotos de postura, laudo, etc.). Ele será incorporado integralmente ao Laudo PDF ao baixar. <strong>Máx. 1.8 MB</strong>. Se necessário, comprima seu arquivo gratuitamente em <a href="https://www.ilovepdf.com/pt/comprimir_pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>ilovepdf.com</a>.
+                            Anexe um PDF externo (fotos de postura, laudo, etc.). Ele será incorporado integralmente ao Laudo PDF ao baixar. <strong>Máx. 1.2 MB</strong>. Se necessário, comprima seu arquivo gratuitamente em <a href="https://www.ilovepdf.com/pt/comprimir_pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>ilovepdf.com</a>.
                           </div>
                         </div>
                       </div>
