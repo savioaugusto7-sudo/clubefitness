@@ -40,6 +40,7 @@ export default function GestaoContratosPanel({
 
   // Form states (Dados Comerciais)
   const [dcPlano, setDcPlano] = useState('');
+  const [dcStatus, setDcStatus] = useState<string>('ativo');
   const [dcFormaPag, setDcFormaPag] = useState('pix');
   const [dcDuracao, setDcDuracao] = useState<'mensal' | 'anual' | 'semana' | 'indeterminado'>('mensal');
   const [dcVigenciaQtd, setDcVigenciaQtd] = useState(1);
@@ -489,6 +490,7 @@ export default function GestaoContratosPanel({
     const com = client.dadosComerciais || {};
     
     setDcPlano(com.planoId?._id || com.planoId || '');
+    setDcStatus(com.status === 'lead' ? 'ativo' : (com.status || 'ativo'));
     setDcFormaPag(com.formaPagamento || 'pix');
     setDcDuracao(com.duracao || 'mensal');
     setDcVigenciaQtd(com.duracaoQtd || 1);
@@ -549,6 +551,7 @@ export default function GestaoContratosPanel({
           id: selectedClient._id,
           dadosComerciais: {
             planoId: dcPlano || null,
+            status: dcStatus || 'ativo',
             formaPagamento: dcFormaPag,
             duracao: dcDuracao,
             duracaoQtd: dcVigenciaQtd,
@@ -601,6 +604,7 @@ export default function GestaoContratosPanel({
           id: selectedClient._id,
           dadosComerciais: {
             planoId: dcPlano || null,
+            status: dcStatus || 'ativo',
             formaPagamento: dcFormaPag,
             duracao: dcDuracao,
             duracaoQtd: dcVigenciaQtd,
@@ -1492,6 +1496,24 @@ export default function GestaoContratosPanel({
               {plans.map(p => (
                 <option key={p._id} value={p._id}>{p.nome}</option>
               ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <i className="fa-solid fa-signal" style={{ color: dcStatus === 'ativo' ? '#10b981' : dcStatus === 'lead' ? '#8b5cf6' : dcStatus === 'congelado' ? '#f59e0b' : '#94a3b8' }}></i>
+              Status Comercial do Contrato
+            </label>
+            <select
+              className="select-custom"
+              value={dcStatus}
+              onChange={e => setDcStatus(e.target.value)}
+              style={{ fontWeight: 600 }}
+            >
+              <option value="ativo">🟢 Contrato Ativo (Matrícula Efetivada)</option>
+              <option value="lead">🟣 Lead / Em Avaliação</option>
+              <option value="congelado">🟡 Congelado</option>
+              <option value="inativo">⚪ Sem Contrato Ativo / Inativo</option>
             </select>
           </div>
 
