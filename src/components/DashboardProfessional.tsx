@@ -5648,7 +5648,7 @@ goniometria: {
                                       let fullAs = as;
                                       try {
                                         const controller = new AbortController();
-                                        const timeoutId = setTimeout(() => controller.abort(), 3500);
+                                        const timeoutId = setTimeout(() => controller.abort(), 7000);
                                         const res = await fetch(`/api/assessments?id=${as._id}`, { cache: 'no-store', signal: controller.signal });
                                         clearTimeout(timeoutId);
                                         if (res.ok) {

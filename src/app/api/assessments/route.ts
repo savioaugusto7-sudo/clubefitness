@@ -82,13 +82,33 @@ function hydrateAssessmentResults(asDoc: any) {
     else imcClass = 'Obesidade';
   }
 
+  // RCQ e Classificação
+  const circ = dm.circunferencias || {};
+  const cintura = Number(circ.cintura) || 0;
+  const quadril = Number(circ.quadril) || 1;
+  let rcq = Number(rc.rcq) || 0;
+  if (rcq <= 0 && cintura > 0 && quadril > 0) {
+    rcq = Number((cintura / quadril).toFixed(2));
+  }
+  let rcqClass = rc.rcqClassificacao;
+  if (!rcqClass || rcqClass === '-' || (rcqClass === 'Baixo Risco' && rcq > 0.77)) {
+    const isF = (sexo || '').trim().toUpperCase().startsWith('F');
+    if (!isF) {
+      rcqClass = rcq > 0.95 ? 'Alto Risco' : (rcq >= 0.88 ? 'Risco Moderado' : 'Baixo Risco');
+    } else {
+      rcqClass = rcq > 0.86 ? 'Alto Risco' : (rcq >= 0.78 ? 'Risco Moderado' : 'Baixo Risco');
+    }
+  }
+
   asDoc.resultadosCalculados = {
     ...rc,
     percentualGordura: bf,
     massaGorda: mg,
     massaMagra: mm,
     imc,
-    imcClassificacao: imcClass
+    imcClassificacao: imcClass,
+    rcq,
+    rcqClassificacao: rcqClass
   };
 
   return asDoc;
@@ -152,9 +172,8 @@ export async function GET(request: Request) {
       query.status = { $ne: 'rascunho' };
     }
 
-    // Projeção completa e rápida para a tabela
+    // Projeção completa para a tabela (carrega todos os dados medidos para PDF instantâneo)
     const assessments = await PhysicalAssessment.find(query)
-      .select('clienteId avaliadorId data status isDraft dadosMedidos.peso dadosMedidos.altura dadosMedidos.sexo dadosMedidos.idade dadosMedidos.dobras dadosMedidos.somaDobras resultadosCalculados.percentualGordura resultadosCalculados.massaMagra resultadosCalculados.massaGorda resultadosCalculados.imc resultadosCalculados.rcq createdAt updatedAt')
       .sort({ data: -1, createdAt: -1 })
       .lean()
       .maxTimeMS(4000);
