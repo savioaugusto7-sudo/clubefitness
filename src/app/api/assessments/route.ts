@@ -270,7 +270,9 @@ export async function POST(request: Request) {
         if (validAvaliadorId) existingDraft.avaliadorId = validAvaliadorId;
 
         await existingDraft.save();
-        return NextResponse.json({ success: true, data: existingDraft, autoSaved: true });
+        const cleanDraft = existingDraft.toObject ? existingDraft.toObject() : { ...existingDraft };
+        delete cleanDraft.pdf_url;
+        return NextResponse.json({ success: true, data: cleanDraft, autoSaved: true });
       }
 
       // Se não havia rascunho anterior, cria um novo rascunho
@@ -289,7 +291,9 @@ export async function POST(request: Request) {
         isDraft: true
       });
 
-      return NextResponse.json({ success: true, data: newDraft, autoSaved: true });
+      const cleanDraft = newDraft.toObject ? newDraft.toObject() : { ...newDraft };
+      delete cleanDraft.pdf_url;
+      return NextResponse.json({ success: true, data: cleanDraft, autoSaved: true });
     }
 
     // 2. Caso seja Conclusão e Finalização Oficial da Avaliação
@@ -322,7 +326,9 @@ export async function POST(request: Request) {
       assessmentDoc.isDraft = false;
 
       await assessmentDoc.save();
-      return NextResponse.json({ success: true, data: assessmentDoc });
+      const cleanDoc = assessmentDoc.toObject ? assessmentDoc.toObject() : { ...assessmentDoc };
+      delete cleanDoc.pdf_url;
+      return NextResponse.json({ success: true, data: cleanDoc });
     }
 
     // Criar nova avaliação diretamente como concluída
@@ -341,7 +347,9 @@ export async function POST(request: Request) {
       isDraft: false
     });
 
-    return NextResponse.json({ success: true, data: assessment });
+    const cleanDoc = assessment.toObject ? assessment.toObject() : { ...assessment };
+    delete cleanDoc.pdf_url;
+    return NextResponse.json({ success: true, data: cleanDoc });
   } catch (error: any) {
     console.error('[assessments POST] Error:', error?.message || error);
     return NextResponse.json({ success: false, error: error?.message || 'Erro interno ao salvar avaliação física.' }, { status: 500 });
