@@ -7998,42 +7998,128 @@ goniometria: {
                       <textarea className="form-control" placeholder="Observações gerais sobre a avaliação..." rows={4} value={asObs} onChange={e => setAsObs(e.target.value)} required />
                     </div>
 
-                    {/* PDF Attachment Section */}
-                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', marginTop: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                        <div style={{ background: 'rgba(13, 148, 136, 0.12)', padding: '8px', borderRadius: '8px' }}>
-                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}></i>
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>PDF Complementar da Avaliação</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                            Anexe um PDF externo (fotos de postura, laudo, etc.). Ele será incorporado integralmente ao Laudo PDF ao baixar. <strong>Máx. 1.2 MB</strong>. Se necessário, comprima seu arquivo gratuitamente em <a href="https://www.ilovepdf.com/pt/comprimir_pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontWeight: 600 }}>ilovepdf.com</a>.
+                    {/* PDF Attachment Section - Premium Redesign */}
+                    <div style={{
+                      background: 'rgba(22, 29, 45, 0.7)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '14px',
+                      padding: '18px 20px',
+                      marginTop: '12px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                    }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            color: '#10b981',
+                            fontSize: '1.1rem'
+                          }}>
+                            <i className="fa-solid fa-file-pdf"></i>
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc' }}>
+                              PDF Complementar da Avaliação
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                              Fotos posturais, laudos médicos ou exames adicionais
+                            </div>
                           </div>
                         </div>
+                        <span className="badge badge-info" style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          Opcional
+                        </span>
                       </div>
 
+                      {/* Pre-upload Educational Callout Banner */}
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(13, 148, 136, 0.04))',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: '1 1 280px' }}>
+                          <span style={{ color: '#10b981', fontSize: '1rem', marginTop: '2px' }}>
+                            <i className="fa-solid fa-bolt-lightning"></i>
+                          </span>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                              Instrução importante antes de anexar:
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '2px', lineHeight: '1.4' }}>
+                              Para que o laudo abra rápido e sem erros, o arquivo deve ter <strong>até 1.2 MB</strong>. Se tiver fotos pesadas, comprima gratuitamente antes de enviar:
+                            </div>
+                          </div>
+                        </div>
+
+                        <a
+                          href="https://www.ilovepdf.com/pt/comprimir_pdf"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                            color: '#000',
+                            fontWeight: 800,
+                            fontSize: '0.78rem',
+                            textDecoration: 'none',
+                            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.25)',
+                            flexShrink: 0,
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <i className="fa-solid fa-compress"></i>
+                          Comprimir PDF no iLovePDF ↗
+                        </a>
+                      </div>
+
+                      {/* Upload Box */}
                       {!asPdfUrl ? (
                         <div>
                           <label
                             htmlFor="asPdfUploadInput"
                             style={{
                               display: 'flex',
+                              flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '10px',
-                              border: '2px dashed var(--border-color)',
-                              borderRadius: '8px',
-                              padding: '20px',
+                              gap: '8px',
+                              border: '2px dashed rgba(255, 255, 255, 0.15)',
+                              borderRadius: '12px',
+                              padding: '24px 16px',
                               cursor: 'pointer',
-                              color: 'var(--text-dim)',
-                              fontSize: '0.85rem',
-                              transition: 'border-color 0.2s, color 0.2s'
+                              color: '#94a3b8',
+                              fontSize: '0.82rem',
+                              background: 'rgba(0, 0, 0, 0.2)',
+                              transition: 'all 0.2s ease'
                             }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--color-primary)'; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--text-dim)'; }}
+                            onMouseEnter={e => {
+                              (e.currentTarget as HTMLLabelElement).style.borderColor = '#10b981';
+                              (e.currentTarget as HTMLLabelElement).style.color = '#f8fafc';
+                              (e.currentTarget as HTMLLabelElement).style.background = 'rgba(16, 185, 129, 0.03)';
+                            }}
+                            onMouseLeave={e => {
+                              (e.currentTarget as HTMLLabelElement).style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                              (e.currentTarget as HTMLLabelElement).style.color = '#94a3b8';
+                              (e.currentTarget as HTMLLabelElement).style.background = 'rgba(0, 0, 0, 0.2)';
+                            }}
                           >
-                            <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.4rem' }}></i>
-                            <span>Clique para selecionar um PDF ou arraste aqui</span>
+                            <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.6rem', color: '#10b981' }}></i>
+                            <span style={{ fontWeight: 600 }}>Clique para selecionar o PDF ou arraste o arquivo aqui</span>
+                            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Formato suportado: .pdf (Máximo 1.2 MB)</span>
                           </label>
                           <input
                             id="asPdfUploadInput"
@@ -8044,19 +8130,42 @@ goniometria: {
                           />
                         </div>
                       ) : (
-                        <div style={{ background: 'rgba(13, 148, 136, 0.08)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444', fontSize: '1.5rem' }}></i>
+                        <div style={{
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          border: '1px solid #10b981',
+                          borderRadius: '12px',
+                          padding: '14px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#ef4444',
+                              fontSize: '1.2rem'
+                            }}>
+                              <i className="fa-solid fa-file-pdf"></i>
+                            </div>
                             <div>
-                              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{asPdfAttachName || 'PDF anexado'}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ PDF pronto para ser incluído na avaliação</div>
+                              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>{asPdfAttachName || 'PDF Anexado com Sucesso'}</div>
+                              <div style={{ fontSize: '0.74rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <i className="fa-solid fa-circle-check"></i> Pronto para ser incorporado ao Laudo PDF final
+                              </div>
                             </div>
                           </div>
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
                             onClick={removeAsPdfAttach}
-                            style={{ flexShrink: 0 }}
+                            style={{ flexShrink: 0, padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem' }}
                           >
                             <i className="fa-solid fa-trash"></i> Remover
                           </button>
@@ -9456,42 +9565,128 @@ goniometria: {
                       </div>
                     )}
 
-                    {/* PDF Attachment Section */}
-                    <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', marginTop: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                        <div style={{ background: 'rgba(13, 148, 136, 0.12)', padding: '8px', borderRadius: '8px' }}>
-                          <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}></i>
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Avaliação Postural PDF</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                            Anexe um PDF da avaliação postural do paciente. Ele será incorporado ao final do PDF do relatório. Máx. 4 MB. Se necessário, comprima seu arquivo gratuitamente em <a href="https://www.ilovepdf.com/pt/comprimir_pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>ilovepdf.com</a>.
+                    {/* PDF Attachment Section - Premium Redesign */}
+                    <div style={{
+                      background: 'rgba(22, 29, 45, 0.7)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '14px',
+                      padding: '18px 20px',
+                      marginTop: '12px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                    }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            color: '#10b981',
+                            fontSize: '1.1rem'
+                          }}>
+                            <i className="fa-solid fa-file-pdf"></i>
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc' }}>
+                              Avaliação Postural PDF / Laudo
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                              Anexos complementares para o prontuário do paciente
+                            </div>
                           </div>
                         </div>
+                        <span className="badge badge-info" style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          Opcional
+                        </span>
                       </div>
 
+                      {/* Pre-upload Educational Callout Banner */}
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(13, 148, 136, 0.04))',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: '1 1 280px' }}>
+                          <span style={{ color: '#10b981', fontSize: '1rem', marginTop: '2px' }}>
+                            <i className="fa-solid fa-bolt-lightning"></i>
+                          </span>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                              Instrução importante antes de anexar:
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '2px', lineHeight: '1.4' }}>
+                              Para garantir envio rápido e geração do relatório sem falhas, comprima seu PDF gratuitamente se o arquivo for pesado:
+                            </div>
+                          </div>
+                        </div>
+
+                        <a
+                          href="https://www.ilovepdf.com/pt/comprimir_pdf"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                            color: '#000',
+                            fontWeight: 800,
+                            fontSize: '0.78rem',
+                            textDecoration: 'none',
+                            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.25)',
+                            flexShrink: 0,
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <i className="fa-solid fa-compress"></i>
+                          Comprimir PDF no iLovePDF ↗
+                        </a>
+                      </div>
+
+                      {/* Upload Box */}
                       {!repPdfUrl ? (
                         <div>
                           <label
                             htmlFor="repPdfUploadInput"
                             style={{
                               display: 'flex',
+                              flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '10px',
-                              border: '2px dashed var(--border-color)',
-                              borderRadius: '8px',
-                              padding: '20px',
+                              gap: '8px',
+                              border: '2px dashed rgba(255, 255, 255, 0.15)',
+                              borderRadius: '12px',
+                              padding: '24px 16px',
                               cursor: 'pointer',
-                              color: 'var(--text-dim)',
-                              fontSize: '0.85rem',
-                              transition: 'border-color 0.2s, color 0.2s'
+                              color: '#94a3b8',
+                              fontSize: '0.82rem',
+                              background: 'rgba(0, 0, 0, 0.2)',
+                              transition: 'all 0.2s ease'
                             }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--color-primary)'; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLLabelElement).style.color = 'var(--text-dim)'; }}
+                            onMouseEnter={e => {
+                              (e.currentTarget as HTMLLabelElement).style.borderColor = '#10b981';
+                              (e.currentTarget as HTMLLabelElement).style.color = '#f8fafc';
+                              (e.currentTarget as HTMLLabelElement).style.background = 'rgba(16, 185, 129, 0.03)';
+                            }}
+                            onMouseLeave={e => {
+                              (e.currentTarget as HTMLLabelElement).style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                              (e.currentTarget as HTMLLabelElement).style.color = '#94a3b8';
+                              (e.currentTarget as HTMLLabelElement).style.background = 'rgba(0, 0, 0, 0.2)';
+                            }}
                           >
-                            <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.4rem' }}></i>
-                            <span>Clique para selecionar um PDF ou arraste aqui</span>
+                            <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '1.6rem', color: '#10b981' }}></i>
+                            <span style={{ fontWeight: 600 }}>Clique para selecionar o PDF ou arraste o arquivo aqui</span>
+                            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Formato suportado: .pdf</span>
                           </label>
                           <input
                             id="repPdfUploadInput"
@@ -9502,19 +9697,42 @@ goniometria: {
                           />
                         </div>
                       ) : (
-                        <div style={{ background: 'rgba(13, 148, 136, 0.08)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444', fontSize: '1.5rem' }}></i>
+                        <div style={{
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          border: '1px solid #10b981',
+                          borderRadius: '12px',
+                          padding: '14px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#ef4444',
+                              fontSize: '1.2rem'
+                            }}>
+                              <i className="fa-solid fa-file-pdf"></i>
+                            </div>
                             <div>
-                              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{repPdfAttachName || 'PDF anexado'}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ PDF pronto para ser incluído no relatório</div>
+                              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>{repPdfAttachName || 'PDF Anexado com Sucesso'}</div>
+                              <div style={{ fontSize: '0.74rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <i className="fa-solid fa-circle-check"></i> Pronto para ser incorporado ao prontuário
+                              </div>
                             </div>
                           </div>
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
                             onClick={removeRepPdfAttach}
-                            style={{ flexShrink: 0 }}
+                            style={{ flexShrink: 0, padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem' }}
                           >
                             <i className="fa-solid fa-trash"></i> Remover
                           </button>
