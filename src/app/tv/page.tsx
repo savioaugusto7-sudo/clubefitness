@@ -16,11 +16,7 @@ const FRASES_MOTIVACIONAIS_TV = [
   "A persistência é o caminho do êxito. Bons treinos! 🚀"
 ];
 
-const STREAKS_TV = [
-  { nome: "Sávio S.", dias: 5, mensagem: "Sávio S. alcançou a marca de <strong>5 dias seguidos</strong> de atividade! 🔥" },
-  { nome: "Maria S.", dias: 3, mensagem: "Maria S. completou <strong>3 treinos</strong> esta semana! 💪" },
-  { nome: "João O.", dias: 4, mensagem: "João O. está ativo com <strong>4 treinos seguidos</strong>! ⚡" }
-];
+
 
 function formatTVClientName(fullName: string) {
   if (!fullName) return '';
@@ -103,18 +99,10 @@ export default function TVDashboard() {
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
   const [spotifyClientId, setSpotifyClientId] = useState('');
   const [spotifyTrack, setSpotifyTrack] = useState<any>({
-    nome: "Levitating",
-    artista: "Dua Lipa",
-    capa: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=120&auto=format&fit=crop"
+    nome: "Som Ambiente",
+    artista: "Clube Fitness Fisio",
+    capa: "/logo.jpg"
   });
-
-  const simulatedPlaylist = [
-    { nome: "Levitating", artista: "Dua Lipa", capa: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=120&auto=format&fit=crop" },
-    { nome: "Blinding Lights", artista: "The Weeknd", capa: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=120&auto=format&fit=crop" },
-    { nome: "Physical", artista: "Dua Lipa", capa: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=120&auto=format&fit=crop" },
-    { nome: "Wake Me Up", artista: "Avicii", capa: "https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=120&auto=format&fit=crop" },
-    { nome: "Don't Start Now", artista: "Dua Lipa", capa: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=120&auto=format&fit=crop" }
-  ];
 
   // Set initial simulation dates and check Spotify token from hash
   useEffect(() => {
@@ -222,10 +210,11 @@ export default function TVDashboard() {
           return;
         }
         if (res.status === 204 || res.status > 300) {
-          // Play simulation as fallback
-          const min = new Date().getMinutes();
-          const track = simulatedPlaylist[Math.floor(min / 3) % simulatedPlaylist.length];
-          setSpotifyTrack(track);
+          setSpotifyTrack({
+            nome: "Música no Ambiente",
+            artista: gymName,
+            capa: "/logo.jpg"
+          });
           return;
         }
         const data = await res.json();
@@ -233,20 +222,22 @@ export default function TVDashboard() {
           setSpotifyTrack({
             nome: data.item.name,
             artista: data.item.artists.map((a: any) => a.name).join(', '),
-            capa: data.item.album.images[0]?.url || 'https://placehold.co/120x120/1db954/ffffff?text=CFF'
+            capa: data.item.album.images[0]?.url || '/logo.jpg'
           });
         }
-      } catch (err) {
-        // Fallback simulation
-        const min = new Date().getMinutes();
-        const track = simulatedPlaylist[Math.floor(min / 3) % simulatedPlaylist.length];
-        setSpotifyTrack(track);
+      } catch {
+        setSpotifyTrack({
+          nome: "Música no Ambiente",
+          artista: gymName,
+          capa: "/logo.jpg"
+        });
       }
     } else {
-      // Rotation simulation
-      const min = new Date().getMinutes();
-      const track = simulatedPlaylist[Math.floor(min / 3) % simulatedPlaylist.length];
-      setSpotifyTrack(track);
+      setSpotifyTrack({
+        nome: "Som Ambiente",
+        artista: gymName,
+        capa: "/logo.jpg"
+      });
     }
   };
 
@@ -329,61 +320,64 @@ export default function TVDashboard() {
   const sortedCheckins = [...presentAptsToday].sort((a, b) => b.horario.localeCompare(a.horario));
   const activeBdays = getTVActiveBdayClients(clients, appointments, tvSelectedDate);
 
-  // Compute leaderboard score count
+  // 100% Real Constancy Leaderboard
   const currentYearStr = tvSelectedDate ? tvSelectedDate.split('-')[0] : String(new Date().getFullYear());
   const currentMonthStr = tvSelectedDate ? tvSelectedDate.split('-')[1] : String(new Date().getMonth() + 1).padStart(2, '0');
   
-  // Total presence confirmed in month
+  // Real month appointments with presence
   const monthApts = appointments.filter(a => 
     a.status === 'presenca' && 
     a.data && a.data.startsWith(`${currentYearStr}-${currentMonthStr}`)
   );
 
-  const presenceMap: Record<string, number> = {};
-  clients.forEach(c => {
-    presenceMap[c._id] = c.dadosComerciais?.status === 'ativo' ? (c.dadosComerciais?.creditosUsados || 0) : 0;
-  });
+  const realPresenceMap: Record<string, number> = {};
   monthApts.forEach(a => {
     const cId = a.clienteId?._id || a.clienteId;
-    if (presenceMap[cId] !== undefined) {
-      presenceMap[cId] += 1;
+    if (cId) {
+      realPresenceMap[cId] = (realPresenceMap[cId] || 0) + 1;
     }
   });
 
-  let leaderboard = clients.map(c => ({
-    nome: formatTVClientName(c.dadosPessoais?.nome || ''),
-    presencas: presenceMap[c._id] || 0
-  }));
-
-  // Append simulated gymrats to ensure 13 spots
-  const simulatedGymrats = [
-    { nome: "Ana B.", presencas: 14 },
-    { nome: "Carlos M.", presencas: 12 },
-    { nome: "Beatriz F.", presencas: 10 },
-    { nome: "Lucas R.", presencas: 9 },
-    { nome: "Fernanda C.", presencas: 8 },
-    { nome: "Gabriel S.", presencas: 7 },
-    { nome: "Juliana P.", presencas: 6 },
-    { nome: "Rodrigo A.", presencas: 5 },
-    { nome: "Mariana T.", presencas: 4 },
-    { nome: "Felipe G.", presencas: 2 }
-  ];
-
-  simulatedGymrats.forEach(sim => {
-    if (!leaderboard.some(g => g.nome === sim.nome)) {
-      leaderboard.push(sim);
-    }
+  let leaderboard = clients.map(c => {
+    const count = realPresenceMap[c._id] || (c.dadosComerciais?.creditosUsados || 0);
+    return {
+      id: c._id,
+      nome: formatTVClientName(c.dadosPessoais?.nome || ''),
+      presencas: count,
+      ativo: c.dadosComerciais?.status === 'ativo'
+    };
   });
 
   leaderboard.sort((a, b) => b.presencas - a.presencas);
-  leaderboard = leaderboard.slice(0, 13);
+  leaderboard = leaderboard.slice(0, 10);
 
   const top1 = leaderboard[0];
   const top2 = leaderboard[1];
   const top3 = leaderboard[2];
   const restGymrats = leaderboard.slice(3);
-
   const maxPresences = Math.max(...leaderboard.map(g => g.presencas), 1);
+
+  // Dynamic real highlights
+  const activeClientsCount = clients.filter(c => c.dadosComerciais?.status === 'ativo').length;
+  const realHighlights = [
+    top1 && top1.presencas > 0 ? {
+      titulo: "Líder de Frequência do Mês",
+      icone: "fa-trophy",
+      mensagem: `<strong>${top1.nome}</strong> lidera a constância com <strong>${top1.presencas} presenças confirmadas</strong> este mês! 🏆🔥`
+    } : null,
+    {
+      titulo: "Atividade de Hoje no Clube",
+      icone: "fa-fire",
+      mensagem: `Hoje já foram confirmadas <strong>${presentAptsToday.length} presenças</strong> nos treinos e atendimentos! 💪`
+    },
+    {
+      titulo: "Comunidade Clube Fitness",
+      icone: "fa-users",
+      mensagem: `Mais de <strong>${activeClientsCount} alunos ativos</strong> transformando saúde e performance! 🌟`
+    }
+  ].filter(Boolean) as any[];
+
+  const currentHighlight = realHighlights[tvQuoteIndex % realHighlights.length];
 
   return (
     <div className={`tv-panel-container ${isTVModeActive ? 'tv-mode-active' : ''}`}>
@@ -680,13 +674,15 @@ export default function TVDashboard() {
               </div>
             </div>
 
-            {/* Streaks highlight box */}
-            <div className="tv-apple-mural-box">
-              <div className="tv-apple-mural-title">
-                <i className="fa-solid fa-trophy"></i> Destaques do Clube
+            {/* Destaques Reais do Clube */}
+            {currentHighlight && (
+              <div className="tv-apple-mural-box">
+                <div className="tv-apple-mural-title">
+                  <i className={`fa-solid ${currentHighlight.icone}`}></i> {currentHighlight.titulo}
+                </div>
+                <div className="tv-apple-mural-content" dangerouslySetInnerHTML={{ __html: currentHighlight.mensagem }} />
               </div>
-              <div className="tv-apple-mural-content" dangerouslySetInnerHTML={{ __html: STREAKS_TV[tvQuoteIndex % STREAKS_TV.length].mensagem }} />
-            </div>
+            )}
 
             {/* Birthdays highlight box (if any) */}
             {activeBdays.length > 0 && (
