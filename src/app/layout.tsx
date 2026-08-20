@@ -1,13 +1,28 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { Providers } from '@/components/Providers';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#070b14',
+};
 
 export const metadata: Metadata = {
   title: 'Clube Fitness Fisio | Gestão Inteligente de Saúde e Treino',
   description: 'Sistema integrado de gestão para o Clube Fitness Fisio: controle administrativo, agenda inteligente, avaliação física avançada e portal do cliente.',
   keywords: ['clube fitness fisio', 'academia', 'fisioterapia', 'agenda inteligente', 'avaliacao fisica', 'quiropraxista'],
-  authors: [{ name: 'Clube Fitness Fisio' }]
+  authors: [{ name: 'Clube Fitness Fisio' }],
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Clube Fitness'
+  }
 };
 
 export default function RootLayout({

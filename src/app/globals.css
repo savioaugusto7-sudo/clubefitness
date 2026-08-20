@@ -38,6 +38,12 @@
   --radius-md: 14px;
   --radius-lg: 20px;
   --transition-fast: 0.2s ease;
+
+  /* Mobile Safe Area Insets (iPhone Notch & Android Navigation) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --shadow-glow: 0 0 20px rgba(16, 185, 129, 0.2);
   --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
