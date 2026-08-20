@@ -172,8 +172,9 @@ export async function GET(request: Request) {
       query.status = { $ne: 'rascunho' };
     }
 
-    // Projeção completa para a tabela (carrega todos os dados medidos para PDF instantâneo)
+    // Projeção rápida para a tabela: traz todos os dados medidos e calculados, omitindo apenas o pesado pdf_url
     const assessments = await PhysicalAssessment.find(query)
+      .select('-pdf_url')
       .sort({ data: -1, createdAt: -1 })
       .lean()
       .maxTimeMS(4000);
