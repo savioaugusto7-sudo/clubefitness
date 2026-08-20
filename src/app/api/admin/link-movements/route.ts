@@ -16,12 +16,20 @@ export async function GET() {
     await dbConnect();
 
     // 1. Buscar clientes recentes cadastrados
-    const clients = await Client.find({})
-      .populate('dadosComerciais.planoId')
-      .populate('profissionalResponsavel')
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .lean();
+    let clients: any[] = [];
+    try {
+      clients = await Client.find({})
+        .populate('dadosComerciais.planoId')
+        .populate('profissionalId')
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
+    } catch (e) {
+      console.warn('Client fetch warning in link-movements:', e);
+      try {
+        clients = await Client.find({}).sort({ createdAt: -1 }).limit(100).lean();
+      } catch (_) {}
+    }
 
     // 2. Buscar propostas / vendas geradas por link
     let propostas: any[] = [];

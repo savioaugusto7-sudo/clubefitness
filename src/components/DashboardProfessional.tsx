@@ -3927,55 +3927,53 @@ goniometria: {
     return matchesSearch && matchesStatus && matchesPlan;
   });
 
-  const filteredExercises = useMemo(() => {
-    const rawSearch = normalizeText(exerciseSearch).trim();
-    const stopWords = new Set(['no', 'na', 'nos', 'nas', 'de', 'da', 'do', 'dos', 'das', 'em', 'com', 'e', 'a', 'o', 'as', 'os']);
-    
-    const searchTokens = rawSearch
-      ? rawSearch.split(/\s+/).filter(t => t.length > 0 && !stopWords.has(t))
-      : [];
+  const rawExerciseSearch = normalizeText(exerciseSearch).trim();
+  const stopWords = new Set(['no', 'na', 'nos', 'nas', 'de', 'da', 'do', 'dos', 'das', 'em', 'com', 'e', 'a', 'o', 'as', 'os']);
+  
+  const searchTokens = rawExerciseSearch
+    ? rawExerciseSearch.split(/\s+/).filter(t => t.length > 0 && !stopWords.has(t))
+    : [];
 
-    return exercises
-      .filter(ex => {
-        if (ex.status === 'pending') return false;
-        if (exerciseGroup && ex.grupo !== exerciseGroup) return false;
-        if (searchTokens.length === 0) return true;
+  const filteredExercises = exercises
+    .filter(ex => {
+      if (ex.status === 'pending') return false;
+      if (exerciseGroup && ex.grupo !== exerciseGroup) return false;
+      if (searchTokens.length === 0) return true;
 
-        const exNomeNorm = normalizeText(ex.nome);
-        const exGrupoNorm = normalizeText(ex.grupo || '');
-        const fullText = `${exNomeNorm} ${exGrupoNorm}`;
+      const exNomeNorm = normalizeText(ex.nome);
+      const exGrupoNorm = normalizeText(ex.grupo || '');
+      const fullText = `${exNomeNorm} ${exGrupoNorm}`;
 
-        // 1. Se contém a busca completa contígua
-        if (exNomeNorm.includes(rawSearch) || fullText.includes(rawSearch)) return true;
+      // 1. Se contém a busca completa contígua
+      if (exNomeNorm.includes(rawExerciseSearch) || fullText.includes(rawExerciseSearch)) return true;
 
-        // 2. Se contém TODAS as palavras-chave da busca (em qualquer ordem)
-        const matchesAllTokens = searchTokens.every(token => fullText.includes(token));
-        if (matchesAllTokens) return true;
+      // 2. Se contém TODAS as palavras-chave da busca (em qualquer ordem)
+      const matchesAllTokens = searchTokens.every(token => fullText.includes(token));
+      if (matchesAllTokens) return true;
 
-        // 3. Se a busca tem mais de 1 termo, aceita se tiver pelo menos 1 termo principal
-        if (searchTokens.length > 1) {
-          const matchedCount = searchTokens.filter(token => fullText.includes(token)).length;
-          return matchedCount >= 1;
-        }
+      // 3. Se a busca tem mais de 1 termo, aceita se tiver pelo menos 1 termo principal
+      if (searchTokens.length > 1) {
+        const matchedCount = searchTokens.filter(token => fullText.includes(token)).length;
+        return matchedCount >= 1;
+      }
 
-        return false;
-      })
-      .sort((a, b) => {
-        if (searchTokens.length === 0) return 0;
-        const aNome = normalizeText(a.nome);
-        const bNome = normalizeText(b.nome);
-        const aFull = `${aNome} ${normalizeText(a.grupo || '')}`;
-        const bFull = `${bNome} ${normalizeText(b.grupo || '')}`;
+      return false;
+    })
+    .sort((a, b) => {
+      if (searchTokens.length === 0) return 0;
+      const aNome = normalizeText(a.nome);
+      const bNome = normalizeText(b.nome);
+      const aFull = `${aNome} ${normalizeText(a.grupo || '')}`;
+      const bFull = `${bNome} ${normalizeText(b.grupo || '')}`;
 
-        const aExact = aNome.startsWith(rawSearch) ? 100 : (aNome.includes(rawSearch) ? 80 : 0);
-        const bExact = bNome.startsWith(rawSearch) ? 100 : (bNome.includes(rawSearch) ? 80 : 0);
+      const aExact = aNome.startsWith(rawExerciseSearch) ? 100 : (aNome.includes(rawExerciseSearch) ? 80 : 0);
+      const bExact = bNome.startsWith(rawExerciseSearch) ? 100 : (bNome.includes(rawExerciseSearch) ? 80 : 0);
 
-        const aTokenScore = searchTokens.reduce((acc, t) => acc + (aFull.includes(t) ? 20 : 0), 0);
-        const bTokenScore = searchTokens.reduce((acc, t) => acc + (bFull.includes(t) ? 20 : 0), 0);
+      const aTokenScore = searchTokens.reduce((acc, t) => acc + (aFull.includes(t) ? 20 : 0), 0);
+      const bTokenScore = searchTokens.reduce((acc, t) => acc + (bFull.includes(t) ? 20 : 0), 0);
 
-        return (bExact + bTokenScore) - (aExact + aTokenScore);
-      });
-  }, [exercises, exerciseSearch, exerciseGroup]);
+      return (bExact + bTokenScore) - (aExact + aTokenScore);
+    });
 
   return (
     <div>
