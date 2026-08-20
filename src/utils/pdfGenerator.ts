@@ -2368,16 +2368,16 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             <div style="flex:1;">
               <table class="table-data" style="font-size: 7.5px;">
                 <tr><td style="font-weight:600; padding:2px 4px;">Região</td><td style="font-weight:600; padding:2px 4px; text-align:right;">Valor</td></tr>
-                <tr><td style="padding:1.5px 4px;">Pescoço</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.pescoco || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Ombros</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.ombros || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Tórax</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.torax || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Braço Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.braçoD || 0} / ${assessment.dadosMedidos.circunferencias.braçoE || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Antebraço Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.antebraçoD || 0} / ${assessment.dadosMedidos.circunferencias.antebraçoE || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Cintura</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.cintura || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Abdômen</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.abdomen || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Quadril</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.quadril || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Coxa Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.coxaD || 0} / ${assessment.dadosMedidos.circunferencias.coxaE || 0} cm</td></tr>
-                <tr><td style="padding:1.5px 4px;">Panturrilha Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.circunferencias.panturrilhaD || 0} / ${assessment.dadosMedidos.circunferencias.panturrilhaE || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Pescoço</td><td style="text-align:right; font-weight:600;">${circunferencias.pescoco || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Ombros</td><td style="text-align:right; font-weight:600;">${circunferencias.ombros || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Tórax</td><td style="text-align:right; font-weight:600;">${circunferencias.torax || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Braço Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.braçoD || 0} / ${circunferencias.braçoE || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Antebraço Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.antebraçoD || 0} / ${circunferencias.antebraçoE || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Cintura</td><td style="text-align:right; font-weight:600;">${circunferencias.cintura || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Abdômen</td><td style="text-align:right; font-weight:600;">${circunferencias.abdomen || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Quadril</td><td style="text-align:right; font-weight:600;">${circunferencias.quadril || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Coxa Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.coxaD || 0} / ${circunferencias.coxaE || 0} cm</td></tr>
+                <tr><td style="padding:1.5px 4px;">Panturrilha Dir. / Esq.</td><td style="text-align:right; font-weight:600;">${circunferencias.panturrilhaD || 0} / ${circunferencias.panturrilhaE || 0} cm</td></tr>
               </table>
             </div>
           </div>
@@ -2437,7 +2437,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                   { key: 'ombroRotExt', label: 'Ombro - Rotação Externa', ref: '80-100°' },
                   { key: 'ombroFlexao', label: 'Ombro - Flexão', ref: '180°' }
                 ].map(row => {
-                  const g = assessment.dadosMedidos.goniometria || {};
+                  const g = dadosMedidos.goniometria || {};
                   const valD = g[row.key + 'D'];
                   const valE = g[row.key + 'E'];
                   const pD = parseGonioField(valD);
@@ -2485,11 +2485,11 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                 <tbody>
                   <tr style="border-bottom: 1px solid #f1f5f9;">
                     <td style="font-weight:700; padding: 3px 6px; font-size:7.2px; color:#1e293b;">Teste de Ober</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${assessment.dadosMedidos.testesEspeciais?.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${assessment.dadosMedidos.testesEspeciais?.oberD === 'Positivo' ? '700' : 'normal'};">${assessment.dadosMedidos.testesEspeciais?.oberD || 'Negativo'}</td>
-                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${assessment.dadosMedidos.testesEspeciais?.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${assessment.dadosMedidos.testesEspeciais?.oberE === 'Positivo' ? '700' : 'normal'};">${assessment.dadosMedidos.testesEspeciais?.oberE || 'Negativo'}</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${testesEspeciais.oberD === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${testesEspeciais.oberD === 'Positivo' ? '700' : 'normal'};">${testesEspeciais.oberD || 'Negativo'}</td>
+                    <td style="text-align:center; padding: 3px 6px; font-size:7.2px; color:${testesEspeciais.oberE === 'Positivo' ? '#ef4444' : '#334155'}; font-weight:${testesEspeciais.oberE === 'Positivo' ? '700' : 'normal'};">${testesEspeciais.oberE || 'Negativo'}</td>
                   </tr>
                   ${(() => {
-                    const te = assessment.dadosMedidos.testesEspeciais || {};
+                    const te = testesEspeciais;
                     const ilioDStatus = te.thomasIliopsoasDStatus !== undefined ? te.thomasIliopsoasDStatus : ((te.thomasD === 'Positivo' || te.thomasIliopsoasD > 0) ? 'Positivo' : 'Negativo');
                     const ilioEStatus = te.thomasIliopsoasEStatus !== undefined ? te.thomasIliopsoasEStatus : ((te.thomasE === 'Positivo' || te.thomasIliopsoasE > 0) ? 'Positivo' : 'Negativo');
                     const retoDStatus = te.thomasRetofemoralDStatus !== undefined ? te.thomasRetofemoralDStatus : ((te.thomasD === 'Positivo' || te.thomasRetofemoralD > 0) ? 'Positivo' : 'Negativo');
@@ -2538,11 +2538,11 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
                     </td>
                   </tr>
                   ` : ''}
-                  ${assessment.dadosMedidos.testesEspeciais?.maigne && !hasMaigneData && !assessment.dadosMedidos.testesEspeciais.maigne.startsWith('{') && assessment.dadosMedidos.testesEspeciais.maigne.trim() !== '' ? `
+                  ${testesEspeciais.maigne && !hasMaigneData && !testesEspeciais.maigne.startsWith('{') && testesEspeciais.maigne.trim() !== '' ? `
                   <tr style="border-bottom: 1px solid #f1f5f9;">
                     <td style="padding:3px 6px; vertical-align: top; font-weight:700; font-size:7.2px; color:#1e293b;">Maigne Obs.</td>
                     <td colSpan="2" style="vertical-align: top; padding: 3px 6px; font-size: 7px; line-height: 1.2;">
-                      ${assessment.dadosMedidos.testesEspeciais.maigne}
+                      ${testesEspeciais.maigne}
                     </td>
                   </tr>
                   ` : ''}
