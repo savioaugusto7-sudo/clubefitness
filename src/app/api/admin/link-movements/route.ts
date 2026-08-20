@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Client from '@/models/Client';
+import Plan from '@/models/Plan';
+import Professional from '@/models/Professional';
 import Proposal from '@/models/Proposal';
 import RenewalProposal from '@/models/RenewalProposal';
 import ActivityLog from '@/models/ActivityLog';
