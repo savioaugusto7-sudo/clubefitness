@@ -259,14 +259,17 @@ export async function POST(request: Request) {
       }
 
       if (existingDraft) {
+        // Se o documento já foi concluído oficialmente, nunca reverte para rascunho
+        if (existingDraft.status !== 'concluido') {
+          existingDraft.status = 'rascunho';
+          existingDraft.isDraft = true;
+        }
         existingDraft.dadosMedidos = dadosMedidos || existingDraft.dadosMedidos;
         existingDraft.resultadosCalculados = finalResultados || existingDraft.resultadosCalculados;
         existingDraft.metas = metas || existingDraft.metas;
         existingDraft.observacoes = observacoes !== undefined ? observacoes : existingDraft.observacoes;
         existingDraft.tempoGastoSegundos = Number(tempoGastoSegundos) || existingDraft.tempoGastoSegundos;
         existingDraft.data = data || existingDraft.data;
-        existingDraft.status = 'rascunho';
-        existingDraft.isDraft = true;
         if (validAvaliadorId) existingDraft.avaliadorId = validAvaliadorId;
 
         await existingDraft.save();

@@ -1273,7 +1273,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   // Continuous Cloud Auto-Save Debounce Effect (1.5s)
   useEffect(() => {
-    if (!showAssessmentModal || !asClient) return;
+    if (!showAssessmentModal || !asClient || isSubmitting) return;
 
     setCloudSaveStatus('saving');
     const timer = setTimeout(async () => {
