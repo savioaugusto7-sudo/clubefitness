@@ -2797,7 +2797,7 @@ goniometria: {
     }
     if (file.size > 1.2 * 1024 * 1024) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.2 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo gratuitamente em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Dica: Escolha "Boa Compressão" ou "Compressão Extrema").`);
+      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.2 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Dica: Escolha "Boa Compressão" ou "Compressão Extrema").`);
       e.target.value = '';
       return;
     }
@@ -2824,7 +2824,7 @@ goniometria: {
     }
     if (file.size > 1.2 * 1024 * 1024) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.2 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo gratuitamente em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Dica: Escolha "Boa Compressão" ou "Compressão Extrema").`);
+      alert(`O PDF selecionado tem ${sizeMB} MB e ultrapassa o limite seguro de 1.2 MB para envio à nuvem.\n\nPor favor, comprima seu arquivo em:\nhttps://www.ilovepdf.com/pt/comprimir_pdf\n(Dica: Escolha "Boa Compressão" ou "Compressão Extrema").`);
       e.target.value = '';
       return;
     }
@@ -8056,7 +8056,7 @@ goniometria: {
                               Instrução importante antes de anexar:
                             </div>
                             <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '2px', lineHeight: '1.4' }}>
-                              Para que o laudo abra rápido e sem erros, o arquivo deve ter <strong>até 1.2 MB</strong>. Se tiver fotos pesadas, comprima gratuitamente antes de enviar:
+                              Para que o laudo abra rápido e sem erros, o arquivo deve ter <strong>até 1.2 MB</strong>. Se tiver fotos pesadas, comprima o arquivo antes de enviar:
                             </div>
                           </div>
                         </div>
@@ -9623,7 +9623,7 @@ goniometria: {
                               Instrução importante antes de anexar:
                             </div>
                             <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '2px', lineHeight: '1.4' }}>
-                              Para garantir envio rápido e geração do relatório sem falhas, comprima seu PDF gratuitamente se o arquivo for pesado:
+                              Para garantir envio rápido e geração do relatório sem falhas, comprima seu PDF se o arquivo for pesado:
                             </div>
                           </div>
                         </div>
