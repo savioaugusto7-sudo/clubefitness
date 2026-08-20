@@ -616,18 +616,18 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
     <div className="content-panel" style={{ padding: '24px' }}>
       
       {/* Abas Superiores de Filtro */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <button 
           className={`btn ${activeTab === 'academia' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('academia')}
-          style={{ fontSize: '0.85rem' }}
+          style={{ fontSize: '0.78rem', padding: '6px 14px', borderRadius: '8px' }}
         >
-          <i className="fa-solid fa-dumbbell" style={{ marginRight: '6px' }}></i> Academia
+          <i className="fa-solid fa-dumbbell" style={{ marginRight: '5px' }}></i> Academia
         </button>
 
 
         {/* Divisor */}
-        <div style={{ width: '1px', background: 'var(--border-color)', margin: '0 8px' }}></div>
+        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 4px' }}></div>
 
         {/* Abas dos Profissionais */}
         {professionals.map(p => (
@@ -635,9 +635,9 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
             key={p._id}
             className={`btn ${activeTab === p._id ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab(p._id)}
-            style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ fontSize: '0.76rem', padding: '5px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}
           >
-            <i className="fa-brands fa-google" style={{ color: p.googleTokens?.refreshToken ? '#10b981' : '#ef4444', fontSize: '0.75rem' }}></i>
+            <i className="fa-brands fa-google" style={{ color: p.googleTokens?.refreshToken ? '#10b981' : '#ef4444', fontSize: '0.72rem' }}></i>
             <span>{p.nome}</span>
           </button>
         ))}
