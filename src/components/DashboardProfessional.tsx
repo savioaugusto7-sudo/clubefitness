@@ -6715,8 +6715,8 @@ goniometria: {
 
       {/* 3. Physical Assessment Modal */}
       {showAssessmentModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-overlay" style={{ padding: '20px 10px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1150px', width: '96%', background: 'var(--bg-card, #1e293b)' }}>
             <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <h3 style={{ margin: 0 }}>Nova Avaliação Física Fisioterapêutica</h3>
@@ -8266,8 +8266,8 @@ goniometria: {
 
       {/* 4. Physiotherapy Report Modal */}
       {showReportModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
-          <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-overlay" style={{ padding: '20px 10px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1150px', width: '96%', background: 'var(--bg-card, #1e293b)' }}>
             <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <h3 style={{ margin: 0 }}>Novo Relatório Fisioterápico</h3>
@@ -9868,8 +9868,8 @@ goniometria: {
 
       {/* 5. Strength Test Modal */}
       {showStModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--bg-main, #0f172a)', zIndex: 9999, overflowY: 'auto', display: 'block', padding: '24px 0' }}>
-          <div className="modal-content" style={{ maxWidth: '1200px', width: '95%', margin: '0 auto', background: 'var(--bg-card, #1e293b)', minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-overlay" style={{ padding: '20px 10px' }}>
+          <div className="modal-content" style={{ maxWidth: '1150px', width: '96%', background: 'var(--bg-card, #1e293b)' }}>
             <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <h3 style={{ margin: 0 }}>Registrar Teste de Força Muscular</h3>
