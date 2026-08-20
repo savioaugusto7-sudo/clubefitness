@@ -9,18 +9,30 @@ const normalizeText = (str: string) => {
     .toLowerCase();
 };
 
-const COMBINATION_GROUPS = [
-  { id: '', label: 'Individual', color: 'transparent', textColor: '#94a3b8' },
-  { id: 'G1', label: 'G1 (Verde)', color: '#10b981', textColor: '#ffffff' },
-  { id: 'G2', label: 'G2 (Laranja)', color: '#f97316', textColor: '#ffffff' },
-  { id: 'G3', label: 'G3 (Ciano)', color: '#06b6d4', textColor: '#ffffff' },
-  { id: 'G4', label: 'G4 (Roxo)', color: '#a855f7', textColor: '#ffffff' },
-  { id: 'G5', label: 'G5 (Amarelo)', color: '#eab308', textColor: '#000000' },
+const GROUP_PALETTE = [
+  { color: '#10b981', name: 'Verde' },
+  { color: '#f97316', name: 'Laranja' },
+  { color: '#06b6d4', name: 'Ciano' },
+  { color: '#a855f7', name: 'Roxo' },
+  { color: '#eab308', name: 'Amarelo' },
+  { color: '#ec4899', name: 'Rosa' },
+  { color: '#3b82f6', name: 'Azul' },
+  { color: '#14b8a6', name: 'Teal' },
+  { color: '#f43f5e', name: 'Rose' },
+  { color: '#84cc16', name: 'Lime' },
+  { color: '#6366f1', name: 'Indigo' },
+  { color: '#d946ef', name: 'Fuchsia' },
+  { color: '#0ea5e9', name: 'Sky' }
 ];
 
 const getGroupColor = (groupName: string) => {
-  const found = COMBINATION_GROUPS.find(g => g.id === groupName);
-  return found?.color || 'transparent';
+  if (!groupName) return 'transparent';
+  const match = groupName.match(/^G(\d+)$/i);
+  if (match) {
+    const idx = parseInt(match[1], 10) - 1;
+    return GROUP_PALETTE[idx % GROUP_PALETTE.length]?.color || '#10b981';
+  }
+  return '#10b981';
 };
 
 const TECHNIQUE_PRESETS = [
@@ -181,12 +193,54 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
   const muscles = ['Todos', 'Peito', 'Costas', 'Pernas', 'Ombros', 'Braços', 'Core', 'Cardio'];
 
   const filteredExercises = useMemo(() => {
-    return exercises.filter(ex => {
-      const g = ex.grupo || ex.grupo_muscular || 'Geral';
-      const matchMuscle = selectedMuscle === 'Todos' || normalizeText(g) === normalizeText(selectedMuscle);
-      const matchSearch = !search.trim() || normalizeText(ex.nome).includes(normalizeText(search)) || normalizeText(g).includes(normalizeText(search));
-      return matchMuscle && matchSearch;
-    });
+    const rawSearch = normalizeText(search).trim();
+    const stopWords = new Set(['no', 'na', 'nos', 'nas', 'de', 'da', 'do', 'dos', 'das', 'em', 'com', 'e', 'a', 'o', 'as', 'os']);
+    
+    const searchTokens = rawSearch
+      ? rawSearch.split(/\s+/).filter(t => t.length > 0 && !stopWords.has(t))
+      : [];
+
+    return exercises
+      .filter(ex => {
+        const g = ex.grupo || ex.grupo_muscular || 'Geral';
+        const matchMuscle = selectedMuscle === 'Todos' || normalizeText(g) === normalizeText(selectedMuscle);
+        if (!matchMuscle) return false;
+        if (searchTokens.length === 0) return true;
+
+        const exNomeNorm = normalizeText(ex.nome);
+        const exGrupoNorm = normalizeText(g);
+        const fullText = `${exNomeNorm} ${exGrupoNorm}`;
+
+        // 1. Match contíguo completo
+        if (exNomeNorm.includes(rawSearch) || fullText.includes(rawSearch)) return true;
+
+        // 2. Todos os tokens presentes
+        const matchesAllTokens = searchTokens.every(token => fullText.includes(token));
+        if (matchesAllTokens) return true;
+
+        // 3. Pelo menos 1 token presente para buscas com múltiplos termos
+        if (searchTokens.length > 1) {
+          const matchedCount = searchTokens.filter(token => fullText.includes(token)).length;
+          return matchedCount >= 1;
+        }
+
+        return false;
+      })
+      .sort((a, b) => {
+        if (searchTokens.length === 0) return 0;
+        const aNome = normalizeText(a.nome);
+        const bNome = normalizeText(b.nome);
+        const aFull = `${aNome} ${normalizeText(a.grupo || a.grupo_muscular || '')}`;
+        const bFull = `${bNome} ${normalizeText(b.grupo || b.grupo_muscular || '')}`;
+
+        const aExact = aNome.startsWith(rawSearch) ? 100 : (aNome.includes(rawSearch) ? 80 : 0);
+        const bExact = bNome.startsWith(rawSearch) ? 100 : (bNome.includes(rawSearch) ? 80 : 0);
+
+        const aTokenScore = searchTokens.reduce((acc, t) => acc + (aFull.includes(t) ? 20 : 0), 0);
+        const bTokenScore = searchTokens.reduce((acc, t) => acc + (bFull.includes(t) ? 20 : 0), 0);
+
+        return (bExact + bTokenScore) - (aExact + aTokenScore);
+      });
   }, [exercises, selectedMuscle, search]);
 
   const addToWorkout = (ex: any) => {
@@ -724,8 +778,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
                   transition: 'all 0.2s'
                 }}
               >
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div 
+                    style={{ 
+                      fontWeight: 700, 
+                      fontSize: '0.86rem', 
+                      color: '#f1f5f9', 
+                      whiteSpace: 'normal', 
+                      wordBreak: 'break-word', 
+                      lineHeight: '1.35' 
+                    }}
+                    title={ex.nome}
+                  >
                     {ex.nome}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginTop: '2px' }}>
@@ -1157,27 +1221,49 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
                         </div>
 
                         <div>
-                          <select
-                            value={item.combinaGrupo || ''}
-                            onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '4px 6px',
-                              borderRadius: '6px',
-                              border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
-                              background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
-                              color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
-                              fontSize: '0.74rem',
-                              fontWeight: 800,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {COMBINATION_GROUPS.map(g => (
-                              <option key={g.id} value={g.id} style={{ background: '#0d1322', color: '#fff' }}>
-                                {g.label}
-                              </option>
-                            ))}
-                          </select>
+                          {(() => {
+                            const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
+                            let maxGroupNum = 0;
+                            usedGroups.forEach((g: string) => {
+                              const match = g.match(/^G(\d+)$/i);
+                              if (match) {
+                                const num = parseInt(match[1], 10);
+                                if (num > maxGroupNum) maxGroupNum = num;
+                              }
+                            });
+                            const dynamicOptions = [
+                              { id: '', label: 'Individual' },
+                              ...Array.from({ length: Math.max(1, maxGroupNum + 1) }, (_, i) => {
+                                const id = `G${i + 1}`;
+                                const p = GROUP_PALETTE[i % GROUP_PALETTE.length];
+                                return { id, label: `${id} (${p.name})` };
+                              })
+                            ];
+
+                            return (
+                              <select
+                                value={item.combinaGrupo || ''}
+                                onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
+                                style={{
+                                  width: '100%',
+                                  padding: '4px 6px',
+                                  borderRadius: '6px',
+                                  border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
+                                  background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
+                                  color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {dynamicOptions.map(g => (
+                                  <option key={g.id} value={g.id} style={{ background: '#0d1322', color: '#fff' }}>
+                                    {g.label}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          })()}
                         </div>
 
                         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>

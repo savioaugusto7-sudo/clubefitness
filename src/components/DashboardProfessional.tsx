@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useTransition } from 'react';
+import React, { useEffect, useState, useRef, useTransition, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
@@ -3927,12 +3927,55 @@ goniometria: {
     return matchesSearch && matchesStatus && matchesPlan;
   });
 
-  const filteredExercises = exercises.filter(ex => {
-    if (ex.status === 'pending') return false;
-    const matchesSearch = normalizeText(ex.nome).includes(normalizeText(exerciseSearch));
-    const matchesGroup = exerciseGroup ? ex.grupo === exerciseGroup : true;
-    return matchesSearch && matchesGroup;
-  });
+  const filteredExercises = useMemo(() => {
+    const rawSearch = normalizeText(exerciseSearch).trim();
+    const stopWords = new Set(['no', 'na', 'nos', 'nas', 'de', 'da', 'do', 'dos', 'das', 'em', 'com', 'e', 'a', 'o', 'as', 'os']);
+    
+    const searchTokens = rawSearch
+      ? rawSearch.split(/\s+/).filter(t => t.length > 0 && !stopWords.has(t))
+      : [];
+
+    return exercises
+      .filter(ex => {
+        if (ex.status === 'pending') return false;
+        if (exerciseGroup && ex.grupo !== exerciseGroup) return false;
+        if (searchTokens.length === 0) return true;
+
+        const exNomeNorm = normalizeText(ex.nome);
+        const exGrupoNorm = normalizeText(ex.grupo || '');
+        const fullText = `${exNomeNorm} ${exGrupoNorm}`;
+
+        // 1. Se contém a busca completa contígua
+        if (exNomeNorm.includes(rawSearch) || fullText.includes(rawSearch)) return true;
+
+        // 2. Se contém TODAS as palavras-chave da busca (em qualquer ordem)
+        const matchesAllTokens = searchTokens.every(token => fullText.includes(token));
+        if (matchesAllTokens) return true;
+
+        // 3. Se a busca tem mais de 1 termo, aceita se tiver pelo menos 1 termo principal
+        if (searchTokens.length > 1) {
+          const matchedCount = searchTokens.filter(token => fullText.includes(token)).length;
+          return matchedCount >= 1;
+        }
+
+        return false;
+      })
+      .sort((a, b) => {
+        if (searchTokens.length === 0) return 0;
+        const aNome = normalizeText(a.nome);
+        const bNome = normalizeText(b.nome);
+        const aFull = `${aNome} ${normalizeText(a.grupo || '')}`;
+        const bFull = `${bNome} ${normalizeText(b.grupo || '')}`;
+
+        const aExact = aNome.startsWith(rawSearch) ? 100 : (aNome.includes(rawSearch) ? 80 : 0);
+        const bExact = bNome.startsWith(rawSearch) ? 100 : (bNome.includes(rawSearch) ? 80 : 0);
+
+        const aTokenScore = searchTokens.reduce((acc, t) => acc + (aFull.includes(t) ? 20 : 0), 0);
+        const bTokenScore = searchTokens.reduce((acc, t) => acc + (bFull.includes(t) ? 20 : 0), 0);
+
+        return (bExact + bTokenScore) - (aExact + aTokenScore);
+      });
+  }, [exercises, exerciseSearch, exerciseGroup]);
 
   return (
     <div>
@@ -5140,34 +5183,49 @@ goniometria: {
                       const list = editingWorkoutData[activeWorkoutCategory] || [];
                       const sheet = list.find((f: any) => f.id === activeWorkoutSubTab) || { nome: '', observacoesGerais: '', exercicios: [] };
                       
+                      const GROUP_COLORS = [
+                        '#10b981', // Verde esmeralda (G1)
+                        '#f97316', // Laranja (G2)
+                        '#06b6d4', // Ciano (G3)
+                        '#a855f7', // Roxo (G4)
+                        '#eab308', // Amarelo (G5)
+                        '#ec4899', // Rosa (G6)
+                        '#3b82f6', // Azul (G7)
+                        '#14b8a6', // Teal (G8)
+                        '#f43f5e', // Rose (G9)
+                        '#84cc16', // Lime (G10)
+                        '#6366f1', // Indigo (G11)
+                        '#d946ef', // Fuchsia (G12)
+                        '#0ea5e9'  // Sky (G13)
+                      ];
+
                       const getGroupColor = (groupName: string) => {
                         if (!groupName) return '';
-                        const uniqueGroups = Array.from(
-                          new Set(sheet.exercicios?.map((e: any) => e.combinaGrupo).filter(Boolean) as string[])
-                        ).sort();
-                        const index = uniqueGroups.indexOf(groupName);
-                        if (index === -1) return '#10b981';
-                        const GROUP_COLORS = [
-                          '#10b981', // Green
-                          '#f59e0b', // Orange
-                          '#a855f7', // Purple
-                          '#3b82f6', // Blue
-                          '#ec4899', // Pink
-                          '#06b6d4', // Cyan
-                          '#f43f5e', // Rose
-                          '#84cc16', // Lime
-                          '#eab308', // Yellow
-                          '#6366f1'  // Indigo
-                        ];
-                        return GROUP_COLORS[index % GROUP_COLORS.length];
+                        const match = groupName.match(/^G(\d+)$/i);
+                        if (match) {
+                          const idx = parseInt(match[1], 10) - 1;
+                          return GROUP_COLORS[idx % GROUP_COLORS.length];
+                        }
+                        return '#10b981';
                       };
 
-                      const groupSuggestions = Array.from(
-                        new Set([
-                          'G1', 'G2', 'G3', 'G4', 'G5',
-                          ...(sheet.exercicios?.map((e: any) => e.combinaGrupo).filter(Boolean) as string[])
-                        ])
-                      ).sort();
+                      const usedGroups = (sheet.exercicios?.map((e: any) => e.combinaGrupo).filter(Boolean) as string[]) || [];
+                      let maxGroupNum = 0;
+                      usedGroups.forEach(g => {
+                        const match = g.match(/^G(\d+)$/i);
+                        if (match) {
+                          const num = parseInt(match[1], 10);
+                          if (num > maxGroupNum) maxGroupNum = num;
+                        }
+                      });
+
+                      const targetCount = Math.max(1, maxGroupNum + 1);
+                      const dynamicGroups = Array.from({ length: targetCount }, (_, i) => `G${i + 1}`);
+                      const groupSuggestions = Array.from(new Set([...dynamicGroups, ...usedGroups])).sort((a, b) => {
+                        const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+                        const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+                        return numA - numB;
+                      });
 
                       return (
                         <div>
@@ -5222,11 +5280,11 @@ goniometria: {
                                   const rowStyle = groupColor ? { borderLeft: `4px solid ${groupColor}`, background: 'rgba(255, 255, 255, 0.015)' } : {};
                                   return (
                                     <tr key={idx} style={rowStyle}>
-                                      <td data-label="Exercício">
+                                      <td data-label="Exercício" style={{ minWidth: '180px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <strong>{ex.exercicioId}</strong>
+                                          <strong style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.3' }}>{ex.exercicioId}</strong>
                                           {ex.combinaGrupo && (
-                                            <span style={{ fontSize: '0.65rem', color: '#fff', background: groupColor, padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                            <span style={{ fontSize: '0.65rem', color: '#fff', background: groupColor, padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
                                               {ex.combinaGrupo}
                                             </span>
                                           )}
@@ -5310,29 +5368,66 @@ goniometria: {
                   </div>
 
                   {/* Right Column: Fast Exercise Add Selector */}
-                  <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '20px' }}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '12px' }}>Adicionar Exercício</h3>
-                    <input type="text" className="form-control" style={{ marginBottom: '12px', height: '34px', fontSize: '0.8rem' }} placeholder="Buscar..." value={exerciseSearch} onChange={e => setExerciseSearch(e.target.value)} />
-                    <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '20px', width: '340px', minWidth: '300px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h3 style={{ fontSize: '1rem', margin: 0 }}>Adicionar Exercício</h3>
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '100px', color: 'var(--text-dim)' }}>
+                        {filteredExercises.length} disponíveis
+                      </span>
+                    </div>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      style={{ marginBottom: '12px', height: '36px', fontSize: '0.82rem' }} 
+                      placeholder="Buscar por nome ou grupo..." 
+                      value={exerciseSearch} 
+                      onChange={e => setExerciseSearch(e.target.value)} 
+                    />
+                    <div style={{ maxHeight: '460px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
                       {filteredExercises.map(ex => (
                         <div key={ex._id} style={{
-                          padding: '10px',
+                          padding: '10px 12px',
                           background: 'rgba(255, 255, 255, 0.02)',
                           border: '1px solid var(--border-color)',
                           borderRadius: '8px',
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          gap: '10px'
                         }}>
-                          <div style={{ overflow: 'hidden' }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ex.nome}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>{ex.grupo}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div 
+                              style={{ 
+                                fontSize: '0.82rem', 
+                                fontWeight: 700, 
+                                color: 'var(--text-main)', 
+                                whiteSpace: 'normal', 
+                                wordBreak: 'break-word', 
+                                lineHeight: '1.35' 
+                              }}
+                              title={ex.nome}
+                            >
+                              {ex.nome}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                              {ex.grupo || 'Geral'}
+                            </div>
                           </div>
-                          <button className="btn btn-primary btn-sm" style={{ padding: '4px 8px', fontSize: '0.7rem' }} onClick={() => handleAddExerciseToWorkout(ex.nome)}>
+                          <button 
+                            className="btn btn-primary btn-sm" 
+                            style={{ padding: '6px 10px', fontSize: '0.75rem', flexShrink: 0 }} 
+                            title={`Adicionar ${ex.nome} à ficha`}
+                            onClick={() => handleAddExerciseToWorkout(ex.nome)}
+                          >
                             <i className="fa-solid fa-plus"></i>
                           </button>
                         </div>
                       ))}
+                      {filteredExercises.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-dim)', fontSize: '0.82rem' }}>
+                          Nenhum exercício encontrado para "<strong>{exerciseSearch}</strong>".
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
