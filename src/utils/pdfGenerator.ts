@@ -1424,6 +1424,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const testesEspeciais = dadosMedidos.testesEspeciais || {};
   const circunferencias = dadosMedidos.circunferencias || {};
   const dobras = dadosMedidos.dobras || {};
+  const saudeGeral = dadosMedidos.saudeGeral || {};
 
   let maigneObj = { flexao: 25, flexaoEVA: 0, extensao: 25, extensaoEVA: 0, inclinacaoD: 25, inclinacaoDEVA: 0, inclinacaoE: 25, inclinacaoEEVA: 0, rotacaoD: 25, rotacaoDEVA: 0, rotacaoE: 25, rotacaoEEVA: 0, observacoes: '' };
   let hasMaigneData = false;
@@ -2264,26 +2265,26 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
               <!-- RCQ -->
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px; text-align:center;">
                 <span style="font-size:7.5px; color:#64748b; font-weight:600; text-transform:uppercase;">RCQ</span>
-                <div style="font-size:14px; font-weight:700; color:#0f172a; margin: 1px 0;">${(Number(assessment.resultadosCalculados?.rcq) || 0).toFixed(2)}</div>
-                <div class="metric-badge ${assessment.resultadosCalculados.rcqClassificacao.includes('Alto') ? 'badge-red' : (assessment.resultadosCalculados.rcqClassificacao.includes('Moderado') ? 'badge-orange' : 'badge-green')}" style="font-size: 6px; padding: 1px 4px;">
-                  ${assessment.resultadosCalculados.rcqClassificacao}
+                <div style="font-size:14px; font-weight:700; color:#0f172a; margin: 1px 0;">${rcq.toFixed(2)}</div>
+                <div class="metric-badge ${(rcqClassification || '').includes('Alto') ? 'badge-red' : ((rcqClassification || '').includes('Moderado') ? 'badge-orange' : 'badge-green')}" style="font-size: 6px; padding: 1px 4px;">
+                  ${rcqClassification || 'Baixo Risco'}
                 </div>
-                <div style="font-size:6.5px; color:#94a3b8; margin-top:4px;">Ideal homens: ${refRCQ}</div>
+                <div style="font-size:6.5px; color:#94a3b8; margin-top:4px;">Ideal ${currentSex === 'M' ? 'homens' : 'mulheres'}: ${refRCQ}</div>
               </div>
               <!-- Saúde Geral -->
               <table style="width:100%; font-size:7.5px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Sono</td><td style="font-weight:600; text-align:right;">${assessment.dadosMedidos.saudeGeral?.sono || '7-8h'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Ativ. Física</td><td style="font-weight:600; text-align:right; color:#15803d;">${assessment.dadosMedidos.saudeGeral?.atividadeFisica || '4x/sem'} ✓</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Sono</td><td style="font-weight:600; text-align:right;">${saudeGeral.sono || '7-8h'}</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:2.5px 0;">Ativ. Física</td><td style="font-weight:600; text-align:right; color:#15803d;">${saudeGeral.atividadeFisica || '4x/sem'} ✓</td></tr>
               </table>
             </div>
 
             <div style="border-left:1px solid #f1f5f9; padding-left:10px;">
               <span style="font-size:7.5px; color:#64748b; font-weight:600; text-transform:uppercase; display:block; margin-bottom:4px;">Análise Clínica complementar</span>
               <table style="width:100%; font-size:7.5px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Nutrição</td><td style="text-align:right; font-weight:600; color:#15803d;">${assessment.dadosMedidos.saudeGeral?.nutricao || 'Adequada'} ✓</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Medicamentos</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.saudeGeral?.medicamentos || 'Nenhum'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Cirurgias</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.saudeGeral?.cirurgias || 'Nenhuma'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Queixas</td><td style="text-align:right; font-weight:600;">${assessment.dadosMedidos.saudeGeral?.queixas || 'Nenhuma'}</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Nutrição</td><td style="text-align:right; font-weight:600; color:#15803d;">${saudeGeral.nutricao || 'Adequada'} ✓</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Medicamentos</td><td style="text-align:right; font-weight:600;">${saudeGeral.medicamentos || 'Nenhum'}</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Cirurgias</td><td style="text-align:right; font-weight:600;">${saudeGeral.cirurgias || 'Nenhuma'}</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Queixas</td><td style="text-align:right; font-weight:600;">${saudeGeral.queixas || 'Nenhuma'}</td></tr>
               </table>
             </div>
           </div>

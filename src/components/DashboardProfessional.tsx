@@ -5640,13 +5640,18 @@ goniometria: {
                                       logPdfDownload('Laudo de Avaliação Física', as.clienteId?._id || as.clienteId, as.clienteId?.dadosPessoais?.nome || 'Aluno', as.data);
                                       let fullAs = as;
                                       try {
-                                        const res = await fetch(`/api/assessments?id=${as._id}`, { cache: 'no-store' });
-                                        const json = await res.json();
-                                        if (json?.success && json.data) {
-                                          fullAs = json.data;
+                                        const controller = new AbortController();
+                                        const timeoutId = setTimeout(() => controller.abort(), 3500);
+                                        const res = await fetch(`/api/assessments?id=${as._id}`, { cache: 'no-store', signal: controller.signal });
+                                        clearTimeout(timeoutId);
+                                        if (res.ok) {
+                                          const json = await res.json();
+                                          if (json?.success && json.data) {
+                                            fullAs = json.data;
+                                          }
                                         }
                                       } catch (fetchErr) {
-                                        console.warn('Fallback to local assessment object:', fetchErr);
+                                        console.warn('Using local assessment object for PDF generation:', fetchErr);
                                       }
 
                                       // Hydrate real client & professional data for proper PDF header and filename
@@ -5668,8 +5673,9 @@ goniometria: {
                                       });
 
                                       await downloadAssessmentPDF(fullAs, hydratedAssessments);
-                                    } catch (err) {
+                                    } catch (err: any) {
                                       console.error('Error generating assessment PDF:', err);
+                                      alert('Erro ao gerar Laudo PDF: ' + (err?.message || 'Tente novamente'));
                                     } finally {
                                       setGeneratingPdfId(null);
                                     }
