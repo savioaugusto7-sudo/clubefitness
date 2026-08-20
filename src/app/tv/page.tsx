@@ -82,7 +82,8 @@ function getTVActiveBdayClients(clients: any[], appointments: any[], selectedDat
 }
 
 export default function TVDashboard() {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [isMounted, setIsMounted] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [themeColor, setThemeColor] = useState('#10b981');
@@ -106,8 +107,11 @@ export default function TVDashboard() {
 
   // Set initial simulation dates and check Spotify token from hash
   useEffect(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const hourStr = new Date().getHours().toString().padStart(2, '0') + ':00';
+    setIsMounted(true);
+    const now = new Date();
+    setCurrentTime(now);
+    const todayStr = now.toISOString().split('T')[0];
+    const hourStr = now.getHours().toString().padStart(2, '0') + ':00';
     setTvSelectedDate(todayStr);
     setTvSelectedTime(hourStr);
 
@@ -491,12 +495,14 @@ export default function TVDashboard() {
             <div className="tv-header-tagline">Gestão Inteligente de Saúde e Treino</div>
           </div>
         </div>
-        <div className="tv-header-datetime">
-          <div className="tv-date">
-            <div className="tv-date-weekday">{weekdayStr}</div>
-            <div className="tv-date-day">{dayStr}</div>
+        <div className="tv-header-datetime" suppressHydrationWarning>
+          <div className="tv-date" suppressHydrationWarning>
+            <div className="tv-date-weekday" suppressHydrationWarning>{isMounted ? weekdayStr : '---'}</div>
+            <div className="tv-date-day" suppressHydrationWarning>{isMounted ? dayStr : '---'}</div>
           </div>
-          <div className="tv-clock">{currentTime.toLocaleTimeString('pt-BR')}</div>
+          <div className="tv-clock" suppressHydrationWarning>
+            {isMounted && currentTime ? currentTime.toLocaleTimeString('pt-BR') : '--:--:--'}
+          </div>
         </div>
       </div>
 
