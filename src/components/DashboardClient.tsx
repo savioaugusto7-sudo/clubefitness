@@ -135,7 +135,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   const setPage = (key: string, page: number) => {
     setPages(prev => ({ ...prev, [key]: page }));
   };
-  const getPageSize = (key: string) => pageSize[key] || 8;
+  const getPageSize = (key: string) => pageSize[key] || 30;
   const setPageSizeForKey = (key: string, size: number) => {
     setPageSize(prev => ({ ...prev, [key]: size }));
     setPage(key, 1);
@@ -995,16 +995,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 </h1>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Histórico e acompanhamento de agendamentos futuros.</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  <span>Exibir:</span>
-                  <select value={getPageSize('appointments')} onChange={e => setPageSizeForKey('appointments', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
-                    <option value={6}>6</option>
-                    <option value={12}>12</option>
-                    <option value={24}>24</option>
-                  </select>
-                </div>
-              </div>
+
             </div>
 
             {(() => {
@@ -1274,18 +1265,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acompanhe seu progresso de peso, percentual de gordura, força e medidas corporais.</p>
             </div>
-            {assessments.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  <span>Exibir:</span>
-                  <select value={getPageSize('assessments')} onChange={e => setPageSizeForKey('assessments', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
-                    <option value={5}>5</option>
-                    <option value={8}>8</option>
-                    <option value={15}>15</option>
-                  </select>
-                </div>
-              </div>
-            )}
+
           </div>
 
           {assessments.length > 0 ? (
@@ -2331,18 +2311,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
               </h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Acesse e baixe seus laudos de fisioterapia e relatórios de avaliações físicas.</p>
             </div>
-            {(assessments.length > 0 || reports.length > 0 || strengthTests.length > 0) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  <span>Exibir:</span>
-                  <select value={getPageSize('documents')} onChange={e => setPageSizeForKey('documents', Number(e.target.value))} style={{ background: 'rgba(14, 19, 31, 0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text-main)' }}>
-                    <option value={6}>6</option>
-                    <option value={12}>12</option>
-                    <option value={24}>24</option>
-                  </select>
-                </div>
-              </div>
-            )}
+
           </div>
 
           <div className="content-panel" style={{ 

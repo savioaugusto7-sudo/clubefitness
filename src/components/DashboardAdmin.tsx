@@ -7,6 +7,7 @@ import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contract
 import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import { smartSearchMatch } from '@/utils/smartSearch';
+import SmartSearchInput from './SmartSearchInput';
 import GestaoContratosPanel from './GestaoContratosPanel';
 import AsaasPanel from './AsaasPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
@@ -101,7 +102,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setPages(prev => ({ ...prev, [key]: page }));
   };
 
-  const getPageSize = (key: string) => pageSize[key] || 8;
+  const getPageSize = (key: string) => pageSize[key] || 30;
   const setPageSizeForKey = (key: string, size: number) => {
     setPageSize(prev => ({ ...prev, [key]: size }));
     setPage(key, 1);
@@ -1260,7 +1261,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     });
 
     return groupedList.filter((group: any) => {
-      const matchesSearch = normalizeText(group.clientNome).includes(normalizeText(paymentsSearch));
+      const matchesSearch = smartSearchMatch([group.clientNome, group.planoNome], paymentsSearch);
       
       // Map 'Pendente' filter choice to consolidated status 'Em Dia'
       let targetStatus = paymentsStatusFilter;
@@ -2151,14 +2152,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             <div className="panel-header">
               <h2>Acompanhamento de Frequência Contratada</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
-                  <span>Exibir:</span>
-                  <select value={getPageSize('dashboard_freq')} onChange={e => setPageSizeForKey('dashboard_freq', Number(e.target.value))}>
-                    <option value={5}>5</option>
-                    <option value={8}>8</option>
-                    <option value={15}>15</option>
-                  </select>
-                </div>
                 <span style={{ fontSize: '0.75rem', background: 'var(--color-primary)', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
                   Frequência Semanal (Seg-Sex)
                 </span>
@@ -2283,55 +2276,51 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       )}
 
       {/* 2. View: Profissionais */}
-      {activeTab === 'profissionais' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Gestão de Profissionais</h1>
-              <p>Cadastre e gerencie a equipe do Clube Fitness Fisio.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('profissionais')} onChange={e => setPageSizeForKey('profissionais', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'profissionais' && (() => {
+        const listKey = 'profissionais';
+        const q = getSearchQuery(listKey);
+        const filtered = professionals.filter(p => smartSearchMatch([p.nome, p.especialidade, p.registro, p.userId?.email], q));
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Gestão de Profissionais</h1>
+                <p>Cadastre e gerencie a equipe do Clube Fitness Fisio.</p>
               </div>
-              <button className="btn btn-primary" onClick={() => handleOpenProfModal()}>
-                <i className="fa-solid fa-plus"></i> Novo Profissional
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('profissionais', val)}
+                  placeholder="Buscar profissional..."
+                  resultCount={filtered.length}
+                  totalCount={professionals.length}
+                />
+                <button className="btn btn-primary" onClick={() => handleOpenProfModal()}>
+                  <i className="fa-solid fa-plus"></i> Novo Profissional
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar profissional..." value={getSearchQuery('profissionais')} onChange={e => setSearchQueryForKey('profissionais', e.target.value)} style={{ maxWidth: '300px' }} />
-            </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Especialidade</th>
-                    <th>Registro Profissional</th>
-                    <th>Email de Acesso</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'profissionais';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = professionals.filter(p => normalizeText(p.nome).includes(q) || normalizeText(p.userId?.email).includes(q));
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                    return paginated.map(p => (
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Especialidade</th>
+                      <th>Registro Profissional</th>
+                      <th>Email de Acesso</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.map(p => (
                       <tr key={p._id}>
                         <td><strong>{p.nome}</strong></td>
                         <td><span className="badge badge-info">{p.especialidade}</span></td>
@@ -2346,333 +2335,286 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </button>
                         </td>
                       </tr>
-                    ));
-                  })()}
-                  {professionals.length === 0 && (
-                    <tr>
-                      <td colSpan={6}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-user-doctor empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum profissional cadastrado</div>
-                          <div className="empty-state-desc">Não há profissionais ou fisioterapeutas cadastrados no sistema.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenProfModal()}>
-                            <i className="fa-solid fa-plus"></i> Novo Profissional
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                    {professionals.length === 0 && (
+                      <tr>
+                        <td colSpan={6}>
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-user-doctor empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum profissional cadastrado</div>
+                            <div className="empty-state-desc">Não há profissionais ou fisioterapeutas cadastrados no sistema.</div>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenProfModal()}>
+                              <i className="fa-solid fa-plus"></i> Novo Profissional
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('profissionais', page)}
+                  />
+                </div>
+              )}
             </div>
-            {professionals.length > 0 && (
-              <Pagination
-                currentPage={getPage('profissionais')}
-                totalItems={professionals.length}
-                itemsPerPage={getPageSize('profissionais')}
-                onPageChange={page => setPage('profissionais', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 2.5. View: Vincular Alunos */}
-      {activeTab === 'vincular_alunos' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Vincular Alunos a Profissionais</h1>
-              <p>Associe cada aluno ao profissional de saúde responsável.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('vincular_alunos')} onChange={e => setPageSizeForKey('vincular_alunos', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'vincular_alunos' && (() => {
+        const listKey = 'vincular_alunos';
+        const q = getSearchQuery(listKey);
+        const filtered = clients.filter(c => 
+          smartSearchMatch([c.dadosPessoais?.nome, c.dadosPessoais?.email, c.dadosPessoais?.cpf, c.dadosPessoais?.telefone], q)
+        );
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Vincular Alunos a Profissionais</h1>
+                <p>Associe cada aluno ao profissional de saúde responsável.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('vincular_alunos', val)}
+                  placeholder="Buscar aluno por nome, CPF ou email..."
+                  resultCount={filtered.length}
+                  totalCount={clients.length}
+                />
               </div>
             </div>
-          </div>
-          <div className="content-panel">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar aluno..."
-                value={getSearchQuery('vincular_alunos')}
-                onChange={e => setSearchQueryForKey('vincular_alunos', e.target.value)}
-                style={{ maxWidth: '300px' }}
-              />
-            </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Aluno</th>
-                    <th>Plano Ativo</th>
-                    <th>Profissional Responsável</th>
-                    <th>Status de Salvamento</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'vincular_alunos';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = clients.filter(c => 
-                      normalizeText(c.dadosPessoais?.nome).includes(q) || 
-                      normalizeText(c.dadosPessoais?.email).includes(q)
-                    );
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Aluno</th>
+                      <th>Plano Ativo</th>
+                      <th>Profissional Responsável</th>
+                      <th>Status de Salvamento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
+                          Nenhum aluno encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginated.map(c => {
+                        const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+                        const currentProfId = c.profissionalId?._id || c.profissionalId || '';
+                        const saveStatus = savingClientProf[c._id];
 
-                    if (paginated.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
-                            Nenhum aluno encontrado.
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    return (
-                      <>
-                        {paginated.map(c => {
-                          const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
-                          const currentProfId = c.profissionalId?._id || c.profissionalId || '';
-                          const saveStatus = savingClientProf[c._id];
-
-                          const handleProfChange = async (profId: string) => {
-                            setSavingClientProf(prev => ({ ...prev, [c._id]: 'salvando' }));
-                            try {
-                              const res = await fetch('/api/clients', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  id: c._id,
-                                  profissionalId: profId || null
-                                })
-                              });
-                              const data = await res.json();
-                              if (data.success) {
-                                setClients(prev => prev.map(item => item._id === c._id ? { ...item, profissionalId: profId || null } : item));
-                                setSavingClientProf(prev => ({ ...prev, [c._id]: 'salvo' }));
-                                setTimeout(() => {
-                                  setSavingClientProf(prev => {
-                                    const copy = { ...prev };
-                                    delete copy[c._id];
-                                    return copy;
-                                  });
-                                }, 2000);
-                              } else {
-                                setSavingClientProf(prev => ({ ...prev, [c._id]: 'erro' }));
-                              }
-                            } catch (e) {
+                        const handleProfChange = async (profId: string) => {
+                          setSavingClientProf(prev => ({ ...prev, [c._id]: 'salvando' }));
+                          try {
+                            const res = await fetch('/api/clients', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                id: c._id,
+                                profissionalId: profId || null
+                              })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setClients(prev => prev.map(item => item._id === c._id ? { ...item, profissionalId: profId || null } : item));
+                              setSavingClientProf(prev => ({ ...prev, [c._id]: 'salvo' }));
+                              setTimeout(() => {
+                                setSavingClientProf(prev => {
+                                  const copy = { ...prev };
+                                  delete copy[c._id];
+                                  return copy;
+                                });
+                              }, 2000);
+                            } else {
                               setSavingClientProf(prev => ({ ...prev, [c._id]: 'erro' }));
                             }
-                          };
+                          } catch (e) {
+                            setSavingClientProf(prev => ({ ...prev, [c._id]: 'erro' }));
+                          }
+                        };
 
-                          return (
-                            <tr key={c._id}>
-                              <td>
-                                <strong>{c.dadosPessoais?.nome}</strong>
-                                <br />
-                                <small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small>
-                              </td>
-                              <td>{planName}</td>
-                              <td>
-                                <select
-                                  value={currentProfId}
-                                  onChange={e => handleProfChange(e.target.value)}
-                                  className="form-control"
-                                  style={{ maxWidth: '250px', background: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
-                                >
-                                  <option value="">Nenhum/Sem Vínculo</option>
-                                  {professionals.map(p => (
-                                    <option key={p._id} value={p._id}>{p.nome}</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td style={{ verticalAlign: 'middle' }}>
-                                {saveStatus === 'salvando' && (
-                                  <span style={{ color: 'var(--color-primary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <i className="fa-solid fa-spinner fa-spin"></i> Salvando...
-                                  </span>
-                                )}
-                                {saveStatus === 'salvo' && (
-                                  <span style={{ color: '#10b981', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <i className="fa-solid fa-check"></i> Salvo!
-                                  </span>
-                                )}
-                                {saveStatus === 'erro' && (
-                                  <span style={{ color: 'var(--color-danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <i className="fa-solid fa-triangle-exclamation"></i> Erro ao salvar
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-                </tbody>
-              </table>
+                        return (
+                          <tr key={c._id}>
+                            <td>
+                              <strong>{c.dadosPessoais?.nome}</strong>
+                              <br />
+                              <small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small>
+                            </td>
+                            <td>{planName}</td>
+                            <td>
+                              <select
+                                value={currentProfId}
+                                onChange={e => handleProfChange(e.target.value)}
+                                className="form-control"
+                                style={{ maxWidth: '250px', background: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
+                              >
+                                <option value="">Nenhum/Sem Vínculo</option>
+                                {professionals.map(p => (
+                                  <option key={p._id} value={p._id}>{p.nome}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ verticalAlign: 'middle' }}>
+                              {saveStatus === 'salvando' && (
+                                <span style={{ color: 'var(--color-primary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <i className="fa-solid fa-spinner fa-spin"></i> Salvando...
+                                </span>
+                              )}
+                              {saveStatus === 'salvo' && (
+                                <span style={{ color: '#10b981', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <i className="fa-solid fa-check"></i> Salvo!
+                                </span>
+                              )}
+                              {saveStatus === 'erro' && (
+                                <span style={{ color: 'var(--color-danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <i className="fa-solid fa-triangle-exclamation"></i> Erro ao salvar
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('vincular_alunos', page)}
+                  />
+                </div>
+              )}
             </div>
-            {(() => {
-              const listKey = 'vincular_alunos';
-              const q = normalizeText(getSearchQuery(listKey));
-              const filtered = clients.filter(c => 
-                normalizeText(c.dadosPessoais?.nome).includes(q) || 
-                normalizeText(c.dadosPessoais?.email).includes(q)
-              );
-              const totalPages = Math.ceil(filtered.length / getPageSize(listKey));
-              if (totalPages <= 1) return null;
-              return (
-                <Pagination
-                  currentPage={getPage(listKey)}
-                  totalItems={filtered.length}
-                  itemsPerPage={getPageSize(listKey)}
-                  onPageChange={page => setPage(listKey, page)}
-                />
-              );
-            })()}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
+
 
       {/* 2.6. View: Log de Atividades */}
-      {activeTab === 'log_atividades' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Log de Atividades (Auditoria)</h1>
-              <p>Histórico de ações realizadas pelos profissionais no sistema.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('log_atividades')} onChange={e => setPageSizeForKey('log_atividades', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'log_atividades' && (() => {
+        const listKey = 'log_atividades';
+        const q = getSearchQuery(listKey);
+        const filtered = activityLogs.filter(log => {
+          return smartSearchMatch([
+            log.acao,
+            log.detalhes,
+            log.profissionalId?.nome,
+            log.clienteId?.dadosPessoais?.nome,
+            log.origem
+          ], q);
+        });
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Log de Atividades (Auditoria)</h1>
+                <p>Histórico de ações realizadas pelos profissionais no sistema.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('log_atividades', val)}
+                  placeholder="Buscar por ação, profissional, aluno..."
+                  resultCount={filtered.length}
+                  totalCount={activityLogs.length}
+                />
               </div>
             </div>
-          </div>
-          <div className="content-panel">
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar por ação, profissional ou aluno..."
-                value={getSearchQuery('log_atividades')}
-                onChange={e => setSearchQueryForKey('log_atividades', e.target.value)}
-                style={{ maxWidth: '300px' }}
-              />
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data / Hora</th>
+                      <th>Profissional</th>
+                      <th>Ação</th>
+                      <th>Aluno Alvo</th>
+                      <th>Origem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
+                          Nenhuma atividade registrada.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginated.map(log => {
+                        const formattedDate = new Date(log.createdAt).toLocaleString('pt-BR');
+                        const profName = log.profissionalId?.nome || 'Profissional Desconhecido';
+                        const clientName = log.clienteId?.dadosPessoais?.nome || '-';
+                        const isColetivo = log.origem === 'Computador Coletivo';
+
+                        return (
+                          <tr key={log._id}>
+                            <td><strong>{formattedDate}</strong></td>
+                            <td>{profName}</td>
+                            <td>
+                              <strong>{log.acao}</strong>
+                              {log.detalhes && (
+                                <>
+                                  <br />
+                                  <small style={{ color: 'var(--text-dim)' }}>{log.detalhes}</small>
+                                </>
+                              )}
+                            </td>
+                            <td>{clientName}</td>
+                            <td>
+                              <span className={`badge ${isColetivo ? 'badge-info' : 'badge-secondary'}`}>
+                                {log.origem}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('log_atividades', page)}
+                  />
+                </div>
+              )}
             </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data / Hora</th>
-                    <th>Profissional</th>
-                    <th>Ação</th>
-                    <th>Aluno Alvo</th>
-                    <th>Origem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'log_atividades';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
-                    
-                    const filtered = activityLogs.filter(log => {
-                      const matchesSearch = 
-                        normalizeText(log.acao).includes(q) || 
-                        normalizeText(log.detalhes).includes(q) ||
-                        normalizeText(log.profissionalId?.nome).includes(q) ||
-                        normalizeText(log.clienteId?.dadosPessoais?.nome).includes(q);
-                      return matchesSearch;
-                    });
-
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                    if (paginated.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>
-                            Nenhuma atividade registrada.
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    return paginated.map(log => {
-                      const formattedDate = new Date(log.createdAt).toLocaleString('pt-BR');
-                      const profName = log.profissionalId?.nome || 'Profissional Desconhecido';
-                      const clientName = log.clienteId?.dadosPessoais?.nome || '-';
-                      const isColetivo = log.origem === 'Computador Coletivo';
-
-                      return (
-                        <tr key={log._id}>
-                          <td><strong>{formattedDate}</strong></td>
-                          <td>{profName}</td>
-                          <td>
-                            <strong>{log.acao}</strong>
-                            {log.detalhes && (
-                              <>
-                                <br />
-                                <small style={{ color: 'var(--text-dim)' }}>{log.detalhes}</small>
-                              </>
-                            )}
-                          </td>
-                          <td>{clientName}</td>
-                          <td>
-                            <span className={`badge ${isColetivo ? 'badge-info' : 'badge-secondary'}`}>
-                              {log.origem}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    });
-                  })()}
-                </tbody>
-              </table>
-            </div>
-            {(() => {
-              const listKey = 'log_atividades';
-              const q = normalizeText(getSearchQuery(listKey));
-              const filtered = activityLogs.filter(log => 
-                normalizeText(log.acao).includes(q) || 
-                normalizeText(log.detalhes).includes(q) ||
-                normalizeText(log.profissionalId?.nome).includes(q) ||
-                normalizeText(log.clienteId?.dadosPessoais?.nome).includes(q)
-              );
-              const totalPages = Math.ceil(filtered.length / getPageSize(listKey));
-              if (totalPages <= 1) return null;
-              return (
-                <Pagination
-                  currentPage={getPage(listKey)}
-                  totalItems={filtered.length}
-                  itemsPerPage={getPageSize(listKey)}
-                  onPageChange={page => setPage(listKey, page)}
-                />
-              );
-            })()}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 3. View: Clientes */}
       {activeTab === 'clientes' && (
@@ -2683,14 +2625,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               <p>Gerencie dados clínicos, contratos e planos dos alunos.</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('clientes')} onChange={e => setPageSizeForKey('clientes', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
-              </div>
               <button className="btn btn-primary" onClick={() => handleOpenClientModal()}>
                 <i className="fa-solid fa-plus"></i> Novo Aluno
               </button>
@@ -2699,13 +2633,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           <div className="content-panel">
             <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-              <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
-                <input 
-                  type="text" 
-                  className="form-control" 
+              <div style={{ flex: '1 1 240px', maxWidth: '380px' }}>
+                <SmartSearchInput 
                   placeholder="Buscar por nome, plano, CPF, status..." 
                   value={getSearchQuery('clientes')} 
-                  onChange={e => setSearchQueryForKey('clientes', e.target.value)} 
+                  onChange={val => setSearchQueryForKey('clientes', val)} 
                 />
               </div>
 
@@ -3043,14 +2975,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               <p>Gerencie todos os usuários do sistema, defina seus perfis e credenciais de acesso.</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('usuarios')} onChange={e => setPageSizeForKey('usuarios', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
-              </div>
               <button className="btn btn-primary" onClick={() => handleOpenUserModal()}>
                 <i className="fa-solid fa-plus"></i> Novo Usuário
               </button>
@@ -3059,13 +2983,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           <div className="content-panel">
             <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-              <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
-                <input
-                  type="text"
-                  className="form-control"
+              <div style={{ flex: '1 1 240px', maxWidth: '380px' }}>
+                <SmartSearchInput
                   placeholder="Buscar por nome ou e-mail..."
                   value={getSearchQuery('usuarios')}
-                  onChange={e => setSearchQueryForKey('usuarios', e.target.value)}
+                  onChange={val => setSearchQueryForKey('usuarios', val)}
                 />
               </div>
 
@@ -3142,16 +3064,21 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'usuarios';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
+                    const q = getSearchQuery(listKey);
 
                     const filtered = users.filter(u => {
-                      const nome = normalizeText(u.nome || '');
-                      const email = normalizeText(u.email || '');
-                      const matchesSearch = nome.includes(q) || email.includes(q);
+                      const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.tipo];
+                      const matchesSearch = smartSearchMatch([
+                        u.nome,
+                        u.email,
+                        u.especialidade,
+                        u.clientDetails?.dadosComerciais?.planoId?.nome,
+                        u.tipo,
+                        ...userRoles
+                      ], q);
                       if (!matchesSearch) return false;
 
                       // Role filter
-                      const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.tipo];
                       if (userRoleFilter !== 'todos') {
                         if (userRoleFilter === 'aluno' && !userRoles.includes('client')) return false;
                         if (userRoleFilter === 'profissional' && !userRoles.includes('professional')) return false;
@@ -3292,51 +3219,58 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       )}
 
       {/* 5. View: Controle de Créditos */}
-      {activeTab === 'controle_creditos' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Controle de Créditos</h1>
-              <p>Audite e gerencie o saldo de créditos semanais e mensais dos alunos.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('controle_creditos')} onChange={e => setPageSizeForKey('controle_creditos', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'controle_creditos' && (() => {
+        const listKey = 'controle_creditos';
+        const q = getSearchQuery(listKey);
+        const filtered = clients.filter(c => {
+          const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+          return smartSearchMatch([
+            c.dadosPessoais?.nome,
+            c.dadosPessoais?.email,
+            c.dadosPessoais?.cpf,
+            planName
+          ], q);
+        });
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Controle de Créditos</h1>
+                <p>Audite e gerencie o saldo de créditos semanais e mensais dos alunos.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('controle_creditos', val)}
+                  placeholder="Buscar aluno por nome, CPF ou plano..."
+                  resultCount={filtered.length}
+                  totalCount={clients.length}
+                />
               </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Aluno</th>
-                    <th>Plano Atual</th>
-                    <th style={{ textAlign: 'center' }}>Total de Créditos</th>
-                    <th style={{ textAlign: 'center' }}>Créditos Usados</th>
-                    <th style={{ textAlign: 'center' }}>Créditos Reservados</th>
-                    <th style={{ textAlign: 'center' }}>Saldo Disponível</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'controle_creditos';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q));
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                    return paginated.map(c => {
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Aluno</th>
+                      <th>Plano Atual</th>
+                      <th style={{ textAlign: 'center' }}>Total de Créditos</th>
+                      <th style={{ textAlign: 'center' }}>Créditos Usados</th>
+                      <th style={{ textAlign: 'center' }}>Créditos Reservados</th>
+                      <th style={{ textAlign: 'center' }}>Saldo Disponível</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.map(c => {
                       const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
                       const total = c.dadosComerciais?.creditosTotal || 0;
                       const usados = c.dadosComerciais?.creditosUsados || 0;
@@ -3360,76 +3294,79 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </td>
                         </tr>
                       );
-                    });
-                  })()}
-                  {clients.length === 0 && (
-                    <tr>
-                      <td colSpan={7}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-coins empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum aluno cadastrado</div>
-                          <div className="empty-state-desc">Não há alunos disponíveis para ajuste de créditos.</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    })}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={7}>
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-coins empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum aluno encontrado</div>
+                            <div className="empty-state-desc">Não há alunos correspondentes aos filtros.</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('controle_creditos', page)}
+                  />
+                </div>
+              )}
             </div>
-            {clients.length > 0 && (
-              <Pagination
-                currentPage={getPage('controle_creditos')}
-                totalItems={clients.length}
-                itemsPerPage={getPageSize('controle_creditos')}
-                onPageChange={page => setPage('controle_creditos', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 6. View: Planos & Configs */}
-      {activeTab === 'planos' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Planos & Configurações</h1>
-              <p>Crie e gerencie as opções de planos e mensalidades oferecidas no clube.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('planos')} onChange={e => setPageSizeForKey('planos', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'planos' && (() => {
+        const listKey = 'planos';
+        const q = getSearchQuery(listKey);
+        const filtered = plans.filter(p => smartSearchMatch([p.nome], q));
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Planos & Configurações</h1>
+                <p>Crie e gerencie as opções de planos e mensalidades oferecidas no clube.</p>
               </div>
-              <button className="btn btn-primary" onClick={() => handleOpenPlanModal()}>
-                <i className="fa-solid fa-plus"></i> Novo Plano
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('planos', val)}
+                  placeholder="Buscar plano..."
+                  resultCount={filtered.length}
+                  totalCount={plans.length}
+                />
+                <button className="btn btn-primary" onClick={() => handleOpenPlanModal()}>
+                  <i className="fa-solid fa-plus"></i> Novo Plano
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Nome do Plano</th>
-                    <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'planos';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(plans.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = plans.slice((curP - 1) * size, curP * size);
-
-                    return paginated.map(p => (
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nome do Plano</th>
+                      <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.map(p => (
                       <tr key={p._id}>
                         <td><strong>{p.nome}</strong></td>
                         <td style={{ textAlign: 'center' }}>
@@ -3441,71 +3378,107 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </button>
                         </td>
                       </tr>
-                    ));
-                  })()}
-                  {plans.length === 0 && (
-                    <tr>
-                      <td colSpan={6}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-folder-open empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum plano cadastrado</div>
-                          <div className="empty-state-desc">Não há planos de assinaturas cadastrados no sistema.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenPlanModal()}>
-                            <i className="fa-solid fa-plus"></i> Novo Plano
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={6}>
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-folder-open empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum plano cadastrado</div>
+                            <div className="empty-state-desc">Não há planos de assinaturas cadastrados no sistema.</div>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenPlanModal()}>
+                              <i className="fa-solid fa-plus"></i> Novo Plano
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('planos', page)}
+                  />
+                </div>
+              )}
             </div>
-            {plans.length > 0 && (
-              <Pagination
-                currentPage={getPage('planos')}
-                totalItems={plans.length}
-                itemsPerPage={getPageSize('planos')}
-                onPageChange={page => setPage('planos', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 7. View: Horários Fixos */}
-      {activeTab === 'agenda_fixa' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Regras de Horários Fixos</h1>
-              <p>Monitore quais alunos possuem horários recorrentes reservados na agenda.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <button className="btn btn-primary" onClick={() => setShowFixedSchedModal(true)}>
-                <i className="fa-solid fa-plus" style={{ marginRight: '6px' }} />Novo Horário Fixo
-              </button>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('agenda_fixa')} onChange={e => setPageSizeForKey('agenda_fixa', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'agenda_fixa' && (() => {
+        const listKey = 'agenda_fixa';
+        const q = getSearchQuery(listKey);
+
+        const daysMapShort: Record<number, string> = {
+          0: 'Dom', 1: 'Seg', 2: 'Ter', 3: 'Qua', 4: 'Qui', 5: 'Sex', 6: 'Sáb'
+        };
+        const daysFullMap: Record<number, string> = {
+          0: 'domingo', 1: 'segunda-feira segunda', 2: 'terca-feira terca', 3: 'quarta-feira quarta', 4: 'quinta-feira quinta', 5: 'sexta-feira sexta', 6: 'sabado sabado'
+        };
+
+        // Agrupar regras por aluno
+        const groupsMap: Record<string, { client: any, rules: any[], servico: string, dataInicio: string, dataFim: string }> = {};
+
+        for (const fs of fixedSchedules) {
+          const cId = fs.clienteId?._id || fs.clienteId || 'sem_id';
+          if (!groupsMap[cId]) {
+            groupsMap[cId] = {
+              client: fs.clienteId,
+              rules: [],
+              servico: fs.servico,
+              dataInicio: fs.dataInicio,
+              dataFim: fs.dataFim
+            };
+          }
+          groupsMap[cId].rules.push(fs);
+        }
+
+        const groupedList = Object.values(groupsMap);
+
+        const filtered = groupedList.filter(g => {
+          const nome = g.client?.dadosPessoais?.nome || g.client?.nome || '';
+          const cpf = g.client?.dadosPessoais?.cpf || '';
+          const servico = g.servico || '';
+          const daysText = g.rules.map(r => `${daysMapShort[r.diaSemana] || ''} ${daysFullMap[r.diaSemana] || ''} ${r.horario || ''}`).join(' ');
+
+          return smartSearchMatch([nome, cpf, servico, daysText], q);
+        });
+
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Regras de Horários Fixos</h1>
+                <p>Monitore quais alunos possuem horários recorrentes reservados na agenda.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput 
+                  placeholder="Buscar por aluno, CPF, serviço ou dia..." 
+                  value={q} 
+                  onChange={val => setSearchQueryForKey('agenda_fixa', val)} 
+                  resultCount={filtered.length}
+                  totalCount={groupedList.length}
+                />
+                <button className="btn btn-primary" onClick={() => setShowFixedSchedModal(true)}>
+                  <i className="fa-solid fa-plus" style={{ marginRight: '6px' }} />Novo Horário Fixo
+                </button>
               </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input 
-                type="text" 
-                className="form-control" 
-                placeholder="Buscar por aluno, CPF ou dia da semana..." 
-                value={getSearchQuery('agenda_fixa')} 
-                onChange={e => setSearchQueryForKey('agenda_fixa', e.target.value)} 
-                style={{ maxWidth: '360px' }} 
-              />
-            </div>
+            <div className="content-panel">
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
@@ -3653,17 +3626,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 </tbody>
               </table>
             </div>
-            {fixedSchedules.length > 0 && (
-              <Pagination
-                currentPage={getPage('agenda_fixa')}
-                totalItems={fixedSchedules.length}
-                itemsPerPage={getPageSize('agenda_fixa')}
-                onPageChange={page => setPage('agenda_fixa', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('agenda_fixa', page)}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       {/* View: Movimentos Realizados via Link */}
       {activeTab === 'movimentos_links' && (
@@ -3734,16 +3710,12 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           <div className="content-panel" style={{ marginBottom: '24px', padding: '16px 20px' }}>
             <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', flex: 1, minWidth: '280px' }}>
-                <div style={{ position: 'relative', flex: 1, minWidth: '220px', maxWidth: '380px' }}>
-                  <input
-                    type="text"
-                    className="form-control"
+                <div style={{ flex: 1, minWidth: '220px', maxWidth: '380px' }}>
+                  <SmartSearchInput
                     placeholder="Buscar por aluno, telefone, CPF ou e-mail..."
                     value={getSearchQuery('movimentos_links')}
-                    onChange={e => setSearchQueryForKey('movimentos_links', e.target.value)}
-                    style={{ paddingLeft: '34px' }}
+                    onChange={val => setSearchQueryForKey('movimentos_links', val)}
                   />
-                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}></i>
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -3767,17 +3739,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       {tab.label}
                     </button>
                   ))}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div className="page-size-selector">
-                  <span>Exibir:</span>
-                  <select value={getPageSize('movimentos_links')} onChange={e => setPageSizeForKey('movimentos_links', Number(e.target.value))}>
-                    <option value={8}>8</option>
-                    <option value={15}>15</option>
-                    <option value={30}>30</option>
-                  </select>
                 </div>
               </div>
             </div>
@@ -3804,28 +3765,19 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </thead>
                   <tbody>
                     {(() => {
-                      const q = normalizeText(getSearchQuery('movimentos_links'));
+                      const q = getSearchQuery('movimentos_links');
                       const filtered = linkMovements.filter(m => {
                         if (linkMovementTypeFilter !== 'todos' && m.tipo !== linkMovementTypeFilter) {
                           return false;
                         }
-                        if (q) {
-                          const nome = normalizeText(m.cliente?.nome || '');
-                          const tel = (m.cliente?.telefone || '').replace(/\D/g, '');
-                          const cpf = (m.cliente?.cpf || '').replace(/\D/g, '');
-                          const email = normalizeText(m.cliente?.email || '');
-                          const link = normalizeText(m.linkNome || '');
-                          const qDigits = q.replace(/\D/g, '');
-
-                          const matchNome = nome.includes(q);
-                          const matchEmail = email.includes(q);
-                          const matchLink = link.includes(q);
-                          const matchTel = qDigits.length > 0 && tel.includes(qDigits);
-                          const matchCpf = qDigits.length > 0 && cpf.includes(qDigits);
-
-                          return matchNome || matchEmail || matchLink || matchTel || matchCpf;
-                        }
-                        return true;
+                        return smartSearchMatch([
+                          m.cliente?.nome,
+                          m.cliente?.telefone,
+                          m.cliente?.cpf,
+                          m.cliente?.email,
+                          m.linkNome,
+                          m.tipoLabel
+                        ], q);
                       });
 
                       const size = getPageSize('movimentos_links');
@@ -4051,49 +4003,56 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       )}
 
       {/* 8. View: Testes de Força */}
-      {activeTab === 'testes_forca' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Avaliações de Força</h1>
-              <p>Consulte os testes de força muscular realizados pela equipe clínica.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('testes_forca')} onChange={e => setPageSizeForKey('testes_forca', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'testes_forca' && (() => {
+        const listKey = 'testes_forca';
+        const q = getSearchQuery(listKey);
+        const filtered = strengthTests.filter(st => {
+          const clientName = st.clienteId?.dadosPessoais?.nome || '';
+          const profName = st.profissionalId?.nome || '';
+          const data = st.data || '';
+          const obs = st.observacoes || '';
+          return smartSearchMatch([clientName, profName, data, obs], q);
+        });
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Avaliações de Força</h1>
+                <p>Consulte os testes de força muscular realizados pela equipe clínica.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('testes_forca', val)}
+                  placeholder="Buscar por aluno, data, avaliador..."
+                  resultCount={filtered.length}
+                  totalCount={strengthTests.length}
+                />
               </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Aluno</th>
-                    <th>Data do Teste</th>
-                    <th>Movimentos / Cargas</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                    <th>Avaliador</th>
-                    <th>Observações</th>
-                    <th style={{ textAlign: 'center' }}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'testes_forca';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(strengthTests.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = strengthTests.slice((curP - 1) * size, curP * size);
-
-                    return paginated.map(st => {
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Aluno</th>
+                      <th>Data do Teste</th>
+                      <th>Movimentos / Cargas</th>
+                      <th style={{ textAlign: 'center' }}>Status</th>
+                      <th>Avaliador</th>
+                      <th>Observações</th>
+                      <th style={{ textAlign: 'center' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.map(st => {
                       const isNew = st.testesRealizados && st.testesRealizados.length > 0;
                       let metricaText = '';
                       let statusBadge = null;
@@ -4144,33 +4103,35 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </td>
                         </tr>
                       );
-                    });
-                  })()}
-                  {strengthTests.length === 0 && (
-                    <tr>
-                      <td colSpan={7}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-dumbbell empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum teste de força</div>
-                          <div className="empty-state-desc">Nenhum teste de força muscular cadastrado no banco.</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    })}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={7}>
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum teste de força</div>
+                            <div className="empty-state-desc">Nenhum teste de força muscular encontrado com os filtros atuais.</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('testes_forca', page)}
+                  />
+                </div>
+              )}
             </div>
-            {strengthTests.length > 0 && (
-              <Pagination
-                currentPage={getPage('testes_forca')}
-                totalItems={strengthTests.length}
-                itemsPerPage={getPageSize('testes_forca')}
-                onPageChange={page => setPage('testes_forca', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 9. View: Financeiro */}
       {activeTab === 'financeiro' && (
@@ -4243,14 +4204,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
               {/* Filters & Search */}
               <div className="content-panel" style={{ padding: '16px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Buscar por nome do aluno..."
-                    value={paymentsSearch}
-                    onChange={e => setPaymentsSearch(e.target.value)}
-                    style={{ flex: 1, minWidth: '200px' }}
-                  />
+                  <div style={{ flex: 1, minWidth: '220px', maxWidth: '380px' }}>
+                    <SmartSearchInput
+                      placeholder="Buscar por nome do aluno ou plano..."
+                      value={paymentsSearch}
+                      onChange={val => setPaymentsSearch(val)}
+                    />
+                  </div>
                   
                   {/* Plan Filter */}
                   <select
@@ -4491,13 +4451,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   <option value="Pago">Pago</option>
                   <option value="Atrasado">Atrasado</option>
                 </select>
-                <input type="text" className="form-control" style={{ maxWidth: '200px' }} placeholder="Filtrar categoria..." value={finFilterCat} onChange={e => setFinFilterCat(e.target.value)} />
+                <div style={{ flex: 1, minWidth: '220px', maxWidth: '340px' }}>
+                  <SmartSearchInput
+                    placeholder="Buscar por descrição, categoria..."
+                    value={finFilterCat}
+                    onChange={val => setFinFilterCat(val)}
+                  />
+                </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <div className="page-size-selector"><span>Exibir:</span>
-                    <select value={getPageSize('financeiro')} onChange={e => setPageSizeForKey('financeiro', Number(e.target.value))}>
-                      <option value={5}>5</option><option value={8}>8</option><option value={15}>15</option>
-                    </select>
-                  </div>
                   <button className="btn btn-secondary" onClick={() => exportToCSV(financials, 'financeiro', [
                     { key: 'vencimento', label: 'Vencimento' },
                     { key: 'descricao', label: 'Descrição' },
@@ -4548,7 +4509,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       {(() => {
                         const filtered = financials.filter(f =>
                           (finFilterStatus ? f.status === finFilterStatus : true) &&
-                          (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) &&
+                          smartSearchMatch([f.descricao, f.categoria, f.forma_pagamento], finFilterCat) &&
                           (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)
                         );
                         const listKey = 'financeiro';
@@ -4608,56 +4569,52 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       )}
 
       {/* 10. View: Medicamentos */}
-      {activeTab === 'medicamentos' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Farmácia Clínica</h1>
-              <p>Controle de estoque, lotes e validade de medicamentos de uso clínico.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('medicamentos')} onChange={e => setPageSizeForKey('medicamentos', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'medicamentos' && (() => {
+        const listKey = 'medicamentos';
+        const q = getSearchQuery(listKey);
+        const filtered = medications.filter(m => smartSearchMatch([m.nome, m.categoria, m.lote], q));
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Farmácia Clínica</h1>
+                <p>Controle de estoque, lotes e validade de medicamentos de uso clínico.</p>
               </div>
-              <button className="btn btn-primary" onClick={() => handleOpenMedicationModal()}>
-                <i className="fa-solid fa-plus"></i> Novo Medicamento
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('medicamentos', val)}
+                  placeholder="Buscar medicamento ou lote..."
+                  resultCount={filtered.length}
+                  totalCount={medications.length}
+                />
+                <button className="btn btn-primary" onClick={() => handleOpenMedicationModal()}>
+                  <i className="fa-solid fa-plus"></i> Novo Medicamento
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input type="text" className="form-control" placeholder="Buscar medicamento..." value={getSearchQuery('medicamentos')} onChange={e => setSearchQueryForKey('medicamentos', e.target.value)} style={{ maxWidth: '300px' }} />
-            </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Medicamento</th>
-                    <th>Categoria</th>
-                    <th>Quantidade</th>
-                    <th>Lote</th>
-                    <th style={{ textAlign: 'center' }}>Validade</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'medicamentos';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = medications.filter(m => normalizeText(m.nome).includes(q) || normalizeText(m.categoria).includes(q));
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                    return paginated.map(m => {
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Medicamento</th>
+                      <th>Categoria</th>
+                      <th>Quantidade</th>
+                      <th>Lote</th>
+                      <th style={{ textAlign: 'center' }}>Validade</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.map(m => {
                       const isExpired = new Date(m.validade) < new Date();
                       return (
                         <tr key={m._id}>
@@ -4680,36 +4637,38 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           </td>
                         </tr>
                       );
-                    });
-                  })()}
-                  {medications.length === 0 && (
-                    <tr>
-                      <td colSpan={6}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-prescription-bottle-medical empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum medicamento registrado</div>
-                          <div className="empty-state-desc">Não há registros de medicamentos no estoque clínico.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenMedicationModal()}>
-                            <i className="fa-solid fa-plus"></i> Novo Medicamento
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    })}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={6}>
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-prescription-bottle-medical empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum medicamento encontrado</div>
+                            <div className="empty-state-desc">Não há registros de medicamentos correspondentes à busca.</div>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenMedicationModal()}>
+                              <i className="fa-solid fa-plus"></i> Novo Medicamento
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('medicamentos', page)}
+                  />
+                </div>
+              )}
             </div>
-            {medications.length > 0 && (
-              <Pagination
-                currentPage={getPage('medicamentos')}
-                totalItems={medications.length}
-                itemsPerPage={getPageSize('medicamentos')}
-                onPageChange={page => setPage('medicamentos', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 11. View: Painel TV Clínica */}
       {activeTab === 'tv_panel' && (

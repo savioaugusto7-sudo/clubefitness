@@ -11,13 +11,10 @@ import AgendaCompletaPanel from './AgendaCompletaPanel';
 import DadosClinicosPanel from './DadosClinicosPanel';
 import WellnessModal from './WellnessModal';
 import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
+import SmartSearchInput from './SmartSearchInput';
+import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
 
-export const normalizeText = (str: string) => {
-  return (str || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-};
+export { normalizeText, smartSearchMatch };
 
 export const formatDateBR = (dateStr: string) => {
   if (!dateStr) return '';
@@ -246,7 +243,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setPages(prev => ({ ...prev, [key]: page }));
   };
 
-  const getPageSize = (key: string) => pageSize[key] || 8;
+  const getPageSize = (key: string) => pageSize[key] || 30;
   const setPageSizeForKey = (key: string, size: number) => {
     setPageSize(prev => ({ ...prev, [key]: size }));
     setPage(key, 1);
@@ -4641,105 +4638,109 @@ goniometria: {
                 <h1>Alunos</h1>
                 <p>Acompanhamento de fichas clínicas, testes de força e evolução.</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div className="page-size-selector">
-                  <span>Exibir:</span>
-                  <select value={getPageSize('clientes')} onChange={e => setPageSizeForKey('clientes', Number(e.target.value))}>
-                    <option value={5}>5</option>
-                    <option value={8}>8</option>
-                    <option value={15}>15</option>
-                  </select>
-                </div>
-              </div>
             </div>
 
             <div className="content-panel">
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
-                {/* Scope selector */}
-                <div style={{ display: 'inline-flex', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '4px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    style={{
-                      background: clientFilterScope === 'todos' ? 'var(--color-primary)' : 'transparent',
-                      color: clientFilterScope === 'todos' ? '#fff' : 'var(--text-muted)',
-                      fontWeight: 600,
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '6px 14px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onClick={() => { setClientFilterScope('todos'); setPage('clientes', 1); }}
-                  >
-                    <i className="fa-solid fa-users" style={{ marginRight: '6px' }}></i>
-                    Todos os Alunos ({clients.length})
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    style={{
-                      background: clientFilterScope === 'meus' ? '#10b981' : 'transparent',
-                      color: clientFilterScope === 'meus' ? '#fff' : 'var(--text-muted)',
-                      fontWeight: 600,
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '6px 14px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onClick={() => { setClientFilterScope('meus'); setPage('clientes', 1); }}
-                  >
-                    <i className="fa-solid fa-star" style={{ marginRight: '6px', color: clientFilterScope === 'meus' ? '#fff' : '#f59e0b' }}></i>
-                    Meus Alunos ({clients.filter(c => {
-                      const linkedProfId = c.profissionalId?._id || c.profissionalId;
-                      return linkedProfId === professionalId;
-                    }).length})
-                  </button>
-                </div>
+              {(() => {
+                const listKey = 'clientes';
+                const q = getSearchQuery(listKey);
+                const scopedClients = clients.filter(c => {
+                  if (clientFilterScope === 'meus') {
+                    const linkedProfId = c.profissionalId?._id || c.profissionalId;
+                    return linkedProfId === professionalId;
+                  }
+                  return true;
+                });
+                const filtered = scopedClients.filter(c => {
+                  return smartSearchMatch([
+                    c.dadosPessoais?.nome,
+                    c.dadosPessoais?.email,
+                    c.dadosPessoais?.cpf,
+                    c.dadosPessoais?.telefone,
+                    c.dadosClinicos?.objetivoPrincipal
+                  ], q);
+                });
 
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Buscar aluno por nome, email ou CPF..."
-                  value={getSearchQuery('clientes')}
-                  onChange={e => setSearchQueryForKey('clientes', e.target.value)}
-                  style={{ maxWidth: '320px', minWidth: '220px' }}
-                />
-              </div>
+                const activeP = getPage(listKey);
+                const size = getPageSize(listKey);
+                const totalPages = Math.ceil(filtered.length / size);
+                const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Aluno</th>
-                      <th>Última Avaliação</th>
-                      <th>Teste de Força</th>
-                      <th>Fim do Plano</th>
-                      <th>Risco de Evasão</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const listKey = 'clientes';
-                      const activeP = getPage(listKey);
-                      const size = getPageSize(listKey);
-                      const q = normalizeText(getSearchQuery(listKey));
-                      const filtered = clients.filter(c => {
-                        if (clientFilterScope === 'meus') {
-                          const linkedProfId = c.profissionalId?._id || c.profissionalId;
-                          if (linkedProfId !== professionalId) {
-                            return false;
-                          }
-                        }
-                        return normalizeText(c.dadosPessoais?.nome).includes(q) || normalizeText(c.dadosPessoais?.email).includes(q) || (c.dadosPessoais?.cpf || '').includes(q);
-                      });
-                      const totalPages = Math.ceil(filtered.length / size);
-                      const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                      const paginated = filtered.slice((curP - 1) * size, curP * size);
+                return (
+                  <>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: '16px' }}>
+                      {/* Scope selector */}
+                      <div style={{ display: 'inline-flex', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{
+                            background: clientFilterScope === 'todos' ? 'var(--color-primary)' : 'transparent',
+                            color: clientFilterScope === 'todos' ? '#fff' : 'var(--text-muted)',
+                            fontWeight: 600,
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 14px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => { setClientFilterScope('todos'); setPage('clientes', 1); }}
+                        >
+                          <i className="fa-solid fa-users" style={{ marginRight: '6px' }}></i>
+                          Todos os Alunos ({clients.length})
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{
+                            background: clientFilterScope === 'meus' ? '#10b981' : 'transparent',
+                            color: clientFilterScope === 'meus' ? '#fff' : 'var(--text-muted)',
+                            fontWeight: 600,
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 14px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => { setClientFilterScope('meus'); setPage('clientes', 1); }}
+                        >
+                          <i className="fa-solid fa-star" style={{ marginRight: '6px', color: clientFilterScope === 'meus' ? '#fff' : '#f59e0b' }}></i>
+                          Meus Alunos ({clients.filter(c => {
+                            const linkedProfId = c.profissionalId?._id || c.profissionalId;
+                            return linkedProfId === professionalId;
+                          }).length})
+                        </button>
+                      </div>
 
-                      return paginated.map(c => {
+                      <SmartSearchInput
+                        value={q}
+                        onChange={val => setSearchQueryForKey('clientes', val)}
+                        placeholder="Buscar por nome, CPF, telefone..."
+                        resultCount={filtered.length}
+                        totalCount={scopedClients.length}
+                      />
+                    </div>
+
+                    <div className="table-responsive">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Aluno</th>
+                            <th>Última Avaliação</th>
+                            <th>Teste de Força</th>
+                            <th>Fim do Plano</th>
+                            <th>Risco de Evasão</th>
+                            <th>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const totalPages = Math.ceil(filtered.length / size);
+                            const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                            const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+                            return paginated.map(c => {
                         const days = getDaysSince(c._id);
                         const risk = getRisk(days);
                         const lastAsRaw = getLastAssessment(c._id);
@@ -4823,14 +4824,19 @@ goniometria: {
                   </tbody>
                 </table>
               </div>
-            {clients.length > 0 && (
-              <Pagination
-                currentPage={getPage('clientes')}
-                totalItems={clients.length}
-                itemsPerPage={getPageSize('clientes')}
-                onPageChange={page => setPage('clientes', page)}
-              />
-            )}
+              {filtered.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filtered.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('clientes', page)}
+                  />
+                </div>
+              )}
+            </>
+          );
+        })()}
           </div>
         </>
       );
@@ -4862,86 +4868,121 @@ goniometria: {
                 </button>
               </div>
 
-              {workoutSubTab === 'clients' && (
-                <div className="content-panel">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: '12px', flexGrow: 1, flexWrap: 'wrap' }}>
-                      <div style={{ minWidth: '200px', maxWidth: '300px', flexGrow: 1 }}>
-                        <input 
-                          type="text" 
-                          className="form-control" 
-                          placeholder="Buscar aluno por nome ou email..." 
-                          value={workoutSearch} 
-                          onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutSearch(e.target.value); }} 
+              {workoutSubTab === 'clients' && (() => {
+                const listKey = 'treinos_prof_clients';
+                const filteredClients = clients.filter(c => {
+                  const matchesSearch = smartSearchMatch([
+                    c.dadosPessoais?.nome,
+                    c.dadosPessoais?.email,
+                    c.dadosPessoais?.cpf,
+                    c.dadosPessoais?.telefone
+                  ], workoutSearch);
+                  if (!matchesSearch) return false;
+                  if (workoutPlanFilter !== 'all') {
+                    const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+                    if (planName !== workoutPlanFilter) return false;
+                  }
+                  if (workoutStatusFilter !== 'all') {
+                    const userWorkout = workouts.find(w => w.clienteId === c._id);
+                    const hasWorkout = userWorkout && (
+                      (userWorkout.fichasMonitorado && userWorkout.fichasMonitorado.some((f: any) => f.exercicios && f.exercicios.length > 0)) ||
+                      (userWorkout.fichasLivre && userWorkout.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0))
+                    );
+                    let isExpired = false;
+                    if (userWorkout) {
+                      const dates: string[] = [];
+                      if (userWorkout.fichasMonitorado) {
+                        userWorkout.fichasMonitorado.forEach((f: any) => {
+                          if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+                        });
+                      }
+                      if (userWorkout.fichasLivre) {
+                        userWorkout.fichasLivre.forEach((f: any) => {
+                          if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+                        });
+                      }
+                      if (dates.length > 0) {
+                        dates.sort((a, b) => b.localeCompare(a));
+                        const latestDate = new Date(dates[0] + 'T12:00:00');
+                        const today = new Date();
+                        const diffDays = Math.floor((today.getTime() - latestDate.getTime()) / (1000 * 60 * 60 * 24));
+                        isExpired = diffDays > 60;
+                      }
+                    }
+                    if (workoutStatusFilter === 'active' && (!hasWorkout || isExpired)) return false;
+                    if (workoutStatusFilter === 'expired' && (!hasWorkout || !isExpired)) return false;
+                    if (workoutStatusFilter === 'none' && hasWorkout) return false;
+                  }
+                  return true;
+                });
+
+                const activeP = getPage(listKey);
+                const size = getPageSize(listKey);
+                const totalPages = Math.ceil(filteredClients.length / size);
+                const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                const paginated = filteredClients.slice((curP - 1) * size, curP * size);
+
+                return (
+                  <div className="content-panel">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '12px', flexGrow: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <SmartSearchInput
+                          value={workoutSearch}
+                          onChange={val => { setPage('treinos_prof_clients', 1); setWorkoutSearch(val); }}
+                          placeholder="Buscar aluno por nome, email ou CPF..."
+                          resultCount={filteredClients.length}
+                          totalCount={clients.length}
                         />
-                      </div>
-                      
-                      {/* Filtro por Status da Ficha */}
-                      <div style={{ width: '160px' }}>
-                        <select 
-                          className="select-custom"
-                          value={workoutStatusFilter} 
-                          onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutStatusFilter(e.target.value as any); }}
-                        >
-                          <option value="all">Todos os Status</option>
-                          <option value="active">Com Ficha Ativa (Válida)</option>
-                          <option value="expired">Com Ficha Vencida</option>
-                          <option value="none">Sem Ficha</option>
-                        </select>
-                      </div>
 
-                      {/* Filtro por Plano */}
-                      <div style={{ width: '180px' }}>
-                        <select 
-                          className="select-custom"
-                          value={workoutPlanFilter} 
-                          onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutPlanFilter(e.target.value); }}
-                        >
-                          <option value="all">Todos os Planos</option>
-                          {(() => {
-                            const uniquePlans = Array.from(
-                              new Set(
-                                clients.map(c => c.dadosComerciais?.planoId?.nome || 'Personalizado')
-                              )
-                            );
-                            return uniquePlans.map(planName => (
-                              <option key={planName} value={planName}>{planName}</option>
-                            ));
-                          })()}
-                        </select>
+                        {/* Filtro por Status da Ficha */}
+                        <div style={{ width: '170px' }}>
+                          <select 
+                            className="select-custom"
+                            value={workoutStatusFilter} 
+                            onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutStatusFilter(e.target.value as any); }}
+                          >
+                            <option value="all">Todos os Status</option>
+                            <option value="active">Com Ficha Ativa</option>
+                            <option value="expired">Com Ficha Vencida</option>
+                            <option value="none">Sem Ficha</option>
+                          </select>
+                        </div>
+
+                        {/* Filtro por Plano */}
+                        <div style={{ width: '180px' }}>
+                          <select 
+                            className="select-custom"
+                            value={workoutPlanFilter} 
+                            onChange={e => { setPage('treinos_prof_clients', 1); setWorkoutPlanFilter(e.target.value); }}
+                          >
+                            <option value="all">Todos os Planos</option>
+                            {(() => {
+                              const uniquePlans = Array.from(
+                                new Set(
+                                  clients.map(c => c.dadosComerciais?.planoId?.nome || 'Personalizado')
+                                )
+                              );
+                              return uniquePlans.map(planName => (
+                                <option key={planName} value={planName}>{planName}</option>
+                              ));
+                            })()}
+                          </select>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="page-size-selector">
-                      <span>Exibir:</span>
-                      <select value={getPageSize('treinos_prof_clients')} onChange={e => setPageSizeForKey('treinos_prof_clients', Number(e.target.value))}>
-                        <option value={5}>5</option>
-                        <option value={8}>8</option>
-                        <option value={15}>15</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="table-responsive">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Aluno</th>
-                          <th>Plano</th>
-                          <th style={{ textAlign: 'center' }}>Status da Ficha</th>
-                          <th style={{ textAlign: 'center' }}>Data da Última Ficha</th>
-                          <th>Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          const listKey = 'treinos_prof_clients';
-                          const activeP = getPage(listKey);
-                          const size = getPageSize(listKey);
-                          const totalPages = Math.ceil(filteredClients.length / size);
-                          const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                          const paginated = filteredClients.slice((curP - 1) * size, curP * size);
-
-                          return paginated.map(c => {
+                    <div className="table-responsive">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Aluno</th>
+                            <th>Plano</th>
+                            <th style={{ textAlign: 'center' }}>Status da Ficha</th>
+                            <th style={{ textAlign: 'center' }}>Data da Última Ficha</th>
+                            <th>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginated.map(c => {
                             const userWorkout = workouts.find(w => w.clienteId === c._id);
                             const hasWorkout = userWorkout && (
                               (userWorkout.fichasMonitorado && userWorkout.fichasMonitorado.some((f: any) => f.exercicios && f.exercicios.length > 0)) ||
@@ -5004,91 +5045,102 @@ goniometria: {
                                 </td>
                               </tr>
                             );
-                          });
-                        })()}
-                        {filteredClients.length === 0 && (
-                          <tr>
-                            <td colSpan={5}>
-                              <div className="empty-state-card">
-                                <i className="fa-solid fa-dumbbell empty-state-icon"></i>
-                                <div className="empty-state-title">Nenhum aluno encontrado</div>
-                                <div className="empty-state-desc">Não há alunos correspondentes à busca ou cadastrados no sistema.</div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {filteredClients.length > 0 && (
-                    <Pagination
-                      currentPage={getPage('treinos_prof_clients')}
-                      totalItems={filteredClients.length}
-                      itemsPerPage={getPageSize('treinos_prof_clients')}
-                      onPageChange={page => setPage('treinos_prof_clients', page)}
-                    />
-                  )}
-                </div>
-              )}
-
-              {workoutSubTab === 'exercises' && (
-                <div className="content-panel">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flexGrow: 1 }}>
-                      <input type="text" className="form-control" style={{ maxWidth: '300px' }} placeholder="Buscar exercício..." value={exerciseSearch} onChange={e => { setPage('treinos_prof_exercises', 1); setExerciseSearch(e.target.value); }} />
-                      <select className="select-custom" style={{ width: '160px' }} value={exerciseGroup} onChange={e => { setPage('treinos_prof_exercises', 1); setExerciseGroup(e.target.value); }}>
-                        <option value="">Todos os Grupos</option>
-                        <option value="PEITO">Peito</option>
-                        <option value="COSTAS">Costas</option>
-                        <option value="PERNAS">Pernas</option>
-                        <option value="OMBROS">Ombros</option>
-                        <option value="BÍCEPS">Bíceps</option>
-                        <option value="TRÍCEPS">Tríceps</option>
-                        <option value="CORE">Core</option>
-                      </select>
-                      <button className="btn btn-primary" onClick={() => setShowNewExModal(true)}>
-                        <i className="fa-solid fa-plus"></i> Novo Exercício
-                      </button>
-
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        style={{ display: 'none' }}
-                        accept=".xlsx, .xls"
-                        onChange={handleImportExcel}
+                          })}
+                          {filteredClients.length === 0 && (
+                            <tr>
+                              <td colSpan={5}>
+                                <div className="empty-state-card">
+                                  <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+                                  <div className="empty-state-title">Nenhum aluno encontrado</div>
+                                  <div className="empty-state-desc">Não há alunos correspondentes à busca ou cadastrados no sistema.</div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {filteredClients.length > 0 && (
+                      <Pagination
+                        currentPage={curP}
+                        totalItems={filteredClients.length}
+                        itemsPerPage={size}
+                        onPageChange={page => setPage('treinos_prof_clients', page)}
                       />
-                    </div>
-                    <div className="page-size-selector">
-                      <span>Exibir:</span>
-                      <select value={getPageSize('treinos_prof_exercises')} onChange={e => setPageSizeForKey('treinos_prof_exercises', Number(e.target.value))}>
-                        <option value={5}>5</option>
-                        <option value={8}>8</option>
-                        <option value={15}>15</option>
-                      </select>
-                    </div>
+                    )}
                   </div>
-                  <div className="table-responsive">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Exercício</th>
-                          <th style={{ textAlign: 'center' }}>Grupo</th>
-                          <th>Equipamento</th>
-                          <th>Mídia / GIF</th>
-                          <th>Instruções</th>
-                          <th style={{ textAlign: 'center', width: '130px' }}>Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          const listKey = 'treinos_prof_exercises';
-                          const activeP = getPage(listKey);
-                          const size = getPageSize(listKey);
-                          const totalPages = Math.ceil(filteredExercises.length / size);
-                          const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                          const paginated = filteredExercises.slice((curP - 1) * size, curP * size);
+                );
+              })()}
 
-                          return paginated.map(ex => (
+              {workoutSubTab === 'exercises' && (() => {
+                const listKey = 'treinos_prof_exercises';
+                const filteredExercises = exercises.filter(ex => {
+                  const matchesSearch = smartSearchMatch([
+                    ex.nome,
+                    ex.equipamento,
+                    ex.instrucoes,
+                    ex.grupo
+                  ], exerciseSearch);
+                  if (!matchesSearch) return false;
+                  if (exerciseGroup && ex.grupo !== exerciseGroup) return false;
+                  return true;
+                });
+
+                const activeP = getPage(listKey);
+                const size = getPageSize(listKey);
+                const totalPages = Math.ceil(filteredExercises.length / size);
+                const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                const paginated = filteredExercises.slice((curP - 1) * size, curP * size);
+
+                return (
+                  <div className="content-panel">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flexGrow: 1, alignItems: 'center' }}>
+                        <SmartSearchInput
+                          value={exerciseSearch}
+                          onChange={val => { setPage('treinos_prof_exercises', 1); setExerciseSearch(val); }}
+                          placeholder="Buscar exercício por nome, equipamento ou instruções..."
+                          resultCount={filteredExercises.length}
+                          totalCount={exercises.length}
+                        />
+
+                        <select className="select-custom" style={{ width: '160px' }} value={exerciseGroup} onChange={e => { setPage('treinos_prof_exercises', 1); setExerciseGroup(e.target.value); }}>
+                          <option value="">Todos os Grupos</option>
+                          <option value="PEITO">Peito</option>
+                          <option value="COSTAS">Costas</option>
+                          <option value="PERNAS">Pernas</option>
+                          <option value="OMBROS">Ombros</option>
+                          <option value="BÍCEPS">Bíceps</option>
+                          <option value="TRÍCEPS">Tríceps</option>
+                          <option value="CORE">Core</option>
+                        </select>
+                        <button className="btn btn-primary" onClick={() => setShowNewExModal(true)}>
+                          <i className="fa-solid fa-plus"></i> Novo Exercício
+                        </button>
+
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          style={{ display: 'none' }}
+                          accept=".xlsx, .xls"
+                          onChange={handleImportExcel}
+                        />
+                      </div>
+                    </div>
+                    <div className="table-responsive">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Exercício</th>
+                            <th style={{ textAlign: 'center' }}>Grupo</th>
+                            <th>Equipamento</th>
+                            <th>Mídia / GIF</th>
+                            <th>Instruções</th>
+                            <th style={{ textAlign: 'center', width: '130px' }}>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginated.map(ex => (
                             <tr key={ex._id}>
                               <td data-label="Exercício"><strong>{ex.nome}</strong></td>
                               <td data-label="Grupo" style={{ textAlign: 'center' }}><span className="badge badge-info">{ex.grupo}</span></td>
@@ -5125,35 +5177,35 @@ goniometria: {
                                 </button>
                               </td>
                             </tr>
-                          ));
-                        })()}
-                        {filteredExercises.length === 0 && (
-                          <tr>
-                            <td colSpan={6}>
-                              <div className="empty-state-card">
-                                <i className="fa-solid fa-dumbbell empty-state-icon"></i>
-                                <div className="empty-state-title">Nenhum exercício encontrado</div>
-                                <div className="empty-state-desc">Não há exercícios correspondentes à busca ou cadastrados.</div>
-                                <button className="btn btn-primary btn-sm" onClick={() => setShowNewExModal(true)}>
-                                  <i className="fa-solid fa-plus"></i> Cadastrar Exercício
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                          ))}
+                          {filteredExercises.length === 0 && (
+                            <tr>
+                              <td colSpan={6}>
+                                <div className="empty-state-card">
+                                  <i className="fa-solid fa-dumbbell empty-state-icon"></i>
+                                  <div className="empty-state-title">Nenhum exercício encontrado</div>
+                                  <div className="empty-state-desc">Não há exercícios correspondentes à busca ou cadastrados.</div>
+                                  <button className="btn btn-primary btn-sm" onClick={() => setShowNewExModal(true)}>
+                                    <i className="fa-solid fa-plus"></i> Cadastrar Exercício
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {filteredExercises.length > 0 && (
+                      <Pagination
+                        currentPage={curP}
+                        totalItems={filteredExercises.length}
+                        itemsPerPage={size}
+                        onPageChange={page => setPage('treinos_prof_exercises', page)}
+                      />
+                    )}
                   </div>
-                  {filteredExercises.length > 0 && (
-                    <Pagination
-                      currentPage={getPage('treinos_prof_exercises')}
-                      totalItems={filteredExercises.length}
-                      itemsPerPage={getPageSize('treinos_prof_exercises')}
-                      onPageChange={page => setPage('treinos_prof_exercises', page)}
-                    />
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </>
           ) : (
             // Full screen Workout Editor inside professional view
@@ -5494,56 +5546,65 @@ goniometria: {
       )}
 
       {/* 4. View: Horários Fixos */}
-      {activeTab === 'agenda_fixa' && (
-        <>
-          <div className="view-header">
-            <div className="view-title-group">
-              <h1>Horários Fixos (Agenda Recorrente)</h1>
-              <p>Gerencie regras de agendamento permanente semanal para os alunos.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="page-size-selector">
-                <span>Exibir:</span>
-                <select value={getPageSize('agenda_fixa')} onChange={e => setPageSizeForKey('agenda_fixa', Number(e.target.value))}>
-                  <option value={5}>5</option>
-                  <option value={8}>8</option>
-                  <option value={15}>15</option>
-                </select>
+      {activeTab === 'agenda_fixa' && (() => {
+        const listKey = 'agenda_fixa';
+        const q = getSearchQuery(listKey);
+        const weekdayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        const filteredSchedules = fixedSchedules.filter(fs => {
+          const studentName = fs.clienteId?.dadosPessoais?.nome || '';
+          const studentCpf = fs.clienteId?.dadosPessoais?.cpf || '';
+          const profName = fs.profissionalId?.nome || '';
+          const dayName = weekdayNames[fs.diaSemana] || '';
+          const service = fs.servico || '';
+          const time = fs.horario || '';
+          return smartSearchMatch([studentName, studentCpf, profName, dayName, service, time], q);
+        });
+
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filteredSchedules.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filteredSchedules.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header">
+              <div className="view-title-group">
+                <h1>Horários Fixos (Agenda Recorrente)</h1>
+                <p>Gerencie regras de agendamento permanente semanal para os alunos.</p>
               </div>
-              <button className="btn btn-primary" onClick={() => {
-                setFsDate(new Date().toISOString().split('T')[0]);
-                setShowFixedSchedModal(true);
-              }}>
-                <i className="fa-solid fa-plus"></i> Novo Horário Fixo
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('agenda_fixa', val)}
+                  placeholder="Buscar aluno, dia, horário ou especialista..."
+                  resultCount={filteredSchedules.length}
+                  totalCount={fixedSchedules.length}
+                />
+                <button className="btn btn-primary" onClick={() => {
+                  setFsDate(new Date().toISOString().split('T')[0]);
+                  setShowFixedSchedModal(true);
+                }}>
+                  <i className="fa-solid fa-plus"></i> Novo Horário Fixo
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="content-panel">
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Aluno</th>
-                    <th>Especialista</th>
-                    <th>Dia de Semana</th>
-                    <th>Horário</th>
-                    <th>Serviço</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'agenda_fixa';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const totalPages = Math.ceil(fixedSchedules.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = fixedSchedules.slice((curP - 1) * size, curP * size);
-
-                    const weekdayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-
-                    return paginated.map(fs => (
+            <div className="content-panel">
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Aluno</th>
+                      <th>Especialista</th>
+                      <th>Dia de Semana</th>
+                      <th>Horário</th>
+                      <th>Serviço</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.map(fs => (
                       <tr key={fs._id}>
                         <td data-label="Aluno"><strong>{fs.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
                         <td data-label="Especialista">{fs.profissionalId?.nome || 'Profissional'}</td>
@@ -5556,192 +5617,189 @@ goniometria: {
                           </button>
                         </td>
                       </tr>
-                    ));
-                  })()}
-                  {fixedSchedules.length === 0 && (
-                    <tr>
-                      <td colSpan={6}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-calendar-alt empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum horário fixo</div>
-                          <div className="empty-state-desc">Não há horários fixos semanais agendados.</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                    {filteredSchedules.length === 0 && (
+                      <tr>
+                        <td colSpan={6}>
+                          <div className="empty-state-card">
+                            <i className="fa-solid fa-calendar-alt empty-state-icon"></i>
+                            <div className="empty-state-title">Nenhum horário fixo encontrado</div>
+                            <div className="empty-state-desc">Não há horários correspondentes aos filtros.</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filteredSchedules.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={curP}
+                    totalItems={filteredSchedules.length}
+                    itemsPerPage={size}
+                    onPageChange={page => setPage('agenda_fixa', page)}
+                  />
+                </div>
+              )}
             </div>
-            {fixedSchedules.length > 0 && (
-              <Pagination
-                currentPage={getPage('agenda_fixa')}
-                totalItems={fixedSchedules.length}
-                itemsPerPage={getPageSize('agenda_fixa')}
-                onPageChange={page => setPage('agenda_fixa', page)}
-              />
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 5. View: Avaliações Físicas */}
-      {activeTab === 'avaliacoes' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
-          {/* Header */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(56, 189, 248, 0.15)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                color: '#38bdf8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.4rem'
-              }}>
-                <i className="fa-solid fa-heartbeat"></i>
-              </div>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Avaliações Físicas
-                </h1>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  Composição corporal, bioimpedância, dobras cutâneas e metas de saúde.
-                </p>
-              </div>
-            </div>
+      {activeTab === 'avaliacoes' && (() => {
+        const listKey = 'avaliacoes';
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const q = getSearchQuery(listKey);
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div className="page-size-selector" style={{ background: 'var(--bg-darker)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Exibir:</span>
-                <select value={getPageSize('avaliacoes')} onChange={e => setPageSizeForKey('avaliacoes', Number(e.target.value))} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', fontWeight: 700, outline: 'none' }}>
-                  <option value={6}>6</option>
-                  <option value={12}>12</option>
-                  <option value={24}>24</option>
-                </select>
-              </div>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar aluno..."
-                value={getSearchQuery('avaliacoes')}
-                onChange={e => setSearchQueryForKey('avaliacoes', e.target.value)}
-                style={{ width: '180px', background: 'var(--bg-darker)', borderRadius: '10px' }}
-              />
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                title="Sincronizar dados"
-                onClick={refreshAssessments}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
-              >
-                <i className="fa-solid fa-rotate"></i>
-              </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  const draftStr = localStorage.getItem('draft_assessment');
-                  if (draftStr) {
-                    try {
-                      setDraftOnOpen(JSON.parse(draftStr));
-                    } catch (e) {}
-                  } else {
-                    setDraftOnOpen(null);
-                  }
-                  setAsDate(new Date().toISOString().split('T')[0]);
-                  setShowAssessmentModal(true);
-                }}
-                style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '10px',
-                  fontWeight: 750,
-                  display: 'inline-flex',
+        const grouped: Record<string, any[]> = {};
+        assessments.forEach(as => {
+          const cid = String(as.clienteId?._id || as.clienteId || 'unknown');
+          if (!grouped[cid]) grouped[cid] = [];
+          grouped[cid].push(as);
+        });
+
+        Object.keys(grouped).forEach(cid => {
+          grouped[cid].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+        });
+
+        const allStudentRows = Object.keys(grouped).map(cid => {
+          const studentAssessments = grouped[cid];
+          const latest = studentAssessments[0];
+          const matchedClient = clients.find(c => String(c._id) === cid);
+          const studentName = latest.clienteId?.dadosPessoais?.nome ||
+                              matchedClient?.dadosPessoais?.nome ||
+                              'Aluno';
+          const studentCpf = latest.clienteId?.dadosPessoais?.cpf ||
+                             matchedClient?.dadosPessoais?.cpf || '';
+          const studentTel = latest.clienteId?.dadosPessoais?.telefone ||
+                             matchedClient?.dadosPessoais?.telefone || '';
+          return {
+            clientId: cid,
+            name: studentName,
+            cpf: studentCpf,
+            tel: studentTel,
+            assessments: studentAssessments,
+            latestDate: latest.data || ''
+          };
+        });
+
+        allStudentRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+        const studentRows = allStudentRows.filter(row => {
+          return smartSearchMatch([row.name, row.cpf, row.tel, row.latestDate], q);
+        });
+
+        const totalPages = Math.ceil(studentRows.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = studentRows.slice((curP - 1) * size, curP * size);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  color: '#38bdf8',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-                  touchAction: 'manipulation'
-                }}
-              >
-                <i className="fa-solid fa-plus"></i> Nova Avaliação
-              </button>
+                  justifyContent: 'center',
+                  fontSize: '1.4rem'
+                }}>
+                  <i className="fa-solid fa-heartbeat"></i>
+                </div>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Avaliações Físicas
+                  </h1>
+                  <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Composição corporal, bioimpedância, dobras cutâneas e metas de saúde.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('avaliacoes', val)}
+                  placeholder="Buscar por aluno, CPF ou data..."
+                  resultCount={studentRows.length}
+                  totalCount={allStudentRows.length}
+                />
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  title="Sincronizar dados"
+                  onClick={refreshAssessments}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
+                >
+                  <i className="fa-solid fa-rotate"></i>
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    const draftStr = localStorage.getItem('draft_assessment');
+                    if (draftStr) {
+                      try {
+                        setDraftOnOpen(JSON.parse(draftStr));
+                      } catch (e) {}
+                    } else {
+                      setDraftOnOpen(null);
+                    }
+                    setAsDate(new Date().toISOString().split('T')[0]);
+                    setShowAssessmentModal(true);
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderRadius: '10px',
+                    fontWeight: 750,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  <i className="fa-solid fa-plus"></i> Nova Avaliação
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Cards Grid */}
-          <div>
-            {(() => {
-              const listKey = 'avaliacoes';
-              const activeP = getPage(listKey);
-              const size = getPageSize(listKey);
-              const q = normalizeText(getSearchQuery(listKey));
-
-              const grouped: Record<string, any[]> = {};
-              assessments.forEach(as => {
-                const cid = String(as.clienteId?._id || as.clienteId || 'unknown');
-                if (!grouped[cid]) grouped[cid] = [];
-                grouped[cid].push(as);
-              });
-
-              Object.keys(grouped).forEach(cid => {
-                grouped[cid].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-              });
-
-              const allStudentRows = Object.keys(grouped).map(cid => {
-                const studentAssessments = grouped[cid];
-                const latest = studentAssessments[0];
-                const matchedClient = clients.find(c => String(c._id) === cid);
-                const studentName = latest.clienteId?.dadosPessoais?.nome ||
-                                    matchedClient?.dadosPessoais?.nome ||
-                                    'Aluno';
-                return {
-                  clientId: cid,
-                  name: studentName,
-                  assessments: studentAssessments,
-                  latestDate: latest.data || ''
-                };
-              });
-
-              allStudentRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
-              const studentRows = q ? allStudentRows.filter(row => normalizeText(row.name).includes(q)) : allStudentRows;
-
-              const totalPages = Math.ceil(studentRows.length / size);
-              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-              const paginated = studentRows.slice((curP - 1) * size, curP * size);
-
-              if (studentRows.length === 0) {
-                return (
-                  <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1.5px dashed var(--border-color)',
-                    borderRadius: '16px',
-                    padding: '48px 20px',
-                    textAlign: 'center'
-                  }}>
-                    <i className="fa-solid fa-weight-scale" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-                    <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhuma avaliação física encontrada</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há registros com os filtros aplicados.</p>
-                    <button type="button" className="btn btn-primary" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
-                      <i className="fa-solid fa-plus"></i> Nova Avaliação
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
+            {/* Cards Grid */}
+            <div>
+              {studentRows.length === 0 ? (
+                <div style={{
+                  background: 'var(--bg-card)',
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '48px 20px',
+                  textAlign: 'center'
+                }}>
+                  <i className="fa-solid fa-weight-scale" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                  <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhuma avaliação física encontrada</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há registros com os filtros aplicados.</p>
+                  <button type="button" className="btn btn-primary" onClick={() => { setAsDate(new Date().toISOString().split('T')[0]); setShowAssessmentModal(true); }}>
+                    <i className="fa-solid fa-plus"></i> Nova Avaliação
+                  </button>
+                </div>
+              ) : (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
                     {paginated.map(row => {
@@ -5939,161 +5997,157 @@ goniometria: {
                     </div>
                   )}
                 </>
-              );
-            })()}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 6. View: Relatórios Fisioterápicos */}
-      {activeTab === 'relatorios' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
-          {/* Header */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                color: '#10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.4rem'
-              }}>
-                <i className="fa-solid fa-file-medical"></i>
-              </div>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Relatórios Fisioterápicos
-                </h1>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  Evolução clínica, acompanhamento e escala de dor dos pacientes.
-                </p>
-              </div>
-            </div>
+      {activeTab === 'relatorios' && (() => {
+        const listKey = 'relatorios';
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const q = getSearchQuery(listKey);
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div className="page-size-selector" style={{ background: 'var(--bg-darker)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Exibir:</span>
-                <select value={getPageSize('relatorios')} onChange={e => setPageSizeForKey('relatorios', Number(e.target.value))} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', fontWeight: 700, outline: 'none' }}>
-                  <option value={6}>6</option>
-                  <option value={12}>12</option>
-                  <option value={24}>24</option>
-                </select>
-              </div>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar paciente..."
-                value={getSearchQuery('relatorios')}
-                onChange={e => setSearchQueryForKey('relatorios', e.target.value)}
-                style={{ width: '180px', background: 'var(--bg-darker)', borderRadius: '10px' }}
-              />
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                title="Sincronizar dados"
-                onClick={refreshReports}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
-              >
-                <i className="fa-solid fa-rotate"></i>
-              </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  setRepDate(new Date().toISOString().split('T')[0]);
-                  setShowReportModal(true);
-                }}
-                style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '10px',
-                  fontWeight: 750,
-                  display: 'inline-flex',
+        const grouped: Record<string, any[]> = {};
+        reports.forEach(rep => {
+          const cid = rep.clienteId?._id || rep.clienteId || 'unknown';
+          if (!grouped[cid]) grouped[cid] = [];
+          grouped[cid].push(rep);
+        });
+
+        Object.keys(grouped).forEach(cid => {
+          grouped[cid].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+        });
+
+        const allRows = Object.keys(grouped).map(cid => {
+          const reps = grouped[cid];
+          const latest = reps[0];
+          const matchedClient = clients.find(c => String(c._id) === String(cid));
+          const studentName = latest.clienteId?.dadosPessoais?.nome ||
+                              matchedClient?.dadosPessoais?.nome ||
+                              'Aluno';
+          const studentCpf = latest.clienteId?.dadosPessoais?.cpf ||
+                             matchedClient?.dadosPessoais?.cpf || '';
+          const studentTel = latest.clienteId?.dadosPessoais?.telefone ||
+                             matchedClient?.dadosPessoais?.telefone || '';
+          return {
+            clientId: cid,
+            name: studentName,
+            cpf: studentCpf,
+            tel: studentTel,
+            reports: reps,
+            latestDate: latest.data || ''
+          };
+        });
+
+        allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+        const filteredRows = allRows.filter(r => {
+          return smartSearchMatch([r.name, r.cpf, r.tel, r.latestDate], q);
+        });
+
+        const totalPages = Math.ceil(filteredRows.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filteredRows.slice((curP - 1) * size, curP * size);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#10b981',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-                  touchAction: 'manipulation'
-                }}
-              >
-                <i className="fa-solid fa-plus"></i> Novo Relatório
-              </button>
+                  justifyContent: 'center',
+                  fontSize: '1.4rem'
+                }}>
+                  <i className="fa-solid fa-file-medical"></i>
+                </div>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Relatórios Fisioterápicos
+                  </h1>
+                  <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Evolução clínica, acompanhamento e escala de dor dos pacientes.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('relatorios', val)}
+                  placeholder="Buscar paciente, CPF ou data..."
+                  resultCount={filteredRows.length}
+                  totalCount={allRows.length}
+                />
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  title="Sincronizar dados"
+                  onClick={refreshReports}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
+                >
+                  <i className="fa-solid fa-rotate"></i>
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    setRepDate(new Date().toISOString().split('T')[0]);
+                    setShowReportModal(true);
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderRadius: '10px',
+                    fontWeight: 750,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  <i className="fa-solid fa-plus"></i> Novo Relatório
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Cards Grid */}
-          <div>
-            {(() => {
-              const listKey = 'relatorios';
-              const activeP = getPage(listKey);
-              const size = getPageSize(listKey);
-              const q = normalizeText(getSearchQuery(listKey));
-
-              const grouped: Record<string, any[]> = {};
-              reports.forEach(rep => {
-                const cid = rep.clienteId?._id || rep.clienteId || 'unknown';
-                if (!grouped[cid]) grouped[cid] = [];
-                grouped[cid].push(rep);
-              });
-
-              Object.keys(grouped).forEach(cid => {
-                grouped[cid].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-              });
-
-              const allRows = Object.keys(grouped).map(cid => {
-                const reps = grouped[cid];
-                const latest = reps[0];
-                const matchedClient = clients.find(c => String(c._id) === String(cid));
-                const studentName = latest.clienteId?.dadosPessoais?.nome ||
-                                    matchedClient?.dadosPessoais?.nome ||
-                                    'Aluno';
-                return {
-                  clientId: cid,
-                  name: studentName,
-                  reports: reps,
-                  latestDate: latest.data || ''
-                };
-              });
-              allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
-              const filteredRows = q ? allRows.filter(r => normalizeText(r.name).includes(q)) : allRows;
-
-              const totalPages = Math.ceil(filteredRows.length / size);
-              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-              const paginated = filteredRows.slice((curP - 1) * size, curP * size);
-
-              if (filteredRows.length === 0) {
-                return (
-                  <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1.5px dashed var(--border-color)',
-                    borderRadius: '16px',
-                    padding: '48px 20px',
-                    textAlign: 'center'
-                  }}>
-                    <i className="fa-solid fa-file-medical" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-                    <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum relatório fisioterápico</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há laudos registrados com os filtros atuais.</p>
-                    <button type="button" className="btn btn-primary" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); }}>
-                      <i className="fa-solid fa-plus"></i> Novo Relatório
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
+            {/* Cards Grid */}
+            <div>
+              {filteredRows.length === 0 ? (
+                <div style={{
+                  background: 'var(--bg-card)',
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '48px 20px',
+                  textAlign: 'center'
+                }}>
+                  <i className="fa-solid fa-file-medical" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                  <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum relatório fisioterápico</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há laudos registrados com os filtros atuais.</p>
+                  <button type="button" className="btn btn-primary" onClick={() => { setRepDate(new Date().toISOString().split('T')[0]); setShowReportModal(true); }}>
+                    <i className="fa-solid fa-plus"></i> Novo Relatório
+                  </button>
+                </div>
+              ) : (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
                     {paginated.map(row => {
@@ -6259,11 +6313,11 @@ goniometria: {
                     </div>
                   )}
                 </>
-              );
-            })()}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Frequência dos Alunos */}
       {activeTab === 'frequencia_alunos' && (() => {
@@ -6368,154 +6422,149 @@ goniometria: {
       })()}
 
       {/* 7. View: Testes de Força */}
-      {activeTab === 'testes_forca' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
-          {/* Header */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.4rem'
-              }}>
-                <i className="fa-solid fa-weight-hanging"></i>
-              </div>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Testes de Força Muscular
-                </h1>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  Dinamometria, índices de assimetria e risco de lesão.
-                </p>
-              </div>
-            </div>
+      {activeTab === 'testes_forca' && (() => {
+        const listKey = 'testes_forca';
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const q = getSearchQuery(listKey);
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div className="page-size-selector" style={{ background: 'var(--bg-darker)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Exibir:</span>
-                <select value={getPageSize('testes_forca')} onChange={e => setPageSizeForKey('testes_forca', Number(e.target.value))} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', fontWeight: 700, outline: 'none' }}>
-                  <option value={6}>6</option>
-                  <option value={12}>12</option>
-                  <option value={24}>24</option>
-                </select>
-              </div>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar aluno..."
-                value={getSearchQuery('testes_forca')}
-                onChange={e => setSearchQueryForKey('testes_forca', e.target.value)}
-                style={{ width: '180px', background: 'var(--bg-darker)', borderRadius: '10px' }}
-              />
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                title="Sincronizar dados"
-                onClick={refreshStrengthTests}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
-              >
-                <i className="fa-solid fa-rotate"></i>
-              </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  setStDate(new Date().toISOString().split('T')[0]);
-                  setShowStModal(true);
-                }}
-                style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '10px',
-                  fontWeight: 750,
-                  display: 'inline-flex',
+        const grouped: Record<string, any[]> = {};
+        strengthTests.forEach(st => {
+          const cid = st.clienteId?._id || st.clienteId || 'unknown';
+          if (!grouped[cid]) grouped[cid] = [];
+          grouped[cid].push(st);
+        });
+
+        Object.keys(grouped).forEach(cid => {
+          grouped[cid].sort((a, b) => b.data.localeCompare(a.data));
+        });
+
+        const allRows = Object.keys(grouped).map(cid => {
+          const sts = grouped[cid];
+          const latest = sts[0];
+          const matchedClient = clients.find(c => String(c._id) === String(cid));
+          const studentName = latest.clienteId?.dadosPessoais?.nome ||
+                              matchedClient?.dadosPessoais?.nome ||
+                              'Aluno';
+          const studentCpf = latest.clienteId?.dadosPessoais?.cpf ||
+                             matchedClient?.dadosPessoais?.cpf || '';
+          const studentTel = latest.clienteId?.dadosPessoais?.telefone ||
+                             matchedClient?.dadosPessoais?.telefone || '';
+          return {
+            clientId: cid,
+            name: studentName,
+            cpf: studentCpf,
+            tel: studentTel,
+            tests: sts,
+            latestDate: latest.data || ''
+          };
+        });
+        allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+        const filteredRows = allRows.filter(r => {
+          return smartSearchMatch([r.name, r.cpf, r.tel, r.latestDate], q);
+        });
+
+        const totalPages = Math.ceil(filteredRows.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filteredRows.slice((curP - 1) * size, curP * size);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#ef4444',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-                  touchAction: 'manipulation'
-                }}
-              >
-                <i className="fa-solid fa-plus"></i> Novo Teste
-              </button>
+                  justifyContent: 'center',
+                  fontSize: '1.4rem'
+                }}>
+                  <i className="fa-solid fa-weight-hanging"></i>
+                </div>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Testes de Força Muscular
+                  </h1>
+                  <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Dinamometria, índices de assimetria e risco de lesão.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('testes_forca', val)}
+                  placeholder="Buscar aluno, CPF ou data..."
+                  resultCount={filteredRows.length}
+                  totalCount={allRows.length}
+                />
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  title="Sincronizar dados"
+                  onClick={refreshStrengthTests}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
+                >
+                  <i className="fa-solid fa-rotate"></i>
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    setStDate(new Date().toISOString().split('T')[0]);
+                    setShowStModal(true);
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderRadius: '10px',
+                    fontWeight: 750,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  <i className="fa-solid fa-plus"></i> Novo Teste
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Cards Grid */}
-          <div>
-            {(() => {
-              const listKey = 'testes_forca';
-              const activeP = getPage(listKey);
-              const size = getPageSize(listKey);
-              const q = normalizeText(getSearchQuery(listKey));
-
-              const grouped: Record<string, any[]> = {};
-              strengthTests.forEach(st => {
-                const cid = st.clienteId?._id || st.clienteId || 'unknown';
-                if (!grouped[cid]) grouped[cid] = [];
-                grouped[cid].push(st);
-              });
-
-              Object.keys(grouped).forEach(cid => {
-                grouped[cid].sort((a, b) => b.data.localeCompare(a.data));
-              });
-
-              const allRows = Object.keys(grouped).map(cid => {
-                const sts = grouped[cid];
-                const latest = sts[0];
-                const matchedClient = clients.find(c => String(c._id) === String(cid));
-                const studentName = latest.clienteId?.dadosPessoais?.nome ||
-                                    matchedClient?.dadosPessoais?.nome ||
-                                    'Aluno';
-                return {
-                  clientId: cid,
-                  name: studentName,
-                  tests: sts,
-                  latestDate: latest.data || ''
-                };
-              });
-              allRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
-              const filteredRows = q ? allRows.filter(r => normalizeText(r.name).includes(q)) : allRows;
-
-              const totalPages = Math.ceil(filteredRows.length / size);
-              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-              const paginated = filteredRows.slice((curP - 1) * size, curP * size);
-
-              if (filteredRows.length === 0) {
-                return (
-                  <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1.5px dashed var(--border-color)',
-                    borderRadius: '16px',
-                    padding: '48px 20px',
-                    textAlign: 'center'
-                  }}>
-                    <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-                    <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum teste de força muscular</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há testes registrados com os filtros atuais.</p>
-                    <button type="button" className="btn btn-primary" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
-                      <i className="fa-solid fa-plus"></i> Novo Teste
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
+            {/* Cards Grid */}
+            <div>
+              {filteredRows.length === 0 ? (
+                <div style={{
+                  background: 'var(--bg-card)',
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '48px 20px',
+                  textAlign: 'center'
+                }}>
+                  <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                  <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum teste de força muscular</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há testes registrados com os filtros atuais.</p>
+                  <button type="button" className="btn btn-primary" onClick={() => { setStDate(new Date().toISOString().split('T')[0]); setShowStModal(true); }}>
+                    <i className="fa-solid fa-plus"></i> Novo Teste
+                  </button>
+                </div>
+              ) : (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
                     {paginated.map(row => {
@@ -6711,140 +6760,131 @@ goniometria: {
                     </div>
                   )}
                 </>
-              );
-            })()}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 8. View: Prontuários */}
-      {activeTab === 'prontuarios' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
-          {/* Header */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(168, 85, 247, 0.15)',
-                border: '1px solid rgba(168, 85, 247, 0.3)',
-                color: '#a855f7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.4rem'
-              }}>
-                <i className="fa-solid fa-notes-medical"></i>
-              </div>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Prontuários Clínicos
-                </h1>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  Histórico clínico centralizado e anotações confidenciais do fisioterapeuta.
-                </p>
-              </div>
-            </div>
+      {activeTab === 'prontuarios' && (() => {
+        const listKey = 'prontuarios';
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const q = getSearchQuery(listKey);
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div className="page-size-selector" style={{ background: 'var(--bg-darker)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Exibir:</span>
-                <select value={getPageSize('prontuarios')} onChange={e => setPageSizeForKey('prontuarios', Number(e.target.value))} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', fontWeight: 700, outline: 'none' }}>
-                  <option value={6}>6</option>
-                  <option value={12}>12</option>
-                  <option value={24}>24</option>
-                </select>
-              </div>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar paciente..."
-                value={getSearchQuery('prontuarios')}
-                onChange={e => setSearchQueryForKey('prontuarios', e.target.value)}
-                style={{ width: '180px', background: 'var(--bg-darker)', borderRadius: '10px' }}
-              />
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                title="Sincronizar dados"
-                onClick={refreshProntuarios}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
-              >
-                <i className="fa-solid fa-rotate"></i>
-              </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  setPrDate(new Date().toISOString().split('T')[0]);
-                  setShowProntuarioModal(true);
-                }}
-                style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '10px',
-                  fontWeight: 750,
-                  display: 'inline-flex',
+        const filtered = prontuarios.filter(p => {
+          const cid = String(p.clienteId?._id || p.clienteId || '');
+          const matched = clients.find(c => String(c._id) === cid);
+          const name = p.clienteId?.dadosPessoais?.nome || p.clienteId?.nome || matched?.dadosPessoais?.nome || '';
+          const cpf = p.clienteId?.dadosPessoais?.cpf || matched?.dadosPessoais?.cpf || '';
+          const tel = p.clienteId?.dadosPessoais?.telefone || matched?.dadosPessoais?.telefone || '';
+          const content = p.conteudo || '';
+          const date = p.data || '';
+          return smartSearchMatch([name, cpf, tel, content, date], q);
+        });
+
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  color: '#a855f7',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-                  touchAction: 'manipulation'
-                }}
-              >
-                <i className="fa-solid fa-plus"></i> Nova Anotação
-              </button>
+                  justifyContent: 'center',
+                  fontSize: '1.4rem'
+                }}>
+                  <i className="fa-solid fa-notes-medical"></i>
+                </div>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Prontuários Clínicos
+                  </h1>
+                  <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Histórico clínico centralizado e anotações confidenciais do fisioterapeuta.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('prontuarios', val)}
+                  placeholder="Buscar paciente, anotações ou data..."
+                  resultCount={filtered.length}
+                  totalCount={prontuarios.length}
+                />
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  title="Sincronizar dados"
+                  onClick={refreshProntuarios}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', touchAction: 'manipulation' }}
+                >
+                  <i className="fa-solid fa-rotate"></i>
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    setPrDate(new Date().toISOString().split('T')[0]);
+                    setShowProntuarioModal(true);
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderRadius: '10px',
+                    fontWeight: 750,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  <i className="fa-solid fa-plus"></i> Nova Anotação
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Cards Grid */}
-          <div>
-            {(() => {
-              const listKey = 'prontuarios';
-              const activeP = getPage(listKey);
-              const size = getPageSize(listKey);
-              const q = normalizeText(getSearchQuery(listKey));
-
-              const filtered = prontuarios.filter(p => {
-                const cid = String(p.clienteId?._id || p.clienteId || '');
-                const matched = clients.find(c => String(c._id) === cid);
-                const name = p.clienteId?.dadosPessoais?.nome || p.clienteId?.nome || matched?.dadosPessoais?.nome || '';
-                return normalizeText(name).includes(q);
-              });
-
-              const totalPages = Math.ceil(filtered.length / size);
-              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-              const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-              if (filtered.length === 0) {
-                return (
-                  <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1.5px dashed var(--border-color)',
-                    borderRadius: '16px',
-                    padding: '48px 20px',
-                    textAlign: 'center'
-                  }}>
-                    <i className="fa-solid fa-clipboard-question" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-                    <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum prontuário encontrado</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há anotações registradas com os filtros atuais.</p>
-                    <button type="button" className="btn btn-primary" onClick={() => { setPrDate(new Date().toISOString().split('T')[0]); setShowProntuarioModal(true); }}>
-                      <i className="fa-solid fa-plus"></i> Nova Anotação
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
+            {/* Cards Grid */}
+            <div>
+              {filtered.length === 0 ? (
+                <div style={{
+                  background: 'var(--bg-card)',
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '48px 20px',
+                  textAlign: 'center'
+                }}>
+                  <i className="fa-solid fa-clipboard-question" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                  <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum prontuário encontrado</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há anotações registradas com os filtros atuais.</p>
+                  <button type="button" className="btn btn-primary" onClick={() => { setPrDate(new Date().toISOString().split('T')[0]); setShowProntuarioModal(true); }}>
+                    <i className="fa-solid fa-plus"></i> Nova Anotação
+                  </button>
+                </div>
+              ) : (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
                     {paginated.map(pr => {
@@ -6955,11 +6995,11 @@ goniometria: {
                     </div>
                   )}
                 </>
-              );
-            })()}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Default Fallback for other tabs */}
       {!['resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino'].includes(activeTab) && (
