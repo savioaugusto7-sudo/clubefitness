@@ -883,9 +883,6 @@ export default function AgendamentoProfissionalPanel({
                 fontFamily: 'inherit'
               }}
             />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              💡 O horário do lançamento da observação será gravado automaticamente e ficará visível na agenda para consulta rápida.
-            </div>
           </div>
 
           {/* Resumo & Botão de Confirmação */}
