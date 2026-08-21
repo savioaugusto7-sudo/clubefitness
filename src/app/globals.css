@@ -3018,8 +3018,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
    DESIGN RESPONSIVO DE PONTA (CELULAR E TABLET)
    ========================================================================== */
 
-/* 📱 CELULARES (Telas até 600px) */
-@media (max-width: 600px) {
+/* 📱 CELULARES (Telas até 768px / 600px) */
+@media (max-width: 768px) {
   /* Oculta a sidebar de todos os usuários no celular (usam Bottom Nav) */
   aside.sidebar {
     display: none !important;
@@ -3027,7 +3027,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
   main.main-content {
     margin-left: 0 !important;
-    padding: 16px 16px 90px 16px !important; /* padding inferior maior para não cobrir conteúdo com a Bottom Nav */
+    padding: 16px 16px calc(120px + env(safe-area-inset-bottom, 20px)) 16px !important; /* Espaço generoso para que nada seja cortado pela Bottom Nav */
     width: 100% !important;
   }
 

@@ -135,6 +135,29 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   const [deleteTargetTime, setDeleteTargetTime] = useState('');
   const [deleteTargetType, setDeleteTargetType] = useState<'academia' | 'consultorio'>('academia');
 
+  // States para Inspeção Rápida de Agendamento e Gestão de Observações (Mobile & Desktop)
+  const [inspectApt, setInspectApt] = useState<any | null>(null);
+  const [editObsText, setEditObsText] = useState('');
+  const [isEditingObs, setIsEditingObs] = useState(false);
+  const [savingObs, setSavingObs] = useState(false);
+
+  // Formatação de data/hora de lançamento de observação
+  const formatObsTimestamp = (dtString?: string | Date) => {
+    if (!dtString) return '';
+    try {
+      const d = new Date(dtString);
+      if (isNaN(d.getTime())) return '';
+      const dia = String(d.getDate()).padStart(2, '0');
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const ano = d.getFullYear();
+      const hora = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${dia}/${mes}/${ano} às ${hora}:${min}`;
+    } catch {
+      return '';
+    }
+  };
+
   // Função utilitária de formatação de data com dia da semana
   const formatSelectedDateWithDayOfWeek = (dateStr: string) => {
     if (!dateStr) return '';
@@ -143,6 +166,39 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
     const dayOfWeek = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
     const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
     return `${formattedDate} (${capitalizedDay})`;
+  };
+
+  // Salvar observação clínica diretamente no agendamento
+  const handleSaveObservation = async () => {
+    if (!inspectApt) return;
+    setSavingObs(true);
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: inspectApt._id,
+          observacoes: editObsText
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showFeedback('Observação clínica atualizada com sucesso!', 'success');
+        setInspectApt((prev: any) => prev ? {
+          ...prev,
+          observacoes: editObsText.trim(),
+          observacaoDataHora: editObsText.trim() ? new Date().toISOString() : null
+        } : null);
+        setIsEditingObs(false);
+        fetchSlotsAndConfigs();
+      } else {
+        showFeedback(data.error || 'Erro ao salvar observação.', 'danger');
+      }
+    } catch (e: any) {
+      showFeedback('Erro de conexão: ' + e.message, 'danger');
+    } finally {
+      setSavingObs(false);
+    }
   };
 
   // Notificação temporária
@@ -452,7 +508,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
   // --- Handlers de Ações locais de Reservas ---
 
-  const handleUpdateAptStatus = async (id: string, newStatus: 'presenca' | 'cancelado' | 'agendado') => {
+  const handleUpdateAptStatus = async (id: string, newStatus: 'presenca' | 'cancelado' | 'agendado' | 'falta') => {
     try {
       const res = await fetch('/api/appointments', {
         method: 'PUT',
@@ -777,9 +833,18 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                                const shortName = apt.clienteId?.dadosPessoais?.nome 
                                  ? apt.clienteId.dadosPessoais.nome.split(' ').slice(0, 2).join(' ') 
                                  : 'Aluno';
+                               const hasObs = Boolean(apt.observacoes && apt.observacoes.trim());
+
                                return (
                                  <div 
                                    key={apt._id} 
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     setInspectApt(apt);
+                                     setEditObsText(apt.observacoes || '');
+                                     setIsEditingObs(false);
+                                   }}
+                                   title={hasObs ? `Clique para ver: ${apt.observacoes}` : 'Clique para ver detalhes do agendamento'}
                                    style={{ 
                                      display: 'inline-flex', 
                                      alignItems: 'center', 
@@ -788,7 +853,9 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                                      borderRadius: '16px', 
                                      padding: '2px 8px 2px 10px', 
                                      gap: '6px',
-                                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                     cursor: 'pointer',
+                                     transition: 'all 0.15s ease'
                                    }}
                                  >
                                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--text-main)' }}>
@@ -808,6 +875,19 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                                    >
                                      {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
                                    </span>
+                                   {hasObs && (
+                                      <span
+                                        style={{
+                                          color: '#f59e0b',
+                                          fontSize: '0.72rem',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          marginLeft: '1px'
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-note-sticky"></i>
+                                      </span>
+                                    )}
                                  </div>
                                );
                              })
@@ -1142,7 +1222,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                           justifyContent: 'space-between'
                         }}
                       >
-                        <div>
+                        <div style={{ flex: '1 1 auto', marginRight: '12px' }}>
                           <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>{apt.clienteId?.dadosPessoais?.nome}</strong>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                             CPF: {apt.clienteId?.dadosPessoais?.cpf} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
@@ -1150,6 +1230,27 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                           <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
                             Profissional: <strong style={{ color: 'var(--color-primary)' }}>{apt.profissionalId?.dadosPessoais?.nome}</strong> · Serviço: <strong>{apt.servico}</strong>
                           </div>
+                          {apt.observacoes && (
+                            <div style={{
+                              marginTop: '8px',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              background: 'rgba(245, 158, 11, 0.08)',
+                              border: '1px solid rgba(245, 158, 11, 0.25)',
+                              fontSize: '0.78rem',
+                              color: 'var(--text-main)'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 700, marginBottom: '3px' }}>
+                                <i className="fa-solid fa-note-sticky"></i> Observação Clínica:
+                              </div>
+                              <div style={{ lineHeight: '1.4' }}>{apt.observacoes}</div>
+                              {apt.observacaoDataHora && (
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                  🕒 Lançada em {formatObsTimestamp(apt.observacaoDataHora)}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div style={{ display: 'flex', gap: '6px' }}>
@@ -1357,6 +1458,222 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
             <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setShowAddGoogleEventModal(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleAddGoogleEvent}>Salvar no Google</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: Inspeção Rápida de Agendamento & Observações Clínicas (Desktop & Mobile) */}
+      {inspectApt && (
+        <div className="modal-overlay" style={{ zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }} onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', boxShadow: '0 12px 36px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
+                  <i className="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Detalhes do Agendamento</h3>
+                  <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    {formatSelectedDateWithDayOfWeek(inspectApt.data || selectedDate)} às <strong>{inspectApt.horario}</strong>
+                  </p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => { setInspectApt(null); setIsEditingObs(false); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.4rem', cursor: 'pointer' }}>
+                &times;
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Aluno & Serviço */}
+              <div style={{ background: 'var(--bg-darker)', padding: '14px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text-main)' }}>
+                    {inspectApt.clienteId?.dadosPessoais?.nome || inspectApt.clienteNome || 'Aluno'}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    CPF: {inspectApt.clienteId?.dadosPessoais?.cpf || '—'} • Tel: {inspectApt.clienteId?.dadosPessoais?.telefone || '—'}
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  background: getServiceColor(inspectApt.servico).bg,
+                  color: getServiceColor(inspectApt.servico).text,
+                  border: `1px solid ${getServiceColor(inspectApt.servico).text}40`
+                }}>
+                  {inspectApt.servico}
+                </span>
+              </div>
+
+              {/* Bloco de Observação Clínica com Timestamp */}
+              <div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontWeight: 700, fontSize: '0.85rem' }}>
+                    <i className="fa-solid fa-note-sticky"></i> Observação Clínica
+                  </div>
+                  {!isEditingObs && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingObs(true)}
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        color: '#f59e0b',
+                        borderRadius: '6px',
+                        padding: '3px 10px',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="fa-solid fa-pen-to-square"></i> {inspectApt.observacoes ? 'Editar' : 'Adicionar'}
+                    </button>
+                  )}
+                </div>
+
+                {isEditingObs ? (
+                  <div>
+                    <textarea
+                      rows={3}
+                      className="form-control"
+                      placeholder="Digite orientações clínicas, foco do treino, dores ou restrições..."
+                      value={editObsText}
+                      onChange={e => setEditObsText(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-darker)',
+                        color: 'var(--text-main)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '10px',
+                        fontSize: '0.85rem',
+                        resize: 'vertical',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingObs(false);
+                          setEditObsText(inspectApt.observacoes || '');
+                        }}
+                        style={{
+                          background: 'var(--bg-darker)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-muted)',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '0.78rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingObs}
+                        onClick={handleSaveObservation}
+                        style={{
+                          background: '#10b981',
+                          border: 'none',
+                          color: '#fff',
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {savingObs ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                        Salvar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {inspectApt.observacoes ? (
+                      <>
+                        <div style={{ fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: '1.45', whiteSpace: 'pre-wrap' }}>
+                          "{inspectApt.observacoes}"
+                        </div>
+                        {inspectApt.observacaoDataHora && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <i className="fa-regular fa-clock"></i> Lançada em {formatObsTimestamp(inspectApt.observacaoDataHora)}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                        Nenhuma observação clínica lançada para este agendamento.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Ações Rápidas de Frequência */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                {inspectApt.status === 'agendado' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleUpdateAptStatus(inspectApt._id, 'presenca');
+                        setInspectApt(null);
+                      }}
+                      style={{
+                        flex: '1 1 120px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        fontSize: '0.84rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className="fa-solid fa-check"></i> Marcar Presença
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleUpdateAptStatus(inspectApt._id, 'falta');
+                        setInspectApt(null);
+                      }}
+                      style={{
+                        flex: '1 1 100px',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        fontSize: '0.84rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className="fa-solid fa-xmark"></i> Falta
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -423,6 +423,7 @@ export async function POST(request: Request) {
       await client.save();
     }
 
+    const observacoesText = body.observacoes?.trim() || '';
     const appointment = await Appointment.create({
       data,
       horario,
@@ -432,7 +433,9 @@ export async function POST(request: Request) {
       tipoCredito,
       profissionalId: finalProfId,
       clienteId,
-      status: 'agendado'
+      status: 'agendado',
+      observacoes: observacoesText,
+      observacaoDataHora: observacoesText ? new Date() : null
     });
 
     return NextResponse.json({ success: true, data: appointment });
@@ -449,15 +452,30 @@ export async function PUT(request: Request) {
     const _pr = Professional;
     const _a = Appointment;
     const body = await request.json();
-    const { id, status, wellness, profissionalId } = body;
+    const { id, status, wellness, profissionalId, observacoes } = body;
 
-    if (!id || !status) {
-      return NextResponse.json({ success: false, error: 'Missing appointment ID or status' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Missing appointment ID' }, { status: 400 });
     }
 
     const appointment = await Appointment.findById(id);
     if (!appointment) {
       return NextResponse.json({ success: false, error: 'Appointment not found' }, { status: 404 });
+    }
+
+    // Suporte para atualizar observações diretamente
+    if (observacoes !== undefined) {
+      const obsTrimmed = observacoes?.trim() || '';
+      appointment.observacoes = obsTrimmed;
+      appointment.observacaoDataHora = obsTrimmed ? new Date() : null;
+      if (!status) {
+        await appointment.save();
+        return NextResponse.json({ success: true, data: appointment });
+      }
+    }
+
+    if (!status) {
+      return NextResponse.json({ success: false, error: 'Status is required' }, { status: 400 });
     }
 
     // Regra Obrigatória: Para confirmar presença, o Questionário Wellness deve ser preenchido

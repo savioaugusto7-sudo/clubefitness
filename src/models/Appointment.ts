@@ -28,6 +28,8 @@ const AppointmentSchema = new Schema({
   status: { type: String, enum: ['agendado', 'presenca', 'cancelado', 'falta'], default: 'agendado' },
   origemHorarioFixo: { type: Boolean, default: false },
   fixedScheduleId: { type: Schema.Types.ObjectId, ref: 'FixedSchedule', default: null },
+  observacoes: { type: String, default: '' },
+  observacaoDataHora: { type: Date, default: null },
   wellness: { type: WellnessSchema, default: null }
 }, { timestamps: true });
 

@@ -320,7 +320,7 @@ export default function AgendamentoProfissionalPanel({
   const credRestantes = Math.max(0, credTotal - credUsados - credReservados);
 
   return (
-    <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', paddingBottom: '60px' }}>
       
       {/* Toast Notification */}
       {feedback && (
@@ -851,7 +851,7 @@ export default function AgendamentoProfissionalPanel({
         </div>
 
         {/* ══════════════════════════════════════════════════════════════
-            PASSO 5: PROFISSIONAL, OBSERVAÇÕES E CONFIRMAÇÃO
+            PASSO 5: OBSERVAÇÕES E CONFIRMAÇÃO
             ══════════════════════════════════════════════════════════════ */}
         <div style={{
           background: 'var(--bg-card)',
@@ -861,53 +861,30 @@ export default function AgendamentoProfissionalPanel({
           marginTop: '20px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                <i className="fa-solid fa-user-doctor" style={{ marginRight: '6px', color: '#3b82f6' }}></i> Profissional Responsável:
-              </label>
-              <select
-                value={selectedProfId}
-                onChange={e => setSelectedProfId(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-darker)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '10px 12px',
-                  fontSize: '0.88rem',
-                  outline: 'none'
-                }}
-              >
-                {professionals.map(p => (
-                  <option key={p._id} value={p._id}>
-                    {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                <i className="fa-solid fa-comment-medical" style={{ marginRight: '6px', color: '#a855f7' }}></i> Observações Clínicas / Detalhes (Opcional):
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: Foco no ombro direito, retorno pós-lesão..."
-                value={observacoes}
-                onChange={e => setObservacoes(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-darker)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '10px 12px',
-                  fontSize: '0.88rem',
-                  outline: 'none'
-                }}
-              />
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
+              <i className="fa-solid fa-comment-medical" style={{ marginRight: '6px', color: '#a855f7' }}></i> Observações Clínicas / Detalhes (Opcional):
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Ex: Foco no ombro direito, retorno pós-lesão, ajuste de carga..."
+              value={observacoes}
+              onChange={e => setObservacoes(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--bg-darker)',
+                color: 'var(--text-main)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                fontSize: '0.9rem',
+                outline: 'none',
+                resize: 'vertical',
+                fontFamily: 'inherit'
+              }}
+            />
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              💡 O horário do lançamento da observação será gravado automaticamente e ficará visível na agenda para consulta rápida.
             </div>
           </div>
 

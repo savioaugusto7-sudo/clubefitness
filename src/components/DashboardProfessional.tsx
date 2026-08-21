@@ -4398,6 +4398,35 @@ goniometria: {
                                         </div>
                                       </div>
 
+                                      {/* Observação Clínica com Timestamp se preenchida */}
+                                      {a.observacoes && (
+                                        <div style={{
+                                          background: 'rgba(245, 158, 11, 0.08)',
+                                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                                          borderRadius: '8px',
+                                          padding: '8px 12px',
+                                          fontSize: '0.78rem',
+                                          color: 'var(--text-main)'
+                                        }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 700, marginBottom: '3px' }}>
+                                            <i className="fa-solid fa-note-sticky"></i> Observação Clínica:
+                                          </div>
+                                          <div style={{ lineHeight: '1.4' }}>{a.observacoes}</div>
+                                          {a.observacaoDataHora && (
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                              🕒 Lançada em {(() => {
+                                                try {
+                                                  const d = new Date(a.observacaoDataHora);
+                                                  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} às ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                                                } catch {
+                                                  return '';
+                                                }
+                                              })()}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
                                       {/* Badge Wellness do Dia se preenchido */}
                                       {a.wellness?.realizado && (
                                         <div style={{
