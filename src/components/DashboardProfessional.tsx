@@ -4722,125 +4722,174 @@ goniometria: {
                       />
                     </div>
 
-                    <div className="table-responsive">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Aluno</th>
-                            <th>Última Avaliação</th>
-                            <th>Teste de Força</th>
-                            <th>Fim do Plano</th>
-                            <th>Risco de Evasão</th>
-                            <th>Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                            const totalPages = Math.ceil(filtered.length / size);
-                            const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                            const paginated = filtered.slice((curP - 1) * size, curP * size);
+                    <div>
+                      {filtered.length === 0 ? (
+                        <div style={{
+                          background: 'var(--bg-card)',
+                          border: '1.5px dashed var(--border-color)',
+                          borderRadius: '16px',
+                          padding: '48px 20px',
+                          textAlign: 'center'
+                        }}>
+                          <i className="fa-solid fa-graduation-cap" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                          <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum aluno encontrado</h3>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há alunos correspondentes aos filtros aplicados.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                            {(() => {
+                              const totalPages = Math.ceil(filtered.length / size);
+                              const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+                              const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-                            return paginated.map(c => {
-                        const days = getDaysSince(c._id);
-                        const risk = getRisk(days);
-                        const lastAsRaw = getLastAssessment(c._id);
-                        const lastStRaw = getLastStrengthTest(c._id);
+                              return paginated.map(c => {
+                                const days = getDaysSince(c._id);
+                                const risk = getRisk(days);
+                                const lastAsRaw = getLastAssessment(c._id);
+                                const lastStRaw = getLastStrengthTest(c._id);
 
-                        const asObj = getExamStyleAndIcon(lastAsRaw);
-                        const stObj = getExamStyleAndIcon(lastStRaw);
-                        const planObj = getPlanStyleAndIcon(c.dadosComerciais?.vencimento);
+                                const asObj = getExamStyleAndIcon(lastAsRaw);
+                                const stObj = getExamStyleAndIcon(lastStRaw);
+                                const planObj = getPlanStyleAndIcon(c.dadosComerciais?.vencimento);
 
-                        const linkedProfId = c.profissionalId?._id || c.profissionalId;
-                        const isMyStudent = linkedProfId === professionalId;
+                                const linkedProfId = c.profissionalId?._id || c.profissionalId;
+                                const isMyStudent = linkedProfId === professionalId;
 
-                        return (
-                          <tr key={c._id}>
-                            <td data-label="Aluno">
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <img src={c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F') ? '/avatar_feminino.png' : '/avatar_masculino.png'} alt="avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
-                                <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                    <strong style={{ display: 'block' }}>
-                                      {c.dadosPessoais?.nome}
-                                    </strong>
-                                    {isMyStudent ? (
-                                      <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                                        <i className="fa-solid fa-star" style={{ marginRight: '3px' }}></i>Meu Aluno
-                                      </span>
-                                    ) : c.profissionalId?.nome ? (
-                                      <span style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                        Prof. {c.profissionalId.nome}
-                                      </span>
-                                    ) : null}
+                                return (
+                                  <div
+                                    key={c._id}
+                                    style={{
+                                      background: 'var(--bg-card)',
+                                      border: '1px solid var(--border-color)',
+                                      borderRadius: '16px',
+                                      padding: '18px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      justifyContent: 'space-between',
+                                      gap: '14px',
+                                      boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                                      transition: 'transform 0.15s ease, border-color 0.15s ease'
+                                    }}
+                                  >
+                                    <div>
+                                      {/* Header */}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                                        <div style={{ flex: '1 1 55%', minWidth: 0 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                            <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff', wordBreak: 'break-word' }}>
+                                              {c.dadosPessoais?.nome}
+                                            </h3>
+                                            {isMyStudent ? (
+                                              <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                                                <i className="fa-solid fa-star" style={{ marginRight: '3px' }}></i>Meu Aluno
+                                              </span>
+                                            ) : c.profissionalId?.nome ? (
+                                              <span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                                Prof. {c.profissionalId.nome}
+                                              </span>
+                                            ) : null}
+                                          </div>
+                                          <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+                                            {c.dadosPessoais?.telefone || c.dadosPessoais?.email || 'Sem contato'}
+                                          </div>
+                                        </div>
+
+                                        <span style={{
+                                          background: risk.color + '22',
+                                          color: risk.color,
+                                          border: `1px solid ${risk.color}55`,
+                                          padding: '3px 8px',
+                                          borderRadius: '8px',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 800,
+                                          whiteSpace: 'nowrap',
+                                          flexShrink: 0
+                                        }}>
+                                          Risco {risk.level}
+                                        </span>
+                                      </div>
+
+                                      {/* Grid de Informações 2x2 */}
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '14px' }}>
+                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Última Avaliação</div>
+                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, marginTop: '2px', ...asObj.style, background: 'transparent' }}>
+                                            {asObj.icon} {asObj.displayVal}
+                                          </div>
+                                        </div>
+                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Teste de Força</div>
+                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, marginTop: '2px', ...stObj.style, background: 'transparent' }}>
+                                            {stObj.icon} {stObj.displayVal}
+                                          </div>
+                                        </div>
+                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Fim do Plano</div>
+                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, marginTop: '2px', ...planObj.style, background: 'transparent' }}>
+                                            {planObj.icon} {planObj.displayVal}
+                                          </div>
+                                        </div>
+                                        <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                          <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Plano</div>
+                                          <div style={{ fontSize: '0.84rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {c.dadosComerciais?.planoId?.nome || 'Personalizado'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Action button */}
+                                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', gap: '8px' }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px', fontWeight: 750, borderRadius: '10px', fontSize: '0.82rem' }}
+                                        onClick={() => {
+                                          setDetailClient(c);
+                                          setClientDetailTab('agendamentos');
+                                          setShowClientDetailModal(true);
+                                          logReadActivity('Visualizou Histórico Clínico', c._id, c.dadosPessoais?.nome || '');
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-address-card"></i> Prontuário / Histórico
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', fontWeight: 750, borderRadius: '10px', fontSize: '0.82rem' }}
+                                        onClick={() => handleOpenWorkoutEditor(c)}
+                                        title="Montar ou editar ficha de treino"
+                                      >
+                                        <i className="fa-solid fa-dumbbell"></i> Treino
+                                      </button>
+                                    </div>
                                   </div>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                                    {c.dadosPessoais?.telefone || '-'}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                            <td data-label="Última Avaliação" style={asObj.style}>
-                              {asObj.icon}
-                              {asObj.displayVal}
-                            </td>
-                            <td data-label="Teste de Força" style={stObj.style}>
-                              {stObj.icon}
-                              {stObj.displayVal}
-                            </td>
-                            <td data-label="Fim do Plano" style={planObj.style}>
-                              {planObj.icon}
-                              {planObj.displayVal}
-                            </td>
-                            <td data-label="Risco de Evasão">
-                              <span className="badge" style={{ background: risk.color + '22', color: risk.color, fontWeight: 700 }}>
-                                {risk.level}
-                              </span>
-                            </td>
-                            <td data-label="Ações">
-                              <button className="btn btn-primary btn-sm" onClick={() => {
-                                setDetailClient(c);
-                                setClientDetailTab('agendamentos');
-                                setShowClientDetailModal(true);
-                                logReadActivity('Visualizou Histórico Clínico', c._id, c.dadosPessoais?.nome || '');
-                              }}>
-                                <i className="fa-solid fa-address-card"></i> Histórico
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                    {clients.length === 0 && (
-                      <tr>
-                        <td colSpan={6}>
-                          <div className="empty-state-card">
-                            <i className="fa-solid fa-graduation-cap empty-state-icon"></i>
-                            <div className="empty-state-title">Nenhum aluno vinculado</div>
-                            <div className="empty-state-desc">Não há alunos vinculados a você no sistema.</div>
+                                );
+                              });
+                            })()}
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {filtered.length > 0 && (
-                <div style={{ marginTop: '16px' }}>
-                  <Pagination
-                    currentPage={curP}
-                    totalItems={filtered.length}
-                    itemsPerPage={size}
-                    onPageChange={page => setPage('clientes', page)}
-                  />
-                </div>
-              )}
-            </>
-          );
-        })()}
-          </div>
-        </>
-      );
-    })()}
+
+                          {filtered.length > 0 && (
+                            <div style={{ marginTop: '16px' }}>
+                              <Pagination
+                                currentPage={curP}
+                                totalItems={filtered.length}
+                                itemsPerPage={size}
+                                onPageChange={page => setPage('clientes', page)}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </>
+        );
+      })()}
 
       {/* 2b. View: Dados Clínicos */}
       {activeTab === 'dados_clinicos' && (
@@ -5039,20 +5088,13 @@ goniometria: {
                                   }}
                                 >
                                   <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <img 
-                                          src={isFemale ? '/avatar_feminino.png' : '/avatar_masculino.png'} 
-                                          alt="avatar" 
-                                          style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--border-color)' }} 
-                                        />
-                                        <div>
-                                          <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff' }}>
-                                            {c.dadosPessoais?.nome}
-                                          </h3>
-                                          <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                                            {c.dadosPessoais?.email || c.dadosPessoais?.telefone || 'Sem contato'}
-                                          </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                                      <div style={{ flex: '1 1 55%', minWidth: 0 }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff', wordBreak: 'break-word' }}>
+                                          {c.dadosPessoais?.nome}
+                                        </h3>
+                                        <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '2px', wordBreak: 'break-word' }}>
+                                          {c.dadosPessoais?.email || c.dadosPessoais?.telefone || 'Sem contato'}
                                         </div>
                                       </div>
 
@@ -5060,11 +5102,12 @@ goniometria: {
                                         background: hasWorkout ? (isExpired ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)') : 'rgba(245, 158, 11, 0.15)',
                                         color: hasWorkout ? (isExpired ? '#ef4444' : '#10b981') : '#f59e0b',
                                         border: `1px solid ${hasWorkout ? (isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)') : 'rgba(245, 158, 11, 0.3)'}`,
-                                        padding: '3px 10px',
-                                        borderRadius: '10px',
-                                        fontSize: '0.75rem',
+                                        padding: '3px 8px',
+                                        borderRadius: '8px',
+                                        fontSize: '0.72rem',
                                         fontWeight: 800,
-                                        whiteSpace: 'nowrap'
+                                        whiteSpace: 'nowrap',
+                                        flexShrink: 0
                                       }}>
                                         {hasWorkout ? (isExpired ? 'Ficha Vencida' : 'Ficha Ativa') : 'Sem Ficha'}
                                       </span>
@@ -5173,82 +5216,119 @@ goniometria: {
                         />
                       </div>
                     </div>
-                    <div className="table-responsive">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Exercício</th>
-                            <th style={{ textAlign: 'center' }}>Grupo</th>
-                            <th>Equipamento</th>
-                            <th>Mídia / GIF</th>
-                            <th>Instruções</th>
-                            <th style={{ textAlign: 'center', width: '130px' }}>Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paginated.map(ex => (
-                            <tr key={ex._id}>
-                              <td data-label="Exercício"><strong>{ex.nome}</strong></td>
-                              <td data-label="Grupo" style={{ textAlign: 'center' }}><span className="badge badge-info">{ex.grupo}</span></td>
-                              <td data-label="Equipamento"><code>{ex.equipamento}</code></td>
-                              <td data-label="Mídia / GIF">
-                                {ex.gifUrl ? (
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '5px',
-                                    color: '#10b981',
-                                    background: 'rgba(16, 185, 129, 0.12)',
-                                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                                    padding: '2px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700
-                                  }}>
-                                    <i className="fa-solid fa-photo-film"></i> GIF / Vídeo
-                                  </span>
-                                ) : (
-                                  <span style={{ color: 'var(--text-dim)', fontSize: '0.74rem' }}>Sem mídia</span>
-                                )}
-                              </td>
-                              <td data-label="Instruções" className="cell-block"><small style={{ color: 'var(--text-muted)' }}>{ex.instrucoes || 'Nenhuma instrução disponível.'}</small></td>
-                              <td data-label="Ações" style={{ textAlign: 'center' }}>
-                                <button
-                                  className="btn btn-sm btn-secondary"
-                                  style={{ padding: '4px 10px', fontSize: '0.75rem', gap: '4px' }}
-                                  onClick={() => handleOpenEditExercise(ex)}
-                                  title="Editar informações ou adicionar/trocar GIF"
-                                >
-                                  <i className="fa-solid fa-edit"></i> {ex.gifUrl ? 'Editar / GIF' : '+ Add GIF'}
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                          {filteredExercises.length === 0 && (
-                            <tr>
-                              <td colSpan={6}>
-                                <div className="empty-state-card">
-                                  <i className="fa-solid fa-dumbbell empty-state-icon"></i>
-                                  <div className="empty-state-title">Nenhum exercício encontrado</div>
-                                  <div className="empty-state-desc">Não há exercícios correspondentes à busca ou cadastrados.</div>
-                                  <button className="btn btn-primary btn-sm" onClick={() => setShowNewExModal(true)}>
-                                    <i className="fa-solid fa-plus"></i> Cadastrar Exercício
+                    <div>
+                      {filteredExercises.length === 0 ? (
+                        <div style={{
+                          background: 'var(--bg-card)',
+                          border: '1.5px dashed var(--border-color)',
+                          borderRadius: '16px',
+                          padding: '48px 20px',
+                          textAlign: 'center'
+                        }}>
+                          <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                          <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum exercício encontrado</h3>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Não há exercícios correspondentes à busca ou cadastrados.</p>
+                          <button className="btn btn-primary btn-sm" onClick={() => setShowNewExModal(true)}>
+                            <i className="fa-solid fa-plus"></i> Cadastrar Exercício
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                            {paginated.map(ex => (
+                              <div
+                                key={ex._id}
+                                style={{
+                                  background: 'var(--bg-card)',
+                                  border: '1px solid var(--border-color)',
+                                  borderRadius: '16px',
+                                  padding: '18px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'space-between',
+                                  gap: '14px',
+                                  boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                                  transition: 'transform 0.15s ease, border-color 0.15s ease'
+                                }}
+                              >
+                                <div>
+                                  {/* Header */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff' }}>
+                                        {ex.nome}
+                                      </h3>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                                        <span className="badge badge-info" style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
+                                          {ex.grupo}
+                                        </span>
+                                        {ex.equipamento && (
+                                          <code style={{ fontSize: '0.72rem', background: 'var(--bg-darker)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
+                                            {ex.equipamento}
+                                          </code>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {ex.gifUrl ? (
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        color: '#10b981',
+                                        background: 'rgba(16, 185, 129, 0.12)',
+                                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                                        padding: '2px 8px',
+                                        borderRadius: '8px',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 750,
+                                        whiteSpace: 'nowrap',
+                                        flexShrink: 0
+                                      }}>
+                                        <i className="fa-solid fa-photo-film"></i> GIF / Vídeo
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: 'var(--text-dim)', fontSize: '0.72rem', flexShrink: 0 }}>Sem mídia</span>
+                                    )}
+                                  </div>
+
+                                  {/* Instructions */}
+                                  <div style={{ background: 'var(--bg-darker)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', marginTop: '12px' }}>
+                                    <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>Instruções</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                      {ex.instrucoes || 'Nenhuma instrução cadastrada.'}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Action */}
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px', fontWeight: 750, borderRadius: '10px', fontSize: '0.82rem' }}
+                                    onClick={() => handleOpenEditExercise(ex)}
+                                  >
+                                    <i className="fa-solid fa-edit"></i> {ex.gifUrl ? 'Editar Exercício / GIF' : 'Editar / Adicionar GIF'}
                                   </button>
                                 </div>
-                              </td>
-                            </tr>
+                              </div>
+                            ))}
+                          </div>
+
+                          {filteredExercises.length > 0 && (
+                            <div style={{ marginTop: '16px' }}>
+                              <Pagination
+                                currentPage={curP}
+                                totalItems={filteredExercises.length}
+                                itemsPerPage={size}
+                                onPageChange={page => setPage('treinos_prof_exercises', page)}
+                              />
+                            </div>
                           )}
-                        </tbody>
-                      </table>
+                        </>
+                      )}
                     </div>
-                    {filteredExercises.length > 0 && (
-                      <Pagination
-                        currentPage={curP}
-                        totalItems={filteredExercises.length}
-                        itemsPerPage={size}
-                        onPageChange={page => setPage('treinos_prof_exercises', page)}
-                      />
-                    )}
                   </div>
                 );
               })()}
@@ -5408,94 +5488,124 @@ goniometria: {
                           </div>
 
                           <h3 style={{ fontSize: '1.1rem', margin: '20px 0 12px 0', color: 'var(--color-primary)' }}>Exercícios Adicionados</h3>
-                          <div className="table-responsive">
+                          <div>
                             <datalist id={`group-suggestions-${activeWorkoutSubTab}`}>
                               {groupSuggestions.map(g => (
                                 <option key={g} value={g} />
                               ))}
                             </datalist>
-                            <table className="data-table">
-                              <thead>
-                                <tr>
-                                  <th>Exercício</th>
-                                  <th style={{ width: '70px' }}>Séries</th>
-                                  <th style={{ width: '90px' }}>Reps</th>
-                                  <th style={{ width: '90px' }}>Ritmo</th>
-                                  <th style={{ width: '90px' }}>Carga</th>
-                                  <th style={{ width: '80px' }}>Descanso</th>
-                                  <th>Obs</th>
-                                  <th style={{ width: '100px' }}>Combinar</th>
-                                  <th style={{ width: '110px', textAlign: 'center' }}>Ações</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {sheet.exercicios?.map((ex: any, idx: number) => {
+
+                            {(!sheet.exercicios || sheet.exercicios.length === 0) ? (
+                              <div style={{
+                                background: 'var(--bg-card)',
+                                border: '1.5px dashed var(--border-color)',
+                                borderRadius: '14px',
+                                padding: '32px 16px',
+                                textAlign: 'center',
+                                color: 'var(--text-dim)',
+                                fontSize: '0.88rem'
+                              }}>
+                                <i className="fa-solid fa-dumbbell" style={{ fontSize: '1.8rem', color: 'var(--text-dim)', marginBottom: '8px', display: 'block' }}></i>
+                                Nenhum exercício adicionado a esta ficha. Busque e adicione pelo menu lateral.
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {sheet.exercicios.map((ex: any, idx: number) => {
                                   const groupColor = getGroupColor(ex.combinaGrupo);
-                                  const rowStyle = groupColor ? { borderLeft: `4px solid ${groupColor}`, background: 'rgba(255, 255, 255, 0.015)' } : {};
                                   return (
-                                    <tr key={idx} style={rowStyle}>
-                                      <td data-label="Exercício" style={{ minWidth: '180px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <strong style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.3' }}>{ex.exercicioId}</strong>
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        background: 'var(--bg-card)',
+                                        border: `1px solid ${groupColor ? groupColor : 'var(--border-color)'}`,
+                                        borderLeft: groupColor ? `4px solid ${groupColor}` : '1px solid var(--border-color)',
+                                        borderRadius: '12px',
+                                        padding: '14px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '10px',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                      }}
+                                    >
+                                      {/* Header with Exercise Title and Actions */}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                                          <span style={{ background: 'var(--bg-darker)', color: 'var(--text-dim)', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800, flexShrink: 0 }}>
+                                            {idx + 1}
+                                          </span>
+                                          <strong style={{ fontSize: '0.95rem', color: '#fff', wordBreak: 'break-word' }}>{ex.exercicioId}</strong>
                                           {ex.combinaGrupo && (
                                             <span style={{ fontSize: '0.65rem', color: '#fff', background: groupColor, padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
                                               {ex.combinaGrupo}
                                             </span>
                                           )}
                                         </div>
-                                      </td>
-                                      <td data-label="Séries">
-                                        <input type="number" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.series} onChange={e => handleUpdateExerciseField(idx, 'series', Number(e.target.value))} />
-                                      </td>
-                                      <td data-label="Reps">
-                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.repeticoes} onChange={e => handleUpdateExerciseField(idx, 'repeticoes', e.target.value)} />
-                                      </td>
-                                      <td data-label="Ritmo">
-                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.ritmo || '2-0-2-0'} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="2-0-2-0" />
-                                      </td>
-                                      <td data-label="Carga">
-                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.carga} onChange={e => handleUpdateExerciseField(idx, 'carga', e.target.value)} />
-                                      </td>
-                                      <td data-label="Descanso">
-                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px', textAlign: 'center' }} value={ex.descanso} onChange={e => handleUpdateExerciseField(idx, 'descanso', e.target.value)} />
-                                      </td>
-                                      <td data-label="Obs" className="cell-block">
-                                        <input type="text" className="form-control" style={{ padding: '4px', height: '30px' }} value={ex.observacao} onChange={e => handleUpdateExerciseField(idx, 'observacao', e.target.value)} placeholder="Dica..." />
-                                      </td>
-                                      <td data-label="Combinar">
+
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                          <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', borderRadius: '6px' }} disabled={idx === 0} onClick={() => handleMoveExercise(idx, -1)} title="Mover para cima">
+                                            <i className="fa-solid fa-arrow-up"></i>
+                                          </button>
+                                          <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', borderRadius: '6px' }} disabled={idx === sheet.exercicios.length - 1} onClick={() => handleMoveExercise(idx, 1)} title="Mover para baixo">
+                                            <i className="fa-solid fa-arrow-down"></i>
+                                          </button>
+                                          <button type="button" className="btn btn-danger btn-sm" style={{ padding: '4px 8px', borderRadius: '6px' }} onClick={() => handleRemoveExerciseFromWorkout(idx)} title="Remover exercício">
+                                            <i className="fa-solid fa-trash"></i>
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Inputs Grid */}
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px' }}>
+                                        <div>
+                                          <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Séries</label>
+                                          <input type="number" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.series} onChange={e => handleUpdateExerciseField(idx, 'series', Number(e.target.value))} />
+                                        </div>
+                                        <div>
+                                          <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Reps</label>
+                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.repeticoes} onChange={e => handleUpdateExerciseField(idx, 'repeticoes', e.target.value)} />
+                                        </div>
+                                        <div>
+                                          <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Ritmo</label>
+                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.ritmo || '2-0-2-0'} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="2-0-2-0" />
+                                        </div>
+                                        <div>
+                                          <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Carga</label>
+                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.carga} onChange={e => handleUpdateExerciseField(idx, 'carga', e.target.value)} placeholder="Ex: 15kg" />
+                                        </div>
+                                        <div>
+                                          <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Descanso</label>
+                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.descanso} onChange={e => handleUpdateExerciseField(idx, 'descanso', e.target.value)} placeholder="45s" />
+                                        </div>
+                                        <div>
+                                          <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Combinar</label>
+                                          <input 
+                                            type="text" 
+                                            list={`group-suggestions-${activeWorkoutSubTab}`} 
+                                            className="form-control" 
+                                            style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} 
+                                            value={ex.combinaGrupo || ''} 
+                                            onChange={e => handleUpdateExerciseField(idx, 'combinaGrupo', e.target.value)} 
+                                            placeholder="G1, G2..." 
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Obs Input */}
+                                      <div>
                                         <input 
                                           type="text" 
-                                          list={`group-suggestions-${activeWorkoutSubTab}`} 
                                           className="form-control" 
-                                          style={{ padding: '4px', height: '30px', textAlign: 'center', fontSize: '0.8rem' }} 
-                                          value={ex.combinaGrupo || ''} 
-                                          onChange={e => handleUpdateExerciseField(idx, 'combinaGrupo', e.target.value)} 
-                                          placeholder="Individual" 
+                                          style={{ padding: '6px 10px', height: '32px', fontSize: '0.82rem' }} 
+                                          value={ex.observacao || ''} 
+                                          onChange={e => handleUpdateExerciseField(idx, 'observacao', e.target.value)} 
+                                          placeholder="Observação / Dica de execução (opcional)..." 
                                         />
-                                      </td>
-                                      <td data-label="Ações" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 6px', marginRight: '4px' }} disabled={idx === 0} onClick={() => handleMoveExercise(idx, -1)}>
-                                          <i className="fa-solid fa-arrow-up"></i>
-                                        </button>
-                                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 6px', marginRight: '4px' }} disabled={idx === sheet.exercicios.length - 1} onClick={() => handleMoveExercise(idx, 1)}>
-                                          <i className="fa-solid fa-arrow-down"></i>
-                                        </button>
-                                        <button className="btn btn-danger btn-sm" style={{ padding: '4px 6px' }} onClick={() => handleRemoveExerciseFromWorkout(idx)}>
-                                          <i className="fa-solid fa-trash"></i>
-                                        </button>
-                                      </td>
-                                    </tr>
+                                      </div>
+                                    </div>
                                   );
                                 })}
-                                {(!sheet.exercicios || sheet.exercicios.length === 0) && (
-                                  <tr>
-                                    <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-                                      Nenhum exercício adicionado a esta ficha. Busque e adicione pelo menu lateral.
-                                    </td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
+                              </div>
+                            )}
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', marginBottom: '12px', background: 'rgba(255, 255, 255, 0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -6530,20 +6640,13 @@ goniometria: {
                             }}
                           >
                             <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                  <img 
-                                    src={isFemale ? '/avatar_feminino.png' : '/avatar_masculino.png'} 
-                                    alt="avatar" 
-                                    style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--border-color)' }} 
-                                  />
-                                  <div>
-                                    <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff' }}>
-                                      {c.dadosPessoais?.nome}
-                                    </h3>
-                                    <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                                      {c.dadosPessoais?.telefone || c.dadosPessoais?.email || 'Sem contato'}
-                                    </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                                <div style={{ flex: '1 1 55%', minWidth: 0 }}>
+                                  <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff', wordBreak: 'break-word' }}>
+                                    {c.dadosPessoais?.nome}
+                                  </h3>
+                                  <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '2px', wordBreak: 'break-word' }}>
+                                    {c.dadosPessoais?.telefone || c.dadosPessoais?.email || 'Sem contato'}
                                   </div>
                                 </div>
 

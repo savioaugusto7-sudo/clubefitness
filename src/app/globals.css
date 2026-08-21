@@ -116,12 +116,17 @@ body {
 /* Barra Lateral (Sidebar) */
 aside.sidebar {
   width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
+  flex-shrink: 0;
   background: linear-gradient(180deg, #090e1a 0%, #030508 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
   padding: 16px 12px;
-  position: fixed;
+  position: sticky;
+  top: 0;
+  left: 0;
   height: 100vh;
   z-index: 100;
   transition: var(--transition-normal);
@@ -323,10 +328,10 @@ select {
 
 /* Área de Conteúdo Principal */
 main.main-content {
-  margin-left: var(--sidebar-width);
-  flex: 1 1 auto;
+  margin-left: 0;
+  flex: 1 1 0%;
   min-width: 0;
-  width: calc(100% - var(--sidebar-width));
+  width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -1066,6 +1071,11 @@ table.data-table tr:hover td {
 
 @media (max-width: 1024px) {
   aside.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 9999;
     transform: translateX(-100%);
   }
   
@@ -1076,6 +1086,7 @@ table.data-table tr:hover td {
   main.main-content {
     margin-left: 0;
     padding: 20px;
+    width: 100%;
   }
 
   .view-header {
@@ -3252,84 +3263,34 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   }
 }
 
-/* ⚡ REDESENHO DE TABELAS PARA CARDS NO CELULAR */
+/* TABELAS RESPONSIVAS MODERNAS E FLUIDAS NO CELULAR */
 @media (max-width: 768px) {
   .table-responsive {
-    border: none !important;
-    overflow-x: visible !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    margin-bottom: 16px !important;
+    background: var(--bg-card) !important;
   }
 
   .data-table {
-    display: block !important;
     width: 100% !important;
-    border: none !important;
+    min-width: 580px !important;
+    border-collapse: collapse !important;
   }
 
-  .data-table thead {
-    display: none !important; /* esconde cabeçalhos tabulares */
-  }
-
-  .data-table tbody {
-    display: block !important;
-    width: 100% !important;
-  }
-
-  .data-table tr {
-    display: flex !important;
-    flex-direction: column !important;
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 14px !important;
-    padding: 16px !important;
-    margin-bottom: 14px !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-    gap: 8px !important;
-  }
-
-  .data-table td {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    padding: 8px 0 !important;
-    border: none !important;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.04) !important;
-    font-size: 0.88rem !important;
-    text-align: right !important;
-  }
-
-  .data-table td:last-child {
-    border-bottom: none !important;
-    padding-top: 12px !important;
-    justify-content: flex-end !important;
-    gap: 8px !important;
-  }
-
-  /* Cria rótulos das colunas usando data-attributes ou injetando labels */
-  .data-table td::before {
-    content: attr(data-label);
-    font-weight: 700;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    font-size: 0.72rem;
-    letter-spacing: 0.5px;
-    text-align: left;
-    display: inline-block;
-  }
-  
-  /* Fallback para rótulo manual se não houver data-label - Ocultar o texto genérico Dado */
-  .data-table td:not([data-label])::before {
-    display: none !important;
+  .data-table th, .data-table td {
+    padding: 10px 12px !important;
+    font-size: 0.82rem !important;
+    white-space: nowrap !important;
   }
 
   /* Modal Overlay em telas móveis acima da barra de navegação inferior */
   .modal-overlay {
     z-index: 99999 !important;
     padding-bottom: 90px !important;
-  }
-
-  /* Remove rótulos para botões e ações */
-  .data-table td:last-child::before {
-    display: none !important;
   }
 
   /* Correção de Inputs para iOS */
