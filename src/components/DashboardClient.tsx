@@ -1281,6 +1281,8 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 padding: '4px',
                 marginBottom: '8px', 
                 overflowX: 'auto', 
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 alignSelf: 'flex-start',
                 scrollbarWidth: 'none', 
                 WebkitOverflowScrolling: 'touch' 
@@ -1325,21 +1327,38 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
 
                 // 1. COMPOSIÇÃO CORPORAL
                 if (evoSubTab === 'composicao') {
-                  const wLatest = latestAs?.dadosMedidos?.peso || 0;
-                  const wPrev = prevAs?.dadosMedidos?.peso || 0;
-                  const wDelta = wLatest - wPrev;
+                  const getAsMetrics = (asObj: any) => {
+                    if (!asObj) return { peso: 0, gordura: 0, massaMagra: 0, massaGorda: 0 };
+                    const peso = Number(asObj.dadosMedidos?.peso) || 0;
+                    const gordura = Number(asObj.resultadosCalculados?.percentualGordura) || Number(asObj.dadosMedidos?.gordura) || 0;
+                    let massaMagra = Number(asObj.resultadosCalculados?.massaMagraKg) || Number(asObj.resultadosCalculados?.massaMagra) || Number(asObj.dadosMedidos?.massaMagra) || 0;
+                    let massaGorda = Number(asObj.resultadosCalculados?.massaGordaKg) || Number(asObj.resultadosCalculados?.massaGorda) || Number(asObj.dadosMedidos?.massaGorda) || 0;
+                    
+                    if (peso > 0 && gordura > 0) {
+                      if (massaGorda <= 0) massaGorda = (peso * gordura) / 100;
+                      if (massaMagra <= 0) massaMagra = peso - massaGorda;
+                    } else if (peso > 0 && massaMagra > 0 && massaGorda <= 0) {
+                      massaGorda = peso - massaMagra;
+                    } else if (peso > 0 && massaGorda > 0 && massaMagra <= 0) {
+                      massaMagra = peso - massaGorda;
+                    }
+                    return { peso, gordura, massaMagra, massaGorda };
+                  };
 
-                  const fLatest = latestAs?.resultadosCalculados?.percentualGordura || latestAs?.dadosMedidos?.gordura || 0;
-                  const fPrev = prevAs?.resultadosCalculados?.percentualGordura || prevAs?.dadosMedidos?.gordura || 0;
-                  const fDelta = fLatest - fPrev;
+                  const curM = getAsMetrics(latestAs);
+                  const prevM = getAsMetrics(prevAs);
 
-                  const mLatest = latestAs?.resultadosCalculados?.massaMagra || latestAs?.dadosMedidos?.massaMagra || 0;
-                  const mPrev = prevAs?.resultadosCalculados?.massaMagra || prevAs?.dadosMedidos?.massaMagra || 0;
-                  const mDelta = mLatest - mPrev;
+                  const wLatest = curM.peso;
+                  const wDelta = prevAs ? wLatest - prevM.peso : 0;
 
-                  const gLatest = latestAs?.resultadosCalculados?.massaGorda || latestAs?.dadosMedidos?.massaGorda || 0;
-                  const gPrev = prevAs?.resultadosCalculados?.massaGorda || prevAs?.dadosMedidos?.massaGorda || 0;
-                  const gDelta = gLatest - gPrev;
+                  const fLatest = curM.gordura;
+                  const fDelta = prevAs ? fLatest - prevM.gordura : 0;
+
+                  const mLatest = curM.massaMagra;
+                  const mDelta = prevAs ? mLatest - prevM.massaMagra : 0;
+
+                  const gLatest = curM.massaGorda;
+                  const gDelta = prevAs ? gLatest - prevM.massaGorda : 0;
 
                   const renderDeltaBadge = (delta: number, type: 'decrease_good' | 'increase_good' | 'neutral', unit: string = 'kg') => {
                     if (!prevAs) return null;
@@ -1365,9 +1384,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     const h = 220;
                     const pad = 40;
                     
-                    const weights = sortedAssessments.map(a => a.dadosMedidos?.peso || 0);
-                    const leanMasses = sortedAssessments.map(a => a.resultadosCalculados?.massaMagra || a.dadosMedidos?.massaMagra || 0);
-                    const fatMasses = sortedAssessments.map(a => a.resultadosCalculados?.massaGorda || a.dadosMedidos?.massaGorda || 0);
+                    const weights = sortedAssessments.map(a => getAsMetrics(a).peso);
+                    const leanMasses = sortedAssessments.map(a => getAsMetrics(a).massaMagra);
+                    const fatMasses = sortedAssessments.map(a => getAsMetrics(a).massaGorda);
                     const allVals = [...weights, ...leanMasses, ...fatMasses].filter(v => v > 0);
                     
                     const maxVal = Math.max(...allVals, 100) * 1.1;
@@ -1394,13 +1413,15 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                         borderRadius: '14px', 
                         padding: '20px', 
                         marginTop: '10px',
-                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                        maxWidth: '100%',
+                        overflow: 'hidden'
                       }}>
                         <h4 style={{ fontSize: '0.9rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
                           <i className="fa-solid fa-chart-line" style={{ color: 'var(--color-primary)' }}></i> Histórico de Composição Corporal (Gráfico de Linha)
                         </h4>
-                        <div style={{ position: 'relative', overflowX: 'auto' }}>
-                          <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="220px" style={{ background: 'transparent', minWidth: '500px' }}>
+                        <div style={{ position: 'relative', overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+                          <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="220px" style={{ background: 'transparent', minWidth: '460px', display: 'block' }}>
                             {[0, 0.25, 0.5, 0.75, 1].map((ratio, gridIdx) => {
                               const gridY = pad + ratio * (h - 2 * pad);
                               const gridVal = maxVal - ratio * (maxVal - minVal);
@@ -1446,105 +1467,103 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                             ))}
                           </svg>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '12px', fontSize: '0.8rem', flexWrap: 'wrap' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '12px', height: '12px', background: '#3b82f6', borderRadius: '3px' }}></span> Peso Corporal</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '12px', height: '12px', background: '#10b981', borderRadius: '3px' }}></span> Massa Magra (Músculo)</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '12px', height: '12px', background: '#ef4444', borderRadius: '3px' }}></span> Massa Gorda (Gordura)</span>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '14px', fontSize: '0.78rem', flexWrap: 'wrap' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', background: '#3b82f6', borderRadius: '3px' }}></span> Peso</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', background: '#10b981', borderRadius: '3px' }}></span> Massa Magra</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', background: '#ef4444', borderRadius: '3px' }}></span> Massa Gorda</span>
                         </div>
                       </div>
                     );
                   };
 
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                      <div className="metrics-grid" style={{ marginBottom: '0px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '100%' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px' }}>
+                        {/* Peso Atual */}
                         <div style={{
                           background: 'rgba(22, 29, 45, 0.45)',
                           backdropFilter: 'blur(12px)',
                           border: '1px solid rgba(255, 255, 255, 0.05)',
                           borderRadius: '14px',
-                          padding: '20px',
+                          padding: '16px',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
-                          transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.borderColor = 'var(--color-primary)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
                         }}>
                           <div>
-                            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px 0' }}>Peso Atual</h3>
-                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)' }}>{wLatest} kg</div>
-                            <div style={{ marginTop: '6px' }}>{renderDeltaBadge(wDelta, 'decrease_good')}</div>
+                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Peso Atual</h3>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{wLatest > 0 ? `${wLatest.toFixed(1)} kg` : '—'}</div>
+                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(wDelta, 'decrease_good')}</div>
                           </div>
-                          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-weight-scale" style={{ fontSize: '18px', color: 'var(--color-primary)' }}></i>
+                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="fa-solid fa-weight-scale" style={{ fontSize: '16px', color: 'var(--color-primary)' }}></i>
                           </div>
                         </div>
 
+                        {/* Gordura Corporal */}
                         <div style={{
                           background: 'rgba(22, 29, 45, 0.45)',
                           backdropFilter: 'blur(12px)',
                           border: '1px solid rgba(255, 255, 255, 0.05)',
                           borderRadius: '14px',
-                          padding: '20px',
+                          padding: '16px',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
-                          transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.borderColor = '#3b82f6';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
                         }}>
                           <div>
-                            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px 0' }}>Gordura Corporal</h3>
-                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)' }}>{fLatest.toFixed(1)}%</div>
-                            <div style={{ marginTop: '6px' }}>{renderDeltaBadge(fDelta, 'decrease_good', '%')}</div>
+                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>% Gordura</h3>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{fLatest > 0 ? `${fLatest.toFixed(1)}%` : '—'}</div>
+                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(fDelta, 'decrease_good', '%')}</div>
                           </div>
-                          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-percent" style={{ fontSize: '18px', color: '#3b82f6' }}></i>
+                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="fa-solid fa-percent" style={{ fontSize: '16px', color: '#3b82f6' }}></i>
                           </div>
                         </div>
 
+                        {/* Massa Magra */}
                         <div style={{
                           background: 'rgba(22, 29, 45, 0.45)',
                           backdropFilter: 'blur(12px)',
                           border: '1px solid rgba(255, 255, 255, 0.05)',
                           borderRadius: '14px',
-                          padding: '20px',
+                          padding: '16px',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
-                          transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.borderColor = '#f59e0b';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
                         }}>
                           <div>
-                            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px 0' }}>Massa Magra</h3>
-                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)' }}>{mLatest.toFixed(1)} kg</div>
-                            <div style={{ marginTop: '6px' }}>{renderDeltaBadge(mDelta, 'increase_good')}</div>
+                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Massa Magra</h3>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{mLatest > 0 ? `${mLatest.toFixed(1)} kg` : '—'}</div>
+                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(mDelta, 'increase_good')}</div>
                           </div>
-                          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-dumbbell" style={{ fontSize: '18px', color: '#f59e0b' }}></i>
+                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="fa-solid fa-dumbbell" style={{ fontSize: '16px', color: '#f59e0b' }}></i>
+                          </div>
+                        </div>
+
+                        {/* Massa Gorda */}
+                        <div style={{
+                          background: 'rgba(22, 29, 45, 0.45)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          borderRadius: '14px',
+                          padding: '16px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)'
+                        }}>
+                          <div>
+                            <h3 style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Massa Gorda</h3>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{gLatest > 0 ? `${gLatest.toFixed(1)} kg` : '—'}</div>
+                            <div style={{ marginTop: '4px' }}>{renderDeltaBadge(gDelta, 'decrease_good')}</div>
+                          </div>
+                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="fa-solid fa-fire" style={{ fontSize: '16px', color: '#ef4444' }}></i>
                           </div>
                         </div>
                       </div>

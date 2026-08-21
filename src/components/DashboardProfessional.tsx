@@ -4970,104 +4970,150 @@ goniometria: {
                         </div>
                       </div>
                     </div>
-                    <div className="table-responsive">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Aluno</th>
-                            <th>Plano</th>
-                            <th style={{ textAlign: 'center' }}>Status da Ficha</th>
-                            <th style={{ textAlign: 'center' }}>Data da Última Ficha</th>
-                            <th>Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paginated.map(c => {
-                            const userWorkout = workouts.find(w => w.clienteId === c._id);
-                            const hasWorkout = userWorkout && (
-                              (userWorkout.fichasMonitorado && userWorkout.fichasMonitorado.some((f: any) => f.exercicios && f.exercicios.length > 0)) ||
-                              (userWorkout.fichasLivre && userWorkout.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0))
-                            );
+                    <div>
+                      {filteredClients.length === 0 ? (
+                        <div style={{
+                          background: 'var(--bg-card)',
+                          border: '1.5px dashed var(--border-color)',
+                          borderRadius: '16px',
+                          padding: '48px 20px',
+                          textAlign: 'center'
+                        }}>
+                          <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                          <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum aluno encontrado</h3>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há registros correspondentes aos filtros aplicados.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                            {paginated.map(c => {
+                              const userWorkout = workouts.find(w => w.clienteId === c._id);
+                              const hasWorkout = userWorkout && (
+                                (userWorkout.fichasMonitorado && userWorkout.fichasMonitorado.some((f: any) => f.exercicios && f.exercicios.length > 0)) ||
+                                (userWorkout.fichasLivre && userWorkout.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0))
+                              );
 
-                            const getUltimaFichaInfo = () => {
-                              if (!userWorkout) return { dateStr: '—', isExpired: false };
-                              const dates: string[] = [];
-                              if (userWorkout.fichasMonitorado) {
-                                userWorkout.fichasMonitorado.forEach((f: any) => {
-                                  if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) {
-                                    dates.push(f.ultimaAtualizacao);
-                                  }
-                                });
-                              }
-                              if (userWorkout.fichasLivre) {
-                                userWorkout.fichasLivre.forEach((f: any) => {
-                                  if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) {
-                                    dates.push(f.ultimaAtualizacao);
-                                  }
-                                });
-                              }
-                              if (dates.length === 0) return { dateStr: '—', isExpired: false };
-                              dates.sort((a, b) => b.localeCompare(a));
-                              const latestDateStr = dates[0];
-                              const latestDate = new Date(latestDateStr + 'T12:00:00');
-                              const today = new Date();
-                              const diffTime = today.getTime() - latestDate.getTime();
-                              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                              const isExpired = diffDays > 60;
-                              const parts = latestDateStr.split('-');
-                              const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : latestDateStr;
-                              return { dateStr: formattedDate, isExpired };
-                            };
+                              const getUltimaFichaInfo = () => {
+                                if (!userWorkout) return { dateStr: '—', isExpired: false, diffDays: null };
+                                const dates: string[] = [];
+                                if (userWorkout.fichasMonitorado) {
+                                  userWorkout.fichasMonitorado.forEach((f: any) => {
+                                    if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+                                  });
+                                }
+                                if (userWorkout.fichasLivre) {
+                                  userWorkout.fichasLivre.forEach((f: any) => {
+                                    if (f.ultimaAtualizacao && f.exercicios && f.exercicios.length > 0) dates.push(f.ultimaAtualizacao);
+                                  });
+                                }
+                                if (dates.length === 0) return { dateStr: '—', isExpired: false, diffDays: null };
+                                dates.sort((a, b) => b.localeCompare(a));
+                                const latestDateStr = dates[0];
+                                const latestDate = new Date(latestDateStr + 'T12:00:00');
+                                const today = new Date();
+                                const diffTime = today.getTime() - latestDate.getTime();
+                                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                                const isExpired = diffDays > 60;
+                                const parts = latestDateStr.split('-');
+                                const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : latestDateStr;
+                                return { dateStr: formattedDate, isExpired, diffDays };
+                              };
 
-                            const { dateStr, isExpired } = getUltimaFichaInfo();
+                              const { dateStr, isExpired } = getUltimaFichaInfo();
+                              const isFemale = c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F');
 
-                            return (
-                              <tr key={c._id}>
-                                <td data-label="Aluno"><strong>{c.dadosPessoais?.nome}</strong><br/><small style={{ color: 'var(--text-dim)' }}>{c.dadosPessoais?.email}</small></td>
-                                <td data-label="Plano">{c.dadosComerciais?.planoId?.nome || 'Personalizado'}</td>
-                                <td data-label="Status da Ficha" style={{ textAlign: 'center' }}>
-                                  <span className={`badge ${hasWorkout ? (isExpired ? 'badge-danger' : 'badge-success') : 'badge-warning'}`}>
-                                    {hasWorkout ? (isExpired ? 'Ficha Vencida' : 'Ficha Ativa') : 'Sem Ficha'}
-                                  </span>
-                                </td>
-                                <td data-label="Data da Última Ficha" style={{ textAlign: 'center' }}>
-                                  <strong style={{ fontSize: '0.85rem' }}>{dateStr}</strong>
-                                  {hasWorkout && isExpired && (
-                                    <div style={{ marginTop: '4px' }}>
-                                      <span className="badge badge-danger" style={{ fontSize: '0.7rem', padding: '2px 6px', fontWeight: 700 }}>Vencida</span>
+                              return (
+                                <div
+                                  key={c._id}
+                                  style={{
+                                    background: 'var(--bg-card)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '16px',
+                                    padding: '18px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    gap: '14px',
+                                    boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                                    transition: 'transform 0.15s ease, border-color 0.15s ease'
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <img 
+                                          src={isFemale ? '/avatar_feminino.png' : '/avatar_masculino.png'} 
+                                          alt="avatar" 
+                                          style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--border-color)' }} 
+                                        />
+                                        <div>
+                                          <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff' }}>
+                                            {c.dadosPessoais?.nome}
+                                          </h3>
+                                          <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                            {c.dadosPessoais?.email || c.dadosPessoais?.telefone || 'Sem contato'}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <span style={{
+                                        background: hasWorkout ? (isExpired ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)') : 'rgba(245, 158, 11, 0.15)',
+                                        color: hasWorkout ? (isExpired ? '#ef4444' : '#10b981') : '#f59e0b',
+                                        border: `1px solid ${hasWorkout ? (isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)') : 'rgba(245, 158, 11, 0.3)'}`,
+                                        padding: '3px 10px',
+                                        borderRadius: '10px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 800,
+                                        whiteSpace: 'nowrap'
+                                      }}>
+                                        {hasWorkout ? (isExpired ? 'Ficha Vencida' : 'Ficha Ativa') : 'Sem Ficha'}
+                                      </span>
                                     </div>
-                                  )}
-                                </td>
-                                <td data-label="Ações">
-                                  <button className="btn btn-primary btn-sm" onClick={() => handleOpenWorkoutEditor(c)}>
-                                    <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar Ficha' : 'Criar Ficha'}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {filteredClients.length === 0 && (
-                            <tr>
-                              <td colSpan={5}>
-                                <div className="empty-state-card">
-                                  <i className="fa-solid fa-dumbbell empty-state-icon"></i>
-                                  <div className="empty-state-title">Nenhum aluno encontrado</div>
-                                  <div className="empty-state-desc">Não há alunos correspondentes à busca ou cadastrados no sistema.</div>
+
+                                    {/* Info Grid */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '14px' }}>
+                                      <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Plano</div>
+                                        <div style={{ fontSize: '0.86rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          {c.dadosComerciais?.planoId?.nome || 'Personalizado'}
+                                        </div>
+                                      </div>
+                                      <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                                        <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Última Atualização</div>
+                                        <div style={{ fontSize: '0.86rem', fontWeight: 750, color: isExpired ? '#ef4444' : 'var(--text-main)', marginTop: '2px' }}>
+                                          {dateStr}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Action button */}
+                                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                                    <button 
+                                      className="btn btn-primary" 
+                                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', fontWeight: 750, borderRadius: '10px' }}
+                                      onClick={() => handleOpenWorkoutEditor(c)}
+                                    >
+                                      <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar / Editar Ficha' : 'Criar Nova Ficha'}
+                                    </button>
+                                  </div>
                                 </div>
-                              </td>
-                            </tr>
+                              );
+                            })}
+                          </div>
+                          {filteredClients.length > 0 && (
+                            <div style={{ marginTop: '16px' }}>
+                              <Pagination
+                                currentPage={curP}
+                                totalItems={filteredClients.length}
+                                itemsPerPage={size}
+                                onPageChange={page => setPage('treinos_prof_clients', page)}
+                              />
+                            </div>
                           )}
-                        </tbody>
-                      </table>
+                        </>
+                      )}
                     </div>
-                    {filteredClients.length > 0 && (
-                      <Pagination
-                        currentPage={curP}
-                        totalItems={filteredClients.length}
-                        itemsPerPage={size}
-                        onPageChange={page => setPage('treinos_prof_clients', page)}
-                      />
-                    )}
                   </div>
                 );
               })()}
@@ -5824,8 +5870,20 @@ goniometria: {
                         }
                       }
 
-                      const mmVal = Number(as.resultadosCalculados?.massaMagraKg) || 0;
-                      const mgVal = Number(as.resultadosCalculados?.massaGordaKg) || 0;
+                      const rawMm = Number(as.resultadosCalculados?.massaMagraKg) || Number(as.resultadosCalculados?.massaMagra) || Number(as.dadosMedidos?.massaMagra) || 0;
+                      const rawMg = Number(as.resultadosCalculados?.massaGordaKg) || Number(as.resultadosCalculados?.massaGorda) || Number(as.dadosMedidos?.massaGorda) || 0;
+
+                      let mmVal = rawMm;
+                      let mgVal = rawMg;
+
+                      if (pesoVal > 0 && bf > 0) {
+                        if (mgVal <= 0) mgVal = parseFloat(((pesoVal * bf) / 100).toFixed(1));
+                        if (mmVal <= 0) mmVal = parseFloat((pesoVal - mgVal).toFixed(1));
+                      } else if (pesoVal > 0 && mmVal > 0 && mgVal <= 0) {
+                        mgVal = parseFloat((pesoVal - mmVal).toFixed(1));
+                      } else if (pesoVal > 0 && mgVal > 0 && mmVal <= 0) {
+                        mmVal = parseFloat((pesoVal - mgVal).toFixed(1));
+                      }
 
                       return (
                         <div
@@ -6322,6 +6380,9 @@ goniometria: {
       {/* Frequência dos Alunos */}
       {activeTab === 'frequencia_alunos' && (() => {
         const today = new Date();
+        const listKey = 'frequencia_alunos';
+        const q = getSearchQuery(listKey);
+
         const getDaysSince = (clientId: string) => {
           const clientApts = appointments.filter((a: any) =>
             (a.clientId === clientId || a.clientId?._id === clientId) &&
@@ -6331,6 +6392,7 @@ goniometria: {
           const dates = clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime());
           return Math.floor((Date.now() - Math.max(...dates)) / (1000 * 60 * 60 * 24));
         };
+
         const getMonthSessions = (clientId: string) => {
           return appointments.filter((a: any) => {
             const d = new Date(a.date || a.createdAt);
@@ -6338,15 +6400,57 @@ goniometria: {
               d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
           }).length;
         };
+
         const getRisk = (days: number) => {
-          if (days <= 7) return { level: 'Baixo', color: 'var(--color-primary)' };
-          if (days <= 20) return { level: 'Médio', color: 'var(--color-warning)' };
-          return { level: 'Alto', color: 'var(--color-danger)' };
+          if (days <= 7) return { level: 'Baixo', key: 'baixo', color: 'var(--color-primary)' };
+          if (days <= 20) return { level: 'Médio', key: 'medio', color: 'var(--color-warning)' };
+          return { level: 'Alto', key: 'alto', color: 'var(--color-danger)' };
         };
-        const sorted = [...clients].sort((a: any, b: any) => getDaysSince(b._id) - getDaysSince(a._id));
-        const highRisk = sorted.filter((c: any) => getDaysSince(c._id) > 20).length;
-        const medRisk = sorted.filter((c: any) => { const d = getDaysSince(c._id); return d > 7 && d <= 20; }).length;
-        const lowRisk = sorted.filter((c: any) => getDaysSince(c._id) <= 7).length;
+
+        const allClientsWithFreq = clients.map((c: any) => {
+          const days = getDaysSince(c._id);
+          const risk = getRisk(days);
+          const sessions = getMonthSessions(c._id);
+          const clientApts = appointments.filter((a: any) =>
+            (a.clientId === c._id || a.clientId?._id === c._id) &&
+            (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
+          );
+          const lastDate = clientApts.length > 0
+            ? new Date(Math.max(...clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime()))).toLocaleDateString('pt-BR')
+            : 'Sem histórico';
+
+          return {
+            ...c,
+            daysSince: days,
+            risk,
+            sessions,
+            lastDate
+          };
+        });
+
+        allClientsWithFreq.sort((a, b) => b.daysSince - a.daysSince);
+
+        const highRisk = allClientsWithFreq.filter(c => c.daysSince > 20).length;
+        const medRisk = allClientsWithFreq.filter(c => c.daysSince > 7 && c.daysSince <= 20).length;
+        const lowRisk = allClientsWithFreq.filter(c => c.daysSince <= 7).length;
+
+        const filtered = allClientsWithFreq.filter(c => {
+          const matchesSearch = smartSearchMatch([
+            c.dadosPessoais?.nome,
+            c.dadosPessoais?.telefone,
+            c.dadosPessoais?.email,
+            c.dadosPessoais?.cpf
+          ], q);
+          if (!matchesSearch) return false;
+          return true;
+        });
+
+        const activeP = getPage(listKey);
+        const size = getPageSize(listKey);
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
         return (
           <>
             <div className="view-header">
@@ -6355,67 +6459,180 @@ goniometria: {
                 <p>Monitore a assiduidade e identifique riscos de evasão.</p>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+
+            {/* Stat Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '20px' }}>
               {[
-                { label: 'Risco Baixo (≤7 dias)', value: lowRisk, color: 'var(--color-primary)' },
-                { label: 'Risco Médio (8–20 dias)', value: medRisk, color: 'var(--color-warning)' },
-                { label: 'Risco Alto (>20 dias)', value: highRisk, color: 'var(--color-danger)' },
+                { label: 'Risco Baixo (≤7 dias)', value: lowRisk, color: 'var(--color-primary)', icon: 'fa-check' },
+                { label: 'Risco Médio (8–20 dias)', value: medRisk, color: 'var(--color-warning)', icon: 'fa-triangle-exclamation' },
+                { label: 'Risco Alto (>20 dias)', value: highRisk, color: 'var(--color-danger)', icon: 'fa-circle-exclamation' },
               ].map(s => (
-                <div key={s.label} className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '10px', background: s.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <i className="fa-solid fa-chart-bar" style={{ color: s.color }} />
+                <div key={s.label} className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: '10px', background: s.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <i className={`fa-solid ${s.icon}`} style={{ color: s.color, fontSize: '18px' }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{s.label}</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>{s.label}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Aluno</th>
-                    <th>Sessões (mês)</th>
-                    <th>Último Atendimento</th>
-                    <th>Dias Sem Vir</th>
-                    <th>Risco de Evasão</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>Nenhum cliente vinculado.</td></tr>
-                  ) : sorted.map((c: any) => {
-                    const days = getDaysSince(c._id);
-                    const risk = getRisk(days);
-                    const sessions = getMonthSessions(c._id);
-                    const clientApts = appointments.filter((a: any) =>
-                      (a.clientId === c._id || a.clientId?._id === c._id) &&
-                      (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
-                    );
-                    const lastDate = clientApts.length > 0
-                      ? new Date(Math.max(...clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime()))).toLocaleDateString('pt-BR')
-                      : 'Sem histórico';
-                    return (
-                      <tr key={c._id}>
-                        <td data-label="Aluno">
-                          <div style={{ fontWeight: 600 }}>{c.dadosPessoais?.nome}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{c.dadosPessoais?.telefone || ''}</div>
-                        </td>
-                        <td data-label="Sessões (mês)" style={{ fontWeight: 600, color: sessions > 0 ? 'var(--color-primary)' : 'var(--text-dim)' }}>{sessions}</td>
-                        <td data-label="Último Atendimento" style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{lastDate}</td>
-                        <td data-label="Dias Sem Vir" style={{ fontWeight: 600 }}>{days === 999 ? '—' : days}</td>
-                        <td data-label="Risco de Evasão">
-                          <span className="badge" style={{ background: risk.color + '22', color: risk.color, fontWeight: 700 }}>
-                            {risk.level}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+
+            <div className="content-panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
+                <SmartSearchInput
+                  value={q}
+                  onChange={val => setSearchQueryForKey('frequencia_alunos', val)}
+                  placeholder="Buscar aluno por nome, telefone ou CPF..."
+                  resultCount={filtered.length}
+                  totalCount={allClientsWithFreq.length}
+                />
+              </div>
+
+              <div>
+                {filtered.length === 0 ? (
+                  <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1.5px dashed var(--border-color)',
+                    borderRadius: '16px',
+                    padding: '48px 20px',
+                    textAlign: 'center'
+                  }}>
+                    <i className="fa-solid fa-users-slash" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                    <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum aluno encontrado</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há registros com os termos pesquisados.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                      {paginated.map(c => {
+                        const isFemale = c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F');
+                        const rawTel = (c.dadosPessoais?.telefone || '').replace(/\D/g, '');
+                        const firstName = (c.dadosPessoais?.nome || '').split(' ')[0];
+                        const waMsg = encodeURIComponent(`Olá ${firstName}, sentimos sua falta nos treinos aqui no Clube Fitness! Como você está? Podemos agendar sua próxima sessão?`);
+                        const waLink = rawTel ? `https://wa.me/55${rawTel}?text=${waMsg}` : null;
+
+                        return (
+                          <div
+                            key={c._id}
+                            style={{
+                              background: 'var(--bg-card)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '16px',
+                              padding: '18px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              gap: '14px',
+                              boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                              transition: 'transform 0.15s ease, border-color 0.15s ease'
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <img 
+                                    src={isFemale ? '/avatar_feminino.png' : '/avatar_masculino.png'} 
+                                    alt="avatar" 
+                                    style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--border-color)' }} 
+                                  />
+                                  <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff' }}>
+                                      {c.dadosPessoais?.nome}
+                                    </h3>
+                                    <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                      {c.dadosPessoais?.telefone || c.dadosPessoais?.email || 'Sem contato'}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <span style={{
+                                  background: c.risk.color + '22',
+                                  color: c.risk.color,
+                                  border: `1px solid ${c.risk.color}55`,
+                                  padding: '3px 10px',
+                                  borderRadius: '10px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 800,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  Risco {c.risk.level}
+                                </span>
+                              </div>
+
+                              {/* Metrics Grid */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '14px' }}>
+                                <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Sessões (Mês)</div>
+                                  <div style={{ fontSize: '1rem', fontWeight: 800, color: c.sessions > 0 ? 'var(--color-primary)' : 'var(--text-dim)', marginTop: '2px' }}>
+                                    {c.sessions}
+                                  </div>
+                                </div>
+                                <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Último Treino</div>
+                                  <div style={{ fontSize: '0.78rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '4px' }}>
+                                    {c.lastDate}
+                                  </div>
+                                </div>
+                                <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Sem Vir</div>
+                                  <div style={{ fontSize: '1rem', fontWeight: 800, color: c.daysSince > 20 ? 'var(--color-danger)' : c.daysSince > 7 ? 'var(--color-warning)' : 'var(--color-primary)', marginTop: '2px' }}>
+                                    {c.daysSince === 999 ? '—' : `${c.daysSince}d`}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Action WhatsApp Button */}
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                              {waLink ? (
+                                <a 
+                                  href={waLink} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="btn btn-secondary btn-sm"
+                                  style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    padding: '10px',
+                                    borderRadius: '10px',
+                                    fontWeight: 750,
+                                    color: '#25d366',
+                                    borderColor: 'rgba(37, 211, 102, 0.4)',
+                                    background: 'rgba(37, 211, 102, 0.08)',
+                                    textDecoration: 'none'
+                                  }}
+                                >
+                                  <i className="fa-brands fa-whatsapp" style={{ fontSize: '16px' }}></i> Contatar Aluno no WhatsApp
+                                </a>
+                              ) : (
+                                <div style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-dim)', padding: '6px 0' }}>
+                                  Sem telefone para WhatsApp
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {filtered.length > 0 && (
+                      <div style={{ marginTop: '16px' }}>
+                        <Pagination
+                          currentPage={curP}
+                          totalItems={filtered.length}
+                          itemsPerPage={size}
+                          onPageChange={page => setPage('frequencia_alunos', page)}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </>
         );

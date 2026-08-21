@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import SmartSearchInput from './SmartSearchInput';
+import { smartSearchMatch } from '@/utils/smartSearch';
 
 interface Client {
   _id: string;
@@ -91,10 +93,12 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
   };
 
   const filteredClients = clients.filter(c => {
-    const q = searchQuery.toLowerCase();
-    const nome = (c.dadosPessoais?.nome || '').toLowerCase();
-    const cpf = c.dadosPessoais?.cpf || '';
-    return nome.includes(q) || cpf.includes(q);
+    return smartSearchMatch([
+      c.dadosPessoais?.nome,
+      c.dadosPessoais?.cpf,
+      c.dadosPessoais?.email,
+      c.dadosPessoais?.telefone
+    ], searchQuery);
   });
 
   return (
@@ -156,26 +160,17 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
             </span>
           </div>
 
-          <div style={{ marginBottom: '14px', position: 'relative' }}>
-            <input
-              type="text"
-              className="form-control"
+          <div style={{ marginBottom: '14px' }}>
+            <SmartSearchInput
               placeholder="Buscar aluno por nome ou CPF..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-darker)',
-                color: 'var(--text-main)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '10px',
-                padding: '10px 14px',
-                fontSize: '0.88rem'
-              }}
+              onChange={val => setSearchQuery(val)}
+              resultCount={filteredClients.length}
+              totalCount={clients.length}
             />
           </div>
 
-          <div style={{ maxHeight: '380px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '2px' }}>
+          <div style={{ maxHeight: '215px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px', scrollbarWidth: 'thin' }}>
             {filteredClients.map(c => {
               const isSelected = c._id === selectedClientId;
               const hasClinData = Boolean(c.dadosClinicos?.lesoes || c.dadosClinicos?.restricoes || c.dadosClinicos?.medicamentos || c.dadosClinicos?.historicoClinico);
