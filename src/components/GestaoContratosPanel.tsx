@@ -55,7 +55,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   const isMissingData = !hasCpf || !hasPhone || !hasEndereco || !hasValidEmail;
 
   // 0. Contrato Finalizado (Não Renovou)
-  if (com.status === 'finalizado') {
+  if (com.status === 'finalizado' || c?.status === 'finalizado') {
     return {
       stageKey: 'finalizado',
       stageLabel: '🏁 Contrato Finalizado (Não Renovou)',

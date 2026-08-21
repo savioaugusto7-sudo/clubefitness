@@ -250,6 +250,9 @@ export async function PUT(request: Request) {
       };
 
       Object.assign(client.dadosComerciais, merged);
+      if (dadosComerciais.status) {
+        client.status = dadosComerciais.status;
+      }
       client.markModified('dadosComerciais');
     }
     if (profissionalId !== undefined) {
