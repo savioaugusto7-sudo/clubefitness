@@ -49,11 +49,17 @@
   --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
-/* Calibração de Escala e Layout Fluido com Rolagem Horizontal */
+/* Calibração de Escala e Layout Fluido com Proporção Otimizada */
 html {
-  font-size: 13.5px;
+  font-size: 13px;
   overflow-x: auto;
   width: 100%;
+}
+
+@media (min-width: 1024px) {
+  body {
+    zoom: 0.9;
+  }
 }
 
 @media (max-width: 768px) {
