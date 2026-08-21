@@ -84,7 +84,7 @@ export async function POST(request: Request) {
             descontoValor: contract.descontoValor,
             descontoTipo: contract.descontoTipo,
             duracao: isAnual ? 'anual' : 'mensal',
-            duracaoQtd: isAnual ? 12 : (contract.vigenciaMeses || 1),
+            duracaoQtd: isAnual ? 1 : (contract.vigenciaMeses || 1),
             formaPagamento: contract.formaPagamento,
             dataInicio: contract.dataInicio,
             responsavelVenda: contract.responsavelVenda || '',

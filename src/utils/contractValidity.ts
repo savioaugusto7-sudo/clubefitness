@@ -69,7 +69,8 @@ export function calculateContractEndDate(
     if (!isRecorrente) {
       const endD = new Date(startD);
       if (dur === 'anual') {
-        endD.setFullYear(endD.getFullYear() + qty);
+        const anos = qty >= 12 ? 1 : qty;
+        endD.setFullYear(endD.getFullYear() + anos);
       } else if (dur === 'semana') {
         endD.setDate(endD.getDate() + (qty * 7));
       } else if (dur === 'indeterminado') {

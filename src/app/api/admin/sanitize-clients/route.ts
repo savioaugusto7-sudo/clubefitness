@@ -4,6 +4,7 @@ import Client from '@/models/Client';
 import User from '@/models/User';
 import Contract from '@/models/Contract';
 import Proposal from '@/models/Proposal';
+import Plan from '@/models/Plan';
 import { checkSessionPermission } from '@/utils/authHelper';
 
 export const maxDuration = 60;
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
     let removedMockCount = 0;
     let sanitizedRealCount = 0;
     let shieldedCount = 0;
+    let restoredAnualCount = 0;
     const details: any[] = [];
 
     for (const client of allClients) {
@@ -98,7 +100,44 @@ export async function POST(request: Request) {
         modified = true;
       }
 
-      // Regra 3: Trancamento / Blindagem Universal
+      // Regra 3: Restauração de Planos Anuais e Normalização de Vigência
+      const com = client.dadosComerciais || {};
+      let planDoc: any = null;
+      if (com.planoId) {
+        planDoc = await Plan.findById(com.planoId);
+      }
+      const latestContract = await Contract.findOne({ clientId: client._id }).sort({ createdAt: -1 });
+
+      const isOriginallyAnual = 
+        planDoc?.tipo === 'Anual' || 
+        planDoc?.nome?.toLowerCase().includes('anual') ||
+        latestContract?.planoTipo === 'Anual' ||
+        (latestContract?.vigenciaMeses && latestContract.vigenciaMeses >= 12);
+
+      if (isOriginallyAnual) {
+        if (com.duracao !== 'anual' || com.duracaoQtd !== 1) {
+          com.duracao = 'anual';
+          com.duracaoQtd = 1; // 1 Ano
+          
+          // Recalcular vencimento real de 12 meses
+          const startD = new Date((com.dataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+          const endD = new Date(startD);
+          endD.setFullYear(endD.getFullYear() + 1);
+          com.vencimento = endD.toISOString().split('T')[0];
+          
+          client.dadosComerciais = com;
+          client.markModified('dadosComerciais');
+          modified = true;
+          restoredAnualCount++;
+        }
+      } else if (com.duracao === 'anual' && com.duracaoQtd !== 1) {
+        com.duracaoQtd = 1;
+        client.dadosComerciais = com;
+        client.markModified('dadosComerciais');
+        modified = true;
+      }
+
+      // Regra 4: Trancamento / Blindagem Universal
       const currentBloqueio = client.bloqueioCadastral || {};
       if (currentBloqueio.bloqueado !== false) {
         client.bloqueioCadastral = {
@@ -124,6 +163,10 @@ export async function POST(request: Request) {
         action: 'sanitized_and_shielded',
         nome: pes.nome,
         email: clientEmail,
+        plano: planDoc?.nome || 'Sem plano',
+        duracao: com.duracao,
+        duracaoQtd: com.duracaoQtd,
+        vencimento: com.vencimento,
         cpf: pes.cpf ? 'OK' : 'FALTANTE',
         endereco: pes.endereco ? 'OK' : 'FALTANTE',
         telefone: pes.telefone ? 'OK' : 'FALTANTE'
@@ -132,10 +175,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Varredura e Blindagem Geral concluída com sucesso!',
+      message: 'Varredura, Restauração de Planos Anuais e Blindagem Geral concluída com sucesso!',
       stats: {
         removedMockCount,
         sanitizedRealCount,
+        restoredAnualCount,
         shieldedCount,
         totalRemainingClients: allClients.length - removedMockCount
       },

@@ -689,7 +689,7 @@ export default function GestaoContratosPanel({
     setSalesWizardClient(client);
     setSwPlano(defaultPlanId);
     setSwDuracao(com.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal'));
-    setSwVigenciaQtd(com.duracaoQtd || (planObj?.tipo === 'Anual' ? 12 : 1));
+    setSwVigenciaQtd(isAnual ? 1 : (com.duracaoQtd || 1));
     setSwDataInicio(com.dataInicio || new Date().toISOString().split('T')[0]);
     setSwValorUnitario(com.valorUnitario !== undefined ? com.valorUnitario : (planObj?.preco || 0));
     setSwDescontoTipo(com.descontoTipo || 'percentual');
@@ -836,7 +836,7 @@ export default function GestaoContratosPanel({
     setDcwStep(1);
     setDcwPlano(defaultPlanId);
     setDcwDuracao(com.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal'));
-    setDcwVigenciaQtd(com.duracaoQtd || (planObj?.tipo === 'Anual' ? 12 : 1));
+    setDcwVigenciaQtd(isAnual ? 1 : (com.duracaoQtd || 1));
     setDcwDataInicio(com.dataInicio || new Date().toISOString().split('T')[0]);
     setDcwValorUnitario(com.valorUnitario !== undefined ? com.valorUnitario : (planObj?.preco || 0));
     setDcwDescontoTipo(com.descontoTipo || 'percentual');
@@ -1330,8 +1330,12 @@ export default function GestaoContratosPanel({
     setDcPlano(com.planoId?._id || com.planoId || '');
     setDcStatus(com.status === 'lead' ? 'ativo' : (com.status || 'ativo'));
     setDcFormaPag(com.formaPagamento || 'pix');
-    setDcDuracao(com.duracao || 'mensal');
-    setDcVigenciaQtd(com.duracaoQtd || 1);
+
+    const planObj = plans.find(p => p._id === (com.planoId?._id || com.planoId));
+    const isAnual = com.duracao === 'anual' || planObj?.tipo === 'Anual' || planObj?.nome?.toLowerCase().includes('anual');
+    setDcDuracao(isAnual ? 'anual' : (com.duracao || 'mensal'));
+    setDcVigenciaQtd(isAnual ? 1 : (com.duracaoQtd || 1));
+
     setDcValorUnitario(com.valorUnitario || 0);
     setDcVencimento(com.dataPrimeiroVencimento || com.dataInicio || new Date().toISOString().split('T')[0]);
     setDcDescontoTipo(com.descontoTipo || 'percentual');
@@ -3351,7 +3355,7 @@ export default function GestaoContratosPanel({
                       if (plan) {
                         setDcValorUnitario(plan.preco);
                         setDcDuracao(plan.tipo === 'Anual' ? 'anual' : 'mensal');
-                        setDcVigenciaQtd(plan.tipo === 'Anual' ? 12 : 1);
+                        setDcVigenciaQtd(1);
                         setDcCreditosTotal(plan.creditosTotal || 0);
                       }
                     }}

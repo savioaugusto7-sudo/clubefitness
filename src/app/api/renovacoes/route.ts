@@ -215,8 +215,8 @@ export async function PUT(request: Request) {
     client.dadosComerciais.status = 'ativo';
     client.dadosComerciais.planoId = renewal.planoId._id;
     client.dadosComerciais.duracao = 'anual';
-    client.dadosComerciais.duracaoQtd = 12;
-    client.dadosComerciais.vigenciaQtd = 12;
+    client.dadosComerciais.duracaoQtd = 1;
+    client.dadosComerciais.vigenciaQtd = 1;
     client.dadosComerciais.valorUnitario = valorFinalTotal;
     client.dadosComerciais.valorAcordado = valorFinalTotal;
     client.dadosComerciais.dataInicio = renewal.dataInicioRenovacao;
