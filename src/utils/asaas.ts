@@ -293,3 +293,31 @@ export async function getAsaasSubscriptionPayments(subscriptionId: string) {
   const data = await handleError(res, 'Listar Pagamentos da Assinatura');
   return data.data || [];
 }
+
+export async function deleteAsaasPayment(paymentId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/payments/${paymentId}`, {
+    method: 'DELETE',
+    headers,
+    signal: AbortSignal.timeout(8000)
+  });
+
+  return handleError(res, 'Cancelar Cobrança');
+}
+
+export async function pauseAsaasSubscription(subscriptionId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/subscriptions/${subscriptionId}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ status: 'INACTIVE' }),
+    signal: AbortSignal.timeout(8000)
+  });
+
+  return handleError(res, 'Pausar Assinatura');
+}
+

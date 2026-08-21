@@ -21,10 +21,9 @@ interface AsaasClientInfo {
   asaasPaymentId?: string;
   asaasInvoiceUrl?: string;
   asaasBoletoPdf?: string;
-  asaasPixCopyPaste?: string;
-  asaasPixQrCode?: string;
   asaasBillingStatus?: string;
   contractStatus?: string;
+  isSignedClicksign?: boolean;
 }
 
 interface StandalonePaymentInfo {
@@ -58,12 +57,11 @@ export default function AsaasPanel() {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [standaloneSearchQuery, setStandaloneSearchQuery] = useState('');
 
-  // Standalone form states
+  // Standalone form states (100% BOLETO BANCÁRIO)
   const [formClientId, setFormClientId] = useState('');
   const [formType, setFormType] = useState<'avulsa' | 'parcelamento' | 'assinatura'>('avulsa');
   const [formValor, setFormValor] = useState<number>(0);
   const [formVencimento, setFormVencimento] = useState<string>('');
-  const [formFormaPagamento, setFormFormaPagamento] = useState<string>('pix');
   const [formDescricao, setFormDescricao] = useState<string>('');
   const [formParcelas, setFormParcelas] = useState<number>(2);
   const [formCycle, setFormCycle] = useState<string>('MONTHLY');
@@ -72,11 +70,10 @@ export default function AsaasPanel() {
   // Syncing & Actions
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [isProduction, setIsProduction] = useState(true);
 
   // Modals & Feedback
-  const [showPixModal, setShowPixModal] = useState(false);
-  const [selectedPix, setSelectedPix] = useState<{ qrCode: string; payload: string; name: string; value?: number; invoiceUrl?: string } | null>(null);
   const [showSuccessDetailsModal, setShowSuccessDetailsModal] = useState(false);
   const [successDetails, setSuccessDetails] = useState<any>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'danger' } | null>(null);
@@ -99,254 +96,275 @@ export default function AsaasPanel() {
       const json = await res.json();
       if (json.success && json.balance) {
         setBalance(json.balance);
+        if (json.isProduction !== undefined) {
+          setIsProduction(json.isProduction);
+        }
       }
-      if (json.isProduction !== undefined) {
-        setIsProduction(json.isProduction);
-      }
-    } catch (e: any) {
-      console.warn('Aviso ao consultar saldo Asaas:', e?.message || e);
+    } catch (e) {
+      console.warn('Erro ao buscar saldo do Asaas:', e);
     }
   };
 
-  const fetchPayments = async (silent = false) => {
-    if (!silent) setLoading(true);
+  const fetchPayments = async (showSpinner = true) => {
     try {
+      if (showSpinner) setLoading(true);
       const res = await fetch('/api/admin/asaas');
-      if (!res.ok) {
-        let errMessage = `Servidor retornou status ${res.status}`;
-        try {
-          const errData = await res.json();
-          if (errData?.error) errMessage = errData.error;
-        } catch {}
-        console.warn('Aviso Asaas:', errMessage);
-        return;
-      }
+      if (!res.ok) throw new Error('Falha ao consultar cobranças');
       const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setClients(json.data);
-        if (json.isProduction !== undefined) setIsProduction(json.isProduction);
-        if (json.balance) setBalance(json.balance);
+      if (json.success) {
+        setClients(json.data || []);
+        if (json.isProduction !== undefined) {
+          setIsProduction(json.isProduction);
+        }
       }
     } catch (e: any) {
-      console.warn('Aviso ao consultar Asaas:', e?.message || e);
+      setMessage({ text: e.message || 'Erro ao carregar dados do Asaas', type: 'danger' });
     } finally {
       setLoading(false);
     }
   };
 
   const fetchStandalonePayments = async () => {
-    setLoadingStandalone(true);
     try {
+      setLoadingStandalone(true);
       const res = await fetch('/api/admin/asaas?type=standalone');
       if (!res.ok) return;
       const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setStandalonePayments(json.data);
+      if (json.success) {
+        setStandalonePayments(json.data || []);
       }
-    } catch (e: any) {
-      console.warn('Aviso ao consultar avulsas:', e?.message || e);
+    } catch (e) {
+      console.warn('Erro ao buscar transações avulsas:', e);
     } finally {
       setLoadingStandalone(false);
     }
   };
 
   const handleSyncContract = async (contractId: string) => {
-    setSyncingId(contractId);
     try {
+      setSyncingId(contractId);
       const res = await fetch('/api/admin/asaas', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contractId })
       });
-      const data = await res.json();
-      if (data.success) {
-        setMessage({ text: 'Status da cobrança sincronizado com o Asaas com sucesso!', type: 'success' });
-        await fetchPayments(true);
-      } else {
-        setMessage({ text: data.error || 'Erro ao sincronizar cobrança.', type: 'danger' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Erro ao sincronizar contrato');
       }
+      setMessage({ text: '✓ Status do boleto sincronizado com o Asaas com sucesso!', type: 'success' });
+      setTimeout(() => setMessage(null), 4000);
+      fetchPayments(false);
+      fetchBalance();
+      fetchStandalonePayments();
     } catch (e: any) {
-      setMessage({ text: 'Erro de rede: ' + e.message, type: 'danger' });
+      setMessage({ text: e.message, type: 'danger' });
+      setTimeout(() => setMessage(null), 5000);
     } finally {
       setSyncingId(null);
-      setTimeout(() => setMessage(null), 4000);
     }
   };
 
   const handleGenerateContractBilling = async (contractId: string) => {
-    setGeneratingId(contractId);
     try {
+      setGeneratingId(contractId);
       const res = await fetch('/api/admin/asaas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contractId })
       });
-      const data = await res.json();
-      if (data.success) {
-        setMessage({ text: 'Cobrança gerada no Asaas com sucesso!', type: 'success' });
-        setSuccessDetails(data.data);
-        setShowSuccessDetailsModal(true);
-        await fetchPayments(true);
-      } else {
-        setMessage({ text: data.error || 'Erro ao gerar cobrança no Asaas.', type: 'danger' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Erro ao faturar contrato');
       }
+      setMessage({ text: '✓ Boletos do contrato gerados no Asaas e agendados no WhatsApp!', type: 'success' });
+      setTimeout(() => setMessage(null), 5000);
+      setSuccessDetails({
+        invoiceUrl: json.data?.asaasInvoiceUrl,
+        bankSlipUrl: json.data?.asaasBoletoPdf
+      });
+      setShowSuccessDetailsModal(true);
+      fetchPayments(false);
+      fetchBalance();
+      fetchStandalonePayments();
     } catch (e: any) {
-      setMessage({ text: 'Erro de rede: ' + e.message, type: 'danger' });
+      setMessage({ text: e.message, type: 'danger' });
+      setTimeout(() => setMessage(null), 6000);
     } finally {
       setGeneratingId(null);
-      setTimeout(() => setMessage(null), 4000);
     }
   };
 
-  const handleOpenPixModal = async (c: AsaasClientInfo) => {
-    if (c.asaasPixQrCode && c.asaasPixCopyPaste) {
-      setSelectedPix({
-        qrCode: c.asaasPixQrCode,
-        payload: c.asaasPixCopyPaste,
-        name: c.nome,
-        value: c.valorLiquido,
-        invoiceUrl: c.asaasInvoiceUrl
-      });
-      setShowPixModal(true);
+  const handleCreateStandalone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formClientId || !formValor || formValor <= 0) {
+      setMessage({ text: 'Por favor, selecione um aluno e informe um valor válido.', type: 'danger' });
       return;
     }
 
-    if (c.asaasPaymentId) {
-      setSyncingId(c.contractId || c.clientId);
-      try {
-        const res = await fetch(`/api/admin/asaas?action=pix_qr&paymentId=${c.asaasPaymentId}`);
-        const data = await res.json();
-        if (data.success && data.data?.encodedImage) {
-          setSelectedPix({
-            qrCode: data.data.encodedImage,
-            payload: data.data.payload,
-            name: c.nome,
-            value: c.valorLiquido,
-            invoiceUrl: c.asaasInvoiceUrl
-          });
-          setShowPixModal(true);
-        } else {
-          if (c.asaasInvoiceUrl) window.open(c.asaasInvoiceUrl, '_blank');
-        }
-      } catch {
-        if (c.asaasInvoiceUrl) window.open(c.asaasInvoiceUrl, '_blank');
-      } finally {
-        setSyncingId(null);
+    try {
+      setSubmittingForm(true);
+      const action = formType === 'avulsa' ? 'create_avulsa' : formType === 'parcelamento' ? 'create_parcelamento' : 'create_assinatura';
+      const res = await fetch('/api/admin/asaas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          clientId: formClientId,
+          valor: formValor,
+          vencimento: formVencimento,
+          formaPagamento: 'boleto', // EXCLUSIVO BOLETO
+          descricao: formDescricao,
+          parcelas: formParcelas,
+          cycle: formCycle
+        })
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Erro ao emitir boleto no Asaas');
       }
-    } else if (c.asaasInvoiceUrl) {
-      window.open(c.asaasInvoiceUrl, '_blank');
+
+      setMessage({ text: '✓ Boleto registrado com sucesso no Asaas e pronto para envio via WhatsApp!', type: 'success' });
+      setTimeout(() => setMessage(null), 5000);
+
+      // Reset form
+      setFormValor(0);
+      setFormVencimento('');
+      setFormDescricao('');
+      setFormClientId('');
+
+      const pData = Array.isArray(json.data) ? json.data[0] : json.data;
+      if (pData) {
+        setSuccessDetails({
+          invoiceUrl: pData.asaasInvoiceUrl,
+          bankSlipUrl: pData.asaasInvoiceUrl
+        });
+        setShowSuccessDetailsModal(true);
+      }
+
+      fetchBalance();
+      fetchStandalonePayments();
+      fetchPayments(false);
+    } catch (e: any) {
+      setMessage({ text: e.message, type: 'danger' });
+      setTimeout(() => setMessage(null), 6000);
+    } finally {
+      setSubmittingForm(false);
+    }
+  };
+
+  const handleCancelPayment = async (paymentId?: string, paymentDbId?: string) => {
+    if (!confirm('Deseja realmente cancelar este boleto no Asaas? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    try {
+      setCancelingId(paymentDbId || paymentId || 'cancel');
+      const res = await fetch('/api/admin/asaas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cancel_payment',
+          paymentId,
+          paymentDbId
+        })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Erro ao cancelar boleto');
+      }
+      setMessage({ text: '✓ Boleto cancelado no Asaas com sucesso.', type: 'success' });
+      setTimeout(() => setMessage(null), 4000);
+      fetchStandalonePayments();
+      fetchPayments(false);
+      fetchBalance();
+    } catch (e: any) {
+      setMessage({ text: e.message, type: 'danger' });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setCancelingId(null);
     }
   };
 
   const handleSendWhatsAppBilling = (c: AsaasClientInfo) => {
     const rawPhone = (c.telefone || '').replace(/\D/g, '');
     if (!rawPhone) {
-      alert('Telefone do aluno não cadastrado.');
+      alert('Aluno sem número de telefone cadastrado no perfil.');
       return;
     }
-    const phone = rawPhone.length <= 11 ? `55${rawPhone}` : rawPhone;
-    const link = c.asaasInvoiceUrl || c.asaasBoletoPdf || '';
-    const text = `Olá, ${c.nome}! 👋\n\nSeguem as informações do seu pagamento referente ao *${c.planoNome || 'Plano Clube Fitness'}* no valor de *R$ ${formatCurrencyBRL(c.valorLiquido)}*.\n\n🔗 *Link para Pagamento (Pix / Boleto / Cartão):*\n${link}\n\nQualquer dúvida estamos à disposição! 🏋️‍♂️✨`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+    const cleanPhone = rawPhone.length === 10 || rawPhone.length === 11 ? `55${rawPhone}` : rawPhone;
+    const url = c.asaasInvoiceUrl || c.asaasBoletoPdf;
+    const msg = `Olá, ${c.nome}! 🏋️‍♂️\n\nSegue o link do seu *Boleto Bancário* referente ao plano *${c.planoNome || 'Clube Fitness'}*:\n\n📄 *Acessar Boleto:* ${url}\n\nQualquer dúvida, estamos à disposição!`;
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  const handleCreateStandalone = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formClientId || !formValor) {
-      alert('Selecione o aluno e informe o valor.');
-      return;
-    }
-
-    setSubmittingForm(true);
-    try {
-      const payload: any = {
-        action: formType === 'avulsa' ? 'create_avulsa' : formType === 'parcelamento' ? 'create_parcelamento' : 'create_assinatura',
-        clientId: formClientId,
-        valor: formValor,
-        vencimento: formVencimento,
-        formaPagamento: formFormaPagamento,
-        descricao: formDescricao,
-        parcelas: formParcelas,
-        cycle: formCycle
-      };
-
-      const res = await fetch('/api/admin/asaas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMessage({ text: 'Cobrança avulsa emitida no Asaas com sucesso!', type: 'success' });
-        setFormValor(0);
-        setFormDescricao('');
-        setSuccessDetails(data.data);
-        setShowSuccessDetailsModal(true);
-        fetchStandalonePayments();
-        fetchPayments(true);
-      } else {
-        setMessage({ text: data.error || 'Erro ao emitir cobrança.', type: 'danger' });
-      }
-    } catch (e: any) {
-      setMessage({ text: 'Erro de rede: ' + e.message, type: 'danger' });
-    } finally {
-      setSubmittingForm(false);
-      setTimeout(() => setMessage(null), 4000);
-    }
+  const handleSendWhatsAppStandalone = (p: StandalonePaymentInfo) => {
+    const matchedClient = clients.find(c => c.nome.toLowerCase() === p.clientNome.toLowerCase());
+    const rawPhone = (matchedClient?.telefone || '').replace(/\D/g, '');
+    const phoneParam = rawPhone ? (rawPhone.length <= 11 ? `55${rawPhone}` : rawPhone) : '';
+    const msg = `Olá, ${p.clientNome}! 🏋️‍♂️\n\nSegue o link do seu *Boleto Bancário* no valor de *R$ ${formatCurrencyBRL(p.valor)}*:\n\n📄 *Acessar Boleto:* ${p.asaasInvoiceUrl}\n\nQualquer dúvida, estamos à disposição!`;
+    const targetUrl = phoneParam ? `https://wa.me/${phoneParam}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(targetUrl, '_blank');
   };
 
-  // Filtered lists with Smart Search
+  // Filtered lists
   const filteredClients = useMemo(() => {
     return clients.filter(c => {
-      const matchesSearch = smartSearchMatch(searchQuery, [
-        c.nome,
-        c.cpf,
-        c.email,
-        c.telefone,
-        c.planoNome,
-        c.asaasBillingStatus
-      ]);
-
-      if (!matchesSearch) return false;
-      if (statusFilter === 'todos') return true;
-      if (statusFilter === 'gerado') return c.status === 'gerado';
-      if (statusFilter === 'nao_gerado') return c.status === 'nao_gerado';
-      if (statusFilter === 'pago') return c.asaasBillingStatus === 'pago' || c.asaasBillingStatus === 'CONFIRMED' || c.asaasBillingStatus === 'RECEIVED';
-      if (statusFilter === 'pendente') return c.asaasBillingStatus === 'pendente' || c.asaasBillingStatus === 'PENDING';
-      return true;
+      if (statusFilter !== 'todos') {
+        if (statusFilter === 'gerado' && c.status !== 'gerado') return false;
+        if (statusFilter === 'nao_gerado' && c.status !== 'nao_gerado') return false;
+        if (statusFilter === 'pago' && c.asaasBillingStatus !== 'pago' && c.asaasBillingStatus !== 'CONFIRMED' && c.asaasBillingStatus !== 'RECEIVED') return false;
+        if (statusFilter === 'pendente' && c.asaasBillingStatus !== 'pendente' && c.asaasBillingStatus !== 'PENDING') return false;
+      }
+      if (!searchQuery) return true;
+      return (
+        smartSearchMatch(searchQuery, c.nome) ||
+        smartSearchMatch(searchQuery, c.cpf) ||
+        smartSearchMatch(searchQuery, c.planoNome || '') ||
+        smartSearchMatch(searchQuery, c.email)
+      );
     });
   }, [clients, searchQuery, statusFilter]);
 
-  const subscriptionsList = useMemo(() => {
-    return standalonePayments.filter(p => (p.observacoes || '').toLowerCase().includes('assinatura') || (p.planoNome || '').toLowerCase().includes('assinatura'));
-  }, [standalonePayments]);
-
   const filteredStandalone = useMemo(() => {
-    return standalonePayments.filter(p => smartSearchMatch(standaloneSearchQuery, [
-      p.clientNome,
-      p.planoNome,
-      p.observacoes,
-      p.status
-    ]));
+    return standalonePayments.filter(p => {
+      if (!standaloneSearchQuery) return true;
+      return (
+        smartSearchMatch(standaloneSearchQuery, p.clientNome) ||
+        smartSearchMatch(standaloneSearchQuery, p.planoNome) ||
+        smartSearchMatch(standaloneSearchQuery, p.status)
+      );
+    });
   }, [standalonePayments, standaloneSearchQuery]);
 
+  const selectedFormClient = useMemo(() => {
+    return clients.find(c => c.clientId === formClientId);
+  }, [clients, formClientId]);
+
+  const subscriptionsList = useMemo(() => {
+    return standalonePayments.filter(p => p.planoNome.includes('Assinatura') || p.observacoes?.includes('Assinatura'));
+  }, [standalonePayments]);
+
   return (
-    <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '60px' }}>
       
-      {/* Toast Feedback */}
+      {/* Toast Notification */}
       {message && (
         <div style={{
           position: 'fixed',
-          top: '24px',
-          right: '24px',
-          zIndex: 99999,
-          padding: '14px 22px',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          background: message.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#fff',
+          padding: '14px 20px',
           borderRadius: '10px',
-          background: message.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
-          color: '#ffffff',
-          fontWeight: 600,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
+          fontWeight: 700,
           fontSize: '0.9rem',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
           backdropFilter: 'blur(8px)'
         }}>
           {message.text}
@@ -362,7 +380,7 @@ export default function AsaasPanel() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
               <span style={{
                 background: 'rgba(16, 185, 129, 0.15)',
                 color: '#10b981',
@@ -378,12 +396,26 @@ export default function AsaasPanel() {
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
                 {isProduction ? 'Asaas Produção (Conexão Oficial Ativa)' : 'Asaas Sandbox (Modo de Testes)'}
               </span>
+              <span style={{
+                background: 'rgba(59, 130, 246, 0.15)',
+                color: '#60a5fa',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <i className="fa-brands fa-whatsapp"></i> Notificações: Exclusivamente WhatsApp
+              </span>
             </div>
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
-              Central de Faturamento & Pagamentos Asaas
+              Central de Faturamento & Boletos Asaas
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', margin: '4px 0 0 0' }}>
-              Gestão de cobranças automáticas via Pix Dinâmico, Boletos Registrados e Assinaturas no Cartão.
+              Emissão oficial de Boletos Registrados e Notificações no WhatsApp vinculadas aos Contratos assinados.
             </p>
           </div>
 
@@ -426,7 +458,7 @@ export default function AsaasPanel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <i className="fa-solid fa-bolt" style={{ color: '#10b981' }}></i>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Webhook de Retorno Ativo: <code style={{ color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{webhookUrl}</code>
+              Webhook de Retorno Automático: <code style={{ color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{webhookUrl}</code>
             </span>
           </div>
           <button
@@ -484,16 +516,16 @@ export default function AsaasPanel() {
 
         <div className="metric-card" style={{ background: 'rgba(236, 72, 153, 0.06)', border: '1px solid rgba(236, 72, 153, 0.25)' }}>
           <div className="metric-info">
-            <h3 style={{ color: '#f472b6' }}>Assinaturas Cartão</h3>
+            <h3 style={{ color: '#f472b6' }}>Assinaturas em Boleto</h3>
             <div className="value" style={{ color: '#f472b6' }}>{subscriptionsList.length}</div>
           </div>
           <div className="metric-icon" style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#ec4899' }}>
-            <i className="fa-solid fa-credit-card"></i>
+            <i className="fa-solid fa-receipt"></i>
           </div>
         </div>
       </div>
 
-      {/* Modern Pill Navigation Tabs */}
+      {/* Modern Navigation Tabs */}
       <div style={{
         display: 'flex',
         gap: '8px',
@@ -565,7 +597,7 @@ export default function AsaasPanel() {
             whiteSpace: 'nowrap'
           }}
         >
-          <i className="fa-solid fa-plus-circle"></i> Emitir Cobrança Avulsa
+          <i className="fa-solid fa-plus-circle"></i> Emitir Boleto Avulso
         </button>
 
         <button
@@ -607,7 +639,7 @@ export default function AsaasPanel() {
             whiteSpace: 'nowrap'
           }}
         >
-          <i className="fa-solid fa-list-check"></i> Histórico de Transações ({standalonePayments.length})
+          <i className="fa-solid fa-list-check"></i> Histórico de Boletos ({standalonePayments.length})
         </button>
       </div>
 
@@ -627,8 +659,8 @@ export default function AsaasPanel() {
                 onClick={() => setActiveSubTab('avulsa')}
                 style={{ justifyContent: 'flex-start', padding: '12px 16px', borderRadius: '10px' }}
               >
-                <i className="fa-solid fa-qrcode" style={{ marginRight: '8px' }}></i>
-                Gerar Cobrança Pix / Boleto Avulso
+                <i className="fa-solid fa-file-invoice" style={{ marginRight: '8px' }}></i>
+                Emitir Boleto Bancário Avulso
               </button>
               <button
                 className="btn btn-secondary"
@@ -636,7 +668,7 @@ export default function AsaasPanel() {
                 style={{ justifyContent: 'flex-start', padding: '12px 16px', borderRadius: '10px' }}
               >
                 <i className="fa-solid fa-file-signature" style={{ marginRight: '8px' }}></i>
-                Faturar Contratos Pendentes de Alunos
+                Faturar Contratos Assinados (Clicksign)
               </button>
               <button
                 className="btn btn-secondary"
@@ -646,8 +678,8 @@ export default function AsaasPanel() {
                 }}
                 style={{ justifyContent: 'flex-start', padding: '12px 16px', borderRadius: '10px' }}
               >
-                <i className="fa-solid fa-credit-card" style={{ marginRight: '8px' }}></i>
-                Criar Nova Assinatura Recorrente no Cartão
+                <i className="fa-solid fa-repeat" style={{ marginRight: '8px' }}></i>
+                Criar Nova Assinatura Recorrente em Boleto
               </button>
             </div>
           </div>
@@ -656,24 +688,24 @@ export default function AsaasPanel() {
             <div className="panel-header" style={{ marginBottom: '16px' }}>
               <h2 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-shield-halved" style={{ color: 'var(--color-primary)' }}></i>
-                Status da Automação Bancária
+                Diretrizes Oficiais da Automação Asaas
               </h2>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Baixa Automática via Pix:</span>
-                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ Instantânea (&lt; 3s)</span>
+                <span style={{ color: 'var(--text-muted)' }}>Método Exclusivo:</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>📄 Boleto Bancário Registrado</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Compensação de Boleto:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>D+1 útil</span>
+                <span style={{ color: 'var(--text-muted)' }}>Canal de Comunicação com Alunos:</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>💬 Exclusivamente WhatsApp</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Notificações por WhatsApp/SMS:</span>
-                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ Régua Ativa Asaas</span>
+                <span style={{ color: 'var(--text-muted)' }}>Gatilho de Faturamento de Contratos:</span>
+                <span style={{ color: '#60a5fa', fontWeight: 700 }}>🔒 Após Assinatura Clicksign</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Juros e Multa Automáticos:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Juros e Multa Padrão:</span>
                 <span style={{ color: '#10b981', fontWeight: 700 }}>✓ 2% Multa + 1% a.m.</span>
               </div>
             </div>
@@ -681,7 +713,7 @@ export default function AsaasPanel() {
         </div>
       )}
 
-      {/* TAB 2: FATURAMENTO DE CONTRATOS */}
+      {/* TAB 2: FATURAMENTO DE CONTRATOS (CLICKSIGN GATE) */}
       {activeSubTab === 'contratos' && (
         <div className="content-panel" style={{ padding: '24px' }}>
           <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
@@ -689,7 +721,7 @@ export default function AsaasPanel() {
               <input
                 type="text"
                 className="form-control"
-                placeholder="Buscar por nome, plano, CPF, status..."
+                placeholder="Buscar por aluno, plano, CPF, status..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -707,9 +739,9 @@ export default function AsaasPanel() {
                   style={{ minWidth: '150px', fontSize: '0.83rem', padding: '6px 10px' }}
                 >
                   <option value="todos">🌐 Todos os Status</option>
-                  <option value="gerado">⚡ Cobrança Gerada</option>
-                  <option value="nao_gerado">⏳ Pendente de Gerar</option>
-                  <option value="pago">✓ Pagos</option>
+                  <option value="gerado">⚡ Boletos Gerados</option>
+                  <option value="nao_gerado">⏳ Pronto para Faturar</option>
+                  <option value="pago">✓ Boletos Pagos</option>
                   <option value="pendente">⚠️ Aguardando Pagto</option>
                 </select>
               </div>
@@ -735,11 +767,11 @@ export default function AsaasPanel() {
               <thead>
                 <tr>
                   <th>Aluno</th>
-                  <th>Plano & Valor</th>
-                  <th>Forma & Parcelas</th>
-                  <th>Vencimento</th>
-                  <th>Status Asaas</th>
-                  <th style={{ textAlign: 'right' }}>Ações Rápidas</th>
+                  <th>Plano & Total</th>
+                  <th>Condição Comercial</th>
+                  <th>1º Vencimento</th>
+                  <th>Status Clicksign</th>
+                  <th style={{ textAlign: 'right' }}>Ação de Faturamento</th>
                 </tr>
               </thead>
               <tbody>
@@ -761,6 +793,8 @@ export default function AsaasPanel() {
                     const isPaid = c.asaasBillingStatus === 'pago' || c.asaasBillingStatus === 'CONFIRMED' || c.asaasBillingStatus === 'RECEIVED';
                     const isOverdue = c.asaasBillingStatus === 'vencido' || c.asaasBillingStatus === 'OVERDUE';
                     const hasBilling = c.status === 'gerado';
+                    const numP = c.parcelas || 1;
+                    const valParcela = numP > 0 ? (c.valorLiquido || 0) / numP : (c.valorLiquido || 0);
 
                     return (
                       <tr key={c.clientId}>
@@ -778,13 +812,8 @@ export default function AsaasPanel() {
                         </td>
                         <td>
                           <span className="badge" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-main)' }}>
-                            {c.formaPagamento?.toUpperCase() || 'PIX'}
+                            {numP > 1 ? `${numP}x de R$ ${formatCurrencyBRL(valParcela)}` : 'À Vista em Boleto'}
                           </span>
-                          {c.parcelas && c.parcelas > 1 && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                              ({c.parcelas}x)
-                            </span>
-                          )}
                         </td>
                         <td>
                           <span style={{ fontSize: '0.82rem' }}>
@@ -792,47 +821,48 @@ export default function AsaasPanel() {
                           </span>
                         </td>
                         <td>
-                          {isPaid ? (
-                            <span className="badge badge-success">✓ Pago</span>
-                          ) : isOverdue ? (
-                            <span className="badge badge-danger">⚠️ Vencido</span>
-                          ) : hasBilling ? (
-                            <span className="badge badge-warning">⏳ Pendente</span>
-                          ) : c.status === 'nao_gerado' ? (
-                            <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>Pronto p/ Gerar</span>
+                          {c.isSignedClicksign ? (
+                            <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <i className="fa-solid fa-signature"></i> Assinado
+                            </span>
                           ) : (
-                            <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)' }}>Sem Contrato</span>
+                            <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <i className="fa-solid fa-lock"></i> Pendente Assinatura
+                            </span>
                           )}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                          <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                             {c.status === 'nao_gerado' && c.contractId && (
-                              <button
-                                className="btn btn-primary btn-sm"
-                                onClick={() => handleGenerateContractBilling(c.contractId!)}
-                                disabled={generatingId === c.contractId}
-                                style={{ fontSize: '0.75rem', padding: '5px 10px', background: '#10b981', borderColor: '#10b981' }}
-                                title="Gerar cobrança no Asaas"
-                              >
-                                {generatingId === c.contractId ? (
-                                  <i className="fa-solid fa-spinner fa-spin"></i>
-                                ) : (
-                                  <>⚡ Gerar Cobrança</>
-                                )}
-                              </button>
+                              c.isSignedClicksign ? (
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() => handleGenerateContractBilling(c.contractId!)}
+                                  disabled={generatingId === c.contractId}
+                                  style={{ fontSize: '0.75rem', padding: '6px 12px', background: '#10b981', borderColor: '#10b981', fontWeight: 700 }}
+                                  title="Faturar contrato e agendar boletos no Asaas"
+                                >
+                                  {generatingId === c.contractId ? (
+                                    <i className="fa-solid fa-spinner fa-spin"></i>
+                                  ) : (
+                                    <>📑 Faturar Contrato em Boletos</>
+                                  )}
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  disabled
+                                  style={{ fontSize: '0.72rem', padding: '5px 10px', opacity: 0.6, cursor: 'not-allowed', background: 'rgba(251, 191, 36, 0.1)', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.3)' }}
+                                  title="O faturamento só é liberado após o contrato ser assinado na Clicksign"
+                                >
+                                  <i className="fa-solid fa-lock" style={{ marginRight: '4px' }}></i>
+                                  Aguardando Assinatura Clicksign
+                                </button>
+                              )
                             )}
 
                             {hasBilling && (
                               <>
-                                <button
-                                  className="btn btn-secondary btn-sm"
-                                  onClick={() => handleOpenPixModal(c)}
-                                  style={{ fontSize: '0.75rem', padding: '5px 9px' }}
-                                  title="Ver QR Code Pix ou Link"
-                                >
-                                  <i className="fa-brands fa-pix" style={{ color: '#10b981' }}></i>
-                                </button>
-
                                 {c.asaasBoletoPdf && (
                                   <a
                                     href={c.asaasBoletoPdf}
@@ -842,17 +872,17 @@ export default function AsaasPanel() {
                                     style={{ fontSize: '0.75rem', padding: '5px 9px' }}
                                     title="Visualizar Boleto em PDF"
                                   >
-                                    <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i>
+                                    <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i> Boleto PDF
                                   </a>
                                 )}
 
                                 <button
                                   className="btn btn-secondary btn-sm"
                                   onClick={() => handleSendWhatsAppBilling(c)}
-                                  style={{ fontSize: '0.75rem', padding: '5px 9px' }}
-                                  title="Enviar no WhatsApp do Aluno"
+                                  style={{ fontSize: '0.75rem', padding: '5px 9px', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.3)' }}
+                                  title="Reenviar Boleto no WhatsApp do Aluno"
                                 >
-                                  <i className="fa-brands fa-whatsapp" style={{ color: '#10b981' }}></i>
+                                  <i className="fa-brands fa-whatsapp"></i> Reenviar no WhatsApp
                                 </button>
 
                                 <button
@@ -860,7 +890,7 @@ export default function AsaasPanel() {
                                   onClick={() => handleSyncContract(c.contractId!)}
                                   disabled={syncingId === c.contractId}
                                   style={{ fontSize: '0.75rem', padding: '5px 9px' }}
-                                  title="Sincronizar status com o Asaas"
+                                  title="Sincronizar status do boleto com o Asaas"
                                 >
                                   <i className={`fa-solid fa-rotate-right ${syncingId === c.contractId ? 'fa-spin' : ''}`}></i>
                                 </button>
@@ -878,192 +908,249 @@ export default function AsaasPanel() {
         </div>
       )}
 
-      {/* TAB 3: EMITIR COBRANÇA AVULSA */}
+      {/* TAB 3: EMITIR BOLETO AVULSO (COM RESUMO DE VALORES AO LADO) */}
       {activeSubTab === 'avulsa' && (
-        <div className="content-panel" style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
-          <div className="panel-header" style={{ marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-plus-circle" style={{ color: 'var(--color-primary)' }}></i>
-              Emitir Nova Cobrança no Asaas
-            </h2>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1.2fr) minmax(280px, 0.8fr)', gap: '24px', alignItems: 'start' }}>
+          
+          {/* Form Column */}
+          <div className="content-panel" style={{ padding: '24px' }}>
+            <div className="panel-header" style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-file-invoice" style={{ color: 'var(--color-primary)' }}></i>
+                Emitir Boleto Bancário no Asaas
+              </h2>
+            </div>
 
-          <form onSubmit={handleCreateStandalone}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="form-group">
-                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                  Modalidade de Cobrança:
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
-                  <button
-                    type="button"
-                    className={`btn ${formType === 'avulsa' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setFormType('avulsa')}
-                    style={{ fontSize: '0.82rem', padding: '10px' }}
-                  >
-                    🪙 Cobrança Avulsa (À Vista)
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn ${formType === 'parcelamento' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setFormType('parcelamento')}
-                    style={{ fontSize: '0.82rem', padding: '10px' }}
-                  >
-                    📑 Parcelamento (Carnê/Boleto)
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn ${formType === 'assinatura' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setFormType('assinatura')}
-                    style={{ fontSize: '0.82rem', padding: '10px' }}
-                  >
-                    🔄 Assinatura no Cartão
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                  Selecione o Aluno: *
-                </label>
-                <select
-                  className="select-custom"
-                  value={formClientId}
-                  onChange={e => setFormClientId(e.target.value)}
-                  required
-                >
-                  <option value="">-- Selecione o Aluno --</option>
-                  {clients.map(c => (
-                    <option key={c.clientId} value={c.clientId}>
-                      {c.nome} ({c.cpf || 'Sem CPF'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <form onSubmit={handleCreateStandalone}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="form-group">
                   <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                    Valor Total (R$): *
+                    Modalidade de Emissão em Boleto:
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-control"
-                    placeholder="0,00"
-                    value={formValor || ''}
-                    onChange={e => setFormValor(Number(e.target.value))}
-                    required
-                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className={`btn ${formType === 'avulsa' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setFormType('avulsa')}
+                      style={{ fontSize: '0.82rem', padding: '10px' }}
+                    >
+                      📄 Boleto Avulso (1x)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${formType === 'parcelamento' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setFormType('parcelamento')}
+                      style={{ fontSize: '0.82rem', padding: '10px' }}
+                    >
+                      📑 Parcelamento em Boletos
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${formType === 'assinatura' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setFormType('assinatura')}
+                      style={{ fontSize: '0.82rem', padding: '10px' }}
+                    >
+                      🔄 Assinatura Recorrente (Boleto)
+                    </button>
+                  </div>
                 </div>
 
                 <div className="form-group">
                   <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                    Data de Vencimento: *
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={formVencimento}
-                    onChange={e => setFormVencimento(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                  Meio de Pagamento:
-                </label>
-                <select
-                  className="select-custom"
-                  value={formFormaPagamento}
-                  onChange={e => setFormFormaPagamento(e.target.value)}
-                >
-                  <option value="pix">💠 Pix Instantâneo (QR Code Dinâmico)</option>
-                  <option value="boleto">📄 Boleto Bancário Registrado</option>
-                  <option value="cartao">💳 Cartão de Crédito</option>
-                </select>
-              </div>
-
-              {formType === 'parcelamento' && (
-                <div className="form-group">
-                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                    Quantidade de Parcelas:
-                  </label>
-                  <input
-                    type="number"
-                    min={2}
-                    max={24}
-                    className="form-control"
-                    value={formParcelas}
-                    onChange={e => setFormParcelas(Number(e.target.value))}
-                    required
-                  />
-                </div>
-              )}
-
-              {formType === 'assinatura' && (
-                <div className="form-group">
-                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                    Ciclo de Cobrança:
+                    Selecione o Aluno (Dados Blindados): *
                   </label>
                   <select
                     className="select-custom"
-                    value={formCycle}
-                    onChange={e => setFormCycle(e.target.value)}
+                    value={formClientId}
+                    onChange={e => setFormClientId(e.target.value)}
+                    required
                   >
-                    <option value="MONTHLY">Mensal</option>
-                    <option value="QUARTERLY">Trimestral</option>
-                    <option value="SEMIANNUALLY">Semestral</option>
-                    <option value="YEARLY">Anual</option>
+                    <option value="">-- Selecione o Aluno --</option>
+                    {clients.map(c => (
+                      <option key={c.clientId} value={c.clientId}>
+                        {c.nome} ({c.cpf || 'Sem CPF'})
+                      </option>
+                    ))}
                   </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                      Valor Total (R$): *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      placeholder="0,00"
+                      value={formValor || ''}
+                      onChange={e => setFormValor(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                      Data de Vencimento: *
+                    </label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={formVencimento}
+                      onChange={e => setFormVencimento(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {formType === 'parcelamento' && (
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                      Quantidade de Parcelas em Boleto:
+                    </label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={24}
+                      className="form-control"
+                      value={formParcelas}
+                      onChange={e => setFormParcelas(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                )}
+
+                {formType === 'assinatura' && (
+                  <div className="form-group">
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                      Ciclo de Cobrança em Boleto:
+                    </label>
+                    <select
+                      className="select-custom"
+                      value={formCycle}
+                      onChange={e => setFormCycle(e.target.value)}
+                    >
+                      <option value="MONTHLY">Mensal (Boleto gerado 5 dias antes no WhatsApp)</option>
+                      <option value="QUARTERLY">Trimestral</option>
+                      <option value="SEMIANNUALLY">Semestral</option>
+                      <option value="YEARLY">Anual</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                    Descrição / Motivo do Boleto:
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Ex: Mensalidade, Sessão Avulsa, Avaliação..."
+                    value={formDescricao}
+                    onChange={e => setFormDescricao(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ marginTop: '10px' }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={submittingForm}
+                    style={{ width: '100%', padding: '12px', fontSize: '0.95rem', fontWeight: 700, background: '#10b981', borderColor: '#10b981' }}
+                  >
+                    {submittingForm ? (
+                      <>
+                        <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                        Emitindo Boleto no Asaas...
+                      </>
+                    ) : (
+                      <>📄 Emitir Boleto Oficial no Asaas & Enviar no WhatsApp</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Side Values Summary Card */}
+          <div className="content-panel" style={{ padding: '24px', background: 'rgba(14, 26, 43, 0.65)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-calculator" style={{ color: '#60a5fa' }}></i>
+              Resumo do Boleto a Ser Lançado
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+              <div style={{ paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Aluno Selecionado:</span>
+                <strong style={{ color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                  {selectedFormClient?.nome || 'Nenhum aluno selecionado'}
+                </strong>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  CPF: {selectedFormClient?.cpf || '—'}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Valor Líquido:</span>
+                <strong style={{ color: '#10b981', fontSize: '1.05rem' }}>
+                  R$ {formatCurrencyBRL(formValor)}
+                </strong>
+              </div>
+
+              {formType === 'parcelamento' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Parcelamento em Boletos:</span>
+                  <span style={{ color: '#60a5fa', fontWeight: 700 }}>
+                    {formParcelas}x de R$ {formatCurrencyBRL(formValor / (formParcelas || 1))}
+                  </span>
                 </div>
               )}
 
-              <div className="form-group">
-                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                  Descrição / Motivo da Cobrança:
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Ex: Sessão de Quiropraxia, Avaliação Física Extra..."
-                  value={formDescricao}
-                  onChange={e => setFormDescricao(e.target.value)}
-                />
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Data de Vencimento:</span>
+                <strong style={{ color: 'var(--text-main)' }}>
+                  {formVencimento ? new Date(formVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'Hoje'}
+                </strong>
               </div>
 
-              <div style={{ marginTop: '10px' }}>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submittingForm}
-                  style={{ width: '100%', padding: '12px', fontSize: '0.95rem', fontWeight: 700, background: '#10b981', borderColor: '#10b981' }}
-                >
-                  {submittingForm ? (
-                    <>
-                      <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
-                      Gerando no Asaas...
-                    </>
-                  ) : (
-                    <>⚡ Emitir Cobrança Oficial no Asaas</>
-                  )}
-                </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Multa / Juros de Mora:</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>2% Multa + 1% a.m.</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Canal de Notificação:</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>💬 Exclusivamente WhatsApp</span>
+              </div>
+
+              <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '8px', fontSize: '0.78rem', color: '#10b981' }}>
+                <i className="fa-solid fa-circle-check" style={{ marginRight: '6px' }}></i>
+                Ao emitir, o Asaas gera a linha digitável oficial, código de barras e link em PDF com envio automático no WhatsApp.
               </div>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
-      {/* TAB 4: ASSINATURAS RECORRENTES */}
+      {/* TAB 4: ASSINATURAS RECORRENTES EM BOLETO */}
       {activeSubTab === 'assinaturas' && (
         <div className="content-panel" style={{ padding: '24px' }}>
-          <div className="panel-header" style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="panel-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <h2 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <i className="fa-solid fa-repeat" style={{ color: 'var(--color-primary)' }}></i>
-              Assinaturas Recorrentes no Cartão de Crédito
+              Assinaturas Recorrentes em Boleto Bancário
             </h2>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                setFormType('assinatura');
+                setActiveSubTab('avulsa');
+              }}
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+            >
+              <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Nova Assinatura em Boleto
+            </button>
           </div>
 
           <div className="table-responsive">
@@ -1071,7 +1158,7 @@ export default function AsaasPanel() {
               <thead>
                 <tr>
                   <th>Aluno</th>
-                  <th>Descrição da Assinatura</th>
+                  <th>Descrição</th>
                   <th>Valor Mensal</th>
                   <th>Próximo Vencimento</th>
                   <th>Status</th>
@@ -1082,7 +1169,7 @@ export default function AsaasPanel() {
                 {subscriptionsList.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                      Nenhuma assinatura recorrente registrada ainda. Crie uma na aba "Emitir Cobrança".
+                      Nenhuma assinatura recorrente em boleto registrada ainda.
                     </td>
                   </tr>
                 ) : (
@@ -1096,17 +1183,28 @@ export default function AsaasPanel() {
                         <span className="badge badge-success">✓ Ativa</span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        {s.asaasInvoiceUrl && (
-                          <a
-                            href={s.asaasInvoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                          {s.asaasInvoiceUrl && (
+                            <a
+                              href={s.asaasInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                            >
+                              Ver Boleto
+                            </a>
+                          )}
+                          <button
+                            type="button"
                             className="btn btn-secondary btn-sm"
-                            style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                            onClick={() => handleSendWhatsAppStandalone(s)}
+                            style={{ fontSize: '0.75rem', padding: '5px 9px', color: '#10b981' }}
+                            title="Reenviar no WhatsApp"
                           >
-                            Ver Fatura
-                          </a>
-                        )}
+                            <i className="fa-brands fa-whatsapp"></i>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1117,13 +1215,13 @@ export default function AsaasPanel() {
         </div>
       )}
 
-      {/* TAB 5: HISTÓRICO DE TRANSAÇÕES */}
+      {/* TAB 5: HISTÓRICO DE BOLETOS EMITIDOS */}
       {activeSubTab === 'historico_avulsas' && (
         <div className="content-panel" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
             <h2 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <i className="fa-solid fa-list-check" style={{ color: 'var(--color-primary)' }}></i>
-              Histórico Completo de Cobranças Emitidas
+              Histórico Completo de Boletos Emitidos
             </h2>
             
             <input
@@ -1145,14 +1243,14 @@ export default function AsaasPanel() {
                   <th>Valor</th>
                   <th>Vencimento</th>
                   <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Link / Fatura</th>
+                  <th style={{ textAlign: 'right' }}>Ações / WhatsApp</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStandalone.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                      Nenhuma cobrança avulsa encontrada.
+                      Nenhum boleto encontrado no histórico.
                     </td>
                   </tr>
                 ) : (
@@ -1167,24 +1265,60 @@ export default function AsaasPanel() {
                           <span className="badge badge-success">✓ Pago</span>
                         ) : p.status === 'Atrasado' ? (
                           <span className="badge badge-danger">⚠️ Atrasado</span>
+                        ) : p.status === 'Cancelado' ? (
+                          <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)' }}>Cancelado</span>
                         ) : (
                           <span className="badge badge-warning">⏳ Pendente</span>
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        {p.asaasInvoiceUrl ? (
-                          <a
-                            href={p.asaasInvoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn btn-secondary btn-sm"
-                            style={{ fontSize: '0.75rem', padding: '5px 10px' }}
-                          >
-                            Abrir Link
-                          </a>
-                        ) : (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>—</span>
-                        )}
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                          {p.asaasInvoiceUrl ? (
+                            <a
+                              href={p.asaasInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                            >
+                              <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444', marginRight: '4px' }}></i>
+                              Boleto
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>—</span>
+                          )}
+
+                          {p.status !== 'Cancelado' && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleSendWhatsAppStandalone(p)}
+                                style={{ fontSize: '0.75rem', padding: '5px 9px', color: '#10b981' }}
+                                title="Reenviar Boleto no WhatsApp"
+                              >
+                                <i className="fa-brands fa-whatsapp"></i>
+                              </button>
+
+                              {p.status !== 'Pago' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleCancelPayment(p.asaasPaymentId, p._id)}
+                                  disabled={cancelingId === p._id}
+                                  style={{ fontSize: '0.75rem', padding: '5px 9px', color: '#ef4444' }}
+                                  title="Cancelar Boleto"
+                                >
+                                  {cancelingId === p._id ? (
+                                    <i className="fa-solid fa-spinner fa-spin"></i>
+                                  ) : (
+                                    <i className="fa-solid fa-xmark"></i>
+                                  )}
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1195,106 +1329,20 @@ export default function AsaasPanel() {
         </div>
       )}
 
-      {/* MODAL: PIX DINÂMICO QR CODE & COPIA E COLA */}
-      {showPixModal && selectedPix && (
-        <div className="modal-overlay" style={{ padding: '20px' }} onClick={() => setShowPixModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%', textAlign: 'center' }}>
-            <div className="modal-header">
-              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-brands fa-pix" style={{ color: '#10b981' }}></i>
-                Pix Dinâmico Instantâneo
-              </h3>
-              <button className="modal-close" onClick={() => setShowPixModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body" style={{ padding: '24px 20px' }}>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Aluno: <strong>{selectedPix.name}</strong>
-                {selectedPix.value && (
-                  <> • Valor: <strong style={{ color: '#10b981' }}>R$ {formatCurrencyBRL(selectedPix.value)}</strong></>
-                )}
-              </p>
-
-              {selectedPix.qrCode && (
-                <div style={{
-                  background: '#ffffff',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  display: 'inline-block',
-                  marginBottom: '18px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-                }}>
-                  <img
-                    src={`data:image/png;base64,${selectedPix.qrCode}`}
-                    alt="Pix QR Code"
-                    style={{ width: '220px', height: '220px', display: 'block' }}
-                  />
-                </div>
-              )}
-
-              {selectedPix.payload && (
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
-                    Chave Pix Copia e Cola:
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      className="form-control"
-                      readOnly
-                      value={selectedPix.payload}
-                      style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.4)' }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(selectedPix.payload);
-                        alert('✓ Chave Pix Copia e Cola copiada para a área de transferência!');
-                      }}
-                      style={{ flexShrink: 0 }}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {selectedPix.invoiceUrl && (
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Olá, ${selectedPix.name}! Segue o link para pagamento via Pix no valor de R$ ${formatCurrencyBRL(selectedPix.value)}:\n\n${selectedPix.invoiceUrl}`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-primary"
-                  style={{ width: '100%', padding: '12px', background: '#10b981', borderColor: '#10b981', fontWeight: 700 }}
-                >
-                  <i className="fa-brands fa-whatsapp" style={{ marginRight: '8px' }}></i>
-                  Compartilhar no WhatsApp
-                </a>
-              )}
-            </div>
-            <div className="modal-footer" style={{ justifyContent: 'center' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowPixModal(false)}>
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: SUCESSO DE GERAÇÃO */}
+      {/* MODAL: SUCESSO DE EMISSÃO DE BOLETO */}
       {showSuccessDetailsModal && successDetails && (
         <div className="modal-overlay" style={{ padding: '20px' }} onClick={() => setShowSuccessDetailsModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '95%' }}>
             <div className="modal-header">
               <h3 style={{ margin: 0, color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-circle-check"></i>
-                Cobrança Emitida com Sucesso!
+                Boleto Emitido com Sucesso no Asaas!
               </h3>
               <button className="modal-close" onClick={() => setShowSuccessDetailsModal(false)}>&times;</button>
             </div>
             <div className="modal-body" style={{ padding: '20px' }}>
               <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                A cobrança já está registrada oficialmente no Asaas e pronta para pagamento.
+                O boleto bancário já está registrado oficialmente e programado para envio no WhatsApp do aluno.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1306,8 +1354,8 @@ export default function AsaasPanel() {
                     className="btn btn-primary"
                     style={{ padding: '12px', justifyContent: 'center', background: '#10b981', borderColor: '#10b981', fontWeight: 700 }}
                   >
-                    <i className="fa-solid fa-arrow-up-right-from-square" style={{ marginRight: '8px' }}></i>
-                    Abrir Página de Pagamento do Asaas
+                    <i className="fa-solid fa-file-invoice" style={{ marginRight: '8px' }}></i>
+                    Abrir Página do Boleto no Asaas
                   </a>
                 )}
 
@@ -1320,7 +1368,7 @@ export default function AsaasPanel() {
                     style={{ padding: '12px', justifyContent: 'center', fontWeight: 600 }}
                   >
                     <i className="fa-solid fa-file-pdf" style={{ marginRight: '8px', color: '#ef4444' }}></i>
-                    Baixar Boleto Bancário em PDF
+                    Baixar Boleto em PDF
                   </a>
                 )}
               </div>

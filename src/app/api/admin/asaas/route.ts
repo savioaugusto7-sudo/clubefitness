@@ -12,7 +12,8 @@ import {
   getAsaasInstallmentPayments, 
   getAsaasSubscriptionPayments,
   getAsaasBalance,
-  createAsaasPaymentLink
+  deleteAsaasPayment,
+  pauseAsaasSubscription
 } from '@/utils/asaas';
 import Payment from '@/models/Payment';
 
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
         contractId: '',
         planoNome: '',
         valorLiquido: 0,
-        formaPagamento: '',
+        formaPagamento: 'Boleto',
         dataPrimeiroVencimento: '',
         parcelas: 1,
         asaasPaymentId: '',
@@ -92,18 +93,20 @@ export async function GET(request: Request) {
         asaasPixCopyPaste: '',
         asaasPixQrCode: '',
         asaasBillingStatus: '',
-        contractStatus: ''
+        contractStatus: '',
+        isSignedClicksign: false
       };
 
       const asaasContract = contracts.find(c => c.asaasPaymentId);
       const pendingContract = contracts.find(c => c.status === 'pendente' && !c.asaasPaymentId);
+      const signedActiveContract = contracts.find(c => (c.status === 'ativo' || Boolean(c.contratoAnexo)) && !c.asaasPaymentId);
 
       if (asaasContract) {
         clientInfo.status = 'gerado';
         clientInfo.contractId = asaasContract._id.toString();
         clientInfo.planoNome = asaasContract.planoNome;
         clientInfo.valorLiquido = asaasContract.valorLiquido;
-        clientInfo.formaPagamento = asaasContract.formaPagamento;
+        clientInfo.formaPagamento = 'Boleto';
         clientInfo.dataPrimeiroVencimento = asaasContract.dataPrimeiroVencimento || asaasContract.dataInicio || '';
         clientInfo.parcelas = asaasContract.parcelas || 1;
         clientInfo.asaasPaymentId = asaasContract.asaasPaymentId;
@@ -113,23 +116,36 @@ export async function GET(request: Request) {
         clientInfo.asaasPixQrCode = asaasContract.asaasPixQrCode || '';
         clientInfo.asaasBillingStatus = asaasContract.asaasBillingStatus || 'pendente';
         clientInfo.contractStatus = asaasContract.status;
+        clientInfo.isSignedClicksign = asaasContract.status === 'ativo' || Boolean(asaasContract.contratoAnexo);
+      } else if (signedActiveContract) {
+        clientInfo.status = 'nao_gerado';
+        clientInfo.contractId = signedActiveContract._id.toString();
+        clientInfo.planoNome = signedActiveContract.planoNome;
+        clientInfo.valorLiquido = signedActiveContract.valorLiquido;
+        clientInfo.formaPagamento = 'Boleto';
+        clientInfo.dataPrimeiroVencimento = signedActiveContract.dataPrimeiroVencimento || signedActiveContract.dataInicio || '';
+        clientInfo.parcelas = signedActiveContract.parcelas || 1;
+        clientInfo.contractStatus = signedActiveContract.status;
+        clientInfo.isSignedClicksign = true;
       } else if (pendingContract) {
         clientInfo.status = 'nao_gerado';
         clientInfo.contractId = pendingContract._id.toString();
         clientInfo.planoNome = pendingContract.planoNome;
         clientInfo.valorLiquido = pendingContract.valorLiquido;
-        clientInfo.formaPagamento = pendingContract.formaPagamento;
+        clientInfo.formaPagamento = 'Boleto';
         clientInfo.dataPrimeiroVencimento = pendingContract.dataPrimeiroVencimento || pendingContract.dataInicio || '';
         clientInfo.parcelas = pendingContract.parcelas || 1;
         clientInfo.contractStatus = pendingContract.status;
+        clientInfo.isSignedClicksign = Boolean(pendingContract.contratoAnexo);
       } else if (contracts.length > 0) {
         const latestContract = contracts[0];
         clientInfo.contractId = latestContract._id.toString();
         clientInfo.planoNome = latestContract.planoNome;
         clientInfo.valorLiquido = latestContract.valorLiquido;
-        clientInfo.formaPagamento = latestContract.formaPagamento;
+        clientInfo.formaPagamento = 'Boleto';
         clientInfo.parcelas = latestContract.parcelas || 1;
         clientInfo.contractStatus = latestContract.status;
+        clientInfo.isSignedClicksign = latestContract.status === 'ativo' || Boolean(latestContract.contratoAnexo);
       }
 
       return clientInfo;
@@ -182,15 +198,6 @@ export async function PUT(request: Request) {
       await contract.save();
     } else {
       contract.asaasBillingStatus = apiStatus.toLowerCase();
-
-      // Se a cobrança for Pix e por acaso as chaves Pix não estiverem salvas localmente, tentar buscar e salvar
-      if (contract.formaPagamento === 'pix' && !contract.asaasPixCopyPaste) {
-        const pixDetails = await getAsaasPixQrCode(contract.asaasPaymentId);
-        if (pixDetails) {
-          contract.asaasPixQrCode = pixDetails.encodedImage;
-          contract.asaasPixCopyPaste = pixDetails.payload;
-        }
-      }
       await contract.save();
     }
 
@@ -205,14 +212,39 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { contractId, action, clientId, valor, vencimento, formaPagamento, descricao, parcelas, cycle } = body;
+    const { contractId, action, clientId, valor, vencimento, descricao, parcelas, cycle, paymentId, paymentDbId, subscriptionId } = body;
 
     // ══════════════════════════════════════════════════════════════
-    // SUB-FLOW: STANDALONE CHARGES (AVULSA, PARCELADA, ASSINATURA)
+    // SUB-FLOW: STANDALONE CHARGES (AVULSA, PARCELADA, ASSINATURA, CANCELAMENTO)
     // ══════════════════════════════════════════════════════════════
     if (action) {
-      if (!clientId || !valor || !formaPagamento) {
-        return NextResponse.json({ success: false, error: 'clientId, valor e formaPagamento são obrigatórios' }, { status: 400 });
+      if (action === 'cancel_payment') {
+        if (paymentId) {
+          try {
+            await deleteAsaasPayment(paymentId);
+          } catch (e: any) {
+            console.warn('Aviso ao cancelar cobrança no Asaas:', e.message);
+          }
+        }
+        if (paymentDbId) {
+          await Payment.findByIdAndUpdate(paymentDbId, { status: 'Cancelado' });
+        }
+        return NextResponse.json({ success: true, message: 'Boleto cancelado no Asaas com sucesso.' });
+      }
+
+      if (action === 'pause_subscription') {
+        if (subscriptionId) {
+          try {
+            await pauseAsaasSubscription(subscriptionId);
+          } catch (e: any) {
+            console.warn('Aviso ao pausar assinatura no Asaas:', e.message);
+          }
+        }
+        return NextResponse.json({ success: true, message: 'Assinatura de boletos pausada no Asaas com sucesso.' });
+      }
+
+      if (!clientId || !valor) {
+        return NextResponse.json({ success: false, error: 'clientId e valor são obrigatórios' }, { status: 400 });
       }
 
       const client = await Client.findById(clientId);
@@ -232,17 +264,17 @@ export async function POST(request: Request) {
         const dueDate = vencimento || new Date().toISOString().split('T')[0];
         const paymentResult = await createAsaasPayment({
           customerId: asaasCustomerId,
-          formaPagamento,
+          formaPagamento: 'boleto', // EXCLUSIVO BOLETO
           value: Number(valor),
           dueDate,
-          description: descricao || 'Cobrança Avulsa'
+          description: descricao || 'Boleto Avulso'
         });
 
         // Registrar na coleção Payment para aparecer no controle financeiro
         const pRecord = await Payment.create({
           clientId: client._id,
           clientNome: client.dadosPessoais?.nome || 'Avulso',
-          planoNome: `Cobrança Avulsa: ${descricao || 'Geral'}`,
+          planoNome: `Boleto Avulso: ${descricao || 'Geral'}`,
           valor: Number(valor),
           vencimento: dueDate,
           status: 'Pendente',
@@ -263,10 +295,10 @@ export async function POST(request: Request) {
         
         const paymentResult = await createAsaasPayment({
           customerId: asaasCustomerId,
-          formaPagamento,
+          formaPagamento: 'boleto', // EXCLUSIVO BOLETO
           value: Number(valor),
           dueDate: firstDueDate,
-          description: descricao || 'Parcelamento',
+          description: descricao || 'Parcelamento em Boletos',
           parcelas: numParcelas
         });
 
@@ -282,7 +314,7 @@ export async function POST(request: Request) {
           const pRecord = await Payment.create({
             clientId: client._id,
             clientNome: client.dadosPessoais?.nome || 'Avulso',
-            planoNome: `Parcelamento ${ip.installmentNumber}/${installmentPayments.length}: ${descricao || 'Geral'}`,
+            planoNome: `Boleto Parcela ${ip.installmentNumber}/${installmentPayments.length}: ${descricao || 'Geral'}`,
             valor: ip.value,
             vencimento: ip.dueDate,
             status: 'Pendente',
@@ -303,11 +335,11 @@ export async function POST(request: Request) {
         const firstDueDate = vencimento || new Date().toISOString().split('T')[0];
         const subResult = await createAsaasSubscription({
           customerId: asaasCustomerId,
-          formaPagamento,
+          formaPagamento: 'boleto', // EXCLUSIVO BOLETO
           value: Number(valor),
           nextDueDate: firstDueDate,
           cycle: cycle || 'MONTHLY',
-          description: descricao || 'Assinatura Recorrente'
+          description: descricao || 'Assinatura Mensal em Boleto'
         });
 
         // Buscar a primeira cobrança gerada para essa assinatura
@@ -319,7 +351,7 @@ export async function POST(request: Request) {
           firstPaymentRecord = await Payment.create({
             clientId: client._id,
             clientNome: client.dadosPessoais?.nome || 'Avulso',
-            planoNome: `Assinatura: ${descricao || 'Geral'}`,
+            planoNome: `Boleto Recorrente: ${descricao || 'Geral'}`,
             valor: sp.value,
             vencimento: sp.dueDate,
             status: 'Pendente',
@@ -331,11 +363,10 @@ export async function POST(request: Request) {
             observacoes: `Assinatura Asaas ID: ${subResult.subscriptionId}`
           });
         } else {
-          // Fallback caso não seja gerado imediatamente no Sandbox
           firstPaymentRecord = await Payment.create({
             clientId: client._id,
             clientNome: client.dadosPessoais?.nome || 'Avulso',
-            planoNome: `Assinatura: ${descricao || 'Geral'}`,
+            planoNome: `Boleto Recorrente: ${descricao || 'Geral'}`,
             valor: Number(valor),
             vencimento: firstDueDate,
             status: 'Pendente',
@@ -355,7 +386,7 @@ export async function POST(request: Request) {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // ORIGINAL FLOW: CONTRACT-BASED CHARGES
+    // ORIGINAL FLOW: CONTRACT-BASED CHARGES (GATED BY CLICKSIGN)
     // ══════════════════════════════════════════════════════════════
     if (!contractId) {
       return NextResponse.json({ success: false, error: 'contractId ou action é obrigatório' }, { status: 400 });
@@ -364,6 +395,15 @@ export async function POST(request: Request) {
     const contract = await Contract.findById(contractId);
     if (!contract) {
       return NextResponse.json({ success: false, error: 'Contrato não encontrado' }, { status: 404 });
+    }
+
+    // 🔒 Trava de Segurança: Faturamento de contratos em boletos só é liberado após o contrato ser formalmente assinado no Clicksign
+    const isSigned = contract.status === 'ativo' || Boolean(contract.contratoAnexo);
+    if (!isSigned) {
+      return NextResponse.json({
+        success: false,
+        error: 'Ação Bloqueada: O faturamento em boletos no Asaas só é liberado após o contrato ser formalmente assinado no Clicksign.'
+      }, { status: 400 });
     }
 
     if (contract.asaasPaymentId) {
@@ -382,19 +422,19 @@ export async function POST(request: Request) {
 
     let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
     if (!asaasCustomerId) {
-      console.log('Criando cliente no Asaas para cobrança retroativa...');
+      console.log('Criando cliente no Asaas para faturamento de contrato...');
       asaasCustomerId = await createAsaasCustomer(client);
       client.dadosComerciais.asaasCustomerId = asaasCustomerId;
       await client.save();
     }
 
-    console.log('Gerando cobrança retroativa no Asaas...');
+    console.log('Gerando boletos do contrato no Asaas...');
     const paymentResult = await createAsaasPayment({
       customerId: asaasCustomerId,
-      formaPagamento: contract.formaPagamento,
+      formaPagamento: 'boleto', // EXCLUSIVO BOLETO
       value: contract.valorLiquido,
       dueDate: contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0],
-      description: `Contrato de Plano: ${plan.nome}`,
+      description: `Contrato: ${plan.nome}`,
       parcelas: contract.parcelas
     });
 
@@ -402,14 +442,6 @@ export async function POST(request: Request) {
     contract.asaasInvoiceUrl = paymentResult.invoiceUrl;
     contract.asaasBoletoPdf = paymentResult.bankSlipUrl;
     contract.asaasBillingStatus = paymentResult.billingStatus;
-
-    if (contract.formaPagamento === 'pix') {
-      const pixDetails = await getAsaasPixQrCode(contract.asaasPaymentId);
-      if (pixDetails) {
-        contract.asaasPixQrCode = pixDetails.encodedImage;
-        contract.asaasPixCopyPaste = pixDetails.payload;
-      }
-    }
 
     await contract.save();
 
@@ -454,7 +486,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: contract });
   } catch (error: any) {
-    console.error('Erro ao gerar cobrança manual do Asaas:', error);
+    console.error('Erro ao faturar contrato em boletos no Asaas:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
