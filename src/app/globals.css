@@ -2405,6 +2405,17 @@ body.tv-mode-active .tv-spotify-eq-bar {
 }
 
 /* ==========================================
+   BARRA DE NAVEGAÇÃO INFERIOR (MOBILE APENAS)
+   ========================================== */
+.bottom-nav-bar {
+  display: none !important;
+}
+
+.bottom-drawer-overlay {
+  display: none !important;
+}
+
+/* ==========================================
    ESTILOS ADICIONAIS: TELA DE LOGIN PREMIUM
    ========================================== */
 .login-page-wrapper {
