@@ -620,37 +620,35 @@ export async function POST(request: Request) {
     // Parcelas no financeiro são lançadas exclusivamente pelo botão "Lançar Parcelas no Financeiro"
     // await Payment.insertMany(paymentRecords);
 
-    // 5. Se o contrato for emitido como ASSINADO, atualizar o cadastro do cliente
-    if (status === 'assinado') {
-      Object.assign(client.dadosComerciais, {
-        planoId: planoId,
-        vencimento: dataFim,
-        status: 'ativo',
-        parcelas: numParcelas,
-        descontoValor: descVal,
-        descontoTipo: descontoTipo || 'percentual',
-        duracao: isAnual ? 'anual' : 'mensal',
-        duracaoQtd: isAnual ? 12 : vigenciaMeses,
-        formaPagamento: formaPagamento,
-        dataInicio: dataInicio,
-        responsavelVenda: responsavelVenda || '',
-        unidadeContratada: unidadeContratada || plan.unidadeAtendimento || '',
-        observacoesContratuais: observacoesContratuais || '',
-        frequencia: frequencia !== undefined ? Number(frequencia) : client.dadosComerciais.frequencia,
-        creditosTotal: calcCreditos,
-        creditosUsados: 0,
-        creditosReservados: 0,
-        creditosMassagemTotal: isAnual ? 1 : 0,
-        creditosMassagemUsados: 0,
-        creditosMassagemReservados: 0,
-        contratoAnexo: contratoAnexo || contratoPdfBase64 || client.dadosComerciais?.contratoAnexo || '',
-        contratoPdfBase64: contratoPdfBase64 || contratoAnexo || client.dadosComerciais?.contratoPdfBase64 || ''
-      });
-      if (contratoAnexo || contratoPdfBase64) {
-        client.contratoAnexo = contratoAnexo || contratoPdfBase64;
-      }
-      await client.save();
+    // 5. Atualizar o perfil comercial do cliente com os dados do contrato emitido
+    const targetClientStatus = status === 'assinado' ? 'ativo' : 'pendente';
+    Object.assign(client.dadosComerciais, {
+      planoId: planoId,
+      vencimento: dataFim,
+      status: targetClientStatus,
+      parcelas: numParcelas,
+      descontoValor: descVal,
+      descontoTipo: descontoTipo || 'percentual',
+      duracao: isAnual ? 'anual' : 'mensal',
+      duracaoQtd: isAnual ? 12 : vigenciaMeses,
+      formaPagamento: formaPagamento,
+      dataInicio: dataInicio,
+      responsavelVenda: responsavelVenda || '',
+      observacoesContratuais: observacoesContratuais || '',
+      frequencia: frequencia !== undefined ? Number(frequencia) : client.dadosComerciais.frequencia,
+      creditosTotal: calcCreditos,
+      creditosUsados: 0,
+      creditosReservados: 0,
+      creditosMassagemTotal: isAnual ? 1 : 0,
+      creditosMassagemUsados: 0,
+      creditosMassagemReservados: 0,
+      contratoAnexo: contratoAnexo || contratoPdfBase64 || client.dadosComerciais?.contratoAnexo || '',
+      contratoPdfBase64: contratoPdfBase64 || contratoAnexo || client.dadosComerciais?.contratoPdfBase64 || ''
+    });
+    if (contratoAnexo || contratoPdfBase64) {
+      client.contratoAnexo = contratoAnexo || contratoPdfBase64;
     }
+    await client.save();
 
     return NextResponse.json({ success: true, data: newContract });
   } catch (error: any) {

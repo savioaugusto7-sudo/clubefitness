@@ -178,6 +178,32 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
         }
       }
       await contract.save();
+    } else if (contract.status === 'assinado' || clicksignStatus === 'assinado') {
+      // Reconciliação caso o contrato já esteja assinado mas o perfil do cliente mantivesse 'lead' ou dados desatualizados
+      const client = await Client.findById(contract.clientId);
+      if (client && (client.dadosComerciais?.status !== 'ativo' || !client.dadosComerciais?.planoId)) {
+        const plan = await Plan.findById(contract.planoId);
+        const isAnual = contract.planoTipo === 'Anual' || (contract.vigenciaMeses || 1) >= 12;
+
+        Object.assign(client.dadosComerciais, {
+          planoId: contract.planoId,
+          vencimento: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,
+          status: 'ativo',
+          parcelas: contract.parcelas,
+          descontoValor: contract.descontoValor,
+          descontoTipo: contract.descontoTipo,
+          duracao: isAnual ? 'anual' : 'mensal',
+          duracaoQtd: isAnual ? 12 : (contract.vigenciaMeses || 1),
+          formaPagamento: contract.formaPagamento,
+          dataInicio: contract.dataInicio,
+          responsavelVenda: contract.responsavelVenda || '',
+          observacoesContratuais: contract.observacoesContratuais || '',
+          frequencia: contract.frequencia !== undefined ? contract.frequencia : client.dadosComerciais?.frequencia,
+          creditosTotal: contract.creditosTotal || plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0)
+        });
+        await client.save();
+        console.log(`Sync status: Reconciled client ${client.dadosPessoais?.nome} to 'ativo' for signed contract.`);
+      }
     }
   } catch (error) {
     console.error(`Erro ao sincronizar contrato ${contract._id}:`, error);
