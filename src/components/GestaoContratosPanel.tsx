@@ -3337,6 +3337,23 @@ export default function GestaoContratosPanel({
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
+                    onClick={() => handleOpenFinalizeModal(selectedClient)}
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '6px 12px',
+                      background: 'rgba(107, 114, 128, 0.2)',
+                      color: '#d1d5db',
+                      borderColor: 'rgba(107, 114, 128, 0.4)',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                    title="Finalizar aluno e mover para o histórico de finalizados"
+                  >
+                    <i className="fa-solid fa-flag-checkered"></i> Finalizar Aluno
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
                     onClick={() => setSelectedClient(null)}
                     style={{ background: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', cursor: 'pointer' }}
                   >
@@ -3991,6 +4008,22 @@ export default function GestaoContratosPanel({
               ) : (
                 <span><i className="fa-solid fa-floppy-disk"></i> Salvar no Perfil</span>
               )}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => handleOpenFinalizeModal(selectedClient)}
+              style={{
+                flex: '0 0 auto',
+                background: 'rgba(107, 114, 128, 0.2)',
+                color: '#d1d5db',
+                border: '1px solid rgba(107, 114, 128, 0.4)',
+                fontWeight: 700
+              }}
+              title="Encerrar este contrato/aluno e mover para Finalizados"
+            >
+              <i className="fa-solid fa-flag-checkered"></i> Finalizar Aluno (Não Renovou)
             </button>
 
             {saveSuccess && (
