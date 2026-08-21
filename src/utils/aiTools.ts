@@ -720,7 +720,7 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           creditosMensais: 13,
           descontoTipo: 'fixo',
           descontoValor: 0,
-          valorAcordado: Number(valorAcordado) || plan?.preco || 299.9,
+          valorAcordado: Number(valorAcordado) || plan?.preco || 0,
           dataInicio: todayStr,
           formaPagamentoSugerida: formaPagamento || 'pix',
           status: 'aberta'

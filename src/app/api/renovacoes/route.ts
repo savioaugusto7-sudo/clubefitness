@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     // Determinar valor unitario base
     let valorUnitario = Number(customValorUnitario);
     if (!valorUnitario) {
-      valorUnitario = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(lastContract?.valorLiquido) || Number(plan.preco) || 299;
+      valorUnitario = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(lastContract?.valorLiquido) || Number(plan?.preco) || 0;
     }
 
     // Identificar com segurança se o contrato anterior é ANUAL ou MENSAL:
