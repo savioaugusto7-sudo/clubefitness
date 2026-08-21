@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         {/* FontAwesome Icons CDN */}
         <link 
@@ -42,7 +42,7 @@ export default function RootLayout({
           referrerPolicy="no-referrer" 
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator';
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
+import { smartSearchMatch } from '@/utils/smartSearch';
 import ClicksignPanel from './ClicksignPanel';
 
 const normalizeText = (str: string) => {
@@ -32,8 +33,77 @@ export default function GestaoContratosPanel({
   const [subTab, setSubTab] = useState<'alunos' | 'clicksign'>('alunos');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('vencimento_asc');
+  const [contratoStatusFilter, setContratoStatusFilter] = useState('todos');
+  const [contratoPlanFilter, setContratoPlanFilter] = useState('todos');
   const [contracts, setContracts] = useState<any[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
+
+  // Computação com busca inteligente multi-termos, filtros e ordenação
+  const sortedClients = useMemo(() => {
+    return clients
+      .filter((c: any) => {
+        const com = c.dadosComerciais || {};
+        const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
+        const status = com.status || 'pendente';
+        
+        // 1. Smart Search Multi-Terms
+        const matchesSearch = smartSearchMatch(searchQuery, [
+          c.dadosPessoais?.nome,
+          c.dadosPessoais?.cpf,
+          c.dadosPessoais?.email,
+          c.dadosPessoais?.telefone,
+          plan?.nome,
+          status
+        ]);
+        if (!matchesSearch) return false;
+
+        // 2. Status Filter
+        if (contratoStatusFilter !== 'todos') {
+          if (contratoStatusFilter === 'ativo' && (status !== 'ativo' && status !== 'assinado')) return false;
+          if (contratoStatusFilter === 'pendente' && status !== 'pendente') return false;
+          if (contratoStatusFilter === 'lead' && status !== 'lead') return false;
+          if (contratoStatusFilter === 'vencido' && status !== 'vencido') return false;
+          if (contratoStatusFilter === 'congelado' && status !== 'congelado') return false;
+        }
+
+        // 3. Plan Filter
+        if (contratoPlanFilter !== 'todos') {
+          const pId = com.planoId?._id || com.planoId;
+          if (pId !== contratoPlanFilter) return false;
+        }
+
+        return true;
+      })
+      .sort((a: any, b: any) => {
+        if (sortOption === 'vencimento_asc') {
+          const vA = a.dadosComerciais?.vencimento || '9999-12-31';
+          const vB = b.dadosComerciais?.vencimento || '9999-12-31';
+          return vA.localeCompare(vB);
+        }
+        if (sortOption === 'vencimento_desc') {
+          const vA = a.dadosComerciais?.vencimento || '0000-00-00';
+          const vB = b.dadosComerciais?.vencimento || '0000-00-00';
+          return vB.localeCompare(vA);
+        }
+        if (sortOption === 'alfabetico_asc') {
+          return (a.dadosPessoais?.nome || '').localeCompare(b.dadosPessoais?.nome || '');
+        }
+        if (sortOption === 'alfabetico_desc') {
+          return (b.dadosPessoais?.nome || '').localeCompare(a.dadosPessoais?.nome || '');
+        }
+        if (sortOption === 'inicio_desc') {
+          const iA = a.dadosComerciais?.dataInicio || '';
+          const iB = b.dadosComerciais?.dataInicio || '';
+          return iB.localeCompare(iA);
+        }
+        if (sortOption === 'status') {
+          const stA = a.dadosComerciais?.status === 'ativo' || a.dadosComerciais?.status === 'assinado' ? 1 : 0;
+          const stB = b.dadosComerciais?.status === 'ativo' || b.dadosComerciais?.status === 'assinado' ? 1 : 0;
+          return stB - stA;
+        }
+        return 0;
+      });
+  }, [clients, searchQuery, contratoStatusFilter, contratoPlanFilter, sortOption, plans]);
   const [generatingPayments, setGeneratingPayments] = useState(false);
   const [renewingValidity, setRenewingValidity] = useState(false);
   const [cancelingRecurrence, setCancelingRecurrence] = useState(false);
@@ -334,50 +404,6 @@ export default function GestaoContratosPanel({
       }
     }
   }, [clients]);
-
-  // Filter and sort clients
-  const sortedClients = [...clients]
-    .filter(c => {
-      const nome = c.dadosPessoais?.nome || '';
-      const cpf = c.dadosPessoais?.cpf || '';
-      const q = normalizeText(searchQuery);
-      return normalizeText(nome).includes(q) || cpf.includes(q);
-    })
-    .sort((a: any, b: any) => {
-      const comA = a.dadosComerciais || {};
-      const comB = b.dadosComerciais || {};
-      const nomeA = a.dadosPessoais?.nome || '';
-      const nomeB = b.dadosPessoais?.nome || '';
-
-      if (sortOption === 'vencimento_asc') {
-        const vencA = comA.vencimento || '9999-12-31';
-        const vencB = comB.vencimento || '9999-12-31';
-        return vencA.localeCompare(vencB);
-      }
-      if (sortOption === 'vencimento_desc') {
-        const vencA = comA.vencimento || '0000-01-01';
-        const vencB = comB.vencimento || '0000-01-01';
-        return vencB.localeCompare(vencA);
-      }
-      if (sortOption === 'alfabetico_asc') {
-        return nomeA.localeCompare(nomeB, 'pt-BR');
-      }
-      if (sortOption === 'alfabetico_desc') {
-        return nomeB.localeCompare(nomeA, 'pt-BR');
-      }
-      if (sortOption === 'inicio_desc') {
-        const iniA = comA.dataInicio || '0000-01-01';
-        const iniB = comB.dataInicio || '0000-01-01';
-        return iniB.localeCompare(iniA);
-      }
-      if (sortOption === 'status') {
-        const statusOrder: Record<string, number> = { ativo: 1, assinado: 1, congelado: 2, lead: 3, pendente: 4, cancelado: 5 };
-        const orderA = statusOrder[comA.status || 'pendente'] || 99;
-        const orderB = statusOrder[comB.status || 'pendente'] || 99;
-        return orderA - orderB;
-      }
-      return 0;
-    });
 
   // Load contracts for selected client
   const loadContracts = async (clientId: string, silent = false) => {
@@ -1096,37 +1122,93 @@ export default function GestaoContratosPanel({
           <ClicksignPanel />
         ) : (
           <>
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ flex: '1 1 280px', maxWidth: '360px' }}>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar aluno por nome ou CPF..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Buscar por nome, plano, CPF, status..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              <i className="fa-solid fa-arrow-down-short-wide" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i>
-              Ordenar por:
-            </label>
-            <select
-              className="select-custom"
-              value={sortOption}
-              onChange={e => setSortOption(e.target.value)}
-              style={{ minWidth: '230px', fontSize: '0.85rem' }}
-            >
-              <option value="vencimento_asc">⏳ Próximo a Encerrar (Vencimento)</option>
-              <option value="vencimento_desc">📅 Vencimento Mais Distante</option>
-              <option value="alfabetico_asc">🔤 Ordem Alfabética (A - Z)</option>
-              <option value="alfabetico_desc">🔤 Ordem Alfabética (Z - A)</option>
-              <option value="inicio_desc">🆕 Contratos Mais Recentes</option>
-              <option value="status">⚡ Status (Contratos Ativos Primeiro)</option>
-            </select>
-          </div>
-        </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Status Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-filter" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Status:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={contratoStatusFilter}
+                    onChange={e => setContratoStatusFilter(e.target.value)}
+                    style={{ minWidth: '140px', fontSize: '0.83rem', padding: '6px 10px' }}
+                  >
+                    <option value="todos">🌐 Todos os Status</option>
+                    <option value="ativo">✅ Contrato Ativo</option>
+                    <option value="lead">🟣 Leads / Avaliação</option>
+                    <option value="pendente">⏳ Pendentes</option>
+                    <option value="congelado">❄️ Congelados</option>
+                  </select>
+                </div>
+
+                {/* Plan Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Plano:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={contratoPlanFilter}
+                    onChange={e => setContratoPlanFilter(e.target.value)}
+                    style={{ minWidth: '160px', fontSize: '0.83rem', padding: '6px 10px' }}
+                  >
+                    <option value="todos">📁 Todos os Planos</option>
+                    {plans.map((p: any) => (
+                      <option key={p._id} value={p._id}>{p.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Sort Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-arrow-down-a-z" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Ordenar:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={sortOption}
+                    onChange={e => setSortOption(e.target.value)}
+                    style={{ minWidth: '150px', fontSize: '0.83rem', padding: '6px 10px' }}
+                  >
+                    <option value="vencimento_asc">⏳ Vencimento Próximo</option>
+                    <option value="vencimento_desc">📅 Vencimento Distante</option>
+                    <option value="alfabetico_asc">🔤 Nome (A - Z)</option>
+                    <option value="alfabetico_desc">🔤 Nome (Z - A)</option>
+                    <option value="inicio_desc">🆕 Contratos Recentes</option>
+                    <option value="status">⚡ Ativos Primeiro</option>
+                  </select>
+                </div>
+
+                {/* Reset Button */}
+                {(searchQuery !== '' || contratoStatusFilter !== 'todos' || contratoPlanFilter !== 'todos' || sortOption !== 'vencimento_asc') && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setContratoStatusFilter('todos');
+                      setContratoPlanFilter('todos');
+                      setSortOption('vencimento_asc');
+                    }}
+                    style={{ padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <i className="fa-solid fa-xmark"></i> Limpar
+                  </button>
+                )}
+              </div>
+            </div>
 
         <div className="content-panel">
           <div className="table-responsive">

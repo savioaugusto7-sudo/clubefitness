@@ -3,7 +3,17 @@ import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
-import { getAsaasPaymentDetails, getAsaasPixQrCode, createAsaasCustomer, createAsaasPayment, createAsaasSubscription, getAsaasInstallmentPayments, getAsaasSubscriptionPayments } from '@/utils/asaas';
+import { 
+  getAsaasPaymentDetails, 
+  getAsaasPixQrCode, 
+  createAsaasCustomer, 
+  createAsaasPayment, 
+  createAsaasSubscription, 
+  getAsaasInstallmentPayments, 
+  getAsaasSubscriptionPayments,
+  getAsaasBalance,
+  createAsaasPaymentLink
+} from '@/utils/asaas';
 import Payment from '@/models/Payment';
 
 export const maxDuration = 30;
@@ -15,7 +25,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
-    const isProduction = Boolean(process.env.ASAAS_API_URL?.includes('api.asaas.com'));
+    const isProduction = Boolean(
+      process.env.ASAAS_API_URL?.includes('api.asaas.com') ||
+      (process.env.ASAAS_API_KEY?.startsWith('$aact_') && !process.env.ASAAS_API_KEY?.includes('sandbox'))
+    );
+
+    if (type === 'balance') {
+      const balance = await getAsaasBalance();
+      return NextResponse.json({ success: true, isProduction, balance });
+    }
 
     if (type === 'standalone') {
       const standalonePayments = await Payment.find({
@@ -23,28 +41,42 @@ export async function GET(request: Request) {
         $or: [
           { observacoes: { $regex: 'Avulso', $options: 'i' } },
           { observacoes: { $regex: 'Parcelamento', $options: 'i' } },
-          { observacoes: { $regex: 'Assinatura', $options: 'i' } }
+          { observacoes: { $regex: 'Assinatura', $options: 'i' } },
+          { observacoes: { $regex: 'Link', $options: 'i' } }
         ]
-      }).sort({ createdAt: -1 });
+      }).sort({ createdAt: -1 }).lean();
       return NextResponse.json({ success: true, data: standalonePayments, isProduction });
     }
 
-    // Buscar todos os clientes
-    const clients = await Client.find().sort({ 'dadosPessoais.nome': 1 });
+    // Busca em lote ultrarrápida (elimina o gargalo N+1 e o timeout 504)
+    const [clients, allContracts, balanceData] = await Promise.all([
+      Client.find().sort({ 'dadosPessoais.nome': 1 }).lean(),
+      Contract.find().sort({ createdAt: -1 }).lean(),
+      getAsaasBalance().catch(() => ({ totalBalance: 0, availableBalance: 0, pendingBalance: 0 }))
+    ]);
 
-    const clientGroupedData = [];
+    // Indexar contratos por clientId para acesso O(1)
+    const contractsByClient: Record<string, any[]> = {};
+    for (const c of allContracts) {
+      const cId = c.clientId?.toString();
+      if (cId) {
+        if (!contractsByClient[cId]) contractsByClient[cId] = [];
+        contractsByClient[cId].push(c);
+      }
+    }
 
-    for (const client of clients) {
-      // Buscar contratos desse cliente
-      const contracts = await Contract.find({ clientId: client._id }).sort({ createdAt: -1 });
+    const clientGroupedData = clients.map(client => {
+      const cIdStr = (client as any)._id.toString();
+      const contracts = contractsByClient[cIdStr] || [];
 
-      const clientInfo = {
-        clientId: client._id.toString(),
+      const clientInfo: any = {
+        clientId: cIdStr,
         nome: client.dadosPessoais?.nome || 'Sem Nome',
         email: client.dadosPessoais?.email || '',
         cpf: client.dadosPessoais?.cpf || '',
+        telefone: client.dadosPessoais?.telefone || '',
         asaasCustomerId: client.dadosComerciais?.asaasCustomerId || '',
-        status: 'sem_contrato', // default
+        status: 'sem_contrato',
         contractId: '',
         planoNome: '',
         valorLiquido: 0,
@@ -60,9 +92,7 @@ export async function GET(request: Request) {
         contractStatus: ''
       };
 
-      // 1. Procurar contrato com cobrança gerada no Asaas
       const asaasContract = contracts.find(c => c.asaasPaymentId);
-      // 2. Procurar contrato pendente de cobrança
       const pendingContract = contracts.find(c => c.status === 'pendente' && !c.asaasPaymentId);
 
       if (asaasContract) {
@@ -90,7 +120,6 @@ export async function GET(request: Request) {
         clientInfo.parcelas = pendingContract.parcelas || 1;
         clientInfo.contractStatus = pendingContract.status;
       } else if (contracts.length > 0) {
-        // Possui contratos assinados ou cancelados
         const latestContract = contracts[0];
         clientInfo.contractId = latestContract._id.toString();
         clientInfo.planoNome = latestContract.planoNome;
@@ -100,10 +129,15 @@ export async function GET(request: Request) {
         clientInfo.contractStatus = latestContract.status;
       }
 
-      clientGroupedData.push(clientInfo);
-    }
+      return clientInfo;
+    });
 
-    return NextResponse.json({ success: true, data: clientGroupedData, isProduction });
+    return NextResponse.json({
+      success: true,
+      data: clientGroupedData,
+      isProduction,
+      balance: balanceData
+    });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

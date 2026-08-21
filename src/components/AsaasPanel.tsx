@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
+import React, { useEffect, useState, useMemo } from 'react';
+import { formatCurrencyBRL } from '@/utils/currencyMask';
+import { smartSearchMatch } from '@/utils/smartSearch';
 
 interface AsaasClientInfo {
   clientId: string;
   nome: string;
   email: string;
   cpf: string;
+  telefone?: string;
   asaasCustomerId?: string;
   status: 'gerado' | 'nao_gerado' | 'sem_contrato';
   contractId?: string;
@@ -41,25 +43,19 @@ interface StandalonePaymentInfo {
   createdAt: string;
 }
 
-const normalizeText = (str: string) => {
-  return (str || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-};
-
 export default function AsaasPanel() {
   const [clients, setClients] = useState<AsaasClientInfo[]>([]);
   const [standalonePayments, setStandalonePayments] = useState<StandalonePaymentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStandalone, setLoadingStandalone] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'contratos' | 'avulsa' | 'historico_avulsas'>('contratos');
+  const [activeSubTab, setActiveSubTab] = useState<'visao_geral' | 'contratos' | 'avulsa' | 'assinaturas' | 'historico_avulsas'>('visao_geral');
   
-  // Client selection for contract flow
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
-  
-  // Search query for lists
+  // Balance State
+  const [balance, setBalance] = useState({ totalBalance: 0, availableBalance: 0, pendingBalance: 0 });
+
+  // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [standaloneSearchQuery, setStandaloneSearchQuery] = useState('');
 
   // Standalone form states
@@ -73,18 +69,19 @@ export default function AsaasPanel() {
   const [formCycle, setFormCycle] = useState<string>('MONTHLY');
   const [submittingForm, setSubmittingForm] = useState(false);
 
-  // Syncing states
+  // Syncing & Actions
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
-  const [isProduction, setIsProduction] = useState(false);
+  const [isProduction, setIsProduction] = useState(true);
 
   // Modals & Feedback
   const [showPixModal, setShowPixModal] = useState(false);
-  const [selectedPix, setSelectedPix] = useState<{ qrCode: string; payload: string; name: string } | null>(null);
+  const [selectedPix, setSelectedPix] = useState<{ qrCode: string; payload: string; name: string; value?: number; invoiceUrl?: string } | null>(null);
   const [showSuccessDetailsModal, setShowSuccessDetailsModal] = useState(false);
   const [successDetails, setSuccessDetails] = useState<any>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'danger' } | null>(null);
   const [webhookUrl, setWebhookUrl] = useState('https://clubefitness.vercel.app/api/webhooks/asaas');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -94,19 +91,18 @@ export default function AsaasPanel() {
     fetchStandalonePayments();
   }, []);
 
-  const fetchPayments = async () => {
-    setLoading(true);
+  const fetchPayments = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch('/api/admin/asaas');
-      const data = await res.json();
-      if (data.success) {
-        setClients(data.data || []);
-        if (data.isProduction !== undefined) setIsProduction(data.isProduction);
-      } else {
-        showFeedback(data.error || 'Erro ao carregar faturas de contratos', 'danger');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setClients(json.data);
+        if (json.isProduction !== undefined) setIsProduction(json.isProduction);
+        if (json.balance) setBalance(json.balance);
       }
     } catch (e) {
-      showFeedback('Erro de rede ao carregar faturas.', 'danger');
+      console.error('Erro ao buscar dados do Asaas:', e);
     } finally {
       setLoading(false);
     }
@@ -116,24 +112,18 @@ export default function AsaasPanel() {
     setLoadingStandalone(true);
     try {
       const res = await fetch('/api/admin/asaas?type=standalone');
-      const data = await res.json();
-      if (data.success) {
-        setStandalonePayments(data.data || []);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setStandalonePayments(json.data);
       }
     } catch (e) {
-      console.error('Erro ao carregar cobranças avulsas:', e);
+      console.error('Erro ao buscar avulsas:', e);
     } finally {
       setLoadingStandalone(false);
     }
   };
 
-  const showFeedback = (text: string, type: 'success' | 'danger') => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 5000);
-  };
-
-  // Syncing a contract charge
-  const handleSyncPayment = async (contractId: string) => {
+  const handleSyncContract = async (contractId: string) => {
     setSyncingId(contractId);
     try {
       const res = await fetch('/api/admin/asaas', {
@@ -143,20 +133,20 @@ export default function AsaasPanel() {
       });
       const data = await res.json();
       if (data.success) {
-        showFeedback('Cobrança sincronizada com sucesso!', 'success');
-        fetchPayments();
+        setMessage({ text: 'Status da cobrança sincronizado com o Asaas com sucesso!', type: 'success' });
+        await fetchPayments(true);
       } else {
-        showFeedback(data.error || 'Erro ao sincronizar cobrança', 'danger');
+        setMessage({ text: data.error || 'Erro ao sincronizar cobrança.', type: 'danger' });
       }
-    } catch (e) {
-      showFeedback('Erro de rede ao sincronizar.', 'danger');
+    } catch (e: any) {
+      setMessage({ text: 'Erro de rede: ' + e.message, type: 'danger' });
     } finally {
       setSyncingId(null);
+      setTimeout(() => setMessage(null), 4000);
     }
   };
 
-  // Generating faturamento based on Contract
-  const handleGenerateAsaasCharge = async (contractId: string) => {
+  const handleGenerateContractBilling = async (contractId: string) => {
     setGeneratingId(contractId);
     try {
       const res = await fetch('/api/admin/asaas', {
@@ -166,44 +156,91 @@ export default function AsaasPanel() {
       });
       const data = await res.json();
       if (data.success) {
-        showFeedback('Cobrança Asaas gerada com sucesso!', 'success');
-        fetchPayments();
-        fetchStandalonePayments();
+        setMessage({ text: 'Cobrança gerada no Asaas com sucesso!', type: 'success' });
+        setSuccessDetails(data.data);
+        setShowSuccessDetailsModal(true);
+        await fetchPayments(true);
       } else {
-        showFeedback(data.error || 'Erro ao gerar cobrança no Asaas', 'danger');
+        setMessage({ text: data.error || 'Erro ao gerar cobrança no Asaas.', type: 'danger' });
       }
-    } catch (err: any) {
-      showFeedback('Erro de rede: ' + err.message, 'danger');
+    } catch (e: any) {
+      setMessage({ text: 'Erro de rede: ' + e.message, type: 'danger' });
     } finally {
       setGeneratingId(null);
+      setTimeout(() => setMessage(null), 4000);
     }
   };
 
-  // Submit standalone billing
-  const handleCreateStandaloneBilling = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formClientId || formValor <= 0 || !formVencimento) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+  const handleOpenPixModal = async (c: AsaasClientInfo) => {
+    if (c.asaasPixQrCode && c.asaasPixCopyPaste) {
+      setSelectedPix({
+        qrCode: c.asaasPixQrCode,
+        payload: c.asaasPixCopyPaste,
+        name: c.nome,
+        value: c.valorLiquido,
+        invoiceUrl: c.asaasInvoiceUrl
+      });
+      setShowPixModal(true);
       return;
     }
-    
+
+    if (c.asaasPaymentId) {
+      setSyncingId(c.contractId || c.clientId);
+      try {
+        const res = await fetch(`/api/admin/asaas?action=pix_qr&paymentId=${c.asaasPaymentId}`);
+        const data = await res.json();
+        if (data.success && data.data?.encodedImage) {
+          setSelectedPix({
+            qrCode: data.data.encodedImage,
+            payload: data.data.payload,
+            name: c.nome,
+            value: c.valorLiquido,
+            invoiceUrl: c.asaasInvoiceUrl
+          });
+          setShowPixModal(true);
+        } else {
+          if (c.asaasInvoiceUrl) window.open(c.asaasInvoiceUrl, '_blank');
+        }
+      } catch {
+        if (c.asaasInvoiceUrl) window.open(c.asaasInvoiceUrl, '_blank');
+      } finally {
+        setSyncingId(null);
+      }
+    } else if (c.asaasInvoiceUrl) {
+      window.open(c.asaasInvoiceUrl, '_blank');
+    }
+  };
+
+  const handleSendWhatsAppBilling = (c: AsaasClientInfo) => {
+    const rawPhone = (c.telefone || '').replace(/\D/g, '');
+    if (!rawPhone) {
+      alert('Telefone do aluno não cadastrado.');
+      return;
+    }
+    const phone = rawPhone.length <= 11 ? `55${rawPhone}` : rawPhone;
+    const link = c.asaasInvoiceUrl || c.asaasBoletoPdf || '';
+    const text = `Olá, ${c.nome}! 👋\n\nSeguem as informações do seu pagamento referente ao *${c.planoNome || 'Plano Clube Fitness'}* no valor de *R$ ${formatCurrencyBRL(c.valorLiquido)}*.\n\n🔗 *Link para Pagamento (Pix / Boleto / Cartão):*\n${link}\n\nQualquer dúvida estamos à disposição! 🏋️‍♂️✨`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleCreateStandalone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formClientId || !formValor) {
+      alert('Selecione o aluno e informe o valor.');
+      return;
+    }
+
     setSubmittingForm(true);
     try {
-      const actionMap = {
-        avulsa: 'create_avulsa',
-        parcelamento: 'create_parcelamento',
-        assinatura: 'create_assinatura'
-      };
-
-      const payload = {
-        action: actionMap[formType],
+      const payload: any = {
+        action: formType === 'avulsa' ? 'create_avulsa' : formType === 'parcelamento' ? 'create_parcelamento' : 'create_assinatura',
         clientId: formClientId,
         valor: formValor,
         vencimento: formVencimento,
         formaPagamento: formFormaPagamento,
         descricao: formDescricao,
-        parcelas: formType === 'parcelamento' ? formParcelas : 1,
-        cycle: formType === 'assinatura' ? formCycle : 'MONTHLY'
+        parcelas: formParcelas,
+        cycle: formCycle
       };
 
       const res = await fetch('/api/admin/asaas', {
@@ -211,394 +248,657 @@ export default function AsaasPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
       const data = await res.json();
       if (data.success) {
-        showFeedback('Cobrança avulsa gerada com sucesso!', 'success');
-        
-        // Load details for success modal
-        let detailsObj = data.data;
-        if (Array.isArray(data.data)) {
-          const firstInstallment = data.data.find((p: any) => p.parcelaNumero === 1);
-          detailsObj = firstInstallment || data.data[0];
-        }
-        setSuccessDetails(detailsObj);
-        setShowSuccessDetailsModal(true);
-
-        // Reset form
+        setMessage({ text: 'Cobrança avulsa emitida no Asaas com sucesso!', type: 'success' });
         setFormValor(0);
         setFormDescricao('');
-        setFormVencimento('');
-
+        setSuccessDetails(data.data);
+        setShowSuccessDetailsModal(true);
         fetchStandalonePayments();
+        fetchPayments(true);
       } else {
-        showFeedback(data.error || 'Erro ao criar cobrança no Asaas', 'danger');
+        setMessage({ text: data.error || 'Erro ao emitir cobrança.', type: 'danger' });
       }
-    } catch (err: any) {
-      showFeedback('Erro de rede: ' + err.message, 'danger');
+    } catch (e: any) {
+      setMessage({ text: 'Erro de rede: ' + e.message, type: 'danger' });
     } finally {
       setSubmittingForm(false);
+      setTimeout(() => setMessage(null), 4000);
     }
   };
 
-  const handleCopyClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert('Copiado para a área de transferência!');
-  };
+  // Filtered lists with Smart Search
+  const filteredClients = useMemo(() => {
+    return clients.filter(c => {
+      const matchesSearch = smartSearchMatch(searchQuery, [
+        c.nome,
+        c.cpf,
+        c.email,
+        c.telefone,
+        c.planoNome,
+        c.asaasBillingStatus
+      ]);
 
-  const filteredClients = clients.filter(c => {
-    const name = c.nome || '';
-    const cpf = c.cpf || '';
-    const q = normalizeText(searchQuery);
-    return normalizeText(name).includes(q) || cpf.includes(q);
-  });
+      if (!matchesSearch) return false;
+      if (statusFilter === 'todos') return true;
+      if (statusFilter === 'gerado') return c.status === 'gerado';
+      if (statusFilter === 'nao_gerado') return c.status === 'nao_gerado';
+      if (statusFilter === 'pago') return c.asaasBillingStatus === 'pago' || c.asaasBillingStatus === 'CONFIRMED' || c.asaasBillingStatus === 'RECEIVED';
+      if (statusFilter === 'pendente') return c.asaasBillingStatus === 'pendente' || c.asaasBillingStatus === 'PENDING';
+      return true;
+    });
+  }, [clients, searchQuery, statusFilter]);
 
-  const filteredStandalone = standalonePayments.filter(p => {
-    const name = p.clientNome || '';
-    const desc = p.planoNome || '';
-    const q = normalizeText(standaloneSearchQuery);
-    return normalizeText(name).includes(q) || normalizeText(desc).includes(q);
-  });
+  const subscriptionsList = useMemo(() => {
+    return standalonePayments.filter(p => (p.observacoes || '').toLowerCase().includes('assinatura') || (p.planoNome || '').toLowerCase().includes('assinatura'));
+  }, [standalonePayments]);
 
-  const activeClient = clients.find(c => c.clientId === selectedClientId);
-
-  // Generate Simulation string
-  const getFaturamentoSimulationText = (c: AsaasClientInfo) => {
-    if (!c.valorLiquido || c.valorLiquido <= 0) return 'Dados comerciais incompletos ou valor nulo.';
-    const fp = c.formaPagamento === 'pix' ? 'Pix' : c.formaPagamento === 'boleto' ? 'Boleto Bancário' : 'Cartão de Crédito';
-    const vencStr = c.dataPrimeiroVencimento ? new Date(c.dataPrimeiroVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : 'hoje';
-    const parts = c.parcelas || 1;
-    
-    if (parts > 1) {
-      const vParc = (c.valorLiquido / parts).toFixed(2).replace('.', ',');
-      return `Será gerado um parcelamento de ${parts}x de R$ ${vParc} (Total: R$ ${c.valorLiquido.toFixed(2).replace('.', ',')}) via ${fp} com primeiro vencimento em ${vencStr}.`;
-    } else {
-      return `Será gerada uma cobrança única avulsa de R$ ${c.valorLiquido.toFixed(2).replace('.', ',')} via ${fp} com vencimento em ${vencStr}.`;
-    }
-  };
+  const filteredStandalone = useMemo(() => {
+    return standalonePayments.filter(p => smartSearchMatch(standaloneSearchQuery, [
+      p.clientNome,
+      p.planoNome,
+      p.observacoes,
+      p.status
+    ]));
+  }, [standalonePayments, standaloneSearchQuery]);
 
   return (
-    <div className="content-panel" style={{ padding: '24px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-            <i className="fa-solid fa-credit-card" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i> Central de Faturamento Asaas
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>Gerencie cobranças integradas a contratos, emita cobranças avulsas e controle o histórico financeiro.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn btn-secondary" onClick={() => { fetchPayments(); fetchStandalonePayments(); }} disabled={loading || loadingStandalone}>
-            <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i> Atualizar Dados
-          </button>
-          <a href={isProduction ? 'https://www.asaas.com' : 'https://sandbox.asaas.com'} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-            <i className="fa-solid fa-arrow-up-right-from-square"></i> Painel Operacional Asaas
-          </a>
-        </div>
-      </div>
-
+    <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
+      
+      {/* Toast Feedback */}
       {message && (
-        <div className={`alert alert-${message.type}`} style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className={`fa-solid ${message.type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}`}></i>
-          <span>{message.text}</span>
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          zIndex: 99999,
+          padding: '14px 22px',
+          borderRadius: '10px',
+          background: message.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
+          color: '#ffffff',
+          fontWeight: 600,
+          fontSize: '0.9rem',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          backdropFilter: 'blur(8px)'
+        }}>
+          {message.text}
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ambiente de Integração</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isProduction ? '#10b981' : '#f59e0b' }}></span>
-            <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>
-              {isProduction ? 'Produção (Conta Real)' : 'Sandbox (Modo de Testes)'}
-            </strong>
+      {/* Header Fintech Hero */}
+      <div className="content-panel" style={{
+        background: 'linear-gradient(135deg, rgba(14, 26, 43, 0.85) 0%, rgba(8, 14, 24, 0.95) 100%)',
+        border: '1px solid rgba(16, 185, 129, 0.25)',
+        padding: '24px 28px',
+        marginBottom: '20px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <span style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                color: '#10b981',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                {isProduction ? 'Asaas Produção (Conexão Oficial Ativa)' : 'Asaas Sandbox (Modo de Testes)'}
+              </span>
+            </div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+              Central de Faturamento & Pagamentos Asaas
+            </h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', margin: '4px 0 0 0' }}>
+              Gestão de cobranças automáticas via Pix Dinâmico, Boletos Registrados e Assinaturas no Cartão.
+            </p>
           </div>
-          <small style={{ display: 'block', marginTop: '6px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-            {isProduction ? 'Modo Real de Produção (Cobranças bancárias ativas).' : 'As transações criadas não representam cobranças bancárias reais.'}
-          </small>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => fetchPayments(false)}
+              disabled={loading}
+              style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <i className={`fa-solid fa-arrows-rotate ${loading ? 'fa-spin' : ''}`}></i>
+              Atualizar Dados
+            </button>
+            <a
+              href={isProduction ? 'https://www.asaas.com' : 'https://sandbox.asaas.com'}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-primary"
+              style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', borderColor: '#10b981' }}
+            >
+              <i className="fa-solid fa-arrow-up-right-from-square"></i>
+              Painel Oficial Asaas
+            </a>
+          </div>
         </div>
 
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trilha de Retorno Webhook</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-            <code style={{ fontSize: '0.78rem', padding: '4px 6px', background: 'var(--bg-darker)', borderRadius: '4px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', flexGrow: 1, border: '1px solid var(--border-color)' }}>
-              {webhookUrl}
-            </code>
-            <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', flexShrink: 0 }} onClick={() => handleCopyClipboard(webhookUrl)}>
-              <i className="fa-solid fa-copy"></i>
-            </button>
+        {/* Webhook Card */}
+        <div style={{
+          marginTop: '18px',
+          padding: '12px 16px',
+          background: 'rgba(0, 0, 0, 0.35)',
+          borderRadius: '10px',
+          border: '1px solid var(--border-color)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <i className="fa-solid fa-bolt" style={{ color: '#10b981' }}></i>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              Webhook de Retorno Ativo: <code style={{ color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{webhookUrl}</code>
+            </span>
           </div>
-          <small style={{ display: 'block', marginTop: '6px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>Envio em tempo real de status de pagamentos.</small>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(webhookUrl);
+              setCopiedLink(true);
+              setTimeout(() => setCopiedLink(false), 2500);
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: copiedLink ? '#10b981' : 'var(--text-muted)',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              fontWeight: 600
+            }}
+          >
+            {copiedLink ? '✓ Copiado!' : 'Copiar URL do Webhook'}
+          </button>
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs */}
-      <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: '24px' }}>
+      {/* KPI Cards (Fintech Metrics) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+        <div className="metric-card" style={{ background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+          <div className="metric-info">
+            <h3 style={{ color: '#10b981' }}>Saldo Disponível</h3>
+            <div className="value" style={{ color: '#10b981' }}>R$ {formatCurrencyBRL(balance.availableBalance)}</div>
+          </div>
+          <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+            <i className="fa-solid fa-vault"></i>
+          </div>
+        </div>
+
+        <div className="metric-card" style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+          <div className="metric-info">
+            <h3 style={{ color: '#f59e0b' }}>Saldo a Receber (Futuro)</h3>
+            <div className="value" style={{ color: '#f59e0b' }}>R$ {formatCurrencyBRL(balance.pendingBalance)}</div>
+          </div>
+          <div className="metric-icon warning">
+            <i className="fa-solid fa-clock-rotate-left"></i>
+          </div>
+        </div>
+
+        <div className="metric-card" style={{ background: 'rgba(99, 102, 241, 0.06)', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
+          <div className="metric-info">
+            <h3 style={{ color: '#818cf8' }}>Contratos Faturados</h3>
+            <div className="value" style={{ color: '#818cf8' }}>{clients.filter(c => c.status === 'gerado').length}</div>
+          </div>
+          <div className="metric-icon indigo">
+            <i className="fa-solid fa-file-invoice-dollar"></i>
+          </div>
+        </div>
+
+        <div className="metric-card" style={{ background: 'rgba(236, 72, 153, 0.06)', border: '1px solid rgba(236, 72, 153, 0.25)' }}>
+          <div className="metric-info">
+            <h3 style={{ color: '#f472b6' }}>Assinaturas Cartão</h3>
+            <div className="value" style={{ color: '#f472b6' }}>{subscriptionsList.length}</div>
+          </div>
+          <div className="metric-icon" style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#ec4899' }}>
+            <i className="fa-solid fa-credit-card"></i>
+          </div>
+        </div>
+      </div>
+
+      {/* Modern Pill Navigation Tabs */}
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        padding: '6px',
+        background: 'rgba(8, 11, 17, 0.7)',
+        borderRadius: '12px',
+        border: '1px solid var(--border-color)',
+        marginBottom: '20px',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch'
+      }}>
         <button
+          className="role-tab-btn"
+          onClick={() => setActiveSubTab('visao_geral')}
+          style={{
+            background: activeSubTab === 'visao_geral' ? 'var(--color-primary)' : 'transparent',
+            color: activeSubTab === 'visao_geral' ? '#fff' : 'var(--text-muted)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.82rem',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <i className="fa-solid fa-chart-pie"></i> Visão Geral & Extrato
+        </button>
+
+        <button
+          className="role-tab-btn"
           onClick={() => setActiveSubTab('contratos')}
           style={{
-            padding: '12px 20px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            background: 'none',
+            background: activeSubTab === 'contratos' ? 'var(--color-primary)' : 'transparent',
+            color: activeSubTab === 'contratos' ? '#fff' : 'var(--text-muted)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.82rem',
             border: 'none',
             cursor: 'pointer',
-            color: activeSubTab === 'contratos' ? 'var(--color-primary)' : 'var(--text-dim)',
-            borderBottom: activeSubTab === 'contratos' ? '3px solid var(--color-primary)' : '3px solid transparent',
-            marginBottom: '-2px',
-            transition: 'all 0.2s'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap'
           }}
         >
-          <i className="fa-solid fa-file-contract" style={{ marginRight: '8px' }}></i> Faturamento de Contratos
+          <i className="fa-solid fa-file-contract"></i> Faturamento de Contratos ({clients.length})
         </button>
 
         <button
+          className="role-tab-btn"
           onClick={() => setActiveSubTab('avulsa')}
           style={{
-            padding: '12px 20px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            background: 'none',
+            background: activeSubTab === 'avulsa' ? 'var(--color-primary)' : 'transparent',
+            color: activeSubTab === 'avulsa' ? '#fff' : 'var(--text-muted)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.82rem',
             border: 'none',
             cursor: 'pointer',
-            color: activeSubTab === 'avulsa' ? 'var(--color-primary)' : 'var(--text-dim)',
-            borderBottom: activeSubTab === 'avulsa' ? '3px solid var(--color-primary)' : '3px solid transparent',
-            marginBottom: '-2px',
-            transition: 'all 0.2s'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap'
           }}
         >
-          <i className="fa-solid fa-plus-circle" style={{ marginRight: '8px' }}></i> Cobrança Avulsa / Recorrente
+          <i className="fa-solid fa-plus-circle"></i> Emitir Cobrança Avulsa
         </button>
 
         <button
-          onClick={() => setActiveSubTab('historico_avulsas')}
+          className="role-tab-btn"
+          onClick={() => setActiveSubTab('assinaturas')}
           style={{
-            padding: '12px 20px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            background: 'none',
+            background: activeSubTab === 'assinaturas' ? 'var(--color-primary)' : 'transparent',
+            color: activeSubTab === 'assinaturas' ? '#fff' : 'var(--text-muted)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.82rem',
             border: 'none',
             cursor: 'pointer',
-            color: activeSubTab === 'historico_avulsas' ? 'var(--color-primary)' : 'var(--text-dim)',
-            borderBottom: activeSubTab === 'historico_avulsas' ? '3px solid var(--color-primary)' : '3px solid transparent',
-            marginBottom: '-2px',
-            transition: 'all 0.2s'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap'
           }}
         >
-          <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '8px' }}></i> Histórico de Avulsos ({standalonePayments.length})
+          <i className="fa-solid fa-repeat"></i> Assinaturas Recorrentes ({subscriptionsList.length})
+        </button>
+
+        <button
+          className="role-tab-btn"
+          onClick={() => setActiveSubTab('historico_avulsas')}
+          style={{
+            background: activeSubTab === 'historico_avulsas' ? 'var(--color-primary)' : 'transparent',
+            color: activeSubTab === 'historico_avulsas' ? '#fff' : 'var(--text-muted)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.82rem',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <i className="fa-solid fa-list-check"></i> Histórico de Transações ({standalonePayments.length})
         </button>
       </div>
 
-      {/* SUBTAB 1: CONTRACT-BASED BILLING */}
-      {activeSubTab === 'contratos' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
-          {/* Card Aluno Selector */}
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', fontSize: '0.88rem' }}>Selecione um Aluno para Faturar:</label>
-            <select
-              className="select-custom"
-              value={selectedClientId}
-              onChange={e => setSelectedClientId(e.target.value)}
-              style={{ width: '100%', maxWidth: '500px', padding: '10px 14px' }}
-            >
-              <option value="">-- Selecione o Aluno --</option>
-              {clients.map(c => (
-                <option key={c.clientId} value={c.clientId}>
-                  {c.nome} ({c.cpf ? `CPF: ${c.cpf}` : 'Sem CPF'})
-                </option>
-              ))}
-            </select>
+      {/* TAB 1: VISÃO GERAL */}
+      {activeSubTab === 'visao_geral' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          <div className="content-panel" style={{ padding: '24px' }}>
+            <div className="panel-header" style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-wand-magic-sparkles" style={{ color: 'var(--color-primary)' }}></i>
+                Ações Rápidas de Faturamento
+              </h2>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setActiveSubTab('avulsa')}
+                style={{ justifyContent: 'flex-start', padding: '12px 16px', borderRadius: '10px' }}
+              >
+                <i className="fa-solid fa-qrcode" style={{ marginRight: '8px' }}></i>
+                Gerar Cobrança Pix / Boleto Avulso
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setActiveSubTab('contratos')}
+                style={{ justifyContent: 'flex-start', padding: '12px 16px', borderRadius: '10px' }}
+              >
+                <i className="fa-solid fa-file-signature" style={{ marginRight: '8px' }}></i>
+                Faturar Contratos Pendentes de Alunos
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setFormType('assinatura');
+                  setActiveSubTab('avulsa');
+                }}
+                style={{ justifyContent: 'flex-start', padding: '12px 16px', borderRadius: '10px' }}
+              >
+                <i className="fa-solid fa-credit-card" style={{ marginRight: '8px' }}></i>
+                Criar Nova Assinatura Recorrente no Cartão
+              </button>
+            </div>
           </div>
 
-          {/* Conditional detailed client summary */}
-          {activeClient ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-              {/* Left Column: Contract & Commercial Summary */}
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', fontWeight: 700 }}>
-                    <i className="fa-solid fa-circle-info" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Detalhes do Aluno
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
-                    <div><strong>Nome:</strong> {activeClient.nome}</div>
-                    <div><strong>Email:</strong> {activeClient.email || 'Não informado'}</div>
-                    <div><strong>CPF:</strong> {activeClient.cpf || 'Não informado'}</div>
-                    <div>
-                      <strong>ID de Cliente Asaas:</strong>{' '}
-                      {activeClient.asaasCustomerId ? (
-                        <code style={{ background: 'var(--bg-darker)', padding: '2px 4px', borderRadius: '4px' }}>{activeClient.asaasCustomerId}</code>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Não gerado (será criado na primeira cobrança)</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <hr style={{ border: '0', borderTop: '1px solid var(--border-color)', margin: '5px 0' }} />
-
-                <div>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', fontWeight: 700 }}>
-                    <i className="fa-solid fa-tags" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Dados Comerciais Vigentes
-                  </h4>
-                  
-                  {/* Contract status indicator */}
-                  <div style={{ marginBottom: '12px' }}>
-                    {activeClient.status === 'sem_contrato' ? (
-                      <span style={{ display: 'inline-block', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700 }}>
-                        <i className="fa-solid fa-circle-xmark" style={{ marginRight: '4px' }}></i> Sem Contrato Ativo
-                      </span>
-                    ) : activeClient.status === 'nao_gerado' ? (
-                      <span style={{ display: 'inline-block', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700 }}>
-                        <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i> Contrato Pendente de Faturamento
-                      </span>
-                    ) : (
-                      <span style={{ display: 'inline-block', color: 'var(--color-success)', background: 'rgba(16,185,129,0.1)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700 }}>
-                        <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i> Faturamento Ativo no Asaas
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
-                    <div><strong>Plano:</strong> {activeClient.planoNome || 'Sem plano associado'}</div>
-                    <div><strong>Preço Contratual Líquido:</strong> {activeClient.valorLiquido ? `R$ ${activeClient.valorLiquido.toFixed(2).replace('.', ',')}` : '—'}</div>
-                    <div><strong>Forma de Pagamento:</strong> <span style={{ textTransform: 'uppercase' }}>{activeClient.formaPagamento || '—'}</span></div>
-                    <div><strong>Número de Parcelas:</strong> {activeClient.parcelas || 1}x</div>
-                    <div>
-                      <strong>Primeiro Vencimento:</strong>{' '}
-                      {activeClient.dataPrimeiroVencimento ? new Date(activeClient.dataPrimeiroVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
-                    </div>
-                  </div>
-                </div>
+          <div className="content-panel" style={{ padding: '24px' }}>
+            <div className="panel-header" style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-shield-halved" style={{ color: 'var(--color-primary)' }}></i>
+                Status da Automação Bancária
+              </h2>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Baixa Automática via Pix:</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ Instantânea (&lt; 3s)</span>
               </div>
-
-              {/* Right Column: Billing Control Panel & Simulation */}
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '15px' }}>
-                <div>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', fontWeight: 700 }}>
-                    <i className="fa-solid fa-circle-nodes" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i> Ações de Faturamento
-                  </h4>
-
-                  {activeClient.status === 'sem_contrato' && (
-                    <div className="alert alert-danger" style={{ fontSize: '0.82rem', margin: 0, padding: '12px' }}>
-                      <strong>Não é possível faturar via contrato:</strong> Este aluno não possui nenhuma minuta de contrato emitida. Acesse a aba <strong>Gestão de Contratos</strong> para cadastrar um plano ou crie uma cobrança avulsa.
-                    </div>
-                  )}
-
-                  {activeClient.status === 'nao_gerado' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '12px' }}>
-                        <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: '#f59e0b', fontWeight: 600, marginBottom: '4px' }}>Simulador de Emissão Asaas:</div>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
-                          {getFaturamentoSimulationText(activeClient)}
-                        </p>
-                      </div>
-
-                      <button
-                        className="btn btn-primary"
-                        style={{ width: '100%', padding: '12px', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
-                        onClick={() => handleGenerateAsaasCharge(activeClient.contractId || '')}
-                        disabled={generatingId === activeClient.contractId}
-                      >
-                        {generatingId === activeClient.contractId ? (
-                          <><i className="fa-solid fa-spinner fa-spin"></i> Emitindo Faturas no Asaas...</>
-                        ) : (
-                          <><i className="fa-solid fa-receipt"></i> Gerar Cobrança conforme Contrato</>
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {activeClient.status === 'gerado' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div><strong>Status da Fatura:</strong> <span style={{ textTransform: 'uppercase', color: 'var(--color-success)', fontWeight: 700 }}>{activeClient.asaasBillingStatus || 'Pendente'}</span></div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>ID Cobrança Asaas: {activeClient.asaasPaymentId}</div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => handleSyncPayment(activeClient.contractId || '')}
-                          disabled={syncingId === activeClient.contractId}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem' }}
-                        >
-                          {syncingId === activeClient.contractId ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-rotate"></i>} Sincronizar
-                        </button>
-
-                        {activeClient.asaasInvoiceUrl && (
-                          <a
-                            href={activeClient.asaasInvoiceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-secondary"
-                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem' }}
-                          >
-                            <i className="fa-solid fa-file-invoice"></i> Abrir Fatura
-                          </a>
-                        )}
-
-                        {activeClient.asaasBoletoPdf && (
-                          <a
-                            href={activeClient.asaasBoletoPdf}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-secondary"
-                            style={{ gridColumn: 'span 2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem' }}
-                          >
-                            <i className="fa-solid fa-file-pdf" style={{ color: 'var(--color-danger)' }}></i> Baixar Boleto PDF
-                          </a>
-                        )}
-
-                        {activeClient.formaPagamento === 'pix' && activeClient.asaasPixCopyPaste && (
-                          <button
-                            className="btn btn-primary"
-                            style={{ gridColumn: 'span 2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem' }}
-                            onClick={() => {
-                              setSelectedPix({
-                                qrCode: activeClient.asaasPixQrCode || '',
-                                payload: activeClient.asaasPixCopyPaste || '',
-                                name: activeClient.nome
-                              });
-                              setShowPixModal(true);
-                            }}
-                          >
-                            <i className="fa-solid fa-qrcode"></i> Copiar Chave / Ver Pix QR Code
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                  <i className="fa-solid fa-lock"></i> Canal criptografado com o Gateway de Pagamentos Asaas v3
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Compensação de Boleto:</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>D+1 útil</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Notificações por WhatsApp/SMS:</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ Régua Ativa Asaas</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Juros e Multa Automáticos:</span>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ 2% Multa + 1% a.m.</span>
               </div>
             </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '60px 20px', border: '1.5px dashed var(--border-color)', borderRadius: '12px' }}>
-              <i className="fa-solid fa-address-book" style={{ fontSize: '3rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-              <h4 style={{ margin: '0 0 6px 0' }}>Selecione um aluno acima</h4>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '380px', margin: '0 auto' }}>
-                Os dados cadastrais e as opções de faturamento integradas serão exibidos após a seleção.
-              </p>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* SUBTAB 2: CREATE STANDALONE BILLING FORM */}
+      {/* TAB 2: FATURAMENTO DE CONTRATOS */}
+      {activeSubTab === 'contratos' && (
+        <div className="content-panel" style={{ padding: '24px' }}>
+          <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar por nome, plano, CPF, status..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  <i className="fa-solid fa-filter" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Status:
+                </label>
+                <select
+                  className="select-custom"
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  style={{ minWidth: '150px', fontSize: '0.83rem', padding: '6px 10px' }}
+                >
+                  <option value="todos">🌐 Todos os Status</option>
+                  <option value="gerado">⚡ Cobrança Gerada</option>
+                  <option value="nao_gerado">⏳ Pendente de Gerar</option>
+                  <option value="pago">✓ Pagos</option>
+                  <option value="pendente">⚠️ Aguardando Pagto</option>
+                </select>
+              </div>
+
+              {(searchQuery !== '' || statusFilter !== 'todos') && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('todos');
+                  }}
+                  style={{ padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <i className="fa-solid fa-xmark"></i> Limpar
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Aluno</th>
+                  <th>Plano & Valor</th>
+                  <th>Forma & Parcelas</th>
+                  <th>Vencimento</th>
+                  <th>Status Asaas</th>
+                  <th style={{ textAlign: 'right' }}>Ações Rápidas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>
+                      <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
+                      Carregando dados financeiros...
+                    </td>
+                  </tr>
+                ) : filteredClients.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      Nenhum aluno encontrado com os filtros selecionados.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredClients.map(c => {
+                    const isPaid = c.asaasBillingStatus === 'pago' || c.asaasBillingStatus === 'CONFIRMED' || c.asaasBillingStatus === 'RECEIVED';
+                    const isOverdue = c.asaasBillingStatus === 'vencido' || c.asaasBillingStatus === 'OVERDUE';
+                    const hasBilling = c.status === 'gerado';
+
+                    return (
+                      <tr key={c.clientId}>
+                        <td>
+                          <strong>{c.nome}</strong>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                            {c.cpf || 'Sem CPF'} • {c.telefone || 'Sem Tel'}
+                          </div>
+                        </td>
+                        <td>
+                          <div>{c.planoNome || 'Plano Personalizado'}</div>
+                          <strong style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}>
+                            R$ {formatCurrencyBRL(c.valorLiquido)}
+                          </strong>
+                        </td>
+                        <td>
+                          <span className="badge" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-main)' }}>
+                            {c.formaPagamento?.toUpperCase() || 'PIX'}
+                          </span>
+                          {c.parcelas && c.parcelas > 1 && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                              ({c.parcelas}x)
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.82rem' }}>
+                            {c.dataPrimeiroVencimento ? new Date(c.dataPrimeiroVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                          </span>
+                        </td>
+                        <td>
+                          {isPaid ? (
+                            <span className="badge badge-success">✓ Pago</span>
+                          ) : isOverdue ? (
+                            <span className="badge badge-danger">⚠️ Vencido</span>
+                          ) : hasBilling ? (
+                            <span className="badge badge-warning">⏳ Pendente</span>
+                          ) : c.status === 'nao_gerado' ? (
+                            <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>Pronto p/ Gerar</span>
+                          ) : (
+                            <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)' }}>Sem Contrato</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                            {c.status === 'nao_gerado' && c.contractId && (
+                              <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleGenerateContractBilling(c.contractId!)}
+                                disabled={generatingId === c.contractId}
+                                style={{ fontSize: '0.75rem', padding: '5px 10px', background: '#10b981', borderColor: '#10b981' }}
+                                title="Gerar cobrança no Asaas"
+                              >
+                                {generatingId === c.contractId ? (
+                                  <i className="fa-solid fa-spinner fa-spin"></i>
+                                ) : (
+                                  <>⚡ Gerar Cobrança</>
+                                )}
+                              </button>
+                            )}
+
+                            {hasBilling && (
+                              <>
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleOpenPixModal(c)}
+                                  style={{ fontSize: '0.75rem', padding: '5px 9px' }}
+                                  title="Ver QR Code Pix ou Link"
+                                >
+                                  <i className="fa-brands fa-pix" style={{ color: '#10b981' }}></i>
+                                </button>
+
+                                {c.asaasBoletoPdf && (
+                                  <a
+                                    href={c.asaasBoletoPdf}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ fontSize: '0.75rem', padding: '5px 9px' }}
+                                    title="Visualizar Boleto em PDF"
+                                  >
+                                    <i className="fa-solid fa-file-pdf" style={{ color: '#ef4444' }}></i>
+                                  </a>
+                                )}
+
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleSendWhatsAppBilling(c)}
+                                  style={{ fontSize: '0.75rem', padding: '5px 9px' }}
+                                  title="Enviar no WhatsApp do Aluno"
+                                >
+                                  <i className="fa-brands fa-whatsapp" style={{ color: '#10b981' }}></i>
+                                </button>
+
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleSyncContract(c.contractId!)}
+                                  disabled={syncingId === c.contractId}
+                                  style={{ fontSize: '0.75rem', padding: '5px 9px' }}
+                                  title="Sincronizar status com o Asaas"
+                                >
+                                  <i className={`fa-solid fa-rotate-right ${syncingId === c.contractId ? 'fa-spin' : ''}`}></i>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: EMITIR COBRANÇA AVULSA */}
       {activeSubTab === 'avulsa' && (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px' }}>
-          <h3 style={{ margin: '0 0 20px 0', fontSize: '1.15rem', fontWeight: 700 }}>
-            <i className="fa-solid fa-circle-dollar-to-slot" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i> Nova Cobrança Avulsa / Recorrente (Fora de Contrato)
-          </h3>
-          
-          <form onSubmit={handleCreateStandaloneBilling} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+        <div className="content-panel" style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+          <div className="panel-header" style={{ marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-plus-circle" style={{ color: 'var(--color-primary)' }}></i>
+              Emitir Nova Cobrança no Asaas
+            </h2>
+          </div>
+
+          <form onSubmit={handleCreateStandalone}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
-                <label className="comercial-field-label">Aluno beneficiário *</label>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                  Modalidade de Cobrança:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className={`btn ${formType === 'avulsa' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFormType('avulsa')}
+                    style={{ fontSize: '0.82rem', padding: '10px' }}
+                  >
+                    🪙 Cobrança Avulsa (À Vista)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${formType === 'parcelamento' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFormType('parcelamento')}
+                    style={{ fontSize: '0.82rem', padding: '10px' }}
+                  >
+                    📑 Parcelamento (Carnê/Boleto)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${formType === 'assinatura' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFormType('assinatura')}
+                    style={{ fontSize: '0.82rem', padding: '10px' }}
+                  >
+                    🔄 Assinatura no Cartão
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                  Selecione o Aluno: *
+                </label>
                 <select
                   className="select-custom"
                   value={formClientId}
@@ -607,330 +907,406 @@ export default function AsaasPanel() {
                 >
                   <option value="">-- Selecione o Aluno --</option>
                   {clients.map(c => (
-                    <option key={c.clientId} value={c.clientId}>{c.nome}</option>
+                    <option key={c.clientId} value={c.clientId}>
+                      {c.nome} ({c.cpf || 'Sem CPF'})
+                    </option>
                   ))}
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="comercial-field-label">Tipo de Cobrança *</label>
-                <select
-                  className="select-custom"
-                  value={formType}
-                  onChange={e => setFormType(e.target.value as any)}
-                  required
-                >
-                  <option value="avulsa">Cobrança Única Avulsa</option>
-                  <option value="parcelamento">Cobrança Parcelada</option>
-                  <option value="assinatura">Assinatura Recorrente (Assinar)</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div className="form-group">
-                <label className="comercial-field-label">
-                  {formType === 'parcelamento' ? 'Valor Total do Parcelamento *' : 'Valor da Cobrança *'}
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-dim)' }}>R$</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                    Valor Total (R$): *
+                  </label>
                   <input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="0.01"
                     className="form-control"
-                    value={formValor ? formatCurrencyBRL(formValor) : ''}
-                    onFocus={selectOnFocus}
-                    onChange={e => {
-                      const rawDigits = e.target.value.replace(/\D/g, '');
-                      const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
-                      setFormValor(num);
-                    }}
                     placeholder="0,00"
-                    style={{ paddingLeft: '36px' }}
+                    value={formValor || ''}
+                    onChange={e => setFormValor(Number(e.target.value))}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                    Data de Vencimento: *
+                  </label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={formVencimento}
+                    onChange={e => setFormVencimento(e.target.value)}
                     required
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="comercial-field-label">
-                  {formType === 'avulsa' ? 'Data de Vencimento *' : 'Primeiro Vencimento *'}
+                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                  Meio de Pagamento:
                 </label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={formVencimento}
-                  onChange={e => setFormVencimento(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="comercial-field-label">Forma de Recebimento *</label>
                 <select
                   className="select-custom"
                   value={formFormaPagamento}
                   onChange={e => setFormFormaPagamento(e.target.value)}
-                  required
                 >
-                  <option value="pix">Pix (Imediato)</option>
-                  <option value="boleto">Boleto Bancário</option>
-                  <option value="cartao">Cartão de Crédito</option>
+                  <option value="pix">💠 Pix Instantâneo (QR Code Dinâmico)</option>
+                  <option value="boleto">📄 Boleto Bancário Registrado</option>
+                  <option value="cartao">💳 Cartão de Crédito</option>
                 </select>
               </div>
-            </div>
 
-            {/* Custom fields depending on type */}
-            {formType === 'parcelamento' && (
-              <div className="form-group" style={{ maxWidth: '250px' }}>
-                <label className="comercial-field-label">Quantidade de Parcelas *</label>
-                <select
-                  className="select-custom"
-                  value={formParcelas}
-                  onChange={e => setFormParcelas(Number(e.target.value))}
-                  required
-                >
-                  {[2,3,4,5,6,7,8,9,10,11,12].map(n => (
-                    <option key={n} value={n}>{n} parcelas (R$ {(formValor / n).toFixed(2).replace('.', ',')} cada)</option>
-                  ))}
-                </select>
+              {formType === 'parcelamento' && (
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                    Quantidade de Parcelas:
+                  </label>
+                  <input
+                    type="number"
+                    min={2}
+                    max={24}
+                    className="form-control"
+                    value={formParcelas}
+                    onChange={e => setFormParcelas(Number(e.target.value))}
+                    required
+                  />
+                </div>
+              )}
+
+              {formType === 'assinatura' && (
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                    Ciclo de Cobrança:
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={formCycle}
+                    onChange={e => setFormCycle(e.target.value)}
+                  >
+                    <option value="MONTHLY">Mensal</option>
+                    <option value="QUARTERLY">Trimestral</option>
+                    <option value="SEMIANNUALLY">Semestral</option>
+                    <option value="YEARLY">Anual</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
+                  Descrição / Motivo da Cobrança:
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Ex: Sessão de Quiropraxia, Avaliação Física Extra..."
+                  value={formDescricao}
+                  onChange={e => setFormDescricao(e.target.value)}
+                />
               </div>
-            )}
 
-            {formType === 'assinatura' && (
-              <div className="form-group" style={{ maxWidth: '250px' }}>
-                <label className="comercial-field-label">Frequência da Recorrência *</label>
-                <select
-                  className="select-custom"
-                  value={formCycle}
-                  onChange={e => setFormCycle(e.target.value)}
-                  required
+              <div style={{ marginTop: '10px' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submittingForm}
+                  style={{ width: '100%', padding: '12px', fontSize: '0.95rem', fontWeight: 700, background: '#10b981', borderColor: '#10b981' }}
                 >
-                  <option value="WEEKLY">Semanal</option>
-                  <option value="BIWEEKLY">Quinzenal</option>
-                  <option value="MONTHLY">Mensal</option>
-                  <option value="QUARTERLY">Trimestral</option>
-                  <option value="SEMIANNUALLY">Semestral</option>
-                  <option value="ANNUALLY">Anual</option>
-                </select>
+                  {submittingForm ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                      Gerando no Asaas...
+                    </>
+                  ) : (
+                    <>⚡ Emitir Cobrança Oficial no Asaas</>
+                  )}
+                </button>
               </div>
-            )}
-
-            <div className="form-group">
-              <label className="comercial-field-label">Descrição da cobrança (Exibida na fatura) *</label>
-              <input
-                type="text"
-                className="form-control"
-                value={formDescricao}
-                onChange={e => setFormDescricao(e.target.value)}
-                placeholder="Ex: Avaliação Fisioterapêutica Extra / Aulas de Pilates avulsas"
-                required
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                style={{ padding: '12px 24px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
-                disabled={submittingForm}
-              >
-                {submittingForm ? (
-                  <><i className="fa-solid fa-spinner fa-spin"></i> Processando Emissão...</>
-                ) : (
-                  <><i className="fa-solid fa-circle-check"></i> Criar Lançamento Asaas</>
-                )}
-              </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* SUBTAB 3: STANDALONE BILLING HISTORY */}
-      {activeSubTab === 'historico_avulsas' && (
-        <div>
-          {/* Filter Bar */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-            <div style={{ position: 'relative', flexGrow: 1 }}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Pesquisar faturas avulsas por aluno ou descrição..."
-                value={standaloneSearchQuery}
-                onChange={e => setStandaloneSearchQuery(e.target.value)}
-                style={{ paddingLeft: '32px' }}
-              />
-              <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', fontSize: '0.8rem' }}></i>
-            </div>
+      {/* TAB 4: ASSINATURAS RECORRENTES */}
+      {activeSubTab === 'assinaturas' && (
+        <div className="content-panel" style={{ padding: '24px' }}>
+          <div className="panel-header" style={{ marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-repeat" style={{ color: 'var(--color-primary)' }}></i>
+              Assinaturas Recorrentes no Cartão de Crédito
+            </h2>
           </div>
 
-          {loadingStandalone ? (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
-              <p style={{ color: 'var(--text-dim)' }}>Carregando histórico avulso...</p>
-            </div>
-          ) : filteredStandalone.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', border: '1.5px dashed var(--border-color)', borderRadius: '12px' }}>
-              <i className="fa-solid fa-folder-open" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-              <h4 style={{ margin: '0 0 6px 0' }}>Nenhuma cobrança avulsa</h4>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '400px', margin: '0 auto' }}>
-                Use a aba anterior para criar novos lançamentos avulsos, parcelamentos manuais ou assinaturas.
-              </p>
-            </div>
-          ) : (
-            <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-              <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
-                <thead>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Aluno</th>
+                  <th>Descrição da Assinatura</th>
+                  <th>Valor Mensal</th>
+                  <th>Próximo Vencimento</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscriptionsList.length === 0 ? (
                   <tr>
-                    <th>Aluno</th>
-                    <th>Descrição</th>
-                    <th style={{ textAlign: 'right' }}>Valor</th>
-                    <th style={{ textAlign: 'center' }}>Vencimento</th>
-                    <th style={{ textAlign: 'center' }}>Forma</th>
-                    <th style={{ textAlign: 'center' }}>Parcela</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                    <th style={{ textAlign: 'center' }}>Link / Fatura</th>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      Nenhuma assinatura recorrente registrada ainda. Crie uma na aba "Emitir Cobrança".
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredStandalone.map(p => {
-                    let stColor = 'var(--text-dim)';
-                    if (p.status === 'Pago') stColor = 'var(--color-success)';
-                    else if (p.status === 'Atrasado') stColor = 'var(--color-danger)';
-                    else if (p.status === 'Pendente') stColor = '#f59e0b';
-
-                    return (
-                      <tr key={p._id}>
-                        <td><strong>{p.clientNome}</strong></td>
-                        <td>{p.planoNome}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>R$ {p.valor.toFixed(2).replace('.', ',')}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          {p.vencimento ? new Date(p.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
-                        </td>
-                        <td style={{ textAlign: 'center', textTransform: 'uppercase' }}>{p.formaPagamento}</td>
-                        <td style={{ textAlign: 'center' }}>{p.parcelasTotal && p.parcelasTotal > 1 ? `${p.parcelaNumero}/${p.parcelasTotal}` : '1/1'}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span style={{ fontWeight: 700, color: stColor }}>{p.status}</span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                            {p.asaasInvoiceUrl ? (
-                              <a href={p.asaasInvoiceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" title="Visualizar Fatura Asaas">
-                                <i className="fa-solid fa-file-invoice"></i> Abrir Link
-                              </a>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Indisponível</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ) : (
+                  subscriptionsList.map(s => (
+                    <tr key={s._id}>
+                      <td><strong>{s.clientNome}</strong></td>
+                      <td>{s.planoNome}</td>
+                      <td><strong style={{ color: '#10b981' }}>R$ {formatCurrencyBRL(s.valor)}</strong></td>
+                      <td>{s.vencimento ? new Date(s.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+                      <td>
+                        <span className="badge badge-success">✓ Ativa</span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {s.asaasInvoiceUrl && (
+                          <a
+                            href={s.asaasInvoiceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                          >
+                            Ver Fatura
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Modal Success Creation Details */}
-      {showSuccessDetailsModal && successDetails && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowSuccessDetailsModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '90%' }}>
+      {/* TAB 5: HISTÓRICO DE TRANSAÇÕES */}
+      {activeSubTab === 'historico_avulsas' && (
+        <div className="content-panel" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <h2 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <i className="fa-solid fa-list-check" style={{ color: 'var(--color-primary)' }}></i>
+              Histórico Completo de Cobranças Emitidas
+            </h2>
+            
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Buscar por aluno, plano, status..."
+              value={standaloneSearchQuery}
+              onChange={e => setStandaloneSearchQuery(e.target.value)}
+              style={{ maxWidth: '300px' }}
+            />
+          </div>
+
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Aluno</th>
+                  <th>Descrição</th>
+                  <th>Valor</th>
+                  <th>Vencimento</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Link / Fatura</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStandalone.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      Nenhuma cobrança avulsa encontrada.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStandalone.map(p => (
+                    <tr key={p._id}>
+                      <td><strong>{p.clientNome}</strong></td>
+                      <td>{p.planoNome}</td>
+                      <td><strong style={{ color: 'var(--color-primary)' }}>R$ {formatCurrencyBRL(p.valor)}</strong></td>
+                      <td>{p.vencimento ? new Date(p.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+                      <td>
+                        {p.status === 'Pago' ? (
+                          <span className="badge badge-success">✓ Pago</span>
+                        ) : p.status === 'Atrasado' ? (
+                          <span className="badge badge-danger">⚠️ Atrasado</span>
+                        ) : (
+                          <span className="badge badge-warning">⏳ Pendente</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {p.asaasInvoiceUrl ? (
+                          <a
+                            href={p.asaasInvoiceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                          >
+                            Abrir Link
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PIX DINÂMICO QR CODE & COPIA E COLA */}
+      {showPixModal && selectedPix && (
+        <div className="modal-overlay" style={{ padding: '20px' }} onClick={() => setShowPixModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%', textAlign: 'center' }}>
             <div className="modal-header">
-              <h3 style={{ color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-circle-check"></i> Faturamento Criado com Sucesso!
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-brands fa-pix" style={{ color: '#10b981' }}></i>
+                Pix Dinâmico Instantâneo
+              </h3>
+              <button className="modal-close" onClick={() => setShowPixModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '24px 20px' }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                Aluno: <strong>{selectedPix.name}</strong>
+                {selectedPix.value && (
+                  <> • Valor: <strong style={{ color: '#10b981' }}>R$ {formatCurrencyBRL(selectedPix.value)}</strong></>
+                )}
+              </p>
+
+              {selectedPix.qrCode && (
+                <div style={{
+                  background: '#ffffff',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  display: 'inline-block',
+                  marginBottom: '18px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                }}>
+                  <img
+                    src={`data:image/png;base64,${selectedPix.qrCode}`}
+                    alt="Pix QR Code"
+                    style={{ width: '220px', height: '220px', display: 'block' }}
+                  />
+                </div>
+              )}
+
+              {selectedPix.payload && (
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                    Chave Pix Copia e Cola:
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      readOnly
+                      value={selectedPix.payload}
+                      style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.4)' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedPix.payload);
+                        alert('✓ Chave Pix Copia e Cola copiada para a área de transferência!');
+                      }}
+                      style={{ flexShrink: 0 }}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedPix.invoiceUrl && (
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Olá, ${selectedPix.name}! Segue o link para pagamento via Pix no valor de R$ ${formatCurrencyBRL(selectedPix.value)}:\n\n${selectedPix.invoiceUrl}`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '12px', background: '#10b981', borderColor: '#10b981', fontWeight: 700 }}
+                >
+                  <i className="fa-brands fa-whatsapp" style={{ marginRight: '8px' }}></i>
+                  Compartilhar no WhatsApp
+                </a>
+              )}
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'center' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowPixModal(false)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: SUCESSO DE GERAÇÃO */}
+      {showSuccessDetailsModal && successDetails && (
+        <div className="modal-overlay" style={{ padding: '20px' }} onClick={() => setShowSuccessDetailsModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '95%' }}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-circle-check"></i>
+                Cobrança Emitida com Sucesso!
               </h3>
               <button className="modal-close" onClick={() => setShowSuccessDetailsModal(false)}>&times;</button>
             </div>
-            
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', fontSize: '0.85rem' }}>
-                <div><strong>Aluno:</strong> {successDetails.clientNome}</div>
-                <div><strong>Descrição:</strong> {successDetails.planoNome}</div>
-                <div><strong>Valor:</strong> R$ {successDetails.valor.toFixed(2).replace('.', ',')}</div>
-                <div><strong>Vencimento:</strong> {new Date(successDetails.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
-                <div><strong>Método de Recebimento:</strong> <span style={{ textTransform: 'uppercase' }}>{successDetails.formaPagamento}</span></div>
-                {successDetails.asaasPaymentId && (
-                  <div style={{ marginTop: '5px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Asaas ID: <code>{successDetails.asaasPaymentId}</code>
-                  </div>
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                A cobrança já está registrada oficialmente no Asaas e pronta para pagamento.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {successDetails.invoiceUrl && (
+                  <a
+                    href={successDetails.invoiceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-primary"
+                    style={{ padding: '12px', justifyContent: 'center', background: '#10b981', borderColor: '#10b981', fontWeight: 700 }}
+                  >
+                    <i className="fa-solid fa-arrow-up-right-from-square" style={{ marginRight: '8px' }}></i>
+                    Abrir Página de Pagamento do Asaas
+                  </a>
+                )}
+
+                {successDetails.bankSlipUrl && (
+                  <a
+                    href={successDetails.bankSlipUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-secondary"
+                    style={{ padding: '12px', justifyContent: 'center', fontWeight: 600 }}
+                  >
+                    <i className="fa-solid fa-file-pdf" style={{ marginRight: '8px', color: '#ef4444' }}></i>
+                    Baixar Boleto Bancário em PDF
+                  </a>
                 )}
               </div>
-
-              {successDetails.asaasInvoiceUrl && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <a
-                    href={successDetails.asaasInvoiceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-primary"
-                    style={{ width: '100%', padding: '10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 600 }}
-                  >
-                    <i className="fa-solid fa-file-invoice"></i> Abrir Fatura no Navegador
-                  </a>
-                  
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => handleCopyClipboard(successDetails.asaasInvoiceUrl)}
-                    style={{ width: '100%', padding: '10px' }}
-                  >
-                    <i className="fa-solid fa-copy" style={{ marginRight: '6px' }}></i> Copiar Link de Pagamento
-                  </button>
-                </div>
-              )}
             </div>
-
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowSuccessDetailsModal(false)}>Concluído</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowSuccessDetailsModal(false)}>
+                Concluir
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Pix QR Code */}
-      {showPixModal && selectedPix && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowPixModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%' }}>
-            <div className="modal-header">
-              <h3>QR Code Pix - {selectedPix.name}</h3>
-              <button className="modal-close" onClick={() => setShowPixModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>
-              {selectedPix.qrCode ? (
-                <img
-                  src={`data:image/png;base64,${selectedPix.qrCode}`}
-                  alt="QR Code Pix"
-                  style={{ width: '200px', height: '200px', margin: '0 auto 15px', display: 'block', border: '1px solid var(--border-color)', borderRadius: '8px' }}
-                />
-              ) : (
-                <div style={{ width: '200px', height: '200px', margin: '0 auto 15px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-darker)' }}>
-                  <i className="fa-solid fa-qrcode fa-3x" style={{ color: 'var(--text-dim)' }}></i>
-                </div>
-              )}
-              
-              <div className="form-group" style={{ textAlign: 'left' }}>
-                <label>Pix Copia e Cola</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <textarea
-                    readOnly
-                    className="form-control"
-                    value={selectedPix.payload}
-                    style={{ fontSize: '0.75rem', height: '60px', resize: 'none', background: 'var(--bg-darker)', color: 'var(--text-main)' }}
-                  />
-                  <button className="btn btn-primary" onClick={() => handleCopyClipboard(selectedPix.payload)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px' }}>
-                    <i className="fa-solid fa-copy"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowPixModal(false)}>Fechar</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

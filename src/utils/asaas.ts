@@ -9,8 +9,20 @@ const getHeaders = () => {
   };
 };
 
-const getBaseUrl = () => {
-  return (process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3').replace(/\/$/, '');
+export const getBaseUrl = () => {
+  if (process.env.ASAAS_API_URL) {
+    return process.env.ASAAS_API_URL.replace(/\/$/, '');
+  }
+  const token = process.env.ASAAS_API_KEY || '';
+  if (token.startsWith('$aact_') && !token.includes('sandbox') && !token.includes('test')) {
+    return 'https://api.asaas.com/v3';
+  }
+  return 'https://api.asaas.com/v3'; // Default para produção oficial
+};
+
+export const isAsaasProduction = () => {
+  const url = getBaseUrl();
+  return url.includes('api.asaas.com') && !url.includes('sandbox');
 };
 
 const handleError = async (res: Response, label: string) => {
@@ -76,7 +88,8 @@ export async function createAsaasPayment(params: {
     customer: params.customerId,
     billingType,
     dueDate: params.dueDate,
-    description: params.description
+    description: params.description,
+    postalService: false
   };
 
   const numParcelas = Number(params.parcelas) || 1;
@@ -99,7 +112,8 @@ export async function createAsaasPayment(params: {
     invoiceUrl: data.invoiceUrl,
     bankSlipUrl: data.bankSlipUrl || '',
     billingStatus: data.status,
-    installmentId: data.installment || ''
+    installmentId: data.installment || '',
+    netValue: data.netValue || data.value
   };
 }
 
@@ -117,7 +131,8 @@ export async function getAsaasPixQrCode(paymentId: string) {
     const data = await res.json();
     return {
       encodedImage: data.encodedImage || '',
-      payload: data.payload || ''
+      payload: data.payload || '',
+      expirationDate: data.expirationDate || ''
     };
   } catch (e) {
     console.error('Erro ao obter Pix QR Code do Asaas:', e);
@@ -175,6 +190,68 @@ export async function createAsaasSubscription(params: {
     billingStatus: data.status,
     description: data.description,
     cycle: data.cycle
+  };
+}
+
+export async function getAsaasBalance() {
+  try {
+    const baseUrl = getBaseUrl();
+    const headers = getHeaders();
+
+    const res = await fetch(`${baseUrl}/finance/balance`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!res.ok) {
+      return { totalBalance: 0, availableBalance: 0, pendingBalance: 0 };
+    }
+    const data = await res.json();
+    return {
+      totalBalance: data.totalBalance || 0,
+      availableBalance: data.availableBalance || 0,
+      pendingBalance: data.pendingBalance || 0
+    };
+  } catch (e) {
+    console.warn('Asaas Balance fetch notice:', e);
+    return { totalBalance: 0, availableBalance: 0, pendingBalance: 0 };
+  }
+}
+
+export async function createAsaasPaymentLink(params: {
+  name: string;
+  description?: string;
+  value: number;
+  billingType?: string;
+  chargeType?: 'DETACHED' | 'RECURRENT' | 'INSTALLMENT';
+  maxInstallmentCount?: number;
+  dueDateLimitDays?: number;
+}) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const body = {
+    name: params.name,
+    description: params.description || '',
+    value: params.value,
+    billingType: params.billingType || 'UNDEFINED',
+    chargeType: params.chargeType || 'DETACHED',
+    maxInstallmentCount: params.maxInstallmentCount || 1,
+    dueDateLimitDays: params.dueDateLimitDays || 3
+  };
+
+  const res = await fetch(`${baseUrl}/paymentLinks`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body)
+  });
+
+  const data = await handleError(res, 'Criar Link de Pagamento');
+  return {
+    id: data.id,
+    url: data.url,
+    name: data.name,
+    active: data.active
   };
 }
 

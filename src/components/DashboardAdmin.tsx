@@ -6,6 +6,7 @@ import { downloadContractPDF, downloadStrengthTestPDF, getContractPDFBase64 } fr
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
+import { smartSearchMatch } from '@/utils/smartSearch';
 import GestaoContratosPanel from './GestaoContratosPanel';
 import AsaasPanel from './AsaasPanel';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
@@ -146,6 +147,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [clientsFilterPlan, setClientsFilterPlan] = useState<string>('todos');
   const [clientsFilterCredits, setClientsFilterCredits] = useState<string>('todos');
   const [clientsFilterRecurrence, setClientsFilterRecurrence] = useState<string>('todos');
+  const [clientsSortOrder, setClientsSortOrder] = useState<string>('nome_asc');
 
   // Smart filters states for Financeiro (Mensalidades)
   const [paymentsPlanFilter, setPaymentsPlanFilter] = useState<string>('');
@@ -2696,50 +2698,47 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           </div>
 
           <div className="content-panel">
-            <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
-                
-                {/* Search Input */}
-                <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
-                    <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Buscar Aluno
-                  </label>
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Nome, e-mail ou CPF..." 
-                    value={getSearchQuery('clientes')} 
-                    onChange={e => setSearchQueryForKey('clientes', e.target.value)} 
-                  />
-                </div>
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Buscar por nome, plano, CPF, status..." 
+                  value={getSearchQuery('clientes')} 
+                  onChange={e => setSearchQueryForKey('clientes', e.target.value)} 
+                />
+              </div>
 
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {/* Status Filter */}
-                <div style={{ flex: '1 1 130px', minWidth: '110px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
-                    <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i>Status
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-filter" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Status:
                   </label>
                   <select 
-                    className="form-control" 
+                    className="select-custom" 
                     value={clientsFilterStatus} 
                     onChange={e => { setClientsFilterStatus(e.target.value); setPage('clientes', 1); }}
+                    style={{ minWidth: '130px', fontSize: '0.83rem', padding: '6px 10px' }}
                   >
-                    <option value="todos">Todos</option>
-                    <option value="ativo">Ativo</option>
-                    <option value="vencido">Vencido</option>
+                    <option value="todos">🌐 Todos os Status</option>
+                    <option value="ativo">✅ Ativos</option>
+                    <option value="vencido">⚠️ Vencidos</option>
                   </select>
                 </div>
 
                 {/* Plan Filter */}
-                <div style={{ flex: '1 1 180px', minWidth: '150px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
-                    <i className="fa-solid fa-award" style={{ marginRight: '4px' }}></i>Plano Atual
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Plano:
                   </label>
                   <select 
-                    className="form-control" 
+                    className="select-custom" 
                     value={clientsFilterPlan} 
                     onChange={e => { setClientsFilterPlan(e.target.value); setPage('clientes', 1); }}
+                    style={{ minWidth: '160px', fontSize: '0.83rem', padding: '6px 10px' }}
                   >
-                    <option value="todos">Todos os Planos</option>
+                    <option value="todos">📁 Todos os Planos</option>
                     <option value="personalizado">Personalizado</option>
                     {plans.map(p => (
                       <option key={p._id} value={p._id}>{p.nome}</option>
@@ -2748,59 +2747,63 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 </div>
 
                 {/* Credits Filter */}
-                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
-                    <i className="fa-solid fa-coins" style={{ marginRight: '4px' }}></i>Créditos Restantes
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Créditos:
                   </label>
                   <select 
-                    className="form-control" 
+                    className="select-custom" 
                     value={clientsFilterCredits} 
                     onChange={e => { setClientsFilterCredits(e.target.value); setPage('clientes', 1); }}
+                    style={{ minWidth: '140px', fontSize: '0.83rem', padding: '6px 10px' }}
                   >
-                    <option value="todos">Todos</option>
+                    <option value="todos">⚡ Todos</option>
                     <option value="zerado">Sem Créditos (0)</option>
                     <option value="pouco">Poucos (&lt; 3)</option>
                     <option value="suficiente">Com Créditos (&gt;= 3)</option>
                   </select>
                 </div>
 
-                {/* Recurrence Filter */}
-                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dim)', marginBottom: '6px' }}>
-                    <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i>Recorrência
+                {/* Sort Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-arrow-down-a-z" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Ordenar:
                   </label>
                   <select 
-                    className="form-control" 
-                    value={clientsFilterRecurrence} 
-                    onChange={e => { setClientsFilterRecurrence(e.target.value); setPage('clientes', 1); }}
+                    className="select-custom" 
+                    value={clientsSortOrder} 
+                    onChange={e => { setClientsSortOrder(e.target.value); setPage('clientes', 1); }}
+                    style={{ minWidth: '140px', fontSize: '0.83rem', padding: '6px 10px' }}
                   >
-                    <option value="todos">Todos</option>
-                    <option value="com">Com Recorrência</option>
-                    <option value="sem">Sem Recorrência</option>
+                    <option value="nome_asc">🔤 Nome (A - Z)</option>
+                    <option value="nome_desc">🔤 Nome (Z - A)</option>
+                    <option value="vencimento_asc">⏳ Vencimento Próximo</option>
+                    <option value="recentes">🆕 Mais Recentes</option>
                   </select>
                 </div>
 
                 {/* Reset Button */}
-                {(getSearchQuery('clientes') !== '' || clientsFilterStatus !== 'todos' || clientsFilterPlan !== 'todos' || clientsFilterCredits !== 'todos' || clientsFilterRecurrence !== 'todos') && (
+                {(getSearchQuery('clientes') !== '' || clientsFilterStatus !== 'todos' || clientsFilterPlan !== 'todos' || clientsFilterCredits !== 'todos' || clientsSortOrder !== 'nome_asc') && (
                   <button 
                     type="button" 
-                    className="btn btn-secondary" 
+                    className="btn btn-secondary btn-sm" 
                     onClick={() => {
                       setSearchQueryForKey('clientes', '');
                       setClientsFilterStatus('todos');
                       setClientsFilterPlan('todos');
                       setClientsFilterCredits('todos');
                       setClientsFilterRecurrence('todos');
+                      setClientsSortOrder('nome_asc');
                       setPage('clientes', 1);
                     }}
-                    style={{ height: '38px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    style={{ padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    <i className="fa-solid fa-xmark"></i> Limpar Filtros
+                    <i className="fa-solid fa-xmark"></i> Limpar
                   </button>
                 )}
-
               </div>
             </div>
+
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
@@ -2820,12 +2823,18 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     const listKey = 'clientes';
                     const activeP = getPage(listKey);
                     const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
+                    const q = getSearchQuery(listKey);
                     const filtered = clients.filter(c => {
-                      // 1. Search Query
-                      const matchesSearch = normalizeText(c.dadosPessoais?.nome).includes(q) || 
-                                           normalizeText(c.dadosPessoais?.email).includes(q) || 
-                                           (c.dadosPessoais?.cpf || '').includes(q);
+                      // 1. Smart Search Multi-Terms Match
+                      const planName = c.dadosComerciais?.planoId?.nome || 'Personalizado';
+                      const matchesSearch = smartSearchMatch(q, [
+                        c.dadosPessoais?.nome,
+                        c.dadosPessoais?.email,
+                        c.dadosPessoais?.cpf,
+                        c.dadosPessoais?.telefone,
+                        planName,
+                        c.dadosComerciais?.status
+                      ]);
                       if (!matchesSearch) return false;
 
                       // 2. Status
@@ -2853,15 +2862,30 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                         if (clientsFilterCredits === 'suficiente' && credDisp < 3) return false;
                       }
 
-                      // 5. Recurrence
-                      const hasRecurrence = Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia);
-                      if (clientsFilterRecurrence !== 'todos') {
-                        if (clientsFilterRecurrence === 'com' && !hasRecurrence) return false;
-                        if (clientsFilterRecurrence === 'sem' && hasRecurrence) return false;
-                      }
-
                       return true;
                     });
+
+                    // Sorting
+                    filtered.sort((a, b) => {
+                      if (clientsSortOrder === 'nome_asc') {
+                        return (a.dadosPessoais?.nome || '').localeCompare(b.dadosPessoais?.nome || '');
+                      }
+                      if (clientsSortOrder === 'nome_desc') {
+                        return (b.dadosPessoais?.nome || '').localeCompare(a.dadosPessoais?.nome || '');
+                      }
+                      if (clientsSortOrder === 'vencimento_asc') {
+                        const vA = a.dadosComerciais?.vencimento || '9999-12-31';
+                        const vB = b.dadosComerciais?.vencimento || '9999-12-31';
+                        return vA.localeCompare(vB);
+                      }
+                      if (clientsSortOrder === 'recentes') {
+                        const cA = a.createdAt || '';
+                        const cB = b.createdAt || '';
+                        return cB.localeCompare(cA);
+                      }
+                      return 0;
+                    });
+
                     const totalPages = Math.ceil(filtered.length / size);
                     const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
                     const paginated = filtered.slice((curP - 1) * size, curP * size);

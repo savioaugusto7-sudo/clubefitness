@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { smartSearchMatch } from '@/utils/smartSearch';
 
 interface DynamusPanelProps {
   clients: any[];
@@ -33,6 +34,9 @@ function formatExpiryDisplay(dataInicio: string, duracao: string, vencimentoSalv
 
 export default function DynamusPanel({ clients, plans, userCargo, fetchData }: DynamusPanelProps) {
   const [search, setSearch] = useState('');
+  const [dynamusStatusFilter, setDynamusStatusFilter] = useState('todos');
+  const [dynamusCreditsFilter, setDynamusCreditsFilter] = useState('todos');
+  const [dynamusSortOrder, setDynamusSortOrder] = useState('maior_saldo');
   const [copied, setCopied] = useState(false);
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [clientApts, setClientApts] = useState<any[]>([]);
@@ -69,10 +73,61 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
     (c.dadosComerciais?.saldoCreditosDynamus && c.dadosComerciais.saldoCreditosDynamus > 0)
   );
 
-  const filteredClients = dynamusClients.filter(c => 
-    (c.dadosPessoais?.nome || c.nome || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.dadosPessoais?.cpf || '').includes(search.replace(/\D/g, ''))
-  );
+  const filteredClients = dynamusClients
+    .filter(c => {
+      const com = c.dadosComerciais || {};
+      const planName = com.planoId?.nome || c.planoNome || 'Dynamus';
+      const total = com.creditosTotal || 0;
+      const usados = com.creditosUsados || 0;
+      const reservados = com.creditosReservados || 0;
+      const restantes = Math.max(0, total - usados - reservados);
+
+      // 1. Smart Multi-Terms Match
+      const matchesSearch = smartSearchMatch(search, [
+        c.dadosPessoais?.nome || c.nome,
+        c.dadosPessoais?.cpf,
+        c.dadosPessoais?.email,
+        c.dadosPessoais?.telefone,
+        planName,
+        com.status
+      ]);
+      if (!matchesSearch) return false;
+
+      // 2. Status Filter
+      if (dynamusStatusFilter !== 'todos') {
+        if (dynamusStatusFilter === 'ativo' && com.status !== 'ativo') return false;
+        if (dynamusStatusFilter === 'vencido' && com.status !== 'vencido') return false;
+      }
+
+      // 3. Credits Filter
+      if (dynamusCreditsFilter !== 'todos') {
+        if (dynamusCreditsFilter === 'positivo' && restantes <= 0) return false;
+        if (dynamusCreditsFilter === 'zerado' && restantes > 0) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      const comA = a.dadosComerciais || {};
+      const comB = b.dadosComerciais || {};
+      const restA = Math.max(0, (comA.creditosTotal || 0) - (comA.creditosUsados || 0) - (comA.creditosReservados || 0));
+      const restB = Math.max(0, (comB.creditosTotal || 0) - (comB.creditosUsados || 0) - (comB.creditosReservados || 0));
+
+      if (dynamusSortOrder === 'maior_saldo') return restB - restA;
+      if (dynamusSortOrder === 'menor_saldo') return restA - restB;
+      if (dynamusSortOrder === 'nome_asc') {
+        return (a.dadosPessoais?.nome || a.nome || '').localeCompare(b.dadosPessoais?.nome || b.nome || '');
+      }
+      if (dynamusSortOrder === 'nome_desc') {
+        return (b.dadosPessoais?.nome || b.nome || '').localeCompare(a.dadosPessoais?.nome || a.nome || '');
+      }
+      if (dynamusSortOrder === 'vencimento_asc') {
+        const vA = comA.vencimento || '9999-12-31';
+        const vB = comB.vencimento || '9999-12-31';
+        return vA.localeCompare(vB);
+      }
+      return 0;
+    });
 
   // Metrics
   const totalDynamus = dynamusClients.length;
@@ -362,15 +417,84 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
 
       {/* Table & Search section */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <input 
-            type="text" 
-            className="form-control" 
-            placeholder="Buscar por nome ou CPF..." 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-            style={{ maxWidth: '360px', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', outline: 'none' }} 
-          />
+        <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
+            <input 
+              type="text" 
+              className="form-control" 
+              placeholder="Buscar por nome, plano, CPF, status..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Status Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                <i className="fa-solid fa-filter" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Status:
+              </label>
+              <select 
+                value={dynamusStatusFilter} 
+                onChange={e => setDynamusStatusFilter(e.target.value)}
+                style={{ background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '6px 10px', fontSize: '0.83rem', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="todos">🌐 Todos os Status</option>
+                <option value="ativo">✅ Ativos</option>
+                <option value="vencido">⚠️ Vencidos</option>
+              </select>
+            </div>
+
+            {/* Credits Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Saldo:
+              </label>
+              <select 
+                value={dynamusCreditsFilter} 
+                onChange={e => setDynamusCreditsFilter(e.target.value)}
+                style={{ background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '6px 10px', fontSize: '0.83rem', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="todos">⚡ Todos os Saldos</option>
+                <option value="positivo">🟢 Com Créditos Restantes</option>
+                <option value="zerado">🔴 Créditos Esgotados (0)</option>
+              </select>
+            </div>
+
+            {/* Sort Order */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                <i className="fa-solid fa-arrow-down-a-z" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Ordenar:
+              </label>
+              <select 
+                value={dynamusSortOrder} 
+                onChange={e => setDynamusSortOrder(e.target.value)}
+                style={{ background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '6px 10px', fontSize: '0.83rem', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="maior_saldo">⚡ Maior Saldo de Créditos</option>
+                <option value="menor_saldo">⏳ Menor Saldo de Créditos</option>
+                <option value="nome_asc">🔤 Nome (A - Z)</option>
+                <option value="nome_desc">🔤 Nome (Z - A)</option>
+                <option value="vencimento_asc">📅 Expiração Próxima</option>
+              </select>
+            </div>
+
+            {/* Reset Button */}
+            {(search !== '' || dynamusStatusFilter !== 'todos' || dynamusCreditsFilter !== 'todos' || dynamusSortOrder !== 'maior_saldo') && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  setSearch('');
+                  setDynamusStatusFilter('todos');
+                  setDynamusCreditsFilter('todos');
+                  setDynamusSortOrder('maior_saldo');
+                }}
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <i className="fa-solid fa-xmark"></i> Limpar
+              </button>
+            )}
+          </div>
         </div>
 
         <div style={{ overflowX: 'auto' }}>

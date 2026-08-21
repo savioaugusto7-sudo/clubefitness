@@ -5,6 +5,7 @@ import { downloadContractPDF, getContractPDFBase64 } from '@/utils/pdfGenerator'
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
+import { smartSearchMatch } from '@/utils/smartSearch';
 import SearchableSelect from './SearchableSelect';
 import GestaoContratosPanel from './GestaoContratosPanel';
 import DynamusPanel from './DynamusPanel';
@@ -1271,31 +1272,81 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   // ══════════════════════════════════════════════════════════════
   // TAB: CLIENTES
   // ══════════════════════════════════════════════════════════════
-  if (activeTab === 'clientes') return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-        <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Clientes</h2>
-        <button style={btnPrimary} onClick={() => setShowNewClientModal(true)}>
-          <i className="fa-solid fa-user-plus" style={{ marginRight: '6px' }} />Novo Cliente
-        </button>
-      </div>
+  if (activeTab === 'clientes') {
+    const filteredClients = clients.filter((c: any) => {
+      // 1. Smart Search Multi-Terms Match
+      const planName = plans.find(p => p._id === (c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId))?.nome || 'Personalizado';
+      const status = c.dadosComerciais?.status || 'pendente';
+      const matchesSearch = smartSearchMatch(clientSearch, [
+        c.dadosPessoais?.nome,
+        c.dadosPessoais?.email,
+        c.dadosPessoais?.cpf,
+        c.dadosPessoais?.telefone,
+        planName,
+        status
+      ]);
+      if (!matchesSearch) return false;
 
-      <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
-          
-          {/* Search Input */}
-          <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Buscar Aluno
-            </label>
-            <input 
-              type="text" 
-              placeholder="Nome ou e-mail..." 
-              value={clientSearch} 
-              onChange={e => setClientSearch(e.target.value)} 
-              style={{ ...inputStyle, width: '100%' }}
-            />
-          </div>
+      // 2. Status filter
+      if (clientFilterStatus !== 'todos') {
+        if (clientFilterStatus === 'ativo' && !(status === 'ativo' || status === 'assinado')) return false;
+        if (clientFilterStatus === 'vencido' && status !== 'vencido') return false;
+        if (clientFilterStatus === 'lead' && status !== 'lead') return false;
+      }
+
+      // 3. Plan filter
+      if (clientFilterPlan !== 'todos') {
+        const pId = c.dadosComerciais?.planoId?._id || c.dadosComerciais?.planoId;
+        if (clientFilterPlan === 'personalizado') {
+          if (pId) return false;
+        } else {
+          if (pId !== clientFilterPlan) return false;
+        }
+      }
+
+      // 4. Credits filter
+      if (clientFilterCredits !== 'todos') {
+        const cr = c.dadosComerciais?.creditosTotal ?? 0;
+        if (clientFilterCredits === 'zerado' && cr > 0) return false;
+        if (clientFilterCredits === 'pouco' && (cr === 0 || cr >= 3)) return false;
+        if (clientFilterCredits === 'suficiente' && cr < 3) return false;
+      }
+
+      // 5. Recurrence filter
+      if (clientFilterRecurrence !== 'todos') {
+        const hasRec = Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia);
+        if (clientFilterRecurrence === 'com' && !hasRec) return false;
+        if (clientFilterRecurrence === 'sem' && hasRec) return false;
+      }
+
+      return true;
+    });
+
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Clientes</h2>
+          <button style={btnPrimary} onClick={() => setShowNewClientModal(true)}>
+            <i className="fa-solid fa-user-plus" style={{ marginRight: '6px' }} />Novo Cliente
+          </button>
+        </div>
+
+        <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+            
+            {/* Search Input */}
+            <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Buscar Aluno
+              </label>
+              <input 
+                type="text" 
+                placeholder="Buscar por nome, plano, CPF, status..." 
+                value={clientSearch} 
+                onChange={e => setClientSearch(e.target.value)} 
+                style={{ ...inputStyle, width: '100%' }}
+              />
+            </div>
 
           {/* Status Filter */}
           <div style={{ flex: '1 1 130px', minWidth: '110px' }}>
@@ -2056,6 +2107,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       )}
     </div>
   );
+  }
 
   // ══════════════════════════════════════════════════════════════
   // TAB: AGENDAMENTOS
