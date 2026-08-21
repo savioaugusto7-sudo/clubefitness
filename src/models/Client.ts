@@ -35,7 +35,7 @@ const DadosComerciaisSchema = new Schema({
   vencimento: { type: String },
   frequencia: { type: Number, default: 3 },
   parcelas: { type: Number, default: 1 },
-  status: { type: String, enum: ['ativo', 'vencido', 'inativo', 'suspenso', 'cancelado', 'pendente', 'lead', 'excluido_anonimizado'], default: 'pendente' },
+  status: { type: String, enum: ['ativo', 'vencido', 'inativo', 'suspenso', 'cancelado', 'pendente', 'lead', 'excluido_anonimizado', 'finalizado'], default: 'pendente' },
   contrato: { type: String },
   creditosTotal: { type: Number, default: 0 },
   creditosUsados: { type: Number, default: 0 },

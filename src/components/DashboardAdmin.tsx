@@ -154,6 +154,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   // Smart filters states for Financeiro (Mensalidades)
   const [paymentsPlanFilter, setPaymentsPlanFilter] = useState<string>('');
+  const [paymentsMonthFilter, setPaymentsMonthFilter] = useState<string>('');
+  const [paymentsMethodFilter, setPaymentsMethodFilter] = useState<string>('');
+  const [paymentsTypeFilter, setPaymentsTypeFilter] = useState<string>('');
+  const [paymentsSortOption, setPaymentsSortOption] = useState<string>('vencimento_asc');
 
   // Close modal on Escape key press
   useEffect(() => {
@@ -1301,21 +1305,126 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       return group;
     });
 
-    return groupedList.filter((group: any) => {
-      const matchesSearch = smartSearchMatch([group.clientNome, group.planoNome], paymentsSearch);
-      
-      // Map 'Pendente' filter choice to consolidated status 'Em Dia'
-      let targetStatus = paymentsStatusFilter;
-      if (paymentsStatusFilter === 'Pendente') {
-        targetStatus = 'Em Dia';
+    const filtered = groupedList.filter((group: any) => {
+      const client = clients.find(c => c._id === group.clientId);
+      const isDynamus = Boolean(
+        group.planoNome?.toLowerCase().includes('dynamus') ||
+        client?.dadosPessoais?.email?.toLowerCase().includes('dynamus') ||
+        client?.codigo?.toUpperCase().includes('DYN') ||
+        client?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
+      );
+      const isRecorrente = Boolean(client?.dadosComerciais?.criarRecorrenciaMensal);
+
+      // Smart Multi-Terms Search
+      const searchTerms = [
+        group.clientNome,
+        group.planoNome,
+        client?.dadosPessoais?.cpf,
+        client?.dadosPessoais?.telefone,
+        client?.dadosPessoais?.email,
+        group.status,
+        ...group.payments.map((p: any) => `${p.formaPagamento || ''} ${p.valor || ''} R$ ${p.valor || ''}`)
+      ];
+      const matchesSearch = smartSearchMatch(paymentsSearch, searchTerms);
+      if (!matchesSearch) return false;
+
+      // Status Filter
+      if (paymentsStatusFilter) {
+        if (paymentsStatusFilter === 'Pago' && group.status !== 'Pago') return false;
+        if (paymentsStatusFilter === 'Pendente' && group.status !== 'Em Dia') return false;
+        if (paymentsStatusFilter === 'Atrasado' && group.status !== 'Atrasado') return false;
       }
-      const matchesStatus = !paymentsStatusFilter || group.status === targetStatus;
 
-      // Filter by plan
-      const matchesPlan = !paymentsPlanFilter || normalizeText(group.planoNome).includes(normalizeText(paymentsPlanFilter));
+      // Plan Filter
+      if (paymentsPlanFilter) {
+        if (paymentsPlanFilter === 'Personalizado') {
+          if (group.planoNome !== 'Personalizado') return false;
+        } else if (!normalizeText(group.planoNome).includes(normalizeText(paymentsPlanFilter))) {
+          return false;
+        }
+      }
 
-      return matchesSearch && matchesStatus && matchesPlan;
+      // Payment Method Filter
+      if (paymentsMethodFilter) {
+        const hasMethod = group.payments.some((p: any) => {
+          const fm = (p.formaPagamento || client?.dadosComerciais?.formaPagamento || '').toLowerCase();
+          if (paymentsMethodFilter === 'pix') return fm.includes('pix');
+          if (paymentsMethodFilter === 'boleto') return fm.includes('boleto');
+          if (paymentsMethodFilter === 'cartao') return fm.includes('cartao') || fm.includes('cartão') || fm.includes('asaas');
+          if (paymentsMethodFilter === 'dinheiro') return fm.includes('dinheiro');
+          return true;
+        });
+        if (!hasMethod) return false;
+      }
+
+      // Month / Period Filter
+      if (paymentsMonthFilter) {
+        const curY = parseInt(todayStr.substring(0, 4));
+        const curM = parseInt(todayStr.substring(5, 7));
+        
+        const hasInPeriod = group.payments.some((p: any) => {
+          if (!p.vencimento) return false;
+          if (paymentsMonthFilter === 'mes_atual') {
+            return p.vencimento.startsWith(todayStr.substring(0, 7));
+          }
+          if (paymentsMonthFilter === 'proximo_mes') {
+            const nextM = curM === 12 ? 1 : curM + 1;
+            const nextY = curM === 12 ? curY + 1 : curY;
+            const nextStr = `${nextY}-${String(nextM).padStart(2, '0')}`;
+            return p.vencimento.startsWith(nextStr);
+          }
+          if (paymentsMonthFilter === 'mes_anterior') {
+            const prevM = curM === 1 ? 12 : curM - 1;
+            const prevY = curM === 1 ? curY - 1 : curY;
+            const prevStr = `${prevY}-${String(prevM).padStart(2, '0')}`;
+            return p.vencimento.startsWith(prevStr);
+          }
+          if (paymentsMonthFilter === 'ano_atual') {
+            return p.vencimento.startsWith(String(curY));
+          }
+          return true;
+        });
+        if (!hasInPeriod) return false;
+      }
+
+      // Type / Convênio Filter
+      if (paymentsTypeFilter) {
+        if (paymentsTypeFilter === 'dynamus' && !isDynamus) return false;
+        if (paymentsTypeFilter === 'recorrente' && !isRecorrente) return false;
+        if (paymentsTypeFilter === 'padrao' && (isDynamus || isRecorrente)) return false;
+      }
+
+      return true;
     });
+
+    // Sorting
+    filtered.sort((a: any, b: any) => {
+      if (paymentsSortOption === 'vencimento_asc') {
+        const vA = a.proximoVencimento || '9999-12-31';
+        const vB = b.proximoVencimento || '9999-12-31';
+        return vA.localeCompare(vB);
+      }
+      if (paymentsSortOption === 'vencimento_desc') {
+        const vA = a.proximoVencimento || '0000-00-00';
+        const vB = b.proximoVencimento || '0000-00-00';
+        return vB.localeCompare(vA);
+      }
+      if (paymentsSortOption === 'valor_desc') {
+        return b.totalValue - a.totalValue;
+      }
+      if (paymentsSortOption === 'valor_asc') {
+        return a.totalValue - b.totalValue;
+      }
+      if (paymentsSortOption === 'nome_asc') {
+        return (a.clientNome || '').localeCompare(b.clientNome || '');
+      }
+      if (paymentsSortOption === 'nome_desc') {
+        return (b.clientNome || '').localeCompare(a.clientNome || '');
+      }
+      return 0;
+    });
+
+    return filtered;
   };
 
   const handleGlobalSync = async () => {
@@ -4249,65 +4358,260 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                 );
               })()}
 
-              {/* Filters & Search */}
-              <div className="content-panel" style={{ padding: '16px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: '220px', maxWidth: '380px' }}>
-                    <SmartSearchInput
-                      placeholder="Buscar por nome do aluno ou plano..."
-                      value={paymentsSearch}
-                      onChange={val => setPaymentsSearch(val)}
-                    />
-                  </div>
-                  
-                  {/* Plan Filter */}
-                  <select
-                    className="select-custom"
-                    value={paymentsPlanFilter}
-                    onChange={e => setPaymentsPlanFilter(e.target.value)}
-                    style={{ width: '180px' }}
-                  >
-                    <option value="">Todos os Planos</option>
-                    <option value="Personalizado">Personalizado</option>
-                    {Array.from(new Set(payments.map(p => {
-                      const client = clients.find(c => c._id === p.clientId);
-                      return client?.dadosComerciais?.planoId?.nome || 'Personalizado';
-                    }))).filter(name => name && name !== 'Personalizado').sort().map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
+              {/* Pílulas de Status Rápidas (Funil Financeiro) */}
+              {(() => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const allGroupedRaw: any[] = [];
+                const tempGrouped: Record<string, any> = {};
+                payments.forEach(p => {
+                  if (!tempGrouped[p.clientId]) {
+                    tempGrouped[p.clientId] = { clientId: p.clientId, payments: [] };
+                  }
+                  tempGrouped[p.clientId].payments.push(p);
+                });
+                let countPago = 0;
+                let countPendente = 0;
+                let countAtrasado = 0;
+                Object.values(tempGrouped).forEach((g: any) => {
+                  const hasOverdue = g.payments.some((p: any) => p.status === 'Pendente' && p.vencimento < todayStr);
+                  const hasPending = g.payments.some((p: any) => p.status === 'Pendente');
+                  if (hasOverdue) countAtrasado++;
+                  else if (hasPending) countPendente++;
+                  else countPago++;
+                });
 
-                  {/* Status Filter */}
-                  <select
-                    className="select-custom"
-                    value={paymentsStatusFilter}
-                    onChange={e => setPaymentsStatusFilter(e.target.value)}
-                    style={{ width: '150px' }}
-                  >
-                    <option value="">Todos os Status</option>
-                    <option value="Pago">Pago</option>
-                    <option value="Pendente">Pendente</option>
-                    <option value="Atrasado">Atrasado</option>
-                  </select>
-
-                  {/* Clear Button */}
-                  {(paymentsSearch || paymentsStatusFilter || paymentsPlanFilter) && (
-                    <button 
-                      className="btn btn-secondary btn-sm" 
-                      onClick={() => {
-                        setPaymentsSearch('');
-                        setPaymentsStatusFilter('');
-                        setPaymentsPlanFilter('');
+                return (
+                  <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentsStatusFilter('')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        border: '1px solid',
+                        borderColor: paymentsStatusFilter === '' ? 'var(--color-primary)' : 'var(--border-color)',
+                        background: paymentsStatusFilter === '' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
+                        color: paymentsStatusFilter === '' ? 'var(--color-primary)' : 'var(--text-muted)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
                       }}
-                      style={{ fontSize: '0.75rem', height: '38px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                     >
-                      <i className="fa-solid fa-xmark"></i> Limpar Filtros
+                      🌐 Todos ({Object.keys(tempGrouped).length})
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentsStatusFilter('Pago')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        border: '1px solid',
+                        borderColor: paymentsStatusFilter === 'Pago' ? '#10b981' : 'var(--border-color)',
+                        background: paymentsStatusFilter === 'Pago' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)',
+                        color: paymentsStatusFilter === 'Pago' ? '#34d399' : 'var(--text-muted)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      🟢 Pagos / Recebidos ({countPago})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentsStatusFilter('Pendente')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        border: '1px solid',
+                        borderColor: paymentsStatusFilter === 'Pendente' ? '#f59e0b' : 'var(--border-color)',
+                        background: paymentsStatusFilter === 'Pendente' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.03)',
+                        color: paymentsStatusFilter === 'Pendente' ? '#fbbf24' : 'var(--text-muted)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      🟡 Pendentes em Dia ({countPendente})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentsStatusFilter('Atrasado')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        border: '1px solid',
+                        borderColor: paymentsStatusFilter === 'Atrasado' ? '#ef4444' : 'var(--border-color)',
+                        background: paymentsStatusFilter === 'Atrasado' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.03)',
+                        color: paymentsStatusFilter === 'Atrasado' ? '#f87171' : 'var(--text-muted)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      🔴 Em Atraso ({countAtrasado})
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {/* Barra de Ferramentas com Filtros Inteligentes Combinados */}
+              <div className="content-panel" style={{ padding: '16px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+                  {/* Busca Multi-Termos Fluida */}
+                  <div style={{ flex: '1 1 260px', minWidth: '240px', position: 'relative' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', color: 'var(--text-dim)', fontSize: '0.9rem' }}></i>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Buscar por aluno, CPF, valor (R$), plano ou forma de pagamento..."
+                        value={paymentsSearch}
+                        onChange={e => setPaymentsSearch(e.target.value)}
+                        style={{ paddingLeft: '36px', paddingRight: paymentsSearch ? '32px' : '12px', height: '40px', fontSize: '0.86rem', width: '100%' }}
+                      />
+                      {paymentsSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setPaymentsSearch('')}
+                          style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: '0.9rem' }}
+                          title="Limpar busca"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Filtro por Mês / Competência */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      <i className="fa-solid fa-calendar-days" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Período:
+                    </label>
+                    <select
+                      className="select-custom"
+                      value={paymentsMonthFilter}
+                      onChange={e => setPaymentsMonthFilter(e.target.value)}
+                      style={{ minWidth: '150px', height: '40px', fontSize: '0.83rem', padding: '6px 10px' }}
+                    >
+                      <option value="">📅 Todos os Períodos</option>
+                      <option value="mes_atual">📅 Mês Atual</option>
+                      <option value="proximo_mes">📅 Próximo Mês</option>
+                      <option value="mes_anterior">📅 Mês Anterior</option>
+                      <option value="ano_atual">📅 Ano Atual (2026)</option>
+                    </select>
+                  </div>
+
+                  {/* Filtro por Forma de Pagamento */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      <i className="fa-solid fa-credit-card" style={{ color: '#38bdf8', marginRight: '4px' }}></i> Pagamento:
+                    </label>
+                    <select
+                      className="select-custom"
+                      value={paymentsMethodFilter}
+                      onChange={e => setPaymentsMethodFilter(e.target.value)}
+                      style={{ minWidth: '150px', height: '40px', fontSize: '0.83rem', padding: '6px 10px' }}
+                    >
+                      <option value="">💳 Todas as Formas</option>
+                      <option value="pix">⚡ Pix</option>
+                      <option value="boleto">📄 Boleto Bancário</option>
+                      <option value="cartao">💳 Cartão de Crédito</option>
+                      <option value="dinheiro">💵 Dinheiro</option>
+                    </select>
+                  </div>
+
+                  {/* Filtro por Plano / Convênio */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Plano:
+                    </label>
+                    <select
+                      className="select-custom"
+                      value={paymentsPlanFilter}
+                      onChange={e => setPaymentsPlanFilter(e.target.value)}
+                      style={{ minWidth: '160px', height: '40px', fontSize: '0.83rem', padding: '6px 10px' }}
+                    >
+                      <option value="">📁 Todos os Planos</option>
+                      <option value="Dynamus">⚡ Convênio Dynamus</option>
+                      <option value="Personalizado">Personalizado</option>
+                      {Array.from(new Set(payments.map(p => {
+                        const client = clients.find(c => c._id === p.clientId);
+                        return client?.dadosComerciais?.planoId?.nome || 'Personalizado';
+                      }))).filter(name => name && name !== 'Personalizado' && !name.toLowerCase().includes('dynamus')).sort().map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ordenação */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      <i className="fa-solid fa-arrow-down-a-z" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Ordenar:
+                    </label>
+                    <select
+                      className="select-custom"
+                      value={paymentsSortOption}
+                      onChange={e => setPaymentsSortOption(e.target.value)}
+                      style={{ minWidth: '160px', height: '40px', fontSize: '0.83rem', padding: '6px 10px' }}
+                    >
+                      <option value="vencimento_asc">⏳ Vencimento (Próximos)</option>
+                      <option value="vencimento_desc">📅 Vencimento (Distantes)</option>
+                      <option value="valor_desc">💰 Maior Valor</option>
+                      <option value="valor_asc">💵 Menor Valor</option>
+                      <option value="nome_asc">🔤 Aluno (A - Z)</option>
+                      <option value="nome_desc">🔤 Aluno (Z - A)</option>
+                    </select>
+                  </div>
+
+                  <button className="btn btn-secondary" onClick={handleGlobalSync} disabled={loadingPayments} style={{ height: '40px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-arrows-rotate"></i> Atualizar
+                  </button>
                 </div>
-                <button className="btn btn-secondary" onClick={handleGlobalSync} disabled={loadingPayments} style={{ height: '38px' }}>
-                  <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i>Atualizar
-                </button>
+
+                {/* Feedback de Contagem e Total Filtrado com Botão Limpar */}
+                {(() => {
+                  const currentGrouped = getGroupedPayments();
+                  const totalFiltrado = currentGrouped.reduce((sum: number, g: any) => sum + g.totalValue, 0);
+                  const isFiltered = Boolean(paymentsSearch || paymentsStatusFilter || paymentsPlanFilter || paymentsMonthFilter || paymentsMethodFilter || paymentsTypeFilter || paymentsSortOption !== 'vencimento_asc');
+
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      <div>
+                        Exibindo <strong>{currentGrouped.length}</strong> alunos / contratos • Total Consolidado Filtrado: <strong style={{ color: 'var(--color-primary)', fontSize: '0.95rem' }}>R$ {formatCurrencyBRL(totalFiltrado)}</strong>
+                      </div>
+                      {isFiltered && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setPaymentsSearch('');
+                            setPaymentsStatusFilter('');
+                            setPaymentsPlanFilter('');
+                            setPaymentsMonthFilter('');
+                            setPaymentsMethodFilter('');
+                            setPaymentsTypeFilter('');
+                            setPaymentsSortOption('vencimento_asc');
+                          }}
+                          style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-xmark"></i> Limpar Filtros
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Table Grouped by Client */}

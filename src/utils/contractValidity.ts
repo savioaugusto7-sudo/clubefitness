@@ -12,7 +12,7 @@ export interface ContractValidityInfo {
   isExpiringSoon: boolean;
   daysLeft: number;
   daysLeftText: string;
-  statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo';
+  statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo' | 'finalizado';
   statusLabel: string;
   badgeColor: string;
   badgeBg: string;
@@ -162,13 +162,22 @@ export function getContractValidityInfo(client: any, planObj?: any): ContractVal
     }
 
     // Status Badge
-    let statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo' = 'ativo';
+    let statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo' | 'finalizado' = 'ativo';
     let statusLabel = 'Contrato Ativo';
     let badgeColor = '#10b981';
     let badgeBg = 'rgba(16, 185, 129, 0.12)';
     let badgeBorder = 'rgba(16, 185, 129, 0.3)';
 
-    if (statusSaved === 'congelado') {
+    if (statusSaved === 'finalizado') {
+      statusKey = 'finalizado';
+      statusLabel = 'Finalizado (Não Renovou)';
+      badgeColor = '#9ca3af';
+      badgeBg = 'rgba(107, 114, 128, 0.15)';
+      badgeBorder = 'rgba(107, 114, 128, 0.35)';
+      daysLeftText = 'Encerrado';
+      isExpired = false;
+      isExpiringSoon = false;
+    } else if (statusSaved === 'congelado') {
       statusKey = 'congelado';
       statusLabel = 'Congelado';
       badgeColor = '#f59e0b';

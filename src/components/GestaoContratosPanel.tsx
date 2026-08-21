@@ -18,12 +18,12 @@ const normalizeText = (str: string) => {
 };
 
 export interface ClientContractStage {
-  stageKey: 'ativo' | 'renovacao' | 'vencido' | 'pendente' | 'proposta' | 'congelado' | 'lead' | 'dynamus';
+  stageKey: 'ativo' | 'renovacao' | 'vencido' | 'pendente' | 'proposta' | 'congelado' | 'lead' | 'dynamus' | 'finalizado';
   stageLabel: string;
   badgeBg: string;
   badgeColor: string;
   badgeBorder: string;
-  orientacaoKey: 'vigente' | 'gerar_renovacao' | 'sincronizar_clicksign' | 'gerar_asaas' | 'reenviar_link' | 'gerar_link' | 'baixar_pdf' | 'gerenciar_dynamus' | 'dados_faltantes';
+  orientacaoKey: 'vigente' | 'gerar_renovacao' | 'sincronizar_clicksign' | 'gerar_asaas' | 'reenviar_link' | 'gerar_link' | 'baixar_pdf' | 'gerenciar_dynamus' | 'dados_faltantes' | 'finalizado';
   orientacaoLabel: string;
   isRecorrente: boolean;
   isBoleto: boolean;
@@ -54,7 +54,28 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   const hasPhone = isPhoneValid;
   const isMissingData = !hasCpf || !hasPhone || !hasEndereco || !hasValidEmail;
 
-  // 0. Aluno Convênio Dynamus (Não é Lead, Já entra como Dynamus)
+  // 0. Contrato Finalizado (Não Renovou)
+  if (com.status === 'finalizado') {
+    return {
+      stageKey: 'finalizado',
+      stageLabel: '🏁 Contrato Finalizado (Não Renovou)',
+      badgeBg: 'rgba(107, 114, 128, 0.2)',
+      badgeColor: '#9ca3af',
+      badgeBorder: '1px solid rgba(107, 114, 128, 0.4)',
+      orientacaoKey: 'finalizado',
+      orientacaoLabel: '📁 Histórico / Reativar Aluno',
+      isRecorrente: false,
+      isBoleto,
+      hasAsaasBoleto,
+      hasCpf,
+      hasPhone,
+      hasEndereco,
+      isMissingData,
+      info
+    };
+  }
+
+  // 0.1 Aluno Convênio Dynamus (Não é Lead, Já entra como Dynamus)
   const isDynamus = Boolean(
     plan?.nome?.toLowerCase().includes('dynamus') ||
     com.planoNome?.toLowerCase().includes('dynamus') ||
@@ -284,6 +305,60 @@ export default function GestaoContratosPanel({
   const [allProposalsMap, setAllProposalsMap] = useState<Record<string, any>>({});
   const [syncingClicksignClientId, setSyncingClicksignClientId] = useState<string | null>(null);
 
+  // States for Finalize Contract Modal (Não Renovou)
+  const [finalizeClientTarget, setFinalizeClientTarget] = useState<any>(null);
+  const [finalizeReason, setFinalizeReason] = useState('decidiu_nao_renovar');
+  const [finalizeCustomObs, setFinalizeCustomObs] = useState('');
+  const [submittingFinalize, setSubmittingFinalize] = useState(false);
+
+  const handleOpenFinalizeModal = (client: any) => {
+    setFinalizeClientTarget(client);
+    setFinalizeReason('decidiu_nao_renovar');
+    setFinalizeCustomObs('');
+  };
+
+  const handleConfirmFinalizeContract = async () => {
+    if (!finalizeClientTarget) return;
+    setSubmittingFinalize(true);
+    try {
+      const reasonMap: Record<string, string> = {
+        decidiu_nao_renovar: 'Decidiu não renovar o plano',
+        mudanca_cidade: 'Mudança de endereço / cidade',
+        motivo_financeiro: 'Questões financeiras / orçamento',
+        falta_tempo: 'Falta de tempo / rotina de trabalho',
+        problema_saude: 'Problemas médicos / recomendação de repouso',
+        insatisfacao: 'Insatisfação com o serviço / atendimento',
+        outro: finalizeCustomObs.trim() || 'Não especificado'
+      };
+      const obsFinal = `[Contrato Finalizado em ${new Date().toLocaleDateString('pt-BR')}]: ${reasonMap[finalizeReason] || finalizeReason}${finalizeCustomObs && finalizeReason !== 'outro' ? ` - Obs: ${finalizeCustomObs}` : ''}`;
+
+      const res = await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: finalizeClientTarget._id,
+          dadosComerciais: {
+            ...finalizeClientTarget.dadosComerciais,
+            status: 'finalizado',
+            observacoesContratuais: `${finalizeClientTarget.dadosComerciais?.observacoesContratuais ? finalizeClientTarget.dadosComerciais.observacoesContratuais + '\n' : ''}${obsFinal}`
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`🏁 Contrato de ${finalizeClientTarget.dadosPessoais?.nome || 'Aluno'} finalizado com sucesso!\nO aluno foi transferido para o status "Finalizados".`);
+        setFinalizeClientTarget(null);
+        fetchData(true);
+      } else {
+        alert('Erro ao finalizar contrato: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (err: any) {
+      alert('Erro de conexão: ' + err.message);
+    } finally {
+      setSubmittingFinalize(false);
+    }
+  };
+
   // States for Data Shielding & Unlock Audit in Workspace
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockJustificativa, setUnlockJustificativa] = useState('');
@@ -421,6 +496,7 @@ export default function GestaoContratosPanel({
     let vigente = 0;
     let renovacao = 0;
     let vencido = 0;
+    let finalizado = 0;
     let aguardando_assinatura = 0;
     let lead = 0;
     let dynamus = 0;
@@ -439,6 +515,7 @@ export default function GestaoContratosPanel({
       else if (stage.stageKey === 'ativo') vigente++;
       else if (stage.stageKey === 'renovacao') renovacao++;
       else if (stage.stageKey === 'vencido') vencido++;
+      else if (stage.stageKey === 'finalizado') finalizado++;
       else if (stage.stageKey === 'pendente' || stage.stageKey === 'proposta') aguardando_assinatura++;
       else if (stage.stageKey === 'lead') lead++;
 
@@ -451,6 +528,7 @@ export default function GestaoContratosPanel({
       vigente,
       renovacao,
       vencido,
+      finalizado,
       aguardando_assinatura,
       lead,
       dynamus,
@@ -498,6 +576,7 @@ export default function GestaoContratosPanel({
           if (contratoStatusFilter === 'vigente' && stage.stageKey !== 'ativo') return false;
           if (contratoStatusFilter === 'renovacao' && stage.stageKey !== 'renovacao') return false;
           if (contratoStatusFilter === 'vencido' && stage.stageKey !== 'vencido') return false;
+          if (contratoStatusFilter === 'finalizado' && stage.stageKey !== 'finalizado') return false;
           if (contratoStatusFilter === 'aguardando_assinatura' && stage.stageKey !== 'pendente' && stage.stageKey !== 'proposta') return false;
           if (contratoStatusFilter === 'lead' && stage.stageKey !== 'lead') return false;
           if (contratoStatusFilter === 'boleto_asaas' && !stage.isBoleto) return false;
@@ -511,6 +590,7 @@ export default function GestaoContratosPanel({
           if (orientacaoFilter === 'dados_faltantes' && !stage.isMissingData) return false;
           if (orientacaoFilter === 'vigente' && stage.orientacaoKey !== 'vigente' && stage.orientacaoKey !== 'baixar_pdf') return false;
           if (orientacaoFilter === 'gerar_renovacao' && stage.orientacaoKey !== 'gerar_renovacao') return false;
+          if (orientacaoFilter === 'finalizado' && stage.orientacaoKey !== 'finalizado') return false;
           if (orientacaoFilter === 'sincronizar_clicksign' && stage.orientacaoKey !== 'sincronizar_clicksign') return false;
           if (orientacaoFilter === 'gerar_asaas' && stage.orientacaoKey !== 'gerar_asaas') return false;
           if (orientacaoFilter === 'reenviar_link' && stage.orientacaoKey !== 'reenviar_link') return false;
@@ -2113,6 +2193,29 @@ export default function GestaoContratosPanel({
                 🔴 Vencidos ({stageCounts.vencido})
               </button>
 
+              {/* Finalizados (Não Renovou) */}
+              <button
+                type="button"
+                onClick={() => setContratoStatusFilter('finalizado')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: contratoStatusFilter === 'finalizado' ? '#9ca3af' : 'var(--border-color)',
+                  background: contratoStatusFilter === 'finalizado' ? 'rgba(107, 114, 128, 0.25)' : 'rgba(255,255,255,0.03)',
+                  color: contratoStatusFilter === 'finalizado' ? '#e5e7eb' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                🏁 Finalizados ({stageCounts.finalizado})
+              </button>
+
               {/* Aguardando Assinatura */}
               <button
                 type="button"
@@ -2631,31 +2734,79 @@ export default function GestaoContratosPanel({
                             >
                               <i className="fa-solid fa-eye" style={{ color: 'var(--color-primary)' }}></i> Consultar Resumo
                             </button>
-                          ) : (stage.stageKey === 'vencido' || stage.stageKey === 'renovacao') ? (
+                          ) : stage.stageKey === 'finalizado' ? (
                             <button
                               type="button"
-                              onClick={() => handleGenerateRenewalLink(c)}
-                              disabled={Boolean(generatingRenewalClientId)}
+                              onClick={() => handleOpenDirectContractWizard(c)}
                               style={{
                                 width: '100%',
                                 padding: '10px 14px',
                                 borderRadius: '10px',
                                 border: 'none',
-                                background: '#fbbf24',
-                                color: '#000000',
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                color: '#ffffff',
                                 fontWeight: 800,
                                 fontSize: '0.85rem',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
+                                justifyCenter: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
-                                boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)'
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
                               }}
                             >
-                              {generatingRenewalClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
-                              Gerar Renovação Anual (+5%)
+                              <i className="fa-solid fa-arrows-rotate"></i> Reativar / Nova Renovação
                             </button>
+                          ) : (stage.stageKey === 'vencido' || stage.stageKey === 'renovacao') ? (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateRenewalLink(c)}
+                                disabled={Boolean(generatingRenewalClientId)}
+                                style={{
+                                  flex: '1 1 auto',
+                                  padding: '10px 14px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: '#fbbf24',
+                                  color: '#000000',
+                                  fontWeight: 800,
+                                  fontSize: '0.84rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)'
+                                }}
+                              >
+                                {generatingRenewalClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
+                                Renovação (+5%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFinalizeModal(c)}
+                                title="Marcar contrato como Finalizado (Não Renovou)"
+                                style={{
+                                  padding: '10px 12px',
+                                  borderRadius: '10px',
+                                  border: '1px solid rgba(107, 114, 128, 0.4)',
+                                  background: 'rgba(107, 114, 128, 0.18)',
+                                  color: '#d1d5db',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '5px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                <i className="fa-solid fa-flag-checkered"></i> Não Renovou
+                              </button>
+                            </div>
                           ) : stage.stageKey === 'pendente' ? (
                             <button
                               type="button"
@@ -3484,6 +3635,7 @@ export default function GestaoContratosPanel({
                     <option value="ativo">🟢 Contrato Ativo (Matrícula Efetivada)</option>
                     <option value="lead">🟣 Lead / Em Avaliação</option>
                     <option value="congelado">🟡 Congelado</option>
+                    <option value="finalizado">🏁 Finalizado (Não Renovou)</option>
                     <option value="inativo">⚪ Sem Contrato Ativo / Inativo</option>
                   </select>
                 </div>
@@ -5604,6 +5756,91 @@ export default function GestaoContratosPanel({
                   {unlockingClient ? <><i className="fa-solid fa-spinner fa-spin"></i> Registrando...</> : <><i className="fa-solid fa-check"></i> Confirmar Desbloqueio</>}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL EXECUTIVO 6: FINALIZAR CONTRATO (NÃO RENOVOU)
+          ========================================================================= */}
+      {finalizeClientTarget && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => { if (!submittingFinalize) setFinalizeClientTarget(null); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', border: '1px solid rgba(107, 114, 128, 0.4)' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(107, 114, 128, 0.2)', color: '#9ca3af', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <i className="fa-solid fa-flag-checkered"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>Finalizar Contrato</h3>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    Aluno: <strong>{finalizeClientTarget.dadosPessoais?.nome || 'Aluno'}</strong>
+                  </div>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => { if (!submittingFinalize) setFinalizeClientTarget(null); }}>&times;</button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: 'rgba(107, 114, 128, 0.1)', border: '1px solid rgba(107, 114, 128, 0.25)', borderRadius: '10px', padding: '12px', fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
+                🏁 Ao marcar como <strong>Finalizado</strong>, o aluno sairá dos alertas de renovação/vencidos e será movido para o histórico de contratos finalizados. O histórico de treinos e prontuário permanece intacto.
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px', display: 'block' }}>
+                  Motivo do Encerramento:
+                </label>
+                <select
+                  className="select-custom"
+                  value={finalizeReason}
+                  onChange={e => setFinalizeReason(e.target.value)}
+                  style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }}
+                >
+                  <option value="decidiu_nao_renovar">Decidiu não renovar o plano</option>
+                  <option value="mudanca_cidade">Mudança de endereço / cidade</option>
+                  <option value="motivo_financeiro">Questões financeiras / orçamento</option>
+                  <option value="falta_tempo">Falta de tempo / rotina de trabalho</option>
+                  <option value="problema_saude">Problemas médicos / repouso</option>
+                  <option value="insatisfacao">Insatisfação com o serviço / atendimento</option>
+                  <option value="outro">Outro motivo</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+                  Observações Adicionais (Opcional):
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  placeholder="Detalhes ou feedback informado pelo cliente..."
+                  value={finalizeCustomObs}
+                  onChange={e => setFinalizeCustomObs(e.target.value)}
+                  style={{ fontSize: '0.83rem', resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setFinalizeClientTarget(null)}
+                disabled={submittingFinalize}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConfirmFinalizeContract}
+                disabled={submittingFinalize}
+                style={{ background: 'linear-gradient(135deg, #4b5563 0%, #374151 100%)', borderColor: '#4b5563', color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {submittingFinalize ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-flag-checkered"></i>}
+                Confirmar Encerramento
+              </button>
             </div>
           </div>
         </div>
