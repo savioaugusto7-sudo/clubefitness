@@ -62,7 +62,7 @@ export async function GET(request: Request) {
             if (info && info.dataFim) {
               c.dadosComerciais.vencimento = info.dataFim;
             }
-            if (c.dadosComerciais.status !== 'congelado' && c.dadosComerciais.status !== 'inativo') {
+            if (c.dadosComerciais.status !== 'congelado' && c.dadosComerciais.status !== 'inativo' && c.dadosComerciais.status !== 'finalizado') {
               c.dadosComerciais.status = info?.statusKey === 'vencido' ? 'vencido' : (c.dadosComerciais.status === 'lead' ? 'lead' : 'ativo');
             }
           } catch (itemErr: any) {
