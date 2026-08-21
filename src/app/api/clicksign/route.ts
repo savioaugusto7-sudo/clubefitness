@@ -386,3 +386,66 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+// Emissão direta de contrato via Clicksign
+export async function POST(request: Request) {
+  try {
+    await dbConnect();
+    const body = await request.json();
+    const {
+      clientId,
+      planoId,
+      valorFinal,
+      valorLiquido,
+      formaPagamento,
+      parcelas,
+      dataVencimento,
+      dataInicio,
+      duracao,
+      duracaoQtd
+    } = body;
+
+    if (!clientId) {
+      return NextResponse.json({ success: false, error: 'clientId é obrigatório' }, { status: 400 });
+    }
+
+    const client = await Client.findById(clientId);
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
+    }
+
+    const effectivePlanId = planoId || client.dadosComerciais?.planoId;
+    const plan = effectivePlanId ? await Plan.findById(effectivePlanId) : null;
+
+    const count = await Contract.countDocuments({ clientId });
+    const versao = count + 1;
+
+    const newContract = new Contract({
+      clientId,
+      planoId: effectivePlanId,
+      planoNome: plan?.nome || 'Plano Clube Fitness',
+      planoTipo: plan?.tipo || (duracao === 'anual' ? 'Anual' : 'Mensal'),
+      valorLiquido: valorFinal || valorLiquido || plan?.preco || 0,
+      valorBruto: valorFinal || valorLiquido || plan?.preco || 0,
+      formaPagamento: formaPagamento || 'pix',
+      parcelas: Number(parcelas) || 1,
+      dataInicio: dataInicio || new Date().toISOString().split('T')[0],
+      dataPrimeiroVencimento: dataVencimento || dataInicio || new Date().toISOString().split('T')[0],
+      status: 'pendente',
+      clicksignStatus: 'pendente',
+      versao
+    });
+
+    await newContract.save();
+
+    return NextResponse.json({
+      success: true,
+      data: newContract,
+      message: 'Contrato registrado com sucesso!'
+    });
+  } catch (error: any) {
+    console.error('[POST /api/clicksign] Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+

@@ -8,6 +8,7 @@ import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import { smartSearchMatch } from '@/utils/smartSearch';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 import ClicksignPanel from './ClicksignPanel';
+import MoneyInput from './MoneyInput';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -474,31 +475,50 @@ export default function GestaoContratosPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(clientUpdatePayload)
       });
-      const resData = await res.json();
+      const resText = await res.text();
+      let resData: any = {};
+      try { resData = JSON.parse(resText); } catch { resData = { success: false, error: resText }; }
       if (!resData.success) {
-        alert('Erro ao salvar dados comerciais: ' + resData.error);
+        alert('Erro ao salvar dados comerciais: ' + (resData.error || 'Erro desconhecido'));
         return;
       }
 
       if (action === 'clicksign') {
-        const signRes = await fetch('/api/clicksign', {
+        let pdfBase64 = '';
+        try {
+          pdfBase64 = await getContractPDFBase64(directContractClient, plan, '', clientUpdatePayload.dadosComerciais);
+        } catch {}
+
+        const signRes = await fetch('/api/contracts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clientId: directContractClient._id,
             planoId: dcwPlano,
-            valorFinal: calculatedValorLiquido,
+            dataInicio: dcwDataInicio,
             formaPagamento: dcwFormaPag,
             parcelas: dcwParcelas,
-            dataVencimento: dcwVencimento || dcwDataInicio,
-            dataInicio: dcwDataInicio
+            dataPrimeiroVencimento: dcwVencimento || dcwDataInicio,
+            valorBruto: grossPrice,
+            descontoTipo: dcwDescontoTipo,
+            descontoValor: dcwDescontoValor,
+            valorLiquido: calculatedValorLiquido,
+            duracao: dcwDuracao,
+            duracaoQtd: dcwVigenciaQtd,
+            frequencia: dcwFrequencia,
+            creditosTotal: dcwCreditosMensais,
+            enviarClicksign: true,
+            contratoPdfBase64: pdfBase64,
+            usuarioEmissor: userCargo || 'Administração'
           })
         });
-        const signData = await signRes.json();
+        const signText = await signRes.text();
+        let signData: any = {};
+        try { signData = JSON.parse(signText); } catch { signData = { success: false, error: signText }; }
         if (signData.success) {
           alert('Contrato emitido e enviado com sucesso para a Clicksign!');
         } else {
-          alert('Dados comerciais atualizados, mas houve aviso da Clicksign: ' + signData.error);
+          alert('Dados comerciais salvos, mas houve aviso na emissão: ' + (signData.error || 'Erro na comunicação'));
         }
       } else if (action === 'pdf') {
         downloadContractPDF(directContractClient, plan, '', clientUpdatePayload.dadosComerciais);
@@ -2307,24 +2327,23 @@ export default function GestaoContratosPanel({
             </div>
             <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Desconto Valor</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                className="form-control"
-                value={dcDescontoValor ? (dcDescontoTipo === 'percentual' ? String(dcDescontoValor) : formatCurrencyBRL(dcDescontoValor)) : ''}
-                onFocus={selectOnFocus}
-                onChange={e => {
-                  if (dcDescontoTipo === 'percentual') {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    setDcDescontoValor(raw ? Math.min(100, parseInt(raw, 10)) : 0);
-                  } else {
-                    const rawDigits = e.target.value.replace(/\D/g, '');
-                    const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
-                    setDcDescontoValor(num);
-                  }
-                }}
-                placeholder={dcDescontoTipo === 'percentual' ? '0%' : '0,00'}
-              />
+              {dcDescontoTipo === 'percentual' ? (
+                <input
+                  type="number"
+                  step="0.01"
+                  className="form-control"
+                  placeholder="0%"
+                  value={dcDescontoValor || ''}
+                  onFocus={selectOnFocus}
+                  onChange={e => setDcDescontoValor(parseFloat(e.target.value) || 0)}
+                />
+              ) : (
+                <MoneyInput
+                  value={dcDescontoValor}
+                  onChange={setDcDescontoValor}
+                  placeholder="R$ 0,00"
+                />
+              )}
             </div>
           </div>
 
@@ -2339,18 +2358,10 @@ export default function GestaoContratosPanel({
             </div>
             <div className="form-group" style={{ flex: '1 1 200px' }}>
               <label>Valor Unitário (R$)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                className="form-control"
-                value={dcValorUnitario ? formatCurrencyBRL(dcValorUnitario) : ''}
-                onFocus={selectOnFocus}
-                onChange={e => {
-                  const rawDigits = e.target.value.replace(/\D/g, '');
-                  const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
-                  setDcValorUnitario(num);
-                }}
-                placeholder="0,00"
+              <MoneyInput
+                value={dcValorUnitario}
+                onChange={setDcValorUnitario}
+                placeholder="R$ 0,00"
                 required
               />
             </div>
@@ -3657,14 +3668,12 @@ export default function GestaoContratosPanel({
                 {/* Valor Unitário, Tipo Desconto e Abatimento Concedido */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: '10px' }}>
                   <div className="form-group">
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário (R$)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="form-control"
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário</label>
+                    <MoneyInput
                       style={{ padding: '9px 10px', fontWeight: 750, color: 'var(--color-primary)' }}
                       value={swValorUnitario}
-                      onChange={e => setSwValorUnitario(parseFloat(e.target.value) || 0)}
+                      onChange={setSwValorUnitario}
+                      placeholder="R$ 0,00"
                     />
                   </div>
 
@@ -3685,15 +3694,25 @@ export default function GestaoContratosPanel({
                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
                       Abatimento Concedido ({swDescontoTipo === 'percentual' ? '%' : 'R$'})
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="form-control"
-                      placeholder={swDescontoTipo === 'percentual' ? '0%' : '0,00'}
-                      style={{ padding: '9px 10px' }}
-                      value={swDescontoValor}
-                      onChange={e => setSwDescontoValor(parseFloat(e.target.value) || 0)}
-                    />
+                    {swDescontoTipo === 'percentual' ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        placeholder="0%"
+                        style={{ padding: '9px 10px' }}
+                        value={swDescontoValor || ''}
+                        onFocus={selectOnFocus}
+                        onChange={e => setSwDescontoValor(parseFloat(e.target.value) || 0)}
+                      />
+                    ) : (
+                      <MoneyInput
+                        style={{ padding: '9px 10px' }}
+                        value={swDescontoValor}
+                        onChange={setSwDescontoValor}
+                        placeholder="R$ 0,00"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -3955,14 +3974,12 @@ export default function GestaoContratosPanel({
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: '10px' }}>
                       <div className="form-group">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário (R$)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="form-control"
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário</label>
+                        <MoneyInput
                           style={{ padding: '9px 10px', fontWeight: 750, color: 'var(--color-primary)' }}
                           value={dcwValorUnitario}
-                          onChange={e => setDcwValorUnitario(parseFloat(e.target.value) || 0)}
+                          onChange={setDcwValorUnitario}
+                          placeholder="R$ 0,00"
                         />
                       </div>
 
@@ -3983,15 +4000,25 @@ export default function GestaoContratosPanel({
                         <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
                           Abatimento Concedido ({dcwDescontoTipo === 'percentual' ? '%' : 'R$'})
                         </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="form-control"
-                          placeholder={dcwDescontoTipo === 'percentual' ? '0%' : '0,00'}
-                          style={{ padding: '9px 10px' }}
-                          value={dcwDescontoValor}
-                          onChange={e => setDcwDescontoValor(parseFloat(e.target.value) || 0)}
-                        />
+                        {dcwDescontoTipo === 'percentual' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="form-control"
+                            placeholder="0%"
+                            style={{ padding: '9px 10px' }}
+                            value={dcwDescontoValor || ''}
+                            onFocus={selectOnFocus}
+                            onChange={e => setDcwDescontoValor(parseFloat(e.target.value) || 0)}
+                          />
+                        ) : (
+                          <MoneyInput
+                            style={{ padding: '9px 10px' }}
+                            value={dcwDescontoValor}
+                            onChange={setDcwDescontoValor}
+                            placeholder="R$ 0,00"
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -4061,21 +4088,6 @@ export default function GestaoContratosPanel({
                         value={dcwVencimento}
                         onChange={e => setDcwVencimento(e.target.value)}
                       />
-                    </div>
-
-                    <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '10px', padding: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="checkbox"
-                          id="dcwRecorrenciaCheck"
-                          checked={dcwCriarRecorrencia}
-                          onChange={e => setDcwCriarRecorrencia(e.target.checked)}
-                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                        />
-                        <label htmlFor="dcwRecorrenciaCheck" style={{ fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
-                          Ativar Recorrência Mensal Automática no Asaas
-                        </label>
-                      </div>
                     </div>
                   </>
                 )}

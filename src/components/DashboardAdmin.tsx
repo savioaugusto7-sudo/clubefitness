@@ -16,6 +16,7 @@ import DadosClinicosPanel from './DadosClinicosPanel';
 import WorkoutBuilder from './WorkoutBuilder';
 import DynamusPanel from './DynamusPanel';
 import { getContractValidityInfo } from '@/utils/contractValidity';
+import MoneyInput from './MoneyInput';
 
 
 export const normalizeText = (str: string) => {
@@ -5760,18 +5761,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       </div>
                       <div className="form-group">
                         <label>Valor (R$)</label>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="form-control"
-                          value={finValor ? formatCurrencyBRL(finValor) : ''}
-                          onFocus={selectOnFocus}
-                          onChange={e => {
-                            const rawDigits = e.target.value.replace(/\D/g, '');
-                            const num = rawDigits ? parseInt(rawDigits, 10) / 100 : 0;
-                            setFinValor(num);
-                          }}
-                          placeholder="0,00"
+                        <MoneyInput
+                          value={finValor}
+                          onChange={setFinValor}
+                          placeholder="R$ 0,00"
                           required
                         />
                       </div>

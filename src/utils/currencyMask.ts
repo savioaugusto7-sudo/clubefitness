@@ -3,6 +3,18 @@
  */
 
 /**
+ * Formata um número ou string numérica no padrão BRL com prefixo "R$ " (ex: 1000 -> "R$ 1.000,00")
+ */
+export function formatMoneyBRL(value: number | string | undefined | null): string {
+  if (value === undefined || value === null || value === '' || isNaN(Number(value))) {
+    return 'R$ 0,00';
+  }
+  const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/\./g, '').replace(',', '.'));
+  if (isNaN(num)) return 'R$ 0,00';
+  return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
  * Formata um número ou string numérica no padrão BRL (ex: 1000 -> "1.000,00")
  */
 export function formatCurrencyBRL(value: number | string | undefined | null): string {
