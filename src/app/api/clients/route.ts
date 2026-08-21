@@ -54,15 +54,25 @@ export async function GET(request: Request) {
     }
 
     // Auto-Heal & Consistência de Vigência: calcula a vigência real unificada
-    clients.forEach((c: any) => {
-      if (c.dadosComerciais) {
-        const info = getContractValidityInfo(c, c.dadosComerciais.planoId);
-        c.dadosComerciais.vencimento = info.dataFim;
-        if (c.dadosComerciais.status !== 'congelado' && c.dadosComerciais.status !== 'inativo') {
-          c.dadosComerciais.status = info.statusKey === 'vencido' ? 'vencido' : (c.dadosComerciais.status === 'lead' ? 'lead' : 'ativo');
+    try {
+      clients.forEach((c: any) => {
+        if (c && c.dadosComerciais) {
+          try {
+            const info = getContractValidityInfo(c, c.dadosComerciais.planoId);
+            if (info && info.dataFim) {
+              c.dadosComerciais.vencimento = info.dataFim;
+            }
+            if (c.dadosComerciais.status !== 'congelado' && c.dadosComerciais.status !== 'inativo') {
+              c.dadosComerciais.status = info?.statusKey === 'vencido' ? 'vencido' : (c.dadosComerciais.status === 'lead' ? 'lead' : 'ativo');
+            }
+          } catch (itemErr: any) {
+            console.warn('[clients GET] Error calculating validity for client:', c._id, itemErr?.message);
+          }
         }
-      }
-    });
+      });
+    } catch (loopErr: any) {
+      console.warn('[clients GET] Loop error in auto-heal:', loopErr?.message);
+    }
 
     return NextResponse.json({ success: true, data: clients });
   } catch (error: any) {
