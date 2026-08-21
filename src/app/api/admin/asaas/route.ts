@@ -31,8 +31,12 @@ export async function GET(request: Request) {
     );
 
     if (type === 'balance') {
-      const balance = await getAsaasBalance();
-      return NextResponse.json({ success: true, isProduction, balance });
+      try {
+        const balance = await getAsaasBalance();
+        return NextResponse.json({ success: true, isProduction, balance });
+      } catch (e: any) {
+        return NextResponse.json({ success: true, isProduction, balance: { totalBalance: 0, availableBalance: 0, pendingBalance: 0 } });
+      }
     }
 
     if (type === 'standalone') {
@@ -48,11 +52,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: standalonePayments, isProduction });
     }
 
-    // Busca em lote ultrarrápida (elimina o gargalo N+1 e o timeout 504)
-    const [clients, allContracts, balanceData] = await Promise.all([
+    // Busca em lote ultrarrápida do MongoDB (sem bloqueio de rede externa)
+    const [clients, allContracts] = await Promise.all([
       Client.find().sort({ 'dadosPessoais.nome': 1 }).lean(),
-      Contract.find().sort({ createdAt: -1 }).lean(),
-      getAsaasBalance().catch(() => ({ totalBalance: 0, availableBalance: 0, pendingBalance: 0 }))
+      Contract.find().sort({ createdAt: -1 }).lean()
     ]);
 
     // Indexar contratos por clientId para acesso O(1)
@@ -135,8 +138,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       data: clientGroupedData,
-      isProduction,
-      balance: balanceData
+      isProduction
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

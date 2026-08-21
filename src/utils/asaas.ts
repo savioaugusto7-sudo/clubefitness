@@ -210,7 +210,7 @@ export async function getAsaasBalance() {
     const res = await fetch(`${baseUrl}/finance/balance`, {
       method: 'GET',
       headers,
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(3500)
     });
 
     if (!res.ok) {

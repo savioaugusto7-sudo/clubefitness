@@ -88,8 +88,25 @@ export default function AsaasPanel() {
       setWebhookUrl(`${window.location.origin}/api/webhooks/asaas`);
     }
     fetchPayments();
+    fetchBalance();
     fetchStandalonePayments();
   }, []);
+
+  const fetchBalance = async () => {
+    try {
+      const res = await fetch('/api/admin/asaas?type=balance');
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success && json.balance) {
+        setBalance(json.balance);
+      }
+      if (json.isProduction !== undefined) {
+        setIsProduction(json.isProduction);
+      }
+    } catch (e: any) {
+      console.warn('Aviso ao consultar saldo Asaas:', e?.message || e);
+    }
+  };
 
   const fetchPayments = async (silent = false) => {
     if (!silent) setLoading(true);
