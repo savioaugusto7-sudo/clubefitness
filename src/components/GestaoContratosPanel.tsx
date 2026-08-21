@@ -1318,10 +1318,10 @@ export default function GestaoContratosPanel({
     }
   };
 
-  // Render Client List General View
-  if (!selectedClient) {
-    return (
-      <div>
+  return (
+    <div>
+      {!selectedClient ? (
+        <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Gestão Completa de Contratos</h2>
@@ -1840,11 +1840,7 @@ export default function GestaoContratosPanel({
       </>
       )}
     </div>
-  );
-  }
-
-  // Render Detailed Workspace View for Selected Client
-  return (
+  ) : (
     <div>
       {/* Workspace Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
@@ -2710,6 +2706,8 @@ export default function GestaoContratosPanel({
           </div>
         </div>
       </div>
+      </div>
+      )}
 
       {/* MODAL 1: TEXT PREVIEW */}
       {showTextPreview && (
