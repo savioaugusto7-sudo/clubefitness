@@ -507,6 +507,21 @@ export default function GestaoContratosPanel({
   const [renewingValidity, setRenewingValidity] = useState(false);
   const [cancelingRecurrence, setCancelingRecurrence] = useState(false);
 
+  // Form states (Dados Pessoais / Cadastrais do Contratante)
+  const [dcNome, setDcNome] = useState('');
+  const [dcEmail, setDcEmail] = useState('');
+  const [dcCpf, setDcCpf] = useState('');
+  const [dcTelefone, setDcTelefone] = useState('');
+  const [dcSexo, setDcSexo] = useState('M');
+  const [dcNascimento, setDcNascimento] = useState('');
+  const [dcEndereco, setDcEndereco] = useState('');
+  const [dcNumero, setDcNumero] = useState('');
+  const [dcComplemento, setDcComplemento] = useState('');
+  const [dcBairro, setDcBairro] = useState('');
+  const [dcCidade, setDcCidade] = useState('');
+  const [dcEstado, setDcEstado] = useState('');
+  const [dcCep, setDcCep] = useState('');
+
   // Form states (Dados Comerciais)
   const [dcPlano, setDcPlano] = useState('');
   const [dcStatus, setDcStatus] = useState<string>('ativo');
@@ -1271,6 +1286,21 @@ export default function GestaoContratosPanel({
   const handleSelectClient = (client: any) => {
     setSelectedClient(client);
     const com = client.dadosComerciais || {};
+    const pes = client.dadosPessoais || {};
+
+    setDcNome(pes.nome || client.nome || '');
+    setDcEmail(pes.email || client.email || '');
+    setDcCpf(pes.cpf || '');
+    setDcTelefone(pes.telefone || '');
+    setDcSexo(pes.sexo || 'M');
+    setDcNascimento(pes.dataNascimento || pes.nascimento || '');
+    setDcEndereco(pes.endereco || '');
+    setDcNumero(pes.numero || '');
+    setDcComplemento(pes.complemento || '');
+    setDcBairro(pes.bairro || '');
+    setDcCidade(pes.cidade || '');
+    setDcEstado(pes.estado || '');
+    setDcCep(pes.cep || '');
     
     setDcPlano(com.planoId?._id || com.planoId || '');
     setDcStatus(com.status === 'lead' ? 'ativo' : (com.status || 'ativo'));
@@ -1332,6 +1362,21 @@ export default function GestaoContratosPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: selectedClient._id,
+          dadosPessoais: {
+            nome: dcNome,
+            email: dcEmail,
+            cpf: dcCpf,
+            telefone: dcTelefone,
+            sexo: dcSexo,
+            dataNascimento: dcNascimento,
+            endereco: dcEndereco,
+            numero: dcNumero,
+            complemento: dcComplemento,
+            bairro: dcBairro,
+            cidade: dcCidade,
+            estado: dcEstado,
+            cep: dcCep
+          },
           dadosComerciais: {
             planoId: dcPlano || null,
             status: dcStatus || 'ativo',
@@ -2964,6 +3009,160 @@ export default function GestaoContratosPanel({
                   >
                     <i className="fa-solid fa-xmark"></i> Fechar Workspace
                   </button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* =========================================================================
+              BLOCO DADOS CADASTRAIS DO CONTRATANTE (BLINDADOS / LIBERÁVEIS POR ADMIN)
+              ========================================================================= */}
+          {(() => {
+            const isClientLocked = Boolean(
+              selectedClient.bloqueioCadastral?.bloqueado || 
+              (selectedClient.bloqueioCadastral?.dadosInformadosPeloCliente && selectedClient.bloqueioCadastral?.bloqueado !== false)
+            );
+            const lockMotivo = selectedClient.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+
+            return (
+              <div style={{
+                background: 'var(--bg-secondary)',
+                border: isClientLocked ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-id-card" style={{ color: isClientLocked ? '#34d399' : 'var(--color-primary)', fontSize: '1.05rem' }}></i>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                      Dados Cadastrais do Contratante
+                    </h4>
+                    {isClientLocked ? (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-lock"></i> {lockMotivo} (Blindado)
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-pen"></i> Modo Edição Liberado
+                      </span>
+                    )}
+                  </div>
+
+                  {isClientLocked && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setShowUnlockModal(true)}
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '4px 10px',
+                        background: 'rgba(251, 191, 36, 0.15)',
+                        color: '#fbbf24',
+                        borderColor: 'rgba(251, 191, 36, 0.4)',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Nome Completo {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcNome} onChange={e => setDcNome(e.target.value)} disabled={isClientLocked} required />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      E-mail {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="email" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcEmail} onChange={e => setDcEmail(e.target.value)} disabled={isClientLocked} required />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      CPF {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcCpf} onChange={e => setDcCpf(e.target.value)} disabled={isClientLocked} placeholder="000.000.000-00" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Telefone / WhatsApp {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} disabled={isClientLocked} placeholder="(00) 00000-0000" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Data de Nascimento {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="date" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} disabled={isClientLocked} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Sexo {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <select className="select-custom" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcSexo} onChange={e => setDcSexo(e.target.value)} disabled={isClientLocked}>
+                      <option value="M">Masculino</option>
+                      <option value="F">Feminino</option>
+                      <option value="O">Outro</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 0.8fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      CEP {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcCep} onChange={e => setDcCep(e.target.value)} disabled={isClientLocked} placeholder="00000-000" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Endereço (Rua/Avenida) {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} disabled={isClientLocked} placeholder="Rua..." />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Número {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcNumero} onChange={e => setDcNumero(e.target.value)} disabled={isClientLocked} placeholder="123" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Complemento {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcComplemento} onChange={e => setDcComplemento(e.target.value)} disabled={isClientLocked} placeholder="Apto, Bloco..." />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 0.8fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Bairro {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcBairro} onChange={e => setDcBairro(e.target.value)} disabled={isClientLocked} placeholder="Bairro" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Cidade {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcCidade} onChange={e => setDcCidade(e.target.value)} disabled={isClientLocked} placeholder="Cidade" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Estado (UF) {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcEstado} onChange={e => setDcEstado(e.target.value)} disabled={isClientLocked} placeholder="UF" />
+                  </div>
                 </div>
               </div>
             );
