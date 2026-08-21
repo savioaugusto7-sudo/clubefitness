@@ -44,6 +44,7 @@ interface StandalonePaymentInfo {
 
 export default function AsaasPanel() {
   const [clients, setClients] = useState<AsaasClientInfo[]>([]);
+  const [allGymClients, setAllGymClients] = useState<any[]>([]);
   const [standalonePayments, setStandalonePayments] = useState<StandalonePaymentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStandalone, setLoadingStandalone] = useState(false);
@@ -56,6 +57,7 @@ export default function AsaasPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [standaloneSearchQuery, setStandaloneSearchQuery] = useState('');
+  const [clientSearchFilter, setClientSearchFilter] = useState('');
 
   // Standalone form states (100% BOLETO BANCÁRIO)
   const [formClientId, setFormClientId] = useState('');
@@ -85,6 +87,7 @@ export default function AsaasPanel() {
       setWebhookUrl(`${window.location.origin}/api/webhooks/asaas`);
     }
     fetchPayments();
+    fetchAllGymClients();
     fetchBalance();
     fetchStandalonePayments();
   }, []);
@@ -102,6 +105,19 @@ export default function AsaasPanel() {
       }
     } catch (e) {
       console.warn('Erro ao buscar saldo do Asaas:', e);
+    }
+  };
+
+  const fetchAllGymClients = async () => {
+    try {
+      const res = await fetch('/api/clients');
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setAllGymClients(json.data);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar base completa de alunos:', e);
     }
   };
 
@@ -299,8 +315,9 @@ export default function AsaasPanel() {
   };
 
   const handleSendWhatsAppStandalone = (p: StandalonePaymentInfo) => {
-    const matchedClient = clients.find(c => c.nome.toLowerCase() === p.clientNome.toLowerCase());
-    const rawPhone = (matchedClient?.telefone || '').replace(/\D/g, '');
+    const matchedClient = clients.find(c => c.nome.toLowerCase() === p.clientNome.toLowerCase()) || 
+      allGymClients.find(c => (c.dadosPessoais?.nome || c.nome || '').toLowerCase() === p.clientNome.toLowerCase());
+    const rawPhone = (matchedClient?.dadosPessoais?.telefone || matchedClient?.telefone || '').replace(/\D/g, '');
     const phoneParam = rawPhone ? (rawPhone.length <= 11 ? `55${rawPhone}` : rawPhone) : '';
     const msg = `Olá, ${p.clientNome}! 🏋️‍♂️\n\nSegue o link do seu *Boleto Bancário* no valor de *R$ ${formatCurrencyBRL(p.valor)}*:\n\n📄 *Acessar Boleto:* ${p.asaasInvoiceUrl}\n\nQualquer dúvida, estamos à disposição!`;
     const targetUrl = phoneParam ? `https://wa.me/${phoneParam}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -337,13 +354,61 @@ export default function AsaasPanel() {
     });
   }, [standalonePayments, standaloneSearchQuery]);
 
+  // Unified available clients map (100% of gym clients)
+  const availableClientOptions = useMemo(() => {
+    const map = new Map<string, { id: string; nome: string; cpf: string; telefone: string; planoNome?: string; valorSugerido?: number }>();
+
+    for (const gc of allGymClients) {
+      const id = gc._id?.toString() || gc.id;
+      if (id) {
+        map.set(id, {
+          id,
+          nome: gc.dadosPessoais?.nome || gc.nome || 'Sem Nome',
+          cpf: gc.dadosPessoais?.cpf || gc.cpf || '',
+          telefone: gc.dadosPessoais?.telefone || gc.telefone || '',
+          planoNome: gc.dadosComerciais?.planoId?.nome || '',
+          valorSugerido: gc.dadosComerciais?.valorUnitario || 0
+        });
+      }
+    }
+
+    for (const ac of clients) {
+      if (ac.clientId && !map.has(ac.clientId)) {
+        map.set(ac.clientId, {
+          id: ac.clientId,
+          nome: ac.nome,
+          cpf: ac.cpf,
+          telefone: ac.telefone || '',
+          planoNome: ac.planoNome || '',
+          valorSugerido: ac.valorLiquido || 0
+        });
+      }
+    }
+
+    let list = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    if (clientSearchFilter.trim()) {
+      list = list.filter(item => 
+        smartSearchMatch(clientSearchFilter, item.nome) || 
+        smartSearchMatch(clientSearchFilter, item.cpf) ||
+        smartSearchMatch(clientSearchFilter, item.planoNome || '')
+      );
+    }
+
+    return list;
+  }, [allGymClients, clients, clientSearchFilter]);
+
   const selectedFormClient = useMemo(() => {
-    return clients.find(c => c.clientId === formClientId);
-  }, [clients, formClientId]);
+    return availableClientOptions.find(c => c.id === formClientId);
+  }, [availableClientOptions, formClientId]);
 
   const subscriptionsList = useMemo(() => {
     return standalonePayments.filter(p => p.planoNome.includes('Assinatura') || p.observacoes?.includes('Assinatura'));
   }, [standalonePayments]);
+
+  const readyToBillClicksignCount = useMemo(() => {
+    return clients.filter(c => c.status === 'nao_gerado' && c.isSignedClicksign).length;
+  }, [clients]);
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '60px' }}>
@@ -422,7 +487,12 @@ export default function AsaasPanel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <button
               className="btn btn-secondary"
-              onClick={() => fetchPayments(false)}
+              onClick={() => {
+                fetchPayments(false);
+                fetchAllGymClients();
+                fetchBalance();
+                fetchStandalonePayments();
+              }}
               disabled={loading}
               style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
@@ -482,12 +552,15 @@ export default function AsaasPanel() {
         </div>
       </div>
 
-      {/* KPI Cards (Fintech Metrics) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+      {/* KPI Cards (Enriched Metrics) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginBottom: '20px' }}>
         <div className="metric-card" style={{ background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
           <div className="metric-info">
-            <h3 style={{ color: '#10b981' }}>Saldo Disponível</h3>
+            <h3 style={{ color: '#10b981' }}>Saldo Disponível (Asaas)</h3>
             <div className="value" style={{ color: '#10b981' }}>R$ {formatCurrencyBRL(balance.availableBalance)}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              ✓ Saldo liberado para saque
+            </div>
           </div>
           <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
             <i className="fa-solid fa-vault"></i>
@@ -496,8 +569,11 @@ export default function AsaasPanel() {
 
         <div className="metric-card" style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
           <div className="metric-info">
-            <h3 style={{ color: '#f59e0b' }}>Saldo a Receber (Futuro)</h3>
+            <h3 style={{ color: '#f59e0b' }}>Saldo a Receber (Boletos)</h3>
             <div className="value" style={{ color: '#f59e0b' }}>R$ {formatCurrencyBRL(balance.pendingBalance)}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Previsão de boletos futuros
+            </div>
           </div>
           <div className="metric-icon warning">
             <i className="fa-solid fa-clock-rotate-left"></i>
@@ -507,7 +583,17 @@ export default function AsaasPanel() {
         <div className="metric-card" style={{ background: 'rgba(99, 102, 241, 0.06)', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
           <div className="metric-info">
             <h3 style={{ color: '#818cf8' }}>Contratos Faturados</h3>
-            <div className="value" style={{ color: '#818cf8' }}>{clients.filter(c => c.status === 'gerado').length}</div>
+            <div className="value" style={{ color: '#818cf8', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+              <span>{clients.filter(c => c.status === 'gerado').length}</span>
+              {readyToBillClicksignCount > 0 && (
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+                  +{readyToBillClicksignCount} Clicksign Pronto
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              {readyToBillClicksignCount > 0 ? `${readyToBillClicksignCount} contrato(s) assinado(s) pronto(s) para faturar` : 'Boletos gerados via contrato'}
+            </div>
           </div>
           <div className="metric-icon indigo">
             <i className="fa-solid fa-file-invoice-dollar"></i>
@@ -518,6 +604,9 @@ export default function AsaasPanel() {
           <div className="metric-info">
             <h3 style={{ color: '#f472b6' }}>Assinaturas em Boleto</h3>
             <div className="value" style={{ color: '#f472b6' }}>{subscriptionsList.length}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              💬 Disparos no WhatsApp 5d antes
+            </div>
           </div>
           <div className="metric-icon" style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#ec4899' }}>
             <i className="fa-solid fa-receipt"></i>
@@ -908,7 +997,7 @@ export default function AsaasPanel() {
         </div>
       )}
 
-      {/* TAB 3: EMITIR BOLETO AVULSO (COM RESUMO DE VALORES AO LADO) */}
+      {/* TAB 3: EMITIR BOLETO AVULSO (COM RESUMO DE VALORES AO LADO E BUSCA RÁPIDA DE ALUNOS) */}
       {activeSubTab === 'avulsa' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1.2fr) minmax(280px, 0.8fr)', gap: '24px', alignItems: 'start' }}>
           
@@ -956,19 +1045,43 @@ export default function AsaasPanel() {
                 </div>
 
                 <div className="form-group">
-                  <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>
-                    Selecione o Aluno (Dados Blindados): *
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', margin: 0 }}>
+                      Selecione o Aluno (Dados Blindados): *
+                    </label>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {availableClientOptions.length} aluno(s) disponível(is)
+                    </span>
+                  </div>
+
+                  <div style={{ marginBottom: '8px' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="🔍 Filtrar aluno por nome ou CPF..."
+                      value={clientSearchFilter}
+                      onChange={e => setClientSearchFilter(e.target.value)}
+                      style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                    />
+                  </div>
+
                   <select
                     className="select-custom"
                     value={formClientId}
-                    onChange={e => setFormClientId(e.target.value)}
+                    onChange={e => {
+                      const selectedId = e.target.value;
+                      setFormClientId(selectedId);
+                      const matched = availableClientOptions.find(c => c.id === selectedId);
+                      if (matched && matched.valorSugerido && formValor === 0) {
+                        setFormValor(matched.valorSugerido);
+                      }
+                    }}
                     required
                   >
                     <option value="">-- Selecione o Aluno --</option>
-                    {clients.map(c => (
-                      <option key={c.clientId} value={c.clientId}>
-                        {c.nome} ({c.cpf || 'Sem CPF'})
+                    {availableClientOptions.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome} ({c.cpf ? `CPF: ${c.cpf}` : 'Sem CPF'}{c.planoNome ? ` • ${c.planoNome}` : ''})
                       </option>
                     ))}
                   </select>
@@ -1087,7 +1200,7 @@ export default function AsaasPanel() {
                   {selectedFormClient?.nome || 'Nenhum aluno selecionado'}
                 </strong>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  CPF: {selectedFormClient?.cpf || '—'}
+                  CPF: {selectedFormClient?.cpf || '—'} {selectedFormClient?.planoNome ? `• Plano: ${selectedFormClient.planoNome}` : ''}
                 </div>
               </div>
 
