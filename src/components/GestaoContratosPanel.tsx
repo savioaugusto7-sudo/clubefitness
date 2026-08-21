@@ -332,6 +332,7 @@ export default function GestaoContratosPanel({
       };
       const obsFinal = `[Contrato Finalizado em ${new Date().toLocaleDateString('pt-BR')}]: ${reasonMap[finalizeReason] || finalizeReason}${finalizeCustomObs && finalizeReason !== 'outro' ? ` - Obs: ${finalizeCustomObs}` : ''}`;
 
+      const planIdVal = finalizeClientTarget.dadosComerciais?.planoId?._id || finalizeClientTarget.dadosComerciais?.planoId || null;
       const res = await fetch('/api/clients', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -339,6 +340,7 @@ export default function GestaoContratosPanel({
           id: finalizeClientTarget._id,
           dadosComerciais: {
             ...finalizeClientTarget.dadosComerciais,
+            planoId: planIdVal,
             status: 'finalizado',
             observacoesContratuais: `${finalizeClientTarget.dadosComerciais?.observacoesContratuais ? finalizeClientTarget.dadosComerciais.observacoesContratuais + '\n' : ''}${obsFinal}`
           }
@@ -348,6 +350,8 @@ export default function GestaoContratosPanel({
       if (data.success) {
         alert(`🏁 Contrato de ${finalizeClientTarget.dadosPessoais?.nome || 'Aluno'} finalizado com sucesso!\nO aluno foi transferido para o status "Finalizados".`);
         setFinalizeClientTarget(null);
+        setSelectedClient(null);
+        setDcStatus('finalizado');
         fetchData(true);
       } else {
         alert('Erro ao finalizar contrato: ' + (data.error || 'Erro desconhecido'));

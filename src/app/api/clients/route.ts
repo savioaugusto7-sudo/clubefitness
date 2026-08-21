@@ -249,11 +249,28 @@ export async function PUT(request: Request) {
         vencimento: calculatedEnd
       };
 
+      if (merged.planoId && typeof merged.planoId === 'object' && (merged.planoId as any)._id) {
+        merged.planoId = (merged.planoId as any)._id;
+      }
+
       Object.assign(client.dadosComerciais, merged);
       if (dadosComerciais.status) {
         client.status = dadosComerciais.status;
       }
       client.markModified('dadosComerciais');
+
+      if (dadosComerciais.status === 'finalizado') {
+        client.status = 'finalizado';
+        try {
+          const ContractModel = (await import('@/models/Contract')).default;
+          await ContractModel.updateMany(
+            { clientId: client._id },
+            { $set: { status: 'cancelado' } }
+          );
+        } catch (contractErr) {
+          console.error('[API Clients PUT] Error canceling contracts on finalization:', contractErr);
+        }
+      }
     }
     if (profissionalId !== undefined) {
       client.profissionalId = profissionalId || null;
