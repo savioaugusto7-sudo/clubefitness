@@ -147,7 +147,7 @@ export async function PUT(request: Request) {
     const { user } = await checkSessionPermission(['admin', 'receptionist', 'professional', 'client']);
 
     const body = await request.json();
-    const { id, dadosPessoais, dadosClinicos, dadosComerciais, profissionalId, cadastroConcluido, termoAceito, dataAceiteTermo } = body;
+    const { id, action, justificativa, dadosPessoais, dadosClinicos, dadosComerciais, profissionalId, cadastroConcluido, termoAceito, dataAceiteTermo } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing client ID' }, { status: 400 });
@@ -162,7 +162,68 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
     }
 
+    // Ação Especial: Desbloqueio Administrativo de Dados Blindados
+    if (action === 'unlock_dados') {
+      const isAdmin = user.role === 'admin' || user.roles?.includes('admin') || user.cargo === 'Administrador' || user.cargo === 'Administrador Geral';
+      if (!isAdmin) {
+        return NextResponse.json({ success: false, error: 'Apenas o Administrador pode liberar a edição de dados cadastrais blindados.' }, { status: 403 });
+      }
+
+      if (!justificativa || justificativa.trim().length < 6) {
+        return NextResponse.json({ success: false, error: 'Justificativa obrigatória (mínimo de 6 caracteres) para auditoria de desbloqueio.' }, { status: 400 });
+      }
+
+      if (!client.bloqueioCadastral) {
+        client.bloqueioCadastral = {
+          bloqueado: false,
+          motivo: '',
+          dadosInformadosPeloCliente: true,
+          origemCadastro: 'admin_painel',
+          historicoDesbloqueios: []
+        };
+      }
+
+      client.bloqueioCadastral.bloqueado = false;
+      client.bloqueioCadastral.historicoDesbloqueios.push({
+        dataHora: new Date(),
+        operadorNome: user.nome || 'Administrador',
+        operadorEmail: user.email || '',
+        justificativa: justificativa.trim(),
+        camposAlterados: ['Desbloqueio para Edição Geral'],
+        ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || ''
+      });
+      client.markModified('bloqueioCadastral');
+
+      await client.save();
+      return NextResponse.json({ success: true, message: 'Dados cadastrais desbloqueados com sucesso.', data: client });
+    }
+
     if (dadosPessoais) {
+      // Se os dados estiverem bloqueados e a requisição não for de admin com justificativa
+      const isLocked = Boolean(client.bloqueioCadastral?.bloqueado);
+      const isAdmin = user.role === 'admin' || user.roles?.includes('admin') || user.cargo === 'Administrador' || user.cargo === 'Administrador Geral';
+
+      if (isLocked && !isAdmin) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Os dados cadastrais deste aluno estão blindados (informação fornecida pelo contratante ou consolidada em contrato). Apenas o Administrador pode liberar a edição.' 
+        }, { status: 403 });
+      }
+
+      // Se for admin alterando dados bloqueados, registrar auditoria
+      if (isLocked && isAdmin && justificativa) {
+        if (!client.bloqueioCadastral) client.bloqueioCadastral = { historicoDesbloqueios: [] };
+        client.bloqueioCadastral.historicoDesbloqueios.push({
+          dataHora: new Date(),
+          operadorNome: user.nome || 'Administrador',
+          operadorEmail: user.email || '',
+          justificativa: justificativa.trim(),
+          camposAlterados: Object.keys(dadosPessoais),
+          ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || ''
+        });
+        client.markModified('bloqueioCadastral');
+      }
+
       const normalizedSexo = dadosPessoais.sexo ? (dadosPessoais.sexo.trim().toUpperCase().startsWith('F') ? 'F' : (dadosPessoais.sexo.trim().toUpperCase().startsWith('M') ? 'M' : 'O')) : undefined;
       const updatedPessoais = { ...dadosPessoais };
       if (normalizedSexo !== undefined) {

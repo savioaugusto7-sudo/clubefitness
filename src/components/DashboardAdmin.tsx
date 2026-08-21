@@ -202,6 +202,45 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [creditType, setCreditType] = useState<'academia' | 'massagem' | 'emergencia'>('academia');
   const [creditOperation, setCreditOperation] = useState<'add' | 'sub'>('add');
 
+  // States for Data Shielding & Unlock Audit
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockJustificativa, setUnlockJustificativa] = useState('');
+  const [unlockingClient, setUnlockingClient] = useState(false);
+
+  const handleUnlockClientData = async () => {
+    if (!editingItem) return;
+    if (!unlockJustificativa.trim() || unlockJustificativa.trim().length < 6) {
+      alert('Por favor, informe uma justificativa válida com no mínimo 6 caracteres para fins de auditoria.');
+      return;
+    }
+
+    setUnlockingClient(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingItem._id,
+          action: 'unlock_dados',
+          justificativa: unlockJustificativa
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Dados cadastrais desbloqueados com sucesso para edição!');
+        setEditingItem(data.data);
+        setShowUnlockModal(false);
+        setUnlockJustificativa('');
+        fetchData();
+      } else {
+        alert('Erro ao desbloquear: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de conexão: ' + err.message);
+    } finally {
+      setUnlockingClient(false);
+    }
+  };
 
   // New states for the missing features
   const [plans, setPlans] = useState<any[]>([]);
@@ -5506,34 +5545,77 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             </div>
             <form onSubmit={handleSave}>
               <div className="modal-body">
-                {modalType === 'client' && (
-                  <>
-                    <div className="form-group">
-                      <label>Nome Completo</label>
-                      <input type="text" className="form-control" value={nome} onChange={e => setNome(e.target.value)} required />
-                    </div>
-                    <div className="form-group">
-                      <label>E-mail de Acesso (Google)</label>
-                      <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required />
-                    </div>
-                    <div className="form-row">
+                {modalType === 'client' && (() => {
+                  const isClientLocked = Boolean(
+                    editingItem && (editingItem.bloqueioCadastral?.bloqueado || (editingItem.bloqueioCadastral?.dadosInformadosPeloCliente && editingItem.bloqueioCadastral?.bloqueado !== false))
+                  );
+                  const lockMotivo = editingItem?.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+
+                  return (
+                    <>
+                      {/* Shield Banner */}
+                      {isClientLocked && (
+                        <div style={{
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          borderRadius: '8px',
+                          padding: '12px 14px',
+                          marginBottom: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '10px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontSize: '0.82rem', fontWeight: 700 }}>
+                            <i className="fa-solid fa-shield-halved" style={{ fontSize: '1rem' }}></i>
+                            <span>{lockMotivo} (Dados Blindados)</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setShowUnlockModal(true)}
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '4px 10px',
+                              background: 'rgba(251, 191, 36, 0.15)',
+                              color: '#fbbf24',
+                              borderColor: 'rgba(251, 191, 36, 0.4)',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
+                          </button>
+                        </div>
+                      )}
+
                       <div className="form-group">
-                        <label>CPF</label>
-                        <input type="text" className="form-control" value={cpf} onChange={e => setCpf(e.target.value)} />
+                        <label>Nome Completo {isClientLocked && <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>[Blindado]</span>}</label>
+                        <input type="text" className="form-control" value={nome} onChange={e => setNome(e.target.value)} disabled={isClientLocked} required />
                       </div>
                       <div className="form-group">
-                        <label>Telefone</label>
-                        <input type="text" className="form-control" value={telefone} onChange={e => setTelefone(e.target.value)} />
+                        <label>E-mail de Acesso (Google) {isClientLocked && <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>[Blindado]</span>}</label>
+                        <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} disabled={isClientLocked} required />
                       </div>
-                    </div>
-                    <div className="form-group">
-                      <label>Plano</label>
-                      <select className="select-custom" value={plano} onChange={e => setPlano(e.target.value)}>
-                        {(plans.length > 0 ? plans : plansList).map((p: any) => (
-                          <option key={p._id || p.id} value={p._id || p.id}>{p.nome}</option>
-                        ))}
-                      </select>
-                    </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>CPF {isClientLocked && <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>[Blindado]</span>}</label>
+                          <input type="text" className="form-control" value={cpf} onChange={e => setCpf(e.target.value)} disabled={isClientLocked} />
+                        </div>
+                        <div className="form-group">
+                          <label>Telefone {isClientLocked && <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>[Blindado]</span>}</label>
+                          <input type="text" className="form-control" value={telefone} onChange={e => setTelefone(e.target.value)} disabled={isClientLocked} />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>Plano</label>
+                        <select className="select-custom" value={plano} onChange={e => setPlano(e.target.value)}>
+                          {(plans.length > 0 ? plans : plansList).map((p: any) => (
+                            <option key={p._id || p.id} value={p._id || p.id}>{p.nome}</option>
+                          ))}
+                        </select>
+                      </div>
 
                     {editingItem && (() => {
                       const todayStr = new Date().toISOString().split('T')[0];
@@ -5600,7 +5682,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       );
                     })()}
                   </>
-                )}
+                );
+              })()}
 
                 {modalType === 'professional' && (
                   <>
@@ -6450,13 +6533,72 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                  <button type="button" className="btn btn-secondary" onClick={() => setShowEditAptModal(false)}>Cancelar</button>
                  <button type="submit" className="btn btn-primary" disabled={savingEditApt || !editAptTime}>
-                   {savingEditApt ? 'Salvando...' : 'Confirmar Reagendamento'}
+                  {savingEditApt ? 'Salvando...' : 'Confirmar Reagendamento'}
                  </button>
                </div>
              </form>
            </div>
          </div>
        )}
+
+        {/* MODAL DE DESBLOQUEIO DE DADOS BLINDADOS COM AUDITORIA */}
+        {showUnlockModal && editingItem && (
+          <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setShowUnlockModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '90%', border: '1px solid rgba(251, 191, 36, 0.4)' }}>
+              <div className="modal-header" style={{ borderBottom: '1px solid rgba(251, 191, 36, 0.2)' }}>
+                <h3 style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem' }}>
+                  <i className="fa-solid fa-triangle-exclamation"></i> Liberação de Edição Cadastral
+                </h3>
+                <button className="modal-close" onClick={() => setShowUnlockModal(false)}>&times;</button>
+              </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '16px' }}>
+                <div style={{ background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251, 191, 36, 0.25)', padding: '12px', borderRadius: '8px', fontSize: '0.84rem', color: '#fef08a', lineHeight: '1.4' }}>
+                  <strong>Atenção de Segurança e Conformidade:</strong><br />
+                  Estes dados foram informados diretamente pelo contratante ou consolidados em contrato oficial. A alteração indevida altera o cadastro legal do aluno. Esta liberação será gravada na trilha de auditoria.
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                    Justificativa Obrigatória da Alteração <span style={{ color: 'var(--color-danger)' }}>*</span>
+                  </label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    placeholder="Ex: Correção de dígito no CPF ou telefone solicitada pelo aluno com comprovante..."
+                    value={unlockJustificativa}
+                    onChange={e => setUnlockJustificativa(e.target.value)}
+                    style={{ fontSize: '0.83rem', resize: 'vertical' }}
+                    required
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                    Mínimo de 6 caracteres. Será registrado: seu nome (Administrador), data/hora e IP.
+                  </small>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ flex: 1 }}
+                    onClick={() => setShowUnlockModal(false)}
+                    disabled={unlockingClient}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ flex: 1, background: '#f59e0b', color: '#000', fontWeight: 800 }}
+                    onClick={handleUnlockClientData}
+                    disabled={unlockingClient || unlockJustificativa.trim().length < 6}
+                  >
+                    {unlockingClient ? <><i className="fa-solid fa-spinner fa-spin"></i> Registrando...</> : <><i className="fa-solid fa-check"></i> Confirmar Desbloqueio</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

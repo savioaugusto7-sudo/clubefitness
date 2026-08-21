@@ -250,6 +250,46 @@ export default function GestaoContratosPanel({
   const [allProposalsMap, setAllProposalsMap] = useState<Record<string, any>>({});
   const [syncingClicksignClientId, setSyncingClicksignClientId] = useState<string | null>(null);
 
+  // States for Data Shielding & Unlock Audit in Workspace
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockJustificativa, setUnlockJustificativa] = useState('');
+  const [unlockingClient, setUnlockingClient] = useState(false);
+
+  const handleUnlockClientData = async () => {
+    if (!selectedClient) return;
+    if (!unlockJustificativa.trim() || unlockJustificativa.trim().length < 6) {
+      alert('Por favor, informe uma justificativa válida com no mínimo 6 caracteres para fins de auditoria.');
+      return;
+    }
+
+    setUnlockingClient(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedClient._id,
+          action: 'unlock_dados',
+          justificativa: unlockJustificativa
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Dados cadastrais desbloqueados com sucesso para edição!');
+        setSelectedClient(data.data);
+        setShowUnlockModal(false);
+        setUnlockJustificativa('');
+        fetchData(true);
+      } else {
+        alert('Erro ao desbloquear: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro de conexão: ' + err.message);
+    } finally {
+      setUnlockingClient(false);
+    }
+  };
+
   const loadContractsAndProposalsOverview = async () => {
     try {
       const [contractsRes, proposalsRes] = await Promise.all([
@@ -2861,6 +2901,12 @@ export default function GestaoContratosPanel({
               }
             }
 
+            const isClientLocked = Boolean(
+              selectedClient.bloqueioCadastral?.bloqueado || 
+              (selectedClient.bloqueioCadastral?.dadosInformadosPeloCliente && selectedClient.bloqueioCadastral?.bloqueado !== false)
+            );
+            const lockMotivo = selectedClient.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+
             return (
               <div style={{
                 background: '#111827',
@@ -2874,9 +2920,16 @@ export default function GestaoContratosPanel({
                 gap: '12px'
               }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px' }}>
-                    {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Sem Nome'}
-                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px' }}>
+                      {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Sem Nome'}
+                    </h3>
+                    {isClientLocked && (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-shield-halved"></i> {lockMotivo} (Blindado)
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', fontWeight: 500 }}>
                     {selectedClient.dadosPessoais?.cpf ? `CPF: ${selectedClient.dadosPessoais.cpf}` : 'Sem CPF'}
                     {selectedClient.dadosPessoais?.telefone && ` • Tel: ${selectedClient.dadosPessoais.telefone}`}
@@ -2885,6 +2938,24 @@ export default function GestaoContratosPanel({
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {isClientLocked && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setShowUnlockModal(true)}
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '6px 12px',
+                        background: 'rgba(251, 191, 36, 0.15)',
+                        color: '#fbbf24',
+                        borderColor: 'rgba(251, 191, 36, 0.4)',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -4903,6 +4974,66 @@ export default function GestaoContratosPanel({
                 {asaasModalSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
                 Buscar & Sincronizar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* =========================================================================
+          MODAL EXECUTIVO 5: LIBERAÇÃO DE EDIÇÃO CADASTRAL COM AUDITORIA
+          ========================================================================= */}
+      {showUnlockModal && selectedClient && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setShowUnlockModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '90%', border: '1px solid rgba(251, 191, 36, 0.4)' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid rgba(251, 191, 36, 0.2)' }}>
+              <h3 style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', margin: 0 }}>
+                <i className="fa-solid fa-triangle-exclamation"></i> Liberação de Edição Cadastral
+              </h3>
+              <button className="modal-close" onClick={() => setShowUnlockModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '20px' }}>
+              <div style={{ background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251, 191, 36, 0.25)', padding: '12px', borderRadius: '8px', fontSize: '0.84rem', color: '#fef08a', lineHeight: '1.4' }}>
+                <strong>Atenção de Segurança e Conformidade:</strong><br />
+                Os dados cadastrais de <strong>{selectedClient.dadosPessoais?.nome || 'Aluno'}</strong> foram informados diretamente pelo contratante ou consolidados em contrato. A alteração indevida altera o cadastro legal. Esta ação será registrada na trilha de auditoria.
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                  Justificativa Obrigatória da Alteração <span style={{ color: 'var(--color-danger)' }}>*</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  placeholder="Ex: Correção de dígito no CPF ou telefone solicitada pelo aluno com comprovante..."
+                  value={unlockJustificativa}
+                  onChange={e => setUnlockJustificativa(e.target.value)}
+                  style={{ fontSize: '0.83rem', resize: 'vertical' }}
+                  required
+                />
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                  Mínimo de 6 caracteres. Será registrado: seu nome (Administrador), data/hora e IP.
+                </small>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  onClick={() => setShowUnlockModal(false)}
+                  disabled={unlockingClient}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1, background: '#f59e0b', color: '#000', fontWeight: 800 }}
+                  onClick={handleUnlockClientData}
+                  disabled={unlockingClient || unlockJustificativa.trim().length < 6}
+                >
+                  {unlockingClient ? <><i className="fa-solid fa-spinner fa-spin"></i> Registrando...</> : <><i className="fa-solid fa-check"></i> Confirmar Desbloqueio</>}
+                </button>
+              </div>
             </div>
           </div>
         </div>

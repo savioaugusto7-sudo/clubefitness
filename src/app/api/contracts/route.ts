@@ -648,6 +648,19 @@ export async function POST(request: Request) {
     if (contratoAnexo || contratoPdfBase64) {
       client.contratoAnexo = contratoAnexo || contratoPdfBase64;
     }
+
+    if (!client.bloqueioCadastral?.bloqueado) {
+      client.bloqueioCadastral = {
+        bloqueado: true,
+        motivo: client.bloqueioCadastral?.dadosInformadosPeloCliente
+          ? 'Informação fornecida pelo contratante'
+          : 'Dado consolidado em contrato',
+        dadosInformadosPeloCliente: Boolean(client.bloqueioCadastral?.dadosInformadosPeloCliente),
+        origemCadastro: client.bloqueioCadastral?.origemCadastro || 'admin_painel',
+        historicoDesbloqueios: client.bloqueioCadastral?.historicoDesbloqueios || []
+      };
+    }
+
     await client.save();
 
     return NextResponse.json({ success: true, data: newContract });

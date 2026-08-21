@@ -1547,33 +1547,46 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
               ))}
             </div>
             <div style={{ padding: '24px' }}>
-              {clientModalTab === 'pessoais' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div><label style={labelStyle}>Nome</label><input style={inputStyle} value={dcNome} onChange={e => setDcNome(e.target.value)} /></div>
-                    <div><label style={labelStyle}>E-mail</label><input style={inputStyle} value={dcEmail} onChange={e => setDcEmail(e.target.value)} /></div>
-                    <div><label style={labelStyle}>CPF</label><input style={inputStyle} value={dcCpf} onChange={e => setDcCpf(e.target.value)} /></div>
-                    <div><label style={labelStyle}>Telefone</label><input style={inputStyle} value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} /></div>
-                    <div>
-                      <label style={labelStyle}>Sexo</label>
-                      <select style={inputStyle} value={dcSexo} onChange={e => setDcSexo(e.target.value)}>
-                        <option value="M">Masculino</option><option value="F">Feminino</option><option value="O">Outro</option>
-                      </select>
+              {clientModalTab === 'pessoais' && (() => {
+                const isClientLocked = Boolean(
+                  selectedClient && (selectedClient.bloqueioCadastral?.bloqueado || (selectedClient.bloqueioCadastral?.dadosInformadosPeloCliente && selectedClient.bloqueioCadastral?.bloqueado !== false))
+                );
+                const lockMotivo = selectedClient?.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {isClientLocked && (
+                      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontSize: '0.82rem', fontWeight: 700 }}>
+                        <i className="fa-solid fa-shield-halved"></i>
+                        <span>{lockMotivo} (Dados Blindados para Edição)</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div><label style={labelStyle}>Nome {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcNome} onChange={e => setDcNome(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>E-mail {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcEmail} onChange={e => setDcEmail(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>CPF {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcCpf} onChange={e => setDcCpf(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>Telefone {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} disabled={isClientLocked} /></div>
+                      <div>
+                        <label style={labelStyle}>Sexo {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label>
+                        <select style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcSexo} onChange={e => setDcSexo(e.target.value)} disabled={isClientLocked}>
+                          <option value="M">Masculino</option><option value="F">Feminino</option><option value="O">Outro</option>
+                        </select>
+                      </div>
+                      <div><label style={labelStyle}>Nascimento {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} type="date" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>Endereço {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>Número {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcNumero} onChange={e => setDcNumero(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>Bairro {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcBairro} onChange={e => setDcBairro(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>Cidade {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcCidade} onChange={e => setDcCidade(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>Estado {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcEstado} onChange={e => setDcEstado(e.target.value)} disabled={isClientLocked} /></div>
+                      <div><label style={labelStyle}>CEP {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.7rem' }}>[Blindado]</span>}</label><input style={{ ...inputStyle, opacity: isClientLocked ? 0.7 : 1 }} value={dcCep} onChange={e => setDcCep(e.target.value)} disabled={isClientLocked} /></div>
                     </div>
-                    <div><label style={labelStyle}>Nascimento</label><input style={inputStyle} type="date" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} /></div>
-                    <div><label style={labelStyle}>Endereço</label><input style={inputStyle} value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} /></div>
-                    <div><label style={labelStyle}>Número</label><input style={inputStyle} value={dcNumero} onChange={e => setDcNumero(e.target.value)} /></div>
-                    <div><label style={labelStyle}>Bairro</label><input style={inputStyle} value={dcBairro} onChange={e => setDcBairro(e.target.value)} /></div>
-                    <div><label style={labelStyle}>Cidade</label><input style={inputStyle} value={dcCidade} onChange={e => setDcCidade(e.target.value)} /></div>
-                    <div><label style={labelStyle}>Estado</label><input style={inputStyle} value={dcEstado} onChange={e => setDcEstado(e.target.value)} /></div>
-                    <div><label style={labelStyle}>CEP</label><input style={inputStyle} value={dcCep} onChange={e => setDcCep(e.target.value)} /></div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                      <button style={btnSecondary} onClick={() => setShowClientModal(false)}>Fechar</button>
+                      {!isClientLocked && <button style={btnPrimary} onClick={handleSaveClientPersonal}>Salvar</button>}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                    <button style={btnSecondary} onClick={() => setShowClientModal(false)}>Fechar</button>
-                    <button style={btnPrimary} onClick={handleSaveClientPersonal}>Salvar</button>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
               {clientModalTab === 'comerciais' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div className="comercial-summary-card" style={{ padding: '20px', marginBottom: '10px' }}>

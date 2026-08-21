@@ -162,6 +162,14 @@ export async function PUT(request: Request) {
       estado: dadosPreenchidos.estado || pes.estado
     };
 
+    client.bloqueioCadastral = {
+      bloqueado: true,
+      motivo: 'Informação fornecida pelo contratante no aceite da proposta de venda',
+      dadosInformadosPeloCliente: true,
+      origemCadastro: client.bloqueioCadastral?.origemCadastro || 'link_venda',
+      historicoDesbloqueios: client.bloqueioCadastral?.historicoDesbloqueios || []
+    };
+
     await client.save();
 
     // 2. Update Proposal details and status to 'respondida'

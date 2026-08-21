@@ -129,6 +129,13 @@ export async function POST(request: Request) {
         creditosTotal: 0,
         creditosUsados: 0,
         creditosReservados: 0
+      },
+      bloqueioCadastral: {
+        bloqueado: true,
+        motivo: 'Informação fornecida pelo contratante no cadastro público',
+        dadosInformadosPeloCliente: true,
+        origemCadastro: 'publico_onboarding',
+        historicoDesbloqueios: []
       }
     });
 

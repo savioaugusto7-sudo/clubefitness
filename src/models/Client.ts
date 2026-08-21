@@ -71,6 +71,25 @@ const DadosComerciaisSchema = new Schema({
   }
 }, { _id: false });
 
+const BloqueioCadastralSchema = new Schema({
+  bloqueado: { type: Boolean, default: false },
+  motivo: { type: String, default: '' },
+  dadosInformadosPeloCliente: { type: Boolean, default: false },
+  origemCadastro: { 
+    type: String, 
+    enum: ['publico_onboarding', 'link_venda', 'admin_painel', 'importacao'],
+    default: 'admin_painel'
+  },
+  historicoDesbloqueios: [{
+    dataHora: { type: Date, default: Date.now },
+    operadorNome: { type: String, required: true },
+    operadorEmail: { type: String, default: '' },
+    justificativa: { type: String, required: true },
+    camposAlterados: [{ type: String }],
+    ip: { type: String, default: '' }
+  }]
+}, { _id: false });
+
 const ClientSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   codigo: { type: String },
@@ -80,6 +99,7 @@ const ClientSchema = new Schema({
   dadosPessoais: { type: DadosPessoaisSchema, required: true },
   dadosClinicos: { type: DadosClinicosSchema, default: () => ({}) },
   dadosComerciais: { type: DadosComerciaisSchema, default: () => ({}) },
+  bloqueioCadastral: { type: BloqueioCadastralSchema, default: () => ({}) },
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null }
 }, { timestamps: true });
 
