@@ -1090,15 +1090,25 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
       {/* MODAL 1: Ajustar Capacidade/Vagas (Local) */}
       {showAdjustModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAdjustModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%' }}>
+        <div className="modal-overlay" onClick={() => setShowAdjustModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', width: '95%' }}>
             <div className="modal-header">
-              <h3>Ajustar Vagas - {adjustTargetTime} ({adjustTargetType})</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <i className="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Ajustar Vagas</h3>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    Horário: <strong>{adjustTargetTime}</strong> ({adjustTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})
+                  </div>
+                </div>
+              </div>
               <button className="modal-close" onClick={() => setShowAdjustModal(false)}>&times;</button>
             </div>
-            <div className="modal-body" style={{ padding: '20px' }}>
+            <div className="modal-body">
               <div className="form-group">
-                <label>Número de Vagas Disponíveis</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Número de Vagas Disponíveis</label>
                 <input 
                   type="number" 
                   className="form-control" 
@@ -1106,10 +1116,11 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                   max={20} 
                   value={adjustCapacityVal}
                   onChange={e => setAdjustCapacityVal(Number(e.target.value))} 
+                  style={{ width: '100%', padding: '10px', fontSize: '1rem', fontWeight: 700 }}
                 />
               </div>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowAdjustModal(false)}>Voltar</button>
               <button className="btn btn-secondary" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => handleSaveCapacityRule(false)}>Apenas esta Data</button>
               <button className="btn btn-primary" onClick={() => handleSaveCapacityRule(true)}>Salvar Semanal</button>
@@ -1120,17 +1131,25 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
       {/* MODAL 1.5: Suspender Horário (Confirmação Customizada) */}
       {showDeleteConfirmModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowDeleteConfirmModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px', width: '90%' }}>
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirmModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
             <div className="modal-header">
-              <h3 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-trash-can"></i> Suspender Horário
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <i className="fa-solid fa-trash-can"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ef4444' }}>Suspender Horário</h3>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    Horário: <strong>{deleteTargetTime}</strong> ({deleteTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})
+                  </div>
+                </div>
+              </div>
               <button className="modal-close" onClick={() => setShowDeleteConfirmModal(false)}>&times;</button>
             </div>
             
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
-              <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5 }}>
+            <div className="modal-body">
+              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
                 Como deseja suspender o horário das <strong>{deleteTargetTime}</strong> ({deleteTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})?
               </p>
               
@@ -1141,12 +1160,12 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                     handleBlockSlot(deleteTargetTime, deleteTargetType, false);
                     setShowDeleteConfirmModal(false);
                   }}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '12px 16px', height: 'auto', textAlign: 'left', borderColor: 'var(--border-color)' }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '14px 16px', height: 'auto', textAlign: 'left', borderColor: 'var(--border-color)', borderRadius: '12px' }}
                 >
-                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>
+                  <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
                     Apenas neste dia ({selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : ''})
                   </strong>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>O horário voltará a ficar ativo na semana seguinte.</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>O horário voltará a ficar ativo na semana seguinte.</span>
                 </button>
 
                 <button 
@@ -1155,17 +1174,17 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                     handleBlockSlot(deleteTargetTime, deleteTargetType, true);
                     setShowDeleteConfirmModal(false);
                   }}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '12px 16px', height: 'auto', textAlign: 'left', borderColor: 'var(--border-color)' }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '14px 16px', height: 'auto', textAlign: 'left', borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: '12px' }}
                 >
-                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>De forma recorrente (semanal)</strong>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Remover das {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }) + 's' : 'todas as semanas'}.
+                  <strong style={{ fontSize: '0.9rem', color: '#ef4444' }}>De forma recorrente (todas as semanas)</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Remover permanentemente das {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }) + 's' : 'todas as semanas'}.
                   </span>
                 </button>
               </div>
             </div>
 
-            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowDeleteConfirmModal(false)}>Cancelar</button>
             </div>
           </div>
@@ -1174,34 +1193,44 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
       {/* MODAL 2: Adicionar Horário Extra (Local) */}
       {showAddHourModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAddHourModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%' }}>
+        <div className="modal-overlay" onClick={() => setShowAddHourModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', width: '95%' }}>
             <div className="modal-header">
-              <h3>Adicionar Horário Extra</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <i className="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Adicionar Horário Extra</h3>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Nova vaga ou abertura de agenda</div>
+                </div>
+              </div>
               <button className="modal-close" onClick={() => setShowAddHourModal(false)}>&times;</button>
             </div>
-            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="modal-body">
               <div className="form-group">
-                <label>Horário (HH:MM)</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Horário (HH:MM)</label>
                 <input 
                   type="time" 
                   className="form-control" 
                   value={addTimeInput}
                   onChange={e => setAddTimeInput(e.target.value)} 
+                  style={{ width: '100%', padding: '10px' }}
                 />
               </div>
 
               <div className="form-group">
-                <label>Vagas Iniciais</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Vagas Iniciais</label>
                 <input 
                   type="number" 
                   className="form-control" 
                   value={addCapacityInput}
                   onChange={e => setAddCapacityInput(Number(e.target.value))} 
+                  style={{ width: '100%', padding: '10px' }}
                 />
               </div>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowAddHourModal(false)}>Voltar</button>
               <button className="btn btn-secondary" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => handleAddExtraHour(false)}>Apenas esta Data</button>
               <button className="btn btn-primary" onClick={() => handleAddExtraHour(true)}>Adicionar Semanal</button>
@@ -1212,42 +1241,58 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
       {/* MODAL 3: Visualização Detalhada & Agendamento Manual (Local) */}
       {showDetailsModal && selectedSlot && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowDetailsModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px', width: '95%' }}>
+        <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '620px', width: '95%' }}>
             <div className="modal-header">
-              <h3>Alunos Agendados - {selectedSlot.horario} ({selectedSlot.tipo})</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <i className="fa-solid fa-users-gear"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                    Gerenciar Horário: {selectedSlot.horario}
+                  </h3>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    {selectedSlot.tipo === 'academia' ? 'Academia (Treino)' : 'Consultório (Fisioterapia)'} • <strong style={{ color: '#10b981' }}>{selectedSlot.vagasOcupadas}/{selectedSlot.capacidade} vagas</strong>
+                  </div>
+                </div>
+              </div>
               <button className="modal-close" onClick={() => setShowDetailsModal(false)}>&times;</button>
             </div>
-            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
+
+            <div className="modal-body">
               <div className="appointments-list-container">
-                <h4 style={{ fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '10px' }}>Alunos com Horário Reservado</h4>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+                  Alunos com Horário Reservado ({selectedSlot.appointments.length})
+                </div>
                 {selectedSlot.appointments.length === 0 ? (
-                  <div style={{ padding: '16px', background: 'var(--bg-darker)', borderRadius: '8px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-                    Não há alunos marcados neste horário.
+                  <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-color)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+                    Nenhum aluno agendado para este horário.
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {selectedSlot.appointments.map(apt => (
                       <div 
                         key={apt._id}
                         style={{
-                          background: 'var(--bg-darker)',
+                          background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid var(--border-color)',
-                          borderRadius: '6px',
-                          padding: '10px 12px',
+                          borderRadius: '12px',
+                          padding: '12px 14px',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'space-between'
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          flexWrap: 'wrap'
                         }}
                       >
-                        <div style={{ flex: '1 1 auto', marginRight: '12px' }}>
-                          <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>{apt.clienteId?.dadosPessoais?.nome}</strong>
+                        <div style={{ flex: '1 1 200px' }}>
+                          <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{apt.clienteId?.dadosPessoais?.nome}</strong>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            CPF: {apt.clienteId?.dadosPessoais?.cpf} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
+                            CPF: {apt.clienteId?.dadosPessoais?.cpf || '—'} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
                           </div>
                           <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                            Profissional: <strong style={{ color: 'var(--color-primary)' }}>{apt.profissionalId?.dadosPessoais?.nome}</strong> · Serviço: <strong>{apt.servico}</strong>
+                            Profissional: <strong style={{ color: 'var(--color-primary)' }}>{apt.profissionalId?.dadosPessoais?.nome || 'Equipe'}</strong> · Serviço: <strong>{apt.servico}</strong>
                           </div>
                           {apt.observacoes && (
                             <div style={{
@@ -1272,22 +1317,22 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                           )}
                         </div>
 
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                           {apt.status === 'agendado' ? (
                             <>
-                              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-success)', borderColor: 'rgba(16,185,129,0.2)' }} onClick={() => handleUpdateAptStatus(apt._id, 'presenca')}>
+                              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-success)', borderColor: 'rgba(16,185,129,0.3)', padding: '6px 12px', fontWeight: 600 }} onClick={() => handleUpdateAptStatus(apt._id, 'presenca')}>
                                 <i className="fa-solid fa-check"></i> Presença
                               </button>
-                              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)' }} onClick={() => handleUpdateAptStatus(apt._id, 'cancelado')}>
-                                <i className="fa-solid fa-ban"></i> Faltou
+                              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '6px 12px', fontWeight: 600 }} onClick={() => handleUpdateAptStatus(apt._id, 'falta')}>
+                                <i className="fa-solid fa-ban"></i> Falta
                               </button>
                             </>
                           ) : (
-                            <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: apt.status === 'presenca' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                            <span style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', background: apt.status === 'presenca' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: apt.status === 'presenca' ? '#10b981' : '#ef4444', fontWeight: 800, textTransform: 'uppercase' }}>
                               {apt.status}
                             </span>
                           )}
-                          <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)' }} onClick={() => handleRemoveAppointment(apt._id)}>
+                          <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)', padding: '6px 10px' }} title="Excluir Agendamento" onClick={() => handleRemoveAppointment(apt._id)}>
                             <i className="fa-solid fa-trash-can"></i>
                           </button>
                         </div>
@@ -1298,55 +1343,63 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
               </div>
 
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                <h4 style={{ fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '10px' }}>Agendar Novo Aluno Manualmente</h4>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+                  Agendar Novo Aluno Manualmente
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   
                   <div style={{ position: 'relative' }}>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Buscar Aluno</label>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Buscar Aluno</label>
                     <input 
-                      type="text"
-                      className="form-control"
-                      placeholder="Pesquisar por nome de aluno..."
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Pesquisar por nome ou CPF..." 
                       value={clientSearchText}
                       onChange={e => {
                         setClientSearchText(e.target.value);
                         setManualClientId('');
                       }}
+                      style={{ width: '100%', padding: '10px 12px' }}
                     />
                     {clientSearchText && !manualClientId && (
                       <div style={{ 
                         position: 'absolute', 
-                        width: '100%', 
-                        background: '#ffffff', 
-                        border: '1px solid #d1d5db', 
-                        borderRadius: '6px', 
-                        zIndex: 9999, 
-                        marginTop: '2px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                        maxHeight: '200px',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: '#090e1a', 
+                        border: '1px solid rgba(255, 255, 255, 0.15)', 
+                        borderRadius: '10px', 
+                        zIndex: 99999, 
+                        marginTop: '4px',
+                        boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
+                        maxHeight: '220px',
                         overflowY: 'auto'
                       }}>
                         {filteredClients.map(c => (
                           <div 
                             key={c._id}
                             style={{ 
-                              padding: '10px 12px', 
+                              padding: '12px 14px', 
                               cursor: 'pointer', 
-                              fontSize: '0.82rem', 
-                              borderBottom: '1px solid #f3f4f6',
-                              color: '#111827',
-                              transition: 'background-color 0.2s'
+                              fontSize: '0.84rem', 
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                              color: '#ffffff',
+                              transition: 'background-color 0.15s ease',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
                             }}
                             onClick={() => {
                               setManualClientId(c._id);
                               setClientSearchText(c.dadosPessoais.nome);
                             }}
-                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.12)'}
                             onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                           >
-                            <strong style={{ color: '#111827' }}>{c.dadosPessoais.nome}</strong> 
-                            <span style={{ color: '#6b7280', marginLeft: '6px' }}>
-                              (CPF: {c.dadosPessoais.cpf || '—'})
+                            <strong style={{ color: '#ffffff' }}>{c.dadosPessoais.nome}</strong> 
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                              CPF: {c.dadosPessoais.cpf || '—'}
                             </span>
                           </div>
                         ))}
@@ -1355,8 +1408,8 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Serviço</label>
-                    <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)}>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Serviço</label>
+                    <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)} style={{ width: '100%', padding: '10px' }}>
                       {selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 ? (
                         <option value="Massagem">Massagem</option>
                       ) : selectedSlot.tipo === 'academia' ? (
@@ -1378,7 +1431,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                   </div>
 
                   {bookingError && (
-                    <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(239,68,68,0.1)', padding: '8px 12px', borderRadius: '8px' }}>
                       <i className="fa-solid fa-triangle-exclamation"></i> {bookingError}
                     </div>
                   )}
@@ -1391,7 +1444,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                     style={{
                       alignSelf: 'flex-end',
                       marginTop: '6px',
-                      minWidth: '200px',
+                      padding: '12px 20px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1424,57 +1477,68 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
       {/* MODAL 4: Adicionar Compromisso na Google Agenda */}
       {showAddGoogleEventModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAddGoogleEventModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px', width: '90%' }}>
+        <div className="modal-overlay" onClick={() => setShowAddGoogleEventModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
             <div className="modal-header">
-              <h3>Novo Compromisso - Google Agenda</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  <i className="fa-brands fa-google"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Novo Compromisso Google Agenda</h3>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Sincronização direta com o calendário</div>
+                </div>
+              </div>
               <button className="modal-close" onClick={() => setShowAddGoogleEventModal(false)}>&times;</button>
             </div>
-            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="modal-body">
               <div className="form-group">
-                <label>Título do Compromisso</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Título do Compromisso</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="Ex: Almoço de negócios, Consulta particular"
+                  placeholder="Ex: Reunião clínica, Consulta particular..." 
                   value={googleEventTitle}
                   onChange={e => setGoogleEventTitle(e.target.value)} 
+                  style={{ width: '100%', padding: '10px' }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label>Horário de Início</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Início</label>
                   <input 
                     type="time" 
                     className="form-control" 
                     value={googleEventStart}
                     onChange={e => setGoogleEventStart(e.target.value)} 
+                    style={{ width: '100%', padding: '10px' }}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Horário de Término</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Término</label>
                   <input 
                     type="time" 
                     className="form-control" 
                     value={googleEventEnd}
                     onChange={e => setGoogleEventEnd(e.target.value)} 
+                    style={{ width: '100%', padding: '10px' }}
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Descrição (Opcional)</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Descrição (Opcional)</label>
                 <textarea 
                   className="form-control" 
-                  style={{ minHeight: '60px', resize: 'vertical' }}
-                  placeholder="Detalhes adicionais..."
+                  style={{ minHeight: '70px', resize: 'vertical', width: '100%', padding: '10px' }}
+                  placeholder="Detalhes adicionais do compromisso..." 
                   value={googleEventDesc}
                   onChange={e => setGoogleEventDesc(e.target.value)} 
                 />
               </div>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowAddGoogleEventModal(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleAddGoogleEvent}>Salvar no Google</button>
             </div>
@@ -1482,50 +1546,31 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         </div>
       )}
 
-      {/* MODAL 5: Bottom Sheet Nativo de Inspeção Rápida de Agendamento & Observações (Desktop & Mobile) */}
+      {/* MODAL 5: Modal Executivo de Inspeção Rápida de Agendamento & Observações (Desktop & Mobile) */}
       {inspectApt && (
-        <div className="bottom-sheet-overlay" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>
-          <div className="bottom-sheet-card" onClick={e => e.stopPropagation()}>
-            <div className="bottom-sheet-handle"></div>
-
-            {/* Header com Aluno e Horário */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 800 }}>
+        <div className="modal-overlay" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px', width: '95%' }}>
+            
+            {/* Modal Header Executivo */}
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
                   <i className="fa-solid fa-user-check"></i>
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
                     {inspectApt.clienteId?.dadosPessoais?.nome || inspectApt.clienteNome || 'Aluno'}
                   </h3>
-                  <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                     📅 {formatSelectedDateWithDayOfWeek(inspectApt.data || selectedDate)} às <strong style={{ color: '#10b981' }}>{inspectApt.horario}</strong>
-                  </p>
+                  </div>
                 </div>
               </div>
-              <button 
-                type="button"
-                onClick={() => { setInspectApt(null); setIsEditingObs(false); }} 
-                style={{ 
-                  background: 'rgba(255,255,255,0.06)', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
-                  color: 'var(--text-muted)', 
-                  width: '34px', 
-                  height: '34px', 
-                  borderRadius: '50%', 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1rem',
-                  touchAction: 'manipulation'
-                }}
-              >
-                <i className="fa-solid fa-xmark"></i>
-              </button>
+              <button className="modal-close" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>&times;</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Modal Body com Scroll Inteligente */}
+            <div className="modal-body">
               {/* Modalidade & Contato */}
               <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -1534,7 +1579,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                 <span style={{
                   fontSize: '0.74rem',
                   fontWeight: 800,
-                  padding: '3px 10px',
+                  padding: '4px 12px',
                   borderRadius: '10px',
                   background: getServiceColor(inspectApt.servico).bg,
                   color: getServiceColor(inspectApt.servico).text,
@@ -1565,8 +1610,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '6px',
-                        touchAction: 'manipulation'
+                        gap: '6px'
                       }}
                     >
                       <i className="fa-solid fa-pen-to-square"></i> {inspectApt.observacoes ? 'Editar' : 'Adicionar'}
@@ -1609,8 +1653,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                           padding: '8px 14px',
                           borderRadius: '8px',
                           fontSize: '0.82rem',
-                          cursor: 'pointer',
-                          touchAction: 'manipulation'
+                          cursor: 'pointer'
                         }}
                       >
                         Cancelar
@@ -1630,8 +1673,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '6px',
-                          touchAction: 'manipulation'
+                          gap: '6px'
                         }}
                       >
                         {savingObs ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
@@ -1662,7 +1704,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
               </div>
 
               {/* Ações Rápidas de Frequência em Botões Tácteis Grandes */}
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '6px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '4px' }}>
                 {inspectApt.status === 'agendado' ? (
                   <>
                     <button
@@ -1685,8 +1727,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
-                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
-                        touchAction: 'manipulation'
+                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
                       }}
                     >
                       <i className="fa-solid fa-check"></i> Marcar Presença
@@ -1710,8 +1751,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '8px',
-                        touchAction: 'manipulation'
+                        gap: '8px'
                       }}
                     >
                       <i className="fa-solid fa-xmark"></i> Falta
@@ -1734,6 +1774,11 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                 )}
               </div>
             </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>Fechar</button>
+            </div>
+
           </div>
         </div>
       )}
