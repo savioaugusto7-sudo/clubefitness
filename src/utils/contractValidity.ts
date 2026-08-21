@@ -55,7 +55,7 @@ function safeFormatYYYYMMDD(d: Date): string {
 
 export function calculateContractEndDate(
   dataInicioStr?: any,
-  duracao?: 'anual' | 'mensal' | 'semana' | 'indeterminado' | string,
+  duracao?: 'anual' | 'semestral' | 'mensal' | 'semana' | 'indeterminado' | string,
   vigenciaQtd?: number,
   currentVencimento?: any,
   isRecorrente?: boolean
@@ -71,6 +71,9 @@ export function calculateContractEndDate(
       if (dur === 'anual') {
         const anos = qty >= 12 ? 1 : qty;
         endD.setFullYear(endD.getFullYear() + anos);
+      } else if (dur === 'semestral') {
+        const meses = qty >= 6 ? qty : qty * 6;
+        endD.setMonth(endD.getMonth() + meses);
       } else if (dur === 'semana') {
         endD.setDate(endD.getDate() + (qty * 7));
       } else if (dur === 'indeterminado') {
@@ -103,18 +106,34 @@ export function calculateContractEndDate(
 export function getContractValidityInfo(client: any, planObj?: any): ContractValidityInfo {
   try {
     const com = client?.dadosComerciais || {};
+    const dp = client?.dadosPessoais || {};
     const statusSaved = (com.status || 'ativo').toString().toLowerCase();
 
-    const isAnual = com.duracao === 'anual' || (!com.duracao && planObj?.tipo === 'Anual');
-    const duracao = isAnual ? 'anual' : (com.duracao || 'mensal');
-    const vigenciaQtd = com.duracaoQtd || com.vigenciaQtd || (isAnual ? 1 : 1);
+    // Detecção de Convênio Dynamus
+    const isDynamus = Boolean(
+      planObj?.nome?.toLowerCase().includes('dynamus') ||
+      com.planoNome?.toLowerCase().includes('dynamus') ||
+      dp.email?.toLowerCase().includes('dynamus') ||
+      client?.codigo?.toUpperCase().includes('DYN') ||
+      client?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
+    );
+
+    const isSemestral = (com.duracao || '').toLowerCase().includes('semestral') || 
+                        (planObj?.nome || '').toLowerCase().includes('semestral') || 
+                        com.parcelas === 6;
+    const isAnual = !isSemestral && (com.duracao === 'anual' || (!com.duracao && planObj?.tipo === 'Anual') || (planObj?.nome || '').toLowerCase().includes('anual'));
+    
+    let duracao = isSemestral ? 'semestral' : (isAnual ? 'anual' : (com.duracao || 'mensal'));
+    let vigenciaQtd = isDynamus ? 1 : (com.duracaoQtd || com.vigenciaQtd || (isAnual || isSemestral ? 1 : 1));
     const dataInicioRaw = com.dataInicio || client?.createdAt || new Date();
-    const isRecorrente = Boolean(com.criarRecorrenciaMensal);
+    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal);
 
     const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    // Calcula a data fim oficial
-    const dataFim = calculateContractEndDate(dataInicio, duracao, vigenciaQtd, com.vencimento, isRecorrente);
+    // Calcula a data fim oficial (Para Dynamus: estritamente dataInicio + vigência)
+    const dataFim = isDynamus
+      ? calculateContractEndDate(dataInicio, isSemestral ? 'semestral' : 'anual', 1, undefined, false)
+      : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, com.vencimento, isRecorrente);
 
     // Análise de Dias Restantes e Status
     const today = new Date();

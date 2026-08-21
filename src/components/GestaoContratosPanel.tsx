@@ -4612,102 +4612,177 @@ export default function GestaoContratosPanel({
                 })()}
 
                 {/* Vigência e Datas */}
-                <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
-                    <i className="fa-solid fa-calendar-check" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Plano & Vigência
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Plano Contratado</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>{plan?.nome || 'Não definido'}</strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Duração / Modalidade</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)', textTransform: 'capitalize' }}>
-                        {com.duracao || 'Mensal'} {com.duracaoQtd ? `(${com.duracaoQtd}x)` : ''}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Data de Início</div>
-                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>
-                        {info.dataInicioFormatted}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Vencimento Final</div>
-                      <strong style={{ fontSize: '0.92rem', color: info.isExpired ? '#ef4444' : info.isExpiringSoon ? '#f59e0b' : '#10b981' }}>
-                        {info.dataFimFormatted}
-                        {info.daysLeftText && ` (${info.daysLeftText})`}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
+                {(() => {
+                  const isDynamus = Boolean(
+                    plan?.nome?.toLowerCase().includes('dynamus') ||
+                    com.planoNome?.toLowerCase().includes('dynamus') ||
+                    consultingClient.dadosPessoais?.email?.toLowerCase().includes('dynamus') ||
+                    consultingClient.codigo?.toUpperCase().includes('DYN') ||
+                    consultingClient.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
+                  );
+                  const isSemestral = (com.duracao || '').toLowerCase().includes('semestral') ||
+                                      (plan?.nome || '').toLowerCase().includes('semestral') ||
+                                      com.parcelas === 6;
 
-                {/* Frequência e Créditos */}
-                <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
-                    <i className="fa-solid fa-dumbbell" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Frequência & Créditos Mensais
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Frequência Semanal</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                        {com.frequencia ? `${com.frequencia}x por semana` : 'Não informada'}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Treino / Mês</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-                        {com.creditosTotal !== undefined ? `${com.creditosTotal} aulas` : '—'}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Massagem</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                        {com.creditosMassagem !== undefined ? `${com.creditosMassagem} sessão(ões)/mês` : '0'}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Emergência</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                        {com.creditosEmergencia !== undefined ? `${com.creditosEmergencia} sessão(ões)/mês` : '0'}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
+                  // Cálculo dos 3 tipos de créditos para Dynamus
+                  const total = com.creditosTotal || 0;
+                  const usados = com.creditosUsados || 0;
+                  const reservados = com.creditosReservados || 0;
+                  const restantes = Math.max(0, total - usados - reservados);
 
-                {/* Condições Financeiras */}
-                <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
-                    <i className="fa-solid fa-wallet" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Condições Financeiras
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Valor Unitário / Mensal</div>
-                      <strong style={{ fontSize: '1.1rem', color: 'var(--color-primary)' }}>
-                        {com.valorUnitario ? `R$ ${com.valorUnitario.toFixed(2).replace('.', ',')}` : 'R$ 0,00'}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Forma de Pagamento</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)', textTransform: 'uppercase' }}>
-                        {com.formaPagamento || 'PIX'} {com.parcelas > 1 ? `(${com.parcelas}x)` : ''}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>1º Vencimento</div>
-                      <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                        {com.dataPrimeiroVencimento ? new Date(com.dataPrimeiroVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
-                      </strong>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Recorrência Asaas</div>
-                      <strong style={{ fontSize: '0.85rem', color: com.criarRecorrenciaMensal ? '#3b82f6' : 'var(--text-dim)' }}>
-                        {com.criarRecorrenciaMensal ? `Ativa (${com.recorrenciaMeses || 12} meses)` : 'Desativada'}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
+                  const recoveryTotal = com.creditosRecoveryTotal || 0;
+                  const recoveryUsados = com.creditosRecoveryUsados || 0;
+                  const recoveryRestantes = Math.max(0, recoveryTotal - recoveryUsados);
+
+                  const massagemTotal = com.creditosMassagemTotal || 0;
+                  const massagemUsados = com.creditosMassagemUsados || 0;
+                  const massagemRestantes = Math.max(0, massagemTotal - massagemUsados);
+
+                  return (
+                    <>
+                      {/* Vigência e Datas */}
+                      <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
+                          <i className="fa-solid fa-calendar-check" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Plano & Vigência
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Plano Contratado</div>
+                            <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>{plan?.nome || (isDynamus ? 'Dynamus' : 'Não definido')}</strong>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Duração / Modalidade</div>
+                            <strong style={{ fontSize: '0.95rem', color: isDynamus ? '#22d3ee' : 'var(--text-main)', textTransform: 'capitalize' }}>
+                              {isDynamus ? (isSemestral ? 'Semestral (6 meses)' : 'Anual (12 meses)') : `${com.duracao || 'Mensal'} ${com.duracaoQtd ? `(${com.duracaoQtd}x)` : ''}`}
+                            </strong>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Data de Início</div>
+                            <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>
+                              {info.dataInicioFormatted}
+                            </strong>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Vencimento Final</div>
+                            <strong style={{ fontSize: '0.92rem', color: info.isExpired ? '#ef4444' : info.isExpiringSoon ? '#f59e0b' : '#10b981' }}>
+                              {info.dataFimFormatted}
+                              {info.daysLeftText && ` (${info.daysLeftText})`}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quadro de Créditos: Especial Dynamus vs Convencional */}
+                      {isDynamus ? (
+                        <div style={{ background: 'var(--bg-darker)', border: '1px solid rgba(6, 182, 212, 0.3)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ fontSize: '0.74rem', color: '#22d3ee', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fa-solid fa-bolt" style={{ color: '#f59e0b' }}></i> Créditos do Convênio Dynamus
+                          </div>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                            {/* 1. Créditos Gerais de Treino */}
+                            <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '10px', padding: '10px 12px' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>🏋️ Créditos de Treino</div>
+                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#34d399', marginTop: '2px' }}>
+                                {restantes} <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>/ {total}</span>
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '3px' }}>
+                                Usados: {usados} | Reserv.: {reservados}
+                              </div>
+                            </div>
+
+                            {/* 2. Créditos de Recovery */}
+                            <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', padding: '10px 12px' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>🧊 Recovery</div>
+                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
+                                {recoveryRestantes} <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>/ {recoveryTotal}</span>
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '3px' }}>
+                                Usados: {recoveryUsados}
+                              </div>
+                            </div>
+
+                            {/* 3. Créditos de Massagem */}
+                            <div style={{ background: 'rgba(236, 72, 153, 0.08)', border: '1px solid rgba(236, 72, 153, 0.25)', borderRadius: '10px', padding: '10px 12px' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>💆 Massagem</div>
+                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ec4899', marginTop: '2px' }}>
+                                {massagemRestantes} <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>/ {massagemTotal}</span>
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '3px' }}>
+                                Usados: {massagemUsados}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
+                            <i className="fa-solid fa-dumbbell" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Frequência & Créditos Mensais
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Frequência Semanal</div>
+                              <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                                {com.frequencia ? `${com.frequencia}x por semana` : 'Não informada'}
+                              </strong>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Treino / Mês</div>
+                              <strong style={{ fontSize: '0.95rem', color: 'var(--color-primary)' }}>
+                                {com.creditosTotal !== undefined ? `${com.creditosTotal} aulas` : '—'}
+                              </strong>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Massagem</div>
+                              <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                                {com.creditosMassagem !== undefined ? `${com.creditosMassagem} sessão(ões)/mês` : '0'}
+                              </strong>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Emergência</div>
+                              <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                                {com.creditosEmergencia !== undefined ? `${com.creditosEmergencia} sessão(ões)/mês` : '0'}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Condições Financeiras */}
+                      <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
+                          <i className="fa-solid fa-wallet" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i> Condições Financeiras
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Valor Unitário / Mensal</div>
+                            <strong style={{ fontSize: '1.1rem', color: isDynamus ? '#22d3ee' : 'var(--color-primary)' }}>
+                              {isDynamus ? 'Convênio Corporativo' : (com.valorUnitario ? `R$ ${com.valorUnitario.toFixed(2).replace('.', ',')}` : 'R$ 0,00')}
+                            </strong>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Forma de Pagamento</div>
+                            <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)', textTransform: 'uppercase' }}>
+                              {isDynamus ? 'Faturamento Empresarial (Dynamus)' : `${com.formaPagamento || 'PIX'} ${com.parcelas > 1 ? `(${com.parcelas}x)` : ''}`}
+                            </strong>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>1º Vencimento</div>
+                            <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                              {isDynamus ? '—' : (com.dataPrimeiroVencimento ? new Date(com.dataPrimeiroVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—')}
+                            </strong>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Recorrência Asaas</div>
+                            <strong style={{ fontSize: '0.85rem', color: isDynamus ? 'var(--text-dim)' : (com.criarRecorrenciaMensal ? '#3b82f6' : 'var(--text-dim)') }}>
+                              {isDynamus ? 'Isento (Convênio Corporativo)' : (com.criarRecorrenciaMensal ? `Ativa (${com.recorrenciaMeses || 12} meses)` : 'Desativada')}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Rodapé com Ações Rápidas */}
