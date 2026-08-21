@@ -1768,7 +1768,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       }
 
       // Active tab specific load
-      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia' || activeTab === 'agendamento_prof') {
+      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia' || activeTab === 'agendamento_prof' || activeTab === 'frequencia_alunos') {
         promises.push(
           safeFetchJson('/api/appointments?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
@@ -6494,20 +6494,34 @@ goniometria: {
         const q = getSearchQuery(listKey);
 
         const getDaysSince = (clientId: string) => {
-          const clientApts = appointments.filter((a: any) =>
-            (a.clientId === clientId || a.clientId?._id === clientId) &&
-            (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
-          );
+          const clientApts = appointments.filter((a: any) => {
+            const aptClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : (a.clienteId || a.clientId?._id || a.clientId);
+            return (
+              String(aptClientId) === String(clientId) &&
+              (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
+            );
+          });
           if (clientApts.length === 0) return 999;
-          const dates = clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime());
-          return Math.floor((Date.now() - Math.max(...dates)) / (1000 * 60 * 60 * 24));
+          const dates = clientApts.map((a: any) => {
+            if (a.data) {
+              const dStr = String(a.data).split('T')[0];
+              return new Date(dStr + 'T12:00:00').getTime();
+            }
+            return new Date(a.date || a.createdAt).getTime();
+          });
+          return Math.max(0, Math.floor((Date.now() - Math.max(...dates)) / (1000 * 60 * 60 * 24)));
         };
 
         const getMonthSessions = (clientId: string) => {
           return appointments.filter((a: any) => {
-            const d = new Date(a.date || a.createdAt);
-            return (a.clientId === clientId || a.clientId?._id === clientId) &&
-              d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+            const aptClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : (a.clienteId || a.clientId?._id || a.clientId);
+            const d = a.data ? new Date(String(a.data).split('T')[0] + 'T12:00:00') : new Date(a.date || a.createdAt);
+            return (
+              String(aptClientId) === String(clientId) &&
+              (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca') &&
+              d.getMonth() === today.getMonth() &&
+              d.getFullYear() === today.getFullYear()
+            );
           }).length;
         };
 
@@ -6521,13 +6535,22 @@ goniometria: {
           const days = getDaysSince(c._id);
           const risk = getRisk(days);
           const sessions = getMonthSessions(c._id);
-          const clientApts = appointments.filter((a: any) =>
-            (a.clientId === c._id || a.clientId?._id === c._id) &&
-            (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
-          );
-          const lastDate = clientApts.length > 0
-            ? new Date(Math.max(...clientApts.map((a: any) => new Date(a.date || a.createdAt).getTime()))).toLocaleDateString('pt-BR')
-            : 'Sem histórico';
+          const clientApts = appointments.filter((a: any) => {
+            const aptClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : (a.clienteId || a.clientId?._id || a.clientId);
+            return (
+              String(aptClientId) === String(c._id) &&
+              (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
+            );
+          });
+          let lastDate = 'Sem histórico';
+          if (clientApts.length > 0) {
+            const timestamps = clientApts.map((a: any) => {
+              if (a.data) return new Date(String(a.data).split('T')[0] + 'T12:00:00').getTime();
+              return new Date(a.date || a.createdAt).getTime();
+            });
+            const maxTs = Math.max(...timestamps);
+            lastDate = new Date(maxTs).toLocaleDateString('pt-BR');
+          }
 
           return {
             ...c,
