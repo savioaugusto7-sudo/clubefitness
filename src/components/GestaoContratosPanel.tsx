@@ -4917,19 +4917,19 @@ export default function GestaoContratosPanel({
                             <div>
                               <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Treino / Mês</div>
                               <strong style={{ fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-                                {com.creditosTotal !== undefined ? `${com.creditosTotal} aulas` : '—'}
+                                {com.creditosTotal !== undefined ? `${com.creditosTotal} créditos` : '—'}
                               </strong>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Massagem</div>
                               <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                                {com.creditosMassagem !== undefined ? `${com.creditosMassagem} sessão(ões)/mês` : '0'}
+                                {((com.creditosMassagemTotal !== undefined ? com.creditosMassagemTotal : com.creditosMassagem) ?? 0)} créditos/mês
                               </strong>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Créditos de Emergência</div>
                               <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                                {com.creditosEmergencia !== undefined ? `${com.creditosEmergencia} sessão(ões)/mês` : '0'}
+                                {((com.creditosEmergenciaTotal !== undefined ? com.creditosEmergenciaTotal : com.creditosEmergencia) ?? 0)} créditos/mês
                               </strong>
                             </div>
                           </div>
@@ -5149,11 +5149,11 @@ export default function GestaoContratosPanel({
                         else if (freq === 5) setSwCreditosMensais(22);
                       }}
                     >
-                      <option value={1}>1x por semana (4 aulas/mês)</option>
-                      <option value={2}>2x por semana (9 aulas/mês)</option>
-                      <option value={3}>3x por semana (13 aulas/mês)</option>
-                      <option value={4}>4x por semana (17 aulas/mês)</option>
-                      <option value={5}>5x por semana (22 aulas/mês)</option>
+                      <option value={1}>1x por semana (4 créditos/mês)</option>
+                      <option value={2}>2x por semana (9 créditos/mês)</option>
+                      <option value={3}>3x por semana (13 créditos/mês)</option>
+                      <option value={4}>4x por semana (17 créditos/mês)</option>
+                      <option value={5}>5x por semana (22 créditos/mês)</option>
                     </select>
                   </div>
 
@@ -5457,11 +5457,11 @@ export default function GestaoContratosPanel({
                             else if (freq === 5) setDcwCreditosMensais(22);
                           }}
                         >
-                          <option value={1}>1x por semana (4 aulas/mês)</option>
-                          <option value={2}>2x por semana (9 aulas/mês)</option>
-                          <option value={3}>3x por semana (13 aulas/mês)</option>
-                          <option value={4}>4x por semana (17 aulas/mês)</option>
-                          <option value={5}>5x por semana (22 aulas/mês)</option>
+                          <option value={1}>1x por semana (4 créditos/mês)</option>
+                          <option value={2}>2x por semana (9 créditos/mês)</option>
+                          <option value={3}>3x por semana (13 créditos/mês)</option>
+                          <option value={4}>4x por semana (17 créditos/mês)</option>
+                          <option value={5}>5x por semana (22 créditos/mês)</option>
                         </select>
                       </div>
 
