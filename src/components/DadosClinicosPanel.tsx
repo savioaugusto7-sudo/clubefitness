@@ -98,148 +98,270 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div className="view-header">
-        <div className="view-title-group">
-          <h1><i className="fa-solid fa-notes-medical" style={{ marginRight: '10px', color: 'var(--color-primary)' }}></i>Dados Clínicos dos Alunos</h1>
-          <p>Gerenciamento de prontuário, histórico médico, lesões, restrições e medicações.</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '16px',
+        padding: '20px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '16px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{
+            width: '46px',
+            height: '46px',
+            borderRadius: '12px',
+            background: 'rgba(16, 185, 129, 0.15)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            color: '#10b981',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.4rem'
+          }}>
+            <i className="fa-solid fa-notes-medical"></i>
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
+              Dados Clínicos dos Alunos
+            </h1>
+            <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              Prontuário, histórico médico, lesões, restrições e medicações em uso.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: clients.length > 0 ? '320px 1fr' : '1fr', gap: '20px', alignItems: 'start' }}>
-        {/* Left Column: Client Selection */}
-        <div className="content-panel" style={{ padding: '20px' }}>
-          <h3 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-users" style={{ color: 'var(--color-primary)' }}></i> Selecionar Aluno
-          </h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', alignItems: 'start' }}>
+        {/* Left Column / Mobile Top: Client Selection */}
+        <div style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '16px',
+          padding: '20px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 750, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-users" style={{ color: '#38bdf8' }}></i> Selecionar Aluno
+            </h3>
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)', fontWeight: 600 }}>
+              {filteredClients.length} encontrados
+            </span>
+          </div>
 
-          <div className="form-group" style={{ marginBottom: '14px' }}>
+          <div style={{ marginBottom: '14px', position: 'relative' }}>
             <input
               type="text"
               className="form-control"
               placeholder="Buscar aluno por nome ou CPF..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--bg-darker)',
+                color: 'var(--text-main)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                fontSize: '0.88rem'
+              }}
             />
           </div>
 
-          <div style={{ maxHeight: '480px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ maxHeight: '380px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '2px' }}>
             {filteredClients.map(c => {
               const isSelected = c._id === selectedClientId;
               const hasClinData = Boolean(c.dadosClinicos?.lesoes || c.dadosClinicos?.restricoes || c.dadosClinicos?.medicamentos || c.dadosClinicos?.historicoClinico);
               return (
-                <div
+                <button
+                  type="button"
                   key={c._id}
                   onClick={() => setSelectedClientId(c._id)}
                   style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: isSelected ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
-                    background: isSelected ? 'rgba(16,185,129,0.08)' : 'var(--bg-secondary)',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: isSelected ? '1.5px solid #10b981' : '1px solid var(--border-color)',
+                    background: isSelected ? 'rgba(16,185,129,0.12)' : 'var(--bg-darker)',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.15s ease',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    textAlign: 'left',
+                    width: '100%',
+                    touchAction: 'manipulation'
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: isSelected ? 'var(--color-primary)' : 'var(--text-main)' }}>
+                  <div style={{ overflow: 'hidden', paddingRight: '8px' }}>
+                    <div style={{ fontWeight: 750, fontSize: '0.9rem', color: isSelected ? '#ffffff' : 'var(--text-main)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {c.dadosPessoais?.nome || 'Sem Nome'}
                     </div>
-                    <small style={{ color: 'var(--text-dim)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                       CPF: {c.dadosPessoais?.cpf || '—'}
-                    </small>
+                    </div>
                   </div>
                   {hasClinData && (
-                    <span title="Possui histórico registrado" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}>
-                      <i className="fa-solid fa-file-medical"></i>
+                    <span style={{
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      color: '#10b981',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      padding: '2px 8px',
+                      borderRadius: '8px',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
+                    }}>
+                      <i className="fa-solid fa-file-medical"></i> Clínico
                     </span>
                   )}
-                </div>
+                </button>
               );
             })}
             {filteredClients.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px 0', fontSize: '0.85rem' }}>
-                Nenhum aluno encontrado.
+              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '24px 0', fontSize: '0.85rem' }}>
+                Nenhum aluno encontrado para "{searchQuery}".
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column: Clinical Form */}
+        {/* Right Column / Mobile Main: Clinical Form */}
         {selectedClient ? (
-          <form onSubmit={handleSave} className="content-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Header do Aluno Selecionado */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '16px',
+              padding: '18px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                  Ficha do Aluno
+                </div>
+                <h2 style={{ margin: '2px 0 0', fontSize: '1.2rem', fontWeight: 800, color: '#ffffff' }}>
                   {selectedClient.dadosPessoais?.nome}
                 </h2>
-                <small style={{ color: 'var(--text-dim)' }}>
-                  CPF: {selectedClient.dadosPessoais?.cpf || '—'} | E-mail: {selectedClient.dadosPessoais?.email || '—'}
-                </small>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  CPF: {selectedClient.dadosPessoais?.cpf || '—'} • Tel: {selectedClient.dadosPessoais?.telefone || '—'}
+                </div>
               </div>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i>
-                {saving ? 'Salvando...' : 'Salvar Dados Clínicos'}
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '10px 20px',
+                  fontWeight: 750,
+                  fontSize: '0.88rem',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                  touchAction: 'manipulation'
+                }}
+              >
+                {saving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
+                Salvar Dados
               </button>
             </div>
 
-            <div className="form-group">
-              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fa-solid fa-user-injured" style={{ color: '#ef4444' }}></i> Lesões / Histórico de Lesões
+            {/* Card 1: Histórico Clínico */}
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <label style={{ fontWeight: 750, fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-notes-medical"></i>
+                </div>
+                Histórico Clínico / Patologias Pregressas
               </label>
               <textarea
                 className="form-control"
                 rows={3}
-                placeholder="Descreva lesões musculares, articulares, fraturas ou cirurgias prévias..."
+                placeholder="Hipertensão, diabetes, cirurgias prévias, hérnia de disco ou outras condições..."
+                value={historicoClinico}
+                onChange={e => setHistoricoClinico(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
+              />
+            </div>
+
+            {/* Card 2: Lesões */}
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <label style={{ fontWeight: 750, fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(244, 63, 94, 0.15)', color: '#f43f5e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-user-injured"></i>
+                </div>
+                Lesões / Histórico de Lesões Musculares ou Articulares
+              </label>
+              <textarea
+                className="form-control"
+                rows={3}
+                placeholder="Descreva lesões musculares, estiramentos, rupturas, dor crônica ou inflamações..."
                 value={lesoes}
                 onChange={e => setLesoes(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
 
-            <div className="form-group">
-              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fa-solid fa-ban" style={{ color: '#f59e0b' }}></i> Restrições Médicas / Atividade Física
+            {/* Card 3: Restrições */}
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <label style={{ fontWeight: 750, fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-ban"></i>
+                </div>
+                Restrições Médicas / Movimentos Contraindicados
               </label>
               <textarea
                 className="form-control"
                 rows={3}
-                placeholder="Movimentos contraindicados, restrições de carga ou recomendações médicas..."
+                placeholder="Movimentos contraindicados, limites de flexão/extensão ou restrições de impacto..."
                 value={restricoes}
                 onChange={e => setRestricoes(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
 
-            <div className="form-group">
-              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fa-solid fa-pills" style={{ color: '#3b82f6' }}></i> Medicamentos em Uso
+            {/* Card 4: Medicamentos */}
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <label style={{ fontWeight: 750, fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-pills"></i>
+                </div>
+                Medicamentos em Uso e Dosagens
               </label>
               <textarea
                 className="form-control"
                 rows={2}
-                placeholder="Medicamentos contínuos, dosagens ou alertas fisiológicos..."
+                placeholder="Medicamentos contínuos, analgésicos ou alertas fisiológicos..."
                 value={medicamentos}
                 onChange={e => setMedicamentos(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
 
-            <div className="form-group">
-              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fa-solid fa-notes-medical" style={{ color: '#10b981' }}></i> Histórico Clínico / Patologias Pregressas
-              </label>
-              <textarea
-                className="form-control"
-                rows={3}
-                placeholder="Hipertensão, diabetes, problemas cardíacos, hérnia de disco ou outras condições..."
-                value={historicoClinico}
-                onChange={e => setHistoricoClinico(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label style={{ fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fa-solid fa-comment-medical" style={{ color: 'var(--text-dim)' }}></i> Observações Clínicas Gerais
+            {/* Card 5: Observações Gerais */}
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <label style={{ fontWeight: 750, fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-comment-medical"></i>
+                </div>
+                Observações Clínicas Gerais
               </label>
               <textarea
                 className="form-control"
@@ -247,21 +369,66 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
                 placeholder="Anotações adicionais de acompanhamento..."
                 value={observacoes}
                 onChange={e => setObservacoes(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px' }}>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i>
-                {saving ? 'Salvando...' : 'Salvar Dados Clínicos'}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px' }}>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '14px 28px',
+                  fontWeight: 750,
+                  fontSize: '0.95rem',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                  touchAction: 'manipulation',
+                  width: '100%',
+                  justifyContent: 'center'
+                }}
+              >
+                {saving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
+                Salvar Dados Clínicos
               </button>
             </div>
           </form>
         ) : (
-          <div className="content-panel" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)' }}>
-            <i className="fa-solid fa-notes-medical" style={{ fontSize: '3rem', color: 'var(--border-color)', marginBottom: '12px' }}></i>
-            <h3>Selecione um aluno à esquerda</h3>
-            <p style={{ margin: 0 }}>Escolha um aluno na lista para visualizar e atualizar seu prontuário e histórico clínico.</p>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1.5px dashed var(--border-color)',
+            borderRadius: '16px',
+            padding: '48px 24px',
+            textAlign: 'center',
+            color: 'var(--text-dim)'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.03)',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.8rem',
+              margin: '0 auto 16px'
+            }}>
+              <i className="fa-solid fa-arrow-pointer"></i>
+            </div>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', color: 'var(--text-main)', fontWeight: 750 }}>
+              Selecione um aluno
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '340px', marginInline: 'auto' }}>
+              Escolha um aluno na lista ao lado para visualizar e registrar seu prontuário e histórico clínico.
+            </p>
           </div>
         )}
       </div>
