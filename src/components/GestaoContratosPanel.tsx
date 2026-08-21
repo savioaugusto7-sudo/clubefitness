@@ -18,12 +18,12 @@ const normalizeText = (str: string) => {
 };
 
 export interface ClientContractStage {
-  stageKey: 'ativo' | 'renovacao' | 'vencido' | 'pendente' | 'proposta' | 'congelado' | 'lead';
+  stageKey: 'ativo' | 'renovacao' | 'vencido' | 'pendente' | 'proposta' | 'congelado' | 'lead' | 'dynamus';
   stageLabel: string;
   badgeBg: string;
   badgeColor: string;
   badgeBorder: string;
-  orientacaoKey: 'vigente' | 'gerar_renovacao' | 'sincronizar_clicksign' | 'gerar_asaas' | 'reenviar_link' | 'gerar_link' | 'baixar_pdf';
+  orientacaoKey: 'vigente' | 'gerar_renovacao' | 'sincronizar_clicksign' | 'gerar_asaas' | 'reenviar_link' | 'gerar_link' | 'baixar_pdf' | 'gerenciar_dynamus' | 'dados_faltantes';
   orientacaoLabel: string;
   isRecorrente: boolean;
   isBoleto: boolean;
@@ -53,6 +53,37 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   const hasCpf = isCpfValid;
   const hasPhone = isPhoneValid;
   const isMissingData = !hasCpf || !hasPhone || !hasEndereco || !hasValidEmail;
+
+  // 0. Aluno Convênio Dynamus (Não é Lead, Já entra como Dynamus)
+  const isDynamus = Boolean(
+    plan?.nome?.toLowerCase().includes('dynamus') ||
+    com.planoNome?.toLowerCase().includes('dynamus') ||
+    dp.email?.toLowerCase().includes('dynamus') ||
+    dp.endereco?.toLowerCase().includes('dynamus') ||
+    c?.codigo?.toUpperCase().includes('DYN') ||
+    c?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
+  );
+
+  if (isDynamus) {
+    const isDynamusComplete = Boolean(dp.nome && isCpfValid);
+    return {
+      stageKey: 'dynamus',
+      stageLabel: '⚡ ALUNO DYNAMUS',
+      badgeBg: 'rgba(6, 182, 212, 0.18)',
+      badgeColor: '#22d3ee',
+      badgeBorder: '1px solid rgba(6, 182, 212, 0.4)',
+      orientacaoKey: 'gerenciar_dynamus',
+      orientacaoLabel: '⚡ Gerenciar Aluno Dynamus',
+      isRecorrente: false,
+      isBoleto: false,
+      hasAsaasBoleto: false,
+      hasCpf: isCpfValid,
+      hasPhone: true, // Dispensado para Dynamus (dados do convênio)
+      hasEndereco: true, // Dispensado para Dynamus (dados do convênio)
+      isMissingData: !isDynamusComplete,
+      info
+    };
+  }
 
   // 1. Contrato Assinado ou Perfil Ativo com Vigência Válida
   const hasActiveContract = Boolean(
@@ -392,6 +423,7 @@ export default function GestaoContratosPanel({
     let vencido = 0;
     let aguardando_assinatura = 0;
     let lead = 0;
+    let dynamus = 0;
     let boleto_asaas = 0;
     let incompleto = 0;
 
@@ -403,7 +435,8 @@ export default function GestaoContratosPanel({
       const latestProposal = allProposalsMap[c._id];
       const stage = resolveClientContractStage(c, plan, latestContract, latestProposal);
 
-      if (stage.stageKey === 'ativo') vigente++;
+      if (stage.stageKey === 'dynamus') dynamus++;
+      else if (stage.stageKey === 'ativo') vigente++;
       else if (stage.stageKey === 'renovacao') renovacao++;
       else if (stage.stageKey === 'vencido') vencido++;
       else if (stage.stageKey === 'pendente' || stage.stageKey === 'proposta') aguardando_assinatura++;
@@ -420,6 +453,7 @@ export default function GestaoContratosPanel({
       vencido,
       aguardando_assinatura,
       lead,
+      dynamus,
       boleto_asaas,
       incompleto
     };
@@ -449,11 +483,10 @@ export default function GestaoContratosPanel({
         const matchesSearch = smartSearchMatch(searchQuery, [
           c.dadosPessoais?.nome,
           c.dadosPessoais?.cpf,
-          c.dadosPessoais?.email,
           c.dadosPessoais?.telefone,
+          c.dadosPessoais?.email,
           plan?.nome,
-          com.formaPagamento,
-          latestContract?.formaPagamento,
+          c.codigo,
           stage.stageLabel,
           stage.orientacaoLabel
         ]);
@@ -461,6 +494,7 @@ export default function GestaoContratosPanel({
 
         // 2. Pílula de Estágio
         if (contratoStatusFilter !== 'todos') {
+          if (contratoStatusFilter === 'dynamus' && stage.stageKey !== 'dynamus') return false;
           if (contratoStatusFilter === 'vigente' && stage.stageKey !== 'ativo') return false;
           if (contratoStatusFilter === 'renovacao' && stage.stageKey !== 'renovacao') return false;
           if (contratoStatusFilter === 'vencido' && stage.stageKey !== 'vencido') return false;
@@ -473,6 +507,7 @@ export default function GestaoContratosPanel({
 
         // 3. Filtro por Orientação / Ação CTA
         if (orientacaoFilter !== 'todos') {
+          if (orientacaoFilter === 'gerenciar_dynamus' && stage.orientacaoKey !== 'gerenciar_dynamus') return false;
           if (orientacaoFilter === 'dados_faltantes' && !stage.isMissingData) return false;
           if (orientacaoFilter === 'vigente' && stage.orientacaoKey !== 'vigente' && stage.orientacaoKey !== 'baixar_pdf') return false;
           if (orientacaoFilter === 'gerar_renovacao' && stage.orientacaoKey !== 'gerar_renovacao') return false;
@@ -2124,6 +2159,29 @@ export default function GestaoContratosPanel({
                 🟣 Leads & Cadastros ({stageCounts.lead})
               </button>
 
+              {/* Alunos Dynamus */}
+              <button
+                type="button"
+                onClick={() => setContratoStatusFilter('dynamus')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: contratoStatusFilter === 'dynamus' ? '#06b6d4' : 'var(--border-color)',
+                  background: contratoStatusFilter === 'dynamus' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.03)',
+                  color: contratoStatusFilter === 'dynamus' ? '#22d3ee' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                ⚡ Alunos Dynamus ({stageCounts.dynamus})
+              </button>
+
               {/* Boletos / Asaas */}
               <button
                 type="button"
@@ -2198,6 +2256,7 @@ export default function GestaoContratosPanel({
                     style={{ minWidth: '170px', fontSize: '0.83rem', padding: '6px 10px' }}
                   >
                     <option value="todos">🎯 Todas as Ações</option>
+                    <option value="gerenciar_dynamus">⚡ Gerenciar Aluno Dynamus</option>
                     <option value="vigente">🟢 Em Vigência Regular</option>
                     <option value="gerar_renovacao">🚀 Gerar Renovação Anual</option>
                     <option value="sincronizar_clicksign">🔄 Sincronizar Clicksign</option>
@@ -2396,7 +2455,7 @@ export default function GestaoContratosPanel({
                                 <i className="fa-solid fa-location-dot" style={{ marginRight: '4px', color: hasEndereco ? 'var(--color-primary)' : '#475569' }}></i>
                                 {enderecoFormatted || '(Endereço não informado)'}
                               </div>
-                              {stage.isMissingData && (
+                              {stage.isMissingData && stage.stageKey !== 'dynamus' && (
                                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                                   {!hasCpf && (
                                     <span style={{ fontSize: '0.68rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
@@ -2485,18 +2544,31 @@ export default function GestaoContratosPanel({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
                               <span style={{ color: '#94a3b8', fontWeight: 500 }}>Condição:</span>
                               <strong style={{ color: '#38bdf8', fontWeight: 700 }}>
-                                {com.valorUnitario ? `R$ ${com.valorUnitario.toFixed(2).replace('.', ',')} (${(com.formaPagamento || 'pix').toUpperCase()}${com.parcelas > 1 ? ` ${com.parcelas}x` : ''})` : 'A definir'}
+                                {stage.stageKey === 'dynamus' ? 'Convênio Corporativo Dynamus' : (com.valorUnitario ? `R$ ${com.valorUnitario.toFixed(2).replace('.', ',')} (${(com.formaPagamento || 'pix').toUpperCase()}${com.parcelas > 1 ? ` ${com.parcelas}x` : ''})` : 'A definir')}
                               </strong>
                             </div>
 
                             {/* Checklist de Dados */}
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
-                              <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
-                                {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
-                              </span>
-                              <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
-                                {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
-                              </span>
+                              {stage.stageKey === 'dynamus' ? (
+                                <>
+                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.35)', fontWeight: 700 }}>
+                                    ✅ Cadastro Dynamus Completo
+                                  </span>
+                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', fontWeight: 700 }}>
+                                    ✅ Convênio Corporativo
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                    {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
+                                  </span>
+                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                    {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -2506,7 +2578,36 @@ export default function GestaoContratosPanel({
                             ========================================================= */}
                         <div style={{ borderTop: '1px solid #1e293b', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {/* BOTÃO DE AÇÃO PRIMÁRIA EM DESTAQUE */}
-                          {stage.stageKey === 'ativo' ? (
+                          {stage.stageKey === 'dynamus' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onNavigateTab) {
+                                  onNavigateTab('dynamus', c.dadosPessoais?.nome || '');
+                                } else {
+                                  window.dispatchEvent(new CustomEvent('navigate_tab', { detail: { tab: 'dynamus', searchQuery: c.dadosPessoais?.nome || '' } }));
+                                }
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(6, 182, 212, 0.4)',
+                                background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
+                              }}
+                            >
+                              <i className="fa-solid fa-bolt"></i> Gerenciar Créditos Dynamus
+                            </button>
+                          ) : stage.stageKey === 'ativo' ? (
                             <button
                               type="button"
                               onClick={() => setConsultingClient(c)}

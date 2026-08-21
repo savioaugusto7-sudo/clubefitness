@@ -111,6 +111,8 @@ export async function POST(request: Request) {
         planoId: plan._id,
         dataInicio: dataAdesao,
         vencimento,
+        duracao: planoName.toLowerCase().includes('semestral') ? 'semestral' : 'anual',
+        duracaoQtd: 1,
         frequencia: 3,
         parcelas: planoName.toLowerCase().includes('semestral') ? 6 : 12,
         creditosTotal: 13,
