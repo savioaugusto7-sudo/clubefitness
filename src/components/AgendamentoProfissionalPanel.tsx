@@ -245,13 +245,6 @@ export default function AgendamentoProfissionalPanel({
     return `${d}/${m}/${y} (${capDayName})`;
   };
 
-  // Atalhos de datas
-  const setDateShortcut = (offsetDays: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
-
   const handleSelectClient = (c: ClientInfo) => {
     setSelectedClient(c);
     setSearchStudent('');
@@ -692,74 +685,20 @@ export default function AgendamentoProfissionalPanel({
           marginTop: '20px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: 'rgba(16, 185, 129, 0.2)',
-                color: '#10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '0.9rem'
-              }}>3</div>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Data & Horários Disponíveis</h3>
-            </div>
-
-            {/* Quick date shortcuts */}
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => setDateShortcut(0)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-darker)',
-                  color: 'var(--text-main)',
-                  fontSize: '0.78rem',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Hoje
-              </button>
-              <button
-                type="button"
-                onClick={() => setDateShortcut(1)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-darker)',
-                  color: 'var(--text-main)',
-                  fontSize: '0.78rem',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Amanhã
-              </button>
-              <button
-                type="button"
-                onClick={() => setDateShortcut(2)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-darker)',
-                  color: 'var(--text-main)',
-                  fontSize: '0.78rem',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                +2 Dias
-              </button>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'rgba(16, 185, 129, 0.2)',
+              color: '#10b981',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: '0.9rem'
+            }}>3</div>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Data & Horários Disponíveis</h3>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', flexWrap: 'wrap' }}>

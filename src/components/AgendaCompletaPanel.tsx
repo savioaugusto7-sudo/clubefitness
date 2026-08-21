@@ -836,9 +836,11 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                                const hasObs = Boolean(apt.observacoes && apt.observacoes.trim());
 
                                return (
-                                 <div 
+                                 <button 
+                                   type="button"
                                    key={apt._id} 
                                    onClick={(e) => {
+                                     e.preventDefault();
                                      e.stopPropagation();
                                      setInspectApt(apt);
                                      setEditObsText(apt.observacoes || '');
@@ -851,14 +853,18 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                                      background: 'var(--bg-secondary)', 
                                      border: `1.5px solid ${sColors.text}`, 
                                      borderRadius: '16px', 
-                                     padding: '2px 8px 2px 10px', 
+                                     padding: '3px 10px', 
                                      gap: '6px',
                                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                                      cursor: 'pointer',
-                                     transition: 'all 0.15s ease'
+                                     touchAction: 'manipulation',
+                                     WebkitTapHighlightColor: 'transparent',
+                                     outline: 'none',
+                                     transition: 'all 0.15s ease',
+                                     textAlign: 'left'
                                    }}
                                  >
-                                   <span style={{ fontSize: '0.74rem', fontWeight: 700, color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--text-main)' }}>
+                                   <span style={{ fontSize: '0.76rem', fontWeight: 700, color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--text-main)', pointerEvents: 'none' }}>
                                      {shortName}
                                    </span>
                                    <span 
@@ -870,7 +876,8 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                                        borderRadius: '10px', 
                                        background: sColors.bg,
                                        color: sColors.text,
-                                       letterSpacing: '0.3px'
+                                       letterSpacing: '0.3px',
+                                       pointerEvents: 'none'
                                      }}
                                    >
                                      {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
@@ -878,26 +885,35 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                                    {hasObs && (
                                       <span
                                         style={{
+                                          background: 'rgba(245, 158, 11, 0.2)',
                                           color: '#f59e0b',
-                                          fontSize: '0.72rem',
+                                          border: '1px solid rgba(245, 158, 11, 0.4)',
+                                          fontSize: '0.7rem',
                                           display: 'inline-flex',
                                           alignItems: 'center',
-                                          marginLeft: '1px'
+                                          gap: '3px',
+                                          padding: '1px 6px',
+                                          borderRadius: '8px',
+                                          marginLeft: '2px',
+                                          fontWeight: 800,
+                                          pointerEvents: 'none'
                                         }}
                                       >
-                                        <i className="fa-solid fa-note-sticky"></i>
+                                        <i className="fa-solid fa-note-sticky"></i> Obs
                                       </span>
                                     )}
-                                 </div>
+                                 </button>
                                );
                              })
                           )}
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           <button 
+                            type="button"
                             className="btn btn-secondary btn-sm" 
                             title="Ver e Gerenciar Agendamentos"
+                            style={{ touchAction: 'manipulation', minHeight: '36px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                             onClick={() => {
                               setSelectedSlot(slot);
                               const isSat = selectedDate ? new Date(selectedDate + 'T12:00:00').getDay() === 6 : false;
@@ -908,8 +924,10 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                             <i className="fa-solid fa-user-edit" style={{ color: 'var(--color-primary)' }}></i> Gerenciar
                           </button>
                           <button 
+                            type="button"
                             className="btn btn-secondary btn-sm" 
                             title="Ajustar Vagas"
+                            style={{ touchAction: 'manipulation', minHeight: '36px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                             onClick={() => {
                               setAdjustTargetTime(slot.horario);
                               setAdjustTargetType(slot.tipo);
@@ -920,8 +938,9 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                             <i className="fa-solid fa-sliders"></i> Vagas
                           </button>
                           <button 
+                            type="button"
                             className="btn btn-secondary btn-sm" 
-                            style={{ color: 'var(--color-danger)' }}
+                            style={{ color: 'var(--color-danger)', touchAction: 'manipulation', minHeight: '36px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                             onClick={() => {
                               setDeleteTargetTime(slot.horario);
                               setDeleteTargetType(slot.tipo);
