@@ -395,19 +395,20 @@ export default function GestaoContratosPanel({
     }
   };
 
-  // Auto-polling for pending contracts on active client view
+  // Auto-polling for pending contracts on active client view (stable timer without UI flicker)
   useEffect(() => {
-    if (!selectedClient) return;
-    const hasPending = contracts.some(c => c.clicksignDocKey && (c.status === 'pendente' || c.clicksignStatus === 'pendente'));
-    if (!hasPending) return;
+    if (!selectedClient?._id) return;
 
     const interval = setInterval(() => {
-      loadContracts(selectedClient._id, true);
-      fetchData(true);
-    }, 10000);
+      const hasPending = contracts.some(c => c.clicksignDocKey && (c.status === 'pendente' || c.clicksignStatus === 'pendente'));
+      if (hasPending) {
+        loadContracts(selectedClient._id, true);
+        fetchData(true);
+      }
+    }, 20000);
 
     return () => clearInterval(interval);
-  }, [selectedClient, contracts]);
+  }, [selectedClient?._id]);
 
   // Sync clicksign status
   const handleSyncClicksign = async (contractId: string) => {

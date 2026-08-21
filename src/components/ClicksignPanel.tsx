@@ -37,8 +37,8 @@ export default function ClicksignPanel() {
   const [filterStatus, setFilterStatus] = useState('todos');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (filterStatus !== 'todos') params.set('status', filterStatus);
@@ -57,7 +57,7 @@ export default function ClicksignPanel() {
   useEffect(() => {
     fetchData();
     const interval = setInterval(() => {
-      fetchData();
+      fetchData(true);
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
@@ -190,7 +190,7 @@ export default function ClicksignPanel() {
           <option value="assinado">✅ Assinados</option>
           <option value="cancelado">❌ Cancelados</option>
         </select>
-        <button className="btn btn-secondary" onClick={fetchData} style={{ padding: '9px 16px' }}>
+        <button className="btn btn-secondary" onClick={() => fetchData()} style={{ padding: '9px 16px' }}>
           <i className="fa-solid fa-rotate-right" />
         </button>
       </div>

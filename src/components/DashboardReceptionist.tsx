@@ -2253,15 +2253,15 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
               <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Total Recebido (Mês)</span>
-                <strong style={{ fontSize: '1.6rem', color: '#10b981' }}>R$ {totalPaidThisMonth.toFixed(2).replace('.', ',')}</strong>
+                <strong style={{ fontSize: '1.6rem', color: '#10b981' }}>R$ {formatCurrencyBRL(totalPaidThisMonth)}</strong>
               </div>
               <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total Pendente (Mês)</span>
-                <strong style={{ fontSize: '1.6rem', color: '#f59e0b' }}>R$ {totalPendingThisMonth.toFixed(2).replace('.', ',')}</strong>
+                <strong style={{ fontSize: '1.6rem', color: '#f59e0b' }}>R$ {formatCurrencyBRL(totalPendingThisMonth)}</strong>
               </div>
               <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total em Atraso</span>
-                <strong style={{ fontSize: '1.6rem', color: '#ef4444' }}>R$ {totalOverdue.toFixed(2).replace('.', ',')}</strong>
+                <strong style={{ fontSize: '1.6rem', color: '#ef4444' }}>R$ {formatCurrencyBRL(totalOverdue)}</strong>
               </div>
             </div>
           );

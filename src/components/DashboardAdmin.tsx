@@ -113,8 +113,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [linkMovementTypeFilter, setLinkMovementTypeFilter] = useState<string>('todos');
   const [selectedLinkMovementDetails, setSelectedLinkMovementDetails] = useState<any>(null);
 
-  const fetchLinkMovements = async () => {
-    setLoadingLinkMovements(true);
+  const fetchLinkMovements = async (silent = false) => {
+    if (!silent && linkMovements.length === 0) {
+      setLoadingLinkMovements(true);
+    }
     try {
       const res = await fetch('/api/admin/link-movements');
       const json = await res.json();
@@ -130,7 +132,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
   useEffect(() => {
     if (activeTab === 'movimentos_links') {
-      fetchLinkMovements();
+      fetchLinkMovements(linkMovements.length > 0);
     }
   }, [activeTab]);
   const getSearchQuery = (key: string) => searchQueries[key] || '';
@@ -2075,7 +2077,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             <div className="metric-card">
               <div className="metric-info">
                 <h3>Receita Est. Mensal</h3>
-                <div className="value">R$ {revenueEst.toFixed(2).replace('.', ',')}</div>
+                <div className="value">R$ {formatCurrencyBRL(revenueEst)}</div>
               </div>
               <div className="metric-icon warning"><i className="fa-solid fa-wallet"></i></div>
             </div>
@@ -3653,7 +3655,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button 
                 className="btn btn-secondary btn-sm" 
-                onClick={fetchLinkMovements} 
+                onClick={() => fetchLinkMovements(false)} 
                 disabled={loadingLinkMovements}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
@@ -4200,15 +4202,15 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                     <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Total Recebido (Mês)</span>
-                      <strong style={{ fontSize: '1.6rem', color: '#10b981' }}>R$ {totalPaidThisMonth.toFixed(2).replace('.', ',')}</strong>
+                      <strong style={{ fontSize: '1.6rem', color: '#10b981' }}>R$ {formatCurrencyBRL(totalPaidThisMonth)}</strong>
                     </div>
                     <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total Pendente (Mês)</span>
-                      <strong style={{ fontSize: '1.6rem', color: '#f59e0b' }}>R$ {totalPendingThisMonth.toFixed(2).replace('.', ',')}</strong>
+                      <strong style={{ fontSize: '1.6rem', color: '#f59e0b' }}>R$ {formatCurrencyBRL(totalPendingThisMonth)}</strong>
                     </div>
                     <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Total em Atraso</span>
-                      <strong style={{ fontSize: '1.6rem', color: '#ef4444' }}>R$ {totalOverdue.toFixed(2).replace('.', ',')}</strong>
+                      <strong style={{ fontSize: '1.6rem', color: '#ef4444' }}>R$ {formatCurrencyBRL(totalOverdue)}</strong>
                     </div>
                   </div>
                 );
