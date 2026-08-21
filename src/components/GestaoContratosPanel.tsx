@@ -217,19 +217,29 @@ interface GestaoContratosPanelProps {
   plans: any[];
   userCargo: string;
   fetchData: (silent?: boolean) => void;
+  onNavigateTab?: (tab: string, filterQuery?: string) => void;
 }
 
 export default function GestaoContratosPanel({
   clients,
   plans,
   userCargo,
-  fetchData
+  fetchData,
+  onNavigateTab
 }: GestaoContratosPanelProps) {
   // Navigation & General states
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [subTab, setSubTab] = useState<'alunos' | 'clicksign'>('alunos');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('vencimento_asc');
+
+  const handleOpenClientFinancial = (client: any) => {
+    if (onNavigateTab) {
+      onNavigateTab('financeiro', client.dadosPessoais?.nome || '');
+    } else {
+      window.dispatchEvent(new CustomEvent('navigate_tab', { detail: { tab: 'financeiro', searchQuery: client.dadosPessoais?.nome || '' } }));
+    }
+  };
   const [contratoStatusFilter, setContratoStatusFilter] = useState('todos');
   const [orientacaoFilter, setOrientacaoFilter] = useState('todos');
   const [formaPagamentoFilter, setFormaPagamentoFilter] = useState('todos');
@@ -2327,59 +2337,29 @@ export default function GestaoContratosPanel({
                         <div style={{ borderTop: '1px solid #1e293b', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {/* BOTÃO DE AÇÃO PRIMÁRIA EM DESTAQUE */}
                           {stage.stageKey === 'ativo' ? (
-                            isBoleto ? (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAsaasModal(c)}
-                                style={{
-                                  width: '100%',
-                                  padding: '10px 14px',
-                                  borderRadius: '10px',
-                                  border: 'none',
-                                  background: '#0284c7',
-                                  color: '#ffffff',
-                                  fontWeight: 800,
-                                  fontSize: '0.85rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-                                }}
-                              >
-                                <i className="fa-solid fa-receipt"></i> {hasAsaasBoleto ? 'Ver Boletos / Carnê Asaas' : 'Gerar Boletos no Asaas'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (latestContract?.contratoAnexo) {
-                                    window.open(latestContract.contratoAnexo, '_blank');
-                                  } else {
-                                    downloadContractPDF(c, plan, '', c.dadosComerciais);
-                                  }
-                                }}
-                                style={{
-                                  width: '100%',
-                                  padding: '10px 14px',
-                                  borderRadius: '10px',
-                                  border: 'none',
-                                  background: 'var(--color-primary)',
-                                  color: '#ffffff',
-                                  fontWeight: 800,
-                                  fontSize: '0.85rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
-                                }}
-                              >
-                                <i className="fa-solid fa-file-pdf"></i> Baixar Contrato PDF
-                              </button>
-                            )
+                            <button
+                              type="button"
+                              onClick={() => setConsultingClient(c)}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <i className="fa-solid fa-eye" style={{ color: 'var(--color-primary)' }}></i> Consultar Resumo
+                            </button>
                           ) : (stage.stageKey === 'vencido' || stage.stageKey === 'renovacao') ? (
                             <button
                               type="button"
@@ -2485,27 +2465,76 @@ export default function GestaoContratosPanel({
 
                           {/* AÇÕES SECUNDÁRIAS ORGANIZADAS */}
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setConsultingClient(c)}
-                              style={{
-                                background: '#1e293b',
-                                border: '1px solid #334155',
-                                color: '#f1f5f9',
-                                padding: '6px 8px',
-                                borderRadius: '8px',
-                                fontSize: '0.74rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                              }}
-                              title="Consultar resumo completo do contrato em modo de leitura"
-                            >
-                              <i className="fa-solid fa-eye" style={{ color: '#94a3b8' }}></i> Resumo
-                            </button>
+                            {/* Botão 1: Se for contrato ativo ➔ Asaas (se boleto) OU Financeiro (outras formas); Se outros estágios ➔ Resumo */}
+                            {stage.stageKey === 'ativo' ? (
+                              isBoleto ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAsaasModal(c)}
+                                  style={{
+                                    background: 'rgba(2, 132, 199, 0.15)',
+                                    border: '1px solid rgba(2, 132, 199, 0.4)',
+                                    color: '#38bdf8',
+                                    padding: '6px 8px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Gerenciar cobranças e boletos no Asaas"
+                                >
+                                  <i className="fa-solid fa-receipt"></i> Asaas
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenClientFinancial(c)}
+                                  style={{
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                                    color: '#34d399',
+                                    padding: '6px 8px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Consultar histórico e lançamentos financeiros do aluno"
+                                >
+                                  <i className="fa-solid fa-wallet"></i> Financeiro
+                                </button>
+                              )
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setConsultingClient(c)}
+                                style={{
+                                  background: '#1e293b',
+                                  border: '1px solid #334155',
+                                  color: '#f1f5f9',
+                                  padding: '6px 8px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                                title="Consultar resumo completo do contrato em modo de leitura"
+                              >
+                                <i className="fa-solid fa-eye" style={{ color: '#94a3b8' }}></i> Resumo
+                              </button>
+                            )}
 
                             <button
                               type="button"

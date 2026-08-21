@@ -4942,7 +4942,19 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
       {/* ======================== GESTÃO DE CONTRATOS TAB ======================== */}
       {activeTab === 'gestao_contratos' && (
-        <GestaoContratosPanel clients={clients} plans={plans} userCargo="Administrador" fetchData={fetchData} />
+        <GestaoContratosPanel
+          clients={clients}
+          plans={plans}
+          userCargo="Administrador"
+          fetchData={fetchData}
+          onNavigateTab={(tab, query) => {
+            setActiveTab(tab);
+            if (tab === 'financeiro') {
+              setFinTab('mensalidades');
+              if (query) setPaymentsSearch(query);
+            }
+          }}
+        />
       )}
 
       {/* ======================== ASAAS MANAGEMENT TAB ======================== */}

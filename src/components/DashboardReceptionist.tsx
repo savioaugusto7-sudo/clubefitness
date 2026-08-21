@@ -2487,7 +2487,17 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   if (activeTab === 'contratos') {
     return (
       <>
-        <GestaoContratosPanel clients={clients} plans={plans} userCargo="Recepção" fetchData={fetchData} />
+        <GestaoContratosPanel
+          clients={clients}
+          plans={plans}
+          userCargo="Recepção"
+          fetchData={fetchData}
+          onNavigateTab={(tab, query) => {
+            const targetTab = tab === 'financeiro' ? 'mensalidades' : tab;
+            setActiveTab(targetTab);
+            if (query) setPaymentsSearch(query);
+          }}
+        />
               {/* MANUAL CONFIRM RECEIPT MODAL */}
       {showManualPayModal && selectedPayment && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => { setShowManualPayModal(false); setSelectedPayment(null); }}>
