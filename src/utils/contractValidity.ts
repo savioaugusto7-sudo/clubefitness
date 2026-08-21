@@ -106,6 +106,7 @@ export function calculateContractEndDate(
 export function getContractValidityInfo(client: any, planObj?: any): ContractValidityInfo {
   try {
     const com = client?.dadosComerciais || {};
+    const dp = client?.dadosPessoais || {};
     const statusSaved = (com.status || client?.status || 'ativo').toString().toLowerCase();
 
     // Detecção de Convênio Dynamus
