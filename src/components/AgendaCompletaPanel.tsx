@@ -1,6 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+
+function ModalPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -1090,585 +1100,533 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
       {/* MODAL 1: Ajustar Capacidade/Vagas (Local) */}
       {showAdjustModal && (
-        <div className="modal-overlay" onClick={() => setShowAdjustModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', width: '95%' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                  <i className="fa-solid fa-sliders"></i>
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Ajustar Vagas</h3>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                    Horário: <strong>{adjustTargetTime}</strong> ({adjustTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowAdjustModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', width: '95%' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <i className="fa-solid fa-sliders"></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Ajustar Vagas</h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                      Horário: <strong>{adjustTargetTime}</strong> ({adjustTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})
+                    </div>
                   </div>
                 </div>
+                <button className="modal-close" onClick={() => setShowAdjustModal(false)}>&times;</button>
               </div>
-              <button className="modal-close" onClick={() => setShowAdjustModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Número de Vagas Disponíveis</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  min={1} 
-                  max={20} 
-                  value={adjustCapacityVal}
-                  onChange={e => setAdjustCapacityVal(Number(e.target.value))} 
-                  style={{ width: '100%', padding: '10px', fontSize: '1rem', fontWeight: 700 }}
-                />
+              <div className="modal-body">
+                <div className="form-group">
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Número de Vagas Disponíveis</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    min={1} 
+                    max={20} 
+                    value={adjustCapacityVal}
+                    onChange={e => setAdjustCapacityVal(Number(e.target.value))} 
+                    style={{ width: '100%', padding: '10px', fontSize: '1rem', fontWeight: 700 }}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowAdjustModal(false)}>Voltar</button>
-              <button className="btn btn-secondary" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => handleSaveCapacityRule(false)}>Apenas esta Data</button>
-              <button className="btn btn-primary" onClick={() => handleSaveCapacityRule(true)}>Salvar Semanal</button>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowAdjustModal(false)}>Voltar</button>
+                <button className="btn btn-secondary" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => handleSaveCapacityRule(false)}>Apenas esta Data</button>
+                <button className="btn btn-primary" onClick={() => handleSaveCapacityRule(true)}>Salvar Semanal</button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 1.5: Suspender Horário (Confirmação Customizada) */}
       {showDeleteConfirmModal && (
-        <div className="modal-overlay" onClick={() => setShowDeleteConfirmModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                  <i className="fa-solid fa-trash-can"></i>
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ef4444' }}>Suspender Horário</h3>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                    Horário: <strong>{deleteTargetTime}</strong> ({deleteTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowDeleteConfirmModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <i className="fa-solid fa-trash-can"></i>
                   </div>
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => setShowDeleteConfirmModal(false)}>&times;</button>
-            </div>
-            
-            <div className="modal-body">
-              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
-                Como deseja suspender o horário das <strong>{deleteTargetTime}</strong> ({deleteTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})?
-              </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => {
-                    handleBlockSlot(deleteTargetTime, deleteTargetType, false);
-                    setShowDeleteConfirmModal(false);
-                  }}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '14px 16px', height: 'auto', textAlign: 'left', borderColor: 'var(--border-color)', borderRadius: '12px' }}
-                >
-                  <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                    Apenas neste dia ({selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : ''})
-                  </strong>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>O horário voltará a ficar ativo na semana seguinte.</span>
-                </button>
-
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => {
-                    handleBlockSlot(deleteTargetTime, deleteTargetType, true);
-                    setShowDeleteConfirmModal(false);
-                  }}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '14px 16px', height: 'auto', textAlign: 'left', borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: '12px' }}
-                >
-                  <strong style={{ fontSize: '0.9rem', color: '#ef4444' }}>De forma recorrente (todas as semanas)</strong>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Remover permanentemente das {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }) + 's' : 'todas as semanas'}.
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDeleteConfirmModal(false)}>Cancelar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: Adicionar Horário Extra (Local) */}
-      {showAddHourModal && (
-        <div className="modal-overlay" onClick={() => setShowAddHourModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', width: '95%' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                  <i className="fa-solid fa-clock"></i>
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Adicionar Horário Extra</h3>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Nova vaga ou abertura de agenda</div>
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => setShowAddHourModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Horário (HH:MM)</label>
-                <input 
-                  type="time" 
-                  className="form-control" 
-                  value={addTimeInput}
-                  onChange={e => setAddTimeInput(e.target.value)} 
-                  style={{ width: '100%', padding: '10px' }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Vagas Iniciais</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  value={addCapacityInput}
-                  onChange={e => setAddCapacityInput(Number(e.target.value))} 
-                  style={{ width: '100%', padding: '10px' }}
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowAddHourModal(false)}>Voltar</button>
-              <button className="btn btn-secondary" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => handleAddExtraHour(false)}>Apenas esta Data</button>
-              <button className="btn btn-primary" onClick={() => handleAddExtraHour(true)}>Adicionar Semanal</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: Visualização Detalhada & Agendamento Manual (Local) */}
-      {showDetailsModal && selectedSlot && (
-        <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '620px', width: '95%' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                  <i className="fa-solid fa-users-gear"></i>
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
-                    Gerenciar Horário: {selectedSlot.horario}
-                  </h3>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                    {selectedSlot.tipo === 'academia' ? 'Academia (Treino)' : 'Consultório (Fisioterapia)'} • <strong style={{ color: '#10b981' }}>{selectedSlot.vagasOcupadas}/{selectedSlot.capacidade} vagas</strong>
-                  </div>
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => setShowDetailsModal(false)}>&times;</button>
-            </div>
-
-            <div className="modal-body">
-              <div className="appointments-list-container">
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
-                  Alunos com Horário Reservado ({selectedSlot.appointments.length})
-                </div>
-                {selectedSlot.appointments.length === 0 ? (
-                  <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-color)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-                    Nenhum aluno agendado para este horário.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {selectedSlot.appointments.map(apt => (
-                      <div 
-                        key={apt._id}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '12px',
-                          padding: '12px 14px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '12px',
-                          flexWrap: 'wrap'
-                        }}
-                      >
-                        <div style={{ flex: '1 1 200px' }}>
-                          <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{apt.clienteId?.dadosPessoais?.nome}</strong>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            CPF: {apt.clienteId?.dadosPessoais?.cpf || '—'} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
-                          </div>
-                          <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                            Profissional: <strong style={{ color: 'var(--color-primary)' }}>{apt.profissionalId?.dadosPessoais?.nome || 'Equipe'}</strong> · Serviço: <strong>{apt.servico}</strong>
-                          </div>
-                          {apt.observacoes && (
-                            <div style={{
-                              marginTop: '8px',
-                              padding: '8px 12px',
-                              borderRadius: '8px',
-                              background: 'rgba(245, 158, 11, 0.08)',
-                              border: '1px solid rgba(245, 158, 11, 0.25)',
-                              fontSize: '0.78rem',
-                              color: 'var(--text-main)'
-                            }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 700, marginBottom: '3px' }}>
-                                <i className="fa-solid fa-note-sticky"></i> Observação Clínica:
-                              </div>
-                              <div style={{ lineHeight: '1.4' }}>{apt.observacoes}</div>
-                              {apt.observacaoDataHora && (
-                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                  🕒 Lançada em {formatObsTimestamp(apt.observacaoDataHora)}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          {apt.status === 'agendado' ? (
-                            <>
-                              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-success)', borderColor: 'rgba(16,185,129,0.3)', padding: '6px 12px', fontWeight: 600 }} onClick={() => handleUpdateAptStatus(apt._id, 'presenca')}>
-                                <i className="fa-solid fa-check"></i> Presença
-                              </button>
-                              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '6px 12px', fontWeight: 600 }} onClick={() => handleUpdateAptStatus(apt._id, 'falta')}>
-                                <i className="fa-solid fa-ban"></i> Falta
-                              </button>
-                            </>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', background: apt.status === 'presenca' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: apt.status === 'presenca' ? '#10b981' : '#ef4444', fontWeight: 800, textTransform: 'uppercase' }}>
-                              {apt.status}
-                            </span>
-                          )}
-                          <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)', padding: '6px 10px' }} title="Excluir Agendamento" onClick={() => handleRemoveAppointment(apt._id)}>
-                            <i className="fa-solid fa-trash-can"></i>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
-                  Agendar Novo Aluno Manualmente
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  
-                  <div style={{ position: 'relative' }}>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Buscar Aluno</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="Pesquisar por nome ou CPF..." 
-                      value={clientSearchText}
-                      onChange={e => {
-                        setClientSearchText(e.target.value);
-                        setManualClientId('');
-                      }}
-                      style={{ width: '100%', padding: '10px 12px' }}
-                    />
-                    {clientSearchText && !manualClientId && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%',
-                        left: 0,
-                        right: 0,
-                        background: '#090e1a', 
-                        border: '1px solid rgba(255, 255, 255, 0.15)', 
-                        borderRadius: '10px', 
-                        zIndex: 99999, 
-                        marginTop: '4px',
-                        boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
-                        maxHeight: '220px',
-                        overflowY: 'auto'
-                      }}>
-                        {filteredClients.map(c => (
-                          <div 
-                            key={c._id}
-                            style={{ 
-                              padding: '12px 14px', 
-                              cursor: 'pointer', 
-                              fontSize: '0.84rem', 
-                              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                              color: '#ffffff',
-                              transition: 'background-color 0.15s ease',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
-                            }}
-                            onClick={() => {
-                              setManualClientId(c._id);
-                              setClientSearchText(c.dadosPessoais.nome);
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.12)'}
-                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                          >
-                            <strong style={{ color: '#ffffff' }}>{c.dadosPessoais.nome}</strong> 
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                              CPF: {c.dadosPessoais.cpf || '—'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Serviço</label>
-                    <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)} style={{ width: '100%', padding: '10px' }}>
-                      {selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 ? (
-                        <option value="Massagem">Massagem</option>
-                      ) : selectedSlot.tipo === 'academia' ? (
-                        <>
-                          <option value="Treino Monitorado">Treino Monitorado</option>
-                          <option value="Treino Livre">Treino Livre</option>
-                          <option value="Recovery">Recovery</option>
-                          <option value="Avaliação Física">Avaliação Física</option>
-                          <option value="Teste de Força">Teste de Força</option>
-                          <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                          <option value="Emergência">Emergência</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-
-                  {bookingError && (
-                    <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(239,68,68,0.1)', padding: '8px 12px', borderRadius: '8px' }}>
-                      <i className="fa-solid fa-triangle-exclamation"></i> {bookingError}
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ef4444' }}>Suspender Horário</h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                      Horário: <strong>{deleteTargetTime}</strong> ({deleteTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})
                     </div>
-                  )}
-
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleManualBook}
-                    disabled={isBookingManual}
-                    style={{
-                      alignSelf: 'flex-end',
-                      marginTop: '6px',
-                      padding: '12px 20px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      fontWeight: 700,
-                      opacity: isBookingManual ? 0.7 : 1,
-                      cursor: isBookingManual ? 'not-allowed' : 'pointer'
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowDeleteConfirmModal(false)}>&times;</button>
+              </div>
+              
+              <div className="modal-body">
+                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+                  Como deseja suspender o horário das <strong>{deleteTargetTime}</strong> ({deleteTargetType === 'academia' ? 'Academia' : 'Fisioterapia'})?
+                </p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      handleBlockSlot(deleteTargetTime, deleteTargetType, false);
+                      setShowDeleteConfirmModal(false);
                     }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '14px 16px', height: 'auto', textAlign: 'left', borderColor: 'var(--border-color)', borderRadius: '12px' }}
                   >
-                    {isBookingManual ? (
-                      <>
-                        <i className="fa-solid fa-spinner fa-spin"></i> Agendando...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fa-solid fa-calendar-check"></i> Confirmar Agendamento
-                      </>
-                    )}
+                    <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                      Apenas neste dia ({selectedDate ? formatSelectedDateWithDayOfWeek(selectedDate) : ''})
+                    </strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>O horário voltará a ficar ativo na semana seguinte.</span>
+                  </button>
+
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      handleBlockSlot(deleteTargetTime, deleteTargetType, true);
+                      setShowDeleteConfirmModal(false);
+                    }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '14px 16px', height: 'auto', textAlign: 'left', borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: '12px' }}
+                  >
+                    <strong style={{ fontSize: '0.9rem', color: '#ef4444' }}>De forma recorrente (todas as semanas)</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Remover permanentemente das {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }) + 's' : 'todas as semanas'}.
+                    </span>
                   </button>
                 </div>
               </div>
 
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDetailsModal(false)}>Fechar</button>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowDeleteConfirmModal(false)}>Cancelar</button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
+      )}
+
+      {/* MODAL 2: Adicionar Horário Extra (Local) */}
+      {showAddHourModal && (
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowAddHourModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', width: '95%' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <i className="fa-solid fa-clock"></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Adicionar Horário Extra</h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Nova vaga ou abertura de agenda</div>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowAddHourModal(false)}>&times;</button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Horário (HH:MM)</label>
+                  <input 
+                    type="time" 
+                    className="form-control" 
+                    value={addTimeInput}
+                    onChange={e => setAddTimeInput(e.target.value)} 
+                    style={{ width: '100%', padding: '10px' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Vagas Iniciais</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    value={addCapacityInput}
+                    onChange={e => setAddCapacityInput(Number(e.target.value))} 
+                    style={{ width: '100%', padding: '10px' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowAddHourModal(false)}>Voltar</button>
+                <button className="btn btn-secondary" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => handleAddExtraHour(false)}>Apenas esta Data</button>
+                <button className="btn btn-primary" onClick={() => handleAddExtraHour(true)}>Adicionar Semanal</button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* MODAL 3: Visualização Detalhada & Agendamento Manual (Local) */}
+      {showDetailsModal && selectedSlot && (
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '620px', width: '95%' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <i className="fa-solid fa-users-gear"></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                      Gerenciar Horário: {selectedSlot.horario}
+                    </h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                      {selectedSlot.tipo === 'academia' ? 'Academia (Treino)' : 'Consultório (Fisioterapia)'} • <strong style={{ color: '#10b981' }}>{selectedSlot.vagasOcupadas}/{selectedSlot.capacidade} vagas</strong>
+                    </div>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowDetailsModal(false)}>&times;</button>
+              </div>
+
+              <div className="modal-body">
+                <div className="appointments-list-container">
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+                    Alunos com Horário Reservado ({selectedSlot.appointments.length})
+                  </div>
+                  {selectedSlot.appointments.length === 0 ? (
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-color)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+                      Nenhum aluno agendado para este horário.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {selectedSlot.appointments.map(apt => (
+                        <div 
+                          key={apt._id}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '12px',
+                            padding: '12px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '12px',
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          <div style={{ flex: '1 1 200px' }}>
+                            <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{apt.clienteId?.dadosPessoais?.nome}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              CPF: {apt.clienteId?.dadosPessoais?.cpf || '—'} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+                              Profissional: <strong style={{ color: 'var(--color-primary)' }}>{apt.profissionalId?.dadosPessoais?.nome || 'Equipe'}</strong> · Serviço: <strong>{apt.servico}</strong>
+                            </div>
+                            {apt.observacoes && (
+                              <div style={{
+                                marginTop: '8px',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                fontSize: '0.78rem',
+                                color: 'var(--text-main)'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 700, marginBottom: '3px' }}>
+                                  <i className="fa-solid fa-note-sticky"></i> Observação Clínica:
+                                </div>
+                                <div style={{ lineHeight: '1.4' }}>{apt.observacoes}</div>
+                                {apt.observacaoDataHora && (
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    🕒 Lançada em {formatObsTimestamp(apt.observacaoDataHora)}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {apt.status === 'agendado' ? (
+                              <>
+                                <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-success)', borderColor: 'rgba(16,185,129,0.3)', padding: '6px 12px', fontWeight: 600 }} onClick={() => handleUpdateAptStatus(apt._id, 'presenca')}>
+                                  <i className="fa-solid fa-check"></i> Presença
+                                </button>
+                                <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '6px 12px', fontWeight: 600 }} onClick={() => handleUpdateAptStatus(apt._id, 'falta')}>
+                                  <i className="fa-solid fa-ban"></i> Falta
+                                </button>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', background: apt.status === 'presenca' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: apt.status === 'presenca' ? '#10b981' : '#ef4444', fontWeight: 800, textTransform: 'uppercase' }}>
+                                {apt.status}
+                              </span>
+                            )}
+                            <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-danger)', padding: '6px 10px' }} title="Excluir Agendamento" onClick={() => handleRemoveAppointment(apt._id)}>
+                              <i className="fa-solid fa-trash-can"></i>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+                    Agendar Novo Aluno Manualmente
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    
+                    <div style={{ position: 'relative' }}>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Buscar Aluno</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Pesquisar por nome ou CPF..." 
+                        value={clientSearchText}
+                        onChange={e => {
+                          setClientSearchText(e.target.value);
+                          setManualClientId('');
+                        }}
+                        style={{ width: '100%', padding: '10px 12px' }}
+                      />
+                      {clientSearchText && !manualClientId && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: '#090e1a', 
+                          border: '1px solid rgba(255, 255, 255, 0.15)', 
+                          borderRadius: '10px', 
+                          zIndex: 99999, 
+                          marginTop: '4px',
+                          boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
+                          maxHeight: '220px',
+                          overflowY: 'auto'
+                        }}>
+                          {filteredClients.map(c => (
+                            <div 
+                              key={c._id}
+                              style={{ 
+                                padding: '12px 14px', 
+                                cursor: 'pointer', 
+                                fontSize: '0.84rem', 
+                                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                                color: '#ffffff',
+                                transition: 'background-color 0.15s ease',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}
+                              onClick={() => {
+                                setManualClientId(c._id);
+                                setClientSearchText(c.dadosPessoais.nome);
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.12)'}
+                              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <strong style={{ color: '#ffffff' }}>{c.dadosPessoais.nome}</strong> 
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                                CPF: {c.dadosPessoais.cpf || '—'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Serviço</label>
+                      <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)} style={{ width: '100%', padding: '10px' }}>
+                        {selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 ? (
+                          <option value="Massagem">Massagem</option>
+                        ) : selectedSlot.tipo === 'academia' ? (
+                          <>
+                            <option value="Treino Monitorado">Treino Monitorado</option>
+                            <option value="Treino Livre">Treino Livre</option>
+                            <option value="Recovery">Recovery</option>
+                            <option value="Avaliação Física">Avaliação Física</option>
+                            <option value="Teste de Força">Teste de Força</option>
+                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                            <option value="Emergência">Emergência</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    {bookingError && (
+                      <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(239,68,68,0.1)', padding: '8px 12px', borderRadius: '8px' }}>
+                        <i className="fa-solid fa-triangle-exclamation"></i> {bookingError}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleManualBook}
+                      disabled={isBookingManual}
+                      style={{
+                        alignSelf: 'flex-end',
+                        marginTop: '6px',
+                        padding: '12px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontWeight: 700,
+                        opacity: isBookingManual ? 0.7 : 1,
+                        cursor: isBookingManual ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isBookingManual ? (
+                        <>
+                          <i className="fa-solid fa-spinner fa-spin"></i> Agendando...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-calendar-check"></i> Confirmar Agendamento
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowDetailsModal(false)}>Fechar</button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 4: Adicionar Compromisso na Google Agenda */}
       {showAddGoogleEventModal && (
-        <div className="modal-overlay" onClick={() => setShowAddGoogleEventModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                  <i className="fa-brands fa-google"></i>
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowAddGoogleEventModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <i className="fa-brands fa-google"></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Novo Compromisso Google Agenda</h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Sincronização direta com o calendário</div>
+                  </div>
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Novo Compromisso Google Agenda</h3>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Sincronização direta com o calendário</div>
-                </div>
+                <button className="modal-close" onClick={() => setShowAddGoogleEventModal(false)}>&times;</button>
               </div>
-              <button className="modal-close" onClick={() => setShowAddGoogleEventModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Título do Compromisso</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="Ex: Reunião clínica, Consulta particular..." 
-                  value={googleEventTitle}
-                  onChange={e => setGoogleEventTitle(e.target.value)} 
-                  style={{ width: '100%', padding: '10px' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="modal-body">
                 <div className="form-group">
-                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Início</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Título do Compromisso</label>
                   <input 
-                    type="time" 
+                    type="text" 
                     className="form-control" 
-                    value={googleEventStart}
-                    onChange={e => setGoogleEventStart(e.target.value)} 
+                    placeholder="Ex: Reunião clínica, Consulta particular..." 
+                    value={googleEventTitle}
+                    onChange={e => setGoogleEventTitle(e.target.value)} 
                     style={{ width: '100%', padding: '10px' }}
                   />
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Início</label>
+                    <input 
+                      type="time" 
+                      className="form-control" 
+                      value={googleEventStart}
+                      onChange={e => setGoogleEventStart(e.target.value)} 
+                      style={{ width: '100%', padding: '10px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Término</label>
+                    <input 
+                      type="time" 
+                      className="form-control" 
+                      value={googleEventEnd}
+                      onChange={e => setGoogleEventEnd(e.target.value)} 
+                      style={{ width: '100%', padding: '10px' }}
+                    />
+                  </div>
+                </div>
+
                 <div className="form-group">
-                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Horário de Término</label>
-                  <input 
-                    type="time" 
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Descrição (Opcional)</label>
+                  <textarea 
                     className="form-control" 
-                    value={googleEventEnd}
-                    onChange={e => setGoogleEventEnd(e.target.value)} 
-                    style={{ width: '100%', padding: '10px' }}
+                    style={{ minHeight: '70px', resize: 'vertical', width: '100%', padding: '10px' }}
+                    placeholder="Detalhes adicionais do compromisso..." 
+                    value={googleEventDesc}
+                    onChange={e => setGoogleEventDesc(e.target.value)} 
                   />
                 </div>
               </div>
-
-              <div className="form-group">
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Descrição (Opcional)</label>
-                <textarea 
-                  className="form-control" 
-                  style={{ minHeight: '70px', resize: 'vertical', width: '100%', padding: '10px' }}
-                  placeholder="Detalhes adicionais do compromisso..." 
-                  value={googleEventDesc}
-                  onChange={e => setGoogleEventDesc(e.target.value)} 
-                />
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowAddGoogleEventModal(false)}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleAddGoogleEvent}>Salvar no Google</button>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowAddGoogleEventModal(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleAddGoogleEvent}>Salvar no Google</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 5: Modal Executivo de Inspeção Rápida de Agendamento & Observações (Desktop & Mobile) */}
       {inspectApt && (
-        <div className="modal-overlay" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92%' }}>
-            
-            {/* Modal Header Executivo */}
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                  <i className="fa-solid fa-user-check"></i>
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
-                    {inspectApt.clienteId?.dadosPessoais?.nome || inspectApt.clienteNome || 'Aluno'}
-                  </h3>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                    📅 {formatSelectedDateWithDayOfWeek(inspectApt.data || selectedDate)} às <strong style={{ color: '#10b981' }}>{inspectApt.horario}</strong>
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92%' }}>
+              
+              {/* Modal Header Executivo */}
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                    <i className="fa-solid fa-user-check"></i>
                   </div>
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>&times;</button>
-            </div>
-
-            {/* Modal Body com Scroll Inteligente */}
-            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Modalidade & Contato */}
-              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  CPF: <strong>{inspectApt.clienteId?.dadosPessoais?.cpf || '—'}</strong> • Tel: <strong>{inspectApt.clienteId?.dadosPessoais?.telefone || '—'}</strong>
-                </div>
-                <span style={{
-                  fontSize: '0.74rem',
-                  fontWeight: 800,
-                  padding: '4px 12px',
-                  borderRadius: '10px',
-                  background: getServiceColor(inspectApt.servico).bg,
-                  color: getServiceColor(inspectApt.servico).text,
-                  border: `1px solid ${getServiceColor(inspectApt.servico).text}40`
-                }}>
-                  {inspectApt.servico}
-                </span>
-              </div>
-
-              {/* Bloco de Observação Clínica com Timestamp */}
-              <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px', padding: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontWeight: 800, fontSize: '0.88rem' }}>
-                    <i className="fa-solid fa-note-sticky"></i> Observação Clínica
-                  </div>
-                  {!isEditingObs && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingObs(true)}
-                      style={{
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        border: '1px solid rgba(245, 158, 11, 0.35)',
-                        color: '#f59e0b',
-                        borderRadius: '8px',
-                        padding: '4px 12px',
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <i className="fa-solid fa-pen-to-square"></i> {inspectApt.observacoes ? 'Editar' : 'Adicionar'}
-                    </button>
-                  )}
-                </div>
-
-                {isEditingObs ? (
                   <div>
-                    <textarea
-                      rows={3}
-                      className="form-control"
-                      placeholder="Digite orientações clínicas, foco do treino, dores ou restrições..."
-                      value={editObsText}
-                      onChange={e => setEditObsText(e.target.value)}
-                      style={{
-                        width: '100%',
-                        background: '#080b11',
-                        color: 'var(--text-main)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '10px',
-                        padding: '12px',
-                        fontSize: '0.9rem',
-                        resize: 'vertical',
-                        outline: 'none',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                      {inspectApt.clienteId?.dadosPessoais?.nome || inspectApt.clienteNome || 'Aluno'}
+                    </h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                      📅 {formatSelectedDateWithDayOfWeek(inspectApt.data || selectedDate)} às <strong style={{ color: '#10b981' }}>{inspectApt.horario}</strong>
+                    </div>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>&times;</button>
+              </div>
+
+              {/* Modal Body com Scroll Inteligente */}
+              <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Modalidade & Contato */}
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    CPF: <strong>{inspectApt.clienteId?.dadosPessoais?.cpf || '—'}</strong> • Tel: <strong>{inspectApt.clienteId?.dadosPessoais?.telefone || '—'}</strong>
+                  </div>
+                  <span style={{
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    padding: '4px 12px',
+                    borderRadius: '10px',
+                    background: getServiceColor(inspectApt.servico).bg,
+                    color: getServiceColor(inspectApt.servico).text,
+                    border: `1px solid ${getServiceColor(inspectApt.servico).text}40`
+                  }}>
+                    {inspectApt.servico}
+                  </span>
+                </div>
+
+                {/* Bloco de Observação Clínica com Timestamp */}
+                <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontWeight: 800, fontSize: '0.88rem' }}>
+                      <i className="fa-solid fa-note-sticky"></i> Observação Clínica
+                    </div>
+                    {!isEditingObs && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setIsEditingObs(false);
-                          setEditObsText(inspectApt.observacoes || '');
-                        }}
+                        onClick={() => setIsEditingObs(true)}
                         style={{
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid var(--border-color)',
-                          color: 'var(--text-muted)',
-                          padding: '8px 14px',
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          color: '#f59e0b',
                           borderRadius: '8px',
-                          fontSize: '0.82rem',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={savingObs}
-                        onClick={handleSaveObservation}
-                        style={{
-                          background: '#10b981',
-                          border: 'none',
-                          color: '#fff',
-                          padding: '8px 18px',
-                          borderRadius: '8px',
-                          fontSize: '0.82rem',
+                          padding: '4px 12px',
+                          fontSize: '0.76rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'inline-flex',
@@ -1676,100 +1634,164 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                           gap: '6px'
                         }}
                       >
-                        {savingObs ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
-                        Salvar Observação
+                        <i className="fa-solid fa-pen-to-square"></i> {inspectApt.observacoes ? 'Editar' : 'Adicionar'}
                       </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {inspectApt.observacoes ? (
-                      <>
-                        <div style={{ fontSize: '0.92rem', color: '#ffffff', lineHeight: '1.45', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
-                          "{inspectApt.observacoes}"
-                        </div>
-                        {inspectApt.observacaoDataHora && (
-                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <i className="fa-regular fa-clock"></i> Lançada em {formatObsTimestamp(inspectApt.observacaoDataHora)}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
-                        Nenhuma observação clínica registrada para este agendamento.
-                      </div>
                     )}
                   </div>
-                )}
+
+                  {isEditingObs ? (
+                    <div>
+                      <textarea
+                        rows={3}
+                        className="form-control"
+                        placeholder="Digite orientações clínicas, foco do treino, dores ou restrições..."
+                        value={editObsText}
+                        onChange={e => setEditObsText(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: '#080b11',
+                          color: 'var(--text-main)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          fontSize: '0.9rem',
+                          resize: 'vertical',
+                          outline: 'none',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingObs(false);
+                            setEditObsText(inspectApt.observacoes || '');
+                          }}
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-muted)',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingObs}
+                          onClick={handleSaveObservation}
+                          style={{
+                            background: '#10b981',
+                            border: 'none',
+                            color: '#fff',
+                            padding: '8px 18px',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          {savingObs ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                          Salvar Observação
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {inspectApt.observacoes ? (
+                        <>
+                          <div style={{ fontSize: '0.92rem', color: '#ffffff', lineHeight: '1.45', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
+                            "{inspectApt.observacoes}"
+                          </div>
+                          {inspectApt.observacaoDataHora && (
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <i className="fa-regular fa-clock"></i> Lançada em {formatObsTimestamp(inspectApt.observacaoDataHora)}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                          Nenhuma observação clínica registrada para este agendamento.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Ações de Frequência & Status */}
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleUpdateAptStatus(inspectApt._id, 'presenca');
+                      setInspectApt(null);
+                    }}
+                    style={{
+                      flex: '1 1 140px',
+                      background: inspectApt.status === 'presenca' ? '#10b981' : 'rgba(16, 185, 129, 0.15)',
+                      color: '#ffffff',
+                      border: inspectApt.status === 'presenca' ? 'none' : '1px solid rgba(16, 185, 129, 0.4)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      fontSize: '0.88rem',
+                      fontWeight: 750,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <i className="fa-solid fa-check"></i> {inspectApt.status === 'presenca' ? 'Presença Confirmada' : 'Marcar Presença'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleUpdateAptStatus(inspectApt._id, 'falta');
+                      setInspectApt(null);
+                    }}
+                    style={{
+                      flex: '1 1 120px',
+                      background: inspectApt.status === 'falta' ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
+                      color: inspectApt.status === 'falta' ? '#ffffff' : '#ef4444',
+                      border: inspectApt.status === 'falta' ? 'none' : '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      fontSize: '0.88rem',
+                      fontWeight: 750,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <i className="fa-solid fa-xmark"></i> {inspectApt.status === 'falta' ? 'Falta Registrada' : 'Marcar Falta'}
+                  </button>
+                </div>
               </div>
 
-              {/* Ações de Frequência & Status */}
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '4px' }}>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await handleUpdateAptStatus(inspectApt._id, 'presenca');
-                    setInspectApt(null);
-                  }}
-                  style={{
-                    flex: '1 1 140px',
-                    background: inspectApt.status === 'presenca' ? '#10b981' : 'rgba(16, 185, 129, 0.15)',
-                    color: '#ffffff',
-                    border: inspectApt.status === 'presenca' ? 'none' : '1px solid rgba(16, 185, 129, 0.4)',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    fontSize: '0.88rem',
-                    fontWeight: 750,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
+              <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => { setInspectApt(null); setIsEditingObs(false); }}
+                  style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '0.85rem' }}
                 >
-                  <i className="fa-solid fa-check"></i> {inspectApt.status === 'presenca' ? 'Presença Confirmada' : 'Marcar Presença'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await handleUpdateAptStatus(inspectApt._id, 'falta');
-                    setInspectApt(null);
-                  }}
-                  style={{
-                    flex: '1 1 120px',
-                    background: inspectApt.status === 'falta' ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
-                    color: inspectApt.status === 'falta' ? '#ffffff' : '#ef4444',
-                    border: inspectApt.status === 'falta' ? 'none' : '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    fontSize: '0.88rem',
-                    fontWeight: 750,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <i className="fa-solid fa-xmark"></i> {inspectApt.status === 'falta' ? 'Falta Registrada' : 'Marcar Falta'}
+                  Fechar
                 </button>
               </div>
-            </div>
 
-            <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => { setInspectApt(null); setIsEditingObs(false); }}
-                style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '0.85rem' }}
-              >
-                Fechar
-              </button>
             </div>
-
           </div>
-        </div>
+        </ModalPortal>
       )}
 
     </div>
