@@ -1548,10 +1548,8 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
             </div>
             <div style={{ padding: '24px' }}>
               {clientModalTab === 'pessoais' && (() => {
-                const isClientLocked = Boolean(
-                  selectedClient && (selectedClient.bloqueioCadastral?.bloqueado || (selectedClient.bloqueioCadastral?.dadosInformadosPeloCliente && selectedClient.bloqueioCadastral?.bloqueado !== false))
-                );
-                const lockMotivo = selectedClient?.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+                const isClientLocked = selectedClient ? (selectedClient.bloqueioCadastral?.bloqueado !== false) : false;
+                const lockMotivo = selectedClient?.bloqueioCadastral?.motivo || (selectedClient?.dadosPessoais?.cpf ? 'Informação fornecida pelo contratante' : 'Dado consolidado no cadastro');
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

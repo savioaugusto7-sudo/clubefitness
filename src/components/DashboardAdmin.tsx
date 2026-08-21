@@ -5546,10 +5546,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             <form onSubmit={handleSave}>
               <div className="modal-body">
                 {modalType === 'client' && (() => {
-                  const isClientLocked = Boolean(
-                    editingItem && (editingItem.bloqueioCadastral?.bloqueado || (editingItem.bloqueioCadastral?.dadosInformadosPeloCliente && editingItem.bloqueioCadastral?.bloqueado !== false))
-                  );
-                  const lockMotivo = editingItem?.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+                  const isClientLocked = editingItem ? (editingItem.bloqueioCadastral?.bloqueado !== false) : false;
+                  const lockMotivo = editingItem?.bloqueioCadastral?.motivo || (editingItem?.dadosPessoais?.cpf ? 'Informação fornecida pelo contratante' : 'Dado consolidado no cadastro');
 
                   return (
                     <>

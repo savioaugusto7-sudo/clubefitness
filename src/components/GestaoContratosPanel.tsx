@@ -46,10 +46,13 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
 
   const cleanCpf = (dp.cpf || '').replace(/\D/g, '');
   const cleanPhone = (dp.telefone || '').replace(/\D/g, '');
-  const hasCpf = Boolean(cleanCpf.length >= 11);
-  const hasPhone = Boolean(cleanPhone.length >= 10);
-  const hasEndereco = Boolean(dp.endereco?.trim() && dp.numero?.trim() && dp.cep?.trim());
-  const isMissingData = !hasCpf || !hasPhone || !hasEndereco;
+  const isCpfValid = Boolean(cleanCpf.length === 11 && !/^(\d)\1{10}$/.test(cleanCpf));
+  const isPhoneValid = Boolean(cleanPhone.length >= 10 && !/^(\d)\1+$/.test(cleanPhone));
+  const hasEndereco = Boolean(dp.endereco?.trim() && dp.numero?.trim() && dp.cep?.trim() && !dp.endereco.toLowerCase().includes('teste'));
+  const hasValidEmail = Boolean(dp.email && !dp.email.toLowerCase().endsWith('@clube.com'));
+  const hasCpf = isCpfValid;
+  const hasPhone = isPhoneValid;
+  const isMissingData = !hasCpf || !hasPhone || !hasEndereco || !hasValidEmail;
 
   // 1. Contrato Assinado ou Perfil Ativo com Vigência Válida
   const hasActiveContract = Boolean(
@@ -254,6 +257,27 @@ export default function GestaoContratosPanel({
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockJustificativa, setUnlockJustificativa] = useState('');
   const [unlockingClient, setUnlockingClient] = useState(false);
+  const [sanitizing, setSanitizing] = useState(false);
+
+  const handleRunSanitization = async () => {
+    if (!confirm('Deseja executar a Varredura & Blindagem Geral da base?\n\nEsta rotina irá:\n1. Expurga alunos/mocks de teste (*@clube.com)\n2. Limpar dados fictícios de CPFs e endereços\n3. Trancar/blindar todos os cadastros legítimos remanescentes.')) return;
+
+    setSanitizing(true);
+    try {
+      const res = await fetch('/api/admin/sanitize-clients', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Varredura & Blindagem Concluída!\n\n• Alunos de Teste/Mocks Removidos: ${data.stats.removedMockCount}\n• Cadastros Reais Sanitizados: ${data.stats.sanitizedRealCount}\n• Cadastros Blindados: ${data.stats.shieldedCount}\n• Total de Alunos Reais Atuais: ${data.stats.totalRemainingClients}`);
+        fetchData();
+      } else {
+        alert('Erro ao executar varredura: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Erro de conexão: ' + e.message);
+    } finally {
+      setSanitizing(false);
+    }
+  };
 
   const handleUnlockClientData = async () => {
     if (!selectedClient) return;
@@ -449,6 +473,7 @@ export default function GestaoContratosPanel({
 
         // 3. Filtro por Orientação / Ação CTA
         if (orientacaoFilter !== 'todos') {
+          if (orientacaoFilter === 'dados_faltantes' && !stage.isMissingData) return false;
           if (orientacaoFilter === 'vigente' && stage.orientacaoKey !== 'vigente' && stage.orientacaoKey !== 'baixar_pdf') return false;
           if (orientacaoFilter === 'gerar_renovacao' && stage.orientacaoKey !== 'gerar_renovacao') return false;
           if (orientacaoFilter === 'sincronizar_clicksign' && stage.orientacaoKey !== 'sincronizar_clicksign') return false;
@@ -1917,6 +1942,31 @@ export default function GestaoContratosPanel({
               <i className="fa-brands fa-whatsapp" style={{ color: subTab === 'clicksign' ? '#fff' : '#22c55e' }}></i> Controle Clicksign
             </button>
           </div>
+
+          {userCargo === 'Administrador' && (
+            <button
+              type="button"
+              onClick={handleRunSanitization}
+              disabled={sanitizing}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid rgba(251, 191, 36, 0.4)',
+                background: 'rgba(251, 191, 36, 0.12)',
+                color: '#fbbf24',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Expurgar mocks de teste (@clube.com), limpar dados fictícios e blindar todos os cadastros legítimos"
+            >
+              {sanitizing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-broom"></i>}
+              <span>Varredura & Blindagem</span>
+            </button>
+          )}
         </div>
 
         {subTab === 'clicksign' ? (
@@ -2335,6 +2385,30 @@ export default function GestaoContratosPanel({
                                 <i className="fa-solid fa-location-dot" style={{ marginRight: '4px', color: hasEndereco ? 'var(--color-primary)' : '#475569' }}></i>
                                 {enderecoFormatted || '(Endereço não informado)'}
                               </div>
+                              {stage.isMissingData && (
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                  {!hasCpf && (
+                                    <span style={{ fontSize: '0.68rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                      ⚠️ Falta CPF
+                                    </span>
+                                  )}
+                                  {!hasPhone && (
+                                    <span style={{ fontSize: '0.68rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                      ⚠️ Falta Tel
+                                    </span>
+                                  )}
+                                  {!hasEndereco && (
+                                    <span style={{ fontSize: '0.68rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                      ⚠️ Falta Endereço
+                                    </span>
+                                  )}
+                                  {c.dadosPessoais?.email && c.dadosPessoais.email.toLowerCase().endsWith('@clube.com') && (
+                                    <span style={{ fontSize: '0.68rem', background: 'rgba(245,158,11,0.15)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                      ⚠️ E-mail Fictício (@clube.com)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             {/* Badge do Estágio */}
@@ -2946,11 +3020,8 @@ export default function GestaoContratosPanel({
               }
             }
 
-            const isClientLocked = Boolean(
-              selectedClient.bloqueioCadastral?.bloqueado || 
-              (selectedClient.bloqueioCadastral?.dadosInformadosPeloCliente && selectedClient.bloqueioCadastral?.bloqueado !== false)
-            );
-            const lockMotivo = selectedClient.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+            const isClientLocked = selectedClient.bloqueioCadastral?.bloqueado !== false;
+            const lockMotivo = selectedClient.bloqueioCadastral?.motivo || (selectedClient.dadosPessoais?.cpf ? 'Informação fornecida pelo contratante' : 'Dado consolidado no cadastro');
 
             return (
               <div style={{
@@ -3018,11 +3089,8 @@ export default function GestaoContratosPanel({
               BLOCO DADOS CADASTRAIS DO CONTRATANTE (BLINDADOS / LIBERÁVEIS POR ADMIN)
               ========================================================================= */}
           {(() => {
-            const isClientLocked = Boolean(
-              selectedClient.bloqueioCadastral?.bloqueado || 
-              (selectedClient.bloqueioCadastral?.dadosInformadosPeloCliente && selectedClient.bloqueioCadastral?.bloqueado !== false)
-            );
-            const lockMotivo = selectedClient.bloqueioCadastral?.motivo || 'Informação fornecida pelo contratante';
+            const isClientLocked = selectedClient.bloqueioCadastral?.bloqueado !== false;
+            const lockMotivo = selectedClient.bloqueioCadastral?.motivo || (selectedClient.dadosPessoais?.cpf ? 'Informação fornecida pelo contratante' : 'Dado consolidado no cadastro');
 
             return (
               <div style={{
