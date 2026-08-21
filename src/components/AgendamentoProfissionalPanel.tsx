@@ -65,45 +65,45 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     id: 'avaliacao_fisica',
     nome: 'Avaliação Física',
     vagasNecessarias: 3,
-    icone: 'fa-heartbeat',
-    cor: '#a855f7',
-    descricao: 'Análise antropométrica e composição corporal',
+    icone: 'fa-heart-pulse',
+    cor: '#38bdf8',
+    descricao: 'Antropometria e bioimpedância',
     tipoCredito: 'academia'
   },
   {
     id: 'teste_forca',
     nome: 'Teste de Força',
     vagasNecessarias: 3,
-    icone: 'fa-weight-hanging',
-    cor: '#ec4899',
-    descricao: 'Dinamometria e avaliação neuromuscular',
+    icone: 'fa-bolt-lightning',
+    cor: '#f59e0b',
+    descricao: 'Dinamometria e potência',
     tipoCredito: 'academia'
   },
   {
     id: 'avaliacao_fisioterapica',
     nome: 'Avaliação Fisioterápica',
     vagasNecessarias: 3,
-    icone: 'fa-notes-medical',
-    cor: '#3b82f6',
-    descricao: 'Diagnóstico cinesiológico funcional e goniometria',
+    icone: 'fa-user-doctor',
+    cor: '#10b981',
+    descricao: 'Diagnóstico cinesiológico',
     tipoCredito: 'academia'
   },
   {
     id: 'emergencia',
     nome: 'Emergência',
     vagasNecessarias: 3,
-    icone: 'fa-triangle-exclamation',
-    cor: '#ef4444',
-    descricao: 'Atendimento emergencial prioritário',
+    icone: 'fa-truck-medical',
+    cor: '#f43f5e',
+    descricao: 'Atendimento prioritário',
     tipoCredito: 'emergencia'
   },
   {
     id: 'terapia_manual',
     nome: 'Terapia Manual',
     vagasNecessarias: 3,
-    icone: 'fa-hands-holding',
-    cor: '#f59e0b',
-    descricao: 'Liberação miofascial e técnicas manuais',
+    icone: 'fa-hand-sparkles',
+    cor: '#a855f7',
+    descricao: 'Liberação e alívio de dor',
     tipoCredito: 'academia'
   },
   {
@@ -112,7 +112,7 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     vagasNecessarias: 1,
     icone: 'fa-snowflake',
     cor: '#06b6d4',
-    descricao: 'Recuperação muscular e botas pneumáticas',
+    descricao: 'Botas e recuperação',
     tipoCredito: 'nenhum'
   },
   {
@@ -120,8 +120,8 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     nome: 'Treino Monitorado',
     vagasNecessarias: 1,
     icone: 'fa-dumbbell',
-    cor: '#10b981',
-    descricao: 'Treinamento personalizado guiado',
+    cor: '#22c55e',
+    descricao: 'Treinamento guiado',
     tipoCredito: 'academia'
   },
   {
@@ -129,8 +129,8 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     nome: 'Treino Livre',
     vagasNecessarias: 0,
     icone: 'fa-person-running',
-    cor: '#6366f1',
-    descricao: 'Treino autônomo sem dedução de crédito',
+    cor: '#818cf8',
+    descricao: 'Treino autônomo',
     tipoCredito: 'nenhum'
   }
 ];
@@ -598,7 +598,7 @@ export default function AgendamentoProfissionalPanel({
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Escolha o Serviço</h3>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
               {SERVICOS_DISPONIVEIS.map(srv => {
                 const isSelected = selectedService.id === srv.id;
                 return (
@@ -607,47 +607,72 @@ export default function AgendamentoProfissionalPanel({
                     onClick={() => setSelectedService(srv)}
                     style={{
                       border: isSelected ? `2px solid ${srv.cor}` : '1px solid var(--border-color)',
-                      background: isSelected ? `${srv.cor}18` : 'var(--bg-darker)',
-                      borderRadius: '10px',
-                      padding: '12px 10px',
+                      background: isSelected 
+                        ? `linear-gradient(145deg, ${srv.cor}18 0%, rgba(255, 255, 255, 0.02) 100%)` 
+                        : 'var(--bg-darker)',
+                      borderRadius: '12px',
+                      padding: '14px 12px',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'center',
-                      textAlign: 'center',
-                      position: 'relative'
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                      boxShadow: isSelected ? `0 4px 20px ${srv.cor}35` : 'none',
+                      transform: isSelected ? 'translateY(-2px)' : 'none'
                     }}
                   >
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      background: `${srv.cor}22`,
-                      color: srv.cor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.1rem',
-                      marginBottom: '8px'
-                    }}>
-                      <i className={`fa-solid ${srv.icone}`}></i>
+                    {/* Top Row: Icon + Badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '10px',
+                        background: isSelected ? `${srv.cor}25` : 'rgba(255, 255, 255, 0.04)',
+                        border: `1px solid ${isSelected ? srv.cor : 'rgba(255, 255, 255, 0.08)'}`,
+                        color: srv.cor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.05rem',
+                        transition: 'all 0.2s ease'
+                      }}>
+                        <i className={`fa-solid ${srv.icone}`}></i>
+                      </div>
+
+                      <span style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        color: isSelected ? srv.cor : 'var(--text-muted)',
+                        background: isSelected ? `${srv.cor}18` : 'rgba(255, 255, 255, 0.04)',
+                        border: `1px solid ${isSelected ? srv.cor + '40' : 'rgba(255, 255, 255, 0.06)'}`,
+                        padding: '3px 7px',
+                        borderRadius: '6px',
+                        letterSpacing: '0.2px'
+                      }}>
+                        {srv.vagasNecessarias >= 3 ? '3 Vagas' : srv.vagasNecessarias === 1 ? '1 Vaga' : 'Livre'}
+                      </span>
                     </div>
 
-                    <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? srv.cor : 'var(--text-main)', marginBottom: '4px' }}>
-                      {srv.nome}
-                    </span>
-
-                    <span style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 600,
-                      color: srv.vagasNecessarias >= 3 ? '#ef4444' : srv.vagasNecessarias === 1 ? '#10b981' : '#6366f1',
-                      background: srv.vagasNecessarias >= 3 ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
-                      padding: '2px 6px',
-                      borderRadius: '4px'
-                    }}>
-                      {srv.vagasNecessarias >= 3 ? 'Exige 3 Vagas' : srv.vagasNecessarias === 1 ? '1 Vaga' : 'Sem Débito'}
-                    </span>
+                    {/* Service Name & Subtitle */}
+                    <div>
+                      <div style={{
+                        fontWeight: 750,
+                        fontSize: '0.88rem',
+                        color: isSelected ? '#ffffff' : 'var(--text-main)',
+                        lineHeight: '1.25',
+                        marginBottom: '3px'
+                      }}>
+                        {srv.nome}
+                      </div>
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: isSelected ? 'rgba(255,255,255,0.7)' : 'var(--text-dim)',
+                        lineHeight: '1.2'
+                      }}>
+                        {srv.descricao}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
