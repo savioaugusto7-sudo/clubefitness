@@ -126,7 +126,7 @@ aside.sidebar {
   min-height: 100vh !important;
   max-height: 100vh !important;
   overflow: hidden !important;
-  z-index: 1000 !important;
+  z-index: 90 !important;
   box-sizing: border-box !important;
   transition: var(--transition-normal);
 }
@@ -4024,27 +4024,26 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   bottom: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(4, 7, 13, 0.8) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  z-index: 100000 !important;
+  background: rgba(4, 7, 13, 0.82) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  z-index: 9999999 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 16px !important;
-  overflow-y: auto !important;
+  padding: 20px !important;
   box-sizing: border-box !important;
   animation: fadeIn 0.2s ease-out !important;
 }
 
 .modal-content {
   background: #0e131f !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 18px !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.2) !important;
-  max-width: 580px;
-  width: 95%;
-  max-height: 90vh !important;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2) !important;
+  max-width: 550px !important;
+  width: 95% !important;
+  max-height: 88vh !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;

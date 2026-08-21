@@ -1549,7 +1549,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
       {/* MODAL 5: Modal Executivo de Inspeção Rápida de Agendamento & Observações (Desktop & Mobile) */}
       {inspectApt && (
         <div className="modal-overlay" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px', width: '95%' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92%' }}>
             
             {/* Modal Header Executivo */}
             <div className="modal-header">
@@ -1570,7 +1570,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
             </div>
 
             {/* Modal Body com Scroll Inteligente */}
-            <div className="modal-body">
+            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {/* Modalidade & Contato */}
               <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -1703,80 +1703,69 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                 )}
               </div>
 
-              {/* Ações Rápidas de Frequência em Botões Tácteis Grandes */}
+              {/* Ações de Frequência & Status */}
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '4px' }}>
-                {inspectApt.status === 'agendado' ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await handleUpdateAptStatus(inspectApt._id, 'presenca');
-                        setInspectApt(null);
-                      }}
-                      style={{
-                        flex: '1 1 140px',
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '14px 16px',
-                        fontSize: '0.9rem',
-                        fontWeight: 750,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
-                      }}
-                    >
-                      <i className="fa-solid fa-check"></i> Marcar Presença
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await handleUpdateAptStatus(inspectApt._id, 'falta');
-                        setInspectApt(null);
-                      }}
-                      style={{
-                        flex: '1 1 120px',
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        color: '#ef4444',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '12px',
-                        padding: '14px 16px',
-                        fontSize: '0.9rem',
-                        fontWeight: 750,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <i className="fa-solid fa-xmark"></i> Falta
-                    </button>
-                  </>
-                ) : (
-                  <div style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: '10px',
-                    background: inspectApt.status === 'presenca' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                    color: inspectApt.status === 'presenca' ? '#10b981' : '#ef4444',
-                    fontWeight: 800,
-                    textAlign: 'center',
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleUpdateAptStatus(inspectApt._id, 'presenca');
+                    setInspectApt(null);
+                  }}
+                  style={{
+                    flex: '1 1 140px',
+                    background: inspectApt.status === 'presenca' ? '#10b981' : 'rgba(16, 185, 129, 0.15)',
+                    color: '#ffffff',
+                    border: inspectApt.status === 'presenca' ? 'none' : '1px solid rgba(16, 185, 129, 0.4)',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
                     fontSize: '0.88rem',
-                    textTransform: 'uppercase'
-                  }}>
-                    Status Atual: {inspectApt.status}
-                  </div>
-                )}
+                    fontWeight: 750,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className="fa-solid fa-check"></i> {inspectApt.status === 'presenca' ? 'Presença Confirmada' : 'Marcar Presença'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleUpdateAptStatus(inspectApt._id, 'falta');
+                    setInspectApt(null);
+                  }}
+                  style={{
+                    flex: '1 1 120px',
+                    background: inspectApt.status === 'falta' ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
+                    color: inspectApt.status === 'falta' ? '#ffffff' : '#ef4444',
+                    border: inspectApt.status === 'falta' ? 'none' : '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    fontSize: '0.88rem',
+                    fontWeight: 750,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className="fa-solid fa-xmark"></i> {inspectApt.status === 'falta' ? 'Falta Registrada' : 'Marcar Falta'}
+                </button>
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => { setInspectApt(null); setIsEditingObs(false); }}>Fechar</button>
+            <div className="modal-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => { setInspectApt(null); setIsEditingObs(false); }}
+                style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '0.85rem' }}
+              >
+                Fechar
+              </button>
             </div>
 
           </div>
