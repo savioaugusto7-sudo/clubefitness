@@ -3717,16 +3717,21 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
   const planNome = plan?.nome || 'Plano Personalizado';
   const isAnual = (plan?.tipo === 'Anual' || (com.duracao || '').toLowerCase() === 'anual' || planNome.toLowerCase().includes('anual'));
   
-  // 1. Cálculos Automáticos de Valores e Descontos
-  const basePreco = Number(plan?.preco) || 0;
+  // 1. Cálculos Automáticos de Valores e Descontos - Prioriza valor informado/negociado
+  const basePreco = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(com.valorLiquido) || Number(plan?.preco) || 0;
   const descVal = Number(com.descontoValor) || 0;
   const descTipo = com.descontoTipo || 'percentual';
   
-  let valorFinal = basePreco;
-  if (descTipo === 'percentual') {
-    valorFinal = basePreco * (1 - descVal / 100);
-  } else {
-    valorFinal = Math.max(0, basePreco - descVal);
+  let valorFinal = com.valorLiquido !== undefined && com.valorLiquido !== null && com.valorLiquido > 0
+    ? Number(com.valorLiquido)
+    : basePreco;
+
+  if (!com.valorLiquido && descVal > 0) {
+    if (descTipo === 'percentual') {
+      valorFinal = basePreco * (1 - descVal / 100);
+    } else {
+      valorFinal = Math.max(0, basePreco - descVal);
+    }
   }
   
   const numParcelas = Number(com.parcelas) || 1;
@@ -3756,6 +3761,8 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
     
   // Benefícios Inclusos do Plano
   const beneficiosList = plan?.beneficiosInclusos || [];
+
+  const calculatedCreditosMensais = Number(com.creditosTotal) || (com.frequencia ? (Number(com.frequencia) === 1 ? 4 : Number(com.frequencia) === 2 ? 9 : Number(com.frequencia) === 3 ? 13 : Number(com.frequencia) === 4 ? 17 : 22) : plan?.creditosTotal || 0);
   
   if (!templateOverride) {
     templateOverride = getUnifiedTemplate({
@@ -3772,6 +3779,8 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
       clientCep: pes.cep,
       planNome: planNome,
       planPreco: basePreco,
+      valorUnitario: basePreco,
+      valorLiquido: valorFinal,
       planTipo: plan?.tipo,
       descontoTipo: descTipo,
       descontoValor: descVal,
@@ -3781,7 +3790,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
       dataVencimento: com.vencimento,
       observacoesContratuais: com.observacoesContratuais || contract?.observacoesContratuais,
       unidadeContratada: com.unidadeContratada || plan?.unidadeAtendimento,
-      creditosMensais: (Number(com.frequencia) * 4 + 1) || plan?.creditosTotal || 0,
+      creditosMensais: calculatedCreditosMensais,
       duracao: com.duracao,
       vigenciaQtd: com.duracaoQtd,
       criarRecorrenciaMensal: com.criarRecorrenciaMensal,
@@ -3996,15 +4005,20 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     const planNome = plan?.nome || 'Plano Personalizado';
     const isAnual = (plan?.tipo === 'Anual' || (com.duracao || '').toLowerCase() === 'anual' || planNome.toLowerCase().includes('anual'));
     
-    const basePreco = Number(plan?.preco) || 0;
+    const basePreco = Number(com.valorUnitario) || Number(com.valorAcordado) || Number(com.valorLiquido) || Number(plan?.preco) || 0;
     const descVal = Number(com.descontoValor) || 0;
     const descTipo = com.descontoTipo || 'percentual';
     
-    let valorFinal = basePreco;
-    if (descTipo === 'percentual') {
-      valorFinal = basePreco * (1 - descVal / 100);
-    } else {
-      valorFinal = Math.max(0, basePreco - descVal);
+    let valorFinal = com.valorLiquido !== undefined && com.valorLiquido !== null && com.valorLiquido > 0
+      ? Number(com.valorLiquido)
+      : basePreco;
+
+    if (!com.valorLiquido && descVal > 0) {
+      if (descTipo === 'percentual') {
+        valorFinal = basePreco * (1 - descVal / 100);
+      } else {
+        valorFinal = Math.max(0, basePreco - descVal);
+      }
     }
     
     const numParcelas = Number(com.parcelas) || 1;
@@ -4026,6 +4040,8 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
     const enderecoCompleto = `${pes.endereco || '-'}${pes.numero ? `, nº ${pes.numero}` : ''}${pes.complemento ? `, ${pes.complemento}` : ''}${pes.bairro ? `, Bairro ${pes.bairro}` : ''}${pes.cidade ? `, ${pes.cidade}` : ''}${pes.estado ? `/${pes.estado}` : ''}${pes.cep ? `, CEP ${pes.cep}` : ''}`;
     const servicosList = plan?.servicosPermitidos?.length > 0 ? plan.servicosPermitidos.join(', ') : 'Treinos Monitorados, Fisioterapia, Recovery, Quiropraxia';
     
+    const calculatedCreditosMensais = Number(com.creditosTotal) || (com.frequencia ? (Number(com.frequencia) === 1 ? 4 : Number(com.frequencia) === 2 ? 9 : Number(com.frequencia) === 3 ? 13 : Number(com.frequencia) === 4 ? 17 : 22) : plan?.creditosTotal || 0);
+
     if (!templateOverride) {
       templateOverride = getUnifiedTemplate({
         clientNome: pes.nome || '',
@@ -4041,6 +4057,8 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
         clientCep: pes.cep,
         planNome: planNome,
         planPreco: basePreco,
+        valorUnitario: basePreco,
+        valorLiquido: valorFinal,
         planTipo: plan?.tipo,
         descontoTipo: descTipo,
         descontoValor: descVal,
@@ -4050,7 +4068,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
         dataVencimento: com.vencimento,
         observacoesContratuais: com.observacoesContratuais || contract?.observacoesContratuais,
         unidadeContratada: com.unidadeContratada || plan?.unidadeAtendimento,
-        creditosMensais: (Number(com.frequencia) * 4 + 1) || plan?.creditosTotal || 0,
+        creditosMensais: calculatedCreditosMensais,
         duracao: com.duracao,
         vigenciaQtd: com.duracaoQtd,
         criarRecorrenciaMensal: com.criarRecorrenciaMensal,

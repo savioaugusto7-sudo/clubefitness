@@ -106,8 +106,11 @@ export interface ContractData {
   clientCep?: string;
 
   planNome: string;
-  planPreco: number;
+  planPreco?: number;
   planTipo?: string;
+
+  valorUnitario?: number;
+  valorLiquido?: number;
 
   descontoTipo?: 'percentual' | 'reais' | string;
   descontoValor?: number;
@@ -124,15 +127,74 @@ export interface ContractData {
   recorrenciaMeses?: number;
 }
 
+function renderClausulaPagamento(options: {
+  isAnual: boolean;
+  isRecorrente: boolean;
+  isMensalSemVinculo: boolean;
+  recorrenciaMeses: number;
+  parcelasCount: number;
+  valorFinal: number;
+  valorParcela: number;
+  precoBase: number;
+  descVal: number;
+  descontoTexto: string;
+  formaVigencia: string;
+  formaPag: string;
+  diaVenc: number;
+  numClausula?: string;
+  prefix?: string;
+}): string {
+  const num = options.numClausula || 'QUARTA';
+  const pfx = options.prefix || '4';
+
+  if (options.valorFinal <= 0) {
+    return `
+      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${num} - DO PAGAMENTO E CONCESSÃO DE CORTESIA</h3>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.1. O presente plano é concedido pela CONTRATADA ao(à) CONTRATANTE a título de <strong>Cortesia Comercial / Desconto Promocional Integral de 100% (cem por cento)</strong> sobre o valor de referência de <strong>R$ ${options.precoBase.toFixed(2).replace('.', ',')} (${valorExtenso(options.precoBase)})</strong>, totalizando o valor líquido de <strong>R$ 0,00 (zero reais)</strong>.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.2. Em virtude do benefício e gratuidade integral ora pactuados, o(a) CONTRATANTE fica plenamente isento(a) de pagamentos, cobranças financeiras ou emissão de boletos durante a vigência deste contrato.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        ${pfx}.3. O valor dos serviços para eventuais renovações futuras será reajustado anualmente com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.
+      </p>
+    `;
+  }
+
+  return `
+    <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA ${num} - DO PAGAMENTO</h3>
+    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+      ${pfx}.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme condições comerciais e valor acordados entre as partes no ato da adesão${options.descVal > 0 ? `, aplicado desconto informado na cláusula ${pfx}.5` : ''}:
+      ${
+        options.isRecorrente && options.isMensalSemVinculo
+          ? `será pago o valor mensal de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong> por meio de recorrência mensal via <strong>${options.formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
+          : options.isRecorrente
+            ? `será pago o valor mensal de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(options.recorrenciaMeses)}</strong> mensalidades recorrentes consecutivas por meio de <strong>${options.formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
+            : `será pago o valor líquido de <strong>R$ ${options.valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(options.parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${options.valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(options.valorParcela)})</strong> cada, por meio de <strong>${options.formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(options.diaVenc)}</strong> de cada mês.`
+      }
+    </p>
+    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.2. O valor dos serviços será reajustado anualmente, com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.</p>
+    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.3. O pagamento será realizado na forma <strong>${options.formaVigencia}</strong>, por meio de <strong>${options.formaPag}</strong>, com vencimento todo dia <strong>${options.diaVenc}</strong> de cada mês.</p>
+    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.4. O atraso no pagamento sujeitará o(a) CONTRATANTE à multa de 2% (dois por cento) sobre o valor devido, acrescido de juros de mora de 1% (um por cento) ao mês.</p>
+    ${options.descVal > 0 ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">${pfx}.5. Fica concedido ao CONTRATANTE um desconto de <strong>${options.descontoTexto}</strong> sobre o valor de referência do plano contratado, conforme negociação entre as partes. O desconto foi aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.</p>` : ''}
+  `;
+}
+
 export function generateContractTemplate(data: ContractData): string {
-  // Calculations
-  const precoBase = data.planPreco || 0;
+  // Calculations - Prioritize valorUnitario and valorLiquido from custom negotiation
+  const precoBase = Number(data.valorUnitario) || Number(data.planPreco) || Number(data.valorLiquido) || 0;
   const descVal = Number(data.descontoValor) || 0;
-  let valorFinal = precoBase;
-  if (data.descontoTipo === 'percentual') {
-    valorFinal = precoBase * (1 - descVal / 100);
-  } else {
-    valorFinal = Math.max(0, precoBase - descVal);
+  let valorFinal = data.valorLiquido !== undefined && data.valorLiquido !== null && data.valorLiquido > 0
+    ? Number(data.valorLiquido)
+    : precoBase;
+
+  if (!data.valorLiquido && descVal > 0) {
+    if (data.descontoTipo === 'percentual') {
+      valorFinal = precoBase * (1 - descVal / 100);
+    } else {
+      valorFinal = Math.max(0, precoBase - descVal);
+    }
   }
 
   const parcelasCount = Number(data.parcelas) || 1;
@@ -324,33 +386,23 @@ export function generateContractTemplate(data: ContractData): string {
         3.6. Em caso de cancelamento ou remarcação do atendimento, a(o) CONTRATANTE deverá comunicar a CONTRATADA com antecedência mínima de 6 (seis) horas para que tenha direito à restituição do crédito para novo agendamento, conforme as regras estabelecidas neste contrato.
       </p>
 
-      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUARTA - DO PAGAMENTO</h3>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}:
-        ${
-          isRecorrente && isMensalSemVinculo
-            ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-            : isRecorrente
-              ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(recorrenciaMeses)}</strong> mensalidades recorrentes consecutivas, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-              : `será pago o valor líquido de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(valorParcela)})</strong> cada, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-        }
-      </p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.2. O valor dos serviços será reajustado anualmente, com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.
-      </p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.3. O pagamento será realizado na forma <strong>${formaVigencia}</strong>, por meio de <strong>${formaPag}</strong>, com vencimento todo dia <strong>${diaVenc}</strong> de cada mês.
-      </p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.4. O atraso no pagamento sujeitará o(a) CONTRATANTE à multa de 2% (dois por cento) sobre o valor devido, acrescido de juros de mora de 1% (um por cento) ao mês.
-      </p>
-      ${
-        descVal > 0
-          ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.5. Fica concedido ao CONTRATANTE um desconto de <strong>${descontoTextoExtra}</strong> sobre o valor do plano contratado, conforme negociação entre as partes. O desconto será aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.
-      </p>`
-          : ''
-      }
+      ${renderClausulaPagamento({
+        isAnual,
+        isRecorrente,
+        isMensalSemVinculo,
+        recorrenciaMeses,
+        parcelasCount,
+        valorFinal,
+        valorParcela,
+        precoBase,
+        descVal,
+        descontoTexto: descontoTextoExtra,
+        formaVigencia,
+        formaPag,
+        diaVenc,
+        numClausula: 'QUARTA',
+        prefix: '4'
+      })}
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA E PRAZO</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
@@ -511,21 +563,23 @@ export function generateContractTemplate(data: ContractData): string {
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">3.5. A(O) CONTRATANTE se compromete a realizar o agendamento dos atendimentos com antecedência mínima de 2 (duas) horas, observado que, após esse prazo, o sistema de agendamento não permitirá novas marcações.</p>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">3.6. Em caso de cancelamento ou remarcação do atendimento, a(o) CONTRATANTE deverá comunicar a CONTRATADA com antecedência mínima de 24 (vinte e quatro) horas para que tenha direito à restituição do crédito para novo agendamento, conforme as regras estabelecidas neste contrato.</p>
 
-      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUARTA - DO PAGAMENTO</h3>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}:
-        ${
-          isRecorrente && isMensalSemVinculo
-            ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-            : isRecorrente
-              ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(recorrenciaMeses)}</strong> mensalidades recorrentes consecutivas, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-              : `será pago o valor líquido de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(valorParcela)})</strong> cada, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-        }
-      </p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.2. O valor dos serviços será reajustado anualmente, com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.</p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.3. O pagamento será realizado na forma <strong>${formaVigenciaTrat}</strong>, por meio de <strong>${formaPag}</strong>, com vencimento todo dia <strong>${diaVenc}</strong> de cada mês.</p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.4. O atraso no pagamento sujeitará o(a) CONTRATANTE à multa de 2% (dois por cento) sobre o valor devido, acrescido de juros de mora de 1% (um por cento) ao mês.</p>
-      ${descVal > 0 ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.5. Fica concedido ao CONTRATANTE um desconto de <strong>${descontoTextoTrat}</strong> sobre o valor do plano contratado, conforme negociação entre as partes. O desconto será aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.</p>` : ''}
+      ${renderClausulaPagamento({
+        isAnual,
+        isRecorrente,
+        isMensalSemVinculo,
+        recorrenciaMeses,
+        parcelasCount,
+        valorFinal,
+        valorParcela,
+        precoBase,
+        descVal,
+        descontoTexto: descontoTextoTrat,
+        formaVigencia: formaVigenciaTrat,
+        formaPag,
+        diaVenc,
+        numClausula: 'QUARTA',
+        prefix: '4'
+      })}
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA E PRAZO</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">5.1. O presente contrato tem vigência de <strong>${vigenciaPrazoDescTrat}</strong>, com início em <strong>${fmtDate(dateInicio)}</strong> e término previsto para <strong>${fmtDate(dateFim)}</strong>.</p>
@@ -641,21 +695,23 @@ export function generateContractTemplate(data: ContractData): string {
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">3.4. Informar à CONTRATADA sobre qualquer alteração das informações do presente instrumento ou condições de saúde que possam interferir no objeto do contrato.</p>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">3.5. Zelar pelos equipamentos e instalações da CONTRATADA, responsabilizando-se por eventuais danos causados por uso indevido.</p>
 
-      <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUARTA - DO PAGAMENTO</h3>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-        4.1. O(A) CONTRATANTE pagará à CONTRATADA o valor correspondente ao plano escolhido, conforme tabela de preços vigente na data da adesão${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}:
-        ${
-          isRecorrente && isMensalSemVinculo
-            ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal via <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-            : isRecorrente
-              ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(recorrenciaMeses)}</strong> mensalidades recorrentes consecutivas por meio de <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-              : `será pago o valor líquido de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(valorParcela)})</strong> cada, por meio de <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês.`
-        }
-      </p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.2. O valor dos serviços será reajustado anualmente, com base na variação do Índice de Preços ao Consumidor Amplo (IPCA), divulgado pelo IBGE.</p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.3. O pagamento será realizado na forma <strong>${formaVigenciaProt}</strong>, por meio de <strong>${formaPag}</strong>, com vencimento todo dia <strong>${diaVenc}</strong> de cada mês.</p>
-      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.4. O atraso no pagamento sujeitará o(a) CONTRATANTE à multa de 2% (dois por cento) sobre o valor devido, acrescido de juros de mora de 1% (um por cento) ao mês.</p>
-      ${descVal > 0 ? `<p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">4.5. Fica concedido ao CONTRATANTE um desconto de <strong>${descontoTextoProt}</strong> sobre o valor do plano contratado, conforme negociação entre as partes. O desconto será aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.</p>` : ''}
+      ${renderClausulaPagamento({
+        isAnual,
+        isRecorrente,
+        isMensalSemVinculo,
+        recorrenciaMeses,
+        parcelasCount,
+        valorFinal,
+        valorParcela,
+        precoBase,
+        descVal,
+        descontoTexto: descontoTextoProt,
+        formaVigencia: formaVigenciaProt,
+        formaPag,
+        diaVenc,
+        numClausula: 'QUARTA',
+        prefix: '4'
+      })}
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA QUINTA - DA VIGÊNCIA, PRAZO E RECESSOS</h3>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">5.1. O presente contrato tem vigência de <strong>${vigenciaText}</strong>, com início em <strong>${fmtDate(dateInicio)}</strong>.</p>
@@ -763,31 +819,23 @@ export function generateContractTemplate(data: ContractData): string {
       3.2 A Contratante se obriga a efetuar os pagamentos devidos ao Contratado, nos prazos e condições estabelecidos neste Contrato.
     </p>
 
-    <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA IV - DO PREÇO E DO PAGAMENTO</h3>
-    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      4.1. Contraprestação. A título de contraprestação pelos serviços a serem prestados pelo Contratado à Contratante, nos termos deste Contrato${descVal > 0 ? ', aplicado desconto informado na cláusula 4.5' : ''}, ${
-        isRecorrente && isMensalSemVinculo
-          ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong> por meio de recorrência mensal via <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados.`
-          : isRecorrente
-            ? `será pago o valor mensal de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(recorrenciaMeses)}</strong> mensalidades recorrentes consecutivas por meio de <strong>${formaPag}</strong>, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados.`
-            : `será pago o valor líquido de <strong>R$ ${valorFinal.toFixed(2).replace('.', ',')} (${valorExtenso(valorFinal)})</strong>, a ser quitado em <strong>${parcelasExtenso(parcelasCount)}</strong> parcela(s) no valor de <strong>R$ ${valorParcela.toFixed(2).replace('.', ',')} (${valorExtenso(valorParcela)})</strong> cada, com pagamento vencendo até o dia <strong>${diaExtenso(diaVenc)}</strong> de cada mês de serviços prestados, por meio de <strong>${formaPag}</strong>.`
-      }
-    </p>
-    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      4.2. Mora. Em caso de atraso injustificado no pagamento da Contraprestação, incidirão sobre esta juros de 1% a.m. (um por cento ao mês) e multa compensatória de 2% (dois por cento) até que o valor principal venha a ser pago, salvo quando a Contratada tiver dado causa à mora.
-    </p>
-    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      4.3. Tributos. Correrá por conta da Contratada o valor correspondente a eventuais tributos incidentes sobre a Remuneração acima prevista, que deverá ser recolhido aos cofres públicos na forma legal.
-    </p>
-    ${descVal > 0 ? `
-    <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
-      4.5. Fica concedido ao CONTRATANTE um desconto de <strong>${
-        data.descontoTipo === 'percentual'
-          ? `${descVal}%`
-          : `R$ ${descVal.toFixed(2).replace('.', ',')} (${valorExtenso(descVal)})`
-      }</strong> sobre o valor do plano contratado, conforme negociação entre as partes. O desconto será aplicado no cálculo do valor total deste contrato, passando a integrar as condições comerciais ora pactuadas.
-    </p>
-    ` : ''}
+    ${renderClausulaPagamento({
+      isAnual,
+      isRecorrente,
+      isMensalSemVinculo,
+      recorrenciaMeses,
+      parcelasCount,
+      valorFinal,
+      valorParcela,
+      precoBase,
+      descVal,
+      descontoTexto: data.descontoTipo === 'percentual' ? `${descVal}%` : `R$ ${descVal.toFixed(2).replace('.', ',')} (${valorExtenso(descVal)})`,
+      formaVigencia: isAnual ? 'Anual' : 'Mensal',
+      formaPag,
+      diaVenc,
+      numClausula: 'IV',
+      prefix: '4'
+    })}
 
     <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA V - VIGÊNCIA E RESCISÃO</h3>
     <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">

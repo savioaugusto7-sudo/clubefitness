@@ -427,14 +427,19 @@ export async function POST(request: Request) {
       dataFim = startD.toISOString().split('T')[0];
     }
 
-    // 3. Cálculos de Descontos e Valores
-    const valorBruto = plan.preco;
+    // 3. Cálculos de Descontos e Valores - Prioriza valor informado/negociado na tela
+    const valorBruto = Number(body.valorBruto) || Number(body.valorUnitario) || Number(client.dadosComerciais?.valorUnitario) || Number(plan.preco) || 0;
     const descVal = Number(descontoValor) || 0;
-    let valorLiquido = valorBruto;
-    if (descontoTipo === 'percentual') {
-      valorLiquido = valorBruto * (1 - descVal / 100);
-    } else {
-      valorLiquido = Math.max(0, valorBruto - descVal);
+    let valorLiquido = body.valorLiquido !== undefined && body.valorLiquido !== null && Number(body.valorLiquido) > 0
+      ? Number(body.valorLiquido)
+      : valorBruto;
+
+    if (!body.valorLiquido && descVal > 0) {
+      if (descontoTipo === 'percentual') {
+        valorLiquido = valorBruto * (1 - descVal / 100);
+      } else {
+        valorLiquido = Math.max(0, valorBruto - descVal);
+      }
     }
 
     const diaVenc = dataPrimeiroVencimento ? parseInt(dataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate();
