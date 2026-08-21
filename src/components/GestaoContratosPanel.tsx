@@ -2228,7 +2228,7 @@ export default function GestaoContratosPanel({
             >
               <option value="">Selecione um plano...</option>
               {plans.filter((p: any) => p.ativo !== false).map((p: any) => (
-                <option key={p._id} value={p._id}>{p.nome} — R$ {Number(p.preco || 0).toFixed(2).replace('.', ',')}</option>
+                <option key={p._id} value={p._id}>{p.nome}</option>
               ))}
             </select>
           </div>
@@ -3533,7 +3533,7 @@ export default function GestaoContratosPanel({
                     }}
                   >
                     {activePlans.map((p: any) => (
-                      <option key={p._id} value={p._id}>{p.nome} — R$ {Number(p.preco || 0).toFixed(2).replace('.', ',')}</option>
+                      <option key={p._id} value={p._id}>{p.nome}</option>
                     ))}
                   </select>
                 </div>
@@ -3835,7 +3835,7 @@ export default function GestaoContratosPanel({
                         }}
                       >
                         {activePlans.map((p: any) => (
-                          <option key={p._id} value={p._id}>{p.nome} — R$ {Number(p.preco || 0).toFixed(2).replace('.', ',')}</option>
+                          <option key={p._id} value={p._id}>{p.nome}</option>
                         ))}
                       </select>
                     </div>

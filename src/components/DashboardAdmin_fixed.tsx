@@ -2651,7 +2651,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       <label>Plano</label>
                       <select className="select-custom" value={plano} onChange={e => setPlano(e.target.value)}>
                         {(plans.length > 0 ? plans : plansList).map((p: any) => (
-                          <option key={p._id || p.id} value={p._id || p.id}>{p.nome} - R$ {p.preco}</option>
+                          <option key={p._id || p.id} value={p._id || p.id}>{p.nome}</option>
                         ))}
                       </select>
                     </div>
@@ -3056,7 +3056,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                        <div className="form-group">
                          <label>Plano Contratado</label>
                          <select className="select-custom" value={dcPlano} onChange={e => setDcPlano(e.target.value)} disabled={hasActiveSignedContract}>
-                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome} - R$ {p.preco?.toFixed(2).replace('.', ',')}</option>)}
+                           {plans.map((p: any) => <option key={p._id} value={p._id}>{p.nome}</option>)}
                          </select>
                        </div>
                        <div className="form-group">
