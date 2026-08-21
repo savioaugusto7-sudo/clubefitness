@@ -199,41 +199,35 @@ export async function PUT(request: Request) {
     }
 
     if (dadosPessoais) {
-      // Se os dados estiverem bloqueados e a requisição não for de admin com justificativa
-      const isLocked = Boolean(client.bloqueioCadastral?.bloqueado);
+      const isLocked = client.bloqueioCadastral?.bloqueado !== false;
       const isAdmin = user.role === 'admin' || user.roles?.includes('admin') || user.cargo === 'Administrador' || user.cargo === 'Administrador Geral';
 
-      if (isLocked && !isAdmin) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Os dados cadastrais deste aluno estão blindados (informação fornecida pelo contratante ou consolidada em contrato). Apenas o Administrador pode liberar a edição.' 
-        }, { status: 403 });
-      }
+      // Só altera dados pessoais se o cadastro estiver desbloqueado ou se o admin enviou justificativa
+      if (!isLocked || (isAdmin && justificativa)) {
+        if (isLocked && isAdmin && justificativa) {
+          if (!client.bloqueioCadastral) client.bloqueioCadastral = { historicoDesbloqueios: [] };
+          client.bloqueioCadastral.historicoDesbloqueios.push({
+            dataHora: new Date(),
+            operadorNome: user.nome || 'Administrador',
+            operadorEmail: user.email || '',
+            justificativa: justificativa.trim(),
+            camposAlterados: Object.keys(dadosPessoais),
+            ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || ''
+          });
+          client.markModified('bloqueioCadastral');
+        }
 
-      // Se for admin alterando dados bloqueados, registrar auditoria
-      if (isLocked && isAdmin && justificativa) {
-        if (!client.bloqueioCadastral) client.bloqueioCadastral = { historicoDesbloqueios: [] };
-        client.bloqueioCadastral.historicoDesbloqueios.push({
-          dataHora: new Date(),
-          operadorNome: user.nome || 'Administrador',
-          operadorEmail: user.email || '',
-          justificativa: justificativa.trim(),
-          camposAlterados: Object.keys(dadosPessoais),
-          ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || ''
-        });
-        client.markModified('bloqueioCadastral');
-      }
-
-      const normalizedSexo = dadosPessoais.sexo ? (dadosPessoais.sexo.trim().toUpperCase().startsWith('F') ? 'F' : (dadosPessoais.sexo.trim().toUpperCase().startsWith('M') ? 'M' : 'O')) : undefined;
-      const updatedPessoais = { ...dadosPessoais };
-      if (normalizedSexo !== undefined) {
-        updatedPessoais.sexo = normalizedSexo;
-      }
-      Object.assign(client.dadosPessoais, updatedPessoais);
-      client.markModified('dadosPessoais');
-      // Sync user name if updated
-      if (dadosPessoais.nome) {
-        await User.findByIdAndUpdate(client.userId, { nome: dadosPessoais.nome });
+        const normalizedSexo = dadosPessoais.sexo ? (dadosPessoais.sexo.trim().toUpperCase().startsWith('F') ? 'F' : (dadosPessoais.sexo.trim().toUpperCase().startsWith('M') ? 'M' : 'O')) : undefined;
+        const updatedPessoais = { ...dadosPessoais };
+        if (normalizedSexo !== undefined) {
+          updatedPessoais.sexo = normalizedSexo;
+        }
+        Object.assign(client.dadosPessoais, updatedPessoais);
+        client.markModified('dadosPessoais');
+        // Sync user name if updated
+        if (dadosPessoais.nome) {
+          await User.findByIdAndUpdate(client.userId, { nome: dadosPessoais.nome });
+        }
       }
     }
     if (dadosClinicos) {
@@ -272,7 +266,8 @@ export async function PUT(request: Request) {
     }
 
     await client.save();
-    return NextResponse.json({ success: true, data: client });
+    const updatedClient = await Client.findById(client._id).populate('dadosComerciais.planoId').populate('profissionalId');
+    return NextResponse.json({ success: true, data: updatedClient || client });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

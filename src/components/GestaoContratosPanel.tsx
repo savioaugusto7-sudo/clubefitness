@@ -1382,48 +1382,55 @@ export default function GestaoContratosPanel({
       }
       const dataFimCalculada = endD.toISOString().split('T')[0];
 
+      const isLocked = selectedClient.bloqueioCadastral?.bloqueado !== false;
+      const payload: any = {
+        id: selectedClient._id,
+        dadosComerciais: {
+          planoId: dcPlano || null,
+          status: dcStatus || 'ativo',
+          formaPagamento: dcFormaPag,
+          duracao: dcDuracao,
+          duracaoQtd: dcVigenciaQtd,
+          valorUnitario: dcValorUnitario,
+          vencimento: dataFimCalculada,
+          dataPrimeiroVencimento: dcVencimento,
+          descontoTipo: dcDescontoTipo,
+          descontoValor: dcDescontoValor,
+          parcelas: dcParcelas,
+          dataInicio: dcDataInicio,
+          observacoesContratuais: dcObservacoesContratuais,
+          frequencia: dcFrequencia,
+          creditosTotal: dcCreditosTotal,
+          creditosMassagemTotal: dcCreditosMassagem,
+          creditosEmergenciaTotal: dcCreditosEmergencia,
+          criarRecorrenciaMensal: dcCriarRecorrencia,
+          recorrenciaMeses: dcRecorrenciaMeses,
+          asaasCustomerId: dcAsaasCustomerId
+        }
+      };
+
+      if (!isLocked) {
+        payload.dadosPessoais = {
+          nome: dcNome,
+          email: dcEmail,
+          cpf: dcCpf,
+          telefone: dcTelefone,
+          sexo: dcSexo,
+          dataNascimento: dcNascimento,
+          endereco: dcEndereco,
+          numero: dcNumero,
+          complemento: dcComplemento,
+          bairro: dcBairro,
+          cidade: dcCidade,
+          estado: dcEstado,
+          cep: dcCep
+        };
+      }
+
       const res = await fetch('/api/clients', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: selectedClient._id,
-          dadosPessoais: {
-            nome: dcNome,
-            email: dcEmail,
-            cpf: dcCpf,
-            telefone: dcTelefone,
-            sexo: dcSexo,
-            dataNascimento: dcNascimento,
-            endereco: dcEndereco,
-            numero: dcNumero,
-            complemento: dcComplemento,
-            bairro: dcBairro,
-            cidade: dcCidade,
-            estado: dcEstado,
-            cep: dcCep
-          },
-          dadosComerciais: {
-            planoId: dcPlano || null,
-            status: dcStatus || 'ativo',
-            formaPagamento: dcFormaPag,
-            duracao: dcDuracao,
-            duracaoQtd: dcVigenciaQtd,
-            valorUnitario: dcValorUnitario,
-            vencimento: dataFimCalculada,
-            dataPrimeiroVencimento: dcVencimento,
-            descontoTipo: dcDescontoTipo,
-            descontoValor: dcDescontoValor,
-            parcelas: dcParcelas,
-            dataInicio: dcDataInicio,
-            observacoesContratuais: dcObservacoesContratuais,
-            frequencia: dcFrequencia,
-            creditosTotal: dcCreditosTotal,
-            creditosMassagemTotal: dcCreditosMassagem,
-            creditosEmergenciaTotal: dcCreditosEmergencia,
-            criarRecorrenciaMensal: dcCriarRecorrencia,
-            recorrenciaMeses: dcRecorrenciaMeses
-          }
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
