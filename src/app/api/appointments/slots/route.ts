@@ -16,7 +16,9 @@ const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number }> = {
   'Avaliação Fisioterápica':  { vagasOcupadas: 3 },
   'Emergência':               { vagasOcupadas: 3 },
   'Terapia Manual':           { vagasOcupadas: 3 },
-  'Massagem':                 { vagasOcupadas: 1 }
+  'Massagem':                 { vagasOcupadas: 1 },
+  'Consulta':                 { vagasOcupadas: 1 },
+  'Quiropraxia':              { vagasOcupadas: 1 }
 };
 
 export async function GET(request: Request) {
@@ -24,7 +26,7 @@ export async function GET(request: Request) {
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date'); // YYYY-MM-DD
-    const tipoFiltro = searchParams.get('tipo'); // 'academia' | 'consultorio'
+    const tipoFiltro = searchParams.get('tipo') || 'academia'; // 'academia' | 'dr_albert' | 'dr_guilherme' | 'consultorio'
 
     if (!date) {
       return NextResponse.json({ success: false, error: 'Data obrigatória' }, { status: 400 });
@@ -40,16 +42,20 @@ export async function GET(request: Request) {
 
     // 1. Determinar horários padrões
     let defaultAcademiaSlots: string[] = [];
-    let defaultConsultorioSlots: string[] = [];
+    let defaultDoctorSlots: string[] = [];
 
     if (dayOfWeek !== 0) { // Domingo fechado
       if (dayOfWeek === 6) { // Sábado
         defaultAcademiaSlots = ['09:50', '10:40', '11:30', '12:25'];
-        // Consultório fechado sábado por padrão
+        // Agendas dos médicos fechadas aos sábados por padrão (abertas apenas por Horário Extra)
+        defaultDoctorSlots = [];
       } else { // Segunda a Sexta
-        const times = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
-        defaultAcademiaSlots = [...times];
-        defaultConsultorioSlots = [...times];
+        defaultAcademiaSlots = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+        // Dr. Albert e Dr. Guilherme: 06:00 às 22:00 (17 horários de 1 hora)
+        defaultDoctorSlots = [
+          '06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00',
+          '15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'
+        ];
       }
     }
 
@@ -61,7 +67,7 @@ export async function GET(request: Request) {
       ]
     });
 
-    const resolveSlots = (tipo: 'academia' | 'consultorio', defaults: string[]) => {
+    const resolveSlots = (tipo: string, defaults: string[]) => {
       // Priorizar regras de data específica sobre regras recorrentes
       const rules = configs.filter(c => c.tipo === tipo);
       
@@ -81,7 +87,6 @@ export async function GET(request: Request) {
       // Adicionar novos horários
       const additions = rules.filter(r => r.acao === 'adicionar');
       for (const add of additions) {
-        // Se a adição for específica ou não tiver sobrescrita por bloqueio de data específica
         const active = getActiveRule(add.horario);
         if (active && active.acao === 'adicionar' && !slots.includes(add.horario)) {
           slots.push(add.horario);
@@ -108,8 +113,14 @@ export async function GET(request: Request) {
       });
     };
 
-    let resolvedSlots = [];
-    resolvedSlots.push(...resolveSlots('academia', defaultAcademiaSlots));
+    let resolvedSlots: any[] = [];
+    if (tipoFiltro === 'dr_albert' || tipoFiltro === 'dr_guilherme') {
+      resolvedSlots = resolveSlots(tipoFiltro, defaultDoctorSlots);
+    } else if (tipoFiltro === 'consultorio') {
+      resolvedSlots = resolveSlots('consultorio', defaultDoctorSlots);
+    } else {
+      resolvedSlots = resolveSlots('academia', defaultAcademiaSlots);
+    }
 
     // 3. Buscar agendamentos existentes da data e popular
     const appointments = await Appointment.find({
@@ -120,10 +131,17 @@ export async function GET(request: Request) {
     const result = resolvedSlots.map(slot => {
       const slotsApts = appointments.filter(apt => apt.horario === slot.horario && apt.tipo === slot.tipo);
       
-      const totalVagasOcupadas = slotsApts.reduce((sum, apt) => {
-        const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
-        return sum + cfg.vagasOcupadas;
-      }, 0);
+      let totalVagasOcupadas = 0;
+      if (slot.tipo === 'dr_albert' || slot.tipo === 'dr_guilherme' || slot.tipo === 'consultorio') {
+        // Nas agendas dedicadas Dr. Albert e Dr. Guilherme: 1 cliente = 1 vaga, independentemente do serviço
+        totalVagasOcupadas = slotsApts.length;
+      } else {
+        // Na academia: avaliações ocupam 3 vagas, monitorado 1 vaga, livre 0 vagas
+        totalVagasOcupadas = slotsApts.reduce((sum, apt) => {
+          const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
+          return sum + cfg.vagasOcupadas;
+        }, 0);
+      }
 
       return {
         ...slot,

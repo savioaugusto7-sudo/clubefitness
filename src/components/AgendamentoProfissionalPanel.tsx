@@ -62,6 +62,24 @@ interface ServiceOption {
 
 const SERVICOS_DISPONIVEIS: ServiceOption[] = [
   {
+    id: 'consulta',
+    nome: 'Consulta',
+    vagasNecessarias: 1,
+    icone: 'fa-stethoscope',
+    cor: '#38bdf8',
+    descricao: 'Consulta clínica individual',
+    tipoCredito: 'academia'
+  },
+  {
+    id: 'quiropraxia',
+    nome: 'Quiropraxia',
+    vagasNecessarias: 1,
+    icone: 'fa-bone',
+    cor: '#f59e0b',
+    descricao: 'Ajuste articular e coluna',
+    tipoCredito: 'academia'
+  },
+  {
     id: 'avaliacao_fisica',
     nome: 'Avaliação Física',
     vagasNecessarias: 3,
@@ -163,6 +181,17 @@ export default function AgendamentoProfissionalPanel({
   const [selectedProfId, setSelectedProfId] = useState<string>(currentProfessionalId || '');
   const [observacoes, setObservacoes] = useState('');
 
+  // Determinar agenda padrão
+  const currentProfObj = professionals.find(p => p._id === (currentProfessionalId || selectedProfId));
+  const isAlbert = currentProfObj?.nome?.toLowerCase().includes('albert');
+  const isGuilherme = currentProfObj?.nome?.toLowerCase().includes('guilherme');
+
+  const [agendaTipo, setAgendaTipo] = useState<'academia' | 'dr_albert' | 'dr_guilherme'>(() => {
+    if (isAlbert) return 'dr_albert';
+    if (isGuilherme) return 'dr_guilherme';
+    return 'academia';
+  });
+
   // Status de Submissão & Feedback
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'danger' } | null>(null);
@@ -190,7 +219,7 @@ export default function AgendamentoProfissionalPanel({
       .slice(0, 8);
   }, [clients, searchStudent]);
 
-  // Carregar slots da data selecionada
+  // Carregar slots da data e agenda selecionadas
   useEffect(() => {
     if (!selectedDate) return;
     let isMounted = true;
@@ -199,7 +228,7 @@ export default function AgendamentoProfissionalPanel({
       setLoadingSlots(true);
       setSelectedHour('');
       try {
-        const res = await fetch(`/api/appointments/slots?date=${selectedDate}&tipo=academia`);
+        const res = await fetch(`/api/appointments/slots?date=${selectedDate}&tipo=${agendaTipo}`);
         const json = await res.json();
         if (isMounted && json.success) {
           setSlots(json.data || []);
@@ -215,11 +244,12 @@ export default function AgendamentoProfissionalPanel({
     return () => {
       isMounted = false;
     };
-  }, [selectedDate]);
+  }, [selectedDate, agendaTipo]);
 
   // Filtrar horários de acordo com a quantidade de vagas necessárias do serviço selecionado
   const availableSlots = useMemo(() => {
-    const requiredVagas = selectedService.vagasNecessarias;
+    const isDoctorAgenda = agendaTipo === 'dr_albert' || agendaTipo === 'dr_guilherme';
+    const requiredVagas = isDoctorAgenda ? 1 : selectedService.vagasNecessarias;
     return slots.map(slot => {
       const vagasLivres = Math.max(0, slot.capacidade - slot.vagasOcupadas);
       const isAvailable = requiredVagas === 0 ? vagasLivres >= 0 : vagasLivres >= requiredVagas;
@@ -229,7 +259,7 @@ export default function AgendamentoProfissionalPanel({
         isAvailable
       };
     });
-  }, [slots, selectedService]);
+  }, [slots, selectedService, agendaTipo]);
 
   const validSlotsCount = useMemo(() => {
     return availableSlots.filter(s => s.isAvailable).length;
@@ -275,7 +305,7 @@ export default function AgendamentoProfissionalPanel({
         servico: selectedService.nome,
         data: selectedDate,
         horario: selectedHour,
-        tipo: 'academia',
+        tipo: agendaTipo,
         observacoes: observacoes.trim() || undefined,
         status: 'agendado'
       };
@@ -702,6 +732,32 @@ export default function AgendamentoProfissionalPanel({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            {/* Seletor de Modalidade / Agenda */}
+            <div style={{ flex: '1 1 200px', maxWidth: '280px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                <i className="fa-solid fa-list-check" style={{ marginRight: '6px', color: '#38bdf8' }}></i> Escolha a Agenda:
+              </label>
+              <select
+                value={agendaTipo}
+                onChange={e => setAgendaTipo(e.target.value as any)}
+                style={{
+                  width: '100%',
+                  background: 'var(--bg-darker)',
+                  color: 'var(--text-main)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  outline: 'none',
+                  fontSize: '0.88rem',
+                  fontWeight: 600
+                }}
+              >
+                <option value="academia">🏋️ Academia (Geral)</option>
+                {(isAlbert || !currentProfessionalId) && <option value="dr_albert">🩺 Agenda Dr. Albert</option>}
+                {(isGuilherme || !currentProfessionalId) && <option value="dr_guilherme">🩺 Agenda Dr. Guilherme</option>}
+              </select>
+            </div>
+
             <div style={{ flex: '1 1 200px', maxWidth: '280px' }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
                 <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px', color: '#10b981' }}></i> Selecione o dia:

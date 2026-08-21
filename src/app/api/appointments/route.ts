@@ -18,25 +18,29 @@ const SERVICOS_CONFIG: Record<string, {
   tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum';
   vagasOcupadas: number;
   exclusivoPorProfissional: boolean;
-  tipo: 'academia' | 'consultorio';
+  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
 }> = {
   'Treino Monitorado':        { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Treino Livre':             { tipoCredito: 'nenhum',     vagasOcupadas: 0, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Recovery':                 { tipoCredito: 'nenhum',     vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Avaliação Física':         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Teste de Força':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Avaliação Fisioterápica':  { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia' },
+  'Avaliação Fisioterápica':  { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Emergência':               { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Terapia Manual':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Massagem':                 { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Consulta':                 { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
+  'Quiropraxia':              { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
 };
 
 export { SERVICOS_CONFIG };
 
 const CAPACIDADE_POR_PROFISSIONAL = 3;
-const CANCELAMENTO_JANELAS = {
+const CANCELAMENTO_JANELAS: Record<string, number> = {
   academia: 6,
-  consultorio: 2
+  consultorio: 2,
+  dr_albert: 2,
+  dr_guilherme: 2
 };
 const AGENDAMENTO_ANTECEDENCIA_MIN = 2;
 
@@ -57,7 +61,9 @@ function getServiceCreditConfig(servico: string, isDynamus: boolean): { tipoCred
     if (
       normalized.includes('treino monitorado') ||
       normalized.includes('recovery') ||
-      normalized.includes('treino livre')
+      normalized.includes('treino livre') ||
+      normalized.includes('consulta') ||
+      normalized.includes('quiro')
     ) {
       return { tipoCredito: 'academia', cost: 1 };
     }
@@ -198,7 +204,7 @@ export async function POST(request: Request) {
     }
 
     let tipoCredito = servicoConfig.tipoCredito;
-    const tipo = servicoConfig.tipo;
+    const tipo = body.tipo || servicoConfig.tipo || 'academia';
 
     // Restrição da regra de liberação de agenda para alunos (sexta 18h)
     const session = await getServerSession(authOptions);
@@ -260,9 +266,13 @@ export async function POST(request: Request) {
       if (dayOfWeek === 0) {
         return NextResponse.json({ success: false, error: 'O clube está fechado aos domingos.' }, { status: 400 });
       } else if (dayOfWeek === 6) {
-        // Sábado: APENAS Massagem é permitida
+        // Sábado nas agendas médicas
+        if (tipo === 'dr_albert' || tipo === 'dr_guilherme') {
+          return NextResponse.json({ success: false, error: 'Atendimento aos sábados somente com Horário Extra autorizado.' }, { status: 400 });
+        }
+        // Sábado na academia: APENAS Massagem é permitida
         if (servico !== 'Massagem') {
-          return NextResponse.json({ success: false, error: 'Aos sábados, apenas Massagem está disponível.' }, { status: 400 });
+          return NextResponse.json({ success: false, error: 'Aos sábados, apenas Massagem está disponível na academia.' }, { status: 400 });
         }
         const validSaturdays = ['09:50', '10:40', '11:30', '12:25'];
         if (!validSaturdays.includes(horario)) {
@@ -276,19 +286,30 @@ export async function POST(request: Request) {
         const slotsNoHorario = await Appointment.countDocuments({
           data,
           horario,
+          tipo: 'academia',
           status: { $ne: 'cancelado' }
         });
         if (slotsNoHorario >= maxSábado) {
           return NextResponse.json({ success: false, error: `Horário lotado. Apenas ${maxSábado} vaga(s) por horário aos sábados.` }, { status: 400 });
         }
       } else {
-        // Segunda a Sexta: Massagem é bloqueada
-        if (servico === 'Massagem') {
-          return NextResponse.json({ success: false, error: 'Massagem é oferecida exclusivamente aos sábados.' }, { status: 400 });
-        }
-        const validWeekdays = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
-        if (!validWeekdays.includes(horario)) {
-          return NextResponse.json({ success: false, error: 'Os horários de atendimento de segunda a sexta são das 06:00 às 20:00 (último horário às 20:00).' }, { status: 400 });
+        // Segunda a Sexta:
+        if (tipo === 'dr_albert' || tipo === 'dr_guilherme') {
+          const validDoctorHours = [
+            '06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00',
+            '15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'
+          ];
+          if (!validDoctorHours.includes(horario)) {
+            return NextResponse.json({ success: false, error: 'Horários de atendimento de segunda a sexta são das 06:00 às 22:00.' }, { status: 400 });
+          }
+        } else {
+          if (servico === 'Massagem') {
+            return NextResponse.json({ success: false, error: 'Massagem é oferecida exclusivamente aos sábados.' }, { status: 400 });
+          }
+          const validWeekdays = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+          if (!validWeekdays.includes(horario)) {
+            return NextResponse.json({ success: false, error: 'Os horários de atendimento de segunda a sexta na academia são das 06:00 às 20:00.' }, { status: 400 });
+          }
         }
       }
     }
@@ -376,36 +397,62 @@ export async function POST(request: Request) {
       }
     }
 
-    // --- Atribuição de Profissional (sem travas de capacidade ou exclusividade) ---
+    // --- Atribuição de Profissional ---
     let finalProfId = requestedProfId;
-    const professionals = ['6668ab030303030303030302', '6668ab030303030303030301'];
-    if (!finalProfId || !professionals.includes(finalProfId)) {
-      finalProfId = professionals[0];
+    if (!finalProfId) {
+      if (tipo === 'dr_albert') {
+        const pAlbert = await Professional.findOne({ nome: { $regex: /albert/i } });
+        if (pAlbert) finalProfId = pAlbert._id;
+      } else if (tipo === 'dr_guilherme') {
+        const pGuilherme = await Professional.findOne({ nome: { $regex: /guilherme/i } });
+        if (pGuilherme) finalProfId = pGuilherme._id;
+      }
+    }
+    if (!finalProfId) {
+      const fallbackProf = await Professional.findOne({});
+      finalProfId = fallbackProf?._id || '6668ab030303030303030302';
     }
 
-    let maxVagasAcademia = 6;
-    if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
-      maxVagasAcademia = customRule.capacidadePersonalizada;
-    }
+    // --- Validação de Vagas / Capacidade ---
+    if (tipo === 'dr_albert' || tipo === 'dr_guilherme' || tipo === 'consultorio') {
+      let maxVagas = 1;
+      if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
+        maxVagas = customRule.capacidadePersonalizada;
+      }
+      const existingDoctorApts = await Appointment.countDocuments({
+        data,
+        horario,
+        tipo,
+        status: { $ne: 'cancelado' }
+      });
+      if (existingDoctorApts >= maxVagas && !bypassRestrictions) {
+        return NextResponse.json({ success: false, error: `Horário lotado! Apenas ${maxVagas} vaga(s) disponível(is) neste horário.` }, { status: 400 });
+      }
+    } else {
+      let maxVagasAcademia = 6;
+      if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
+        maxVagasAcademia = customRule.capacidadePersonalizada;
+      }
 
-    const allGymApts = await Appointment.find({
-      data,
-      horario,
-      tipo: 'academia',
-      status: { $ne: 'cancelado' }
-    });
-    const vagasTotais = allGymApts.reduce((sum, apt) => {
-      const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
-      return sum + cfg.vagasOcupadas;
-    }, 0);
-    if (vagasTotais + servicoConfig.vagasOcupadas > maxVagasAcademia && !bypassRestrictions) {
-      return NextResponse.json({ success: false, error: `Horário na academia lotado! Máximo de ${maxVagasAcademia} vagas.` }, { status: 400 });
-    }
+      const allGymApts = await Appointment.find({
+        data,
+        horario,
+        tipo: 'academia',
+        status: { $ne: 'cancelado' }
+      });
+      const vagasTotais = allGymApts.reduce((sum, apt) => {
+        const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
+        return sum + cfg.vagasOcupadas;
+      }, 0);
+      if (vagasTotais + servicoConfig.vagasOcupadas > maxVagasAcademia && !bypassRestrictions) {
+        return NextResponse.json({ success: false, error: `Horário na academia lotado! Máximo de ${maxVagasAcademia} vagas.` }, { status: 400 });
+      }
 
-    if (servico === 'Treino Livre') {
-      const treinosLivresNesteHorario = allGymApts.filter(a => a.servico === 'Treino Livre').length;
-      if (treinosLivresNesteHorario >= 3 && !bypassRestrictions) {
-        return NextResponse.json({ success: false, error: 'Limite de 3 Treinos Livres por horário atingido.' }, { status: 400 });
+      if (servico === 'Treino Livre') {
+        const treinosLivresNesteHorario = allGymApts.filter(a => a.servico === 'Treino Livre').length;
+        if (treinosLivresNesteHorario >= 3 && !bypassRestrictions) {
+          return NextResponse.json({ success: false, error: 'Limite de 3 Treinos Livres por horário atingido.' }, { status: 400 });
+        }
       }
     }
 

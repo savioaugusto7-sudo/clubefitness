@@ -4957,7 +4957,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
       {/* ======================== AGENDA COMPLETA TAB ======================== */}
       {activeTab === 'agenda_completa' && (
-        <AgendaCompletaPanel clients={clients} professionals={professionals} />
+        <AgendaCompletaPanel 
+          clients={clients} 
+          professionals={professionals} 
+          userRole="admin" 
+        />
       )}
 
       {/* ======================== CONFIGURAÇÃO DA AGENDA TAB ======================== */}

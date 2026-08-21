@@ -19,7 +19,7 @@ const WellnessSchema = new Schema({
 const AppointmentSchema = new Schema({
   data: { type: String, required: true }, // formato YYYY-MM-DD
   horario: { type: String, required: true }, // formato HH:MM
-  tipo: { type: String, enum: ['academia', 'consultorio'], required: true },
+  tipo: { type: String, enum: ['academia', 'consultorio', 'dr_albert', 'dr_guilherme'], required: true },
   servico: { type: String, required: true },
   consumeCredito: { type: Boolean, default: false },
   tipoCredito: { type: String, enum: ['academia', 'massagem', 'emergencia', 'nenhum'], default: 'nenhum' },

@@ -9,6 +9,7 @@ import { smartSearchMatch } from '@/utils/smartSearch';
 import SearchableSelect from './SearchableSelect';
 import GestaoContratosPanel from './GestaoContratosPanel';
 import DynamusPanel from './DynamusPanel';
+import AgendaCompletaPanel from './AgendaCompletaPanel';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -37,6 +38,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [appointments, setAppointments] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [financials, setFinancials] = useState<any[]>([]);
+  const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Search
@@ -272,21 +274,23 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const fetchData = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [resC, resA, resP, resF, resFs, resAc] = await Promise.all([
+      const [resC, resA, resP, resF, resFs, resAc, resProf] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/appointments'),
         fetch('/api/plans'),
         fetch('/api/financial'),
         fetch('/api/fixed-schedules'),
-        fetch('/api/admin/agenda-config')
+        fetch('/api/admin/agenda-config'),
+        fetch('/api/professionals')
       ]);
-      const [jC, jA, jP, jF, jFs, jAc] = await Promise.all([
+      const [jC, jA, jP, jF, jFs, jAc, jProf] = await Promise.all([
         resC.json(),
         resA.json(),
         resP.json(),
         resF.json(),
         resFs.json(),
-        resAc.json()
+        resAc.json(),
+        resProf.json()
       ]);
       if (jC.success) setClients(jC.data);
       if (jA.success) setAppointments(jA.data);
@@ -294,6 +298,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       if (jF.success) setFinancials(jF.data);
       if (jFs.success) setFixedSchedules(jFs.data);
       if (jAc.success) setAgendaConfigs(jAc.data);
+      if (jProf.success) setProfessionals(jProf.data);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
@@ -3222,6 +3227,16 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
           </div>
         )}
       </div>
+    );
+  }
+
+  if (activeTab === 'agendamentos') {
+    return (
+      <AgendaCompletaPanel 
+        clients={clients} 
+        professionals={professionals} 
+        userRole="receptionist" 
+      />
     );
   }
 

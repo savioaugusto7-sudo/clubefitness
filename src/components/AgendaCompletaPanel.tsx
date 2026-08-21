@@ -21,6 +21,12 @@ const normalizeText = (str: string) => {
 
 const getServiceColor = (service: string) => {
   const name = (service || '').toLowerCase();
+  if (name.includes('consulta')) {
+    return { bg: 'rgba(56, 189, 248, 0.15)', text: '#38bdf8' }; // Sky Blue
+  }
+  if (name.includes('quiro') || name.includes('quiropraxia')) {
+    return { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b' }; // Orange/Amber
+  }
   if (name.includes('monitorado')) {
     return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981' }; // Green
   }
@@ -33,11 +39,11 @@ const getServiceColor = (service: string) => {
   if (name.includes('liberacao') || name.includes('liberação') || name.includes('miofascial')) {
     return { bg: 'rgba(6, 182, 212, 0.15)', text: '#06b6d4' }; // Cyan
   }
-  if (name.includes('quiro') || name.includes('quiropraxia')) {
-    return { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b' }; // Orange
-  }
   if (name.includes('recovery') || name.includes('recuperacao') || name.includes('recuperação')) {
     return { bg: 'rgba(244, 63, 94, 0.15)', text: '#f43f5e' }; // Rose
+  }
+  if (name.includes('emergencia') || name.includes('emergência')) {
+    return { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' }; // Red
   }
   return { bg: 'rgba(236, 72, 153, 0.15)', text: '#ec4899' }; // Pink (Default)
 };
@@ -68,7 +74,7 @@ interface ProfessionalInfo {
 
 interface AgendaConfigRule {
   _id: string;
-  tipo: 'academia' | 'consultorio';
+  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
   horario: string;
   acao: 'bloquear' | 'adicionar' | 'alterar_capacidade';
   diaSemana: number | null;
@@ -79,7 +85,7 @@ interface AgendaConfigRule {
 interface SlotDetails {
   horario: string;
   capacidade: number;
-  tipo: 'academia' | 'consultorio';
+  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
   vagasOcupadas: number;
   appointments: any[];
 }
@@ -95,10 +101,19 @@ interface GoogleEvent {
 interface AgendaCompletaPanelProps {
   clients: ClientInfo[];
   professionals: ProfessionalInfo[];
+  userRole?: 'admin' | 'receptionist' | 'professional' | 'client';
+  professionalId?: string;
+  userName?: string;
 }
 
-export default function AgendaCompletaPanel({ clients, professionals }: AgendaCompletaPanelProps) {
-  // Aba selecionada: 'academia' | 'consultorio' | 'professionalId'
+export default function AgendaCompletaPanel({ 
+  clients, 
+  professionals,
+  userRole,
+  professionalId,
+  userName
+}: AgendaCompletaPanelProps) {
+  // Aba selecionada: 'academia' | 'dr_albert' | 'dr_guilherme' | 'consultorio' | professionalId
   const [activeTab, setActiveTab] = useState<string>('academia');
 
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -121,13 +136,13 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   // States para Ajuste de Vagas (Local)
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [adjustTargetTime, setAdjustTargetTime] = useState('');
-  const [adjustTargetType, setAdjustTargetType] = useState<'academia' | 'consultorio'>('academia');
+  const [adjustTargetType, setAdjustTargetType] = useState<string>('academia');
   const [adjustCapacityVal, setAdjustCapacityVal] = useState<number>(6);
 
   // States para Adicionar Horário Extra (Local)
   const [showAddHourModal, setShowAddHourModal] = useState(false);
   const [addTimeInput, setAddTimeInput] = useState('08:00');
-  const [addTimeType, setAddTimeType] = useState<'academia' | 'consultorio'>('academia');
+  const [addTimeType, setAddTimeType] = useState<string>('academia');
   const [addCapacityInput, setAddCapacityInput] = useState<number>(6);
 
   // States para Visualização e Agendamento Manual (Local)
@@ -143,7 +158,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   // States para Modal Customizado de Confirmação de Deleção
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [deleteTargetTime, setDeleteTargetTime] = useState('');
-  const [deleteTargetType, setDeleteTargetType] = useState<'academia' | 'consultorio'>('academia');
+  const [deleteTargetType, setDeleteTargetType] = useState<string>('academia');
 
   // States para Inspeção Rápida de Agendamento e Gestão de Observações (Mobile & Desktop)
   const [inspectApt, setInspectApt] = useState<any | null>(null);
@@ -228,7 +243,8 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
 
   useEffect(() => {
     if (selectedDate) {
-      if (activeTab === 'academia' || activeTab === 'consultorio') {
+      const isLocalAgenda = activeTab === 'academia' || activeTab === 'dr_albert' || activeTab === 'dr_guilherme' || activeTab === 'consultorio';
+      if (isLocalAgenda) {
         fetchSlotsAndConfigs();
       } else {
         fetchGoogleEvents();
@@ -363,45 +379,60 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
     setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1));
   };
 
-  // Renderizar dias do calendário
+  // Renderizar os dias do mês selecionado
   const renderCalendarDays = () => {
     const year = selectedMonth.getFullYear();
     const month = selectedMonth.getMonth();
+
     const firstDayIndex = new Date(year, month, 1).getDay();
-    const totalDays = new Date(year, month + 1, 0).getDate();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const prevLastDate = new Date(year, month, 0).getDate();
 
-    const dayCells = [];
+    const days = [];
 
-    for (let i = 0; i < firstDayIndex; i++) {
-      dayCells.push(<div key={`empty-${i}`} className="calendar-day-empty"></div>);
-    }
-
-    for (let day = 1; day <= totalDays; day++) {
-      const formattedDay = String(day).padStart(2, '0');
-      const formattedMonth = String(month + 1).padStart(2, '0');
-      const cellDate = `${year}-${formattedMonth}-${formattedDay}`;
-      const isSelected = cellDate === selectedDate;
-
-      const today = new Date();
-      const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-
-      dayCells.push(
-        <div
-          key={day}
-          className={`calendar-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
-          onClick={() => setSelectedDate(cellDate)}
-        >
-          <span className="day-number">{day}</span>
+    // Dias do mês anterior
+    for (let x = firstDayIndex; x > 0; x--) {
+      days.push(
+        <div key={`prev-${x}`} className="calendar-day other-month" style={{ opacity: 0.3, padding: '8px 0', textAlign: 'center', fontSize: '0.8rem' }}>
+          {prevLastDate - x + 1}
         </div>
       );
     }
 
-    return dayCells;
+    // Dias do mês atual
+    for (let i = 1; i <= lastDate; i++) {
+      const dayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      const isSelected = selectedDate === dayString;
+      const isToday = new Date().toISOString().slice(0, 10) === dayString;
+
+      days.push(
+        <div
+          key={`current-${i}`}
+          onClick={() => setSelectedDate(dayString)}
+          style={{
+            padding: '8px 0',
+            textAlign: 'center',
+            fontSize: '0.82rem',
+            fontWeight: isSelected || isToday ? 700 : 500,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            background: isSelected ? 'var(--color-primary)' : isToday ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+            color: isSelected ? '#fff' : isToday ? 'var(--color-primary)' : 'var(--text-main)',
+            border: isToday && !isSelected ? '1px solid var(--color-primary)' : '1px solid transparent',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          {i}
+        </div>
+      );
+    }
+
+    return days;
   };
 
   // --- Handlers de Ações locais de Exceções da Grade ---
 
-  const handleBlockSlot = async (horario: string, tipo: 'academia' | 'consultorio', aplicarRecorrente: boolean) => {
+  const handleBlockSlot = async (horario: string, tipo: string, aplicarRecorrente: boolean) => {
     const parts = selectedDate.split('-');
     const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
     const dayOfWeek = dateObj.getDay();
@@ -594,11 +625,23 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
     }
 
     setIsBookingManual(true);
-    const defaultProfId = professionals[0]?._id || '6668ab030303030303030302';
+    
+    let defaultProfId = '';
+    if (activeTab === 'dr_albert' || selectedSlot?.tipo === 'dr_albert') {
+      const pAlbert = professionals.find(p => p.nome.toLowerCase().includes('albert'));
+      defaultProfId = pAlbert?._id || '';
+    } else if (activeTab === 'dr_guilherme' || selectedSlot?.tipo === 'dr_guilherme') {
+      const pGuilherme = professionals.find(p => p.nome.toLowerCase().includes('guilherme'));
+      defaultProfId = pGuilherme?._id || '';
+    }
+    if (!defaultProfId) {
+      defaultProfId = professionals[0]?._id || '6668ab030303030303030302';
+    }
 
     const payload = {
       data: selectedDate,
       horario: selectedSlot?.horario,
+      tipo: selectedSlot?.tipo || activeTab,
       servico: manualService,
       clienteId: targetClientId,
       profissionalId: defaultProfId,
@@ -678,6 +721,19 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
   // Nome do profissional selecionado atualmente
   const currentProfessional = professionals.find(p => p._id === activeTab);
 
+  // Visibilidade por perfil
+  const isDocAlbert = (userName || '').toLowerCase().includes('albert') || professionals.find(p => p._id === professionalId)?.nome.toLowerCase().includes('albert');
+  const isDocGuilherme = (userName || '').toLowerCase().includes('guilherme') || professionals.find(p => p._id === professionalId)?.nome.toLowerCase().includes('guilherme');
+
+  const canSeeDrAlbert = !userRole || userRole === 'admin' || userRole === 'receptionist' || isDocAlbert;
+  const canSeeDrGuilherme = !userRole || userRole === 'admin' || userRole === 'receptionist' || isDocGuilherme;
+
+  const visibleProfessionals = (!userRole || userRole === 'admin' || userRole === 'receptionist')
+    ? professionals
+    : professionals.filter(p => p._id === professionalId || (userName && p.nome.toLowerCase().includes(userName.toLowerCase().split(' ')[0])));
+
+  const isLocalAgenda = activeTab === 'academia' || activeTab === 'dr_albert' || activeTab === 'dr_guilherme' || activeTab === 'consultorio';
+
   return (
     <div className="content-panel" style={{ padding: '24px' }}>
       
@@ -686,17 +742,36 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         <button 
           className={`btn ${activeTab === 'academia' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('academia')}
-          style={{ fontSize: '0.78rem', padding: '6px 14px', borderRadius: '8px' }}
+          style={{ fontSize: '0.78rem', padding: '6px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
         >
-          <i className="fa-solid fa-dumbbell" style={{ marginRight: '5px' }}></i> Academia
+          <i className="fa-solid fa-dumbbell"></i> Academia
         </button>
 
+        {canSeeDrAlbert && (
+          <button 
+            className={`btn ${activeTab === 'dr_albert' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('dr_albert')}
+            style={{ fontSize: '0.78rem', padding: '6px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <i className="fa-solid fa-user-doctor" style={{ color: activeTab === 'dr_albert' ? '#fff' : '#38bdf8' }}></i> Dr. Albert
+          </button>
+        )}
+
+        {canSeeDrGuilherme && (
+          <button 
+            className={`btn ${activeTab === 'dr_guilherme' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('dr_guilherme')}
+            style={{ fontSize: '0.78rem', padding: '6px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <i className="fa-solid fa-user-doctor" style={{ color: activeTab === 'dr_guilherme' ? '#fff' : '#a855f7' }}></i> Dr. Guilherme
+          </button>
+        )}
 
         {/* Divisor */}
         <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 4px' }}></div>
 
-        {/* Abas dos Profissionais */}
-        {professionals.map(p => (
+        {/* Abas dos Profissionais (Google Calendar) */}
+        {visibleProfessionals.map(p => (
           <button
             key={p._id}
             className={`btn ${activeTab === p._id ? 'btn-primary' : 'btn-secondary'}`}
@@ -704,7 +779,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
             style={{ fontSize: '0.76rem', padding: '5px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}
           >
             <i className="fa-brands fa-google" style={{ color: p.googleTokens?.refreshToken ? '#10b981' : '#ef4444', fontSize: '0.72rem' }}></i>
-            <span>{p.nome}</span>
+            <span>Google: {p.nome}</span>
           </button>
         ))}
       </div>
@@ -713,17 +788,29 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
         <div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>
             <i className="fa-solid fa-calendar-alt" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i> 
-            {activeTab === 'academia' ? 'Agenda Academia' : activeTab === 'consultorio' ? 'Agenda Consultório' : `Google Agenda - ${currentProfessional?.nome}`}
+            {activeTab === 'academia' 
+              ? 'Agenda Academia' 
+              : activeTab === 'dr_albert' 
+              ? 'Agenda Dr. Albert' 
+              : activeTab === 'dr_guilherme' 
+              ? 'Agenda Dr. Guilherme' 
+              : activeTab === 'consultorio' 
+              ? 'Agenda Consultório' 
+              : `Google Agenda - ${currentProfessional?.nome}`}
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {activeTab === 'academia' || activeTab === 'consultorio' 
-              ? 'Visualize as aulas marcadas por horário, suspenda turnos inteiros ou ajuste as vagas em datas e regras semanais.'
+            {isLocalAgenda 
+              ? 'Visualize os atendimentos por horário, suspenda horários ou ajuste vagas e regras semanais.'
               : `Visualize e gerencie os compromissos diretamente no Google Calendar de ${currentProfessional?.nome}.`}
           </p>
         </div>
         <div>
-          {activeTab === 'academia' || activeTab === 'consultorio' ? (
-            <button className="btn btn-primary" onClick={() => setShowAddHourModal(true)}>
+          {isLocalAgenda ? (
+            <button className="btn btn-primary" onClick={() => {
+              setAddTimeType(activeTab);
+              setAddCapacityInput(activeTab === 'academia' ? 6 : 1);
+              setShowAddHourModal(true);
+            }}>
               <i className="fa-solid fa-plus" style={{ marginRight: '6px' }}></i> Horário Extra
             </button>
           ) : (
@@ -780,8 +867,8 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
               <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
               <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Carregando dados da agenda...</p>
             </div>
-          ) : activeTab === 'academia' || activeTab === 'consultorio' ? (
-            // ================= VISUALIZAÇÃO LOCAL (ACADEMIA / CONSULTÓRIO) =================
+          ) : isLocalAgenda ? (
+            // ================= VISUALIZAÇÃO LOCAL (ACADEMIA / DR. ALBERT / DR. GUILHERME) =================
             <>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-clock" style={{ color: 'var(--text-dim)' }}></i>
@@ -791,7 +878,7 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
               {slots.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', border: '1.5px dashed var(--border-color)', borderRadius: '12px' }}>
                   <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
-                  <h4 style={{ margin: '0 0 6px' }}>Clube Fechado neste dia</h4>
+                  <h4 style={{ margin: '0 0 6px' }}>Agenda Fechada neste dia</h4>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há horários definidos ou disponíveis nesta data.</p>
                 </div>
               ) : (
@@ -802,6 +889,14 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                     if (occupancyPct >= 100) barColor = 'var(--color-danger)';
                     else if (occupancyPct >= 70) barColor = '#f59e0b';
                     else barColor = 'var(--color-success)';
+
+                    const getBadgeStyles = (tipo: string) => {
+                      if (tipo === 'dr_albert') return { bg: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', label: 'Dr. Albert' };
+                      if (tipo === 'dr_guilherme') return { bg: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', label: 'Dr. Guilherme' };
+                      if (tipo === 'academia') return { bg: 'rgba(59, 130, 246, 0.15)', color: 'var(--color-info)', label: 'Academia' };
+                      return { bg: 'rgba(16, 185, 129, 0.15)', color: 'var(--color-success)', label: 'Consultório' };
+                    };
+                    const bInfo = getBadgeStyles(slot.tipo);
 
                     return (
                       <div 
@@ -825,8 +920,8 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '150px' }}>
                           <strong style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>{slot.horario}</strong>
                           <div>
-                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: slot.tipo === 'academia' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)', color: slot.tipo === 'academia' ? 'var(--color-info)' : 'var(--color-success)', fontWeight: 'bold' }}>
-                              {slot.tipo}
+                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: bInfo.bg, color: bInfo.color, fontWeight: 'bold' }}>
+                              {bInfo.label}
                             </span>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                               {slot.vagasOcupadas} / {slot.capacidade} vagas
@@ -1270,7 +1365,13 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                       Gerenciar Horário: {selectedSlot.horario}
                     </h3>
                     <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                      {selectedSlot.tipo === 'academia' ? 'Academia (Treino)' : 'Consultório (Fisioterapia)'} • <strong style={{ color: '#10b981' }}>{selectedSlot.vagasOcupadas}/{selectedSlot.capacidade} vagas</strong>
+                      {selectedSlot.tipo === 'academia' 
+                        ? 'Academia (Treino)' 
+                        : selectedSlot.tipo === 'dr_albert' 
+                        ? 'Consultório Dr. Albert' 
+                        : selectedSlot.tipo === 'dr_guilherme' 
+                        ? 'Consultório Dr. Guilherme' 
+                        : 'Consultório'} • <strong style={{ color: '#10b981' }}>{selectedSlot.vagasOcupadas}/{selectedSlot.capacidade} vagas</strong>
                     </div>
                   </div>
                 </div>
@@ -1427,9 +1528,23 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Serviço</label>
                       <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)} style={{ width: '100%', padding: '10px' }}>
-                        {selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 ? (
+                        {selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 && selectedSlot.tipo === 'academia' ? (
                           <option value="Massagem">Massagem</option>
-                        ) : selectedSlot.tipo === 'academia' ? (
+                        ) : selectedSlot.tipo === 'dr_albert' || selectedSlot.tipo === 'dr_guilherme' ? (
+                          <>
+                            <option value="Consulta">Consulta</option>
+                            <option value="Quiropraxia">Quiropraxia</option>
+                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                            <option value="Terapia Manual">Terapia Manual</option>
+                            <option value="Treino Monitorado">Treino Monitorado</option>
+                            <option value="Treino Livre">Treino Livre</option>
+                            <option value="Recovery">Recovery</option>
+                            <option value="Avaliação Física">Avaliação Física</option>
+                            <option value="Teste de Força">Teste de Força</option>
+                            <option value="Emergência">Emergência</option>
+                            <option value="Massagem">Massagem</option>
+                          </>
+                        ) : (
                           <>
                             <option value="Treino Monitorado">Treino Monitorado</option>
                             <option value="Treino Livre">Treino Livre</option>
@@ -1438,10 +1553,9 @@ export default function AgendaCompletaPanel({ clients, professionals }: AgendaCo
                             <option value="Teste de Força">Teste de Força</option>
                             <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
                             <option value="Emergência">Emergência</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                            <option value="Terapia Manual">Terapia Manual</option>
+                            <option value="Consulta">Consulta</option>
+                            <option value="Quiropraxia">Quiropraxia</option>
                           </>
                         )}
                       </select>

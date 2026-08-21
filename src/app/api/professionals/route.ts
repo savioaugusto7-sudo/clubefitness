@@ -10,6 +10,52 @@ export async function GET() {
     await dbConnect();
     // Force register User model
     const _user = User;
+
+    // Garantir existência padrão de Dr. Albert e Dr. Guilherme se não existirem
+    const defaultDoctors = [
+      {
+        nome: 'Dr. Albert',
+        email: 'albert@clube.com',
+        especialidade: 'Quiropraxia e Fisioterapia Clínica',
+        registro: 'CREFITO 45678-F',
+        cargo: 'Fisioterapeuta / Quiropraxista',
+        pin: '1234'
+      },
+      {
+        nome: 'Dr. Guilherme',
+        email: 'guilherme@clube.com',
+        especialidade: 'Fisioterapia e Consulta Clínica',
+        registro: 'CREFITO 78910-F',
+        cargo: 'Fisioterapeuta / Clínico',
+        pin: '1234'
+      }
+    ];
+
+    for (const doc of defaultDoctors) {
+      const existingProf = await Professional.findOne({
+        nome: { $regex: new RegExp(`^${doc.nome}$`, 'i') }
+      });
+      if (!existingProf) {
+        let user = await User.findOne({ email: doc.email.toLowerCase() });
+        if (!user) {
+          user = await User.create({
+            nome: doc.nome,
+            email: doc.email.toLowerCase(),
+            tipo: 'professional',
+            roles: ['professional'],
+            cargo: doc.cargo
+          });
+        }
+        await Professional.create({
+          userId: user._id,
+          nome: doc.nome,
+          especialidade: doc.especialidade,
+          registro: doc.registro,
+          pin: doc.pin
+        });
+      }
+    }
+
     const professionals = await Professional.find({}).populate('userId');
     return NextResponse.json({ success: true, data: professionals });
   } catch (error: any) {
@@ -122,5 +168,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-
-

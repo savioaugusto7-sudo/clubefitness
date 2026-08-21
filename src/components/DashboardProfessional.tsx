@@ -4514,7 +4514,10 @@ goniometria: {
       {activeTab === 'dashboard' && (
         <AgendaCompletaPanel 
           clients={clients} 
-          professionals={professionals.filter(p => p._id === professionalId)} 
+          professionals={professionals} 
+          userRole="professional"
+          professionalId={professionalId}
+          userName={currentProf?.nome || (session?.user as any)?.nome || session?.user?.name || ''}
         />
       )}
 
