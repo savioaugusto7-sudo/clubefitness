@@ -59,7 +59,8 @@ export async function createAsaasCustomer(client: any) {
   const res = await fetch(`${baseUrl}/customers`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000)
   });
 
   const data = await handleError(res, 'Criar Cliente');
@@ -103,7 +104,8 @@ export async function createAsaasPayment(params: {
   const res = await fetch(`${baseUrl}/payments`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000)
   });
 
   const data = await handleError(res, 'Criar Cobrança');
@@ -119,12 +121,14 @@ export async function createAsaasPayment(params: {
 
 export async function getAsaasPixQrCode(paymentId: string) {
   try {
+    if (!process.env.ASAAS_API_KEY) return null;
     const baseUrl = getBaseUrl();
     const headers = getHeaders();
 
     const res = await fetch(`${baseUrl}/payments/${paymentId}/pixQrCode`, {
       method: 'GET',
-      headers
+      headers,
+      signal: AbortSignal.timeout(6000)
     });
 
     if (!res.ok) return null;
@@ -135,7 +139,7 @@ export async function getAsaasPixQrCode(paymentId: string) {
       expirationDate: data.expirationDate || ''
     };
   } catch (e) {
-    console.error('Erro ao obter Pix QR Code do Asaas:', e);
+    console.warn('Erro ao obter Pix QR Code do Asaas:', e);
     return null;
   }
 }
@@ -146,7 +150,8 @@ export async function getAsaasPaymentDetails(paymentId: string) {
 
   const res = await fetch(`${baseUrl}/payments/${paymentId}`, {
     method: 'GET',
-    headers
+    headers,
+    signal: AbortSignal.timeout(8000)
   });
 
   return handleError(res, 'Consultar Cobrança');
@@ -181,7 +186,8 @@ export async function createAsaasSubscription(params: {
   const res = await fetch(`${baseUrl}/subscriptions`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000)
   });
 
   const data = await handleError(res, 'Criar Assinatura');
@@ -195,12 +201,16 @@ export async function createAsaasSubscription(params: {
 
 export async function getAsaasBalance() {
   try {
+    if (!process.env.ASAAS_API_KEY) {
+      return { totalBalance: 0, availableBalance: 0, pendingBalance: 0 };
+    }
     const baseUrl = getBaseUrl();
     const headers = getHeaders();
 
     const res = await fetch(`${baseUrl}/finance/balance`, {
       method: 'GET',
-      headers
+      headers,
+      signal: AbortSignal.timeout(5000)
     });
 
     if (!res.ok) {
@@ -243,7 +253,8 @@ export async function createAsaasPaymentLink(params: {
   const res = await fetch(`${baseUrl}/paymentLinks`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000)
   });
 
   const data = await handleError(res, 'Criar Link de Pagamento');
@@ -261,7 +272,8 @@ export async function getAsaasInstallmentPayments(installmentId: string) {
 
   const res = await fetch(`${baseUrl}/payments?installment=${installmentId}`, {
     method: 'GET',
-    headers
+    headers,
+    signal: AbortSignal.timeout(8000)
   });
 
   const data = await handleError(res, 'Listar Pagamentos do Parcelamento');
@@ -274,7 +286,8 @@ export async function getAsaasSubscriptionPayments(subscriptionId: string) {
 
   const res = await fetch(`${baseUrl}/payments?subscription=${subscriptionId}`, {
     method: 'GET',
-    headers
+    headers,
+    signal: AbortSignal.timeout(8000)
   });
 
   const data = await handleError(res, 'Listar Pagamentos da Assinatura');

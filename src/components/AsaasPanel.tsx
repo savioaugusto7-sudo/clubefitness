@@ -95,14 +95,23 @@ export default function AsaasPanel() {
     if (!silent) setLoading(true);
     try {
       const res = await fetch('/api/admin/asaas');
+      if (!res.ok) {
+        let errMessage = `Servidor retornou status ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData?.error) errMessage = errData.error;
+        } catch {}
+        console.warn('Aviso Asaas:', errMessage);
+        return;
+      }
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setClients(json.data);
         if (json.isProduction !== undefined) setIsProduction(json.isProduction);
         if (json.balance) setBalance(json.balance);
       }
-    } catch (e) {
-      console.error('Erro ao buscar dados do Asaas:', e);
+    } catch (e: any) {
+      console.warn('Aviso ao consultar Asaas:', e?.message || e);
     } finally {
       setLoading(false);
     }
@@ -112,12 +121,13 @@ export default function AsaasPanel() {
     setLoadingStandalone(true);
     try {
       const res = await fetch('/api/admin/asaas?type=standalone');
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setStandalonePayments(json.data);
       }
-    } catch (e) {
-      console.error('Erro ao buscar avulsas:', e);
+    } catch (e: any) {
+      console.warn('Aviso ao consultar avulsas:', e?.message || e);
     } finally {
       setLoadingStandalone(false);
     }
