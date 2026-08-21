@@ -7,6 +7,8 @@ import Plan from '@/models/Plan';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
+import { createAsaasCustomer, createAsaasPayment } from '@/utils/asaas';
+
 export async function syncContractStatus(contract: any, token: string, baseUrl: string) {
   if (!contract?.clicksignDocKey) return;
   const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
@@ -105,16 +107,17 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
         const client = await Client.findById(contract.clientId);
         if (client) {
           const plan = await Plan.findById(contract.planoId);
-          const isAnual = contract.planoTipo === 'Anual';
+          const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
 
           Object.assign(client.dadosComerciais, {
             planoId: contract.planoId,
-            vencimento: contract.dataPrimeiroVencimento || contract.dataInicio,
+            vencimento: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,
             status: 'ativo',
             parcelas: contract.parcelas,
             descontoValor: contract.descontoValor,
             descontoTipo: contract.descontoTipo,
             duracao: isAnual ? 'anual' : 'mensal',
+            duracaoQtd: isAnual ? 12 : (contract.vigenciaMeses || 1),
             formaPagamento: contract.formaPagamento,
             dataInicio: contract.dataInicio,
             responsavelVenda: contract.responsavelVenda || '',
@@ -129,7 +132,42 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
             creditosMassagemReservados: 0
           });
           await client.save();
-          console.log(`Sync status: Client ${client.dadosPessoais?.nome} activated via clicksign sync.`);
+
+          // Se a forma de pagamento for BOLETO e ainda não possuir cobrança Asaas gerada, criar automaticamente
+          if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && process.env.ASAAS_API_KEY) {
+            try {
+              let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
+              if (!asaasCustomerId) {
+                asaasCustomerId = await createAsaasCustomer(client);
+                client.dadosComerciais.asaasCustomerId = asaasCustomerId;
+                await client.save();
+              }
+              const numParcelas = Number(contract.parcelas) || 1;
+              const totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+              const valorParcela = numParcelas > 1 ? Number((totalLiquido / numParcelas).toFixed(2)) : totalLiquido;
+              const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0];
+
+              const asaasResult = await createAsaasPayment({
+                customerId: asaasCustomerId,
+                formaPagamento: 'boleto',
+                value: totalLiquido,
+                dueDate: dueDate,
+                description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
+                parcelas: numParcelas
+              });
+
+              if (asaasResult && asaasResult.paymentId) {
+                contract.asaasPaymentId = asaasResult.paymentId;
+                contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+                contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+                contract.asaasBillingStatus = 'gerada';
+              }
+            } catch (asaasErr: any) {
+              console.warn('Erro ao criar cobrança Asaas no sync do Clicksign:', asaasErr.message);
+            }
+          }
+
+          console.log(`Sync status: Client ${client.dadosPessoais?.nome} activated via clicksign sync with vencimento ${client.dadosComerciais?.vencimento}.`);
         }
       } else if (clicksignStatus === 'cancelado') {
         const client = await Client.findById(contract.clientId);

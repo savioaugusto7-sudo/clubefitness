@@ -74,22 +74,24 @@ export async function POST(request: Request) {
         const client = await Client.findById(contract.clientId);
         if (client) {
           const plan = await Plan.findById(contract.planoId);
-          const isAnual = contract.planoTipo === 'Anual';
+          const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
 
           Object.assign(client.dadosComerciais, {
             planoId: contract.planoId,
-            vencimento: contract.dataPrimeiroVencimento || contract.dataInicio,
+            vencimento: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,
             status: 'ativo',
             parcelas: contract.parcelas,
             descontoValor: contract.descontoValor,
             descontoTipo: contract.descontoTipo,
             duracao: isAnual ? 'anual' : 'mensal',
+            duracaoQtd: isAnual ? 12 : (contract.vigenciaMeses || 1),
             formaPagamento: contract.formaPagamento,
             dataInicio: contract.dataInicio,
             responsavelVenda: contract.responsavelVenda || '',
             unidadeContratada: contract.unidadeContratada || '',
             observacoesContratuais: contract.observacoesContratuais || '',
-            creditosTotal: plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0),
+            frequencia: contract.frequencia !== undefined ? contract.frequencia : client.dadosComerciais.frequencia,
+            creditosTotal: contract.creditosTotal || plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0),
             creditosUsados: 0,
             creditosReservados: 0,
             creditosMassagemTotal: isAnual ? 1 : 0,
@@ -97,7 +99,45 @@ export async function POST(request: Request) {
             creditosMassagemReservados: 0
           });
           await client.save();
-          console.log(`Webhook: Client ${client.dadosPessoais?.nome} activated via Clicksign.`);
+
+          // Se a forma de pagamento for BOLETO e ainda não possuir cobrança Asaas gerada, criar automaticamente
+          if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && process.env.ASAAS_API_KEY) {
+            try {
+              let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
+              if (!asaasCustomerId) {
+                const { createAsaasCustomer } = await import('@/utils/asaas');
+                asaasCustomerId = await createAsaasCustomer(client);
+                client.dadosComerciais.asaasCustomerId = asaasCustomerId;
+                await client.save();
+              }
+              const { createAsaasPayment } = await import('@/utils/asaas');
+              const numParcelas = Number(contract.parcelas) || 1;
+              const totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+              const valorParcela = numParcelas > 1 ? Number((totalLiquido / numParcelas).toFixed(2)) : totalLiquido;
+              const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0];
+
+              const asaasResult = await createAsaasPayment({
+                customerId: asaasCustomerId,
+                formaPagamento: 'boleto',
+                value: totalLiquido,
+                dueDate: dueDate,
+                description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
+                parcelas: numParcelas
+              });
+
+              if (asaasResult && asaasResult.paymentId) {
+                contract.asaasPaymentId = asaasResult.paymentId;
+                contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+                contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+                contract.asaasBillingStatus = 'gerada';
+                await contract.save();
+              }
+            } catch (asaasErr: any) {
+              console.warn('Erro ao criar cobrança Asaas no webhook do Clicksign:', asaasErr.message);
+            }
+          }
+
+          console.log(`Webhook: Client ${client.dadosPessoais?.nome} activated via Clicksign with vencimento ${client.dadosComerciais?.vencimento}.`);
         }
       }
     } else if (isCancelEvent) {

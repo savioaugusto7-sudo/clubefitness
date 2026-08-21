@@ -242,6 +242,10 @@ export async function PUT(request: Request) {
         newContract.clicksignStatus = 'pendente';
         await newContract.save();
 
+        proposal.status = 'aceita';
+        proposal.contractId = newContract._id;
+        await proposal.save();
+
         return NextResponse.json({
           success: true,
           data: proposal,

@@ -630,6 +630,7 @@ export async function POST(request: Request) {
         descontoValor: descVal,
         descontoTipo: descontoTipo || 'percentual',
         duracao: isAnual ? 'anual' : 'mensal',
+        duracaoQtd: isAnual ? 12 : vigenciaMeses,
         formaPagamento: formaPagamento,
         dataInicio: dataInicio,
         responsavelVenda: responsavelVenda || '',
@@ -699,7 +700,7 @@ export async function PUT(request: Request) {
 
       // Atualizar dados do cliente comercialmente
       const plan = await Plan.findById(contract.planoId);
-      const isAnual = contract.planoTipo === 'Anual';
+      const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
 
       Object.assign(client.dadosComerciais, {
         planoId: contract.planoId,
@@ -709,6 +710,7 @@ export async function PUT(request: Request) {
         descontoValor: contract.descontoValor,
         descontoTipo: contract.descontoTipo,
         duracao: isAnual ? 'anual' : 'mensal',
+        duracaoQtd: isAnual ? 12 : (contract.vigenciaMeses || 1),
         formaPagamento: contract.formaPagamento,
         dataInicio: contract.dataInicio,
         responsavelVenda: contract.responsavelVenda || '',
@@ -723,6 +725,41 @@ export async function PUT(request: Request) {
         creditosMassagemReservados: 0
       });
       await client.save();
+
+      // Se formaPagamento for BOLETO e não possuir cobrança Asaas, gerar no Asaas
+      if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && process.env.ASAAS_API_KEY) {
+        try {
+          let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
+          if (!asaasCustomerId) {
+            asaasCustomerId = await createAsaasCustomer(client);
+            client.dadosComerciais.asaasCustomerId = asaasCustomerId;
+            await client.save();
+          }
+          const numParcelas = Number(contract.parcelas) || 1;
+          const totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+          const valorParcela = numParcelas > 1 ? Number((totalLiquido / numParcelas).toFixed(2)) : totalLiquido;
+          const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0];
+
+          const asaasResult = await createAsaasPayment({
+            customerId: asaasCustomerId,
+            formaPagamento: 'boleto',
+            value: totalLiquido,
+            dueDate: dueDate,
+            description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
+            parcelas: numParcelas
+          });
+
+          if (asaasResult && asaasResult.paymentId) {
+            contract.asaasPaymentId = asaasResult.paymentId;
+            contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+            contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+            contract.asaasBillingStatus = 'gerada';
+            await contract.save();
+          }
+        } catch (asaasErr: any) {
+          console.warn('Erro ao criar cobrança Asaas na assinatura do contrato:', asaasErr.message);
+        }
+      }
 
       return NextResponse.json({ success: true, data: contract });
     }

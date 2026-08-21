@@ -39,15 +39,92 @@ export default function GestaoContratosPanel({
   const [contratoPlanFilter, setContratoPlanFilter] = useState('todos');
   const [contracts, setContracts] = useState<any[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
+  const [allContractsMap, setAllContractsMap] = useState<Record<string, any>>({});
+  const [allProposalsMap, setAllProposalsMap] = useState<Record<string, any>>({});
+  const [syncingClicksignClientId, setSyncingClicksignClientId] = useState<string | null>(null);
 
-  // Computação com busca inteligente multi-termos, filtros e ordenação
+  const loadContractsAndProposalsOverview = async () => {
+    try {
+      const [contractsRes, proposalsRes] = await Promise.all([
+        fetch('/api/contracts').then(r => r.json()).catch(() => ({})),
+        fetch('/api/propostas').then(r => r.json()).catch(() => ({}))
+      ]);
+
+      if (contractsRes.success && Array.isArray(contractsRes.data)) {
+        const cMap: Record<string, any> = {};
+        contractsRes.data.forEach((c: any) => {
+          const cId = c.clientId?._id || c.clientId;
+          if (cId && (!cMap[cId] || new Date(c.createdAt) > new Date(cMap[cId].createdAt))) {
+            cMap[cId] = c;
+          }
+        });
+        setAllContractsMap(cMap);
+      }
+
+      if (proposalsRes.success && Array.isArray(proposalsRes.data)) {
+        const pMap: Record<string, any> = {};
+        proposalsRes.data.forEach((p: any) => {
+          const cId = p.clientId?._id || p.clientId;
+          if (cId && (!pMap[cId] || new Date(p.createdAt) > new Date(pMap[cId].createdAt))) {
+            pMap[cId] = p;
+          }
+        });
+        setAllProposalsMap(pMap);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar mapa de contratos e propostas:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadContractsAndProposalsOverview();
+  }, [clients]);
+
+  const handleSyncClicksignForClient = async (client: any) => {
+    const contract = allContractsMap[client._id];
+    if (!contract || !contract.clicksignDocKey) {
+      alert('Nenhum envelope da Clicksign encontrado para este aluno.');
+      return;
+    }
+    setSyncingClicksignClientId(client._id);
+    try {
+      const res = await fetch('/api/clicksign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_doc', docKey: contract.clicksignDocKey })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Status da Clicksign sincronizado com sucesso!');
+        fetchData();
+        loadContractsAndProposalsOverview();
+      } else {
+        alert('Erro ao sincronizar Clicksign: ' + (data.error || 'Falha na requisição'));
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao sincronizar: ' + err.message);
+    } finally {
+      setSyncingClicksignClientId(null);
+    }
+  };
+
+  // Computação com busca inteligente multi-termos, filtros de estágio e ordenação
   const sortedClients = useMemo(() => {
     return clients
       .filter((c: any) => {
         const com = c.dadosComerciais || {};
         const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
         const status = com.status || 'pendente';
-        
+        const latestContract = allContractsMap[c._id];
+        const latestProposal = allProposalsMap[c._id];
+        const info = getContractValidityInfo(c, plan);
+
+        const isPendingContract = Boolean((latestContract && latestContract.status === 'pendente') || com.status === 'pendente');
+        const isPendingProposal = Boolean(!isPendingContract && latestProposal && latestProposal.status === 'pendente');
+        const isLead = Boolean(com.status === 'lead' || (!plan && !latestContract));
+        const isActive = Boolean((status === 'ativo' || status === 'assinado' || latestContract?.status === 'assinado') && !info.isExpired);
+        const isExpiringOrExpired = Boolean(info.isExpired || info.isExpiringSoon);
+
         // 1. Smart Search Multi-Terms
         const matchesSearch = smartSearchMatch(searchQuery, [
           c.dadosPessoais?.nome,
@@ -59,12 +136,12 @@ export default function GestaoContratosPanel({
         ]);
         if (!matchesSearch) return false;
 
-        // 2. Status Filter
+        // 2. Stage / Status Filter
         if (contratoStatusFilter !== 'todos') {
-          if (contratoStatusFilter === 'ativo' && (status !== 'ativo' && status !== 'assinado')) return false;
-          if (contratoStatusFilter === 'pendente' && status !== 'pendente') return false;
-          if (contratoStatusFilter === 'lead' && status !== 'lead') return false;
-          if (contratoStatusFilter === 'vencido' && status !== 'vencido') return false;
+          if (contratoStatusFilter === 'lead' && !isLead) return false;
+          if (contratoStatusFilter === 'aguardando_assinatura' && !(isPendingContract || isPendingProposal)) return false;
+          if (contratoStatusFilter === 'ativo' && !isActive) return false;
+          if (contratoStatusFilter === 'renovacao' && !isExpiringOrExpired) return false;
           if (contratoStatusFilter === 'congelado' && status !== 'congelado') return false;
         }
 
@@ -105,7 +182,7 @@ export default function GestaoContratosPanel({
         }
         return 0;
       });
-  }, [clients, searchQuery, contratoStatusFilter, contratoPlanFilter, sortOption, plans]);
+  }, [clients, searchQuery, contratoStatusFilter, contratoPlanFilter, sortOption, plans, allContractsMap, allProposalsMap]);
   const [generatingPayments, setGeneratingPayments] = useState(false);
   const [renewingValidity, setRenewingValidity] = useState(false);
   const [cancelingRecurrence, setCancelingRecurrence] = useState(false);
@@ -1481,6 +1558,110 @@ export default function GestaoContratosPanel({
           <ClicksignPanel />
         ) : (
           <>
+            {/* Funil de Estágios Rápido */}
+            <div style={{ marginBottom: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setContratoStatusFilter('todos')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: contratoStatusFilter === 'todos' ? 'var(--color-primary)' : 'var(--border-color)',
+                  background: contratoStatusFilter === 'todos' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
+                  color: contratoStatusFilter === 'todos' ? 'var(--color-primary)' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                🌐 Todos ({clients.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setContratoStatusFilter('lead')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: contratoStatusFilter === 'lead' ? '#8b5cf6' : 'var(--border-color)',
+                  background: contratoStatusFilter === 'lead' ? 'rgba(139, 92, 246, 0.18)' : 'rgba(255,255,255,0.03)',
+                  color: contratoStatusFilter === 'lead' ? '#c084fc' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                🟣 Leads & Cadastros
+              </button>
+              <button
+                type="button"
+                onClick={() => setContratoStatusFilter('aguardando_assinatura')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: contratoStatusFilter === 'aguardando_assinatura' ? '#f59e0b' : 'var(--border-color)',
+                  background: contratoStatusFilter === 'aguardando_assinatura' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255,255,255,0.03)',
+                  color: contratoStatusFilter === 'aguardando_assinatura' ? '#fbbf24' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                ⏳ Aguardando Assinatura
+              </button>
+              <button
+                type="button"
+                onClick={() => setContratoStatusFilter('ativo')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: contratoStatusFilter === 'ativo' ? '#10b981' : 'var(--border-color)',
+                  background: contratoStatusFilter === 'ativo' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255,255,255,0.03)',
+                  color: contratoStatusFilter === 'ativo' ? '#34d399' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                ✅ Contratos Ativos
+              </button>
+              <button
+                type="button"
+                onClick={() => setContratoStatusFilter('renovacao')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: contratoStatusFilter === 'renovacao' ? '#fbbf24' : 'var(--border-color)',
+                  background: contratoStatusFilter === 'renovacao' ? 'rgba(251, 191, 36, 0.18)' : 'rgba(255,255,255,0.03)',
+                  color: contratoStatusFilter === 'renovacao' ? '#fde047' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                🚀 Renovações / Vencendo
+              </button>
+            </div>
+
             <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
               <div style={{ flex: '1 1 240px', maxWidth: '300px' }}>
                 <input
@@ -1493,25 +1674,6 @@ export default function GestaoContratosPanel({
               </div>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {/* Status Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    <i className="fa-solid fa-filter" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Status:
-                  </label>
-                  <select
-                    className="select-custom"
-                    value={contratoStatusFilter}
-                    onChange={e => setContratoStatusFilter(e.target.value)}
-                    style={{ minWidth: '140px', fontSize: '0.83rem', padding: '6px 10px' }}
-                  >
-                    <option value="todos">🌐 Todos os Status</option>
-                    <option value="ativo">✅ Contrato Ativo</option>
-                    <option value="lead">🟣 Leads / Avaliação</option>
-                    <option value="pendente">⏳ Pendentes</option>
-                    <option value="congelado">❄️ Congelados</option>
-                  </select>
-                </div>
-
                 {/* Plan Filter */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -1614,7 +1776,7 @@ export default function GestaoContratosPanel({
         <div className="content-panel">
           {viewMode === 'cards' ? (
             /* ==========================================
-               CARDS EXECUTIVOS MOBILE & DESKTOP GRID
+               CARDS EXECUTIVOS EM 3 BLOCOS CLAROS
                ========================================== */
             <div>
               {sortedClients.length === 0 ? (
@@ -1624,31 +1786,34 @@ export default function GestaoContratosPanel({
                   <p style={{ fontSize: '0.85rem' }}>Ajuste os filtros ou o termo de busca para visualizar contratos.</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
                   {sortedClients.map((c: any) => {
                     const com = c.dadosComerciais || {};
                     const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
                     const info = getContractValidityInfo(c, plan);
+                    const latestContract = allContractsMap[c._id];
+                    const latestProposal = allProposalsMap[c._id];
 
                     const rawTel = (c.dadosPessoais?.telefone || '').replace(/\D/g, '');
                     const firstName = (c.dadosPessoais?.nome || 'Aluno').split(' ')[0];
                     const waMsg = encodeURIComponent(`Olá ${firstName}! Tudo bem? Entramos em contato referente ao seu plano no Clube Fitness.`);
                     const waLink = rawTel ? `https://wa.me/55${rawTel}?text=${waMsg}` : null;
 
-                    const dtNasc = c.dadosPessoais?.dataNascimento || c.dadosPessoais?.nascimento;
-                    let birthDateFormatted = '';
-                    if (dtNasc) {
-                      try {
-                        const parts = dtNasc.split('-');
-                        if (parts.length === 3 && parts[0].length === 4) {
-                          birthDateFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
-                        } else {
-                          birthDateFormatted = new Date(dtNasc + 'T12:00:00').toLocaleDateString('pt-BR');
-                        }
-                      } catch {
-                        birthDateFormatted = dtNasc;
-                      }
-                    }
+                    // Data checks
+                    const hasCpf = Boolean(c.dadosPessoais?.cpf?.trim());
+                    const hasPhone = Boolean(c.dadosPessoais?.telefone?.trim());
+                    const hasEndereco = Boolean(c.dadosPessoais?.endereco?.trim() && c.dadosPessoais?.numero?.trim() && c.dadosPessoais?.cep?.trim());
+                    const enderecoFormatted = hasEndereco
+                      ? `${c.dadosPessoais.endereco}, ${c.dadosPessoais.numero}${c.dadosPessoais.bairro ? ` - ${c.dadosPessoais.bairro}` : ''}, ${c.dadosPessoais.cidade || ''} (${c.dadosPessoais.cep})`
+                      : null;
+
+                    // Stage derivation
+                    const isPendingContract = Boolean((latestContract && (latestContract.status === 'pendente' || latestContract.clicksignStatus === 'pendente')) || com.status === 'pendente');
+                    const isPendingProposal = Boolean(!isPendingContract && latestProposal && latestProposal.status === 'pendente');
+                    const isLead = Boolean(com.status === 'lead' || (!plan && !latestContract && !latestProposal));
+                    const isActive = Boolean((com.status === 'ativo' || latestContract?.status === 'assinado') && !info.isExpired);
+                    const isBoleto = (latestContract?.formaPagamento || com.formaPagamento) === 'boleto';
+                    const hasAsaasBoleto = Boolean(latestContract?.asaasBoletoPdf || latestContract?.asaasInvoiceUrl);
 
                     return (
                       <div
@@ -1667,21 +1832,35 @@ export default function GestaoContratosPanel({
                         }}
                       >
                         <div>
-                          {/* Header do Card (Sem Avatar) */}
+                          {/* =========================================================
+                              BLOCO 1: IDENTIFICAÇÃO DO ALUNO & ORIGEM
+                              ========================================================= */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px', wordBreak: 'break-word' }}>
+                              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px', wordBreak: 'break-word' }}>
                                 {c.dadosPessoais?.nome || 'Sem Nome'}
                               </h3>
-                              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px', fontWeight: 500, lineHeight: 1.4 }}>
-                                {c.dadosPessoais?.cpf ? `CPF: ${c.dadosPessoais.cpf}` : (c.dadosPessoais?.telefone || 'Sem contato')}
-                                {birthDateFormatted && ` • Nasc: ${birthDateFormatted}`}
+                              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px', lineHeight: 1.4 }}>
+                                <span>CPF: </span>
+                                <strong style={{ color: hasCpf ? '#ffffff' : '#64748b' }}>
+                                  {hasCpf ? c.dadosPessoais.cpf : '(Não informado)'}
+                                </strong>
+                                <span> • Tel: </span>
+                                <strong style={{ color: hasPhone ? '#ffffff' : '#64748b' }}>
+                                  {hasPhone ? c.dadosPessoais.telefone : '(Não informado)'}
+                                </strong>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: hasEndereco ? '#94a3b8' : '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                                <i className="fa-solid fa-location-dot" style={{ marginRight: '4px', color: hasEndereco ? 'var(--color-primary)' : '#475569' }}></i>
+                                {enderecoFormatted || '(Endereço não informado)'}
                               </div>
                             </div>
 
+                            {/* Badge do Estágio */}
                             <span style={{
-                              background: info.statusKey === 'ativo' ? '#065f46' : info.statusKey === 'vencido' ? '#991b1b' : info.statusKey === 'congelado' ? '#92400e' : '#334155',
-                              color: '#ffffff',
+                              background: isPendingContract ? 'rgba(245, 158, 11, 0.18)' : isPendingProposal ? 'rgba(139, 92, 246, 0.18)' : isLead ? 'rgba(139, 92, 246, 0.12)' : info.statusKey === 'ativo' ? '#065f46' : info.statusKey === 'vencido' ? '#991b1b' : info.statusKey === 'congelado' ? '#92400e' : '#334155',
+                              color: isPendingContract ? '#fbbf24' : isPendingProposal ? '#c084fc' : isLead ? '#c084fc' : '#ffffff',
+                              border: isPendingContract ? '1px solid rgba(245, 158, 11, 0.4)' : isPendingProposal ? '1px solid rgba(139, 92, 246, 0.4)' : 'none',
                               padding: '4px 10px',
                               borderRadius: '6px',
                               fontSize: '0.72rem',
@@ -1691,11 +1870,13 @@ export default function GestaoContratosPanel({
                               whiteSpace: 'nowrap',
                               flexShrink: 0
                             }}>
-                              {info.statusLabel}
+                              {isPendingContract ? '⏳ Aguardando Assinatura' : isPendingProposal ? '⏳ Proposta Enviada' : isLead ? '🟣 Lead / Cadastro' : info.statusLabel}
                             </span>
                           </div>
 
-                          {/* Bloco de Vigência e Condição Financeira Executivo */}
+                          {/* =========================================================
+                              BLOCO 2: ESTÁGIO, VIGÊNCIA & CHECKLIST DE DADOS
+                              ========================================================= */}
                           <div style={{
                             background: '#090d16',
                             border: '1px solid #1e293b',
@@ -1706,10 +1887,11 @@ export default function GestaoContratosPanel({
                             flexDirection: 'column',
                             gap: '8px'
                           }}>
+                            {/* Plano & Valor */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
                               <span style={{ color: '#94a3b8', fontWeight: 500 }}>Plano:</span>
                               <strong style={{ color: '#ffffff', fontWeight: 700, textAlign: 'right' }}>
-                                {plan?.nome || 'Não definido'}
+                                {plan?.nome || 'A definir'}
                               </strong>
                             </div>
 
@@ -1741,17 +1923,180 @@ export default function GestaoContratosPanel({
                               </strong>
                             </div>
 
-                            {Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia) && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#93c5fd', background: '#1e293b', padding: '4px 8px', borderRadius: '6px' }}>
-                                <i className="fa-solid fa-arrows-rotate"></i> Recorrência Mensal Ativada
-                              </div>
-                            )}
+                            {/* Checklist de Dados */}
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
+                              <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Ações Executivas Guiadas */}
+                        {/* =========================================================
+                            BLOCO 3: CALL-TO-ACTION PRIMÁRIO & AÇÕES SECUNDÁRIAS
+                            ========================================================= */}
                         <div style={{ borderTop: '1px solid #1e293b', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                          {/* BOTÃO DE AÇÃO PRIMÁRIA EM DESTAQUE */}
+                          {isPendingContract ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSyncClicksignForClient(c)}
+                              disabled={syncingClicksignClientId === c._id}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#f59e0b',
+                                color: '#000000',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)'
+                              }}
+                            >
+                              {syncingClicksignClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
+                              Sincronizar Status Clicksign
+                            </button>
+                          ) : isPendingProposal ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const url = window.location.origin + '/vendas/' + latestProposal._id;
+                                setGeneratedProposalUrl(url);
+                                setActiveProposal(latestProposal);
+                                setShowProposalModal(true);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#8b5cf6',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)'
+                              }}
+                            >
+                              <i className="fa-solid fa-share-nodes"></i> Copiar / Reenviar Link de Venda
+                            </button>
+                          ) : isLead ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenSalesWizard(c)}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: 'var(--color-primary)',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                              }}
+                            >
+                              <i className="fa-solid fa-bolt"></i> Gerar Link de Venda
+                            </button>
+                          ) : (info.isExpired || info.isExpiringSoon) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateRenewalLink(c)}
+                              disabled={Boolean(generatingRenewalClientId)}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#fbbf24',
+                                color: '#000000',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)'
+                              }}
+                            >
+                              {generatingRenewalClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
+                              Gerar Renovação Anual (+5%)
+                            </button>
+                          ) : (isActive && isBoleto) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAsaasModal(c)}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#0284c7',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
+                              }}
+                            >
+                              <i className="fa-solid fa-receipt"></i> {hasAsaasBoleto ? 'Ver Boletos / Carnê Asaas' : 'Gerar Boletos no Asaas'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (latestContract?.contratoAnexo) {
+                                  window.open(latestContract.contratoAnexo, '_blank');
+                                } else {
+                                  downloadContractPDF(c, plan, '', c.dadosComerciais);
+                                }
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: 'var(--color-primary)',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                              }}
+                            >
+                              <i className="fa-solid fa-file-pdf"></i> Baixar Contrato PDF
+                            </button>
+                          )}
+
+                          {/* AÇÕES SECUNDÁRIAS ORGANIZADAS */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                             <button
                               type="button"
                               onClick={() => setConsultingClient(c)}
@@ -1759,65 +2104,19 @@ export default function GestaoContratosPanel({
                                 background: '#1e293b',
                                 border: '1px solid #334155',
                                 color: '#f1f5f9',
-                                padding: '8px 10px',
+                                padding: '6px 8px',
                                 borderRadius: '8px',
-                                fontSize: '0.78rem',
+                                fontSize: '0.74rem',
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '6px'
+                                gap: '4px'
                               }}
                               title="Consultar resumo completo do contrato em modo de leitura"
                             >
-                              <i className="fa-solid fa-eye" style={{ color: '#94a3b8' }}></i> Consultar
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAsaasModal(c)}
-                              style={{
-                                background: '#1e293b',
-                                border: '1px solid #334155',
-                                color: '#f1f5f9',
-                                padding: '8px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px'
-                              }}
-                              title="Buscar e sincronizar faturas do cliente no Asaas"
-                            >
-                              <i className="fa-solid fa-credit-card" style={{ color: '#38bdf8' }}></i> Asaas
-                            </button>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenSalesWizard(c)}
-                              style={{
-                                background: '#1e293b',
-                                border: '1px solid #334155',
-                                color: '#f1f5f9',
-                                padding: '8px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px'
-                              }}
-                              title="Gerar Link de Venda para o Aluno Preencher no Celular"
-                            >
-                              <i className="fa-solid fa-link" style={{ color: '#c084fc' }}></i> Link Venda
+                              <i className="fa-solid fa-eye" style={{ color: '#94a3b8' }}></i> Resumo
                             </button>
 
                             <button
@@ -1827,68 +2126,41 @@ export default function GestaoContratosPanel({
                                 background: '#1e293b',
                                 border: '1px solid #334155',
                                 color: '#f1f5f9',
-                                padding: '8px 10px',
+                                padding: '6px 8px',
                                 borderRadius: '8px',
-                                fontSize: '0.78rem',
+                                fontSize: '0.74rem',
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '6px'
+                                gap: '4px'
                               }}
-                              title="Preencher Dados e Emitir Contrato / Clicksign Diretamente"
+                              title="Emitir contrato direto ou presencial"
                             >
-                              <i className="fa-solid fa-file-signature" style={{ color: '#34d399' }}></i> Emitir Contrato
-                            </button>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleGenerateRenewalLink(c)}
-                              disabled={Boolean(generatingRenewalClientId)}
-                              style={{
-                                background: '#1e293b',
-                                border: '1px solid #334155',
-                                color: '#f1f5f9',
-                                padding: '8px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px'
-                              }}
-                              title="Gerar Link de Renovação com Reajuste de 5%"
-                            >
-                              {generatingRenewalClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate" style={{ color: '#fbbf24' }}></i>}
-                              Renovação
+                              <i className="fa-solid fa-file-signature" style={{ color: '#34d399' }}></i> Emitir
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleSelectClient(c)}
                               style={{
-                                background: '#059669',
-                                border: '1px solid #047857',
-                                color: '#ffffff',
-                                padding: '8px 12px',
+                                background: '#1e293b',
+                                border: '1px solid #334155',
+                                color: '#f1f5f9',
+                                padding: '6px 8px',
                                 borderRadius: '8px',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
+                                fontSize: '0.74rem',
+                                fontWeight: 600,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '6px',
-                                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)'
+                                gap: '4px'
                               }}
-                              title="Abrir workspace completo de edição do contrato"
+                              title="Gerenciar cadastro completo"
                             >
-                              <i className="fa-solid fa-sliders"></i> Gerenciar
+                              <i className="fa-solid fa-sliders" style={{ color: 'var(--color-primary)' }}></i> Gerenciar
                             </button>
                           </div>
 
@@ -1898,17 +2170,17 @@ export default function GestaoContratosPanel({
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{
-                                background: '#064e3b',
-                                border: '1px solid #065f46',
-                                color: '#34d399',
-                                padding: '8px 12px',
+                                background: 'rgba(37, 211, 102, 0.08)',
+                                border: '1px solid rgba(37, 211, 102, 0.3)',
+                                color: '#25d366',
+                                padding: '6px 10px',
                                 borderRadius: '8px',
-                                fontSize: '0.78rem',
+                                fontSize: '0.74rem',
                                 fontWeight: 600,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '8px',
+                                gap: '6px',
                                 textDecoration: 'none'
                               }}
                             >

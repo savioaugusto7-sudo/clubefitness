@@ -175,9 +175,61 @@ export default function PublicCadastroPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleStep2Next = () => {
+    setError('');
+    const cleanCep = cep.trim().replace(/\D/g, '');
+    const cleanEnd = endereco.trim();
+    const cleanNum = numero.trim();
+    const cleanBairro = bairro.trim();
+    const cleanCidade = cidade.trim();
+    const cleanEstado = estado.trim().toUpperCase();
+
+    if (!cleanCep || cleanCep.length !== 8) {
+      setError('Por favor, informe um CEP válido com 8 dígitos.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!cleanEnd) {
+      setError('Por favor, informe o Logradouro / Rua.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!cleanNum) {
+      setError('Por favor, informe o Número residencial.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!cleanBairro) {
+      setError('Por favor, informe o Bairro.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!cleanCidade) {
+      setError('Por favor, informe a Cidade.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!cleanEstado || cleanEstado.length !== 2) {
+      setError('Por favor, informe o Estado (UF) com 2 letras (ex: MG).');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setEstado(cleanEstado);
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSubmit = async () => {
     if (!termoAceito) {
       setError('Você precisa aceitar os Termos de Consentimento e a Política de Privacidade para prosseguir.');
+      return;
+    }
+    const cleanCep = cep.trim().replace(/\D/g, '');
+    if (!cleanCep || !endereco.trim() || !numero.trim() || !bairro.trim() || !cidade.trim() || !estado.trim()) {
+      setError('Endereço Completo (CEP, Rua, Número, Bairro, Cidade, Estado) é obrigatório.');
+      setStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     setSaving(true);
@@ -188,7 +240,7 @@ export default function PublicCadastroPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome, dataNascimento, sexo, cpf, telefone, email,
-          cep, endereco, numero, complemento, bairro, cidade, estado,
+          cep: cleanCep, endereco: endereco.trim(), numero: numero.trim(), complemento: complemento.trim(), bairro: bairro.trim(), cidade: cidade.trim(), estado: estado.trim(),
           lesoes, restricoes, medicamentos, historicoClinico,
           termoAceito: true
         }),
@@ -569,43 +621,49 @@ export default function PublicCadastroPage() {
 
                 <div className="ob-form-grid">
                   <div className="form-group">
-                    <label>CEP</label>
-                    <input className="form-control" value={cep} onChange={handleCepChange} onBlur={buscarCep} placeholder="00000000" maxLength={8} />
+                    <label>CEP *</label>
+                    <input className="form-control" value={cep} onChange={handleCepChange} onBlur={buscarCep} placeholder="00000000" maxLength={8} required />
                   </div>
                   <div className="form-group">
-                    <label>Bairro</label>
-                    <input className="form-control" value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Bairro" />
+                    <label>Bairro *</label>
+                    <input className="form-control" value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Bairro" required />
                   </div>
 
                   <div className="form-group full">
-                    <label>Endereço</label>
-                    <input className="form-control" value={endereco} onChange={e => setEndereco(e.target.value)} placeholder="Rua, Avenida..." />
+                    <label>Logradouro / Rua *</label>
+                    <input className="form-control" value={endereco} onChange={e => setEndereco(e.target.value)} placeholder="Rua, Avenida..." required />
                   </div>
 
                   <div className="form-group">
-                    <label>Número</label>
-                    <input className="form-control" value={numero} onChange={e => setNumero(e.target.value)} placeholder="Nº" />
+                    <label>Número *</label>
+                    <input className="form-control" value={numero} onChange={e => setNumero(e.target.value)} placeholder="Nº (ou S/N)" required />
                   </div>
                   <div className="form-group">
-                    <label>Complemento</label>
+                    <label>Complemento (opcional)</label>
                     <input className="form-control" value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Apto, Bloco..." />
                   </div>
 
                   <div className="form-group">
-                    <label>Cidade</label>
-                    <input className="form-control" value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Cidade" />
+                    <label>Cidade *</label>
+                    <input className="form-control" value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Cidade" required />
                   </div>
                   <div className="form-group">
-                    <label>Estado (UF)</label>
-                    <input className="form-control" value={estado} onChange={e => setEstado(e.target.value)} placeholder="UF" maxLength={2} />
+                    <label>Estado (UF) *</label>
+                    <input className="form-control" value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} placeholder="UF (ex: MG)" maxLength={2} required />
                   </div>
                 </div>
+
+                {error && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', color: 'var(--color-danger)', fontSize: '0.84rem', marginTop: '16px' }}>
+                    <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px' }}></i>{error}
+                  </div>
+                )}
 
                 <div className="ob-btn-row">
                   <button className="btn" onClick={() => { setStep(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
                     <i className="fa-solid fa-arrow-left"></i> Voltar
                   </button>
-                  <button className="btn btn-primary" onClick={() => { setError(''); setStep(3); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button className="btn btn-primary" onClick={handleStep2Next} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     Próximo <i className="fa-solid fa-arrow-right"></i>
                   </button>
                 </div>

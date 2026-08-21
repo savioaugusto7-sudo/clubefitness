@@ -49,8 +49,8 @@ export async function POST(request: Request) {
       termoAceito,
     } = body;
 
-    if (!nome || !email || !telefone) {
-      return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes: Nome, E-mail e Telefone são necessários.' }, { status: 400 });
+    if (!nome || !email || !telefone || !endereco || !numero || !bairro || !cidade || !estado || !cep) {
+      return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes: Nome, E-mail, Telefone e Endereço Completo (CEP, Rua, Número, Bairro, Cidade, Estado) são obrigatórios.' }, { status: 400 });
     }
 
     const emailClean = email.trim().toLowerCase();
