@@ -107,24 +107,27 @@ body {
   overflow-x: auto;
 }
 
-/* Barra Lateral (Sidebar) */
+/* Barra Lateral (Sidebar) - Fixa durante toda a rolagem */
 aside.sidebar {
-  width: var(--sidebar-width);
-  min-width: var(--sidebar-width);
-  max-width: var(--sidebar-width);
-  flex-shrink: 0;
-  background: linear-gradient(180deg, #090e1a 0%, #030508 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  display: flex;
-  flex-direction: column;
-  padding: 16px 12px;
-  position: sticky;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  min-height: 100vh;
-  align-self: stretch;
-  z-index: 100;
+  width: var(--sidebar-width) !important;
+  min-width: var(--sidebar-width) !important;
+  max-width: var(--sidebar-width) !important;
+  flex-shrink: 0 !important;
+  background: linear-gradient(180deg, #090e1a 0%, #030508 100%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 16px 12px !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  z-index: 1000 !important;
+  box-sizing: border-box !important;
   transition: var(--transition-normal);
 }
 
@@ -324,10 +327,10 @@ select {
 
 /* Área de Conteúdo Principal */
 main.main-content {
-  margin-left: 0;
+  margin-left: var(--sidebar-width);
   flex: 1 1 0%;
   min-width: 0;
-  width: 100%;
+  width: calc(100% - var(--sidebar-width));
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -3048,14 +3051,18 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 @media (max-width: 768px) {
   /* Sidebar lateral mantida contínua na borda esquerda */
   aside.sidebar {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-width);
+    width: var(--sidebar-width) !important;
+    min-width: var(--sidebar-width) !important;
     display: flex !important;
-    position: sticky !important;
+    position: fixed !important;
     top: 0 !important;
     left: 0 !important;
+    bottom: 0 !important;
     height: 100vh !important;
-    z-index: 100 !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+    z-index: 1000 !important;
+    box-sizing: border-box !important;
   }
 
   main.main-content {

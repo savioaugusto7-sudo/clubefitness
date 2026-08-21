@@ -7,6 +7,8 @@ import Professional from '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { hashPassword } from '@/utils/auth';
 
+import { calculateContractEndDate, getContractValidityInfo } from '@/utils/contractValidity';
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const maxDuration = 30;
@@ -42,7 +44,7 @@ export async function GET(request: Request) {
     try {
       clients = await Client.find(query)
         .populate({ path: 'userId', select: 'email role activeRoles' })
-        .populate({ path: 'dadosComerciais.planoId', select: 'nome valor status' })
+        .populate({ path: 'dadosComerciais.planoId', select: 'nome valor preco status tipo' })
         .populate({ path: 'profissionalId', select: 'nome email' })
         .lean()
         .maxTimeMS(8000);
@@ -50,6 +52,17 @@ export async function GET(request: Request) {
       console.warn('[clients GET] Populate timed out, falling back to raw find:', popErr.message);
       clients = await Client.find(query).lean().maxTimeMS(5000);
     }
+
+    // Auto-Heal & Consistência de Vigência: calcula a vigência real unificada
+    clients.forEach((c: any) => {
+      if (c.dadosComerciais) {
+        const info = getContractValidityInfo(c, c.dadosComerciais.planoId);
+        c.dadosComerciais.vencimento = info.dataFim;
+        if (c.dadosComerciais.status !== 'congelado' && c.dadosComerciais.status !== 'inativo') {
+          c.dadosComerciais.status = info.statusKey === 'vencido' ? 'vencido' : (c.dadosComerciais.status === 'lead' ? 'lead' : 'ativo');
+        }
+      }
+    });
 
     return NextResponse.json({ success: true, data: clients });
   } catch (error: any) {
@@ -157,7 +170,21 @@ export async function PUT(request: Request) {
       client.markModified('dadosClinicos');
     }
     if (dadosComerciais) {
-      Object.assign(client.dadosComerciais, dadosComerciais);
+      const isRecorrente = Boolean(dadosComerciais.criarRecorrenciaMensal !== undefined ? dadosComerciais.criarRecorrenciaMensal : client.dadosComerciais?.criarRecorrenciaMensal);
+      const calculatedEnd = calculateContractEndDate(
+        dadosComerciais.dataInicio || client.dadosComerciais?.dataInicio,
+        dadosComerciais.duracao || client.dadosComerciais?.duracao,
+        dadosComerciais.duracaoQtd || dadosComerciais.vigenciaQtd || client.dadosComerciais?.duracaoQtd,
+        dadosComerciais.vencimento || client.dadosComerciais?.vencimento,
+        isRecorrente
+      );
+
+      const merged = {
+        ...dadosComerciais,
+        vencimento: calculatedEnd
+      };
+
+      Object.assign(client.dadosComerciais, merged);
       client.markModified('dadosComerciais');
     }
     if (profissionalId !== undefined) {

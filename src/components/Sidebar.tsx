@@ -229,7 +229,23 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
   return (
     <>
       {/* Sidebar Container */}
-      <aside className="sidebar" id="appSidebar" style={{ display: 'flex', flexDirection: 'column' }}>
+      <aside
+        className="sidebar"
+        id="appSidebar"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          height: '100vh',
+          minHeight: '100vh',
+          maxHeight: '100vh',
+          zIndex: 1000,
+          boxSizing: 'border-box'
+        }}
+      >
         {/* Brand Section */}
         <div className="brand-section">
           <div className="brand-logo">

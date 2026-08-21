@@ -15,6 +15,7 @@ import SearchableSelect from './SearchableSelect';
 import DadosClinicosPanel from './DadosClinicosPanel';
 import WorkoutBuilder from './WorkoutBuilder';
 import DynamusPanel from './DynamusPanel';
+import { getContractValidityInfo } from '@/utils/contractValidity';
 
 
 export const normalizeText = (str: string) => {
@@ -2088,7 +2089,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           {/* Alertas de Notificação do Sistema */}
           {(() => {
-            const expiredClients = clients.filter(c => c.dadosComerciais?.status === 'vencido');
+            const expiredClients = clients.filter(c => {
+              if (c.dadosComerciais?.status === 'congelado' || c.dadosComerciais?.status === 'inativo') return false;
+              const info = getContractValidityInfo(c);
+              return info.isExpired;
+            });
             const alertClients = clients.filter(c => {
               if (c.dadosComerciais?.status !== 'ativo') return false;
               const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
@@ -2105,19 +2110,22 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   </h2>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                  {expiredClients.map(c => (
-                    <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.1)', width: '100%', minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px', minWidth: 0 }}>
-                        <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', flexShrink: 0 }}></i>
-                        <span style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>
-                          O plano de <strong>{c.dadosPessoais?.nome}</strong> venceu em <strong>{c.dadosComerciais?.vencimento ? new Date(c.dadosComerciais.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</strong>. Status atual: <strong>Vencido</strong>.
-                        </span>
+                  {expiredClients.map(c => {
+                    const info = getContractValidityInfo(c);
+                    return (
+                      <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.1)', width: '100%', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px', minWidth: 0 }}>
+                          <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', flexShrink: 0 }}></i>
+                          <span style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>
+                            O plano de <strong>{c.dadosPessoais?.nome}</strong> venceu em <strong>{info.dataFimFormatted}</strong>. Status atual: <strong>Vencido</strong>.
+                          </span>
+                        </div>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => alert('Notificação enviada ao aluno!')} style={{ flexShrink: 0 }}>
+                          Notificar
+                        </button>
                       </div>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => alert('Notificação enviada ao aluno!')} style={{ flexShrink: 0 }}>
-                        Notificar
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {alertClients.map(c => {
                     const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
                     if (!metrics) return null;
