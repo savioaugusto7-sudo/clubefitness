@@ -1443,7 +1443,7 @@ export default function GestaoContratosPanel({
     setDcCep(pes.cep || '');
     
     setDcPlano(com.planoId?._id || com.planoId || '');
-    setDcStatus(com.status === 'lead' ? 'ativo' : (com.status || 'ativo'));
+    setDcStatus(com.status || 'lead');
     setDcFormaPag(com.formaPagamento || 'pix');
 
     const planObj = plans.find(p => p._id === (com.planoId?._id || com.planoId));
@@ -2750,7 +2750,6 @@ export default function GestaoContratosPanel({
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyCenter: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
                                 boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
@@ -3635,8 +3634,8 @@ export default function GestaoContratosPanel({
                     <option value="ativo">🟢 Contrato Ativo (Matrícula Efetivada)</option>
                     <option value="lead">🟣 Lead / Em Avaliação</option>
                     <option value="congelado">🟡 Congelado</option>
-                    <option value="finalizado">🏁 Finalizado (Não Renovou)</option>
-                    <option value="inativo">⚪ Sem Contrato Ativo / Inativo</option>
+                    <option value="finalizado">🏁 Finalizado</option>
+                    <option value="inativo">⚪ Inativo</option>
                   </select>
                 </div>
 

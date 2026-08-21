@@ -1669,6 +1669,10 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                         <label className="comercial-field-label"><i className="fa-solid fa-circle-info"></i> Status</label>
                         <select className="select-custom" value={dcStatus} onChange={e => setDcStatus(e.target.value)}>
                           <option value="ativo">Ativo</option>
+                          <option value="lead">Lead</option>
+                          <option value="finalizado">Finalizado</option>
+                          <option value="inativo">Inativo</option>
+                          <option value="congelado">Congelado</option>
                           <option value="vencido">Vencido</option>
                           <option value="suspenso">Suspenso</option>
                           <option value="cancelado">Cancelado</option>
