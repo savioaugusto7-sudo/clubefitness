@@ -3276,259 +3276,375 @@ export default function GestaoContratosPanel({
             </small>
           </div>
 
-          <div className="form-group">
-            <label>Plano</label>
-            <select
-              className="select-custom"
-              value={dcPlano}
-              onChange={e => {
-                const newPlanoId = e.target.value;
-                setDcPlano(newPlanoId);
-                const plan = plans.find(p => p._id === newPlanoId);
-                if (plan) {
-                  setDcValorUnitario(plan.preco);
-                  setDcDuracao(plan.tipo === 'Anual' ? 'anual' : 'mensal');
-                  setDcVigenciaQtd(plan.tipo === 'Anual' ? 12 : 1);
-                  setDcCreditosTotal(plan.creditosTotal || 0);
-                }
-              }}
-              required
-            >
-              <option value="">Selecione um plano...</option>
-              {plans.filter((p: any) => p.ativo !== false).map((p: any) => (
-                <option key={p._id} value={p._id}>{p.nome}</option>
-              ))}
-            </select>
-          </div>
+          {/* =========================================================================
+              BLOCO DADOS COMERCIAIS DO CONTRATO (BLINDADOS SE CONTRATADO / LIBERÁVEIS)
+              ========================================================================= */}
+          {(() => {
+            const hasContractOrProposal = Boolean(
+              selectedClient.dadosComerciais?.planoId || 
+              selectedClient.dadosComerciais?.status === 'ativo' ||
+              activeProposal ||
+              (contracts && contracts.length > 0)
+            );
+            const isCommercialLocked = Boolean(hasContractOrProposal && selectedClient.bloqueioCadastral?.bloqueado !== false);
 
-          <div className="form-group">
-            <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i className="fa-solid fa-signal" style={{ color: dcStatus === 'ativo' ? '#10b981' : dcStatus === 'lead' ? '#8b5cf6' : dcStatus === 'congelado' ? '#f59e0b' : '#94a3b8' }}></i>
-              Status Comercial do Contrato
-            </label>
-            <select
-              className="select-custom"
-              value={dcStatus}
-              onChange={e => setDcStatus(e.target.value)}
-              style={{ fontWeight: 600 }}
-            >
-              <option value="ativo">🟢 Contrato Ativo (Matrícula Efetivada)</option>
-              <option value="lead">🟣 Lead / Em Avaliação</option>
-              <option value="congelado">🟡 Congelado</option>
-              <option value="inativo">⚪ Sem Contrato Ativo / Inativo</option>
-            </select>
-          </div>
+            return (
+              <div style={{
+                background: 'var(--bg-secondary)',
+                border: isCommercialLocked ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-file-contract" style={{ color: isCommercialLocked ? '#34d399' : 'var(--color-primary)', fontSize: '1.05rem' }}></i>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                      Condições Comerciais do Contrato
+                    </h4>
+                    {isCommercialLocked ? (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-lock"></i> Contratado pelo Aluno (Blindado)
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-pen"></i> Edição Comercial Liberada
+                      </span>
+                    )}
+                  </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Forma de Pagamento</label>
-              <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} required>
-                <option value="pix">Pix</option>
-                <option value="cartao">Cartão de Crédito</option>
-                <option value="boleto">Boleto Bancário</option>
-                <option value="dinheiro">Dinheiro</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Dia de Vencimento (1º Vencimento)</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dcVencimento}
-                onChange={e => setDcVencimento(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+                  {isCommercialLocked && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setShowUnlockModal(true)}
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '4px 10px',
+                        background: 'rgba(251, 191, 36, 0.15)',
+                        color: '#fbbf24',
+                        borderColor: 'rgba(251, 191, 36, 0.4)',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
+                    </button>
+                  )}
+                </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Tipo Vigência</label>
-              <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} required>
-                <option value="semana">Semana</option>
-                <option value="mensal">Mensal</option>
-                <option value="anual">Anual</option>
-                <option value="indeterminado">Indeterminado</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Qtd Vigência</label>
-              <input
-                type="number"
-                className="form-control"
-                value={dcVigenciaQtd}
-                onFocus={selectOnFocus}
-                onChange={e => setDcVigenciaQtd(Math.max(1, parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10)))}
-                min={1}
-                required
-              />
-            </div>
-          </div>
+                <div className="form-group">
+                  <label>
+                    Plano {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={dcPlano}
+                    disabled={isCommercialLocked}
+                    style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                    onChange={e => {
+                      const newPlanoId = e.target.value;
+                      setDcPlano(newPlanoId);
+                      const plan = plans.find(p => p._id === newPlanoId);
+                      if (plan) {
+                        setDcValorUnitario(plan.preco);
+                        setDcDuracao(plan.tipo === 'Anual' ? 'anual' : 'mensal');
+                        setDcVigenciaQtd(plan.tipo === 'Anual' ? 12 : 1);
+                        setDcCreditosTotal(plan.creditosTotal || 0);
+                      }
+                    }}
+                    required
+                  >
+                    <option value="">Selecione um plano...</option>
+                    {plans.filter((p: any) => p.ativo !== false).map((p: any) => (
+                      <option key={p._id} value={p._id}>{p.nome}</option>
+                    ))}
+                  </select>
+                </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Desconto Tipo</label>
-              <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)}>
-                <option value="percentual">Percentual (%)</option>
-                <option value="fixo">Fixo (R$)</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Desconto Valor</label>
-              {dcDescontoTipo === 'percentual' ? (
-                <input
-                  type="number"
-                  step="0.01"
-                  className="form-control"
-                  placeholder="0%"
-                  value={dcDescontoValor || ''}
-                  onFocus={selectOnFocus}
-                  onChange={e => setDcDescontoValor(parseFloat(e.target.value) || 0)}
-                />
-              ) : (
-                <MoneyInput
-                  value={dcDescontoValor}
-                  onChange={setDcDescontoValor}
-                  placeholder="R$ 0,00"
-                />
-              )}
-            </div>
-          </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-signal" style={{ color: dcStatus === 'ativo' ? '#10b981' : dcStatus === 'lead' ? '#8b5cf6' : dcStatus === 'congelado' ? '#f59e0b' : '#94a3b8' }}></i>
+                    Status Comercial do Contrato {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                  </label>
+                  <select
+                    className="select-custom"
+                    value={dcStatus}
+                    disabled={isCommercialLocked}
+                    style={{ fontWeight: 600, opacity: isCommercialLocked ? 0.75 : 1 }}
+                    onChange={e => setDcStatus(e.target.value)}
+                  >
+                    <option value="ativo">🟢 Contrato Ativo (Matrícula Efetivada)</option>
+                    <option value="lead">🟣 Lead / Em Avaliação</option>
+                    <option value="congelado">🟡 Congelado</option>
+                    <option value="inativo">⚪ Sem Contrato Ativo / Inativo</option>
+                  </select>
+                </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Nº Parcelas</label>
-              <select className="select-custom" value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} required>
-                {[...Array(12)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>{i + 1}x</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Valor Unitário (R$)</label>
-              <MoneyInput
-                value={dcValorUnitario}
-                onChange={setDcValorUnitario}
-                placeholder="R$ 0,00"
-                required
-              />
-            </div>
-          </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Forma de Pagamento {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }} required>
+                      <option value="pix">Pix</option>
+                      <option value="cartao">Cartão de Crédito</option>
+                      <option value="boleto">Boleto Bancário</option>
+                      <option value="dinheiro">Dinheiro</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Dia de Vencimento (1º Vencimento) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={dcVencimento}
+                      onChange={e => setDcVencimento(e.target.value)}
+                      disabled={isCommercialLocked}
+                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                      required
+                    />
+                  </div>
+                </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Frequência Semanal Contratada</label>
-              <select
-                className="select-custom"
-                value={dcFrequencia}
-                onChange={e => {
-                  const freq = Number(e.target.value);
-                  setDcFrequencia(freq);
-                  if (freq === 1) setDcCreditosTotal(4);
-                  else if (freq === 2) setDcCreditosTotal(9);
-                  else if (freq === 3) setDcCreditosTotal(13);
-                  else if (freq === 4) setDcCreditosTotal(17);
-                  else if (freq === 5) setDcCreditosTotal(22);
-                }}
-              >
-                <option value={1}>1x por semana (4 sessões/mês)</option>
-                <option value={2}>2x por semana (9 sessões/mês)</option>
-                <option value={3}>3x por semana (13 sessões/mês)</option>
-                <option value={4}>4x por semana (17 sessões/mês)</option>
-                <option value={5}>5x por semana (22 sessões/mês)</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Data de Início</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dcDataInicio}
-                onChange={e => setDcDataInicio(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Créditos Mensais</label>
-              <input
-                type="number"
-                className="form-control"
-                value={dcCreditosTotal}
-                onFocus={selectOnFocus}
-                onChange={e => setDcCreditosTotal(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
-                min={0}
-                required
-              />
-            </div>
-          </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Tipo Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }} required>
+                      <option value="semana">Semana</option>
+                      <option value="mensal">Mensal</option>
+                      <option value="anual">Anual</option>
+                      <option value="indeterminado">Indeterminado</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Qtd Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={dcVigenciaQtd}
+                      onFocus={selectOnFocus}
+                      onChange={e => setDcVigenciaQtd(Math.max(1, parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10)))}
+                      min={1}
+                      disabled={isCommercialLocked}
+                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                      required
+                    />
+                  </div>
+                </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Créditos de Massagem (Mensais)</label>
-              <input
-                type="number"
-                className="form-control"
-                value={dcCreditosMassagem}
-                onFocus={selectOnFocus}
-                onChange={e => setDcCreditosMassagem(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
-                min={0}
-              />
-            </div>
-            <div className="form-group" style={{ flex: '1 1 200px' }}>
-              <label>Créditos de Emergência (Mensais)</label>
-              <input
-                type="number"
-                className="form-control"
-                value={dcCreditosEmergencia}
-                onFocus={selectOnFocus}
-                onChange={e => setDcCreditosEmergencia(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
-                min={0}
-              />
-            </div>
-          </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Desconto Tipo {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }}>
+                      <option value="percentual">Percentual (%)</option>
+                      <option value="fixo">Fixo (R$)</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Desconto Valor {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    {dcDescontoTipo === 'percentual' ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        placeholder="0%"
+                        value={dcDescontoValor || ''}
+                        onFocus={selectOnFocus}
+                        onChange={e => setDcDescontoValor(parseFloat(e.target.value) || 0)}
+                        disabled={isCommercialLocked}
+                        style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                      />
+                    ) : (
+                      <MoneyInput
+                        value={dcDescontoValor}
+                        onChange={setDcDescontoValor}
+                        placeholder="R$ 0,00"
+                        disabled={isCommercialLocked}
+                      />
+                    )}
+                  </div>
+                </div>
 
-          {/* CAIXA DE RECORRÊNCIA MENSAL AUTOMÁTICA */}
-          <div style={{ marginTop: '8px', marginBottom: '16px', padding: '14px', background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '10px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', margin: 0 }}>
-              <input
-                type="checkbox"
-                checked={dcCriarRecorrencia}
-                onChange={e => setDcCriarRecorrencia(e.target.checked)}
-                style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)' }}
-              />
-              <span><i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px', color: '#3b82f6' }}></i> Criar Recorrência Mensal Automática para este Plano</span>
-            </label>
-            {dcCriarRecorrencia && (
-              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Duração da Recorrência Mensal:</label>
-                <select
-                  className="select-custom"
-                  value={dcRecorrenciaMeses}
-                  onChange={e => setDcRecorrenciaMeses(Number(e.target.value))}
-                  style={{ width: '160px', padding: '6px 10px', fontSize: '0.83rem' }}
-                >
-                  <option value={3}>3 Meses</option>
-                  <option value={6}>6 Meses</option>
-                  <option value={12}>12 Meses (1 Ano)</option>
-                  <option value={24}>24 Meses (2 Anos)</option>
-                </select>
-                <small style={{ color: '#3b82f6', fontSize: '0.75rem', flex: '1 1 100%' }}>
-                  Gera cobranças mensais automáticas consecutivas a partir da Data do 1º Vencimento.
-                </small>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Nº Parcelas {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <select className="select-custom" value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }} required>
+                      {[...Array(12)].map((_, i) => (
+                        <option key={i + 1} value={i + 1}>{i + 1}x</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Valor Unitário (R$) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <MoneyInput
+                      value={dcValorUnitario}
+                      onChange={setDcValorUnitario}
+                      placeholder="R$ 0,00"
+                      disabled={isCommercialLocked}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Frequência Semanal Contratada {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <select
+                      className="select-custom"
+                      value={dcFrequencia}
+                      disabled={isCommercialLocked}
+                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                      onChange={e => {
+                        const freq = Number(e.target.value);
+                        setDcFrequencia(freq);
+                        if (freq === 1) setDcCreditosTotal(4);
+                        else if (freq === 2) setDcCreditosTotal(9);
+                        else if (freq === 3) setDcCreditosTotal(13);
+                        else if (freq === 4) setDcCreditosTotal(17);
+                        else if (freq === 5) setDcCreditosTotal(22);
+                      }}
+                    >
+                      <option value={1}>1x por semana (4 sessões/mês)</option>
+                      <option value={2}>2x por semana (9 sessões/mês)</option>
+                      <option value={3}>3x por semana (13 sessões/mês)</option>
+                      <option value={4}>4x por semana (17 sessões/mês)</option>
+                      <option value={5}>5x por semana (22 sessões/mês)</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Data de Início {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={dcDataInicio}
+                      onChange={e => setDcDataInicio(e.target.value)}
+                      disabled={isCommercialLocked}
+                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Créditos Mensais {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={dcCreditosTotal}
+                      onFocus={selectOnFocus}
+                      onChange={e => setDcCreditosTotal(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
+                      min={0}
+                      disabled={isCommercialLocked}
+                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Créditos de Massagem (Mensais) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={dcCreditosMassagem}
+                      onFocus={selectOnFocus}
+                      onChange={e => setDcCreditosMassagem(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
+                      min={0}
+                      disabled={isCommercialLocked}
+                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 200px' }}>
+                    <label>
+                      Créditos de Emergência (Mensais) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={dcCreditosEmergencia}
+                      onFocus={selectOnFocus}
+                      onChange={e => setDcCreditosEmergencia(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
+                      min={0}
+                      disabled={isCommercialLocked}
+                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
+                    />
+                  </div>
+                </div>
+
+                {/* CAIXA DE RECORRÊNCIA MENSAL AUTOMÁTICA */}
+                <div style={{ marginTop: '8px', marginBottom: '4px', padding: '14px', background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: isCommercialLocked ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', margin: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={dcCriarRecorrencia}
+                      onChange={e => setDcCriarRecorrencia(e.target.checked)}
+                      disabled={isCommercialLocked}
+                      style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)' }}
+                    />
+                    <span><i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px', color: '#3b82f6' }}></i> Criar Recorrência Mensal Automática para este Plano {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}</span>
+                  </label>
+                  {dcCriarRecorrencia && (
+                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Duração da Recorrência Mensal:</label>
+                      <select
+                        className="select-custom"
+                        value={dcRecorrenciaMeses}
+                        onChange={e => setDcRecorrenciaMeses(Number(e.target.value))}
+                        disabled={isCommercialLocked}
+                        style={{ width: '160px', padding: '6px 10px', fontSize: '0.83rem', opacity: isCommercialLocked ? 0.75 : 1 }}
+                      >
+                        <option value={3}>3 Meses</option>
+                        <option value={6}>6 Meses</option>
+                        <option value={12}>12 Meses (1 Ano)</option>
+                        <option value={24}>24 Meses (2 Anos)</option>
+                      </select>
+                      <small style={{ color: '#3b82f6', fontSize: '0.75rem', flex: '1 1 100%' }}>
+                        Gera cobranças mensais automáticas consecutivas a partir da Data do 1º Vencimento.
+                      </small>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>
+                    Observações Contratuais (Opcional) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                  </label>
+                  <textarea
+                    className="form-control"
+                    value={dcObservacoesContratuais}
+                    onChange={e => setDcObservacoesContratuais(e.target.value)}
+                    placeholder="Inserir observações opcionais..."
+                    disabled={isCommercialLocked}
+                    style={{ minHeight: '60px', resize: 'vertical', opacity: isCommercialLocked ? 0.75 : 1 }}
+                  />
+                </div>
               </div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label>Observações Contratuais (Opcional)</label>
-            <textarea
-              className="form-control"
-              value={dcObservacoesContratuais}
-              onChange={e => setDcObservacoesContratuais(e.target.value)}
-              placeholder="Inserir observações opcionais..."
-              style={{ minHeight: '60px', resize: 'vertical' }}
-            />
-          </div>
+            );
+          })()}
 
           {/* SIMULADOR DE PREÇO & FECHAMENTO */}
           {(() => {
