@@ -10,6 +10,7 @@ import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import DadosClinicosPanel from './DadosClinicosPanel';
 import WellnessModal from './WellnessModal';
+import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 
 export const normalizeText = (str: string) => {
   return (str || '')
@@ -1770,7 +1771,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       }
 
       // Active tab specific load
-      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia') {
+      if (activeTab === 'dashboard' || activeTab === 'resumo_dia' || activeTab === 'agenda_dia' || activeTab === 'agendamento_prof') {
         promises.push(
           safeFetchJson('/api/appointments?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
@@ -4491,6 +4492,18 @@ goniometria: {
         />
       )}
 
+      {/* 1.1 View: Agendamento Direto pelo Profissional */}
+      {activeTab === 'agendamento_prof' && (
+        <AgendamentoProfissionalPanel
+          clients={clients}
+          professionals={professionals}
+          currentProfessionalId={professionalId}
+          onSuccess={() => {
+            fetchData();
+          }}
+        />
+      )}
+
       {/* 2. View: Clientes Vinculados */}
       {activeTab === 'clientes' && (() => {
         const getDaysSince = (clientId: string) => {
@@ -6584,7 +6597,7 @@ goniometria: {
       )}
 
       {/* Default Fallback for other tabs */}
-      {!['resumo_dia', 'dashboard', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino'].includes(activeTab) && (
+      {!['resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>

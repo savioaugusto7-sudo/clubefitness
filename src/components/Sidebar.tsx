@@ -94,6 +94,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       tabs: [
         { id: 'resumo_dia', label: 'Resumo do Dia', icon: 'fa-clipboard-list' },
         { id: 'dashboard', label: 'Agenda Completa', icon: 'fa-calendar-alt' },
+        { id: 'agendamento_prof', label: 'Agendar Aluno', icon: 'fa-calendar-plus' },
         { id: 'clientes', label: 'Clientes Vinculados', icon: 'fa-user-friends' },
         { id: 'dados_clinicos', label: 'Dados Clínicos', icon: 'fa-notes-medical' },
         { id: 'frequencia_alunos', label: 'Frequência dos Alunos', icon: 'fa-chart-bar' }

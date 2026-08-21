@@ -8,14 +8,15 @@ import Professional from '@/models/Professional';
 export const maxDuration = 30;
 
 const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number }> = {
-  'Treino Monitorado': { vagasOcupadas: 1 },
-  'Treino Livre':      { vagasOcupadas: 0 },
-  'Recovery':          { vagasOcupadas: 1 },
-  'Avaliação Física':  { vagasOcupadas: 3 },
-  'Teste de Força':    { vagasOcupadas: 3 },
-  'Avaliação Fisioterápica': { vagasOcupadas: 1 },
-  'Emergência':              { vagasOcupadas: 3 },
-  'Massagem':          { vagasOcupadas: 1 }
+  'Treino Monitorado':        { vagasOcupadas: 1 },
+  'Treino Livre':             { vagasOcupadas: 0 },
+  'Recovery':                 { vagasOcupadas: 1 },
+  'Avaliação Física':         { vagasOcupadas: 3 },
+  'Teste de Força':           { vagasOcupadas: 3 },
+  'Avaliação Fisioterápica':  { vagasOcupadas: 3 },
+  'Emergência':               { vagasOcupadas: 3 },
+  'Terapia Manual':           { vagasOcupadas: 3 },
+  'Massagem':                 { vagasOcupadas: 1 }
 };
 
 export async function GET(request: Request) {
