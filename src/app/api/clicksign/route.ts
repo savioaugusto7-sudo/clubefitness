@@ -425,11 +425,38 @@ export async function PUT(request: Request) {
   }
 }
 
-// Emissão direta de contrato via Clicksign
+// Emissão direta de contrato via Clicksign ou Sincronização sob demanda
 export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
+
+    // Sincronização pontual sob demanda de envelope / contrato
+    if (body.action === 'sync_doc' || body.action === 'sync') {
+      const { docKey, contractId, clientId } = body;
+      let contract: any = null;
+      if (contractId) {
+        contract = await Contract.findById(contractId);
+      } else if (docKey) {
+        contract = await Contract.findOne({ clicksignDocKey: docKey });
+      } else if (clientId) {
+        contract = await Contract.findOne({ clientId }).sort({ createdAt: -1 });
+      }
+
+      if (!contract) {
+        return NextResponse.json({ success: false, error: 'Contrato não encontrado para sincronização' }, { status: 404 });
+      }
+
+      const token = process.env.CLICKSIGN_ACCESS_TOKEN;
+      const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+      if (token) {
+        await syncContractStatus(contract, token, baseUrl);
+      }
+
+      const updatedContract = await Contract.findById(contract._id);
+      return NextResponse.json({ success: true, data: updatedContract });
+    }
+
     const {
       clientId,
       planoId,

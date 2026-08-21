@@ -91,7 +91,12 @@ export default function GestaoContratosPanel({
       const res = await fetch('/api/clicksign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync_doc', docKey: contract.clicksignDocKey })
+        body: JSON.stringify({
+          action: 'sync_doc',
+          docKey: contract.clicksignDocKey,
+          contractId: contract._id,
+          clientId: client._id
+        })
       });
       const data = await res.json();
       if (data.success) {
