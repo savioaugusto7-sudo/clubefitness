@@ -808,6 +808,13 @@ export default function GestaoContratosPanel({
         return 0;
       });
   }, [clients, searchQuery, selectedStatuses, quickViewFilter, orientacaoFilter, formaPagamentoFilter, contratoPlanFilter, sortOption, plans, allContractsMap, allProposalsMap, allPaymentsMap]);
+
+  const totalConsolidadoFiltrado = useMemo(() => {
+    return sortedClients.reduce((acc: number, curr: any) => {
+      const val = Number(curr.dadosComerciais?.valorUnitario) || 0;
+      return acc + val;
+    }, 0);
+  }, [sortedClients]);
   const [generatingPayments, setGeneratingPayments] = useState(false);
   const [renewingValidity, setRenewingValidity] = useState(false);
   const [cancelingRecurrence, setCancelingRecurrence] = useState(false);
@@ -2182,188 +2189,305 @@ export default function GestaoContratosPanel({
     <div>
       {!selectedClient ? (
         <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
+        {/* 1. TOP HEADER EXECUTIVO COM MICRO-GRÁFICOS DECORATIVOS */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+          gap: '16px',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.4) 100%)',
+          padding: '20px 24px',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)'
+        }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Gestão Completa de Contratos</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
-              Gerencie dados comerciais dos alunos, emita contratos e acompanhe assinaturas eletrônicas na Clicksign.
+            <h1 style={{
+              margin: 0,
+              fontSize: '1.85rem',
+              fontWeight: 800,
+              letterSpacing: '-0.025em',
+              background: 'linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              Gestão de Contratos
+            </h1>
+            <p style={{ color: '#94a3b8', fontSize: '0.88rem', marginTop: '6px', margin: 0, fontWeight: 400 }}>
+              Organize, acompanhe e finalize tudo no seu ritmo.
             </p>
           </div>
 
-          {/* Sub-tabs switch */}
-          <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-            <button
-              type="button"
-              onClick={() => setSubTab('alunos')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: 'none',
-                background: subTab === 'alunos' ? 'var(--color-primary)' : 'transparent',
-                color: subTab === 'alunos' ? '#fff' : 'var(--text-muted)',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <i className="fa-solid fa-users"></i> Alunos & Emissão
-            </button>
-            <button
-              type="button"
-              onClick={() => setSubTab('clicksign')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: 'none',
-                background: subTab === 'clicksign' ? 'var(--color-primary)' : 'transparent',
-                color: subTab === 'clicksign' ? '#fff' : 'var(--text-muted)',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <i className="fa-brands fa-whatsapp" style={{ color: subTab === 'clicksign' ? '#fff' : '#22c55e' }}></i> Controle Clicksign
-            </button>
-          </div>
+          {/* Micro-Analytics Glassmorphic Graph Widget & Sub-Tabs */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            padding: '10px 16px',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.1)',
+            flexWrap: 'wrap'
+          }}>
+            {/* Mini SVG Area Curve */}
+            <div style={{ width: '80px', height: '36px' }}>
+              <svg width="80" height="36" viewBox="0 0 80 36" fill="none">
+                <defs>
+                  <linearGradient id="areaGradContratos" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+                <path d="M 0,28 Q 20,24 35,16 T 60,8 T 80,4 L 80,36 L 0,36 Z" fill="url(#areaGradContratos)" />
+                <path d="M 0,28 Q 20,24 35,16 T 60,8 T 80,4" stroke="#06b6d4" strokeWidth="2" fill="none" strokeLinecap="round" />
+                <circle cx="80" cy="4" r="3" fill="#22d3ee" />
+              </svg>
+            </div>
 
-          {userCargo === 'Administrador' && (
-            <button
-              type="button"
-              onClick={handleRunSanitization}
-              disabled={sanitizing}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid rgba(251, 191, 36, 0.4)',
-                background: 'rgba(251, 191, 36, 0.12)',
-                color: '#fbbf24',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-              title="Expurgar mocks de teste (@clube.com), limpar dados fictícios e blindar todos os cadastros legítimos"
-            >
-              {sanitizing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-broom"></i>}
-              <span>Varredura & Blindagem</span>
-            </button>
-          )}
+            {/* Mini SVG Donut Ring */}
+            <div style={{ position: 'relative', width: '36px', height: '36px' }}>
+              <svg width="36" height="36" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="3.5" />
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray="65 100" strokeDashoffset="15" strokeLinecap="round" />
+              </svg>
+            </div>
+
+            {/* Sub-tabs switch */}
+            <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.04)', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                type="button"
+                onClick={() => setSubTab('alunos')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: subTab === 'alunos' ? 'var(--color-primary)' : 'transparent',
+                  color: subTab === 'alunos' ? '#fff' : '#94a3b8',
+                  fontWeight: 600,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Alunos & Emissão
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubTab('clicksign')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: subTab === 'clicksign' ? 'var(--color-primary)' : 'transparent',
+                  color: subTab === 'clicksign' ? '#fff' : '#94a3b8',
+                  fontWeight: 600,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Controle Clicksign
+              </button>
+            </div>
+
+            {userCargo === 'Administrador' && (
+              <button
+                type="button"
+                onClick={handleRunSanitization}
+                disabled={sanitizing}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(251, 191, 36, 0.4)',
+                  background: 'rgba(251, 191, 36, 0.12)',
+                  color: '#fbbf24',
+                  fontWeight: 700,
+                  fontSize: '0.76rem',
+                  cursor: 'pointer'
+                }}
+                title="Varredura e Blindagem Cadastral"
+              >
+                {sanitizing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-broom"></i>}
+              </button>
+            )}
+          </div>
         </div>
 
         {subTab === 'clicksign' ? (
           <ClicksignPanel />
         ) : (
           <>
-            {/* Modos Rápidos de Operação (Quick Views) */}
+            {/* 2. BARRA MODOS RÁPIDOS */}
             <div style={{
               display: 'flex',
-              gap: '8px',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              marginBottom: '12px',
-              padding: '8px 12px',
-              background: 'rgba(255,255,255,0.02)',
-              borderRadius: '10px',
-              border: '1px solid rgba(255,255,255,0.06)'
+              alignItems: 'stretch',
+              gap: '12px',
+              marginBottom: '16px',
+              padding: '14px 18px',
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.35) 100%)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.07)',
+              overflowX: 'auto'
             }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: '4px' }}>
-                ⚡ Modos Rápidos:
-              </span>
-              <button
-                type="button"
-                onClick={() => setQuickViewFilter(prev => prev === 'foco_do_dia' ? 'todos' : 'foco_do_dia')}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  border: quickViewFilter === 'foco_do_dia' ? '1px solid #f59e0b' : '1px solid var(--border-color)',
-                  background: quickViewFilter === 'foco_do_dia' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255,255,255,0.04)',
-                  color: quickViewFilter === 'foco_do_dia' ? '#fbbf24' : 'var(--text-muted)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                🚀 Foco do Dia (Renovações & Propostas)
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickViewFilter(prev => prev === 'inadimplentes' ? 'todos' : 'inadimplentes')}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  border: quickViewFilter === 'inadimplentes' ? '1px solid #ef4444' : '1px solid var(--border-color)',
-                  background: quickViewFilter === 'inadimplentes' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.04)',
-                  color: quickViewFilter === 'inadimplentes' ? '#f87171' : 'var(--text-muted)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                🚨 Inadimplência Asaas
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickViewFilter(prev => prev === 'pendentes_assinatura' ? 'todos' : 'pendentes_assinatura')}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  border: quickViewFilter === 'pendentes_assinatura' ? '1px solid #a855f7' : '1px solid var(--border-color)',
-                  background: quickViewFilter === 'pendentes_assinatura' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255,255,255,0.04)',
-                  color: quickViewFilter === 'pendentes_assinatura' ? '#c084fc' : 'var(--text-muted)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                ✍️ Pendentes de Assinatura
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickViewFilter(prev => prev === 'pendencias_cadastrais' ? 'todos' : 'pendencias_cadastrais')}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  border: quickViewFilter === 'pendencias_cadastrais' ? '1px solid #f97316' : '1px solid var(--border-color)',
-                  background: quickViewFilter === 'pendencias_cadastrais' ? 'rgba(249, 115, 22, 0.25)' : 'rgba(255,255,255,0.04)',
-                  color: quickViewFilter === 'pendencias_cadastrais' ? '#fb923c' : 'var(--text-muted)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                ⚠️ Cadastros com Pendências ({stageCounts.incompleto})
-              </button>
+              {/* Etiqueta vertical MODOS RÁPIDOS */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                paddingRight: '14px',
+                borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+                minWidth: '95px'
+              }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1.2 }}>
+                  MODOS
+                </span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1.2 }}>
+                  RÁPIDOS
+                </span>
+              </div>
+
+              {/* Botões dos Modos Rápidos */}
+              <div style={{ display: 'flex', gap: '10px', flex: 1, flexWrap: 'wrap' }}>
+                {/* 1. Foco do Dia */}
+                <button
+                  type="button"
+                  onClick={() => setQuickViewFilter(prev => prev === 'foco_do_dia' ? 'todos' : 'foco_do_dia')}
+                  style={{
+                    flex: '1 1 180px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: quickViewFilter === 'foco_do_dia' ? '#06b6d4' : 'rgba(255,255,255,0.06)',
+                    borderBottom: '3px solid #06b6d4',
+                    background: quickViewFilter === 'foco_do_dia' ? 'rgba(6, 182, 212, 0.18)' : 'rgba(15, 23, 42, 0.6)',
+                    color: '#f8fafc',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                    boxShadow: quickViewFilter === 'foco_do_dia' ? '0 0 14px rgba(6, 182, 212, 0.25)' : 'none'
+                  }}
+                >
+                  <div style={{ color: '#ffffff', fontWeight: 700 }}>Foco do Dia</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 400, marginTop: '2px' }}>(Renovações & Propostas)</div>
+                </button>
+
+                {/* 2. Inadimplência Asaas */}
+                <button
+                  type="button"
+                  onClick={() => setQuickViewFilter(prev => prev === 'inadimplentes' ? 'todos' : 'inadimplentes')}
+                  style={{
+                    flex: '1 1 180px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: quickViewFilter === 'inadimplentes' ? '#f43f5e' : 'rgba(255,255,255,0.06)',
+                    borderBottom: '3px solid #f43f5e',
+                    background: quickViewFilter === 'inadimplentes' ? 'rgba(244, 63, 94, 0.18)' : 'rgba(15, 23, 42, 0.6)',
+                    color: '#f8fafc',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                    boxShadow: quickViewFilter === 'inadimplentes' ? '0 0 14px rgba(244, 63, 94, 0.25)' : 'none'
+                  }}
+                >
+                  <div style={{ color: '#ffffff', fontWeight: 700 }}>Inadimplência Asaas</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 400, marginTop: '2px' }}>Parcelas em Atraso</div>
+                </button>
+
+                {/* 3. Pendentes de Assinatura */}
+                <button
+                  type="button"
+                  onClick={() => setQuickViewFilter(prev => prev === 'pendentes_assinatura' ? 'todos' : 'pendentes_assinatura')}
+                  style={{
+                    flex: '1 1 180px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: quickViewFilter === 'pendentes_assinatura' ? '#f97316' : 'rgba(255,255,255,0.06)',
+                    borderBottom: '3px solid #f97316',
+                    background: quickViewFilter === 'pendentes_assinatura' ? 'rgba(249, 115, 22, 0.18)' : 'rgba(15, 23, 42, 0.6)',
+                    color: '#f8fafc',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                    boxShadow: quickViewFilter === 'pendentes_assinatura' ? '0 0 14px rgba(249, 115, 22, 0.25)' : 'none'
+                  }}
+                >
+                  <div style={{ color: '#ffffff', fontWeight: 700 }}>Pendentes de Assinatura</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 400, marginTop: '2px' }}>Clicksign & Propostas</div>
+                </button>
+
+                {/* 4. Cadastros com Pendências */}
+                <button
+                  type="button"
+                  onClick={() => setQuickViewFilter(prev => prev === 'pendencias_cadastrais' ? 'todos' : 'pendencias_cadastrais')}
+                  style={{
+                    flex: '1 1 180px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: quickViewFilter === 'pendencias_cadastrais' ? '#eab308' : 'rgba(255,255,255,0.06)',
+                    borderBottom: '3px solid #eab308',
+                    background: quickViewFilter === 'pendencias_cadastrais' ? 'rgba(234, 179, 8, 0.18)' : 'rgba(15, 23, 42, 0.6)',
+                    color: '#f8fafc',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 0.2s ease',
+                    boxShadow: quickViewFilter === 'pendencias_cadastrais' ? '0 0 14px rgba(234, 179, 8, 0.25)' : 'none'
+                  }}
+                >
+                  <div>
+                    <div style={{ color: '#ffffff', fontWeight: 700 }}>Cadastros com Pendências</div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 400, marginTop: '2px' }}>Falta CPF/Tel/Endereço</div>
+                  </div>
+                  <span style={{
+                    background: '#eab308',
+                    color: '#0f172a',
+                    fontWeight: 800,
+                    fontSize: '0.75rem',
+                    padding: '2px 8px',
+                    borderRadius: '10px'
+                  }}>
+                    {stageCounts.incompleto}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            {/* Pílulas de Status Multi-Seleção Interativas (Toggles com Finalizados Omitidos por Padrão) */}
-            <div style={{ marginBottom: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* 3. PÍLULAS DE STATUS MULTI-SELEÇÃO INTERATIVAS COM STATUS DOTS */}
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Botão Atalho: Apenas Ativos da Operação */}
               <button
                 type="button"
                 onClick={handleSelectOnlyActiveOperation}
                 style={{
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: '#94a3b8',
-                  fontSize: '0.74rem',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  background: 'rgba(6, 182, 212, 0.08)',
+                  color: '#22d3ee',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer'
                 }}
                 title="Mostrar todos os status ativos da operação (oculta finalizados)"
               >
-                ⚡ Operação Viva
+                Operação Viva
               </button>
 
               {/* Botão Atalho: Marcar Todos */}
@@ -2371,18 +2495,17 @@ export default function GestaoContratosPanel({
                 type="button"
                 onClick={handleSelectAllStatuses}
                 style={{
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: '#94a3b8',
-                  fontSize: '0.74rem',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  background: selectedStatuses.length === 7 ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255,255,255,0.03)',
+                  color: '#ffffff',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer'
                 }}
-                title="Mostrar todos inclusive finalizados"
               >
-                🌐 Todos
+                Todos
               </button>
 
               {/* Toggle Contrato Vigente */}
@@ -2393,10 +2516,10 @@ export default function GestaoContratosPanel({
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: selectedStatuses.includes('vigente') ? '#059669' : 'var(--border-color)',
+                  borderColor: selectedStatuses.includes('vigente') ? '#059669' : 'rgba(255,255,255,0.08)',
                   background: selectedStatuses.includes('vigente') ? 'rgba(5, 150, 105, 0.2)' : 'rgba(255,255,255,0.02)',
-                  color: selectedStatuses.includes('vigente') ? '#34d399' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
+                  color: selectedStatuses.includes('vigente') ? '#34d399' : '#94a3b8',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -2405,8 +2528,11 @@ export default function GestaoContratosPanel({
                   opacity: selectedStatuses.includes('vigente') ? 1 : 0.5
                 }}
               >
-                <i className={`fa-solid ${selectedStatuses.includes('vigente') ? 'fa-square-check' : 'fa-square'}`}></i>
-                🟢 Contrato Vigente ({stageCounts.vigente})
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                Contrato Vigente
+                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: '8px', fontSize: '0.72rem' }}>
+                  {stageCounts.vigente}
+                </span>
               </button>
 
               {/* Toggle Renovações <30d */}
@@ -2417,10 +2543,10 @@ export default function GestaoContratosPanel({
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: selectedStatuses.includes('renovacao') ? '#f59e0b' : 'var(--border-color)',
+                  borderColor: selectedStatuses.includes('renovacao') ? '#f59e0b' : 'rgba(255,255,255,0.08)',
                   background: selectedStatuses.includes('renovacao') ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.02)',
-                  color: selectedStatuses.includes('renovacao') ? '#fbbf24' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
+                  color: selectedStatuses.includes('renovacao') ? '#fbbf24' : '#94a3b8',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -2429,8 +2555,11 @@ export default function GestaoContratosPanel({
                   opacity: selectedStatuses.includes('renovacao') ? 1 : 0.5
                 }}
               >
-                <i className={`fa-solid ${selectedStatuses.includes('renovacao') ? 'fa-square-check' : 'fa-square'}`}></i>
-                🟠 Renovações &lt;30d ({stageCounts.renovacao})
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
+                Renovações &lt;30d
+                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: '8px', fontSize: '0.72rem' }}>
+                  {stageCounts.renovacao}
+                </span>
               </button>
 
               {/* Toggle Vencidos */}
@@ -2441,10 +2570,10 @@ export default function GestaoContratosPanel({
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: selectedStatuses.includes('vencido') ? '#dc2626' : 'var(--border-color)',
+                  borderColor: selectedStatuses.includes('vencido') ? '#dc2626' : 'rgba(255,255,255,0.08)',
                   background: selectedStatuses.includes('vencido') ? 'rgba(220, 38, 38, 0.2)' : 'rgba(255,255,255,0.02)',
-                  color: selectedStatuses.includes('vencido') ? '#f87171' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
+                  color: selectedStatuses.includes('vencido') ? '#f87171' : '#94a3b8',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -2453,8 +2582,11 @@ export default function GestaoContratosPanel({
                   opacity: selectedStatuses.includes('vencido') ? 1 : 0.5
                 }}
               >
-                <i className={`fa-solid ${selectedStatuses.includes('vencido') ? 'fa-square-check' : 'fa-square'}`}></i>
-                🔴 Vencidos ({stageCounts.vencido})
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }}></span>
+                Vencidos
+                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: '8px', fontSize: '0.72rem' }}>
+                  {stageCounts.vencido}
+                </span>
               </button>
 
               {/* Toggle Aguardando Assinatura */}
@@ -2465,10 +2597,10 @@ export default function GestaoContratosPanel({
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: selectedStatuses.includes('aguardando_assinatura') ? '#fbbf24' : 'var(--border-color)',
-                  background: selectedStatuses.includes('aguardando_assinatura') ? 'rgba(251, 191, 36, 0.18)' : 'rgba(255,255,255,0.02)',
-                  color: selectedStatuses.includes('aguardando_assinatura') ? '#fde047' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
+                  borderColor: selectedStatuses.includes('aguardando_assinatura') ? '#3b82f6' : 'rgba(255,255,255,0.08)',
+                  background: selectedStatuses.includes('aguardando_assinatura') ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.02)',
+                  color: selectedStatuses.includes('aguardando_assinatura') ? '#60a5fa' : '#94a3b8',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -2477,8 +2609,11 @@ export default function GestaoContratosPanel({
                   opacity: selectedStatuses.includes('aguardando_assinatura') ? 1 : 0.5
                 }}
               >
-                <i className={`fa-solid ${selectedStatuses.includes('aguardando_assinatura') ? 'fa-square-check' : 'fa-square'}`}></i>
-                ⏳ Aguardando Assinatura / Proposta ({stageCounts.aguardando_assinatura})
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }}></span>
+                Aguardando Assinatura / Proposta
+                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: '8px', fontSize: '0.72rem' }}>
+                  {stageCounts.aguardando_assinatura}
+                </span>
               </button>
 
               {/* Toggle Leads */}
@@ -2489,10 +2624,10 @@ export default function GestaoContratosPanel({
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: selectedStatuses.includes('lead') ? '#8b5cf6' : 'var(--border-color)',
+                  borderColor: selectedStatuses.includes('lead') ? '#8b5cf6' : 'rgba(255,255,255,0.08)',
                   background: selectedStatuses.includes('lead') ? 'rgba(139, 92, 246, 0.18)' : 'rgba(255,255,255,0.02)',
-                  color: selectedStatuses.includes('lead') ? '#c084fc' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
+                  color: selectedStatuses.includes('lead') ? '#c084fc' : '#94a3b8',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -2501,8 +2636,11 @@ export default function GestaoContratosPanel({
                   opacity: selectedStatuses.includes('lead') ? 1 : 0.5
                 }}
               >
-                <i className={`fa-solid ${selectedStatuses.includes('lead') ? 'fa-square-check' : 'fa-square'}`}></i>
-                🟣 Leads & Cadastros ({stageCounts.lead})
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a855f7', display: 'inline-block' }}></span>
+                Leads & Cadastros
+                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: '8px', fontSize: '0.72rem' }}>
+                  {stageCounts.lead}
+                </span>
               </button>
 
               {/* Toggle Dynamus */}
@@ -2513,10 +2651,10 @@ export default function GestaoContratosPanel({
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: selectedStatuses.includes('dynamus') ? '#06b6d4' : 'var(--border-color)',
+                  borderColor: selectedStatuses.includes('dynamus') ? '#06b6d4' : 'rgba(255,255,255,0.08)',
                   background: selectedStatuses.includes('dynamus') ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.02)',
-                  color: selectedStatuses.includes('dynamus') ? '#22d3ee' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
+                  color: selectedStatuses.includes('dynamus') ? '#22d3ee' : '#94a3b8',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -2525,11 +2663,14 @@ export default function GestaoContratosPanel({
                   opacity: selectedStatuses.includes('dynamus') ? 1 : 0.5
                 }}
               >
-                <i className={`fa-solid ${selectedStatuses.includes('dynamus') ? 'fa-square-check' : 'fa-square'}`}></i>
-                ⚡ Alunos Dynamus ({stageCounts.dynamus})
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', display: 'inline-block' }}></span>
+                Alunos Dynamus
+                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: '8px', fontSize: '0.72rem' }}>
+                  {stageCounts.dynamus}
+                </span>
               </button>
 
-              {/* Toggle Finalizados (NÃO RENOVOU) - DESMARCADO POR PADRÃO */}
+              {/* Toggle Finalizados */}
               <button
                 type="button"
                 onClick={() => handleToggleStatus('finalizado')}
@@ -2537,10 +2678,10 @@ export default function GestaoContratosPanel({
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: selectedStatuses.includes('finalizado') ? '#9ca3af' : 'rgba(107, 114, 128, 0.3)',
-                  background: selectedStatuses.includes('finalizado') ? 'rgba(107, 114, 128, 0.3)' : 'rgba(255,255,255,0.01)',
-                  color: selectedStatuses.includes('finalizado') ? '#e5e7eb' : '#6b7280',
-                  fontSize: '0.8rem',
+                  borderColor: selectedStatuses.includes('finalizado') ? '#64748b' : 'rgba(100, 116, 139, 0.2)',
+                  background: selectedStatuses.includes('finalizado') ? 'rgba(100, 116, 139, 0.25)' : 'rgba(255,255,255,0.01)',
+                  color: selectedStatuses.includes('finalizado') ? '#e2e8f0' : '#64748b',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -2548,157 +2689,298 @@ export default function GestaoContratosPanel({
                   gap: '6px',
                   opacity: selectedStatuses.includes('finalizado') ? 1 : 0.5
                 }}
-                title={selectedStatuses.includes('finalizado') ? 'Clique para ocultar finalizados' : 'Clique para exibir alunos que não renovaram'}
               >
-                <i className={`fa-solid ${selectedStatuses.includes('finalizado') ? 'fa-square-check' : 'fa-square'}`}></i>
-                🏁 Finalizados ({stageCounts.finalizado})
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#64748b', display: 'inline-block' }}></span>
+                Finalizados
+                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: '8px', fontSize: '0.72rem' }}>
+                  {stageCounts.finalizado}
+                </span>
               </button>
             </div>
 
-            {/* Barra de Ferramentas com Filtros Inteligentes Combinados */}
-            <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-              <div style={{ flex: '1 1 240px', maxWidth: '280px' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Buscar por nome, plano, CPF, ação..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
+            {/* 4. PAINEL DE FILTROS GLASSMORPHIC SEGMENTADO */}
+            <div style={{
+              marginBottom: '20px',
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(30, 41, 59, 0.45) 100%)',
+              padding: '16px 20px',
+              borderRadius: '14px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+            }}>
+              {/* Linha Superior: Campo de Busca */}
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <i className="fa-solid fa-magnifying-glass" style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#64748b',
+                    fontSize: '0.9rem'
+                  }}></i>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Buscar por aluno, CPF, plano, valor (R$) ou forma de pagamento..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      paddingLeft: '38px',
+                      paddingRight: '14px',
+                      paddingTop: '10px',
+                      paddingBottom: '10px',
+                      background: 'rgba(15, 23, 42, 0.7)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {/* Orientação / Ação CTA Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    <i className="fa-solid fa-bolt" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Ação:
-                  </label>
-                  <select
-                    className="select-custom"
-                    value={orientacaoFilter}
-                    onChange={e => setOrientacaoFilter(e.target.value)}
-                    style={{ minWidth: '170px', fontSize: '0.83rem', padding: '6px 10px' }}
-                  >
-                    <option value="todos">🎯 Todas as Ações</option>
-                    <option value="gerenciar_dynamus">⚡ Gerenciar Aluno Dynamus</option>
-                    <option value="vigente">🟢 Em Vigência Regular</option>
-                    <option value="gerar_renovacao">🚀 Gerar Renovação Anual</option>
-                    <option value="sincronizar_clicksign">🔄 Sincronizar Clicksign</option>
-                    <option value="gerar_asaas">💳 Gerar / Ver Boletos Asaas</option>
-                    <option value="reenviar_link">📲 Reenviar Link de Venda</option>
-                    <option value="gerar_link">⚡ Gerar Link de Venda</option>
-                  </select>
+              {/* Linha do Meio: 4 Dropdowns Segmentados com Traço de Destaque Vertical e Controles */}
+              <div style={{
+                display: 'flex',
+                gap: '14px',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {/* Dropdown 1: AÇÃO */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: '3px', height: '10px', background: '#38bdf8', borderRadius: '2px', display: 'inline-block' }}></span>
+                      Ação:
+                    </span>
+                    <select
+                      className="select-custom"
+                      value={orientacaoFilter}
+                      onChange={e => setOrientacaoFilter(e.target.value)}
+                      style={{
+                        minWidth: '160px',
+                        fontSize: '0.82rem',
+                        padding: '8px 12px',
+                        background: 'rgba(15, 23, 42, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: '#f8fafc'
+                      }}
+                    >
+                      <option value="todos">Todas as Ações</option>
+                      <option value="gerenciar_dynamus">Gerenciar Dynamus</option>
+                      <option value="vigente">Vigência Regular</option>
+                      <option value="gerar_renovacao">Gerar Renovação Anual</option>
+                      <option value="sincronizar_clicksign">Sincronizar Clicksign</option>
+                      <option value="gerar_asaas">Boletos Asaas</option>
+                      <option value="reenviar_link">Reenviar Link de Venda</option>
+                      <option value="gerar_link">Gerar Link de Venda</option>
+                    </select>
+                  </div>
+
+                  {/* Dropdown 2: PAGAMENTO */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: '3px', height: '10px', background: '#38bdf8', borderRadius: '2px', display: 'inline-block' }}></span>
+                      Pagamento:
+                    </span>
+                    <select
+                      className="select-custom"
+                      value={formaPagamentoFilter}
+                      onChange={e => setFormaPagamentoFilter(e.target.value)}
+                      style={{
+                        minWidth: '150px',
+                        fontSize: '0.82rem',
+                        padding: '8px 12px',
+                        background: 'rgba(15, 23, 42, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: '#f8fafc'
+                      }}
+                    >
+                      <option value="todos">Todas as Formas</option>
+                      <option value="boleto">Boleto Bancário</option>
+                      <option value="pix">Pix</option>
+                      <option value="cartao">Cartão de Crédito</option>
+                    </select>
+                  </div>
+
+                  {/* Dropdown 3: PLANO */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: '3px', height: '10px', background: '#38bdf8', borderRadius: '2px', display: 'inline-block' }}></span>
+                      Plano:
+                    </span>
+                    <select
+                      className="select-custom"
+                      value={contratoPlanFilter}
+                      onChange={e => setContratoPlanFilter(e.target.value)}
+                      style={{
+                        minWidth: '160px',
+                        fontSize: '0.82rem',
+                        padding: '8px 12px',
+                        background: 'rgba(15, 23, 42, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: '#f8fafc'
+                      }}
+                    >
+                      <option value="todos">Todos os Planos</option>
+                      {plans.map((p: any) => (
+                        <option key={p._id} value={p._id}>{p.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Dropdown 4: ORDENAR POR */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: '3px', height: '10px', background: '#38bdf8', borderRadius: '2px', display: 'inline-block' }}></span>
+                      Ordenar por:
+                    </span>
+                    <select
+                      className="select-custom"
+                      value={sortOption}
+                      onChange={e => setSortOption(e.target.value)}
+                      style={{
+                        minWidth: '160px',
+                        fontSize: '0.82rem',
+                        padding: '8px 12px',
+                        background: 'rgba(15, 23, 42, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: '#f8fafc'
+                      }}
+                    >
+                      <option value="vencimento_asc">Vencimento Próximo</option>
+                      <option value="vencimento_desc">Vencimento Distante</option>
+                      <option value="valor_desc">Maior Valor</option>
+                      <option value="inicio_desc">Cadastro Recente</option>
+                      <option value="alfabetico_asc">Nome (A - Z)</option>
+                      <option value="alfabetico_desc">Nome (Z - A)</option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* Forma de Pagamento Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    <i className="fa-solid fa-credit-card" style={{ color: '#38bdf8', marginRight: '4px' }}></i> Pagamento:
-                  </label>
-                  <select
-                    className="select-custom"
-                    value={formaPagamentoFilter}
-                    onChange={e => setFormaPagamentoFilter(e.target.value)}
-                    style={{ minWidth: '150px', fontSize: '0.83rem', padding: '6px 10px' }}
-                  >
-                    <option value="todos">💳 Todas as Formas</option>
-                    <option value="boleto">📄 Boleto Bancário</option>
-                    <option value="pix">⚡ Pix</option>
-                    <option value="cartao">💳 Cartão de Crédito</option>
-                  </select>
-                </div>
+                {/* Botões de Ação e Alternador Cards/Tabela */}
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  {/* View Mode Toggle */}
+                  <div style={{ display: 'flex', gap: '4px', background: 'rgba(15, 23, 42, 0.8)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('cards')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: viewMode === 'cards' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
+                        color: viewMode === 'cards' ? '#22d3ee' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <i className="fa-solid fa-table-cells-large"></i> Cards
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('table')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: viewMode === 'table' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
+                        color: viewMode === 'table' ? '#22d3ee' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <i className="fa-solid fa-list"></i> Tabela
+                    </button>
+                  </div>
 
-                {/* Plan Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Plano:
-                  </label>
-                  <select
-                    className="select-custom"
-                    value={contratoPlanFilter}
-                    onChange={e => setContratoPlanFilter(e.target.value)}
-                    style={{ minWidth: '150px', fontSize: '0.83rem', padding: '6px 10px' }}
-                  >
-                    <option value="todos">📁 Todos os Planos</option>
-                    {plans.map((p: any) => (
-                      <option key={p._id} value={p._id}>{p.nome}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Sort Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    <i className="fa-solid fa-arrow-down-a-z" style={{ color: 'var(--color-primary)', marginRight: '4px' }}></i> Ordenar:
-                  </label>
-                  <select
-                    className="select-custom"
-                    value={sortOption}
-                    onChange={e => setSortOption(e.target.value)}
-                    style={{ minWidth: '150px', fontSize: '0.83rem', padding: '6px 10px' }}
-                  >
-                    <option value="vencimento_asc">⏳ Vencimento Próximo</option>
-                    <option value="vencimento_desc">📅 Vencimento Distante</option>
-                    <option value="valor_desc">💰 Maior Valor</option>
-                    <option value="inicio_desc">🆕 Cadastro Recente</option>
-                    <option value="alfabetico_asc">🔤 Nome (A - Z)</option>
-                    <option value="alfabetico_desc">🔤 Nome (Z - A)</option>
-                  </select>
-                </div>
-
-                {/* View Mode Toggle */}
-                <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  {/* Botão Atualizar */}
                   <button
                     type="button"
-                    onClick={() => setViewMode('cards')}
+                    onClick={() => fetchData()}
                     style={{
-                      padding: '5px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: viewMode === 'cards' ? 'var(--color-primary)' : 'transparent',
-                      color: viewMode === 'cards' ? '#fff' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                      fontSize: '0.78rem',
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(6, 182, 212, 0.4)',
+                      background: 'rgba(6, 182, 212, 0.12)',
+                      color: '#22d3ee',
+                      fontSize: '0.8rem',
                       fontWeight: 700,
+                      cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px'
+                      gap: '6px'
                     }}
+                    title="Atualizar dados"
                   >
-                    <i className="fa-solid fa-grip"></i> Cards
+                    <i className="fa-solid fa-arrows-rotate"></i> Atualizar
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('table')}
-                    style={{
-                      padding: '5px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: viewMode === 'table' ? 'var(--color-primary)' : 'transparent',
-                      color: viewMode === 'table' ? '#fff' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <i className="fa-solid fa-list"></i> Tabela
-                  </button>
-                </div>
 
-                {/* Reset Button */}
-                {(searchQuery !== '' || quickViewFilter !== 'todos' || selectedStatuses.length !== 6 || selectedStatuses.includes('finalizado') || orientacaoFilter !== 'todos' || formaPagamentoFilter !== 'todos' || contratoPlanFilter !== 'todos' || sortOption !== 'vencimento_asc') && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleClearFilters}
-                    style={{ padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <i className="fa-solid fa-xmark"></i> Limpar
-                  </button>
-                )}
+                  {/* Reset Button */}
+                  {(searchQuery !== '' || quickViewFilter !== 'todos' || selectedStatuses.length !== 6 || selectedStatuses.includes('finalizado') || orientacaoFilter !== 'todos' || formaPagamentoFilter !== 'todos' || contratoPlanFilter !== 'todos' || sortOption !== 'vencimento_asc') && (
+                    <button
+                      type="button"
+                      onClick={handleClearFilters}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(244, 63, 94, 0.4)',
+                        background: 'rgba(244, 63, 94, 0.12)',
+                        color: '#f43f5e',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className="fa-solid fa-xmark"></i> Limpar filtros
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Linha de Rodapé: Totalizador Consolidado Filtrado */}
+              <div style={{
+                marginTop: '14px',
+                paddingTop: '12px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+                fontSize: '0.82rem',
+                color: '#94a3b8'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-users" style={{ color: '#38bdf8' }}></i>
+                  <span>Exibindo <strong style={{ color: '#ffffff' }}>{sortedClients.length}</strong> alunos / contratos</span>
+                </div>
+                <div>
+                  <span>Total Consolidado Filtrado: </span>
+                  <strong style={{ color: '#10b981', fontSize: '0.95rem', fontWeight: 800, marginLeft: '4px' }}>
+                    R$ {totalConsolidadoFiltrado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </strong>
+                </div>
               </div>
             </div>
 
