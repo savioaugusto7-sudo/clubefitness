@@ -501,7 +501,7 @@ export async function DELETE(request: Request) {
               console.warn('Asaas remote delete warning:', asaasErr);
             }
           }
-          await Payment.findByIdAndDelete(paymentId);
+          await Payment.deleteOne({ _id: paymentId });
         }
         return { success: true };
       }

@@ -40,17 +40,19 @@ async function dbConnect(forceReconnect = false) {
     }
   }
 
-  // 3. Connect with robust TLS settings
+  // 3. Force IPv4 (family: 4) and enable TLS resilience for certificate rotations
   const opts: mongoose.ConnectOptions = {
     bufferCommands: false,
     maxPoolSize: 10,
     minPoolSize: 0,
-    serverSelectionTimeoutMS: 10000,
-    connectTimeoutMS: 10000,
+    serverSelectionTimeoutMS: 8000,
+    connectTimeoutMS: 8000,
     socketTimeoutMS: 45000,
     family: 4,
     retryReads: true,
-    retryWrites: true
+    retryWrites: true,
+    tls: true,
+    tlsAllowInvalidCertificates: true
   };
 
   cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
