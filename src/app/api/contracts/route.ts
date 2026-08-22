@@ -414,9 +414,12 @@ export async function POST(request: Request) {
 
     const numParcelas = Number(parcelas) || 1;
 
-    // 2. Definir Vigência (Anual = 12 meses, baseada em parcelas se maior)
-    const isAnual = plan.tipo === 'Anual';
-    const planVigencia = isAnual ? 12 : 1;
+    // 2. Definir Vigência (Anual = 12 meses, ou especificada em vigenciaMeses)
+    const isAnual = body.planoTipo === 'Anual' || 
+                    plan.tipo === 'Anual' || 
+                    (plan.nome || '').toLowerCase().includes('anual') || 
+                    Number(body.vigenciaMeses) >= 12;
+    const planVigencia = isAnual ? 12 : (Number(body.vigenciaMeses) || numParcelas || 1);
     const vigenciaMeses = Math.max(planVigencia, numParcelas);
 
     // Calcular data de fim de vigência
@@ -622,6 +625,7 @@ export async function POST(request: Request) {
 
     // 5. Atualizar o perfil comercial do cliente com os dados do contrato emitido
     const targetClientStatus = status === 'assinado' ? 'ativo' : 'pendente';
+
     Object.assign(client.dadosComerciais, {
       planoId: planoId,
       vencimento: dataFim,
@@ -630,7 +634,8 @@ export async function POST(request: Request) {
       descontoValor: descVal,
       descontoTipo: descontoTipo || 'percentual',
       duracao: isAnual ? 'anual' : 'mensal',
-      duracaoQtd: isAnual ? 1 : vigenciaMeses,
+      duracaoQtd: isAnual ? 1 : (Number(vigenciaMeses) || 1),
+      vigenciaQtd: isAnual ? 1 : (Number(vigenciaMeses) || 1),
       formaPagamento: formaPagamento,
       dataInicio: dataInicio,
       responsavelVenda: responsavelVenda || '',

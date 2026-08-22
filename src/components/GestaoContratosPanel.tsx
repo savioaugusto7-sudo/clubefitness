@@ -1367,8 +1367,8 @@ export default function GestaoContratosPanel({
     try {
       setSubmittingImport(true);
 
-      const isAnual = dcDuracao === 'anual';
-      const bruto = dcValorUnitario * dcVigenciaQtd;
+      const isAnual = dcDuracao === 'anual' || plan.tipo === 'Anual' || (plan.nome || '').toLowerCase().includes('anual');
+      const bruto = isAnual ? dcValorUnitario : (dcValorUnitario * dcVigenciaQtd);
       const descVal = Number(dcDescontoValor) || 0;
       let liquido = bruto;
       if (dcDescontoTipo === 'percentual') {
@@ -2852,16 +2852,19 @@ export default function GestaoContratosPanel({
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
                               <span style={{ color: '#94a3b8', fontWeight: 500 }}>
-                                {stage.isRecorrente ? 'Vigência (Acesso):' : 'Vigência:'}
+                                {info.isLead || info.isUncontracted ? 'Cadastro:' : (stage.isRecorrente ? 'Vigência (Acesso):' : 'Vigência:')}
                               </span>
                               <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                 <strong style={{ color: '#f1f5f9', fontWeight: 600 }}>
-                                  {`${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
+                                  {info.isLead || info.isUncontracted
+                                    ? (c.createdAt ? `Cadastrado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}` : 'Recente')
+                                    : `${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
                                 </strong>
                                 {info.daysLeftText && (
                                   <span style={{
-                                    background: info.isExpired ? '#7f1d1d' : info.isExpiringSoon ? '#78350f' : '#064e3b',
-                                    color: '#ffffff',
+                                    background: info.isLead || info.isUncontracted ? 'rgba(168, 85, 247, 0.15)' : (info.isExpired ? '#7f1d1d' : info.isExpiringSoon ? '#78350f' : '#064e3b'),
+                                    color: info.isLead || info.isUncontracted ? '#c084fc' : '#ffffff',
+                                    border: info.isLead || info.isUncontracted ? '1px solid rgba(168, 85, 247, 0.3)' : 'none',
                                     fontSize: '0.7rem',
                                     fontWeight: 750,
                                     padding: '2px 6px',
@@ -3359,14 +3362,28 @@ export default function GestaoContratosPanel({
                            )}
                          </td>
                         <td>
-                          <div>{`${info.dataInicioFormatted} até ${info.dataFimFormatted}`}</div>
+                          <div>
+                            {info.isLead || info.isUncontracted
+                              ? (c.createdAt ? `Cadastrado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}` : 'Sem Contrato')
+                              : `${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
+                          </div>
                           {Boolean(stage.isRecorrente) && (
                             <div style={{ fontSize: '0.7rem', color: '#93c5fd', marginTop: '2px' }}>
                               Fim Contrato: {info.dataFimRecorrenciaFormatted}
                             </div>
                           )}
                           {info.daysLeftText && (
-                            <span style={{ marginTop: '2px', display: 'inline-block', fontSize: '0.68rem', padding: '1px 5px', borderRadius: '4px', background: info.badgeBg, color: info.badgeColor, fontWeight: 700 }}>
+                            <span style={{
+                              marginTop: '2px',
+                              display: 'inline-block',
+                              fontSize: '0.68rem',
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              background: info.isLead || info.isUncontracted ? 'rgba(168, 85, 247, 0.15)' : info.badgeBg,
+                              color: info.isLead || info.isUncontracted ? '#c084fc' : info.badgeColor,
+                              border: info.isLead || info.isUncontracted ? '1px solid rgba(168, 85, 247, 0.3)' : 'none',
+                              fontWeight: 700
+                            }}>
                               {info.daysLeftText}
                             </span>
                           )}

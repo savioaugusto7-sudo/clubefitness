@@ -25,6 +25,8 @@ export interface ContractValidityInfo {
   hasOverdueInstallment?: boolean;
   isEndOfRecurrenceCycle?: boolean;
   recorrenciaMeses?: number;
+  isLead?: boolean;
+  isUncontracted?: boolean;
 }
 
 function safeParseDate(input: any): Date {
@@ -132,13 +134,42 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       client?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
     );
 
-    const isSemestral = (com.duracao || '').toLowerCase().includes('semestral') || 
-                        (planObj?.nome || '').toLowerCase().includes('semestral') || 
-                        com.parcelas === 6;
-    const isAnual = !isSemestral && (com.duracao === 'anual' || (!com.duracao && planObj?.tipo === 'Anual') || (planObj?.nome || '').toLowerCase().includes('anual'));
+    // TRATAMENTO FACTUAL DE LEADS E CADASTROS SEM CONTRATO:
+    // Se for Lead ou não tiver data de início nem pagamentos nem contrato emitido, NÃO INVENTAR DATAS!
+    const paymentsList = clientPayments || client?.payments || [];
+    const hasPaidPayments = Array.isArray(paymentsList) && paymentsList.some((p: any) => p.status === 'Pago');
+    const isLeadStatus = statusSaved === 'lead';
+    const isUncontracted = !com.dataInicio && !com.vencimento && !hasPaidPayments && !isDynamus;
+
+    if (isLeadStatus || (isUncontracted && statusSaved !== 'ativo')) {
+      return {
+        dataInicio: '',
+        dataFim: '',
+        dataFimRecorrencia: '',
+        dataFimCicloTotal: '',
+        dataInicioFormatted: '-',
+        dataFimFormatted: '-',
+        dataFimRecorrenciaFormatted: '-',
+        dataFimCicloTotalFormatted: '-',
+        isExpired: false,
+        isExpiringSoon: false,
+        daysLeft: 0,
+        daysLeftText: isLeadStatus ? 'Aguardando Venda' : 'Sem Contrato',
+        statusKey: 'lead',
+        statusLabel: isLeadStatus ? '🟣 Lead / Novo Cadastro' : 'Sem Contrato Emitido',
+        badgeColor: '#a855f7',
+        badgeBg: 'rgba(168, 85, 247, 0.12)',
+        badgeBorder: 'rgba(168, 85, 247, 0.35)',
+        isLead: true,
+        isUncontracted: true
+      };
+    }
+
+    const isAnual = com.duracao === 'anual' || (!com.duracao && planObj?.tipo === 'Anual') || (planObj?.nome || '').toLowerCase().includes('anual');
     
-    let duracao = isSemestral ? 'semestral' : (isAnual ? 'anual' : (com.duracao || 'mensal'));
-    let vigenciaQtd = isDynamus ? 1 : (com.duracaoQtd || com.vigenciaQtd || (isAnual || isSemestral ? 1 : 1));
+    // Regra Oficial da Empresa: Não usamos 'semestral'. Contratos por meses usam duracao: 'mensal' e duracaoQtd: N
+    let duracao = isAnual ? 'anual' : (com.duracao || 'mensal');
+    let vigenciaQtd = isDynamus ? 1 : (Number(com.duracaoQtd) || Number(com.vigenciaQtd) || 1);
     const dataInicioRaw = com.dataInicio || client?.createdAt || new Date();
     const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
 
@@ -161,7 +192,6 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
 
     // 2. DATA FIM DO MÊS (Vigência de Acesso Mensal liberada pelas parcelas pagas)
     // O ciclo de acesso é SEMPRE calculado a partir da Data de Início (dataInicio)
-    const paymentsList = clientPayments || client?.payments || [];
     let dynamicEndDate: string | null = null;
     let parcelasInfo = '';
     let hasOverdueInstallment = false;
