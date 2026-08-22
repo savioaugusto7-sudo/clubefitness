@@ -246,8 +246,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       />
                     ) : (
                       <img
-                        src={details.gifUrl}
+                        src={details.gifUrl?.startsWith('data:') ? details.gifUrl : `/api/image-proxy?url=${encodeURIComponent(details.gifUrl)}`}
                         alt={details.nome}
+                        referrerPolicy="no-referrer"
                         loading="lazy"
                         style={{ width: '100%', maxHeight: '160px', objectFit: 'contain' }}
                       />
@@ -3098,8 +3099,9 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                   />
                 ) : (
                   <img
-                    src={selectedExerciseForInstruction.gifUrl}
+                    src={selectedExerciseForInstruction.gifUrl?.startsWith('data:') ? selectedExerciseForInstruction.gifUrl : `/api/image-proxy?url=${encodeURIComponent(selectedExerciseForInstruction.gifUrl)}`}
                     alt={selectedExerciseForInstruction.nome}
+                    referrerPolicy="no-referrer"
                     loading="lazy"
                     style={{ width: '100%', maxHeight: '220px', objectFit: 'contain' }}
                   />

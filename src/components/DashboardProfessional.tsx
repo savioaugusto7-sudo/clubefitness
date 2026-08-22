@@ -11141,8 +11141,9 @@ goniometria: {
                           />
                         ) : (
                           <img
-                            src={newExGifUrl}
+                            src={newExGifUrl.startsWith('data:') ? newExGifUrl : `/api/image-proxy?url=${encodeURIComponent(newExGifUrl)}`}
                             alt="Pré-visualização"
+                            referrerPolicy="no-referrer"
                             style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain', border: '1px solid rgba(255,255,255,0.1)' }}
                           />
                         )}
@@ -11311,8 +11312,9 @@ goniometria: {
                           />
                         ) : (
                           <img
-                            src={editExGifUrl}
+                            src={editExGifUrl.startsWith('data:') ? editExGifUrl : `/api/image-proxy?url=${encodeURIComponent(editExGifUrl)}`}
                             alt="Pré-visualização"
+                            referrerPolicy="no-referrer"
                             style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain', border: '1px solid rgba(255,255,255,0.1)' }}
                           />
                         )}

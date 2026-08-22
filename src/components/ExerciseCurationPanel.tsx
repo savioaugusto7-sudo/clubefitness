@@ -135,6 +135,12 @@ export default function ExerciseCurationPanel() {
     }
   };
 
+  const getSafeImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('/api/')) return url;
+    return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header Cards */}
@@ -364,8 +370,9 @@ export default function ExerciseCurationPanel() {
                 <div style={{ background: 'var(--bg-darker)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '10px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <div style={{ position: 'relative', width: '90px', height: '90px', flexShrink: 0 }}>
                     <img
-                      src={ex.suggestion.gifUrl}
+                      src={getSafeImageUrl(ex.suggestion.gifUrl)}
                       alt={ex.suggestion.catalogName}
+                      referrerPolicy="no-referrer"
                       loading="lazy"
                       style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', background: '#090d16' }}
                       onClick={() => setPreviewGif(ex.suggestion!.gifUrl)}
@@ -389,8 +396,9 @@ export default function ExerciseCurationPanel() {
               ) : ex.gifUrl ? (
                 <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '10px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <img
-                    src={ex.gifUrl}
+                    src={getSafeImageUrl(ex.gifUrl)}
                     alt={ex.nome}
+                    referrerPolicy="no-referrer"
                     loading="lazy"
                     style={{ width: '70px', height: '70px', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', background: '#090d16' }}
                     onClick={() => setPreviewGif(ex.gifUrl!)}
@@ -454,12 +462,13 @@ export default function ExerciseCurationPanel() {
             onClick={e => e.stopPropagation()}
           >
             <h3 style={{ margin: '0 0 14px 0', fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>
-              Preview do Exercício
+              Preview da Animação 3D
             </h3>
             <img
-              src={previewGif}
+              src={getSafeImageUrl(previewGif)}
               alt="Preview"
-              style={{ width: '100%', maxHeight: '360px', objectFit: 'contain', borderRadius: '12px', background: '#000' }}
+              referrerPolicy="no-referrer"
+              style={{ width: '100%', maxHeight: '360px', objectFit: 'contain', borderRadius: '12px', background: '#090d16' }}
             />
             <button
               className="btn btn-secondary"
