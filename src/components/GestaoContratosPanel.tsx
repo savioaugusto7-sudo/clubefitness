@@ -31,28 +31,32 @@ export interface ClientContractStage {
   hasCpf: boolean;
   hasPhone: boolean;
   hasEndereco: boolean;
+  hasBirthDate: boolean;
   isMissingData: boolean;
   info: any;
 }
 
-export function resolveClientContractStage(c: any, plan: any, latestContract: any, latestProposal: any): ClientContractStage {
+export function resolveClientContractStage(c: any, plan: any, latestContract: any, latestProposal: any, clientPayments?: any[]): ClientContractStage {
   const com = c?.dadosComerciais || {};
   const dp = c?.dadosPessoais || {};
-  const info = getContractValidityInfo(c, plan);
+  const info = getContractValidityInfo(c, plan, clientPayments);
 
   const isRecorrente = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia || latestContract?.criarRecorrenciaMensal);
   const isBoleto = (latestContract?.formaPagamento || com.formaPagamento) === 'boleto';
   const hasAsaasBoleto = Boolean(latestContract?.asaasBoletoPdf || latestContract?.asaasInvoiceUrl);
+  const hasPaidInstallment = Boolean(clientPayments && clientPayments.some((p: any) => p.status === 'Pago'));
 
   const cleanCpf = (dp.cpf || '').replace(/\D/g, '');
   const cleanPhone = (dp.telefone || '').replace(/\D/g, '');
   const isCpfValid = Boolean(cleanCpf.length === 11 && !/^(\d)\1{10}$/.test(cleanCpf));
   const isPhoneValid = Boolean(cleanPhone.length >= 10 && !/^(\d)\1+$/.test(cleanPhone));
-  const hasEndereco = Boolean(dp.endereco?.trim() && dp.numero?.trim() && dp.cep?.trim() && !dp.endereco.toLowerCase().includes('teste'));
+  // Ausência de CEP NÃO invalida o endereço se a rua/logradouro for preenchida
+  const hasEndereco = Boolean(dp.endereco?.trim() && !dp.endereco.toLowerCase().includes('teste'));
+  const hasBirthDate = Boolean(dp.dataNascimento?.trim());
   const hasValidEmail = Boolean(dp.email && !dp.email.toLowerCase().endsWith('@clube.com'));
   const hasCpf = isCpfValid;
   const hasPhone = isPhoneValid;
-  const isMissingData = !hasCpf || !hasPhone || !hasEndereco || !hasValidEmail;
+  const isMissingData = !hasCpf || !hasPhone || !hasEndereco || !hasBirthDate || !hasValidEmail;
 
   // 0. Contrato Finalizado (Não Renovou)
   if (com.status === 'finalizado' || c?.status === 'finalizado') {
@@ -70,6 +74,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       hasCpf,
       hasPhone,
       hasEndereco,
+      hasBirthDate,
       isMissingData,
       info
     };
@@ -101,18 +106,20 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       hasCpf: isCpfValid,
       hasPhone: true, // Dispensado para Dynamus (dados do convênio)
       hasEndereco: true, // Dispensado para Dynamus (dados do convênio)
+      hasBirthDate: true, // Dispensado para Dynamus
       isMissingData: !isDynamusComplete,
       info
     };
   }
 
-  // 1. Contrato Assinado ou Perfil Ativo com Vigência Válida
+  // 1. Contrato Assinado, Perfil Ativo com Vigência Válida ou Recorrência em Dia
   const hasActiveContract = Boolean(
     latestContract?.status === 'assinado' ||
     latestContract?.clicksignStatus === 'assinado' ||
     com.status === 'ativo' ||
     com.status === 'assinado' ||
-    (plan && !info.isExpired && (com.valorUnitario > 0 || latestContract))
+    (isRecorrente && hasPaidInstallment && !info.isExpired) ||
+    (plan && !info.isExpired && (com.valorUnitario > 0 || latestContract || hasPaidInstallment))
   );
 
   const isExpired = Boolean(info.isExpired);
@@ -134,6 +141,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
         hasCpf,
         hasPhone,
         hasEndereco,
+        hasBirthDate,
         isMissingData,
         info
       };
@@ -154,6 +162,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
         hasCpf,
         hasPhone,
         hasEndereco,
+        hasBirthDate,
         isMissingData,
         info
       };
@@ -174,6 +183,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       hasCpf,
       hasPhone,
       hasEndereco,
+      hasBirthDate,
       isMissingData,
       info
     };
@@ -199,6 +209,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       hasCpf,
       hasPhone,
       hasEndereco,
+      hasBirthDate,
       isMissingData,
       info
     };
@@ -221,6 +232,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       hasCpf,
       hasPhone,
       hasEndereco,
+      hasBirthDate,
       isMissingData,
       info
     };
@@ -242,6 +254,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       hasCpf,
       hasPhone,
       hasEndereco,
+      hasBirthDate,
       isMissingData,
       info
     };
@@ -262,6 +275,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     hasCpf,
     hasPhone,
     hasEndereco,
+    hasBirthDate,
     isMissingData,
     info
   };
@@ -295,7 +309,15 @@ export default function GestaoContratosPanel({
       window.dispatchEvent(new CustomEvent('navigate_tab', { detail: { tab: 'financeiro', searchQuery: client.dadosPessoais?.nome || '' } }));
     }
   };
-  const [contratoStatusFilter, setContratoStatusFilter] = useState('todos');
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([
+    'vigente',
+    'renovacao',
+    'vencido',
+    'aguardando_assinatura',
+    'lead',
+    'dynamus'
+  ]);
+  const [quickViewFilter, setQuickViewFilter] = useState<string>('todos');
   const [orientacaoFilter, setOrientacaoFilter] = useState('todos');
   const [formaPagamentoFilter, setFormaPagamentoFilter] = useState('todos');
   const [contratoPlanFilter, setContratoPlanFilter] = useState('todos');
@@ -303,6 +325,7 @@ export default function GestaoContratosPanel({
   const [loadingContracts, setLoadingContracts] = useState(false);
   const [allContractsMap, setAllContractsMap] = useState<Record<string, any>>({});
   const [allProposalsMap, setAllProposalsMap] = useState<Record<string, any>>({});
+  const [allPaymentsMap, setAllPaymentsMap] = useState<Record<string, any[]>>({});
   const [syncingClicksignClientId, setSyncingClicksignClientId] = useState<string | null>(null);
 
   // States for Finalize Contract Modal (Não Renovou)
@@ -424,11 +447,89 @@ export default function GestaoContratosPanel({
     }
   };
 
+  const handleToggleStatus = (statusKey: string) => {
+    setSelectedStatuses(prev => {
+      if (prev.includes(statusKey)) {
+        return prev.filter(s => s !== statusKey);
+      } else {
+        return [...prev, statusKey];
+      }
+    });
+  };
+
+  const handleSelectOnlyStatus = (statusKey: string) => {
+    setSelectedStatuses([statusKey]);
+  };
+
+  const handleSelectAllStatuses = () => {
+    setSelectedStatuses(['vigente', 'renovacao', 'vencido', 'aguardando_assinatura', 'lead', 'dynamus', 'finalizado']);
+  };
+
+  const handleSelectOnlyActiveOperation = () => {
+    setSelectedStatuses(['vigente', 'renovacao', 'vencido', 'aguardando_assinatura', 'lead', 'dynamus']);
+  };
+
+  const handleCancelProposal = async (client: any, proposal: any) => {
+    if (!confirm(`Deseja cancelar e descartar a proposta comercial pendente de ${client.dadosPessoais?.nome || 'Aluno'}? O aluno retornará ao status anterior.`)) return;
+    try {
+      const pId = proposal?._id;
+      const res = await fetch(`/api/propostas?${pId ? `id=${pId}` : `clientId=${client._id}`}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert('Proposta cancelada e descartada com sucesso!');
+        fetchData();
+        loadContractsAndProposalsOverview();
+      } else {
+        alert('Erro ao cancelar proposta: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Erro: ' + e.message);
+    }
+  };
+
+  const handleManualActivateClient = async (client: any, proposal?: any) => {
+    if (!confirm(`Confirmar fechamento manual para ${client.dadosPessoais?.nome || 'Aluno'}? Isso ativará o plano do aluno e concluirá a proposta.`)) return;
+    try {
+      const todayIso = new Date().toISOString().split('T')[0];
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+      const nextYearIso = nextYear.toISOString().split('T')[0];
+
+      const res = await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: client._id,
+          dadosComerciais: {
+            ...(client.dadosComerciais || {}),
+            status: 'ativo',
+            dataInicio: client.dadosComerciais?.dataInicio || todayIso,
+            vencimento: nextYearIso
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (proposal?._id) {
+          await fetch(`/api/propostas?id=${proposal._id}`, { method: 'DELETE' }).catch(() => {});
+        }
+        alert('Aluno ativado com sucesso como Contrato Vigente!');
+        fetchData();
+        loadContractsAndProposalsOverview();
+      } else {
+        alert('Erro ao ativar aluno: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Erro: ' + e.message);
+    }
+  };
+
   const loadContractsAndProposalsOverview = async () => {
     try {
-      const [contractsRes, proposalsRes] = await Promise.all([
+      const [contractsRes, proposalsRes, paymentsRes] = await Promise.all([
         fetch('/api/contracts').then(r => r.json()).catch(() => ({})),
-        fetch('/api/propostas').then(r => r.json()).catch(() => ({}))
+        fetch('/api/propostas').then(r => r.json()).catch(() => ({})),
+        fetch('/api/admin/payments').then(r => r.json()).catch(() => ({}))
       ]);
 
       if (contractsRes.success && Array.isArray(contractsRes.data)) {
@@ -451,6 +552,18 @@ export default function GestaoContratosPanel({
           }
         });
         setAllProposalsMap(pMap);
+      }
+
+      if (paymentsRes.success && Array.isArray(paymentsRes.data)) {
+        const pyMap: Record<string, any[]> = {};
+        paymentsRes.data.forEach((p: any) => {
+          const cId = p.clientId?._id || p.clientId;
+          if (cId) {
+            if (!pyMap[cId]) pyMap[cId] = [];
+            pyMap[cId].push(p);
+          }
+        });
+        setAllPaymentsMap(pyMap);
       }
     } catch (e) {
       console.warn('Erro ao carregar mapa de contratos e propostas:', e);
@@ -494,6 +607,46 @@ export default function GestaoContratosPanel({
     }
   };
 
+  // KPIs Financeiros e Operacionais em Tempo Real
+  const contractKpis = useMemo(() => {
+    let mrrAtivo = 0;
+    let receitaEmRisco = 0;
+    let inadimplenciaRetida = 0;
+    let alunosAtivosCount = 0;
+
+    clients.forEach((c: any) => {
+      const com = c.dadosComerciais || {};
+      const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
+      const latestContract = allContractsMap[c._id];
+      const latestProposal = allProposalsMap[c._id];
+      const clientPy = allPaymentsMap[c._id] || [];
+      const stage = resolveClientContractStage(c, plan, latestContract, latestProposal, clientPy);
+
+      const valorMensal = Number(com.valorUnitario) || (plan ? (plan.tipo === 'Anual' ? Number(plan.preco) / 12 : Number(plan.preco)) : 0);
+
+      if (stage.stageKey === 'ativo' || stage.stageKey === 'dynamus') {
+        alunosAtivosCount++;
+        mrrAtivo += valorMensal;
+      } else if (stage.stageKey === 'renovacao') {
+        alunosAtivosCount++;
+        receitaEmRisco += valorMensal;
+      }
+
+      // Inadimplência Asaas
+      const overduePayments = clientPy.filter((p: any) => p.status === 'Atrasado');
+      overduePayments.forEach((p: any) => {
+        inadimplenciaRetida += Number(p.valor || 0);
+      });
+    });
+
+    return {
+      mrrAtivo,
+      receitaEmRisco,
+      inadimplenciaRetida,
+      alunosAtivosCount
+    };
+  }, [clients, plans, allContractsMap, allProposalsMap, allPaymentsMap]);
+
   // Contadores dinâmicos calculados em tempo real para todas as pílulas de status
   const stageCounts = useMemo(() => {
     let total = 0;
@@ -513,7 +666,7 @@ export default function GestaoContratosPanel({
       const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
       const latestContract = allContractsMap[c._id];
       const latestProposal = allProposalsMap[c._id];
-      const stage = resolveClientContractStage(c, plan, latestContract, latestProposal);
+      const stage = resolveClientContractStage(c, plan, latestContract, latestProposal, allPaymentsMap[c._id]);
 
       if (stage.stageKey === 'dynamus') dynamus++;
       else if (stage.stageKey === 'ativo') vigente++;
@@ -539,12 +692,13 @@ export default function GestaoContratosPanel({
       boleto_asaas,
       incompleto
     };
-  }, [clients, plans, allContractsMap, allProposalsMap]);
+  }, [clients, plans, allContractsMap, allProposalsMap, allPaymentsMap]);
 
   // Limpeza de todos os filtros de uma vez
   const handleClearFilters = () => {
     setSearchQuery('');
-    setContratoStatusFilter('todos');
+    setSelectedStatuses(['vigente', 'renovacao', 'vencido', 'aguardando_assinatura', 'lead', 'dynamus']);
+    setQuickViewFilter('todos');
     setOrientacaoFilter('todos');
     setFormaPagamentoFilter('todos');
     setContratoPlanFilter('todos');
@@ -559,7 +713,8 @@ export default function GestaoContratosPanel({
         const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
         const latestContract = allContractsMap[c._id];
         const latestProposal = allProposalsMap[c._id];
-        const stage = resolveClientContractStage(c, plan, latestContract, latestProposal);
+        const clientPy = allPaymentsMap[c._id];
+        const stage = resolveClientContractStage(c, plan, latestContract, latestProposal, clientPy);
 
         // 1. Smart Search Multi-Terms
         const matchesSearch = smartSearchMatch(searchQuery, [
@@ -574,21 +729,27 @@ export default function GestaoContratosPanel({
         ]);
         if (!matchesSearch) return false;
 
-        // 2. Pílula de Estágio
-        if (contratoStatusFilter !== 'todos') {
-          if (contratoStatusFilter === 'dynamus' && stage.stageKey !== 'dynamus') return false;
-          if (contratoStatusFilter === 'vigente' && stage.stageKey !== 'ativo') return false;
-          if (contratoStatusFilter === 'renovacao' && stage.stageKey !== 'renovacao') return false;
-          if (contratoStatusFilter === 'vencido' && stage.stageKey !== 'vencido') return false;
-          if (contratoStatusFilter === 'finalizado' && stage.stageKey !== 'finalizado') return false;
-          if (contratoStatusFilter === 'aguardando_assinatura' && stage.stageKey !== 'pendente' && stage.stageKey !== 'proposta') return false;
-          if (contratoStatusFilter === 'lead' && stage.stageKey !== 'lead') return false;
-          if (contratoStatusFilter === 'boleto_asaas' && !stage.isBoleto) return false;
-          if (contratoStatusFilter === 'incompleto' && !stage.isMissingData) return false;
-          if (contratoStatusFilter === 'congelado' && stage.stageKey !== 'congelado') return false;
+        // 2. Multi-Status Selection Matrix
+        let cat: string = stage.stageKey;
+        if (cat === 'ativo') cat = 'vigente';
+        if (cat === 'pendente' || cat === 'proposta') cat = 'aguardando_assinatura';
+
+        if (selectedStatuses.length > 0 && !selectedStatuses.includes(cat)) {
+          return false;
         }
 
-        // 3. Filtro por Orientação / Ação CTA
+        // 3. Modos Rápidos de Operação (Quick Views)
+        if (quickViewFilter === 'foco_do_dia') {
+          if (stage.stageKey !== 'renovacao' && stage.stageKey !== 'proposta') return false;
+        } else if (quickViewFilter === 'inadimplentes') {
+          if (!stage.info.hasOverdueInstallment && stage.stageKey !== 'vencido') return false;
+        } else if (quickViewFilter === 'pendentes_assinatura') {
+          if (stage.stageKey !== 'pendente' && stage.stageKey !== 'proposta') return false;
+        } else if (quickViewFilter === 'pendencias_cadastrais') {
+          if (!stage.isMissingData) return false;
+        }
+
+        // 4. Filtro por Orientação / Ação CTA
         if (orientacaoFilter !== 'todos') {
           if (orientacaoFilter === 'gerenciar_dynamus' && stage.orientacaoKey !== 'gerenciar_dynamus') return false;
           if (orientacaoFilter === 'dados_faltantes' && !stage.isMissingData) return false;
@@ -601,15 +762,15 @@ export default function GestaoContratosPanel({
           if (orientacaoFilter === 'gerar_link' && stage.orientacaoKey !== 'gerar_link') return false;
         }
 
-        // 4. Filtro por Forma de Pagamento
+        // 5. Filtro por Forma de Pagamento
         if (formaPagamentoFilter !== 'todos') {
           const clientForma = (latestContract?.formaPagamento || com.formaPagamento || '').toLowerCase();
-          if (formaPagamentoFilter === 'boleto' && clientForma !== 'boleto') return false;
-          if (formaPagamentoFilter === 'pix' && clientForma !== 'pix') return false;
-          if (formaPagamentoFilter === 'cartao' && clientForma !== 'cartao' && clientForma !== 'asaas') return false;
+          if (formaPagamentoFilter === 'boleto' && !clientForma.includes('boleto')) return false;
+          if (formaPagamentoFilter === 'pix' && !clientForma.includes('pix')) return false;
+          if (formaPagamentoFilter === 'cartao' && !clientForma.includes('cartao') && !clientForma.includes('asaas')) return false;
         }
 
-        // 5. Filtro por Plano
+        // 6. Filtro por Plano
         if (contratoPlanFilter !== 'todos') {
           const pId = com.planoId?._id || com.planoId;
           if (pId !== contratoPlanFilter) return false;
@@ -646,7 +807,7 @@ export default function GestaoContratosPanel({
         }
         return 0;
       });
-  }, [clients, searchQuery, contratoStatusFilter, orientacaoFilter, formaPagamentoFilter, contratoPlanFilter, sortOption, plans, allContractsMap, allProposalsMap]);
+  }, [clients, searchQuery, selectedStatuses, quickViewFilter, orientacaoFilter, formaPagamentoFilter, contratoPlanFilter, sortOption, plans, allContractsMap, allProposalsMap, allPaymentsMap]);
   const [generatingPayments, setGeneratingPayments] = useState(false);
   const [renewingValidity, setRenewingValidity] = useState(false);
   const [cancelingRecurrence, setCancelingRecurrence] = useState(false);
@@ -2103,239 +2264,445 @@ export default function GestaoContratosPanel({
           <ClicksignPanel />
         ) : (
           <>
-            {/* Funil de Estágios Inteligente com Contadores Dinâmicos em Tempo Real */}
-            <div style={{ marginBottom: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Todos */}
-              <button
-                type="button"
-                onClick={() => setContratoStatusFilter('todos')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: '1px solid',
-                  borderColor: contratoStatusFilter === 'todos' ? 'var(--color-primary)' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'todos' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'todos' ? 'var(--color-primary)' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
+            {/* =========================================================
+                PAINEL DE KPIS EXECUTIVOS EM TEMPO REAL (TOP KPI STRIP)
+                ========================================================= */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '12px',
+              marginBottom: '16px'
+            }}>
+              {/* MRR Ativo */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 95, 70, 0.25) 100%)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: '#10b981',
+                  color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  flexShrink: 0
+                }}>
+                  <i className="fa-solid fa-chart-line"></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#a7f3d0', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    MRR Ativo (Mensal)
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                    {formatCurrencyBRL(contractKpis.mrrAtivo)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Receita em Risco (<30d) */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(120, 53, 15, 0.25) 100%)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: '#f59e0b',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  flexShrink: 0
+                }}>
+                  <i className="fa-solid fa-arrows-rotate"></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#fde68a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Renovações &lt;30d
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                    {formatCurrencyBRL(contractKpis.receitaEmRisco)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Inadimplência Retida */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(153, 27, 27, 0.25) 100%)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  flexShrink: 0
+                }}>
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#fca5a5', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Inadimplência Asaas
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                    {formatCurrencyBRL(contractKpis.inadimplenciaRetida)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Alunos Ativos */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(30, 58, 138, 0.25) 100%)',
+                border: '1px solid rgba(59, 130, 246, 0.35)',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: '#3b82f6',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  flexShrink: 0
+                }}>
+                  <i className="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#bfdbfe', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Alunos Ativos
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                    {contractKpis.alunosAtivosCount} alunos
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modos Rápidos de Operação (Quick Views) */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              marginBottom: '12px',
+              padding: '8px 12px',
+              background: 'rgba(255,255,255,0.02)',
+              borderRadius: '10px',
+              border: '1px solid rgba(255,255,255,0.06)'
+            }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: '4px' }}>
+                ⚡ Modos Rápidos:
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuickViewFilter(prev => prev === 'foco_do_dia' ? 'todos' : 'foco_do_dia')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: quickViewFilter === 'foco_do_dia' ? '1px solid #f59e0b' : '1px solid var(--border-color)',
+                  background: quickViewFilter === 'foco_do_dia' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255,255,255,0.04)',
+                  color: quickViewFilter === 'foco_do_dia' ? '#fbbf24' : 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
                 }}
               >
-                🌐 Todos ({stageCounts.total})
+                🚀 Foco do Dia (Renovações & Propostas)
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickViewFilter(prev => prev === 'inadimplentes' ? 'todos' : 'inadimplentes')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: quickViewFilter === 'inadimplentes' ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                  background: quickViewFilter === 'inadimplentes' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.04)',
+                  color: quickViewFilter === 'inadimplentes' ? '#f87171' : 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                🚨 Inadimplência Asaas
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickViewFilter(prev => prev === 'pendentes_assinatura' ? 'todos' : 'pendentes_assinatura')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: quickViewFilter === 'pendentes_assinatura' ? '1px solid #a855f7' : '1px solid var(--border-color)',
+                  background: quickViewFilter === 'pendentes_assinatura' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255,255,255,0.04)',
+                  color: quickViewFilter === 'pendentes_assinatura' ? '#c084fc' : 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                ✍️ Pendentes de Assinatura
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickViewFilter(prev => prev === 'pendencias_cadastrais' ? 'todos' : 'pendencias_cadastrais')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: quickViewFilter === 'pendencias_cadastrais' ? '1px solid #f97316' : '1px solid var(--border-color)',
+                  background: quickViewFilter === 'pendencias_cadastrais' ? 'rgba(249, 115, 22, 0.25)' : 'rgba(255,255,255,0.04)',
+                  color: quickViewFilter === 'pendencias_cadastrais' ? '#fb923c' : 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                ⚠️ Cadastros com Pendências ({stageCounts.incompleto})
+              </button>
+            </div>
+
+            {/* Pílulas de Status Multi-Seleção Interativas (Toggles com Finalizados Omitidos por Padrão) */}
+            <div style={{ marginBottom: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Botão Atalho: Apenas Ativos da Operação */}
+              <button
+                type="button"
+                onClick={handleSelectOnlyActiveOperation}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: '#94a3b8',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+                title="Mostrar todos os status ativos da operação (oculta finalizados)"
+              >
+                ⚡ Operação Viva
               </button>
 
-              {/* Contrato Vigente (Estável) */}
+              {/* Botão Atalho: Marcar Todos */}
               <button
                 type="button"
-                onClick={() => setContratoStatusFilter('vigente')}
+                onClick={handleSelectAllStatuses}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: '#94a3b8',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+                title="Mostrar todos inclusive finalizados"
+              >
+                🌐 Todos
+              </button>
+
+              {/* Toggle Contrato Vigente */}
+              <button
+                type="button"
+                onClick={() => handleToggleStatus('vigente')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: contratoStatusFilter === 'vigente' ? '#059669' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'vigente' ? 'rgba(5, 150, 105, 0.2)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'vigente' ? '#34d399' : 'var(--text-muted)',
+                  borderColor: selectedStatuses.includes('vigente') ? '#059669' : 'var(--border-color)',
+                  background: selectedStatuses.includes('vigente') ? 'rgba(5, 150, 105, 0.2)' : 'rgba(255,255,255,0.02)',
+                  color: selectedStatuses.includes('vigente') ? '#34d399' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  opacity: selectedStatuses.includes('vigente') ? 1 : 0.5
                 }}
               >
+                <i className={`fa-solid ${selectedStatuses.includes('vigente') ? 'fa-square-check' : 'fa-square'}`}></i>
                 🟢 Contrato Vigente ({stageCounts.vigente})
               </button>
 
-              {/* Renovações (<30d) */}
+              {/* Toggle Renovações <30d */}
               <button
                 type="button"
-                onClick={() => setContratoStatusFilter('renovacao')}
+                onClick={() => handleToggleStatus('renovacao')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: contratoStatusFilter === 'renovacao' ? '#f59e0b' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'renovacao' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'renovacao' ? '#fbbf24' : 'var(--text-muted)',
+                  borderColor: selectedStatuses.includes('renovacao') ? '#f59e0b' : 'var(--border-color)',
+                  background: selectedStatuses.includes('renovacao') ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.02)',
+                  color: selectedStatuses.includes('renovacao') ? '#fbbf24' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  opacity: selectedStatuses.includes('renovacao') ? 1 : 0.5
                 }}
               >
+                <i className={`fa-solid ${selectedStatuses.includes('renovacao') ? 'fa-square-check' : 'fa-square'}`}></i>
                 🟠 Renovações &lt;30d ({stageCounts.renovacao})
               </button>
 
-              {/* Vencidos */}
+              {/* Toggle Vencidos */}
               <button
                 type="button"
-                onClick={() => setContratoStatusFilter('vencido')}
+                onClick={() => handleToggleStatus('vencido')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: contratoStatusFilter === 'vencido' ? '#dc2626' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'vencido' ? 'rgba(220, 38, 38, 0.2)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'vencido' ? '#f87171' : 'var(--text-muted)',
+                  borderColor: selectedStatuses.includes('vencido') ? '#dc2626' : 'var(--border-color)',
+                  background: selectedStatuses.includes('vencido') ? 'rgba(220, 38, 38, 0.2)' : 'rgba(255,255,255,0.02)',
+                  color: selectedStatuses.includes('vencido') ? '#f87171' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  opacity: selectedStatuses.includes('vencido') ? 1 : 0.5
                 }}
               >
+                <i className={`fa-solid ${selectedStatuses.includes('vencido') ? 'fa-square-check' : 'fa-square'}`}></i>
                 🔴 Vencidos ({stageCounts.vencido})
               </button>
 
-              {/* Finalizados (Não Renovou) */}
+              {/* Toggle Aguardando Assinatura */}
               <button
                 type="button"
-                onClick={() => setContratoStatusFilter('finalizado')}
+                onClick={() => handleToggleStatus('aguardando_assinatura')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: contratoStatusFilter === 'finalizado' ? '#9ca3af' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'finalizado' ? 'rgba(107, 114, 128, 0.25)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'finalizado' ? '#e5e7eb' : 'var(--text-muted)',
+                  borderColor: selectedStatuses.includes('aguardando_assinatura') ? '#fbbf24' : 'var(--border-color)',
+                  background: selectedStatuses.includes('aguardando_assinatura') ? 'rgba(251, 191, 36, 0.18)' : 'rgba(255,255,255,0.02)',
+                  color: selectedStatuses.includes('aguardando_assinatura') ? '#fde047' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  opacity: selectedStatuses.includes('aguardando_assinatura') ? 1 : 0.5
                 }}
               >
-                🏁 Finalizados ({stageCounts.finalizado})
+                <i className={`fa-solid ${selectedStatuses.includes('aguardando_assinatura') ? 'fa-square-check' : 'fa-square'}`}></i>
+                ⏳ Aguardando Assinatura / Proposta ({stageCounts.aguardando_assinatura})
               </button>
 
-              {/* Aguardando Assinatura */}
+              {/* Toggle Leads */}
               <button
                 type="button"
-                onClick={() => setContratoStatusFilter('aguardando_assinatura')}
+                onClick={() => handleToggleStatus('lead')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: contratoStatusFilter === 'aguardando_assinatura' ? '#fbbf24' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'aguardando_assinatura' ? 'rgba(251, 191, 36, 0.18)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'aguardando_assinatura' ? '#fde047' : 'var(--text-muted)',
+                  borderColor: selectedStatuses.includes('lead') ? '#8b5cf6' : 'var(--border-color)',
+                  background: selectedStatuses.includes('lead') ? 'rgba(139, 92, 246, 0.18)' : 'rgba(255,255,255,0.02)',
+                  color: selectedStatuses.includes('lead') ? '#c084fc' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  opacity: selectedStatuses.includes('lead') ? 1 : 0.5
                 }}
               >
-                ⏳ Aguardando Assinatura ({stageCounts.aguardando_assinatura})
-              </button>
-
-              {/* Leads & Cadastros */}
-              <button
-                type="button"
-                onClick={() => setContratoStatusFilter('lead')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: '1px solid',
-                  borderColor: contratoStatusFilter === 'lead' ? '#8b5cf6' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'lead' ? 'rgba(139, 92, 246, 0.18)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'lead' ? '#c084fc' : 'var(--text-muted)',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
-                }}
-              >
+                <i className={`fa-solid ${selectedStatuses.includes('lead') ? 'fa-square-check' : 'fa-square'}`}></i>
                 🟣 Leads & Cadastros ({stageCounts.lead})
               </button>
 
-              {/* Alunos Dynamus */}
+              {/* Toggle Dynamus */}
               <button
                 type="button"
-                onClick={() => setContratoStatusFilter('dynamus')}
+                onClick={() => handleToggleStatus('dynamus')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: contratoStatusFilter === 'dynamus' ? '#06b6d4' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'dynamus' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'dynamus' ? '#22d3ee' : 'var(--text-muted)',
+                  borderColor: selectedStatuses.includes('dynamus') ? '#06b6d4' : 'var(--border-color)',
+                  background: selectedStatuses.includes('dynamus') ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.02)',
+                  color: selectedStatuses.includes('dynamus') ? '#22d3ee' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  opacity: selectedStatuses.includes('dynamus') ? 1 : 0.5
                 }}
               >
+                <i className={`fa-solid ${selectedStatuses.includes('dynamus') ? 'fa-square-check' : 'fa-square'}`}></i>
                 ⚡ Alunos Dynamus ({stageCounts.dynamus})
               </button>
 
-              {/* Boletos / Asaas */}
+              {/* Toggle Finalizados (NÃO RENOVOU) - DESMARCADO POR PADRÃO */}
               <button
                 type="button"
-                onClick={() => setContratoStatusFilter('boleto_asaas')}
+                onClick={() => handleToggleStatus('finalizado')}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
                   border: '1px solid',
-                  borderColor: contratoStatusFilter === 'boleto_asaas' ? '#0284c7' : 'var(--border-color)',
-                  background: contratoStatusFilter === 'boleto_asaas' ? 'rgba(2, 132, 199, 0.2)' : 'rgba(255,255,255,0.03)',
-                  color: contratoStatusFilter === 'boleto_asaas' ? '#38bdf8' : 'var(--text-muted)',
+                  borderColor: selectedStatuses.includes('finalizado') ? '#9ca3af' : 'rgba(107, 114, 128, 0.3)',
+                  background: selectedStatuses.includes('finalizado') ? 'rgba(107, 114, 128, 0.3)' : 'rgba(255,255,255,0.01)',
+                  color: selectedStatuses.includes('finalizado') ? '#e5e7eb' : '#6b7280',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.15s ease'
+                  opacity: selectedStatuses.includes('finalizado') ? 1 : 0.5
                 }}
+                title={selectedStatuses.includes('finalizado') ? 'Clique para ocultar finalizados' : 'Clique para exibir alunos que não renovaram'}
               >
-                💳 Boletos / Asaas ({stageCounts.boleto_asaas})
+                <i className={`fa-solid ${selectedStatuses.includes('finalizado') ? 'fa-square-check' : 'fa-square'}`}></i>
+                🏁 Finalizados ({stageCounts.finalizado})
               </button>
-
-              {/* Cadastros Incompletos */}
-              {stageCounts.incompleto > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setContratoStatusFilter('incompleto')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    border: '1px solid',
-                    borderColor: contratoStatusFilter === 'incompleto' ? '#ef4444' : 'rgba(239, 68, 68, 0.4)',
-                    background: contratoStatusFilter === 'incompleto' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.05)',
-                    color: contratoStatusFilter === 'incompleto' ? '#fca5a5' : '#f87171',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  ⚠️ Dados Incompletos ({stageCounts.incompleto})
-                </button>
-              )}
             </div>
 
             {/* Barra de Ferramentas com Filtros Inteligentes Combinados */}
@@ -2472,7 +2839,7 @@ export default function GestaoContratosPanel({
                 </div>
 
                 {/* Reset Button */}
-                {(searchQuery !== '' || contratoStatusFilter !== 'todos' || orientacaoFilter !== 'todos' || formaPagamentoFilter !== 'todos' || contratoPlanFilter !== 'todos' || sortOption !== 'vencimento_asc') && (
+                {(searchQuery !== '' || quickViewFilter !== 'todos' || selectedStatuses.length !== 6 || selectedStatuses.includes('finalizado') || orientacaoFilter !== 'todos' || formaPagamentoFilter !== 'todos' || contratoPlanFilter !== 'todos' || sortOption !== 'vencimento_asc') && (
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -2504,7 +2871,7 @@ export default function GestaoContratosPanel({
                     const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
                     const latestContract = allContractsMap[c._id];
                     const latestProposal = allProposalsMap[c._id];
-                    const stage = resolveClientContractStage(c, plan, latestContract, latestProposal);
+                    const stage = resolveClientContractStage(c, plan, latestContract, latestProposal, allPaymentsMap[c._id]);
                     const info = stage.info;
 
                     const rawTel = (c.dadosPessoais?.telefone || '').replace(/\D/g, '');
@@ -2515,9 +2882,10 @@ export default function GestaoContratosPanel({
                     // Data checks
                     const hasCpf = Boolean(c.dadosPessoais?.cpf?.trim());
                     const hasPhone = Boolean(c.dadosPessoais?.telefone?.trim());
-                    const hasEndereco = Boolean(c.dadosPessoais?.endereco?.trim() && c.dadosPessoais?.numero?.trim() && c.dadosPessoais?.cep?.trim());
+                    const hasBirthDate = Boolean(c.dadosPessoais?.dataNascimento?.trim());
+                    const hasEndereco = Boolean(c.dadosPessoais?.endereco?.trim() && !c.dadosPessoais?.endereco?.toLowerCase().includes('teste'));
                     const enderecoFormatted = hasEndereco
-                      ? `${c.dadosPessoais.endereco}, ${c.dadosPessoais.numero}${c.dadosPessoais.bairro ? ` - ${c.dadosPessoais.bairro}` : ''}, ${c.dadosPessoais.cidade || ''} (${c.dadosPessoais.cep})`
+                      ? `${c.dadosPessoais.endereco}${c.dadosPessoais.numero ? `, ${c.dadosPessoais.numero}` : ''}${c.dadosPessoais.bairro ? ` - ${c.dadosPessoais.bairro}` : ''}${c.dadosPessoais.cidade ? `, ${c.dadosPessoais.cidade}` : ''}${c.dadosPessoais.cep ? ` (${c.dadosPessoais.cep})` : ''}`
                       : null;
 
                     const isBoleto = (latestContract?.formaPagamento || com.formaPagamento) === 'boleto';
@@ -2572,6 +2940,11 @@ export default function GestaoContratosPanel({
                                   {!hasPhone && (
                                     <span style={{ fontSize: '0.68rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
                                       ⚠️ Falta Tel
+                                    </span>
+                                  )}
+                                  {!hasBirthDate && (
+                                    <span style={{ fontSize: '0.68rem', background: 'rgba(245,158,11,0.15)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                      ⚠️ Falta Nascimento
                                     </span>
                                   )}
                                   {!hasEndereco && (
@@ -2836,33 +3209,80 @@ export default function GestaoContratosPanel({
                               Sincronizar Status Clicksign
                             </button>
                           ) : stage.stageKey === 'proposta' ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const url = window.location.origin + '/vendas/' + latestProposal._id;
-                                setGeneratedProposalUrl(url);
-                                setActiveProposal(latestProposal);
-                                setShowProposalModal(true);
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: '#8b5cf6',
-                                color: '#ffffff',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)'
-                              }}
-                            >
-                              <i className="fa-solid fa-share-nodes"></i> Copiar / Reenviar Link de Venda
-                            </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = window.location.origin + '/vendas/' + latestProposal._id;
+                                  setGeneratedProposalUrl(url);
+                                  setActiveProposal(latestProposal);
+                                  setShowProposalModal(true);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '9px 12px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: '#8b5cf6',
+                                  color: '#ffffff',
+                                  fontWeight: 800,
+                                  fontSize: '0.82rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)'
+                                }}
+                              >
+                                <i className="fa-solid fa-share-nodes"></i> Copiar / Reenviar Link
+                              </button>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleManualActivateClient(c, latestProposal)}
+                                  style={{
+                                    flex: '1 1 auto',
+                                    padding: '7px 8px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                                    background: 'rgba(16, 185, 129, 0.15)',
+                                    color: '#34d399',
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                  title="Validar fechamento manual e ativar o aluno como Contrato Vigente"
+                                >
+                                  <i className="fa-solid fa-circle-check"></i> Fechar Manual
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelProposal(c, latestProposal)}
+                                  style={{
+                                    padding: '7px 10px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                                    background: 'rgba(239, 68, 68, 0.12)',
+                                    color: '#f87171',
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Descartar esta proposta pendente"
+                                >
+                                  <i className="fa-solid fa-trash-can"></i> Descartar
+                                </button>
+                              </div>
+                            </div>
                           ) : (
                             <button
                               type="button"
@@ -3058,7 +3478,7 @@ export default function GestaoContratosPanel({
                     const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
                     const latestContract = allContractsMap[c._id];
                     const latestProposal = allProposalsMap[c._id];
-                    const stage = resolveClientContractStage(c, plan, latestContract, latestProposal);
+                    const stage = resolveClientContractStage(c, plan, latestContract, latestProposal, allPaymentsMap[c._id]);
                     const info = stage.info;
                     
                     return (

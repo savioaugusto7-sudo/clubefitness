@@ -274,3 +274,29 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await dbConnect();
+    await checkSessionPermission(['admin', 'receptionist']);
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const clientId = searchParams.get('clientId');
+
+    if (id) {
+      await Proposal.findByIdAndDelete(id);
+      return NextResponse.json({ success: true, message: 'Proposta excluída com sucesso.' });
+    }
+
+    if (clientId) {
+      await Proposal.deleteMany({ clientId });
+      return NextResponse.json({ success: true, message: 'Propostas do cliente excluídas com sucesso.' });
+    }
+
+    return NextResponse.json({ success: false, error: 'ID ou clientId não fornecido.' }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+

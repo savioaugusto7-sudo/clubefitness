@@ -455,7 +455,32 @@ export async function POST(request: Request) {
                   pendingContract.status = 'assinado';
                   pendingContract.asaasBillingStatus = 'pago';
                   await pendingContract.save();
+                }
 
+                // Lógica de Recorrência Inteligente: estende a vigência do aluno a cada parcela paga
+                const pagas = paymentRecords.filter((r: any) => r.status === 'Pago');
+                const pendentes = paymentRecords.filter((r: any) => r.status === 'Pendente');
+                const isRecorrente = Boolean(client.dadosComerciais?.criarRecorrenciaMensal || client.dadosComerciais?.recorrenciaVigencia);
+
+                if (isRecorrente && pagas.length > 0) {
+                  let novaDataVigencia = '';
+                  if (pendentes.length > 0) {
+                    novaDataVigencia = pendentes[0].vencimento;
+                  } else {
+                    const ultimoPago = pagas[pagas.length - 1];
+                    const d = new Date(ultimoPago.vencimento + 'T12:00:00');
+                    d.setMonth(d.getMonth() + 1);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    novaDataVigencia = `${y}-${m}-${day}`;
+                  }
+                  if (novaDataVigencia) {
+                    client.dadosComerciais.vencimento = novaDataVigencia;
+                    client.dadosComerciais.status = 'ativo';
+                    await client.save();
+                  }
+                } else if (pagas.length > 0) {
                   client.dadosComerciais.status = 'ativo';
                   await client.save();
                 }

@@ -6,8 +6,10 @@
 export interface ContractValidityInfo {
   dataInicio: string;
   dataFim: string;
+  dataFimCicloTotal: string;
   dataInicioFormatted: string;
   dataFimFormatted: string;
+  dataFimCicloTotalFormatted: string;
   isExpired: boolean;
   isExpiringSoon: boolean;
   daysLeft: number;
@@ -17,6 +19,9 @@ export interface ContractValidityInfo {
   badgeColor: string;
   badgeBg: string;
   badgeBorder: string;
+  parcelasInfo?: string;
+  hasOverdueInstallment?: boolean;
+  isEndOfRecurrenceCycle?: boolean;
 }
 
 function safeParseDate(input: any): Date {
@@ -53,6 +58,18 @@ function safeFormatYYYYMMDD(d: Date): string {
   }
 }
 
+const formatPtBr = (dStr: string) => {
+  try {
+    if (!dStr) return '';
+    const [y, m, d] = dStr.split('-');
+    if (y && m && d) return `${d}/${m}/${y}`;
+    const parsed = safeParseDate(dStr);
+    return parsed.toLocaleDateString('pt-BR');
+  } catch {
+    return dStr;
+  }
+};
+
 export function calculateContractEndDate(
   dataInicioStr?: any,
   duracao?: 'anual' | 'semestral' | 'mensal' | 'semana' | 'indeterminado' | string,
@@ -65,7 +82,7 @@ export function calculateContractEndDate(
     const qty = Number(vigenciaQtd) && Number(vigenciaQtd) > 0 ? Number(vigenciaQtd) : 1;
     const dur = (duracao || 'mensal').toString().toLowerCase();
 
-    // Para planos de período fechado (sem recorrência): cálculo contratual direto a partir da data de início
+    // Para planos de período fechado: cálculo contratual direto a partir da data de início
     if (!isRecorrente) {
       const endD = new Date(startD);
       if (dur === 'anual') {
@@ -103,7 +120,7 @@ export function calculateContractEndDate(
   }
 }
 
-export function getContractValidityInfo(client: any, planObj?: any): ContractValidityInfo {
+export function getContractValidityInfo(client: any, planObj?: any, clientPayments?: any[]): ContractValidityInfo {
   try {
     const com = client?.dadosComerciais || {};
     const dp = client?.dadosPessoais || {};
@@ -126,16 +143,53 @@ export function getContractValidityInfo(client: any, planObj?: any): ContractVal
     let duracao = isSemestral ? 'semestral' : (isAnual ? 'anual' : (com.duracao || 'mensal'));
     let vigenciaQtd = isDynamus ? 1 : (com.duracaoQtd || com.vigenciaQtd || (isAnual || isSemestral ? 1 : 1));
     const dataInicioRaw = com.dataInicio || client?.createdAt || new Date();
-    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal);
+    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
 
     const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    // Calcula a data fim oficial (Para Dynamus: estritamente dataInicio + vigência)
-    const dataFim = isDynamus
-      ? calculateContractEndDate(dataInicio, isSemestral ? 'semestral' : 'anual', 1, undefined, false)
-      : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, com.vencimento, isRecorrente);
+    // Data fim do ciclo total contratual (ex: 12 meses de contrato)
+    const dataFimCicloTotal = calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
 
-    // Análise de Dias Restantes e Status
+    // LÓGICA INTELIGENTE DE RECORRÊNCIA (Smart Recurring Engine)
+    const paymentsList = clientPayments || client?.payments || [];
+    let dynamicEndDate: string | null = null;
+    let parcelasInfo = '';
+    let hasOverdueInstallment = false;
+    let isEndOfRecurrenceCycle = false;
+
+    if (isRecorrente && Array.isArray(paymentsList) && paymentsList.length > 0) {
+      const sorted = [...paymentsList].sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || ''));
+      const pagas = sorted.filter(p => p.status === 'Pago');
+      const pendentes = sorted.filter(p => p.status === 'Pendente');
+      const atrasadas = sorted.filter(p => p.status === 'Atrasado');
+
+      parcelasInfo = `${pagas.length}/${sorted.length} pagas`;
+
+      if (atrasadas.length > 0) {
+        hasOverdueInstallment = true;
+      }
+
+      if (pagas.length > 0) {
+        const ultimoPago = pagas[pagas.length - 1];
+        
+        if (pendentes.length > 0) {
+          // Próxima parcela a vencer é o limite do ciclo de acesso mensal
+          dynamicEndDate = pendentes[0].vencimento;
+        } else {
+          // Todas as parcelas do ciclo foram quitadas
+          const d = safeParseDate(ultimoPago.vencimento);
+          d.setMonth(d.getMonth() + 1);
+          dynamicEndDate = safeFormatYYYYMMDD(d);
+          isEndOfRecurrenceCycle = true;
+        }
+      }
+    }
+
+    // Vigência oficial de acesso
+    let dataFim = isDynamus
+      ? dataFimCicloTotal
+      : (dynamicEndDate || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, com.vencimento, isRecorrente));
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -144,26 +198,52 @@ export function getContractValidityInfo(client: any, planObj?: any): ContractVal
     const diffTime = endD.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+    // Análise de Fim de Ciclo Anual (Apenas nos últimos 30 dias do contrato total de 12 meses)
+    const cicloEndD = safeParseDate(dataFimCicloTotal);
+    cicloEndD.setHours(0, 0, 0, 0);
+    const diffCicloTime = cicloEndD.getTime() - today.getTime();
+    const diffCicloDays = Math.ceil(diffCicloTime / (1000 * 60 * 60 * 24));
+
     let isExpired = false;
     let isExpiringSoon = false;
     let daysLeftText = '';
 
-    if (diffDays < 0) {
+    if (hasOverdueInstallment) {
       isExpired = true;
-      daysLeftText = `Vencido há ${Math.abs(diffDays)}d`;
-    } else if (diffDays === 0) {
-      isExpiringSoon = true;
-      daysLeftText = 'Vence hoje';
-    } else if (diffDays <= 30) {
-      isExpiringSoon = true;
-      daysLeftText = `Vence em ${diffDays}d`;
+      daysLeftText = 'Parcela em atraso';
+    } else if (isRecorrente) {
+      // REGRA DE RECORRÊNCIA: Durante os meses 1 a 11, o aluno permanece em dia.
+      // O gatilho de "Renovação <30d" só ativa nos últimos 30 dias do ciclo total de 12 meses ou quitação total.
+      if (diffDays < 0) {
+        isExpired = true;
+        daysLeftText = `Ciclo vencido há ${Math.abs(diffDays)}d`;
+      } else if (isEndOfRecurrenceCycle || diffCicloDays <= 30) {
+        isExpiringSoon = true;
+        isEndOfRecurrenceCycle = true;
+        daysLeftText = diffCicloDays <= 0 ? 'Ciclo Anual Encerrado' : `Renovação Anual em ${diffCicloDays}d`;
+      } else {
+        // Aluno em dia durante o ciclo de 12 meses
+        daysLeftText = `Próx. Parcela em ${diffDays}d`;
+      }
     } else {
-      daysLeftText = `${diffDays}d restantes`;
+      // Planos de período fechado normais (sem recorrência)
+      if (diffDays < 0) {
+        isExpired = true;
+        daysLeftText = `Vencido há ${Math.abs(diffDays)}d`;
+      } else if (diffDays === 0) {
+        isExpiringSoon = true;
+        daysLeftText = 'Vence hoje';
+      } else if (diffDays <= 30) {
+        isExpiringSoon = true;
+        daysLeftText = `Vence em ${diffDays}d`;
+      } else {
+        daysLeftText = `${diffDays}d restantes`;
+      }
     }
 
     // Status Badge
     let statusKey: 'ativo' | 'vencendo' | 'vencido' | 'congelado' | 'lead' | 'inativo' | 'finalizado' = 'ativo';
-    let statusLabel = 'Contrato Ativo';
+    let statusLabel = isRecorrente ? 'Contrato Vigente (Recorrência)' : 'Contrato Ativo';
     let badgeColor = '#10b981';
     let badgeBg = 'rgba(16, 185, 129, 0.12)';
     let badgeBorder = 'rgba(16, 185, 129, 0.3)';
@@ -195,36 +275,33 @@ export function getContractValidityInfo(client: any, planObj?: any): ContractVal
       badgeColor = '#64748b';
       badgeBg = 'rgba(100, 116, 139, 0.12)';
       badgeBorder = 'rgba(100, 116, 139, 0.3)';
+    } else if (hasOverdueInstallment) {
+      statusKey = 'vencido';
+      statusLabel = 'Inadimplente (Asaas)';
+      badgeColor = '#ef4444';
+      badgeBg = 'rgba(239, 68, 68, 0.12)';
+      badgeBorder = 'rgba(239, 68, 68, 0.3)';
     } else if (isExpired) {
       statusKey = 'vencido';
-      statusLabel = 'Vencido';
+      statusLabel = isRecorrente ? 'Recorrência Vencida' : 'Vencido';
       badgeColor = '#ef4444';
       badgeBg = 'rgba(239, 68, 68, 0.12)';
       badgeBorder = 'rgba(239, 68, 68, 0.3)';
     } else if (isExpiringSoon) {
       statusKey = 'vencendo';
-      statusLabel = 'Vencendo em Breve';
+      statusLabel = isRecorrente ? 'Renovação Anual (<30d)' : 'Vencendo em Breve';
       badgeColor = '#f59e0b';
       badgeBg = 'rgba(245, 158, 11, 0.12)';
       badgeBorder = 'rgba(245, 158, 11, 0.3)';
     }
 
-    const formatPtBr = (dStr: string) => {
-      try {
-        const [y, m, d] = dStr.split('-');
-        if (y && m && d) return `${d}/${m}/${y}`;
-        const parsed = safeParseDate(dStr);
-        return parsed.toLocaleDateString('pt-BR');
-      } catch {
-        return dStr;
-      }
-    };
-
     return {
       dataInicio,
       dataFim,
+      dataFimCicloTotal,
       dataInicioFormatted: formatPtBr(dataInicio),
       dataFimFormatted: formatPtBr(dataFim),
+      dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
       isExpired,
       isExpiringSoon,
       daysLeft: diffDays,
@@ -233,15 +310,20 @@ export function getContractValidityInfo(client: any, planObj?: any): ContractVal
       statusLabel,
       badgeColor,
       badgeBg,
-      badgeBorder
+      badgeBorder,
+      parcelasInfo,
+      hasOverdueInstallment,
+      isEndOfRecurrenceCycle
     };
   } catch (err) {
     console.error('[getContractValidityInfo] Error:', err);
     return {
       dataInicio: '2026-01-01',
       dataFim: '2027-01-01',
+      dataFimCicloTotal: '2027-01-01',
       dataInicioFormatted: '01/01/2026',
       dataFimFormatted: '01/01/2027',
+      dataFimCicloTotalFormatted: '01/01/2027',
       isExpired: false,
       isExpiringSoon: false,
       daysLeft: 365,
