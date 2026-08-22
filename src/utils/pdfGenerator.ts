@@ -3025,42 +3025,226 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
 }
 
 const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number, max: number }, F: { min: number, max: number } }>> = {
+  "Quadril": {
+    "Abdução": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Abdução com Flexão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Abdução com Extensão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Flexão com Joelho Fletido": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Adução": { M: { min: 20, max: 30 }, F: { min: 16, max: 25 } },
+    "Rotação Interna": { M: { min: 16, max: 24 }, F: { min: 14, max: 20 } },
+    "Rotação Externa": { M: { min: 16, max: 24 }, F: { min: 14, max: 20 } },
+    "Flexão": { M: { min: 30, max: 42 }, F: { min: 25, max: 36 } },
+    "Extensão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } }
+  },
+  "Joelho": {
+    "Extensão": { M: { min: 50, max: 70 }, F: { min: 40, max: 55 } },
+    "Flexão": { M: { min: 30, max: 45 }, F: { min: 24, max: 36 } }
+  },
+  "Coluna / Tronco": {
+    "Extensão": { M: { min: 70, max: 100 }, F: { min: 50, max: 75 } },
+    "Flexão": { M: { min: 50, max: 75 }, F: { min: 35, max: 55 } },
+    "Rotação": { M: { min: 25, max: 40 }, F: { min: 20, max: 30 } }
+  },
   "Ombro": {
     "Abdução": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
-    "Rotação Externa Neutro": { M: { min: 12, max: 16 }, F: { min: 12, max: 16 } },
-    "Rotação Externa 90° de Abdução": { M: { min: 14, max: 18 }, F: { min: 14, max: 18 } }
+    "Rotação Interna": { M: { min: 20, max: 28 }, F: { min: 15, max: 22 } },
+    "Rotação Externa": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
+    "Rotação Interna com Abdução de Ombro": { M: { min: 16, max: 24 }, F: { min: 12, max: 18 } },
+    "Rotação Externa com Abdução de Ombro": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
+    "Flexão": { M: { min: 18, max: 26 }, F: { min: 14, max: 20 } }
   },
-  "Cotovelo": {
-    "Flexão": { M: { min: 20, max: 30 }, F: { min: 15, max: 22 } },
-    "Extensão": { M: { min: 15, max: 22 }, F: { min: 10, max: 16 } }
-  },
-  "Punho": {
-    "Flexão": { M: { min: 10, max: 18 }, F: { min: 7, max: 13 } },
-    "Extensão": { M: { min: 8, max: 15 }, F: { min: 6, max: 11 } }
+  "Membro Superior": {
+    "Abdução de Ombro Bilateral": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
+    "Rotação Externa de Ombro Bilateral": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
+    "Rotação Interna de Ombro Bilateral": { M: { min: 18, max: 26 }, F: { min: 14, max: 20 } },
+    "Supino": { M: { min: 60, max: 90 }, F: { min: 35, max: 55 } },
+    "Remada": { M: { min: 50, max: 80 }, F: { min: 30, max: 50 } },
+    "Puxada": { M: { min: 50, max: 75 }, F: { min: 30, max: 45 } },
+    "Desenvolvimento": { M: { min: 40, max: 60 }, F: { min: 25, max: 40 } }
   },
   "Tornozelo": {
     "Inversão": { M: { min: 15, max: 22 }, F: { min: 12, max: 18 } },
     "Eversão": { M: { min: 12, max: 18 }, F: { min: 10, max: 15 } },
-    "Flexão Plantar": { M: { min: 40, max: 55 }, F: { min: 30, max: 45 } }
+    "Flexão Plantar": { M: { min: 45, max: 65 }, F: { min: 35, max: 50 } },
+    "Dorsiflexão": { M: { min: 15, max: 22 }, F: { min: 12, max: 18 } }
   },
-  "Joelho": {
-    "Extensão": { M: { min: 45, max: 60 }, F: { min: 35, max: 50 } },
-    "Flexão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } }
+  "Cotovelo": {
+    "Flexão": { M: { min: 20, max: 30 }, F: { min: 15, max: 22 } },
+    "Extensão": { M: { min: 15, max: 22 }, F: { min: 10, max: 16 } },
+    "Pronação": { M: { min: 12, max: 18 }, F: { min: 9, max: 14 } },
+    "Supinação": { M: { min: 12, max: 18 }, F: { min: 9, max: 14 } }
   },
-  "Quadril": {
-    "Flexão": { M: { min: 30, max: 42 }, F: { min: 25, max: 36 } },
-    "Abdução": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
-    "Adução": { M: { min: 15, max: 20 }, F: { min: 15, max: 20 } },
-    "Extensão": { M: { min: 25, max: 30 }, F: { min: 25, max: 30 } }
+  "Punho": {
+    "Flexão": { M: { min: 10, max: 18 }, F: { min: 7, max: 13 } },
+    "Extensão": { M: { min: 8, max: 15 }, F: { min: 6, max: 11 } }
   }
 };
+
+/**
+ * Renderizador de Mapeamento Anatômico Biomecânico em SVG (Vistas Anterior e Posterior)
+ * Destaque colorido para articulações testadas e cinza/preto e branco para não testadas.
+ */
+function renderAnatomyDualSVG(testedJoints: Set<string>): string {
+  const isTornozelo = testedJoints.has('Tornozelo');
+  const isJoelho = testedJoints.has('Joelho');
+  const isQuadril = testedJoints.has('Quadril') || testedJoints.has('Coluna / Tronco');
+  const isOmbro = testedJoints.has('Ombro') || testedJoints.has('Membro Superior');
+  const isCotovelo = testedJoints.has('Cotovelo');
+  const isPunho = testedJoints.has('Punho');
+
+  const cTornozelo = isTornozelo ? '#ef4444' : '#cbd5e1';
+  const cJoelho = isJoelho ? '#22c55e' : '#cbd5e1';
+  const cQuadril = isQuadril ? '#eab308' : '#cbd5e1';
+  const cOmbro = isOmbro ? '#f97316' : '#cbd5e1';
+  const cCotovelo = isCotovelo ? '#3b82f6' : '#cbd5e1';
+  const cPunho = isPunho ? '#a855f7' : '#cbd5e1';
+
+  return `
+    <div style="display: flex; justify-content: space-around; align-items: center; gap: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 10px; margin-bottom: 14px;">
+      <!-- Vista Anterior (Frontal) -->
+      <div style="text-align: center; flex: 1;">
+        <span style="font-size: 8.5px; font-weight: 800; color: #475569; letter-spacing: 0.5px; text-transform: uppercase; display: block; margin-bottom: 6px;">
+          VISTA ANTERIOR (FRONTAL)
+        </span>
+        <svg viewBox="0 0 160 300" width="135" height="250" style="margin: 0 auto; display: block;">
+          <!-- Cabeça e Pescoço (Neutro) -->
+          <ellipse cx="80" cy="22" rx="14" ry="17" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
+          <path d="M 74 38 L 74 48 L 86 48 L 86 38 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
+
+          <!-- Ombro e Peitoral (4) -->
+          <path d="M 52 48 Q 80 54 108 48 L 118 78 Q 80 84 42 78 Z" fill="${cOmbro}" stroke="#64748b" stroke-width="1.2" opacity="${isOmbro ? 1 : 0.4}" />
+          <!-- Hotspot 4 (Ombro) -->
+          <circle cx="80" cy="62" r="8" fill="#f97316" stroke="#ffffff" stroke-width="1.5" />
+          <text x="80" y="65" font-size="7.5" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+
+          <!-- Braço e Cotovelo (5) -->
+          <path d="M 42 78 L 32 120 L 44 122 L 52 82 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
+          <path d="M 118 78 L 128 120 L 116 122 L 108 82 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
+          <!-- Hotspot 5 (Cotovelo) -->
+          <circle cx="33" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
+          <text x="33" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
+          <circle cx="127" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
+          <text x="127" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
+
+          <!-- Antebraço e Punho (6) -->
+          <path d="M 32 120 L 22 165 L 30 167 L 44 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
+          <path d="M 128 120 L 138 165 L 130 167 L 116 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
+          <!-- Mãos -->
+          <ellipse cx="19" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <ellipse cx="141" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <!-- Hotspot 6 (Punho) -->
+          <circle cx="23" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
+          <text x="23" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
+          <circle cx="137" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
+          <text x="137" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
+
+          <!-- Quadril & Core (3) -->
+          <path d="M 52 82 Q 80 84 108 82 L 102 128 Q 80 134 58 128 Z" fill="${cQuadril}" stroke="#64748b" stroke-width="1.2" opacity="${isQuadril ? 1 : 0.4}" />
+          <!-- Hotspot 3 (Quadril) -->
+          <circle cx="80" cy="106" r="8" fill="#eab308" stroke="#ffffff" stroke-width="1.5" />
+          <text x="80" y="109" font-size="7.5" font-weight="bold" fill="#0f172a" text-anchor="middle">3</text>
+
+          <!-- Coxa e Joelho / Quadríceps (2) -->
+          <path d="M 58 128 L 52 195 L 68 195 L 78 132 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
+          <path d="M 102 128 L 108 195 L 92 195 L 82 132 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
+          <!-- Hotspot 2 (Joelho) -->
+          <circle cx="60" cy="192" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
+          <text x="60" y="195" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+          <circle cx="100" cy="192" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
+          <text x="100" y="195" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+
+          <!-- Perna e Tornozelo / Tibial (1) -->
+          <path d="M 52 195 L 56 265 L 66 265 L 68 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
+          <path d="M 108 195 L 104 265 L 94 265 L 92 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
+          <!-- Pés -->
+          <path d="M 54 265 L 48 276 L 68 276 L 66 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <path d="M 106 265 L 112 276 L 92 276 L 94 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <!-- Hotspot 1 (Tornozelo) -->
+          <circle cx="61" cy="260" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+          <text x="61" y="262.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+          <circle cx="99" cy="260" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+          <text x="99" y="262.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+        </svg>
+      </div>
+
+      <!-- Divisor Vertical Sutil -->
+      <div style="width: 1px; height: 220px; background: #cbd5e1;"></div>
+
+      <!-- Vista Posterior (Dorsal) -->
+      <div style="text-align: center; flex: 1;">
+        <span style="font-size: 8.5px; font-weight: 800; color: #475569; letter-spacing: 0.5px; text-transform: uppercase; display: block; margin-bottom: 6px;">
+          VISTA POSTERIOR (DORSAL)
+        </span>
+        <svg viewBox="0 0 160 300" width="135" height="250" style="margin: 0 auto; display: block;">
+          <!-- Cabeça e Trapézio Superior (Neutro) -->
+          <ellipse cx="80" cy="22" rx="14" ry="17" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
+          <path d="M 74 38 L 74 48 L 86 48 L 86 38 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
+
+          <!-- Dorso, Deltoide Posterior e Trapézio (4) -->
+          <path d="M 50 48 Q 80 52 110 48 L 118 84 Q 80 90 42 84 Z" fill="${cOmbro}" stroke="#64748b" stroke-width="1.2" opacity="${isOmbro ? 1 : 0.4}" />
+          <!-- Latíssimo do Dorso -->
+          <path d="M 52 84 Q 80 88 108 84 L 98 116 Q 80 120 62 116 Z" fill="${cOmbro}" stroke="#64748b" stroke-width="1.2" opacity="${isOmbro ? 1 : 0.4}" />
+          <!-- Hotspot 4 (Dorso / Ombro) -->
+          <circle cx="80" cy="74" r="8" fill="#f97316" stroke="#ffffff" stroke-width="1.5" />
+          <text x="80" y="77" font-size="7.5" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+
+          <!-- Braço Posterior / Tríceps (5) -->
+          <path d="M 42 84 L 32 120 L 44 122 L 52 86 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
+          <path d="M 118 84 L 128 120 L 116 122 L 108 86 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
+          <!-- Hotspot 5 (Tríceps) -->
+          <circle cx="33" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
+          <text x="33" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
+          <circle cx="127" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
+          <text x="127" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
+
+          <!-- Antebraço Posterior / Extensores (6) -->
+          <path d="M 32 120 L 22 165 L 30 167 L 44 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
+          <path d="M 128 120 L 138 165 L 130 167 L 116 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
+          <ellipse cx="19" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <ellipse cx="141" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <!-- Hotspot 6 (Extensores) -->
+          <circle cx="23" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
+          <text x="23" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
+          <circle cx="137" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
+          <text x="137" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
+
+          <!-- Glúteos (3) -->
+          <path d="M 62 116 Q 80 120 98 116 L 102 144 Q 80 148 58 144 Z" fill="${cQuadril}" stroke="#64748b" stroke-width="1.2" opacity="${isQuadril ? 1 : 0.4}" />
+          <!-- Hotspot 3 (Glúteos) -->
+          <circle cx="80" cy="132" r="8" fill="#eab308" stroke="#ffffff" stroke-width="1.5" />
+          <text x="80" y="135" font-size="7.5" font-weight="bold" fill="#0f172a" text-anchor="middle">3</text>
+
+          <!-- Isquiotibiais / Posterior de Coxa (2) -->
+          <path d="M 58 144 L 54 195 L 70 195 L 78 146 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
+          <path d="M 102 144 L 106 195 L 90 195 L 82 146 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
+          <!-- Hotspot 2 (Isquiotibiais) -->
+          <circle cx="62" cy="172" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
+          <text x="62" y="175" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+          <circle cx="98" cy="172" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
+          <text x="98" y="175" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+
+          <!-- Tríceps Sural / Panturrilha (1) -->
+          <path d="M 54 195 L 56 265 L 68 265 L 70 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
+          <path d="M 106 195 L 104 265 L 92 265 L 90 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
+          <path d="M 56 265 L 52 276 L 68 276 L 68 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <path d="M 104 265 L 108 276 L 92 276 L 92 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+          <!-- Hotspot 1 (Panturrilha) -->
+          <circle cx="62" cy="225" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+          <text x="62" y="227.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+          <circle cx="98" cy="225" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+          <text x="98" y="227.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+        </svg>
+      </div>
+    </div>
+  `;
+}
 
 export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const html2pdf = (window as any).html2pdf;
   if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
 
   const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
-  const nome = client?.dadosPessoais?.nome || 'Paciente';
+  const nome = client?.dadosPessoais?.nome || 'Aluno';
   const cpf = client?.dadosPessoais?.cpf || '-';
   const sex = client?.dadosPessoais?.sexo || 'M';
   const data = fmtDate(st.data || st.createdAt?.split('T')[0] || '');
@@ -3077,6 +3261,15 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
   const isNew = st.testesRealizados && st.testesRealizados.length > 0;
 
+  // Extrair o conjunto de articulações testadas
+  const testedJoints = new Set<string>();
+  if (st.testesRealizados) {
+    st.testesRealizados.forEach((t: any) => { if (t.articulacao) testedJoints.add(t.articulacao); });
+  }
+  if (st.comparativos) {
+    st.comparativos.forEach((c: any) => { if (c.articulacao) testedJoints.add(c.articulacao); });
+  }
+
   const pdfStyles = `
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
@@ -3091,7 +3284,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         font-family: 'Inter', sans-serif;
         box-sizing: border-box;
         width: 794px;
-        padding: 25px 35px;
+        padding: 24px 32px;
       }
       .font-outfit {
         font-family: 'Outfit', sans-serif;
@@ -3101,50 +3294,51 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         justify-content: space-between;
         align-items: center;
         border-bottom: 2px solid #e2e8f0;
-        padding-bottom: 10px;
-        margin-bottom: 10px;
+        padding-bottom: 12px;
+        margin-bottom: 12px;
       }
       .logo-box {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
       }
       .logo-img {
-        width: 50px;
-        height: 50px;
+        width: 48px;
+        height: 48px;
         border-radius: 8px;
         object-fit: cover;
       }
       .logo-title {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 800;
-        color: #0e131f;
+        color: #0f172a;
         margin: 0;
         letter-spacing: -0.5px;
       }
       .logo-subtitle {
-        font-size: 8px;
+        font-size: 8.5px;
         color: #64748b;
         margin: 2px 0 0 0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        font-weight: 600;
       }
       .date-box {
-        background: #f1f5f9;
-        border-radius: 6px;
-        padding: 6px 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 6px 14px;
         text-align: center;
         border: 1px solid #cbd5e1;
       }
       .date-box span {
-        font-size: 8px;
+        font-size: 7.5px;
         color: #64748b;
-        font-weight: 600;
+        font-weight: 700;
         display: block;
         text-transform: uppercase;
       }
       .date-box strong {
-        font-size: 13px;
+        font-size: 12px;
         color: #0f172a;
         font-family: 'Outfit', sans-serif;
       }
@@ -3154,7 +3348,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         border-radius: 8px;
         display: grid;
         grid-template-columns: 1.5fr 1fr 1fr 1fr;
-        padding: 6px 12px;
+        padding: 8px 14px;
         margin-bottom: 12px;
         font-size: 9px;
       }
@@ -3167,9 +3361,9 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       }
       .client-bar-item span {
         color: #64748b;
-        font-weight: 500;
+        font-weight: 600;
         display: block;
-        font-size: 8px;
+        font-size: 7.5px;
         text-transform: uppercase;
         margin-bottom: 2px;
       }
@@ -3184,25 +3378,22 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       .table-data {
         width: 100%;
         border-collapse: collapse;
-        font-size: 9px;
+        font-size: 8.5px;
       }
       .table-data th {
         background: #f8fafc;
         color: #475569;
-        font-weight: 600;
+        font-weight: 700;
         text-align: left;
         padding: 6px 8px;
         border-bottom: 1px solid #e2e8f0;
         text-transform: uppercase;
-        font-size: 8px;
+        font-size: 7.5px;
       }
       .table-data td {
         padding: 6px 8px;
         border-bottom: 1px solid #f1f5f9;
         color: #334155;
-      }
-      .table-data tr:last-child td {
-        border-bottom: none;
       }
       .section-card {
         border: 1px solid #e2e8f0;
@@ -3216,9 +3407,9 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         color: #ffffff;
         padding: 6px 12px;
         font-family: 'Outfit', sans-serif;
-        font-size: 9.5px;
+        font-size: 9px;
         font-weight: 700;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
       }
       .section-card-content {
@@ -3237,6 +3428,34 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       .badge-orange { background: #ffedd5; color: #c2410c; }
       .badge-blue { background: #dbeafe; color: #1d4ed8; }
       .badge-red { background: #fee2e2; color: #b91c1c; }
+      .category-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .cat-card {
+        border-radius: 6px;
+        padding: 6px;
+        border: 1px solid #e2e8f0;
+        font-size: 7px;
+        background: #fafafa;
+      }
+      .cat-card-header {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 800;
+        font-size: 7.5px;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+      }
+      .cat-card-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+      }
       p, li, tr, h2, h3, h4, table, tbody {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
@@ -3247,7 +3466,6 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   if (isNew) {
     // Individual tests logic
     const testsHtml = st.testesRealizados.map((t: any) => {
-      // Look up reference in table
       const refData = STRENGTH_REFERENCE_TABLE[t.articulacao]?.[t.movimento]?.[sex === 'F' ? 'F' : 'M'] || { min: 0, max: 0 };
       const refText = refData.min > 0 ? `${refData.min}-${refData.max} %PC` : '-';
       
@@ -3278,6 +3496,8 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       else if (c.classificacaoSimetria === 'Atenção') badgeClass = 'badge-orange';
       else if (c.classificacaoSimetria === 'Assimetria Relevante') badgeClass = 'badge-red';
 
+      const simetriaVal = Math.min(100, Math.max(0, c.simetria || 0));
+
       return `
         <tr>
           <td><strong>${c.articulacao}</strong></td>
@@ -3285,7 +3505,14 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           <td style="text-align:right; font-weight:600;">${c.valorD?.toFixed(1)} N</td>
           <td style="text-align:right; font-weight:600;">${c.valorE?.toFixed(1)} N</td>
           <td style="text-align:right; font-weight:700; color:${c.deficit > 15 ? '#b91c1c' : '#1e293b'}">${c.deficit?.toFixed(1)}%</td>
-          <td style="text-align:right; font-weight:700; color:${c.simetria < 85 ? '#b91c1c' : '#15803d'}">${c.simetria?.toFixed(1)}%</td>
+          <td style="text-align:right; width: 90px;">
+            <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end;">
+              <span style="font-weight: 700; color: ${c.simetria < 85 ? '#b91c1c' : '#15803d'}; font-size: 8px;">${c.simetria?.toFixed(1)}%</span>
+              <div style="width: 35px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                <div style="width: ${simetriaVal}%; height: 100%; background: ${c.simetria >= 85 ? '#10b981' : '#ef4444'};"></div>
+              </div>
+            </div>
+          </td>
           <td style="text-align:center;"><span class="metric-badge ${badgeClass}">${c.classificacaoSimetria || 'Excelente'}</span></td>
         </tr>
       `;
@@ -3294,35 +3521,35 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
     const observationHtml = st.observacoes 
       ? `<div class="section-card">
           <div class="section-card-title">Observações Clínicas / Recomendações</div>
-          <div class="section-card-content" style="font-size:9.5px; line-height:1.5; white-space:pre-wrap; background:#fafafa;">${st.observacoes}</div>
+          <div class="section-card-content" style="font-size:8.5px; line-height:1.4; white-space:pre-wrap; background:#fafafa;">${st.observacoes}</div>
          </div>`
       : '';
 
     pdfContainer.innerHTML = `
       ${pdfStyles}
       <div class="pdf-page">
-        <!-- Header -->
+        <!-- 1. Header Clínico -->
         <div class="grid-header">
           <div class="logo-box">
             ${logoBase64 
               ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-              : `<div style="width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2); flex-shrink: 0;">CFF</div>`
+              : `<div style="width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 16px; font-family: 'Outfit', sans-serif; flex-shrink: 0;">CFF</div>`
             }
             <div>
               <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
-              <p class="logo-subtitle">Avaliação Clínico-Funcional de Força Muscular</p>
+              <p class="logo-subtitle">Laudo Clínico de Avaliação de Força & Simetria Biomecânica</p>
             </div>
           </div>
           <div class="date-box">
-            <span>Data do Teste</span>
+            <span>Data da Avaliação</span>
             <strong>${data}</strong>
           </div>
         </div>
 
-        <!-- Paciente / Info -->
+        <!-- 2. Ficha do Aluno (Sem campo de Avaliador) -->
         <div class="client-bar">
           <div class="client-bar-item">
-            <span>Paciente</span>
+            <span>Aluno / Paciente</span>
             <strong>${nome}</strong>
           </div>
           <div class="client-bar-item">
@@ -3339,7 +3566,18 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           </div>
         </div>
 
-        <!-- Tabela de Testes Individuais -->
+        <!-- 3. Mapeamento Anatômico Dual (Vistas Anterior e Posterior) -->
+        <div class="section-card">
+          <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Mapeamento Anatômico de Recrutamento e Força</span>
+            <span style="font-size: 7px; font-weight: 400; opacity: 0.85;">Destaque colorido nas articulações testadas</span>
+          </div>
+          <div class="section-card-content" style="padding: 6px;">
+            ${renderAnatomyDualSVG(testedJoints)}
+          </div>
+        </div>
+
+        <!-- 4. Tabela de Testes Individuais -->
         <div class="section-card">
           <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
           <div class="section-card-content" style="padding:0;">
@@ -3364,7 +3602,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           </div>
         </div>
 
-        <!-- Tabela de Comparação Bilateral -->
+        <!-- 5. Tabela de Comparação Bilateral -->
         ${st.comparativos && st.comparativos.length > 0 ? `
           <div class="section-card">
             <div class="section-card-title">Análise de Simetria e Déficit Lateral</div>
@@ -3389,73 +3627,74 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           </div>
         ` : ''}
 
-        <!-- Observações -->
-        ${observationHtml}
-
-        <!-- Razões Musculares, Desequilíbrios e Riscos Ortopédicos -->
-        ${(() => {
-          const clientWeight = Number(peso) || 70;
-          const strengthAlerts = calculateStrengthTestAlerts(st.testesRealizados || [], clientWeight, sex === 'F' ? 'F' : 'M');
-          if (strengthAlerts.length === 0) return '';
-
-          return `
-            <div class="section-card" style="margin-top: 10px; border: 1px solid #fca5a5;">
-              <div class="section-card-title" style="background: #991b1b;">
-                ⚠️ Razões Musculares, Desequilíbrios e Riscos Ortopédicos (${strengthAlerts.length})
-              </div>
-              <div class="section-card-content" style="padding: 8px 10px; background: #fff5f5;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                  ${strengthAlerts.map(a => `
-                    <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 4px; padding: 5px 8px; font-size: 8px;">
-                      <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color: ${a.tipo === 'critico' ? '#b91c1c' : '#c2410c'}; font-size: 8.5px;">${a.titulo}</strong>
-                        ${a.valorCalculado ? `<span style="font-weight:bold; background:#0f172a; color:#ffffff; padding:1px 4px; border-radius:3px; font-size:7px;">${a.valorCalculado}</span>` : ''}
-                      </div>
-                      <div style="color: #475569; margin-top: 2px; font-size: 7.5px;">${a.descricao} (Ref: ${a.referenciaIdeal})</div>
-                      <div style="color: #dc2626; font-weight: 600; margin-top: 2px; font-size: 7.5px;">⚠️ Risco Clínico: ${a.riscoClinico}</div>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
+        <!-- 6. 6 Cartões de Legenda Biomecânica no Rodapé -->
+        <div class="category-grid">
+          <!-- 1. Tornozelo -->
+          <div class="cat-card" style="border-top: 3px solid #ef4444;">
+            <div class="cat-card-header" style="color: #ef4444;">
+              <span class="cat-card-dot" style="background: #ef4444;"></span> 1. Tornozelo
             </div>
-          `;
-        })()}
+            <div style="color: #475569; line-height: 1.2;">
+              Tríceps sural (gastrocnêmio/sóleo), tibial posterior e anterior.
+            </div>
+          </div>
 
-        <!-- Interpretação Clínica dos Resultados -->
-        <div class="section-card" style="margin-top: 15px;">
-          <div class="section-card-title">Interpretação Clínica dos Resultados</div>
-          <div class="section-card-content" style="padding: 10px; background: #ffffff;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #10b981; background: #fafafa;">
-                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">&ge; 90% do Valor de Referência</strong>
-                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
-                  <strong>Força normal:</strong> o paciente apresenta força muscular dentro dos parâmetros normativos para sua faixa demográfica. Liberação para progressão de carga ou retorno ao esporte/atividades.
-                </span>
-              </div>
-              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #3b82f6; background: #fafafa;">
-                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">75-89% do Valor de Referência</strong>
-                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
-                  <strong>Déficit leve:</strong> força levemente reduzida. Indica necessidade de fortalecimento direcionado, porém funcionalidade preservada para a maioria das atividades de vida diária.
-                </span>
-              </div>
-              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #f97316; background: #fafafa;">
-                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">50-74% do Valor de Referência</strong>
-                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
-                  <strong>Déficit moderado:</strong> comprometimento funcional relevante. Requer programa de reabilitação estruturado com reavaliação periódica. Restrição de atividades de maior demanda.
-                </span>
-              </div>
-              <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; border-left: 4px solid #ef4444; background: #fafafa;">
-                <strong style="display: block; font-size: 8.5px; color: #0f172a; margin-bottom: 2px;">&lt; 50% do Valor de Referência</strong>
-                <span style="font-size: 8px; color: #475569; line-height: 1.3; display: block;">
-                  <strong>Déficit grave:</strong> fraqueza muscular importante com alto impacto funcional. Investigação de causas subjacentes, possível encaminhamento médico e reabilitação intensiva são indicados.
-                </span>
-              </div>
+          <!-- 2. Joelho -->
+          <div class="cat-card" style="border-top: 3px solid #22c55e;">
+            <div class="cat-card-header" style="color: #16a34a;">
+              <span class="cat-card-dot" style="background: #22c55e;"></span> 2. Joelho
+            </div>
+            <div style="color: #475569; line-height: 1.2;">
+              Quadríceps (reto femoral/vastos) e isquiotibiais (bíceps femoral/poplíteo).
+            </div>
+          </div>
+
+          <!-- 3. Quadril -->
+          <div class="cat-card" style="border-top: 3px solid #eab308;">
+            <div class="cat-card-header" style="color: #ca8a04;">
+              <span class="cat-card-dot" style="background: #eab308;"></span> 3. Quadril
+            </div>
+            <div style="color: #475569; line-height: 1.2;">
+              Glúteos (máx/méd), rotadores profundos, adutores e flexores.
+            </div>
+          </div>
+
+          <!-- 4. Ombro -->
+          <div class="cat-card" style="border-top: 3px solid #f97316;">
+            <div class="cat-card-header" style="color: #ea580c;">
+              <span class="cat-card-dot" style="background: #f97316;"></span> 4. Ombro
+            </div>
+            <div style="color: #475569; line-height: 1.2;">
+              Deltoide (ant/lat/post), manguito rotador, peitoral e latíssimo.
+            </div>
+          </div>
+
+          <!-- 5. Cotovelo -->
+          <div class="cat-card" style="border-top: 3px solid #3b82f6;">
+            <div class="cat-card-header" style="color: #2563eb;">
+              <span class="cat-card-dot" style="background: #3b82f6;"></span> 5. Cotovelo
+            </div>
+            <div style="color: #475569; line-height: 1.2;">
+              Bíceps braquial, tríceps braquial, pronadores e supinadores.
+            </div>
+          </div>
+
+          <!-- 6. Punho -->
+          <div class="cat-card" style="border-top: 3px solid #a855f7;">
+            <div class="cat-card-header" style="color: #9333ea;">
+              <span class="cat-card-dot" style="background: #a855f7;"></span> 6. Punho
+            </div>
+            <div style="color: #475569; line-height: 1.2;">
+              Flexores e extensores do carpo e dedos, preensão manual.
             </div>
           </div>
         </div>
 
+        <!-- Observações -->
+        ${observationHtml}
+
         <!-- Footer Empresa -->
-        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+        <div style="margin-top: 14px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 6px; font-size: 7.5px; color: #64748b;">
           <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
         </div>
       </div>

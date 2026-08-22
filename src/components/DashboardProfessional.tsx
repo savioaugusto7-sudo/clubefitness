@@ -52,6 +52,9 @@ export const getServiceColor = (service: string) => {
 export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number, max: number }, F: { min: number, max: number } }>> = {
   "Quadril": {
     "Abdução": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Abdução com Flexão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Abdução com Extensão": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
+    "Flexão com Joelho Fletido": { M: { min: 25, max: 35 }, F: { min: 20, max: 30 } },
     "Adução": { M: { min: 20, max: 30 }, F: { min: 16, max: 25 } },
     "Rotação Interna": { M: { min: 16, max: 24 }, F: { min: 14, max: 20 } },
     "Rotação Externa": { M: { min: 16, max: 24 }, F: { min: 14, max: 20 } },
@@ -69,11 +72,16 @@ export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min:
   },
   "Ombro": {
     "Abdução": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
-    "Rotação Externa": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
     "Rotação Interna": { M: { min: 20, max: 28 }, F: { min: 15, max: 22 } },
+    "Rotação Externa": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
+    "Rotação Interna com Abdução de Ombro": { M: { min: 16, max: 24 }, F: { min: 12, max: 18 } },
+    "Rotação Externa com Abdução de Ombro": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
     "Flexão": { M: { min: 18, max: 26 }, F: { min: 14, max: 20 } }
   },
   "Membro Superior": {
+    "Abdução de Ombro Bilateral": { M: { min: 18, max: 25 }, F: { min: 14, max: 20 } },
+    "Rotação Externa de Ombro Bilateral": { M: { min: 14, max: 20 }, F: { min: 11, max: 16 } },
+    "Rotação Interna de Ombro Bilateral": { M: { min: 18, max: 26 }, F: { min: 14, max: 20 } },
     "Supino": { M: { min: 60, max: 90 }, F: { min: 35, max: 55 } },
     "Remada": { M: { min: 50, max: 80 }, F: { min: 30, max: 50 } },
     "Puxada": { M: { min: 50, max: 75 }, F: { min: 30, max: 45 } },
@@ -87,7 +95,9 @@ export const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min:
   },
   "Cotovelo": {
     "Flexão": { M: { min: 20, max: 30 }, F: { min: 15, max: 22 } },
-    "Extensão": { M: { min: 15, max: 22 }, F: { min: 10, max: 16 } }
+    "Extensão": { M: { min: 15, max: 22 }, F: { min: 10, max: 16 } },
+    "Pronação": { M: { min: 12, max: 18 }, F: { min: 9, max: 14 } },
+    "Supinação": { M: { min: 12, max: 18 }, F: { min: 9, max: 14 } }
   },
   "Punho": {
     "Flexão": { M: { min: 10, max: 18 }, F: { min: 7, max: 13 } },
