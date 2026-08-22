@@ -485,28 +485,67 @@ export async function DELETE(request: Request) {
     const clientId = searchParams.get('clientId');
     const clean250 = searchParams.get('clean250');
 
-    if (paymentId) {
-      await Payment.findByIdAndDelete(paymentId);
-      return NextResponse.json({ success: true });
-    }
+    const executeDelete = async () => {
+      if (paymentId) {
+        const item = await Payment.findById(paymentId);
+        if (item) {
+          if (item.asaasPaymentId && item.status !== 'Pago') {
+            try {
+              const baseUrl = getAsaasBaseUrl();
+              const headers = getAsaasHeaders();
+              await fetch(`${baseUrl}/payments/${item.asaasPaymentId}`, {
+                method: 'DELETE',
+                headers
+              });
+            } catch (asaasErr) {
+              console.warn('Asaas remote delete warning:', asaasErr);
+            }
+          }
+          await Payment.findByIdAndDelete(paymentId);
+        }
+        return { success: true };
+      }
 
-    let query: any = {};
-    if (clientId) query.clientId = clientId;
-    if (clean250) {
-      query.$or = [
-        { valor: 250 },
-        { formaPagamento: 'DINHEIRO' },
-        { formaPagamento: 'Dinheiro' }
-      ];
-    }
+      let query: any = {};
+      if (clientId) query.clientId = clientId;
+      if (clean250) {
+        query.$or = [
+          { valor: 250 },
+          { formaPagamento: 'DINHEIRO' },
+          { formaPagamento: 'Dinheiro' }
+        ];
+      }
 
-    if (Object.keys(query).length > 0) {
-      const res = await Payment.deleteMany(query);
-      return NextResponse.json({ success: true, deletedCount: res.deletedCount });
-    }
+      if (Object.keys(query).length > 0) {
+        const res = await Payment.deleteMany(query);
+        return { success: true, deletedCount: res.deletedCount };
+      }
 
-    return NextResponse.json({ success: false, error: 'Parâmetros ausentes' }, { status: 400 });
+      return { success: false, error: 'Parâmetros ausentes' };
+    };
+
+    try {
+      const result = await executeDelete();
+      return NextResponse.json(result);
+    } catch (dbErr: any) {
+      const isSslOrConnError = dbErr.message && (
+        dbErr.message.includes('SSL') || 
+        dbErr.message.includes('tlsv1') || 
+        dbErr.message.includes('ECONNRESET') || 
+        dbErr.message.includes('topology') ||
+        dbErr.message.includes('closed')
+      );
+
+      if (isSslOrConnError) {
+        console.warn('[Payments DELETE] Reconnecting after SSL error:', dbErr.message);
+        await dbConnect(true);
+        const retryResult = await executeDelete();
+        return NextResponse.json(retryResult);
+      }
+      throw dbErr;
+    }
   } catch (error: any) {
+    console.error('Error in payments DELETE:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

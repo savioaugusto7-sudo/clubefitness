@@ -10,9 +10,18 @@ if (!cached) {
   cached = (global as any).mongoose = { conn: null, promise: null };
 }
 
-async function dbConnect() {
+async function dbConnect(forceReconnect = false) {
   if (!MONGODB_URI) {
     throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+  }
+
+  // Se forçar reconexão, desconecta e limpa o cache
+  if (forceReconnect && cached.conn) {
+    try {
+      await mongoose.disconnect();
+    } catch {}
+    cached.conn = null;
+    cached.promise = null;
   }
 
   // 1. If connection is active and ready, reuse it immediately
@@ -31,19 +40,17 @@ async function dbConnect() {
     }
   }
 
-  // 3. Force IPv4 (family: 4) and enable TLS resilience for certificate rotations
+  // 3. Connect with robust TLS settings
   const opts: mongoose.ConnectOptions = {
     bufferCommands: false,
     maxPoolSize: 10,
     minPoolSize: 0,
-    serverSelectionTimeoutMS: 8000,
-    connectTimeoutMS: 8000,
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
     socketTimeoutMS: 45000,
     family: 4,
     retryReads: true,
-    retryWrites: true,
-    tls: true,
-    tlsAllowInvalidCertificates: true,
+    retryWrites: true
   };
 
   cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
