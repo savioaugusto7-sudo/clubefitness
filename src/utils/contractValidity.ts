@@ -6,9 +6,11 @@
 export interface ContractValidityInfo {
   dataInicio: string;
   dataFim: string;
+  dataFimRecorrencia: string;
   dataFimCicloTotal: string;
   dataInicioFormatted: string;
   dataFimFormatted: string;
+  dataFimRecorrenciaFormatted: string;
   dataFimCicloTotalFormatted: string;
   isExpired: boolean;
   isExpiringSoon: boolean;
@@ -22,6 +24,7 @@ export interface ContractValidityInfo {
   parcelasInfo?: string;
   hasOverdueInstallment?: boolean;
   isEndOfRecurrenceCycle?: boolean;
+  recorrenciaMeses?: number;
 }
 
 function safeParseDate(input: any): Date {
@@ -147,10 +150,22 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
 
     const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    // Data fim do ciclo total contratual (ex: 12 meses de contrato)
-    const dataFimCicloTotal = calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
+    // 1. DATA FIM DA RECORRÊNCIA (Ciclo Contratual Total de 12 Meses)
+    // Para planos recorrentes: calcula a partir de recorrenciaMeses (padrão 12 meses)
+    let dataFimRecorrencia = '';
+    const recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
 
-    // LÓGICA INTELIGENTE DE RECORRÊNCIA (Smart Recurring Engine)
+    if (isRecorrente) {
+      const startD = safeParseDate(dataInicio);
+      const recEndD = new Date(startD);
+      recEndD.setMonth(recEndD.getMonth() + recorrenciaMeses);
+      dataFimRecorrencia = safeFormatYYYYMMDD(recEndD);
+    } else {
+      dataFimRecorrencia = calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
+    }
+    const dataFimCicloTotal = dataFimRecorrencia;
+
+    // 2. DATA FIM DO MÊS (Vigência de Acesso Mensal liberada pelas parcelas pagas)
     const paymentsList = clientPayments || client?.payments || [];
     let dynamicEndDate: string | null = null;
     let parcelasInfo = '';
@@ -173,7 +188,7 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
         const ultimoPago = pagas[pagas.length - 1];
         
         if (pendentes.length > 0) {
-          // Próxima parcela a vencer é o limite do ciclo de acesso mensal
+          // Próxima parcela a vencer é a data limite do ciclo de acesso mensal
           dynamicEndDate = pendentes[0].vencimento;
         } else {
           // Todas as parcelas do ciclo foram quitadas
@@ -185,7 +200,7 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       }
     }
 
-    // Vigência oficial de acesso
+    // Vigência oficial de acesso mensal para o aluno
     let dataFim = isDynamus
       ? dataFimCicloTotal
       : (dynamicEndDate || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, com.vencimento, isRecorrente));
@@ -198,8 +213,8 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     const diffTime = endD.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    // Análise de Fim de Ciclo Anual (Apenas nos últimos 30 dias do contrato total de 12 meses)
-    const cicloEndD = safeParseDate(dataFimCicloTotal);
+    // Análise de Fim de Ciclo Anual (Data Fim da Recorrência - 12 Meses)
+    const cicloEndD = safeParseDate(dataFimRecorrencia);
     cicloEndD.setHours(0, 0, 0, 0);
     const diffCicloTime = cicloEndD.getTime() - today.getTime();
     const diffCicloDays = Math.ceil(diffCicloTime / (1000 * 60 * 60 * 24));
@@ -212,17 +227,17 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       isExpired = true;
       daysLeftText = 'Parcela em atraso';
     } else if (isRecorrente) {
-      // REGRA DE RECORRÊNCIA: Durante os meses 1 a 11, o aluno permanece em dia.
-      // O gatilho de "Renovação <30d" só ativa nos últimos 30 dias do ciclo total de 12 meses ou quitação total.
+      // REGRA FUNDAMENTAL DE RECORRÊNCIA:
+      // O filtro e status de "Renovação <30d" lê EXCLUSIVAMENTE a dataFimRecorrencia (ciclo de 12 meses).
+      // Durante os meses 1 a 11, o aluno permanece em dia e NÃO entra em renovação.
       if (diffDays < 0) {
         isExpired = true;
-        daysLeftText = `Ciclo vencido há ${Math.abs(diffDays)}d`;
-      } else if (isEndOfRecurrenceCycle || diffCicloDays <= 30) {
+        daysLeftText = `Ciclo pago venceu há ${Math.abs(diffDays)}d`;
+      } else if (diffCicloDays <= 30) {
         isExpiringSoon = true;
-        isEndOfRecurrenceCycle = true;
-        daysLeftText = diffCicloDays <= 0 ? 'Ciclo Anual Encerrado' : `Renovação Anual em ${diffCicloDays}d`;
+        daysLeftText = diffCicloDays <= 0 ? 'Ciclo de 12m Encerrado' : `Renovação Anual em ${diffCicloDays}d`;
       } else {
-        // Aluno em dia durante o ciclo de 12 meses
+        // Aluno em dia mês a mês durante o ciclo de 12 meses
         daysLeftText = `Próx. Parcela em ${diffDays}d`;
       }
     } else {
@@ -298,9 +313,11 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     return {
       dataInicio,
       dataFim,
+      dataFimRecorrencia,
       dataFimCicloTotal,
       dataInicioFormatted: formatPtBr(dataInicio),
       dataFimFormatted: formatPtBr(dataFim),
+      dataFimRecorrenciaFormatted: formatPtBr(dataFimRecorrencia),
       dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
       isExpired,
       isExpiringSoon,
@@ -313,16 +330,19 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       badgeBorder,
       parcelasInfo,
       hasOverdueInstallment,
-      isEndOfRecurrenceCycle
+      isEndOfRecurrenceCycle,
+      recorrenciaMeses
     };
   } catch (err) {
     console.error('[getContractValidityInfo] Error:', err);
     return {
       dataInicio: '2026-01-01',
-      dataFim: '2027-01-01',
+      dataFim: '2026-02-01',
+      dataFimRecorrencia: '2027-01-01',
       dataFimCicloTotal: '2027-01-01',
       dataInicioFormatted: '01/01/2026',
-      dataFimFormatted: '01/01/2027',
+      dataFimFormatted: '01/02/2026',
+      dataFimRecorrenciaFormatted: '01/01/2027',
       dataFimCicloTotalFormatted: '01/01/2027',
       isExpired: false,
       isExpiringSoon: false,

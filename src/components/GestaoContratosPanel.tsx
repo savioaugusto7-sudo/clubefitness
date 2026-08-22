@@ -2851,7 +2851,9 @@ export default function GestaoContratosPanel({
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
-                              <span style={{ color: '#94a3b8', fontWeight: 500 }}>Vigência:</span>
+                              <span style={{ color: '#94a3b8', fontWeight: 500 }}>
+                                {stage.isRecorrente ? 'Vigência (Acesso):' : 'Vigência:'}
+                              </span>
                               <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                 <strong style={{ color: '#f1f5f9', fontWeight: 600 }}>
                                   {`${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
@@ -2870,6 +2872,17 @@ export default function GestaoContratosPanel({
                                 )}
                               </div>
                             </div>
+
+                            {Boolean(stage.isRecorrente) && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: 'rgba(59, 130, 246, 0.08)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                <span style={{ color: '#93c5fd', fontWeight: 600 }}>
+                                  <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Contrato Anual (12 Meses):
+                                </span>
+                                <strong style={{ color: '#ffffff' }}>
+                                  Término em {info.dataFimRecorrenciaFormatted}
+                                </strong>
+                              </div>
+                            )}
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
                               <span style={{ color: '#94a3b8', fontWeight: 500 }}>Condição:</span>
@@ -3346,9 +3359,14 @@ export default function GestaoContratosPanel({
                            )}
                          </td>
                         <td>
-                          {`${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
+                          <div>{`${info.dataInicioFormatted} até ${info.dataFimFormatted}`}</div>
+                          {Boolean(stage.isRecorrente) && (
+                            <div style={{ fontSize: '0.7rem', color: '#93c5fd', marginTop: '2px' }}>
+                              Fim Contrato: {info.dataFimRecorrenciaFormatted}
+                            </div>
+                          )}
                           {info.daysLeftText && (
-                            <span style={{ marginLeft: '6px', fontSize: '0.7rem', padding: '1px 5px', borderRadius: '4px', background: info.badgeBg, color: info.badgeColor, fontWeight: 700 }}>
+                            <span style={{ marginTop: '2px', display: 'inline-block', fontSize: '0.68rem', padding: '1px 5px', borderRadius: '4px', background: info.badgeBg, color: info.badgeColor, fontWeight: 700 }}>
                               {info.daysLeftText}
                             </span>
                           )}
