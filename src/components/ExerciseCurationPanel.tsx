@@ -328,8 +328,17 @@ export default function ExerciseCurationPanel() {
                       <i className="fa-solid fa-check"></i> Com GIF
                     </span>
                   ) : ex.suggestion ? (
-                    <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', padding: '2px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                      🎯 {ex.suggestion.confidence}% Match
+                    <span style={{ 
+                      background: ex.suggestion.confidence >= 90 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)', 
+                      color: ex.suggestion.confidence >= 90 ? '#34d399' : '#93c5fd', 
+                      border: `1px solid ${ex.suggestion.confidence >= 90 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(59, 130, 246, 0.4)'}`,
+                      padding: '2px 8px', 
+                      borderRadius: '6px', 
+                      fontSize: '0.7rem', 
+                      fontWeight: 800, 
+                      whiteSpace: 'nowrap' 
+                    }}>
+                      {ex.suggestion.confidence >= 90 ? '🎯' : '💡'} {ex.suggestion.confidence}% Match
                     </span>
                   ) : (
                     <span style={{ background: 'rgba(107, 114, 128, 0.2)', color: '#9ca3af', padding: '2px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700 }}>
@@ -353,21 +362,27 @@ export default function ExerciseCurationPanel() {
               {/* Preview Box */}
               {ex.suggestion ? (
                 <div style={{ background: 'var(--bg-darker)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '10px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <img
-                    src={ex.suggestion.gifUrl}
-                    alt={ex.suggestion.catalogName}
-                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', background: '#000' }}
-                    onClick={() => setPreviewGif(ex.suggestion!.gifUrl)}
-                  />
+                  <div style={{ position: 'relative', width: '90px', height: '90px', flexShrink: 0 }}>
+                    <img
+                      src={ex.suggestion.gifUrl}
+                      alt={ex.suggestion.catalogName}
+                      loading="lazy"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', background: '#090d16' }}
+                      onClick={() => setPreviewGif(ex.suggestion!.gifUrl)}
+                    />
+                    <span style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.75)', color: '#38bdf8', fontSize: '0.58rem', fontWeight: 800, padding: '1px 4px', borderRadius: '4px' }}>
+                      3D LOOP
+                    </span>
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.7rem', color: '#60a5fa', fontWeight: 800, textTransform: 'uppercase' }}>
-                      Sugestão do Catálogo
+                    <div style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 800, textTransform: 'uppercase' }}>
+                      Animação 3D Sugerida
                     </div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: '0.84rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {ex.suggestion.catalogName}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                      Clique na imagem para ampliar
+                      <i className="fa-solid fa-magnifying-glass-plus"></i> Clique para ampliar
                     </div>
                   </div>
                 </div>
@@ -376,11 +391,12 @@ export default function ExerciseCurationPanel() {
                   <img
                     src={ex.gifUrl}
                     alt={ex.nome}
-                    style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', background: '#000' }}
+                    loading="lazy"
+                    style={{ width: '70px', height: '70px', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', background: '#090d16' }}
                     onClick={() => setPreviewGif(ex.gifUrl!)}
                   />
                   <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                    GIF já cadastrado e ativo
+                    Animação 3D ativa
                   </div>
                 </div>
               ) : null}

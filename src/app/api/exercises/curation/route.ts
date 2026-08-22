@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       let suggestion = null;
       if (!hasGif && !isLocked) {
         const matchResult = findBestGifMatch(ex);
-        if (matchResult.match && matchResult.confidence >= 50) {
+        if (matchResult.match && matchResult.confidence >= 65) {
           suggestion = {
             gifUrl: matchResult.match.gifUrl,
             catalogName: matchResult.match.namePt,
