@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       if (!validId) {
         return NextResponse.json({ success: false, error: 'ID inválido' }, { status: 400 });
       }
-      const fullDoc = await PhysioReport.findById(validId).lean().maxTimeMS(4000);
+      const fullDoc = await PhysioReport.findById(validId).lean().maxTimeMS(12000);
       return NextResponse.json(
         { success: true, data: fullDoc },
         { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       .select('clienteId profissionalId data conteudo.queixaPrincipal conteudo.dorEscala pdfName createdAt')
       .sort({ data: -1 })
       .lean()
-      .maxTimeMS(4000);
+      .maxTimeMS(12000);
 
     return NextResponse.json(
       { success: true, data: reports, count: reports.length },

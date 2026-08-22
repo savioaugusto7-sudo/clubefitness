@@ -137,7 +137,7 @@ export async function GET(request: Request) {
         })
           .sort({ updatedAt: -1 })
           .lean()
-          .maxTimeMS(4000);
+          .maxTimeMS(12000);
 
         return NextResponse.json(
           { success: true, draft: draft ? hydrateAssessmentResults(draft) : null },
@@ -154,7 +154,7 @@ export async function GET(request: Request) {
       if (!validId) {
         return NextResponse.json({ success: false, error: 'ID inválido' }, { status: 400 });
       }
-      const fullDoc = await PhysicalAssessment.findById(validId).lean().maxTimeMS(4000);
+      const fullDoc = await PhysicalAssessment.findById(validId).lean().maxTimeMS(12000);
       return NextResponse.json(
         { success: true, data: fullDoc ? hydrateAssessmentResults(fullDoc) : null },
         { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
@@ -177,7 +177,7 @@ export async function GET(request: Request) {
       .select('-pdf_url -anexos')
       .sort({ data: -1, createdAt: -1 })
       .lean()
-      .maxTimeMS(4000);
+      .maxTimeMS(12000);
 
     const hydratedList = (assessments || []).map(item => hydrateAssessmentResults(item));
 
