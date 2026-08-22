@@ -7,7 +7,9 @@ const ExerciseSchema = new Schema({
   instrucoes: { type: String, default: '' },
   gifUrl: { type: String, default: '' },
   status: { type: String, enum: ['pending', 'approved'], default: 'approved' },
-  solicitadoPorNome: { type: String, default: '' }
-});
+  solicitadoPorNome: { type: String, default: '' },
+  isLocked: { type: Boolean, default: false },
+  lockReason: { type: String, default: '' }
+}, { timestamps: true });
 
 export default models.Exercise || model('Exercise', ExerciseSchema);

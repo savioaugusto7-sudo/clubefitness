@@ -12,6 +12,7 @@ import DadosClinicosPanel from './DadosClinicosPanel';
 import WellnessModal from './WellnessModal';
 import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
+import ExerciseCurationPanel from './ExerciseCurationPanel';
 import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
 
 export { normalizeText, smartSearchMatch };
@@ -329,7 +330,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [cloudLastSavedTime, setCloudLastSavedTime] = useState<string>('');
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
 
-  const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises'>('clients');
+  const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises' | 'curation'>('clients');
   const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
   const [workoutPlanFilter, setWorkoutPlanFilter] = useState<string>('all');
   const [isNewWorkoutSheet, setIsNewWorkoutSheet] = useState(false);
@@ -4911,12 +4912,19 @@ goniometria: {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap' }}>
                 <button className={`btn ${workoutSubTab === 'clients' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setWorkoutSubTab('clients')}>
                   Fichas dos Alunos
                 </button>
                 <button className={`btn ${workoutSubTab === 'exercises' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setWorkoutSubTab('exercises')}>
                   Banco de Exercícios
+                </button>
+                <button 
+                  className={`btn ${workoutSubTab === 'curation' ? 'btn-primary' : 'btn-secondary'}`} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 750 }}
+                  onClick={() => setWorkoutSubTab('curation')}
+                >
+                  <i className="fa-solid fa-wand-magic-sparkles" style={{ color: workoutSubTab === 'curation' ? '#ffffff' : '#38bdf8' }}></i> Curadoria de GIFs (IA)
                 </button>
               </div>
 
@@ -5335,6 +5343,12 @@ goniometria: {
                   </div>
                 );
               })()}
+
+              {workoutSubTab === 'curation' && (
+                <div className="content-panel">
+                  <ExerciseCurationPanel />
+                </div>
+              )}
             </>
           ) : (
             // Full screen Workout Editor inside professional view
