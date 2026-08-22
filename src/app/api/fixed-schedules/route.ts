@@ -76,13 +76,16 @@ async function generateAppointmentsForFixedSchedules(schedules: any[]) {
       if (!existingSet.has(key)) {
         const profId = pair.schedule.profissionalId || defaultProfId;
         if (profId) {
+          const serv = (pair.schedule.servico || '').toLowerCase();
+          const isConsultorio = serv.includes('avalia') || serv.includes('fisioterap') || serv.includes('consulta') || serv.includes('quiroprax') || Boolean(pair.schedule.profissionalId);
+
           allAppointmentsToCreate.push({
             data: pair.dateStr,
             horario: pair.schedule.horario,
-            tipo: 'academia',
-            servico: pair.schedule.servico || 'Treino Monitorado',
+            tipo: isConsultorio ? 'consultorio' : 'academia',
+            servico: pair.schedule.servico || (isConsultorio ? 'Avaliação Fisioterápica' : 'Treino Monitorado'),
             consumeCredito: true,
-            tipoCredito: 'academia',
+            tipoCredito: isConsultorio ? 'consultorio' : 'academia',
             profissionalId: profId,
             clienteId: pair.schedule.clienteId,
             status: 'agendado',

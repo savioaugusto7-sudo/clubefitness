@@ -206,6 +206,8 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [fsSelectedDays, setFsSelectedDays] = useState<number[]>([1, 3, 5]);
   const [fsTime, setFsTime] = useState('08:00');
   const [fsService, setFsService] = useState('Treino Monitorado');
+  const [fsProfessional, setFsProfessional] = useState('');
+  const [fsAgendaFilter, setFsAgendaFilter] = useState('todas');
   const [fsDate, setFsDate] = useState(new Date().toISOString().split('T')[0]);
   const [fsDurationType, setFsDurationType] = useState<'contrato' | 'manual' | 'indeterminado'>('contrato');
   const [fsManualEndDate, setFsManualEndDate] = useState('');
@@ -940,7 +942,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
 
       const payload = {
         clienteId: fsClient,
-        profissionalId: null,
+        profissionalId: fsProfessional || null,
         slots,
         servico: fsService,
         dataInicio: fsDate,
@@ -957,6 +959,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       if (data.success) {
         setShowFixedSchedModal(false);
         setFsClient('');
+        setFsProfessional('');
         setFsSelectedDays([1, 3, 5]);
         setFsTime('08:00');
         setFsService('Treino Monitorado');
@@ -2853,22 +2856,77 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         </div>
 
         <div style={{ ...cardStyle, padding: '20px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
             <input 
               type="text" 
               className="form-control" 
-              placeholder="Buscar por aluno, CPF ou dia da semana..." 
+              placeholder="Buscar por aluno, CPF, profissional ou dia..." 
               value={paymentsSearch} 
               onChange={e => setPaymentsSearch(e.target.value)} 
               style={{ maxWidth: '360px', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px' }} 
             />
+
+            {/* Filtros de Agenda / Profissional */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                className={`btn btn-sm ${fsAgendaFilter === 'todas' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ borderRadius: '8px', fontWeight: 700, padding: '6px 12px', fontSize: '0.78rem' }}
+                onClick={() => setFsAgendaFilter('todas')}
+              >
+                Todas ({fixedSchedules.length})
+              </button>
+              {(() => {
+                const albertProf = professionals.find(p => (p.nome || '').toLowerCase().includes('albert'));
+                const guilhermeProf = professionals.find(p => (p.nome || '').toLowerCase().includes('guilherme'));
+
+                const countAlbert = fixedSchedules.filter(fs => {
+                  const pId = fs.profissionalId?._id || fs.profissionalId;
+                  const pNome = fs.profissionalId?.nome || '';
+                  return (albertProf && pId === albertProf._id) || pNome.toLowerCase().includes('albert');
+                }).length;
+
+                const countGuilherme = fixedSchedules.filter(fs => {
+                  const pId = fs.profissionalId?._id || fs.profissionalId;
+                  const pNome = fs.profissionalId?.nome || '';
+                  return (guilhermeProf && pId === guilhermeProf._id) || pNome.toLowerCase().includes('guilherme');
+                }).length;
+
+                const countGeral = fixedSchedules.filter(fs => !fs.profissionalId).length;
+
+                return (
+                  <>
+                    <button
+                      className={`btn btn-sm ${fsAgendaFilter === 'albert' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ borderRadius: '8px', fontWeight: 700, padding: '6px 12px', fontSize: '0.78rem' }}
+                      onClick={() => setFsAgendaFilter('albert')}
+                    >
+                      🩺 Dr. Albert ({countAlbert})
+                    </button>
+                    <button
+                      className={`btn btn-sm ${fsAgendaFilter === 'guilherme' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ borderRadius: '8px', fontWeight: 700, padding: '6px 12px', fontSize: '0.78rem' }}
+                      onClick={() => setFsAgendaFilter('guilherme')}
+                    >
+                      🩺 Dr. Guilherme ({countGuilherme})
+                    </button>
+                    <button
+                      className={`btn btn-sm ${fsAgendaFilter === 'geral' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ borderRadius: '8px', fontWeight: 700, padding: '6px 12px', fontSize: '0.78rem' }}
+                      onClick={() => setFsAgendaFilter('geral')}
+                    >
+                      🏋️ Geral ({countGeral})
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-darker)', borderBottom: '1px solid var(--border-color)' }}>
-                  {['Aluno', 'Dias & Horários Fixados', 'Serviço', 'Vigência da Regra', 'Ações'].map(h => (
+                  {['Aluno', 'Agenda / Profissional', 'Dias & Horários Fixados', 'Serviço', 'Vigência da Regra', 'Ações'].map(h => (
                     <th key={h} style={{ padding: '12px 16px', textAlign: h === 'Ações' ? 'center' : 'left', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
@@ -2886,46 +2944,66 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     0: 'domingo', 1: 'segunda-feira segunda', 2: 'terca-feira terca', 3: 'quarta-feira quarta', 4: 'quinta-feira quinta', 5: 'sexta-feira sexta', 6: 'sabado sabado'
                   };
 
-                  // Agrupar por aluno
-                  const groupsMap: Record<string, { client: any, rules: any[], servico: string, dataInicio: string, dataFim: string }> = {};
+                  // Agrupar por Aluno + Profissional
+                  const groupsMap: Record<string, { client: any, professional: any, rules: any[], servico: string, dataInicio: string, dataFim: string }> = {};
 
                   for (const fs of fixedSchedules) {
                     const cId = fs.clienteId?._id || fs.clienteId || 'sem_id';
-                    if (!groupsMap[cId]) {
-                      groupsMap[cId] = {
+                    const pId = fs.profissionalId?._id || fs.profissionalId || 'geral';
+                    const groupKey = `${cId}_${pId}`;
+
+                    if (!groupsMap[groupKey]) {
+                      groupsMap[groupKey] = {
                         client: fs.clienteId,
+                        professional: fs.profissionalId,
                         rules: [],
                         servico: fs.servico,
                         dataInicio: fs.dataInicio,
                         dataFim: fs.dataFim
                       };
                     }
-                    groupsMap[cId].rules.push(fs);
+                    groupsMap[groupKey].rules.push(fs);
                   }
 
-                  const groupedList = Object.values(groupsMap);
+                  let groupedList = Object.values(groupsMap);
+
+                  if (fsAgendaFilter === 'albert') {
+                    groupedList = groupedList.filter(g => {
+                      const pNome = (g.professional?.nome || '').toLowerCase();
+                      return pNome.includes('albert');
+                    });
+                  } else if (fsAgendaFilter === 'guilherme') {
+                    groupedList = groupedList.filter(g => {
+                      const pNome = (g.professional?.nome || '').toLowerCase();
+                      return pNome.includes('guilherme');
+                    });
+                  } else if (fsAgendaFilter === 'geral') {
+                    groupedList = groupedList.filter(g => !g.professional);
+                  }
 
                   const filtered = groupedList.filter(g => {
                     if (!q) return true;
 
                     const nome = normalizeText(g.client?.dadosPessoais?.nome || g.client?.nome || '');
                     const cpfDigits = (g.client?.dadosPessoais?.cpf || '').replace(/\D/g, '');
+                    const profNome = normalizeText(g.professional?.nome || '');
                     const servico = normalizeText(g.servico || '');
                     const daysText = g.rules.map(r => `${daysMapShort[r.diaSemana] || ''} ${daysFullMap[r.diaSemana] || ''} ${r.horario || ''}`).join(' ').toLowerCase();
 
                     const matchNome = nome.includes(q);
+                    const matchProf = profNome.includes(q);
                     const matchServico = servico.includes(q);
                     const matchDays = daysText.includes(q);
                     const matchCpf = qDigits.length > 0 && cpfDigits.includes(qDigits);
 
-                    return matchNome || matchServico || matchDays || matchCpf;
+                    return matchNome || matchProf || matchServico || matchDays || matchCpf;
                   });
 
                   if (filtered.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                          Nenhum horário fixo semanal registrado.
+                        <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Nenhum horário fixo registrado para os filtros selecionados.
                         </td>
                       </tr>
                     );
@@ -2934,12 +3012,54 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                   return filtered.map(g => {
                     const clientName = g.client?.dadosPessoais?.nome || g.client?.nome || 'Aluno';
                     const clientCpf = g.client?.dadosPessoais?.cpf || '';
+                    const prof = g.professional;
 
                     return (
-                      <tr key={g.client?._id || Math.random()} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <tr key={`${g.client?._id || Math.random()}_${prof?._id || 'geral'}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td style={{ padding: '12px 16px' }}>
                           <strong>{clientName}</strong>
                           {clientCpf && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CPF: {clientCpf}</div>}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          {prof ? (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              background: (prof.nome || '').toLowerCase().includes('albert')
+                                ? 'rgba(59, 130, 246, 0.15)'
+                                : (prof.nome || '').toLowerCase().includes('guilherme')
+                                  ? 'rgba(168, 85, 247, 0.15)'
+                                  : 'rgba(16, 185, 129, 0.15)',
+                              color: (prof.nome || '').toLowerCase().includes('albert')
+                                ? '#60a5fa'
+                                : (prof.nome || '').toLowerCase().includes('guilherme')
+                                  ? '#c084fc'
+                                  : '#34d399',
+                              border: '1px solid currentColor',
+                              padding: '3px 8px',
+                              borderRadius: '8px',
+                              fontSize: '0.76rem',
+                              fontWeight: 750
+                            }}>
+                              <i className="fa-solid fa-user-doctor"></i> {prof.nome}
+                            </span>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              background: 'rgba(107, 114, 128, 0.15)',
+                              color: '#9ca3af',
+                              border: '1px solid rgba(107, 114, 128, 0.3)',
+                              padding: '3px 8px',
+                              borderRadius: '8px',
+                              fontSize: '0.76rem',
+                              fontWeight: 700
+                            }}>
+                              <i className="fa-solid fa-dumbbell"></i> Treino / Geral
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -3027,6 +3147,35 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                       placeholder="Selecione o aluno..."
                       required
                     />
+                  </div>
+
+                  {/* Seleção de Agenda / Profissional Responsável */}
+                  <div>
+                    <label style={labelStyle}>Agenda / Profissional Responsável</label>
+                    <select
+                      style={inputStyle}
+                      value={fsProfessional}
+                      onChange={e => {
+                        const pId = e.target.value;
+                        setFsProfessional(pId);
+                        const pObj = professionals.find(p => p._id === pId);
+                        if (pObj) {
+                          const pName = (pObj.nome || '').toLowerCase();
+                          if (pName.includes('albert') || pName.includes('guilherme') || (pObj.especialidade || '').toLowerCase().includes('fisio')) {
+                            setFsService('Avaliação Fisioterápica');
+                          }
+                        } else {
+                          setFsService('Treino Monitorado');
+                        }
+                      }}
+                    >
+                      <option value="">🏋️ Treino Monitorado / Geral (Academia)</option>
+                      {professionals.map(p => (
+                        <option key={p._id} value={p._id}>
+                          🩺 {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Seleção de Múltiplos Dias da Semana */}
