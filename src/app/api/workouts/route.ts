@@ -57,14 +57,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'No update data provided' }, { status: 400 });
     }
     
-    let workout = await ClientWorkout.findOneAndUpdate(
-      { clienteId: clientId },
-      { $set: updateQuery },
-      { new: true, upsert: true }
-    );
+    const executeSave = async () => {
+      return await ClientWorkout.findOneAndUpdate(
+        { clienteId: clientId },
+        { $set: updateQuery },
+        { new: true, upsert: true }
+      );
+    };
 
-    return NextResponse.json({ success: true, data: workout });
+    try {
+      const workout = await executeSave();
+      return NextResponse.json({ success: true, data: workout });
+    } catch (dbErr: any) {
+      const isSslOrConnError = dbErr.message && (
+        dbErr.message.includes('SSL') || 
+        dbErr.message.includes('tlsv1') || 
+        dbErr.message.includes('ECONNRESET') || 
+        dbErr.message.includes('topology') ||
+        dbErr.message.includes('closed')
+      );
+
+      if (isSslOrConnError) {
+        console.warn('[Workouts POST] Reconnecting after SSL/socket error:', dbErr.message);
+        await dbConnect(true);
+        const retryWorkout = await executeSave();
+        return NextResponse.json({ success: true, data: retryWorkout });
+      }
+      throw dbErr;
+    }
   } catch (error: any) {
+    console.error('Error saving workout:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
