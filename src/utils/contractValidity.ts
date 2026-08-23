@@ -171,154 +171,85 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     let duracao = isAnual ? 'anual' : (com.duracao || 'mensal');
     let vigenciaQtd = isDynamus ? 1 : (Number(com.duracaoQtd) || Number(com.vigenciaQtd) || 1);
     const dataInicioRaw = com.dataInicio || client?.createdAt || new Date();
-    const isMultiParcelas = Array.isArray(paymentsList) && paymentsList.length > 1;
-    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia || isMultiParcelas || Number(com.parcelas) > 1);
+    
+    // RECORRÊNCIA É EXCLUSIVAMENTE QUANDO HÁ CONFIGURAÇÃO EXPLÍCITA DE ASSINATURA RECORRENTE
+    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
 
     const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    // 1. DATA FIM DA RECORRÊNCIA (Ciclo Contratual Total de 12 Meses ou Total de Parcelas)
-    let recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
-    if (isMultiParcelas && paymentsList.length > recorrenciaMeses) {
-      recorrenciaMeses = paymentsList.length;
-    }
-
-    let dataFimRecorrencia = '';
-    if (isRecorrente) {
-      const startD = safeParseDate(dataInicio);
-      const recEndD = new Date(startD);
-      recEndD.setMonth(recEndD.getMonth() + recorrenciaMeses);
-      dataFimRecorrencia = safeFormatYYYYMMDD(recEndD);
-    } else {
-      dataFimRecorrencia = calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
-    }
-    const dataFimCicloTotal = dataFimRecorrencia;
-
-    // 2. DATA FIM DO MÊS (Vigência de Acesso Mensal liberada pelas parcelas pagas)
-    let dynamicEndDate: string | null = null;
-    let parcelasInfo = '';
-    let hasOverdueInstallment = false;
-    let isEndOfRecurrenceCycle = false;
+    // Data Fim do Ciclo Contratual Total
+    let dataFimCicloTotal = calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
+    let dataFimRecorrencia = dataFimCicloTotal;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = safeFormatYYYYMMDD(today);
 
-    if (isRecorrente) {
-      const startD = safeParseDate(dataInicio);
-      const accessEndD = new Date(startD);
+    const isPaidStatus = (s: string) => {
+      const st = (s || '').toLowerCase();
+      return st === 'pago' || st === 'received' || st === 'confirmed' || st === 'received_in_cash' || st === 'recebido';
+    };
 
-      if (Array.isArray(paymentsList) && paymentsList.length > 0) {
-        const thresholdDate = new Date(startD);
-        thresholdDate.setDate(thresholdDate.getDate() - 25);
-        const thresholdStr = safeFormatYYYYMMDD(thresholdDate);
+    // Detecção de inadimplência pontual de parcelas
+    const atrasadas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => {
+      if (isPaidStatus(p.status)) return false;
+      if (p.status === 'Atrasado' || p.status === 'OVERDUE') return true;
+      return p.vencimento && p.vencimento < todayStr;
+    });
+    const hasOverdueInstallment = atrasadas.length > 0;
+    const pagas = (Array.isArray(paymentsList) ? paymentsList : []).filter((p: any) => isPaidStatus(p.status));
+    const parcelasInfo = `${pagas.length}/${(paymentsList || []).length || vigenciaQtd} pagas`;
 
-        const currentContractPayments = paymentsList.filter((p: any) => (p.vencimento || '') >= thresholdStr || !p.vencimento);
-        const isPaidStatus = (s: string) => {
-          const st = (s || '').toLowerCase();
-          return st === 'pago' || st === 'received' || st === 'confirmed' || st === 'received_in_cash' || st === 'recebido';
-        };
-
-        const pagas = currentContractPayments.filter((p: any) => isPaidStatus(p.status));
-        // Parcela em atraso: somente se estiver com status Atrasado OU com vencimento no passado
-        const atrasadas = currentContractPayments.filter((p: any) => {
-          if (isPaidStatus(p.status)) return false;
-          if (p.status === 'Atrasado' || p.status === 'OVERDUE') return true;
-          return p.vencimento && p.vencimento < todayStr;
-        });
-
-        parcelasInfo = `${pagas.length}/${currentContractPayments.length || recorrenciaMeses} pagas`;
-
-        if (atrasadas.length > 0) {
-          hasOverdueInstallment = true;
-        }
-
-        // Buscar próxima parcela a vencer no futuro ou estender pelo total de parcelas pagas
-        const nextPending = currentContractPayments
-          .filter((p: any) => !isPaidStatus(p.status) && p.vencimento && p.vencimento >= todayStr)
-          .sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''))[0];
-
-        if (nextPending && nextPending.vencimento) {
-          // Acesso liberado até a data de vencimento da próxima parcela
-          dynamicEndDate = safeFormatYYYYMMDD(safeParseDate(nextPending.vencimento));
-        } else if (pagas.length > 0) {
-          // Última parcela paga + 1 mês
-          const pagasSorted = [...pagas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''));
-          const lastPaid = pagasSorted[pagasSorted.length - 1];
-          if (lastPaid?.vencimento) {
-            const lastD = safeParseDate(lastPaid.vencimento);
-            lastD.setMonth(lastD.getMonth() + 1);
-            dynamicEndDate = safeFormatYYYYMMDD(lastD);
-          } else {
-            const mesesLiberados = Math.min(recorrenciaMeses, Math.max(1, pagas.length));
-            accessEndD.setMonth(accessEndD.getMonth() + mesesLiberados);
-            dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
-          }
-        } else {
-          // Ciclo inicial: 1 mês a partir da data de início
-          accessEndD.setMonth(accessEndD.getMonth() + 1);
-          dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
-        }
-      } else {
-        // Se for recorrente ativo sem lista de pagamentos passada, usar com.vencimento se futuro
-        if (com.vencimento && com.vencimento >= todayStr) {
-          dynamicEndDate = safeFormatYYYYMMDD(safeParseDate(com.vencimento));
-        } else {
-          accessEndD.setMonth(accessEndD.getMonth() + (Number(com.duracaoQtd) || 1));
-          dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
-        }
-      }
-    }
-
-    // Vigência oficial de acesso mensal para o aluno
-    let dataFim = isDynamus
-      ? dataFimCicloTotal
-      : (dynamicEndDate || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, com.vencimento, isRecorrente));
-
-    const endD = safeParseDate(dataFim);
-    endD.setHours(0, 0, 0, 0);
-    const diffTime = endD.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    // Análise de Fim de Ciclo Anual (Data Fim da Recorrência - 12 Meses)
-    const cicloEndD = safeParseDate(dataFimRecorrencia);
-    cicloEndD.setHours(0, 0, 0, 0);
-    const diffCicloTime = cicloEndD.getTime() - today.getTime();
-    const diffCicloDays = Math.ceil(diffCicloTime / (1000 * 60 * 60 * 24));
-
+    let dataFim = dataFimCicloTotal;
     let isExpired = false;
     let isExpiringSoon = false;
+    let daysLeft = 0;
     let daysLeftText = '';
 
-    if (hasOverdueInstallment) {
-      isExpired = true;
-      daysLeftText = 'Parcela em atraso';
-    } else if (isRecorrente) {
-      // REGRA FUNDAMENTAL DE RECORRÊNCIA:
-      // O filtro e status de "Renovação <30d" lê EXCLUSIVAMENTE a dataFimRecorrencia (ciclo de 12 meses).
-      // Durante os meses 1 a 11, o aluno permanece em dia e NÃO entra em renovação.
-      if (diffDays < 0) {
-        isExpired = true;
-        daysLeftText = `Ciclo pago venceu há ${Math.abs(diffDays)}d`;
-      } else if (diffCicloDays <= 30) {
-        isExpiringSoon = true;
-        daysLeftText = diffCicloDays <= 0 ? 'Ciclo de 12m Encerrado' : `Renovação Anual em ${diffCicloDays}d`;
+    // =========================================================================
+    // 🅰️ CASO 1: SEM RECORRÊNCIA (Planos Fechados: À vista, Parcelado 10x/12x)
+    // A Data Fim é 100% INDEPENDENTE dos pagamentos! (Data Início + Duração)
+    // =========================================================================
+    if (!isRecorrente) {
+      dataFim = isDynamus ? dataFimCicloTotal : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
+      const endD = safeParseDate(dataFim);
+      endD.setHours(0, 0, 0, 0);
+      const diffTime = endD.getTime() - today.getTime();
+      daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      isExpired = daysLeft < 0;
+      isExpiringSoon = !isExpired && daysLeft <= 30;
+
+      if (isExpired) {
+        daysLeftText = `Vencido há ${Math.abs(daysLeft)}d`;
+      } else if (isExpiringSoon) {
+        daysLeftText = daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft}d`;
+      } else if (hasOverdueInstallment) {
+        daysLeftText = `Parcela em atraso • ${daysLeft}d restantes`;
       } else {
-        // Aluno em dia mês a mês durante o ciclo de 12 meses
-        daysLeftText = `Próx. Parcela em ${diffDays}d`;
+        daysLeftText = `${daysLeft}d restantes`;
       }
     } else {
-      // Planos de período fechado normais (sem recorrência)
-      if (diffDays < 0) {
-        isExpired = true;
-        daysLeftText = `Vencido há ${Math.abs(diffDays)}d`;
-      } else if (diffDays === 0) {
-        isExpiringSoon = true;
-        daysLeftText = 'Vence hoje';
-      } else if (diffDays <= 30) {
-        isExpiringSoon = true;
-        daysLeftText = `Vence em ${diffDays}d`;
+      // =========================================================================
+      // 🅱️ CASO 2: COM RECORRÊNCIA ATIVADA (Assinatura Mensal Contínua)
+      // =========================================================================
+      const endCicloD = safeParseDate(dataFimCicloTotal);
+      endCicloD.setHours(0, 0, 0, 0);
+      const diffCicloTime = endCicloD.getTime() - today.getTime();
+      const diffCicloDays = Math.ceil(diffCicloTime / (1000 * 60 * 60 * 24));
+
+      isExpired = diffCicloDays < 0;
+      isExpiringSoon = !isExpired && diffCicloDays <= 30;
+      daysLeft = diffCicloDays;
+
+      if (isExpired) {
+        daysLeftText = 'Ciclo Anual Encerrado';
+      } else if (isExpiringSoon) {
+        daysLeftText = diffCicloDays <= 0 ? 'Ciclo Encerrado' : `Renovação Anual em ${diffCicloDays}d`;
+      } else if (hasOverdueInstallment) {
+        daysLeftText = 'Mensalidade em atraso';
       } else {
-        daysLeftText = `${diffDays}d restantes`;
+        daysLeftText = `Ciclo Anual • ${diffCicloDays}d restantes`;
       }
     }
 
@@ -328,6 +259,26 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     let badgeColor = '#10b981';
     let badgeBg = 'rgba(16, 185, 129, 0.12)';
     let badgeBorder = 'rgba(16, 185, 129, 0.3)';
+
+    if (isExpired) {
+      statusKey = 'vencido';
+      statusLabel = isRecorrente ? 'Recorrência Vencida' : 'Contrato Vencido';
+      badgeColor = '#ef4444';
+      badgeBg = 'rgba(239, 68, 68, 0.12)';
+      badgeBorder = 'rgba(239, 68, 68, 0.3)';
+    } else if (isExpiringSoon) {
+      statusKey = 'vencendo';
+      statusLabel = 'Renovação <30d';
+      badgeColor = '#f59e0b';
+      badgeBg = 'rgba(245, 158, 11, 0.12)';
+      badgeBorder = 'rgba(245, 158, 11, 0.3)';
+    } else if (hasOverdueInstallment) {
+      statusKey = 'ativo';
+      statusLabel = 'Vigente • Parcela em Atraso';
+      badgeColor = '#eab308';
+      badgeBg = 'rgba(234, 179, 8, 0.12)';
+      badgeBorder = 'rgba(234, 179, 8, 0.3)';
+    }
 
     if (statusSaved === 'finalizado') {
       statusKey = 'finalizado';
@@ -376,6 +327,9 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       badgeBorder = 'rgba(245, 158, 11, 0.3)';
     }
 
+    const isEndOfRecurrenceCycle = Boolean(isRecorrente && isExpiringSoon);
+    const recorrenciaMeses = 12;
+
     return {
       dataInicio,
       dataFim,
@@ -387,7 +341,7 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
       isExpired,
       isExpiringSoon,
-      daysLeft: diffDays,
+      daysLeft,
       daysLeftText,
       statusKey,
       statusLabel,
