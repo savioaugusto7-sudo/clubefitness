@@ -181,8 +181,15 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
 
     const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    // Data Fim do Ciclo Contratual Total
-    let dataFimCicloTotal = calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
+    // 1. DATA FIM DO CICLO CONTRATUAL TOTAL (12 Meses ou Total de Parcelas da Recorrência)
+    let recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
+    if (Array.isArray(paymentsList) && paymentsList.length > recorrenciaMeses) {
+      recorrenciaMeses = paymentsList.length;
+    }
+
+    let dataFimCicloTotal = isRecorrente
+      ? calculateContractEndDate(dataInicio, 'anual', recorrenciaMeses === 12 ? 1 : Math.ceil(recorrenciaMeses / 12), undefined, false)
+      : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
     let dataFimRecorrencia = dataFimCicloTotal;
 
     const today = new Date();
@@ -256,7 +263,8 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       // =========================================================================
       // 🅱️ CASO 2: COM RECORRÊNCIA ATIVADA (Assinatura Mensal Contínua)
       // A ÂNCORA É SEMPRE O DIA DA DATA DE INÍCIO (ex: dia 01, dia 24)
-      // O pagamento da mensalidade é o START para estender +1 ciclo a partir da âncora
+      // REGRA DE OURO (K + 1): O pagamento da parcela K destrava o mês atual e o próximo ciclo
+      // garantindo que o aluno NUNCA fique descoberto antes do próximo vencimento!
       // =========================================================================
       const startD = safeParseDate(dataInicio);
       let cyclesUnlocked = 1;
@@ -267,9 +275,9 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
         if (lastPaid?.vencimento) {
           const lastPaidDate = safeParseDate(lastPaid.vencimento);
           const monthDiff = (lastPaidDate.getFullYear() - startD.getFullYear()) * 12 + (lastPaidDate.getMonth() - startD.getMonth()) + 1;
-          cyclesUnlocked = Math.max(1, monthDiff);
+          cyclesUnlocked = Math.min(recorrenciaMeses, Math.max(1, monthDiff + 1));
         } else {
-          cyclesUnlocked = Math.max(1, pagas.length);
+          cyclesUnlocked = Math.min(recorrenciaMeses, Math.max(1, pagas.length + 1));
         }
       }
 
@@ -359,7 +367,6 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     }
 
     const isEndOfRecurrenceCycle = Boolean(isRecorrente && isExpiringSoon);
-    const recorrenciaMeses = 12;
 
     return {
       dataInicio,

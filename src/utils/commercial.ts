@@ -29,9 +29,9 @@ export async function syncClientPlanValidity(clientId: string): Promise<void> {
         const lastPaidDate = new Date(dStr + 'T00:00:00');
         const baseD = new Date((com.dataInicio || dStr) + 'T00:00:00');
         const monthDiff = (lastPaidDate.getFullYear() - baseD.getFullYear()) * 12 + (lastPaidDate.getMonth() - baseD.getMonth()) + 1;
-        cycles = Math.max(1, monthDiff);
+        cycles = Math.min(12, Math.max(1, monthDiff + 1));
       } else {
-        cycles = Math.max(1, paidPayments.length);
+        cycles = Math.min(12, Math.max(1, paidPayments.length + 1));
       }
     }
 
