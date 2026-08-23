@@ -5,7 +5,7 @@ import Client from '@/models/Client';
 import Contract from '@/models/Contract';
 import { syncClientPlanValidity } from '@/utils/commercial';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const getAsaasHeaders = () => {
   const token = process.env.ASAAS_API_KEY;
@@ -403,138 +403,142 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, asaasCustomerId: asaasId });
     }
 
-    // C. SYNC ALL CLIENTS WITH ASAAS
+    // B2. SYNC SINGLE CLIENT WITH ASAAS
+    if (action === 'sync_client_asaas') {
+      const { clientId } = body;
+      if (!clientId) {
+        return NextResponse.json({ success: false, error: 'clientId é obrigatório' }, { status: 400 });
+      }
+      const client = await Client.findById(clientId);
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
+      }
+      const baseUrl = getAsaasBaseUrl();
+      const headers = getAsaasHeaders();
+      const ok = await syncSingleCustomerAsaas(client, baseUrl, headers);
+      return NextResponse.json({ success: ok });
+    }
+
+    // C. SYNC ALL CLIENTS WITH ASAAS (BATCH PARALLEL CONCURRENCY)
     if (action === 'sync_all_asaas') {
       const clients = await Client.find({ 'dadosComerciais.asaasCustomerId': { $ne: '' } });
       if (clients.length === 0) {
-         return NextResponse.json({ success: true, message: 'Nenhum cliente com ID Asaas cadastrado.' });
-      }
-
-      // Auto-migrate/align contract end dates with payments for all active clients (querying by clientId)
-      try {
-        const allContracts = await Contract.find({ status: { $in: ['assinado', 'congelado'] } });
-        for (const contract of allContracts) {
-          const payments = await Payment.find({ clientId: contract.clientId });
-          if (payments.length > 0) {
-            let latestPaymentDate = '';
-            payments.forEach((p: any) => {
-              if (p.vencimento && (!latestPaymentDate || p.vencimento > latestPaymentDate)) {
-                latestPaymentDate = p.vencimento;
-              }
-            });
-            if (latestPaymentDate && (!contract.dataFim || contract.dataFim < latestPaymentDate)) {
-              contract.dataFim = latestPaymentDate;
-              await contract.save();
-
-              const client = await Client.findById(contract.clientId);
-              if (client && client.dadosComerciais) {
-                if ((client.dadosComerciais.vencimento || '') < latestPaymentDate) {
-                  client.dadosComerciais.vencimento = latestPaymentDate;
-                  client.markModified('dadosComerciais');
-                  await client.save();
-                }
-              }
-            }
-          }
-        }
-      } catch (migrationErr) {
-        console.error('Error running contract duration self-healing migration:', migrationErr);
+        return NextResponse.json({ success: true, message: 'Nenhum cliente com ID Asaas cadastrado.' });
       }
 
       const baseUrl = getAsaasBaseUrl();
       const headers = getAsaasHeaders();
 
+      // Process in parallel batches of 5 to avoid 504 timeouts while respecting Asaas rate limits
+      const BATCH_SIZE = 5;
       let syncedCount = 0;
-      for (const client of clients) {
-        const asaasId = client.dadosComerciais.asaasCustomerId;
-        try {
-          const paymentsRes = await fetch(`${baseUrl}/payments?customer=${asaasId}&limit=100`, { method: 'GET', headers });
-          if (paymentsRes.ok) {
-            const paymentsData = await paymentsRes.json();
-            if (Array.isArray(paymentsData.data)) {
-              // Delete existing local payments for this client to avoid duplicates
-              await Payment.deleteMany({ clientId: client._id });
 
-              // Sort payments by dueDate ascending so parcel numbers are chronological
-              paymentsData.data.sort((a: any, b: any) => a.dueDate.localeCompare(b.dueDate));
-
-              const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
-                let status = 'Pendente';
-                if (p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH') {
-                  status = 'Pago';
-                } else if (p.status === 'OVERDUE') {
-                  status = 'Atrasado';
-                }
-
-                return {
-                  clientId: client._id,
-                  clientNome: client.dadosPessoais?.nome || 'Sem Nome',
-                  planoNome: p.description || 'Assinatura Asaas',
-                  valor: p.value || 0,
-                  vencimento: p.dueDate,
-                  dataPagamento: p.paymentDate || '',
-                  status,
-                  formaPagamento: 'Asaas',
-                  asaasPaymentId: p.id,
-                  asaasInvoiceUrl: p.invoiceUrl || '',
-                  parcelaNumero: idx + 1,
-                  parcelasTotal: paymentsData.data.length,
-                };
-              });
-
-              if (paymentRecords.length > 0) {
-                await Payment.insertMany(paymentRecords);
-
-                // Auto-activate contract if any payment is Pago
-                const pendingContract = await Contract.findOne({ clientId: client._id, status: 'pendente' });
-                if (pendingContract && paymentRecords.some((r: any) => r.status === 'Pago')) {
-                  pendingContract.status = 'assinado';
-                  pendingContract.asaasBillingStatus = 'pago';
-                  await pendingContract.save();
-                }
-
-                // Lógica de Recorrência Inteligente: estende a vigência do aluno a cada parcela paga
-                const pagas = paymentRecords.filter((r: any) => r.status === 'Pago');
-                const pendentes = paymentRecords.filter((r: any) => r.status === 'Pendente');
-                const isRecorrente = Boolean(client.dadosComerciais?.criarRecorrenciaMensal || client.dadosComerciais?.recorrenciaVigencia);
-
-                if (isRecorrente && pagas.length > 0) {
-                  let novaDataVigencia = '';
-                  if (pendentes.length > 0) {
-                    novaDataVigencia = pendentes[0].vencimento;
-                  } else {
-                    const ultimoPago = pagas[pagas.length - 1];
-                    const d = new Date(ultimoPago.vencimento + 'T12:00:00');
-                    d.setMonth(d.getMonth() + 1);
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    novaDataVigencia = `${y}-${m}-${day}`;
-                  }
-                  if (novaDataVigencia) {
-                    client.dadosComerciais.vencimento = novaDataVigencia;
-                    client.dadosComerciais.status = 'ativo';
-                    await client.save();
-                  }
-                } else if (pagas.length > 0) {
-                  client.dadosComerciais.status = 'ativo';
-                  await client.save();
-                }
-              }
-              syncedCount++;
-            }
-          }
-        } catch (err) {
-          console.error(`Erro ao sincronizar cliente Asaas ${client.dadosPessoais?.nome}:`, err);
-        }
+      for (let i = 0; i < clients.length; i += BATCH_SIZE) {
+        const batch = clients.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(c => syncSingleCustomerAsaas(c, baseUrl, headers))
+        );
+        syncedCount += results.filter(r => r.status === 'fulfilled' && r.value === true).length;
       }
 
-      return NextResponse.json({ success: true, syncedCount });
+      return NextResponse.json({ success: true, syncedCount, total: clients.length });
     }
 
     return NextResponse.json({ success: false, error: 'Ação inválida' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// Helper: Sincronização ultra-rápida e resiliente por cliente
+async function syncSingleCustomerAsaas(client: any, baseUrl: string, headers: any): Promise<boolean> {
+  const asaasId = client?.dadosComerciais?.asaasCustomerId;
+  if (!asaasId) return false;
+
+  try {
+    const paymentsRes = await fetch(`${baseUrl}/payments?customer=${asaasId}&limit=100`, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!paymentsRes.ok) return false;
+    const paymentsData = await paymentsRes.json();
+    if (!Array.isArray(paymentsData.data)) return false;
+
+    // Delete existing local payments for this client to avoid duplicates
+    await Payment.deleteMany({ clientId: client._id });
+
+    // Sort payments by dueDate ascending so parcel numbers are chronological
+    paymentsData.data.sort((a: any, b: any) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+
+    const paymentRecords = paymentsData.data.map((p: any, idx: number) => {
+      let status = 'Pendente';
+      if (p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH') {
+        status = 'Pago';
+      } else if (p.status === 'OVERDUE') {
+        status = 'Atrasado';
+      }
+
+      return {
+        clientId: client._id,
+        clientNome: client.dadosPessoais?.nome || 'Sem Nome',
+        planoNome: p.description || 'Assinatura Asaas',
+        valor: p.value || 0,
+        vencimento: p.dueDate,
+        dataPagamento: p.paymentDate || '',
+        status,
+        formaPagamento: 'Asaas',
+        asaasPaymentId: p.id,
+        asaasInvoiceUrl: p.invoiceUrl || '',
+        parcelaNumero: idx + 1,
+        parcelasTotal: paymentsData.data.length,
+      };
+    });
+
+    if (paymentRecords.length > 0) {
+      await Payment.insertMany(paymentRecords);
+
+      // Auto-activate contract if any payment is Pago
+      const pendingContract = await Contract.findOne({ clientId: client._id, status: 'pendente' });
+      if (pendingContract && paymentRecords.some((r: any) => r.status === 'Pago')) {
+        pendingContract.status = 'assinado';
+        pendingContract.asaasBillingStatus = 'pago';
+        await pendingContract.save();
+      }
+
+      // Lógica de Recorrência Inteligente: estende a vigência do aluno a cada parcela paga
+      const pagas = paymentRecords.filter((r: any) => r.status === 'Pago');
+      const pendentes = paymentRecords.filter((r: any) => r.status === 'Pendente');
+      const isRecorrente = Boolean(client.dadosComerciais?.criarRecorrenciaMensal || client.dadosComerciais?.recorrenciaVigencia);
+
+      if (isRecorrente && pagas.length > 0) {
+        let novaDataVigencia = '';
+        if (pendentes.length > 0) {
+          novaDataVigencia = pendentes[0].vencimento;
+        } else {
+          const ultimoPago = pagas[pagas.length - 1];
+          const d = new Date(ultimoPago.vencimento + 'T12:00:00');
+          d.setMonth(d.getMonth() + 1);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          novaDataVigencia = `${y}-${m}-${day}`;
+        }
+        if (novaDataVigencia) {
+          client.dadosComerciais.vencimento = novaDataVigencia;
+          client.dadosComerciais.status = 'ativo';
+          await client.save();
+        }
+      } else if (pagas.length > 0) {
+        client.dadosComerciais.status = 'ativo';
+        await client.save();
+      }
+    }
+    return true;
+  } catch (err: any) {
+    console.warn(`[syncSingleCustomerAsaas] Warning for ${client?.dadosPessoais?.nome}:`, err?.message);
+    return false;
   }
 }
 
