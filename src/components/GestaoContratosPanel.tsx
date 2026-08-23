@@ -119,7 +119,9 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     com.status === 'ativo' ||
     com.status === 'assinado' ||
     (isRecorrente && hasPaidInstallment && !info.isExpired) ||
-    (plan && !info.isExpired && (com.valorUnitario > 0 || latestContract || hasPaidInstallment))
+    (plan && !info.isExpired && (com.valorUnitario > 0 || latestContract || hasPaidInstallment)) ||
+    (com.valorUnitario > 0 && (com.vencimento || com.dataInicio)) ||
+    (com.planoId && (com.vencimento || com.dataInicio))
   );
 
   const isExpired = Boolean(info.isExpired);
@@ -326,6 +328,7 @@ export default function GestaoContratosPanel({
   const [allContractsMap, setAllContractsMap] = useState<Record<string, any>>({});
   const [allProposalsMap, setAllProposalsMap] = useState<Record<string, any>>({});
   const [allPaymentsMap, setAllPaymentsMap] = useState<Record<string, any[]>>({});
+  const [loadingOverview, setLoadingOverview] = useState(true);
   const [syncingClicksignClientId, setSyncingClicksignClientId] = useState<string | null>(null);
 
   // States for Finalize Contract Modal (Não Renovou)
@@ -567,6 +570,8 @@ export default function GestaoContratosPanel({
       }
     } catch (e) {
       console.warn('Erro ao carregar mapa de contratos e propostas:', e);
+    } finally {
+      setLoadingOverview(false);
     }
   };
 
@@ -2985,7 +2990,13 @@ export default function GestaoContratosPanel({
             </div>
 
         <div className="content-panel">
-          {viewMode === 'cards' ? (
+          {loadingOverview ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', margin: '16px 0' }}>
+              <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: '2.5rem', color: '#22d3ee', marginBottom: '16px' }}></i>
+              <h4 style={{ margin: '0 0 8px', fontSize: '1.2rem', color: '#ffffff', fontWeight: 700 }}>Sincronizando Contratos e Vigências</h4>
+              <p style={{ margin: 0, fontSize: '0.88rem', color: '#94a3b8' }}>Consultando contratos ativos, propostas e extratos de pagamento em tempo real...</p>
+            </div>
+          ) : viewMode === 'cards' ? (
             /* ==========================================
                CARDS EXECUTIVOS EM 3 BLOCOS CLAROS
                ========================================== */
