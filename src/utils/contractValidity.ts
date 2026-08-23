@@ -233,23 +233,50 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       // =========================================================================
       // 🅱️ CASO 2: COM RECORRÊNCIA ATIVADA (Assinatura Mensal Contínua)
       // =========================================================================
-      const endCicloD = safeParseDate(dataFimCicloTotal);
-      endCicloD.setHours(0, 0, 0, 0);
-      const diffCicloTime = endCicloD.getTime() - today.getTime();
-      const diffCicloDays = Math.ceil(diffCicloTime / (1000 * 60 * 60 * 24));
+      let dynamicAccessEndStr = '';
+      
+      // Buscar próxima parcela a vencer no futuro ou estender pelo vencimento da última parcela paga + 1 mês
+      const nextPending = (Array.isArray(paymentsList) ? paymentsList : [])
+        .filter((p: any) => !isPaidStatus(p.status) && p.vencimento && p.vencimento >= todayStr)
+        .sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''))[0];
 
-      isExpired = diffCicloDays < 0;
-      isExpiringSoon = !isExpired && diffCicloDays <= 30;
-      daysLeft = diffCicloDays;
+      if (nextPending && nextPending.vencimento) {
+        dynamicAccessEndStr = safeFormatYYYYMMDD(safeParseDate(nextPending.vencimento));
+      } else if (pagas.length > 0) {
+        const pagasSorted = [...pagas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''));
+        const lastPaid = pagasSorted[pagasSorted.length - 1];
+        if (lastPaid?.vencimento) {
+          const lastD = safeParseDate(lastPaid.vencimento);
+          lastD.setMonth(lastD.getMonth() + 1);
+          dynamicAccessEndStr = safeFormatYYYYMMDD(lastD);
+        }
+      }
 
-      if (isExpired) {
-        daysLeftText = 'Ciclo Anual Encerrado';
-      } else if (isExpiringSoon) {
-        daysLeftText = diffCicloDays <= 0 ? 'Ciclo Encerrado' : `Renovação Anual em ${diffCicloDays}d`;
-      } else if (hasOverdueInstallment) {
+      if (!dynamicAccessEndStr) {
+        if (com.vencimento && com.vencimento >= todayStr) {
+          dynamicAccessEndStr = safeFormatYYYYMMDD(safeParseDate(com.vencimento));
+        } else {
+          const startD = safeParseDate(dataInicio);
+          startD.setMonth(startD.getMonth() + 1);
+          dynamicAccessEndStr = safeFormatYYYYMMDD(startD);
+        }
+      }
+
+      dataFim = dynamicAccessEndStr;
+      const endD = safeParseDate(dataFim);
+      endD.setHours(0, 0, 0, 0);
+      const diffTime = endD.getTime() - today.getTime();
+      daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      isExpired = false;
+      isExpiringSoon = false;
+
+      if (hasOverdueInstallment) {
         daysLeftText = 'Mensalidade em atraso';
+      } else if (daysLeft >= 0) {
+        daysLeftText = daysLeft === 0 ? 'Próx. Parcela vence hoje' : `Próx. Parcela em ${daysLeft}d`;
       } else {
-        daysLeftText = `Ciclo Anual • ${diffCicloDays}d restantes`;
+        daysLeftText = `Mensalidade venceu há ${Math.abs(daysLeft)}d`;
       }
     }
 
@@ -307,24 +334,6 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       badgeColor = '#64748b';
       badgeBg = 'rgba(100, 116, 139, 0.12)';
       badgeBorder = 'rgba(100, 116, 139, 0.3)';
-    } else if (hasOverdueInstallment) {
-      statusKey = 'vencido';
-      statusLabel = 'Inadimplente (Asaas)';
-      badgeColor = '#ef4444';
-      badgeBg = 'rgba(239, 68, 68, 0.12)';
-      badgeBorder = 'rgba(239, 68, 68, 0.3)';
-    } else if (isExpired) {
-      statusKey = 'vencido';
-      statusLabel = isRecorrente ? 'Recorrência Vencida' : 'Vencido';
-      badgeColor = '#ef4444';
-      badgeBg = 'rgba(239, 68, 68, 0.12)';
-      badgeBorder = 'rgba(239, 68, 68, 0.3)';
-    } else if (isExpiringSoon) {
-      statusKey = 'vencendo';
-      statusLabel = isRecorrente ? 'Renovação Anual (<30d)' : 'Vencendo em Breve';
-      badgeColor = '#f59e0b';
-      badgeBg = 'rgba(245, 158, 11, 0.12)';
-      badgeBorder = 'rgba(245, 158, 11, 0.3)';
     }
 
     const isEndOfRecurrenceCycle = Boolean(isRecorrente && isExpiringSoon);
