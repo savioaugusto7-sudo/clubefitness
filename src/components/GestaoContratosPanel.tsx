@@ -2241,29 +2241,6 @@ export default function GestaoContratosPanel({
             boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.1)',
             flexWrap: 'wrap'
           }}>
-            {/* Mini SVG Area Curve */}
-            <div style={{ width: '80px', height: '36px' }}>
-              <svg width="80" height="36" viewBox="0 0 80 36" fill="none">
-                <defs>
-                  <linearGradient id="areaGradContratos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0,28 Q 20,24 35,16 T 60,8 T 80,4 L 80,36 L 0,36 Z" fill="url(#areaGradContratos)" />
-                <path d="M 0,28 Q 20,24 35,16 T 60,8 T 80,4" stroke="#06b6d4" strokeWidth="2" fill="none" strokeLinecap="round" />
-                <circle cx="80" cy="4" r="3" fill="#22d3ee" />
-              </svg>
-            </div>
-
-            {/* Mini SVG Donut Ring */}
-            <div style={{ position: 'relative', width: '36px', height: '36px' }}>
-              <svg width="36" height="36" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="3.5" />
-                <circle cx="18" cy="18" r="14" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray="65 100" strokeDashoffset="15" strokeLinecap="round" />
-              </svg>
-            </div>
-
             {/* Sub-tabs switch */}
             <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.04)', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <button
