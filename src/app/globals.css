@@ -4030,9 +4030,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 20px !important;
+  padding: 16px !important;
   box-sizing: border-box !important;
   animation: fadeIn 0.2s ease-out !important;
+  overflow-y: auto !important;
 }
 
 .modal-content {
@@ -4042,7 +4043,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2) !important;
   max-width: 550px !important;
   width: 95% !important;
-  max-height: 88vh !important;
+  max-height: calc(100vh - 32px) !important;
+  height: auto !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -4050,6 +4052,16 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   margin: auto !important;
   box-sizing: border-box !important;
+}
+
+.modal-content > form {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  margin: 0 !important;
 }
 
 .modal-header {
@@ -4073,23 +4085,27 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .modal-body {
   padding: 20px !important;
   overflow-y: auto !important;
-  max-height: 76vh !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 16px !important;
-  flex-grow: 1 !important;
   box-sizing: border-box !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 .modal-footer {
   padding: 14px 20px !important;
   border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-  background: rgba(0, 0, 0, 0.25) !important;
+  background: rgba(10, 15, 26, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 10px !important;
   flex-shrink: 0 !important;
+  margin-top: auto !important;
 }
 
 .modal-close {

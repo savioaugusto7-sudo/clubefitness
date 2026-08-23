@@ -6682,14 +6682,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
        {/* Modal de Novo Horário Fixo */}
         {showFixedSchedModal && (
-          <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setShowFixedSchedModal(false)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '95%' }}>
-              <div className="modal-header" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff' }}>
+          <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000, padding: '16px', overflowY: 'auto' }} onClick={() => setShowFixedSchedModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '95%', maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', color: '#fff', flexShrink: 0 }}>
                 <h3><i className="fa-solid fa-thumbtack" style={{ marginRight: '8px' }}></i>Novo Horário Fixo</h3>
                 <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowFixedSchedModal(false)}>&times;</button>
               </div>
-              <form onSubmit={handleCreateFixedSchedule}>
-                <div className="modal-body" style={{ padding: '20px' }}>
+              <form onSubmit={handleCreateFixedSchedule} style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, overflow: 'hidden', margin: 0 }}>
+                <div className="modal-body" style={{ padding: '20px', overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
                   <div className="form-group" style={{ marginBottom: '15px' }}>
                     <label>Aluno / Cliente</label>
                     <SearchableSelect
@@ -6742,32 +6742,32 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     </label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                       {[
-                        { id: 1, label: 'Segunda-feira', short: 'Seg' },
-                        { id: 2, label: 'Terça-feira', short: 'Ter' },
-                        { id: 3, label: 'Quarta-feira', short: 'Qua' },
-                        { id: 4, label: 'Quinta-feira', short: 'Qui' },
-                        { id: 5, label: 'Sexta-feira', short: 'Sex' },
-                        { id: 6, label: 'Sábado', short: 'Sáb' }
-                      ].map(d => {
-                        const isSelected = fsSelectedDays.includes(d.id);
+                        { day: 1, label: 'Segunda-feira' },
+                        { day: 2, label: 'Terça-feira' },
+                        { day: 3, label: 'Quarta-feira' },
+                        { day: 4, label: 'Quinta-feira' },
+                        { day: 5, label: 'Sexta-feira' },
+                        { day: 6, label: 'Sábado' }
+                      ].map(({ day, label }) => {
+                        const isSelected = fsSelectedDays.includes(day);
                         return (
                           <button
-                            key={d.id}
+                            key={day}
                             type="button"
                             onClick={() => {
                               if (isSelected) {
-                                setFsSelectedDays(fsSelectedDays.filter(day => day !== d.id));
+                                setFsSelectedDays(fsSelectedDays.filter(d => d !== day));
                               } else {
-                                setFsSelectedDays([...fsSelectedDays, d.id].sort((a, b) => a - b));
+                                setFsSelectedDays([...fsSelectedDays, day].sort());
                               }
                             }}
                             style={{
-                              padding: '10px 8px',
-                              borderRadius: '10px',
+                              padding: '8px 4px',
+                              borderRadius: '8px',
                               border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
-                              background: isSelected ? 'rgba(16, 185, 129, 0.18)' : 'var(--bg-darker)',
-                              color: isSelected ? '#10b981' : 'var(--text-muted)',
-                              fontWeight: 700,
+                              background: isSelected ? 'rgba(0, 184, 148, 0.15)' : 'var(--bg-darker)',
+                              color: isSelected ? 'var(--color-primary)' : 'var(--text-muted)',
+                              fontWeight: isSelected ? 700 : 500,
                               fontSize: '0.82rem',
                               cursor: 'pointer',
                               display: 'flex',
@@ -6777,46 +6777,98 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               transition: 'all 0.15s ease'
                             }}
                           >
-                            <i className={`fa-solid ${isSelected ? 'fa-square-check' : 'fa-square'}`}></i>
-                            {d.label}
+                            <i className={isSelected ? "fa-solid fa-square-check" : "fa-regular fa-square"}></i>
+                            {label}
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
-                  <div className="form-row" style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
-                    <div className="form-group" style={{ flex: 1 }}>
+                  {/* Horário e Serviço */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '15px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
                       <label>Horário</label>
-                      <select className="select-custom" value={fsTime} onChange={e => setFsTime(e.target.value)} required>
-                        <option value="">Selecione...</option>
-                        {['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'].map(h => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
+                      <select
+                        className="select-custom"
+                        value={fsTime}
+                        onChange={e => setFsTime(e.target.value)}
+                      >
+                        {Array.from({ length: 17 }, (_, i) => {
+                          const hour = (i + 6).toString().padStart(2, '0');
+                          return (
+                            <React.Fragment key={hour}>
+                              <option value={`${hour}:00`}>{hour}:00</option>
+                              <option value={`${hour}:30`}>{hour}:30</option>
+                            </React.Fragment>
+                          );
+                        })}
                       </select>
                     </div>
-                    <div className="form-group" style={{ flex: 1 }}>
+
+                    <div className="form-group" style={{ margin: 0 }}>
                       <label>Serviço</label>
-                      <select className="select-custom" value={fsService} onChange={e => setFsService(e.target.value)} required>
-                        <option value="Treino Monitorado">Treino Monitorado</option>
-                        <option value="Treino Livre">Treino Livre</option>
-                        <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                      <select
+                        className="select-custom"
+                        value={fsService}
+                        onChange={e => setFsService(e.target.value)}
+                      >
+                        {/* Se tiver profissional específico, opções de Fisioterapia/Consulta */}
+                        {fsProfessional ? (
+                          <>
+                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                            <option value="Sessão de Fisioterapia">Sessão de Fisioterapia</option>
+                            <option value="Quiropraxia">Quiropraxia</option>
+                            <option value="Recovery / Bota">Recovery / Bota</option>
+                            <option value="Atendimento Individual">Atendimento Individual</option>
+                            <option value="Treino Monitorado">Treino Monitorado</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="Treino Monitorado">Treino Monitorado</option>
+                            <option value="Pilates">Pilates</option>
+                            <option value="Funcional">Funcional</option>
+                            <option value="Avaliação Física">Avaliação Física</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
 
-                  {/* Resumo visual dos dias/horários selecionados */}
-                  {fsSelectedDays.length > 0 && fsTime && (
-                    <div style={{ marginBottom: '15px', padding: '10px 14px', background: 'var(--bg-darker)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase' }}>
+                  {/* Prévia dos horários que serão criados */}
+                  {fsSelectedDays.length > 0 && (
+                    <div style={{
+                      padding: '10px 14px',
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      marginBottom: '15px',
+                      fontSize: '0.82rem'
+                    }}>
+                      <div style={{ fontWeight: 600, marginBottom: '6px', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Horários que serão fixados:
                       </div>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {fsSelectedDays.map(dayId => {
-                          const name = ['', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayId];
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {fsSelectedDays.map(d => {
+                          const daysShort = ['', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
                           return (
-                            <span key={dayId} style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.78rem', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                              🟢 {name} às {fsTime}
+                            <span
+                              key={d}
+                              style={{
+                                padding: '3px 8px',
+                                background: 'rgba(0, 184, 148, 0.12)',
+                                border: '1px solid rgba(0, 184, 148, 0.3)',
+                                borderRadius: '4px',
+                                color: 'var(--color-primary)',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <i className="fa-solid fa-circle" style={{ fontSize: '6px' }}></i>
+                              {daysShort[d]} às {fsTime}
                             </span>
                           );
                         })}
@@ -6824,64 +6876,73 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                     </div>
                   )}
 
-                  <div className="form-row" style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
-                    <div className="form-group" style={{ flex: 1 }}>
+                  {/* Data de Início e Duração */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '15px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
                       <label>Data de Início</label>
-                      <input type="date" className="form-control" value={fsDate} onChange={e => setFsDate(e.target.value)} required />
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={fsDate}
+                        onChange={e => setFsDate(e.target.value)}
+                        required
+                      />
                     </div>
-                    <div className="form-group" style={{ flex: 1 }}>
+
+                    <div className="form-group" style={{ margin: 0 }}>
                       <label>Tipo de Duração</label>
-                      <select className="select-custom" value={fsDurationType} onChange={e => setFsDurationType(e.target.value as any)} required>
+                      <select
+                        className="select-custom"
+                        value={fsDurationType}
+                        onChange={e => setFsDurationType(e.target.value as any)}
+                      >
                         <option value="contrato">Até o fim da vigência do contrato</option>
-                        <option value="manual">Definir data final manualmente</option>
-                        <option value="indeterminado">Sem data final (Indeterminado)</option>
+                        <option value="indeterminado">Sem data final (Fixar Contínuo)</option>
+                        <option value="manual">Definir data de término manual</option>
                       </select>
-                      {fsDurationType === 'contrato' && fsClient && (() => {
-                        const selObj = clients.find(c => c._id === fsClient);
-                        const com = selObj?.dadosComerciais || {};
-                        const hasRecurrence = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
-                        const venc = com.vencimento;
-
-                        if (hasRecurrence) {
-                          return (
-                            <div style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '0.76rem', fontWeight: 700, background: 'rgba(56, 189, 248, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-                              <i className="fa-solid fa-arrows-rotate fa-spin" style={{ fontSize: '0.7rem' }}></i>
-                              Recorrência Ativada (Vigência Contínua / Renovação Automática)
-                            </div>
-                          );
-                        }
-
-                        if (venc) {
-                          const isExpired = fsDate ? venc < fsDate : false;
-                          if (isExpired) {
-                            return (
-                              <div style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '0.76rem', fontWeight: 600, background: 'rgba(245, 158, 11, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-                                <i className="fa-solid fa-triangle-exclamation"></i>
-                                Plano expirou em {new Date(venc + 'T12:00:00').toLocaleDateString('pt-BR')} (Anterior ao início)
-                              </div>
-                            );
-                          }
-                          return (
-                            <div style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '0.76rem', fontWeight: 600 }}>
-                              <i className="fa-solid fa-circle-check"></i>
-                              Vigência do contrato: até {new Date(venc + 'T12:00:00').toLocaleDateString('pt-BR')}
-                            </div>
-                          );
-                        }
-
-                        return null;
-                      })()}
                     </div>
                   </div>
 
-                  {fsDurationType === 'manual' && (
-                    <div className="form-group" style={{ marginBottom: '15px' }}>
-                      <label>Data de Término Recorrente</label>
-                      <input type="date" className="form-control" value={fsManualEndDate} onChange={e => setFsManualEndDate(e.target.value)} required />
-                    </div>
-                  )}
+                  {/* Informação sobre vigência do contrato */}
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '5px' }}>
+                    {(() => {
+                      const selClient = clients.find(c => c._id === fsClient);
+                      if (!selClient) return null;
+
+                      if (fsDurationType === 'contrato') {
+                        if (selClient.dadosContratuais?.dataFim) {
+                          const df = selClient.dadosContratuais.dataFim;
+                          return (
+                            <div style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-shield-halved"></i>
+                              Regra válida até: <strong>{df.split('-').reverse().join('/')}</strong> (Fim do Contrato)
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div style={{ color: '#fdcb6e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-triangle-exclamation"></i>
+                              Aluno sem vigência cadastrada. Será fixado por 30 dias a partir da data de início.
+                            </div>
+                          );
+                        }
+                      }
+
+                      if (fsDurationType === 'indeterminado') {
+                        return (
+                          <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fa-solid fa-infinity"></i>
+                            Regra contínua gerada em lotes recorrentes de 30 dias.
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })()}
+                  </div>
                 </div>
-                <div className="modal-footer" style={{ padding: '15px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px' }}>
+
+                <div className="modal-footer" style={{ padding: '15px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px', flexShrink: 0, marginTop: 'auto' }}>
                   <button type="button" className="btn btn-secondary" style={{ flex: 1 }} disabled={isSavingFixedSched} onClick={() => setShowFixedSchedModal(false)}>Cancelar</button>
                   <button 
                     type="submit" 
