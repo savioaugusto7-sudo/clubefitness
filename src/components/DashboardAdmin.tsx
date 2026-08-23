@@ -4903,6 +4903,49 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                             Baixar Todas no Cartão (Datas de Vencimento)
                                           </button>
                                         )}
+                                        <button
+                                          className="btn btn-sm"
+                                          style={{
+                                            fontSize: '0.75rem',
+                                            padding: '4px 10px',
+                                            background: 'rgba(56, 189, 248, 0.12)',
+                                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                                            color: '#38bdf8',
+                                            fontWeight: 700,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer'
+                                          }}
+                                          title="Consultar status de todos os boletos deste aluno diretamente na API do Asaas"
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            try {
+                                              setLoadingPayments(true);
+                                              const res = await fetch('/api/admin/payments', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ action: 'sync_client_asaas', clientId: group.clientId })
+                                              });
+                                              const d = await res.json();
+                                              if (d.success) {
+                                                alert('Sincronização com o Asaas concluída com sucesso!');
+                                                await fetchPayments();
+                                                fetchData();
+                                              } else {
+                                                alert('Aviso: ' + (d.error || 'Nenhuma atualização pendente no Asaas.'));
+                                              }
+                                            } catch (err: any) {
+                                              alert('Erro ao sincronizar: ' + err.message);
+                                            } finally {
+                                              setLoadingPayments(false);
+                                            }
+                                          }}
+                                        >
+                                          <i className="fa-solid fa-rotate"></i>
+                                          Sincronizar Asaas
+                                        </button>
                                         {group.payments.some((p: any) => p.valor === 250 || p.formaPagamento === 'DINHEIRO' || p.formaPagamento === 'Dinheiro') && (
                                           <button
                                             className="btn btn-secondary btn-sm"
@@ -4945,10 +4988,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                               </td>
                                               <td style={{ textAlign: 'center' }}>
                                                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                                                  {p.status === 'Pendente' && p.formaPagamento !== 'Asaas' && (
+                                                  {p.status !== 'Pago' && (
                                                     <button
                                                       className="btn btn-primary btn-sm"
                                                       style={{ padding: '2px 8px', fontSize: '0.68rem' }}
+                                                      title="Confirmar Recebimento / Dar Baixa"
                                                       onClick={() => {
                                                         setSelectedPayment(p);
                                                         setMpFormaPag(p.formaPagamento);
@@ -4959,11 +5003,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                                       <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Receber
                                                     </button>
                                                   )}
-                                                  {p.status === 'Pendente' && p.formaPagamento === 'Asaas' && (
-                                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Integrado Asaas</span>
-                                                  )}
                                                   {p.status === 'Pago' && (
                                                     <span style={{ fontSize: '0.72rem', color: '#10b981' }}><i className="fa-solid fa-circle-check"></i> Recebido</span>
+                                                  )}
+                                                  {p.asaasInvoiceUrl && (
+                                                    <a
+                                                      href={p.asaasInvoiceUrl}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="btn btn-secondary btn-sm"
+                                                      style={{ padding: '2px 6px', fontSize: '0.68rem', color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)' }}
+                                                      title="Abrir fatura / boleto no Asaas"
+                                                    >
+                                                      <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                                                    </a>
                                                   )}
                                                   <button
                                                     className="btn btn-secondary btn-sm"

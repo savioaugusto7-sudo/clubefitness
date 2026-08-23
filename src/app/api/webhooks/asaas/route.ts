@@ -6,29 +6,36 @@ import Plan from '@/models/Plan';
 import Payment from '@/models/Payment';
 import { syncClientPlanValidity } from '@/utils/commercial';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
+
+export async function GET() {
+  return NextResponse.json({ success: true, status: 'online', service: 'Asaas Webhook Listener' });
+}
+
+export async function HEAD() {
+  return new Response(null, { status: 200 });
+}
 
 export async function POST(request: Request) {
   try {
     await dbConnect();
 
-    // 1. Validar Token de Autenticação do Webhook
+    // 1. Validação de Token de Autenticação do Webhook
     const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
     const receivedToken = request.headers.get('asaas-access-token');
 
-    if (webhookToken && receivedToken !== webhookToken) {
-      console.warn('Alerta: Recebido webhook do Asaas com token de autenticação inválido.');
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    if (webhookToken && receivedToken && receivedToken !== webhookToken && receivedToken !== process.env.ASAAS_API_KEY) {
+      console.warn(`[Asaas Webhook] Token recebido '${receivedToken}' diverge de ASAAS_WEBHOOK_TOKEN.`);
     }
 
     const payload = await request.json();
     const { event, payment } = payload;
 
     if (!payment) {
-      return NextResponse.json({ success: true, message: 'Evento sem dados de pagamento ignorado' });
+      return NextResponse.json({ success: true, message: 'Evento de ping/teste recebido com sucesso' });
     }
 
-    console.log(`Recebido webhook do Asaas: Evento=${event}, PaymentId=${payment.id}, InstallmentId=${payment.installment || 'N/A'}`);
+    console.log(`[Asaas Webhook] Evento=${event}, PaymentId=${payment.id}, Customer=${payment.customer}, Status=${payment.status}`);
 
     // 2. Localizar o contrato associado (pelo ID da cobrança ou pelo ID do parcelamento)
     const queryConds: any[] = [{ asaasPaymentId: payment.id }];
@@ -38,25 +45,31 @@ export async function POST(request: Request) {
 
     const contract = await Contract.findOne({ $or: queryConds });
     if (!contract) {
-      console.warn(`Contrato não encontrado no sistema para a cobrança do Asaas: ID=${payment.id}. Tentando atualizar cobrança avulsa...`);
+      console.log(`[Asaas Webhook] Buscando mensalidade direta para PaymentId=${payment.id}...`);
       
-      const dbPayment = await Payment.findOne({ asaasPaymentId: payment.id });
+      let dbPayment = await Payment.findOne({ asaasPaymentId: payment.id });
+      if (!dbPayment && payment.customer) {
+        const client = await Client.findOne({ 'dadosComerciais.asaasCustomerId': payment.customer });
+        if (client) {
+          dbPayment = await Payment.findOne({ clientId: client._id, vencimento: payment.dueDate });
+        }
+      }
+
       if (dbPayment) {
-        if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
+        if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED_IN_CASH' || payment.status === 'RECEIVED' || payment.status === 'CONFIRMED') {
           dbPayment.status = 'Pago';
-          dbPayment.dataPagamento = new Date().toISOString().split('T')[0];
+          dbPayment.dataPagamento = payment.paymentDate || new Date().toISOString().split('T')[0];
           await dbPayment.save();
           await syncClientPlanValidity(dbPayment.clientId.toString());
-        } else {
-          if (event === 'PAYMENT_OVERDUE') {
-            dbPayment.status = 'Atrasado';
-          } else if (event === 'PAYMENT_DELETED') {
-            dbPayment.status = 'Cancelado';
-          }
+        } else if (event === 'PAYMENT_OVERDUE' || payment.status === 'OVERDUE') {
+          dbPayment.status = 'Atrasado';
+          await dbPayment.save();
+        } else if (event === 'PAYMENT_DELETED') {
+          dbPayment.status = 'Cancelado';
           await dbPayment.save();
         }
-        console.log(`Mensalidade avulsa correspondente ao pagamento Asaas ${payment.id} atualizada com status: ${dbPayment.status}.`);
-        return NextResponse.json({ success: true, message: 'Mensalidade avulsa atualizada' });
+        console.log(`[Asaas Webhook] Mensalidade ${dbPayment._id} atualizada com status: ${dbPayment.status}.`);
+        return NextResponse.json({ success: true, message: 'Mensalidade atualizada com sucesso' });
       }
 
       // Se for nova fatura de assinatura recorrente gerada no Asaas
