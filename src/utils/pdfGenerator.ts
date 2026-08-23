@@ -3081,162 +3081,31 @@ const STRENGTH_REFERENCE_TABLE: Record<string, Record<string, { M: { min: number
 };
 
 /**
- * Renderizador de Mapeamento Anatômico Biomecânico em SVG (Vistas Anterior e Posterior)
- * Destaque colorido para articulações testadas e cinza/preto e branco para não testadas.
+ * Carregador de Imagens em Base64 para o Atlas Anatômico Médico de Alta Resolução
  */
-function renderAnatomyDualSVG(testedJoints: Set<string>): string {
-  const isTornozelo = testedJoints.has('Tornozelo');
-  const isJoelho = testedJoints.has('Joelho');
-  const isQuadril = testedJoints.has('Quadril') || testedJoints.has('Coluna / Tronco');
-  const isOmbro = testedJoints.has('Ombro') || testedJoints.has('Membro Superior');
-  const isCotovelo = testedJoints.has('Cotovelo');
-  const isPunho = testedJoints.has('Punho');
+async function getAnatomyAtlasBase64(): Promise<{ anterior: string; posterior: string }> {
+  const toBase64 = async (url: string): Promise<string> => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return url;
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(url);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return url;
+    }
+  };
 
-  const cTornozelo = isTornozelo ? '#ef4444' : '#cbd5e1';
-  const cJoelho = isJoelho ? '#22c55e' : '#cbd5e1';
-  const cQuadril = isQuadril ? '#eab308' : '#cbd5e1';
-  const cOmbro = isOmbro ? '#f97316' : '#cbd5e1';
-  const cCotovelo = isCotovelo ? '#3b82f6' : '#cbd5e1';
-  const cPunho = isPunho ? '#a855f7' : '#cbd5e1';
+  const [anterior, posterior] = await Promise.all([
+    toBase64('/images/anatomy/atlas_anterior.png'),
+    toBase64('/images/anatomy/atlas_posterior.png')
+  ]);
 
-  return `
-    <div style="display: flex; justify-content: space-around; align-items: center; gap: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 10px; margin-bottom: 14px;">
-      <!-- Vista Anterior (Frontal) -->
-      <div style="text-align: center; flex: 1;">
-        <span style="font-size: 8.5px; font-weight: 800; color: #475569; letter-spacing: 0.5px; text-transform: uppercase; display: block; margin-bottom: 6px;">
-          VISTA ANTERIOR (FRONTAL)
-        </span>
-        <svg viewBox="0 0 160 300" width="135" height="250" style="margin: 0 auto; display: block;">
-          <!-- Cabeça e Pescoço (Neutro) -->
-          <ellipse cx="80" cy="22" rx="14" ry="17" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
-          <path d="M 74 38 L 74 48 L 86 48 L 86 38 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
-
-          <!-- Ombro e Peitoral (4) -->
-          <path d="M 52 48 Q 80 54 108 48 L 118 78 Q 80 84 42 78 Z" fill="${cOmbro}" stroke="#64748b" stroke-width="1.2" opacity="${isOmbro ? 1 : 0.4}" />
-          <!-- Hotspot 4 (Ombro) -->
-          <circle cx="80" cy="62" r="8" fill="#f97316" stroke="#ffffff" stroke-width="1.5" />
-          <text x="80" y="65" font-size="7.5" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
-
-          <!-- Braço e Cotovelo (5) -->
-          <path d="M 42 78 L 32 120 L 44 122 L 52 82 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
-          <path d="M 118 78 L 128 120 L 116 122 L 108 82 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
-          <!-- Hotspot 5 (Cotovelo) -->
-          <circle cx="33" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
-          <text x="33" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
-          <circle cx="127" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
-          <text x="127" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
-
-          <!-- Antebraço e Punho (6) -->
-          <path d="M 32 120 L 22 165 L 30 167 L 44 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
-          <path d="M 128 120 L 138 165 L 130 167 L 116 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
-          <!-- Mãos -->
-          <ellipse cx="19" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <ellipse cx="141" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <!-- Hotspot 6 (Punho) -->
-          <circle cx="23" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
-          <text x="23" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
-          <circle cx="137" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
-          <text x="137" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
-
-          <!-- Quadril & Core (3) -->
-          <path d="M 52 82 Q 80 84 108 82 L 102 128 Q 80 134 58 128 Z" fill="${cQuadril}" stroke="#64748b" stroke-width="1.2" opacity="${isQuadril ? 1 : 0.4}" />
-          <!-- Hotspot 3 (Quadril) -->
-          <circle cx="80" cy="106" r="8" fill="#eab308" stroke="#ffffff" stroke-width="1.5" />
-          <text x="80" y="109" font-size="7.5" font-weight="bold" fill="#0f172a" text-anchor="middle">3</text>
-
-          <!-- Coxa e Joelho / Quadríceps (2) -->
-          <path d="M 58 128 L 52 195 L 68 195 L 78 132 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
-          <path d="M 102 128 L 108 195 L 92 195 L 82 132 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
-          <!-- Hotspot 2 (Joelho) -->
-          <circle cx="60" cy="192" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
-          <text x="60" y="195" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
-          <circle cx="100" cy="192" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
-          <text x="100" y="195" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
-
-          <!-- Perna e Tornozelo / Tibial (1) -->
-          <path d="M 52 195 L 56 265 L 66 265 L 68 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
-          <path d="M 108 195 L 104 265 L 94 265 L 92 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
-          <!-- Pés -->
-          <path d="M 54 265 L 48 276 L 68 276 L 66 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <path d="M 106 265 L 112 276 L 92 276 L 94 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <!-- Hotspot 1 (Tornozelo) -->
-          <circle cx="61" cy="260" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
-          <text x="61" y="262.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
-          <circle cx="99" cy="260" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
-          <text x="99" y="262.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
-        </svg>
-      </div>
-
-      <!-- Divisor Vertical Sutil -->
-      <div style="width: 1px; height: 220px; background: #cbd5e1;"></div>
-
-      <!-- Vista Posterior (Dorsal) -->
-      <div style="text-align: center; flex: 1;">
-        <span style="font-size: 8.5px; font-weight: 800; color: #475569; letter-spacing: 0.5px; text-transform: uppercase; display: block; margin-bottom: 6px;">
-          VISTA POSTERIOR (DORSAL)
-        </span>
-        <svg viewBox="0 0 160 300" width="135" height="250" style="margin: 0 auto; display: block;">
-          <!-- Cabeça e Trapézio Superior (Neutro) -->
-          <ellipse cx="80" cy="22" rx="14" ry="17" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
-          <path d="M 74 38 L 74 48 L 86 48 L 86 38 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
-
-          <!-- Dorso, Deltoide Posterior e Trapézio (4) -->
-          <path d="M 50 48 Q 80 52 110 48 L 118 84 Q 80 90 42 84 Z" fill="${cOmbro}" stroke="#64748b" stroke-width="1.2" opacity="${isOmbro ? 1 : 0.4}" />
-          <!-- Latíssimo do Dorso -->
-          <path d="M 52 84 Q 80 88 108 84 L 98 116 Q 80 120 62 116 Z" fill="${cOmbro}" stroke="#64748b" stroke-width="1.2" opacity="${isOmbro ? 1 : 0.4}" />
-          <!-- Hotspot 4 (Dorso / Ombro) -->
-          <circle cx="80" cy="74" r="8" fill="#f97316" stroke="#ffffff" stroke-width="1.5" />
-          <text x="80" y="77" font-size="7.5" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
-
-          <!-- Braço Posterior / Tríceps (5) -->
-          <path d="M 42 84 L 32 120 L 44 122 L 52 86 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
-          <path d="M 118 84 L 128 120 L 116 122 L 108 86 Z" fill="${cCotovelo}" stroke="#64748b" stroke-width="1.2" opacity="${isCotovelo ? 1 : 0.4}" />
-          <!-- Hotspot 5 (Tríceps) -->
-          <circle cx="33" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
-          <text x="33" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
-          <circle cx="127" cy="116" r="7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
-          <text x="127" y="118.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
-
-          <!-- Antebraço Posterior / Extensores (6) -->
-          <path d="M 32 120 L 22 165 L 30 167 L 44 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
-          <path d="M 128 120 L 138 165 L 130 167 L 116 122 Z" fill="${cPunho}" stroke="#64748b" stroke-width="1.2" opacity="${isPunho ? 1 : 0.4}" />
-          <ellipse cx="19" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <ellipse cx="141" cy="173" rx="5" ry="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <!-- Hotspot 6 (Extensores) -->
-          <circle cx="23" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
-          <text x="23" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
-          <circle cx="137" cy="162" r="6.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
-          <text x="137" y="164.5" font-size="6" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
-
-          <!-- Glúteos (3) -->
-          <path d="M 62 116 Q 80 120 98 116 L 102 144 Q 80 148 58 144 Z" fill="${cQuadril}" stroke="#64748b" stroke-width="1.2" opacity="${isQuadril ? 1 : 0.4}" />
-          <!-- Hotspot 3 (Glúteos) -->
-          <circle cx="80" cy="132" r="8" fill="#eab308" stroke="#ffffff" stroke-width="1.5" />
-          <text x="80" y="135" font-size="7.5" font-weight="bold" fill="#0f172a" text-anchor="middle">3</text>
-
-          <!-- Isquiotibiais / Posterior de Coxa (2) -->
-          <path d="M 58 144 L 54 195 L 70 195 L 78 146 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
-          <path d="M 102 144 L 106 195 L 90 195 L 82 146 Z" fill="${cJoelho}" stroke="#64748b" stroke-width="1.2" opacity="${isJoelho ? 1 : 0.4}" />
-          <!-- Hotspot 2 (Isquiotibiais) -->
-          <circle cx="62" cy="172" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
-          <text x="62" y="175" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
-          <circle cx="98" cy="172" r="7.5" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
-          <text x="98" y="175" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
-
-          <!-- Tríceps Sural / Panturrilha (1) -->
-          <path d="M 54 195 L 56 265 L 68 265 L 70 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
-          <path d="M 106 195 L 104 265 L 92 265 L 90 195 Z" fill="${cTornozelo}" stroke="#64748b" stroke-width="1.2" opacity="${isTornozelo ? 1 : 0.4}" />
-          <path d="M 56 265 L 52 276 L 68 276 L 68 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <path d="M 104 265 L 108 276 L 92 276 L 92 265 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
-          <!-- Hotspot 1 (Panturrilha) -->
-          <circle cx="62" cy="225" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
-          <text x="62" y="227.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
-          <circle cx="98" cy="225" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
-          <text x="98" y="227.5" font-size="6.5" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
-        </svg>
-      </div>
-    </div>
-  `;
+  return { anterior, posterior };
 }
 
 export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
@@ -3250,7 +3119,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const data = fmtDate(st.data || st.createdAt?.split('T')[0] || '');
   const peso = st.pesoCliente || client?.dadosMedidos?.peso || '-';
 
-  const logoBase64 = await getLogoBase64();
+  const [logoBase64, anatomyAtlas] = await Promise.all([
+    getLogoBase64(),
+    getAnatomyAtlasBase64()
+  ]);
 
   const pdfWrapper = document.createElement('div');
   pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:794px;opacity:0;z-index:99999;pointer-events:none;display:block;`;
@@ -3566,14 +3438,36 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           </div>
         </div>
 
-        <!-- 3. Mapeamento Anatômico Dual (Vistas Anterior e Posterior) -->
+        <!-- 3. Mapeamento Anatômico Médico de Alta Resolução (Nível Imagem 2 - Vistas Anterior e Posterior) -->
         <div class="section-card">
           <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Mapeamento Anatômico de Recrutamento e Força</span>
-            <span style="font-size: 7px; font-weight: 400; opacity: 0.85;">Destaque colorido nas articulações testadas</span>
+            <span>Mapeamento Anatômico de Recrutamento e Força Muscular</span>
+            <span style="font-size: 7px; font-weight: 400; opacity: 0.9;">Atlas Biomecânico de Alta Definição</span>
           </div>
-          <div class="section-card-content" style="padding: 6px;">
-            ${renderAnatomyDualSVG(testedJoints)}
+          <div class="section-card-content" style="padding: 10px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-around; align-items: flex-start; gap: 16px;">
+              
+              <!-- Card Atlas Vista Anterior (Frontal) -->
+              <div style="flex: 1; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; background: #fafafa;">
+                <span style="font-size: 8px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">
+                  VISTA ANTERIOR (FRONTAL)
+                </span>
+                <div style="width: 100%; max-width: 290px; margin: 0 auto; overflow: hidden; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                  <img src="${anatomyAtlas.anterior}" style="width: 100%; height: auto; max-height: 290px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Vista Anterior" />
+                </div>
+              </div>
+
+              <!-- Card Atlas Vista Posterior (Dorsal) -->
+              <div style="flex: 1; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; background: #fafafa;">
+                <span style="font-size: 8px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">
+                  VISTA POSTERIOR (DORSAL)
+                </span>
+                <div style="width: 100%; max-width: 290px; margin: 0 auto; overflow: hidden; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                  <img src="${anatomyAtlas.posterior}" style="width: 100%; height: auto; max-height: 290px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Vista Posterior" />
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
 
