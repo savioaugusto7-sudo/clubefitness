@@ -250,6 +250,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: payment });
     }
 
+    // A2. CONFIRM ALL CARD INSTALLMENTS (SET PAYMENT DATE TO DUE DATE)
+    if (action === 'confirm_all_card') {
+      const { clientId, formaPagamento } = body;
+      if (!clientId) {
+        return NextResponse.json({ success: false, error: 'clientId é obrigatório' }, { status: 400 });
+      }
+
+      const payments = await Payment.find({
+        clientId,
+        status: { $ne: 'Pago' }
+      });
+
+      if (payments.length === 0) {
+        return NextResponse.json({ success: true, count: 0, message: 'Nenhuma parcela pendente encontrada.' });
+      }
+
+      const fp = formaPagamento || 'Cartão Manual';
+      for (const p of payments) {
+        p.status = 'Pago';
+        p.formaPagamento = fp;
+        // Atribuir a cada parcela a sua respectiva data de vencimento
+        p.dataPagamento = p.vencimento || new Date().toISOString().split('T')[0];
+        await p.save();
+      }
+
+      // Atualizar status do contrato do cliente e sincronizar vigência
+      const client = await Client.findById(clientId);
+      if (client && client.dadosComerciais) {
+        client.dadosComerciais.status = 'ativo';
+        await client.save();
+        await syncClientPlanValidity(client._id);
+      }
+
+      return NextResponse.json({ success: true, count: payments.length });
+    }
+
     // B. SEARCH & LINK CLIENT TO ASAAS CUSTOMER
     if (action === 'asaas_search_link') {
       const { clientId, customCustomerId } = body;

@@ -1525,6 +1525,34 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     }
   };
 
+  const handleConfirmAllCardPayments = async (clientId: string, clientNome: string, count: number) => {
+    if (!confirm(`Deseja dar baixa em todas as ${count} parcelas de Cartão do aluno(a) ${clientNome}?\n\nCada parcela será registrada como PAGA com sua data de pagamento correspondente à respectiva data de vencimento.`)) return;
+    try {
+      setLoadingPayments(true);
+      const res = await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'confirm_all_card',
+          clientId,
+          formaPagamento: 'Cartão Manual'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`SUCESSO: ${data.count || count} parcela(s) de cartão foram quitadas com suas respectivas datas de vencimento!`);
+        await fetchPayments();
+        fetchData();
+      } else {
+        alert('Erro ao dar baixa nas parcelas: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Erro: ' + err.message);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
   const fetchPayments = async () => {
     setLoadingPayments(true);
     try {
@@ -4843,17 +4871,48 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               <tr>
                                 <td colSpan={7} style={{ padding: '0 0 20px 40px', background: 'rgba(0,0,0,0.15)' }}>
                                   <div style={{ padding: '16px', borderLeft: '3px solid var(--color-primary)', background: 'rgba(255,255,255,0.01)', borderRadius: '0 8px 8px 0' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 12px 0' }}>
-                                      <h4 style={{ margin: 0, fontSize: '0.88rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Extrato de Parcelas</h4>
-                                      {group.payments.some((p: any) => p.valor === 250 || p.formaPagamento === 'DINHEIRO' || p.formaPagamento === 'Dinheiro') && (
-                                        <button
-                                          className="btn btn-secondary btn-sm"
-                                          style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}
-                                          onClick={(e) => { e.stopPropagation(); handleClean250Payments(group.clientId, group.clientNome); }}
-                                        >
-                                          <i className="fa-solid fa-broom" style={{ marginRight: '6px' }}></i>Limpar Cobranças Indevidas (R$ 250,00)
-                                        </button>
-                                      )}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 12px 0', flexWrap: 'wrap', gap: '8px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <h4 style={{ margin: 0, fontSize: '0.88rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 600 }}>Extrato de Parcelas</h4>
+                                        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>({group.paidCount} de {group.totalCount} pagas)</span>
+                                      </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        {group.payments.some((p: any) => p.status !== 'Pago') && (
+                                          <button
+                                            className="btn btn-sm"
+                                            style={{
+                                              fontSize: '0.75rem',
+                                              padding: '4px 10px',
+                                              background: 'rgba(16, 185, 129, 0.12)',
+                                              border: '1px solid rgba(16, 185, 129, 0.35)',
+                                              color: '#10b981',
+                                              fontWeight: 700,
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '6px',
+                                              borderRadius: '6px',
+                                              cursor: 'pointer'
+                                            }}
+                                            title="Quitar todas as parcelas pendentes com a respectiva data de vencimento de cada uma"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleConfirmAllCardPayments(group.clientId, group.clientNome, group.payments.filter((p: any) => p.status !== 'Pago').length);
+                                            }}
+                                          >
+                                            <i className="fa-solid fa-credit-card"></i>
+                                            Baixar Todas no Cartão (Datas de Vencimento)
+                                          </button>
+                                        )}
+                                        {group.payments.some((p: any) => p.valor === 250 || p.formaPagamento === 'DINHEIRO' || p.formaPagamento === 'Dinheiro') && (
+                                          <button
+                                            className="btn btn-secondary btn-sm"
+                                            style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}
+                                            onClick={(e) => { e.stopPropagation(); handleClean250Payments(group.clientId, group.clientNome); }}
+                                          >
+                                            <i className="fa-solid fa-broom" style={{ marginRight: '6px' }}></i>Limpar Cobranças Indevidas (R$ 250,00)
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                     <table className="data-table" style={{ width: '100%', fontSize: '0.82rem' }}>
                                       <thead>
