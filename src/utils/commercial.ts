@@ -20,10 +20,20 @@ export async function syncClientPlanValidity(clientId: string): Promise<void> {
       status: 'Pago'
     }).sort({ vencimento: 1 });
 
-    const N = paidPayments.length;
-    
-    // Project cycles: if 0 paid payments, they are in their 1st cycle, so we keep at least 1 cycle validity.
-    const cycles = Math.max(1, N);
+    let cycles = 1;
+    if (paidPayments.length > 0) {
+      const lastPaid = paidPayments[paidPayments.length - 1];
+      const lastPaidDateStr = lastPaid.vencimento || lastPaid.dataPagamento;
+      if (lastPaidDateStr) {
+        const dStr = (lastPaidDateStr.includes('T') ? lastPaidDateStr.split('T')[0] : lastPaidDateStr);
+        const lastPaidDate = new Date(dStr + 'T00:00:00');
+        const baseD = new Date((com.dataInicio || dStr) + 'T00:00:00');
+        const monthDiff = (lastPaidDate.getFullYear() - baseD.getFullYear()) * 12 + (lastPaidDate.getMonth() - baseD.getMonth()) + 1;
+        cycles = Math.max(1, monthDiff);
+      } else {
+        cycles = Math.max(1, paidPayments.length);
+      }
+    }
 
     // Calculate new validity end date (+cycles relative to dataInicio)
     // "vigencia comercial atualizada deve ser atrelada a data de inicio, nao deve ser relacionada a data de vencimento e nem pagamento"
@@ -48,7 +58,7 @@ export async function syncClientPlanValidity(clientId: string): Promise<void> {
     // Update the client commercial validity vencimento
     com.vencimento = nextValidityIso;
     await client.save();
-    console.log(`[syncClientPlanValidity] Client ${client.dadosPessoais?.nome || clientId} validity updated to ${nextValidityIso} based on ${N} paid payments from start date ${baseDateStr}`);
+    console.log(`[syncClientPlanValidity] Client ${client.dadosPessoais?.nome || clientId} validity updated to ${nextValidityIso} based on ${paidPayments.length} paid payments from start date ${baseDateStr}`);
   } catch (error) {
     console.error('Error syncing client plan validity:', error);
   }

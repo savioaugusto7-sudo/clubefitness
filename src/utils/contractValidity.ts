@@ -25,6 +25,10 @@ export interface ContractValidityInfo {
   hasOverdueInstallment?: boolean;
   isEndOfRecurrenceCycle?: boolean;
   recorrenciaMeses?: number;
+  isWithinTolerance?: boolean;
+  toleranceDaysLeft?: number;
+  overdueDays?: number;
+  canSchedule?: boolean;
   isLead?: boolean;
   isUncontracted?: boolean;
 }
@@ -210,6 +214,23 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     // 🅰️ CASO 1: SEM RECORRÊNCIA (Planos Fechados: À vista, Parcelado 10x/12x)
     // A Data Fim é 100% INDEPENDENTE dos pagamentos! (Data Início + Duração)
     // =========================================================================
+    let isWithinTolerance = false;
+    let toleranceDaysLeft = 0;
+    let overdueDays = 0;
+
+    if (hasOverdueInstallment && atrasadas.length > 0) {
+      const earliestOverdue = [...atrasadas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''))[0];
+      if (earliestOverdue?.vencimento) {
+        const overD = safeParseDate(earliestOverdue.vencimento);
+        overD.setHours(0, 0, 0, 0);
+        overdueDays = Math.max(1, Math.ceil((today.getTime() - overD.getTime()) / (1000 * 60 * 60 * 24)));
+        if (overdueDays <= 5) {
+          isWithinTolerance = true;
+          toleranceDaysLeft = Math.max(0, 5 - overdueDays);
+        }
+      }
+    }
+
     if (!isRecorrente) {
       dataFim = isDynamus ? dataFimCicloTotal : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
       const endD = safeParseDate(dataFim);
@@ -224,45 +245,38 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
         daysLeftText = `Vencido há ${Math.abs(daysLeft)}d`;
       } else if (isExpiringSoon) {
         daysLeftText = daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft}d`;
+      } else if (isWithinTolerance) {
+        daysLeftText = `Tolerância • ${toleranceDaysLeft}d restantes`;
       } else if (hasOverdueInstallment) {
-        daysLeftText = `Parcela em atraso • ${daysLeft}d restantes`;
+        daysLeftText = `Parcela em atraso (${overdueDays}d) • ${daysLeft}d restantes`;
       } else {
         daysLeftText = `${daysLeft}d restantes`;
       }
     } else {
       // =========================================================================
       // 🅱️ CASO 2: COM RECORRÊNCIA ATIVADA (Assinatura Mensal Contínua)
+      // A ÂNCORA É SEMPRE O DIA DA DATA DE INÍCIO (ex: dia 01, dia 24)
+      // O pagamento da mensalidade é o START para estender +1 ciclo a partir da âncora
       // =========================================================================
-      let dynamicAccessEndStr = '';
-      
-      // Buscar próxima parcela a vencer no futuro ou estender pelo vencimento da última parcela paga + 1 mês
-      const nextPending = (Array.isArray(paymentsList) ? paymentsList : [])
-        .filter((p: any) => !isPaidStatus(p.status) && p.vencimento && p.vencimento >= todayStr)
-        .sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''))[0];
+      const startD = safeParseDate(dataInicio);
+      let cyclesUnlocked = 1;
 
-      if (nextPending && nextPending.vencimento) {
-        dynamicAccessEndStr = safeFormatYYYYMMDD(safeParseDate(nextPending.vencimento));
-      } else if (pagas.length > 0) {
+      if (pagas.length > 0) {
         const pagasSorted = [...pagas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''));
         const lastPaid = pagasSorted[pagasSorted.length - 1];
         if (lastPaid?.vencimento) {
-          const lastD = safeParseDate(lastPaid.vencimento);
-          lastD.setMonth(lastD.getMonth() + 1);
-          dynamicAccessEndStr = safeFormatYYYYMMDD(lastD);
-        }
-      }
-
-      if (!dynamicAccessEndStr) {
-        if (com.vencimento && com.vencimento >= todayStr) {
-          dynamicAccessEndStr = safeFormatYYYYMMDD(safeParseDate(com.vencimento));
+          const lastPaidDate = safeParseDate(lastPaid.vencimento);
+          const monthDiff = (lastPaidDate.getFullYear() - startD.getFullYear()) * 12 + (lastPaidDate.getMonth() - startD.getMonth()) + 1;
+          cyclesUnlocked = Math.max(1, monthDiff);
         } else {
-          const startD = safeParseDate(dataInicio);
-          startD.setMonth(startD.getMonth() + 1);
-          dynamicAccessEndStr = safeFormatYYYYMMDD(startD);
+          cyclesUnlocked = Math.max(1, pagas.length);
         }
       }
 
-      dataFim = dynamicAccessEndStr;
+      const cycleEndD = new Date(startD);
+      cycleEndD.setMonth(cycleEndD.getMonth() + cyclesUnlocked);
+      dataFim = safeFormatYYYYMMDD(cycleEndD);
+
       const endD = safeParseDate(dataFim);
       endD.setHours(0, 0, 0, 0);
       const diffTime = endD.getTime() - today.getTime();
@@ -271,12 +285,14 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       isExpired = false;
       isExpiringSoon = false;
 
-      if (hasOverdueInstallment) {
-        daysLeftText = 'Mensalidade em atraso';
+      if (isWithinTolerance) {
+        daysLeftText = `Tolerância de 5d • ${toleranceDaysLeft}d restantes`;
+      } else if (hasOverdueInstallment) {
+        daysLeftText = `Mensalidade em atraso há ${overdueDays}d`;
       } else if (daysLeft >= 0) {
-        daysLeftText = daysLeft === 0 ? 'Próx. Parcela vence hoje' : `Próx. Parcela em ${daysLeft}d`;
+        daysLeftText = `Ciclo ativo até ${formatPtBr(dataFim)}`;
       } else {
-        daysLeftText = `Mensalidade venceu há ${Math.abs(daysLeft)}d`;
+        daysLeftText = `Ciclo encerrado em ${formatPtBr(dataFim)}`;
       }
     }
 
@@ -299,12 +315,18 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       badgeColor = '#f59e0b';
       badgeBg = 'rgba(245, 158, 11, 0.12)';
       badgeBorder = 'rgba(245, 158, 11, 0.3)';
+    } else if (isWithinTolerance) {
+      statusKey = 'ativo';
+      statusLabel = `Tolerância Ativa (${toleranceDaysLeft}d)`;
+      badgeColor = '#eab308';
+      badgeBg = 'rgba(234, 179, 8, 0.15)';
+      badgeBorder = 'rgba(234, 179, 8, 0.4)';
     } else if (hasOverdueInstallment) {
       statusKey = 'ativo';
       statusLabel = 'Vigente • Parcela em Atraso';
-      badgeColor = '#eab308';
-      badgeBg = 'rgba(234, 179, 8, 0.12)';
-      badgeBorder = 'rgba(234, 179, 8, 0.3)';
+      badgeColor = '#f97316';
+      badgeBg = 'rgba(249, 115, 22, 0.12)';
+      badgeBorder = 'rgba(249, 115, 22, 0.3)';
     }
 
     if (statusSaved === 'finalizado') {
@@ -350,6 +372,10 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       dataFimCicloTotalFormatted: formatPtBr(dataFimCicloTotal),
       isExpired,
       isExpiringSoon,
+      isWithinTolerance,
+      toleranceDaysLeft,
+      overdueDays,
+      canSchedule: !isExpired && (!hasOverdueInstallment || isWithinTolerance),
       daysLeft,
       daysLeftText,
       statusKey,
