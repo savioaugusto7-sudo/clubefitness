@@ -5312,7 +5312,8 @@ export default function GestaoContratosPanel({
       {consultingClient && (() => {
         const com = consultingClient.dadosComerciais || {};
         const plan = plans.find(p => p._id === (com.planoId?._id || com.planoId));
-        const info = getContractValidityInfo(consultingClient, plan);
+        const clientPy = allPaymentsMap[consultingClient._id] || [];
+        const info = getContractValidityInfo(consultingClient, plan, clientPy);
 
         const rawTel = (consultingClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
         const firstName = (consultingClient.dadosPessoais?.nome || 'Aluno').split(' ')[0];
@@ -5354,29 +5355,32 @@ export default function GestaoContratosPanel({
                   }
 
                   return (
-                    <div style={{ background: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h4 style={{ margin: '0 0 4px', fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>
                           {consultingClient.dadosPessoais?.nome || 'Sem Nome'}
                         </h4>
-                        <div style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                           CPF: <strong style={{ color: '#ffffff' }}>{consultingClient.dadosPessoais?.cpf || '—'}</strong>
                           {consultingClient.dadosPessoais?.telefone && ` • Tel: ${consultingClient.dadosPessoais.telefone}`}
                           {birthDateFormatted && ` • Nascimento: ${birthDateFormatted}`}
                         </div>
                         {consultingClient.dadosPessoais?.email && (
-                          <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                             E-mail: {consultingClient.dadosPessoais.email}
                           </div>
                         )}
                       </div>
+
+                      {/* Badge de Status Oficial Unificado */}
                       <span style={{
-                        background: info.statusKey === 'ativo' ? '#065f46' : info.statusKey === 'vencido' ? '#991b1b' : info.statusKey === 'congelado' ? '#92400e' : '#334155',
-                        color: '#ffffff',
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.74rem',
-                        fontWeight: 750,
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        background: info.badgeBg,
+                        color: info.badgeColor,
+                        border: `1px solid ${info.badgeBorder}`,
                         letterSpacing: '0.4px',
                         textTransform: 'uppercase'
                       }}>
@@ -5428,7 +5432,11 @@ export default function GestaoContratosPanel({
                           <div>
                             <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Duração / Modalidade</div>
                             <strong style={{ fontSize: '0.95rem', color: isDynamus ? '#22d3ee' : 'var(--text-main)', textTransform: 'capitalize' }}>
-                              {isDynamus ? (isSemestral ? 'Semestral (6 meses)' : 'Anual (12 meses)') : `${com.duracao || 'Mensal'} ${com.duracaoQtd ? `(${com.duracaoQtd}x)` : ''}`}
+                              {isDynamus 
+                                ? (isSemestral ? 'Semestral (6 meses)' : 'Anual (12 meses)') 
+                                : info.recorrenciaMeses && info.recorrenciaMeses > 1 
+                                  ? `Recorrência (${info.recorrenciaMeses} meses)` 
+                                  : `${com.duracao || 'Mensal'} ${com.duracaoQtd ? `(${com.duracaoQtd}x)` : ''}`}
                             </strong>
                           </div>
                           <div>
@@ -5438,7 +5446,7 @@ export default function GestaoContratosPanel({
                             </strong>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Vencimento Final</div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Acesso Liberado Até</div>
                             <strong style={{ fontSize: '0.92rem', color: info.isExpired ? '#ef4444' : info.isExpiringSoon ? '#f59e0b' : '#10b981' }}>
                               {info.dataFimFormatted}
                               {info.daysLeftText && ` (${info.daysLeftText})`}

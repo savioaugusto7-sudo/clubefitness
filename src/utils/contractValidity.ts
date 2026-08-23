@@ -171,15 +171,18 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     let duracao = isAnual ? 'anual' : (com.duracao || 'mensal');
     let vigenciaQtd = isDynamus ? 1 : (Number(com.duracaoQtd) || Number(com.vigenciaQtd) || 1);
     const dataInicioRaw = com.dataInicio || client?.createdAt || new Date();
-    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+    const isMultiParcelas = Array.isArray(paymentsList) && paymentsList.length > 1;
+    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia || isMultiParcelas || Number(com.parcelas) > 1);
 
     const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    // 1. DATA FIM DA RECORRÊNCIA (Ciclo Contratual Total de 12 Meses)
-    // Para planos recorrentes: calcula a partir de recorrenciaMeses (padrão 12 meses)
-    let dataFimRecorrencia = '';
-    const recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
+    // 1. DATA FIM DA RECORRÊNCIA (Ciclo Contratual Total de 12 Meses ou Total de Parcelas)
+    let recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
+    if (isMultiParcelas && paymentsList.length > recorrenciaMeses) {
+      recorrenciaMeses = paymentsList.length;
+    }
 
+    let dataFimRecorrencia = '';
     if (isRecorrente) {
       const startD = safeParseDate(dataInicio);
       const recEndD = new Date(startD);
@@ -191,25 +194,37 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     const dataFimCicloTotal = dataFimRecorrencia;
 
     // 2. DATA FIM DO MÊS (Vigência de Acesso Mensal liberada pelas parcelas pagas)
-    // O ciclo de acesso é SEMPRE calculado a partir da Data de Início (dataInicio)
     let dynamicEndDate: string | null = null;
     let parcelasInfo = '';
     let hasOverdueInstallment = false;
     let isEndOfRecurrenceCycle = false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = safeFormatYYYYMMDD(today);
 
     if (isRecorrente) {
       const startD = safeParseDate(dataInicio);
       const accessEndD = new Date(startD);
 
       if (Array.isArray(paymentsList) && paymentsList.length > 0) {
-        // Considerar pagamentos vinculados ao contrato atual (a partir da data de início)
         const thresholdDate = new Date(startD);
         thresholdDate.setDate(thresholdDate.getDate() - 25);
         const thresholdStr = safeFormatYYYYMMDD(thresholdDate);
 
-        const currentContractPayments = paymentsList.filter((p: any) => (p.vencimento || '') >= thresholdStr);
-        const pagas = currentContractPayments.filter((p: any) => p.status === 'Pago');
-        const atrasadas = currentContractPayments.filter((p: any) => p.status === 'Atrasado');
+        const currentContractPayments = paymentsList.filter((p: any) => (p.vencimento || '') >= thresholdStr || !p.vencimento);
+        const isPaidStatus = (s: string) => {
+          const st = (s || '').toLowerCase();
+          return st === 'pago' || st === 'received' || st === 'confirmed' || st === 'received_in_cash' || st === 'recebido';
+        };
+
+        const pagas = currentContractPayments.filter((p: any) => isPaidStatus(p.status));
+        // Parcela em atraso: somente se estiver com status Atrasado OU com vencimento no passado
+        const atrasadas = currentContractPayments.filter((p: any) => {
+          if (isPaidStatus(p.status)) return false;
+          if (p.status === 'Atrasado' || p.status === 'OVERDUE') return true;
+          return p.vencimento && p.vencimento < todayStr;
+        });
 
         parcelasInfo = `${pagas.length}/${currentContractPayments.length || recorrenciaMeses} pagas`;
 
@@ -217,14 +232,40 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
           hasOverdueInstallment = true;
         }
 
-        // Cada parcela paga do contrato atual estende +1 mês a partir da data de início
-        const mesesLiberados = Math.min(recorrenciaMeses, Math.max(1, pagas.length));
-        accessEndD.setMonth(accessEndD.getMonth() + mesesLiberados);
-        dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
+        // Buscar próxima parcela a vencer no futuro ou estender pelo total de parcelas pagas
+        const nextPending = currentContractPayments
+          .filter((p: any) => !isPaidStatus(p.status) && p.vencimento && p.vencimento >= todayStr)
+          .sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''))[0];
+
+        if (nextPending && nextPending.vencimento) {
+          // Acesso liberado até a data de vencimento da próxima parcela
+          dynamicEndDate = safeFormatYYYYMMDD(safeParseDate(nextPending.vencimento));
+        } else if (pagas.length > 0) {
+          // Última parcela paga + 1 mês
+          const pagasSorted = [...pagas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''));
+          const lastPaid = pagasSorted[pagasSorted.length - 1];
+          if (lastPaid?.vencimento) {
+            const lastD = safeParseDate(lastPaid.vencimento);
+            lastD.setMonth(lastD.getMonth() + 1);
+            dynamicEndDate = safeFormatYYYYMMDD(lastD);
+          } else {
+            const mesesLiberados = Math.min(recorrenciaMeses, Math.max(1, pagas.length));
+            accessEndD.setMonth(accessEndD.getMonth() + mesesLiberados);
+            dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
+          }
+        } else {
+          // Ciclo inicial: 1 mês a partir da data de início
+          accessEndD.setMonth(accessEndD.getMonth() + 1);
+          dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
+        }
       } else {
-        // Ciclo inicial: 1 mês a partir da data de início
-        accessEndD.setMonth(accessEndD.getMonth() + 1);
-        dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
+        // Se for recorrente ativo sem lista de pagamentos passada, usar com.vencimento se futuro
+        if (com.vencimento && com.vencimento >= todayStr) {
+          dynamicEndDate = safeFormatYYYYMMDD(safeParseDate(com.vencimento));
+        } else {
+          accessEndD.setMonth(accessEndD.getMonth() + (Number(com.duracaoQtd) || 1));
+          dynamicEndDate = safeFormatYYYYMMDD(accessEndD);
+        }
       }
     }
 
@@ -232,9 +273,6 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     let dataFim = isDynamus
       ? dataFimCicloTotal
       : (dynamicEndDate || calculateContractEndDate(dataInicio, duracao, vigenciaQtd, com.vencimento, isRecorrente));
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
     const endD = safeParseDate(dataFim);
     endD.setHours(0, 0, 0, 0);
