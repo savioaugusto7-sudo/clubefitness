@@ -3543,6 +3543,28 @@ export default function GestaoContratosPanel({
 
                               <button
                                 type="button"
+                                onClick={() => handleOpenSalesWizard(c)}
+                                style={{
+                                  background: 'rgba(234, 179, 8, 0.12)',
+                                  border: '1px solid rgba(234, 179, 8, 0.4)',
+                                  color: '#fbbf24',
+                                  padding: '6px 8px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                                title="Gerar Link de Venda / Proposta Comercial"
+                              >
+                                <i className="fa-solid fa-bolt" style={{ color: '#fbbf24' }}></i> Link
+                              </button>
+
+                              <button
+                                type="button"
                                 onClick={() => handleOpenDirectContractWizard(c)}
                               style={{
                                 background: '#1e293b',
@@ -4783,17 +4805,9 @@ export default function GestaoContratosPanel({
                   className="btn btn-secondary"
                   disabled={generatingProposal || issuingContract}
                   style={{ flex: 1, minWidth: '140px', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', opacity: (generatingProposal || issuingContract) ? 0.6 : 1 }}
-                  onClick={() => handleGenerateProposalLink()}
+                  onClick={() => handleOpenSalesWizard(selectedClient)}
                 >
-                  {generatingProposal ? (
-                    <>
-                      <i className="fa-solid fa-spinner fa-spin"></i> Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fa-solid fa-share-nodes"></i> Gerar Link de Venda
-                    </>
-                  )}
+                  <i className="fa-solid fa-bolt"></i> Gerar Link de Venda
                 </button>
                 <button
                   type="button"
@@ -5653,6 +5667,65 @@ export default function GestaoContratosPanel({
               </div>
 
               <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '78vh', overflowY: 'auto' }}>
+                {/* Resumo Inteligente do Contexto do Aluno */}
+                {(() => {
+                  const com = salesWizardClient.dadosComerciais || {};
+                  const isFinalizado = com.status === 'finalizado' || (com.vencimento && new Date(com.vencimento + 'T23:59:59') < new Date() && com.status !== 'ativo');
+                  const isAtivo = com.status === 'ativo' && (!com.vencimento || new Date(com.vencimento + 'T23:59:59') >= new Date());
+                  const hasPrevious = Boolean(com.planoId || com.valorUnitario || com.dataInicio || (salesWizardClient.historicoContratos && salesWizardClient.historicoContratos.length > 0));
+
+                  if (isFinalizado) {
+                    return (
+                      <div style={{ background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '10px', padding: '12px', fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <strong style={{ color: '#fbbf24', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fa-solid fa-flag-checkered"></i> Último Contrato Finalizado / Anterior
+                          </strong>
+                          <span style={{ fontSize: '0.7rem', background: '#eab308', color: '#000', fontWeight: 800, padding: '1px 6px', borderRadius: '4px' }}>
+                            {com.status === 'finalizado' ? 'Não Renovou' : 'Expirado'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', color: '#cbd5e1' }}>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Plano: </span><strong style={{ color: '#fff' }}>{com.planoId?.nome || com.planoNome || 'Tratamento Personalizado'}</strong></div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Período: </span>{com.dataInicio || '-'} até {com.vencimento || '-'}</div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Condição: </span>R$ {Number(com.valorUnitario || 0).toFixed(2)} ({String(com.formaPagamento || 'PIX').toUpperCase()})</div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Uso: </span>{com.creditosUsados || 0} de {com.creditosTotal || 0} créditos</div>
+                        </div>
+                        <div style={{ marginTop: '8px', fontSize: '0.72rem', color: '#94a3b8', borderTop: '1px dashed rgba(234, 179, 8, 0.2)', paddingTop: '6px' }}>
+                          ✨ <em>Ao gerar e fechar a nova venda pelo link, o contrato anterior será arquivado automaticamente no Histórico de Serviços.</em>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (isAtivo) {
+                    return (
+                      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '12px', fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <strong style={{ color: '#34d399', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fa-solid fa-circle-check"></i> Contrato Ativo Vigente
+                          </strong>
+                          <span style={{ fontSize: '0.7rem', background: '#10b981', color: '#000', fontWeight: 800, padding: '1px 6px', borderRadius: '4px' }}>
+                            Vigente
+                          </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', color: '#cbd5e1' }}>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Plano: </span><strong style={{ color: '#fff' }}>{com.planoId?.nome || 'Plano Atual'}</strong></div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Vigência até: </span>{com.vencimento || '-'}</div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Valor: </span>R$ {Number(com.valorUnitario || 0).toFixed(2)}</div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Saldo: </span>{Math.max(0, (com.creditosTotal || 0) - (com.creditosUsados || 0))} créditos</div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{ background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '10px', padding: '10px 12px', fontSize: '0.8rem', color: '#c084fc' }}>
+                      <i className="fa-solid fa-star"></i> <strong>Primeiro Contrato do Aluno:</strong> Este aluno ainda não possui contratos registrados.
+                    </div>
+                  );
+                })()}
+
                 <div style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.25)', borderRadius: '10px', padding: '12px', fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
                   💡 <strong>Como funciona:</strong> Informe os dados comerciais acordados. O aluno receberá o link exclusivo para escolher as parcelas (até 12x), a forma de pagamento (Pix/Cartão/Boleto) e o 1º vencimento no próprio smartphone!
                 </div>
