@@ -633,10 +633,7 @@ export async function downloadReportPDF(report: any) {
 
     let termografiaHtml = 'Não realizada.';
     if (tImg && tImg.realizou === 'sim') {
-      termografiaHtml = 'Realizada.';
-      if (tImg.imagemB64) {
-        termografiaHtml += `<br><img src="${tImg.imagemB64}" style="max-height:160px; margin-top:8px; border-radius:4px; border:1px solid #cbd5e1; display:block;">`;
-      }
+      termografiaHtml = 'Realizada (Anexo visual na página final do documento).';
     }
 
     let yTestHtml = 'Não realizado.';
@@ -1299,8 +1296,66 @@ export async function downloadReportPDF(report: any) {
 
   const hasAttachedPdf = !!report.pdf_url;
   const hasExamesPdfs = report.examesComplementares && report.examesComplementares.length > 0;
+  const tImgVal = report.termografia;
+  const rawTermoB64 = (tImgVal && tImgVal.realizou === 'sim' && (tImgVal.imagemB64 || tImgVal.imagemUrl)) ? (tImgVal.imagemB64 || tImgVal.imagemUrl) : '';
+  const hasTermografiaImage = Boolean(rawTermoB64 && String(rawTermoB64).startsWith('data:image'));
 
-  if (hasAttachedPdf || hasExamesPdfs) {
+  // ===== Helper para construir a Página de Anexo de Termografia via PDFLib =====
+  async function buildPhysioTermoPagePdf(): Promise<Uint8Array | null> {
+    if (!hasTermografiaImage) return null;
+    try {
+      if (typeof PDFLib === 'undefined') return null;
+      const { PDFDocument, rgb, StandardFonts } = PDFLib;
+      const termoDoc = await PDFDocument.create();
+      const page = termoDoc.addPage([595.28, 841.89]); // A4 portrait
+      const fontBold = await termoDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontRegular = await termoDoc.embedFont(StandardFonts.Helvetica);
+
+      // Header
+      page.drawText('ANEXO VISUAL: MAPEAMENTO POR TERMOGRAFIA', { x: 40, y: 800, size: 13, font: fontBold, color: rgb(0.05, 0.58, 0.53) });
+      const clientName = client.dadosPessoais?.nome || 'Aluno';
+      page.drawText(`Aluno(a): ${clientName}   |   Data da Avaliação: ${formatDate(report.data)}`, { x: 40, y: 784, size: 8.5, font: fontRegular, color: rgb(0.3, 0.3, 0.3) });
+
+      // Divider line
+      page.drawLine({
+        start: { x: 40, y: 774 },
+        end: { x: 555.28, y: 774 },
+        thickness: 1,
+        color: rgb(0.85, 0.88, 0.92)
+      });
+
+      // Embed Image
+      const imgData = String(rawTermoB64);
+      let embeddedImg;
+      if (imgData.startsWith('data:image/png')) {
+        const b64 = imgData.split(',')[1];
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        embeddedImg = await termoDoc.embedPng(bytes);
+      } else {
+        const b64 = imgData.split(',')[1];
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        embeddedImg = await termoDoc.embedJpg(bytes);
+      }
+
+      const maxW = 515, maxH = 680;
+      const dim = embeddedImg.scaleToFit(maxW, maxH);
+      const imgX = (595.28 - dim.width) / 2;
+      const imgY = 750 - dim.height;
+      page.drawImage(embeddedImg, { x: imgX, y: Math.max(35, imgY), width: dim.width, height: dim.height });
+
+      // Footer
+      page.drawText('Clube Fitness — Mapeamento Termográfico em Alta Resolução', { x: 40, y: 15, size: 7, font: fontRegular, color: rgb(0.5, 0.5, 0.5) });
+
+      return await termoDoc.save();
+    } catch (e) {
+      console.error('Erro ao criar página de termografia do relatório:', e);
+      return null;
+    }
+  }
+
+  const needsMerge = hasAttachedPdf || hasExamesPdfs || hasTermografiaImage;
+
+  if (needsMerge) {
     html2pdf().set(options).from(pdfContainer).output('arraybuffer').then(async (pdfSystemBuffer: any) => {
       try {
         safeRemoveWrapper(pdfWrapper);
@@ -1313,10 +1368,22 @@ export async function downloadReportPDF(report: any) {
         const { PDFDocument } = PDFLib;
         const mergedPdf = await PDFDocument.create();
 
+        // 1. Páginas do sistema (Relatório de Fisioterapia)
         const systemPdfDoc = await PDFDocument.load(pdfSystemBuffer);
         const systemPages = await mergedPdf.copyPages(systemPdfDoc, systemPdfDoc.getPageIndices());
         systemPages.forEach((page: any) => mergedPdf.addPage(page));
 
+        // 2. Página de Anexo da Termografia (se houver imagem anexada)
+        if (hasTermografiaImage) {
+          const termoBytes = await buildPhysioTermoPagePdf();
+          if (termoBytes) {
+            const termoDoc = await PDFDocument.load(termoBytes);
+            const termoPages = await mergedPdf.copyPages(termoDoc, termoDoc.getPageIndices());
+            termoPages.forEach((page: any) => mergedPdf.addPage(page));
+          }
+        }
+
+        // 3. PDF de Avaliação Postural ou Anexo Geral (se houver)
         if (hasAttachedPdf) {
           const attachedBlob = base64ToBlob(report.pdf_url, 'application/pdf');
           const attachedPdfBuffer = await attachedBlob.arrayBuffer();
@@ -1325,6 +1392,7 @@ export async function downloadReportPDF(report: any) {
           attachedPages.forEach((page: any) => mergedPdf.addPage(page));
         }
 
+        // 4. Exames Complementares (Laudos em PDF)
         if (hasExamesPdfs) {
           for (const exame of report.examesComplementares) {
             if (exame.pdfB64) {
@@ -1346,7 +1414,7 @@ export async function downloadReportPDF(report: any) {
         triggerDirectDownload(mergedBlob, options.filename);
       } catch (error: any) {
         console.error('Erro na mesclagem dos PDFs:', error);
-        alert('Erro ao mesclar os PDFs anexos com o relatório: ' + error.message);
+        alert('Erro ao mesclar os anexos com o relatório: ' + error.message);
       }
     }).catch((err: any) => {
       console.error('Erro na geração do PDF:', err);

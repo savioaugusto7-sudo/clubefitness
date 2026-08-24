@@ -2778,34 +2778,68 @@ goniometria: {
     reader.readAsDataURL(file);
   };
   
-  const handleTermoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 800 * 1024) {
-      alert('A imagem termográfica é muito grande! Escolha um arquivo de até 800 KB.');
-      e.target.value = '';
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setRepTermografiaImgB64(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+  const compressImageToDataUrl = (file: File, maxDim = 1200, quality = 0.82): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
-  const handleAsTermoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTermoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 1.5 * 1024 * 1024) {
-      alert('A imagem termográfica é muito grande! Escolha um arquivo de até 1.5 MB.');
-      e.target.value = '';
-      return;
+    try {
+      const compressedB64 = await compressImageToDataUrl(file);
+      setRepTermografiaImgB64(compressedB64);
+    } catch (err) {
+      console.error('Erro ao comprimir imagem termográfica:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => setRepTermografiaImgB64(event.target?.result as string);
+      reader.readAsDataURL(file);
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setAsTermografia(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+  };
+
+  const handleAsTermoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressedB64 = await compressImageToDataUrl(file);
+      setAsTermografia(compressedB64);
+    } catch (err) {
+      console.error('Erro ao comprimir imagem termográfica da avaliação:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => setAsTermografia(event.target?.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const removeAsTermoImage = () => {
@@ -9918,7 +9952,9 @@ goniometria: {
                         <div className="form-group">
                           <label>Upload da Imagem Termográfica (PNG/JPG)</label>
                           <input type="file" accept="image/*" className="form-control" onChange={handleTermoFileSelect} />
-                          <small style={{ color: 'var(--text-muted)' }}>Escolha um arquivo leve de até 800 KB.</small>
+                          <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                            💡 O arquivo é comprimido e otimizado automaticamente e aparecerá como anexo em alta resolução na página final do Relatório PDF.
+                          </small>
                         </div>
                       )}
                     </div>
