@@ -4185,13 +4185,41 @@ export default function GestaoContratosPanel({
                       </strong>
                     </div>
 
-                    {/* Bloco 5: Financeiro */}
-                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Condição Financeira</span>
-                      <strong style={{ fontSize: '0.92rem', color: '#38bdf8', marginTop: '2px', display: 'block' }}>
-                        R$ {Number(dcValorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(dcFormaPag || 'PIX').toUpperCase()})
-                      </strong>
-                    </div>
+                    {/* Bloco 5: Condição Financeira Expandida */}
+                    {(() => {
+                      const numParcelas = Number(selectedClient.dadosComerciais?.parcelas || dcParcelas || 1);
+                      const valorTotalContrato = Number(selectedClient.dadosComerciais?.valorTotal || (Number(dcValorUnitario || 0) * (numParcelas > 1 ? numParcelas : 1)));
+                      const valorParcelaIndividual = numParcelas > 1 ? (valorTotalContrato / numParcelas) : Number(dcValorUnitario || valorTotalContrato);
+
+                      const descTipo = selectedClient.dadosComerciais?.descontoTipo || dcDescontoTipo || 'percentual';
+                      const descValor = Number(selectedClient.dadosComerciais?.descontoValor || dcDescontoValor || 0);
+                      const hasDesconto = descValor > 0;
+
+                      return (
+                        <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.68rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800 }}>Condição Financeira</span>
+                            <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase' }}>
+                              {String(dcFormaPag || 'PIX')}
+                            </span>
+                          </div>
+                          <strong style={{ fontSize: '0.95rem', color: '#ffffff', marginTop: '1px', display: 'block' }}>
+                            R$ {valorTotalContrato.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </strong>
+                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '1px' }}>
+                            <span>
+                              <strong style={{ color: '#cbd5e1' }}>Parcelas:</strong> {numParcelas}x de R$ {valorParcelaIndividual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                            {hasDesconto && (
+                              <span style={{ color: '#34d399', fontWeight: 600 }}>
+                                <i className="fa-solid fa-tag" style={{ marginRight: '4px' }}></i>
+                                Desconto: {descTipo === 'percentual' ? `${descValor}% OFF` : `R$ ${descValor.toFixed(2)} OFF`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Segunda Linha: Frequência, Recorrência & Asaas */}
