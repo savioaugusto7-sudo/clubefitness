@@ -90,6 +90,53 @@ const BloqueioCadastralSchema = new Schema({
   }]
 }, { _id: false });
 
+const ContratoAtivoSchema = new Schema({
+  contratoId: { type: Schema.Types.ObjectId, ref: 'Contract' },
+  planoId: { type: Schema.Types.ObjectId, ref: 'Plan' },
+  planoNome: { type: String, required: true },
+  tipoPlano: { type: String, enum: ['Principal', 'Adicional', 'Avulso', 'Tratamento'], default: 'Principal' },
+  valorUnitario: { type: Number, required: true },
+  formaPagamento: { type: String, default: 'pix' },
+  parcelas: { type: Number, default: 1 },
+  dataInicio: { type: String, required: true },
+  dataFim: { type: String, required: true },
+  creditosTotal: { type: Number, default: 0 },
+  creditosUsados: { type: Number, default: 0 },
+  creditosReservados: { type: Number, default: 0 },
+  creditosMassagemTotal: { type: Number, default: 0 },
+  creditosMassagemUsados: { type: Number, default: 0 },
+  creditosRecoveryTotal: { type: Number, default: 0 },
+  creditosRecoveryUsados: { type: Number, default: 0 },
+  creditosEmergenciaTotal: { type: Number, default: 0 },
+  creditosEmergenciaUsados: { type: Number, default: 0 },
+  status: { type: String, enum: ['ativo', 'vencido', 'suspenso', 'encerrado'], default: 'ativo' },
+  asaasCustomerId: { type: String, default: '' },
+  observacoes: { type: String, default: '' }
+}, { _id: true, timestamps: true });
+
+const HistoricoContratoSchema = new Schema({
+  contratoId: { type: Schema.Types.ObjectId, ref: 'Contract' },
+  planoId: { type: Schema.Types.ObjectId, ref: 'Plan' },
+  planoNome: { type: String, required: true },
+  tipoPlano: { type: String, default: 'Principal' },
+  valorContratado: { type: Number, required: true },
+  formaPagamento: { type: String, default: 'pix' },
+  parcelas: { type: Number, default: 1 },
+  dataInicio: { type: String, required: true },
+  dataFim: { type: String, required: true },
+  statusCiclo: { 
+    type: String, 
+    enum: ['concluido', 'renovado', 'cancelado', 'migrado_upgrade', 'expirado_nao_renovou'],
+    default: 'concluido'
+  },
+  creditosTotalCiclo: { type: Number, default: 0 },
+  creditosUtilizadosCiclo: { type: Number, default: 0 },
+  responsavelVenda: { type: String, default: '' },
+  origemVenda: { type: String, default: 'painel_admin' },
+  observacoes: { type: String, default: '' },
+  dataArquivamento: { type: Date, default: Date.now }
+}, { _id: true, timestamps: true });
+
 const ClientSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   codigo: { type: String },
@@ -99,6 +146,8 @@ const ClientSchema = new Schema({
   dadosPessoais: { type: DadosPessoaisSchema, required: true },
   dadosClinicos: { type: DadosClinicosSchema, default: () => ({}) },
   dadosComerciais: { type: DadosComerciaisSchema, default: () => ({}) },
+  contratosAtivos: { type: [ContratoAtivoSchema], default: () => [] },
+  historicoContratos: { type: [HistoricoContratoSchema], default: () => [] },
   bloqueioCadastral: { type: BloqueioCadastralSchema, default: () => ({}) },
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', default: null }
 }, { timestamps: true });

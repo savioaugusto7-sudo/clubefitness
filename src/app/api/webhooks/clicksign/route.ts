@@ -76,6 +76,23 @@ export async function POST(request: Request) {
           const plan = await Plan.findById(contract.planoId);
           const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
 
+          // Arquivar contrato anterior se existente (Anti-Sobrescrita)
+          if (client.dadosComerciais && (client.dadosComerciais.planoId || client.dadosComerciais.valorUnitario || client.dadosComerciais.dataInicio)) {
+            const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
+            const prevSnapshot = buildContractSnapshot(
+              client.dadosComerciais,
+              client.dadosComerciais.status === 'ativo' ? 'renovado' : 'concluido',
+              `Ativação de novo contrato via Clicksign (${contract.planoNome || plan?.nome})`
+            );
+            if (prevSnapshot) {
+              if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
+              const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
+              if (!alreadyArchived) {
+                client.historicoContratos.push(prevSnapshot);
+              }
+            }
+          }
+
           Object.assign(client.dadosComerciais, {
             planoId: contract.planoId,
             vencimento: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,

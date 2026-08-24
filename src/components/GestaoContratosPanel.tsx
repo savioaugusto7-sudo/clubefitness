@@ -330,6 +330,7 @@ export default function GestaoContratosPanel({
   const [allPaymentsMap, setAllPaymentsMap] = useState<Record<string, any[]>>({});
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [syncingClicksignClientId, setSyncingClicksignClientId] = useState<string | null>(null);
+  const [historyModalClient, setHistoryModalClient] = useState<any>(null);
 
   // States for Finalize Contract Modal (Não Renovou)
   const [finalizeClientTarget, setFinalizeClientTarget] = useState<any>(null);
@@ -3519,7 +3520,30 @@ export default function GestaoContratosPanel({
 
                             <button
                               type="button"
-                              onClick={() => handleOpenDirectContractWizard(c)}
+                              onClick={() => setHistoryModalClient(c)}
+                                style={{
+                                  background: (c.historicoContratos?.length > 0) ? 'rgba(6, 182, 212, 0.15)' : '#1e293b',
+                                  border: (c.historicoContratos?.length > 0) ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid #334155',
+                                  color: (c.historicoContratos?.length > 0) ? '#22d3ee' : '#94a3b8',
+                                  padding: '6px 8px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                                title="Consultar linha do tempo e histórico de serviços contratados"
+                              >
+                                <i className="fa-solid fa-clock-rotate-left" style={{ color: (c.historicoContratos?.length > 0) ? '#22d3ee' : '#94a3b8' }}></i>
+                                {c.historicoContratos?.length > 0 ? `Histórico (${c.historicoContratos.length})` : 'Histórico'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDirectContractWizard(c)}
                               style={{
                                 background: '#1e293b',
                                 border: '1px solid #334155',
@@ -6459,6 +6483,164 @@ export default function GestaoContratosPanel({
               >
                 {submittingFinalize ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-flag-checkered"></i>}
                 Confirmar Encerramento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL EXECUTIVO 7: LINHA DO TEMPO & HISTÓRICO DE SERVIÇOS CONTRATADOS
+          ========================================================================= */}
+      {historyModalClient && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 100000 }} onClick={() => setHistoryModalClient(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '680px', width: '92%', border: '1px solid rgba(6, 182, 212, 0.35)', background: '#0f172a' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                  <i className="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                    Histórico de Serviços Contratados
+                  </h3>
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                    Aluno: <strong style={{ color: '#fff' }}>{historyModalClient.dadosPessoais?.nome || 'Aluno'}</strong> &nbsp;•&nbsp; CPF: {historyModalClient.dadosPessoais?.cpf || 'Não informado'}
+                  </div>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setHistoryModalClient(null)}>&times;</button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* 1. Contrato Atual / Vigente */}
+              <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                    Plano Atual Cadastrado
+                  </span>
+                  <span style={{ fontSize: '0.72rem', background: '#10b981', color: '#000', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                    {historyModalClient.dadosComerciais?.status || 'Ativo'}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', fontSize: '0.8rem' }}>
+                  <div>
+                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Plano:</span>
+                    <strong style={{ color: '#f8fafc' }}>{historyModalClient.dadosComerciais?.planoId?.nome || historyModalClient.dadosComerciais?.planoNome || 'Plano Atual'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Vigência:</span>
+                    <strong style={{ color: '#f8fafc' }}>
+                      {historyModalClient.dadosComerciais?.dataInicio ? new Date(historyModalClient.dadosComerciais.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {historyModalClient.dadosComerciais?.vencimento ? new Date(historyModalClient.dadosComerciais.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Condição:</span>
+                    <strong style={{ color: '#38bdf8' }}>
+                      R$ {Number(historyModalClient.dadosComerciais?.valorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(historyModalClient.dadosComerciais?.formaPagamento || 'PIX').toUpperCase()})
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Créditos:</span>
+                    <strong style={{ color: '#a78bfa' }}>
+                      {historyModalClient.dadosComerciais?.creditosTotal || 0} totais ({historyModalClient.dadosComerciais?.creditosUsados || 0} usados)
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Contratos Concorrentes / Adicionais Ativos */}
+              {Array.isArray(historyModalClient.contratosAtivos) && historyModalClient.contratosAtivos.length > 0 && (
+                <div>
+                  <h4 style={{ fontSize: '0.84rem', color: '#c084fc', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    ⚡ Serviços Concorrentes Ativos ({historyModalClient.contratosAtivos.length})
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {historyModalClient.contratosAtivos.map((ca: any, idx: number) => (
+                      <div key={idx} style={{ background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '8px', padding: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <strong style={{ color: '#f8fafc', fontSize: '0.85rem' }}>{ca.planoNome}</strong>
+                          <span style={{ fontSize: '0.7rem', background: '#a855f7', color: '#fff', fontWeight: 700, padding: '1px 6px', borderRadius: '4px' }}>Adicional</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                          <span>Período: <strong style={{ color: '#fff' }}>{ca.dataInicio} até {ca.dataFim}</strong></span>
+                          <span>Valor: <strong style={{ color: '#38bdf8' }}>R$ {Number(ca.valorUnitario || 0).toFixed(2)}</strong></span>
+                          <span>Créditos: <strong style={{ color: '#c084fc' }}>{ca.creditosTotal || 0} sessões</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Linha do Tempo de Ciclos Anteriores Arquivados */}
+              <div>
+                <h4 style={{ fontSize: '0.84rem', color: '#94a3b8', margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  📜 Ciclos e Contratos Anteriores ({historyModalClient.historicoContratos?.length || 0})
+                </h4>
+
+                {(!historyModalClient.historicoContratos || historyModalClient.historicoContratos.length === 0) ? (
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px', padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.8rem' }}>
+                    <i className="fa-solid fa-folder-open" style={{ fontSize: '1.5rem', marginBottom: '8px', display: 'block', color: '#475569' }}></i>
+                    Nenhum ciclo anterior arquivado no histórico deste aluno. Este é o 1º contrato registrado.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {historyModalClient.historicoContratos.map((hc: any, idx: number) => {
+                      const badgeColor = hc.statusCiclo === 'renovado' ? '#10b981' : (hc.statusCiclo === 'cancelado' ? '#ef4444' : '#64748b');
+                      return (
+                        <div key={idx} style={{ background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px', position: 'relative' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {historyModalClient.historicoContratos.length - idx}
+                              </span>
+                              <strong style={{ color: '#f8fafc', fontSize: '0.88rem' }}>{hc.planoNome}</strong>
+                            </div>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: `${badgeColor}22`, color: badgeColor, border: `1px solid ${badgeColor}44`, textTransform: 'uppercase' }}>
+                              {hc.statusCiclo}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', fontSize: '0.78rem', marginTop: '8px' }}>
+                            <div>
+                              <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Período do Ciclo:</span>
+                              <span style={{ color: '#cbd5e1' }}>{hc.dataInicio} até {hc.dataFim}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Valor Contratado:</span>
+                              <span style={{ color: '#38bdf8', fontWeight: 600 }}>R$ {Number(hc.valorContratado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(hc.formaPagamento || 'PIX').toUpperCase()})</span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Utilização:</span>
+                              <span style={{ color: '#a78bfa' }}>{hc.creditosUtilizadosCiclo || 0} / {hc.creditosTotalCiclo || 0} créditos</span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Data Arquivamento:</span>
+                              <span style={{ color: '#94a3b8' }}>{hc.dataArquivamento ? new Date(hc.dataArquivamento).toLocaleDateString('pt-BR') : '-'}</span>
+                            </div>
+                          </div>
+
+                          {hc.observacoes && (
+                            <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.72rem', color: '#94a3b8' }}>
+                              <strong>Obs:</strong> {hc.observacoes}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                🔒 Histórico protegido contra sobrescrita com trilha auditável
+              </span>
+              <button type="button" className="btn btn-secondary" onClick={() => setHistoryModalClient(null)}>
+                Fechar
               </button>
             </div>
           </div>

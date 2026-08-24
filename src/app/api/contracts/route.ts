@@ -623,7 +623,24 @@ export async function POST(request: Request) {
     // Parcelas no financeiro são lançadas exclusivamente pelo botão "Lançar Parcelas no Financeiro"
     // await Payment.insertMany(paymentRecords);
 
-    // 5. Atualizar o perfil comercial do cliente com os dados do contrato emitido
+    // 5. Arquivar contrato anterior no historicoContratos se existente (Anti-Sobrescrita)
+    if (client.dadosComerciais && (client.dadosComerciais.planoId || client.dadosComerciais.valorUnitario || client.dadosComerciais.dataInicio)) {
+      const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
+      const prevSnapshot = buildContractSnapshot(
+        client.dadosComerciais, 
+        client.dadosComerciais.status === 'ativo' ? 'renovado' : 'concluido', 
+        `Substituído por novo contrato V${versao} (${plan.nome})`
+      );
+      if (prevSnapshot) {
+        if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
+        const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
+        if (!alreadyArchived) {
+          client.historicoContratos.push(prevSnapshot);
+        }
+      }
+    }
+
+    // 6. Atualizar o perfil comercial do cliente com os dados do contrato emitido
     const targetClientStatus = status === 'assinado' ? 'ativo' : 'pendente';
 
     Object.assign(client.dadosComerciais, {
