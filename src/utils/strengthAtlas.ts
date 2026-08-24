@@ -206,6 +206,7 @@ export async function getDynamicStrengthAtlasBase64(atlasKey: string = 'ALL_6'):
 
   // Tenta carregar imagem específica da chave ou a imagem mestre split-body
   const candidates = [
+    `/images/anatomy/atlas_${atlasKey.toLowerCase()}.png`,
     `/images/anatomy/atlas_split_${atlasKey.toLowerCase()}.png`,
     `/images/anatomy/atlas_split_body.png`,
     `/images/anatomy/atlas_anterior.png`
