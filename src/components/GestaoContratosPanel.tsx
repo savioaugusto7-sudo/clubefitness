@@ -968,6 +968,8 @@ export default function GestaoContratosPanel({
   const [swCreditosMensais, setSwCreditosMensais] = useState(13);
   const [swCreditosMassagem, setSwCreditosMassagem] = useState(0);
   const [swCreditosEmergencia, setSwCreditosEmergencia] = useState(0);
+  const [swCriarRecorrenciaMensal, setSwCriarRecorrenciaMensal] = useState(false);
+  const [swRecorrenciaMeses, setSwRecorrenciaMeses] = useState(12);
   const [swSubmitting, setSwSubmitting] = useState(false);
 
   const handleOpenSalesWizard = (client: any) => {
@@ -983,6 +985,8 @@ export default function GestaoContratosPanel({
     setSwCreditosMensais(12);
     setSwCreditosMassagem(0);
     setSwCreditosEmergencia(0);
+    setSwCriarRecorrenciaMensal(false);
+    setSwRecorrenciaMeses(12);
   };
 
   const handleConfirmSalesWizard = async () => {
@@ -1032,8 +1036,8 @@ export default function GestaoContratosPanel({
         valorUnitario: swValorUnitario,
         vigenciaQtd: swVigenciaQtd,
         dataInicio: swDataInicio || new Date().toISOString().split('T')[0],
-        criarRecorrenciaMensal: false,
-        recorrenciaMeses: 12,
+        criarRecorrenciaMensal: swCriarRecorrenciaMensal,
+        recorrenciaMeses: swCriarRecorrenciaMensal ? swRecorrenciaMeses : 1,
         descontoTipo: swDescontoTipo,
         descontoValor: swDescontoValor,
         observacoesContratuais: '',
@@ -5758,6 +5762,35 @@ export default function GestaoContratosPanel({
                       <option key={p._id} value={p._id}>{p.nome}</option>
                     ))}
                   </select>
+                </div>
+
+                {/* Checkbox Recorrência Mensal Automática */}
+                <div 
+                  style={{ 
+                    background: swCriarRecorrenciaMensal ? 'rgba(59, 130, 246, 0.14)' : 'rgba(255, 255, 255, 0.03)', 
+                    border: '1px solid',
+                    borderColor: swCriarRecorrenciaMensal ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)', 
+                    borderRadius: '10px', 
+                    padding: '12px 14px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px', 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setSwCriarRecorrenciaMensal(!swCriarRecorrenciaMensal)}
+                >
+                  <input
+                    type="checkbox"
+                    id="swCriarRecorrenciaMensal"
+                    checked={swCriarRecorrenciaMensal}
+                    onChange={e => setSwCriarRecorrenciaMensal(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3b82f6' }}
+                  />
+                  <label htmlFor="swCriarRecorrenciaMensal" style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-arrows-rotate" style={{ color: '#3b82f6' }}></i>
+                    Criar Recorrência Mensal Automática para este Plano
+                  </label>
                 </div>
 
                 {/* Duração, Qtd Vigência e Data de Início */}
