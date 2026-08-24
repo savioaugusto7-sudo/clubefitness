@@ -4175,7 +4175,7 @@ export default function GestaoContratosPanel({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <i className="fa-solid fa-file-contract" style={{ color: isCommercialLocked ? '#34d399' : 'var(--color-primary)', fontSize: '1.05rem' }}></i>
                     <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      Condições Comerciais do Contrato
+                      Auditoria & Condições Comerciais do Contrato
                     </h4>
                     {isCommercialLocked ? (
                       <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -4206,6 +4206,34 @@ export default function GestaoContratosPanel({
                       <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
                     </button>
                   )}
+                </div>
+
+                {/* Banner de Auditoria de Vigência */}
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo de Vigência</span>
+                    <strong style={{ fontSize: '0.92rem', color: '#38bdf8', textTransform: 'capitalize' }}>
+                      {dcDuracao === 'semana' ? 'Semanal' : (dcDuracao === 'anual' ? 'Anual' : 'Mensal')}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Quantidade de Vigência</span>
+                    <strong style={{ fontSize: '0.92rem', color: '#34d399' }}>
+                      {dcVigenciaQtd} {dcDuracao === 'semana' ? (dcVigenciaQtd === 1 ? 'semana' : 'semanas') : (dcDuracao === 'anual' ? (dcVigenciaQtd === 1 ? 'ano' : 'anos') : (dcVigenciaQtd === 1 ? 'mês' : 'meses'))}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial</span>
+                    <strong style={{ fontSize: '0.85rem', color: '#f8fafc' }}>
+                      {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Recorrência Automática</span>
+                    <strong style={{ fontSize: '0.85rem', color: (dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '#10b981' : '#64748b' }}>
+                      {(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '🟢 Ativa' : '⚪ Inativa'}
+                    </strong>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -4288,7 +4316,7 @@ export default function GestaoContratosPanel({
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
                     <label>
-                      Tipo Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                      Tipo de Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
                     </label>
                     <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }} required>
                       <option value="semana">Semana</option>
@@ -4299,7 +4327,7 @@ export default function GestaoContratosPanel({
                   </div>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
                     <label>
-                      Qtd Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                      Quantidade de Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
                     </label>
                     <input
                       type="number"
@@ -5663,6 +5691,7 @@ export default function GestaoContratosPanel({
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', color: '#cbd5e1' }}>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Plano: </span><strong style={{ color: '#fff' }}>{com.planoId?.nome || com.planoNome || 'Tratamento Personalizado'}</strong></div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Vigência: </span><strong style={{ color: '#34d399' }}>{com.duracao === 'anual' ? 'Anual' : (com.criarRecorrenciaMensal ? 'Recorrente' : 'Mensal')} ({com.duracaoQtd || 1} {com.duracao === 'anual' ? 'ano' : 'mês'})</strong></div>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Período: </span>{com.dataInicio || '-'} até {com.vencimento || '-'}</div>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Condição: </span>R$ {Number(com.valorUnitario || 0).toFixed(2)} ({String(com.formaPagamento || 'PIX').toUpperCase()})</div>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Uso: </span>{com.creditosUsados || 0} de {com.creditosTotal || 0} créditos</div>
@@ -5676,7 +5705,7 @@ export default function GestaoContratosPanel({
 
                   if (isAtivo) {
                     return (
-                      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '12px', fontSize: '0.8rem' }}>
+                      <div style={{ background: 'rgba(160, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '12px', fontSize: '0.8rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                           <strong style={{ color: '#34d399', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <i className="fa-solid fa-circle-check"></i> Contrato Ativo Vigente
@@ -5687,6 +5716,7 @@ export default function GestaoContratosPanel({
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', color: '#cbd5e1' }}>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Plano: </span><strong style={{ color: '#fff' }}>{com.planoId?.nome || 'Plano Atual'}</strong></div>
+                          <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Vigência: </span><strong style={{ color: '#34d399' }}>{com.duracao === 'anual' ? 'Anual' : (com.criarRecorrenciaMensal ? 'Recorrente' : 'Mensal')} ({com.duracaoQtd || 1} {com.duracao === 'anual' ? 'ano' : 'mês'})</strong></div>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Vigência até: </span>{com.vencimento || '-'}</div>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Valor: </span>R$ {Number(com.valorUnitario || 0).toFixed(2)}</div>
                           <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Saldo: </span>{Math.max(0, (com.creditosTotal || 0) - (com.creditosUsados || 0))} créditos</div>
