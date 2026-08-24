@@ -6625,47 +6625,77 @@ export default function GestaoContratosPanel({
 
             <div className="modal-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {/* 1. Contrato Atual / Vigente */}
-              <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
-                    Plano Atual Cadastrado
-                  </span>
-                  <span style={{ fontSize: '0.72rem', background: '#10b981', color: '#000', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                    {historyModalClient.dadosComerciais?.status || 'Ativo'}
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', fontSize: '0.8rem' }}>
-                  <div>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Plano:</span>
-                    <strong style={{ color: '#f8fafc' }}>{historyModalClient.dadosComerciais?.planoId?.nome || historyModalClient.dadosComerciais?.planoNome || 'Plano Atual'}</strong>
+              {(() => {
+                const comStatus = String(historyModalClient.dadosComerciais?.status || 'ativo').toLowerCase();
+                const isFinalizado = comStatus === 'finalizado' || comStatus === 'inativo';
+                
+                if (isFinalizado) {
+                  return (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '10px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>
+                          <i className="fa-solid fa-flag-checkered"></i>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#f87171', fontSize: '0.88rem', display: 'block' }}>Aluno sem Contrato Vigente Ativo</strong>
+                          <span style={{ color: '#94a3b8', fontSize: '0.74rem' }}>Status Atual: <strong>FINALIZADO</strong> • Consulte abaixo os ciclos anteriores arquivados</span>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.72rem', background: '#ef4444', color: '#fff', fontWeight: 800, padding: '3px 10px', borderRadius: '6px', textTransform: 'uppercase' }}>
+                        Finalizado
+                      </span>
+                    </div>
+                  );
+                }
+
+                const t = String(historyModalClient.dadosComerciais?.duracao || 'mensal').toLowerCase();
+                const tipoLabel = t === 'semana' ? 'Semana' : (t === 'anual' ? 'Anual' : 'Mensal');
+                const qtdVal = historyModalClient.dadosComerciais?.duracaoQtd || 1;
+
+                return (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                        Plano Atual Cadastrado
+                      </span>
+                      <span style={{ fontSize: '0.72rem', background: '#10b981', color: '#000', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                        {historyModalClient.dadosComerciais?.status || 'Ativo'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', fontSize: '0.8rem' }}>
+                      <div>
+                        <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Plano:</span>
+                        <strong style={{ color: '#f8fafc' }}>{historyModalClient.dadosComerciais?.planoId?.nome || historyModalClient.dadosComerciais?.planoNome || 'Plano Atual'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Vigência / Período:</span>
+                        <strong style={{ color: '#f8fafc' }}>
+                          {historyModalClient.dadosComerciais?.dataInicio ? new Date(historyModalClient.dadosComerciais.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {historyModalClient.dadosComerciais?.vencimento ? new Date(historyModalClient.dadosComerciais.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Tipo / Quantidade de Vigência:</span>
+                        <strong style={{ color: '#34d399' }}>
+                          {tipoLabel} • {qtdVal}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Condição Comercial:</span>
+                        <strong style={{ color: '#38bdf8' }}>
+                          R$ {Number(historyModalClient.dadosComerciais?.valorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(historyModalClient.dadosComerciais?.formaPagamento || 'PIX').toUpperCase()})
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Créditos:</span>
+                        <strong style={{ color: '#a78bfa' }}>
+                          {historyModalClient.dadosComerciais?.creditosTotal || 0} totais ({historyModalClient.dadosComerciais?.creditosUsados || 0} usados)
+                        </strong>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Vigência / Período:</span>
-                    <strong style={{ color: '#f8fafc' }}>
-                      {historyModalClient.dadosComerciais?.dataInicio ? new Date(historyModalClient.dadosComerciais.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {historyModalClient.dadosComerciais?.vencimento ? new Date(historyModalClient.dadosComerciais.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Tipo / Quantidade de Vigência:</span>
-                    <strong style={{ color: '#34d399' }}>
-                      {historyModalClient.dadosComerciais?.duracao === 'anual' ? 'Anual' : (historyModalClient.dadosComerciais?.criarRecorrenciaMensal ? 'Recorrência Mensal' : 'Mensal')} • {historyModalClient.dadosComerciais?.duracaoQtd || 1} {historyModalClient.dadosComerciais?.duracao === 'semana' ? 'semana(s)' : (historyModalClient.dadosComerciais?.duracao === 'anual' ? 'ano(s)' : 'mês(es)')}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Condição Comercial:</span>
-                    <strong style={{ color: '#38bdf8' }}>
-                      R$ {Number(historyModalClient.dadosComerciais?.valorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(historyModalClient.dadosComerciais?.formaPagamento || 'PIX').toUpperCase()})
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Créditos:</span>
-                    <strong style={{ color: '#a78bfa' }}>
-                      {historyModalClient.dadosComerciais?.creditosTotal || 0} totais ({historyModalClient.dadosComerciais?.creditosUsados || 0} usados)
-                    </strong>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* 2. Contratos Concorrentes / Adicionais Ativos */}
               {Array.isArray(historyModalClient.contratosAtivos) && historyModalClient.contratosAtivos.length > 0 && (
@@ -6706,6 +6736,12 @@ export default function GestaoContratosPanel({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {historyModalClient.historicoContratos.map((hc: any, idx: number) => {
                       const badgeColor = hc.statusCiclo === 'renovado' ? '#10b981' : (hc.statusCiclo === 'cancelado' ? '#ef4444' : '#64748b');
+                      const rawT = String(hc.tipoPlano || hc.duracao || 'mensal').toLowerCase();
+                      const tipoHc = rawT === 'semana' ? 'Semana' : (rawT === 'anual' ? 'Anual' : 'Mensal');
+                      const qtdHc = hc.duracaoQtd || 1;
+                      const usadosHc = hc.creditosUsados !== undefined ? hc.creditosUsados : (hc.creditosUtilizadosCiclo !== undefined ? hc.creditosUtilizadosCiclo : 12);
+                      const totalHc = hc.creditosTotal !== undefined ? hc.creditosTotal : (hc.creditosTotalCiclo !== undefined ? hc.creditosTotalCiclo : 12);
+
                       return (
                         <div key={idx} style={{ background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px', position: 'relative' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -6728,7 +6764,7 @@ export default function GestaoContratosPanel({
                             <div>
                               <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Tipo / Quantidade de Vigência:</span>
                               <span style={{ color: '#34d399', fontWeight: 600 }}>
-                                {hc.tipoPlano || (hc.duracao === 'anual' ? 'Anual' : 'Mensal')} • {hc.duracaoQtd || 1} {hc.duracao === 'anual' ? 'ano' : 'mês'}
+                                {tipoHc} • {qtdHc}
                               </span>
                             </div>
                             <div>
@@ -6737,7 +6773,7 @@ export default function GestaoContratosPanel({
                             </div>
                             <div>
                               <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Utilização:</span>
-                              <span style={{ color: '#a78bfa' }}>{hc.creditosUtilizadosCiclo || 0} / {hc.creditosTotalCiclo || 0} créditos</span>
+                              <span style={{ color: '#a78bfa' }}>{usadosHc} / {totalHc} créditos</span>
                             </div>
                             <div>
                               <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Data Arquivamento:</span>
@@ -6745,9 +6781,9 @@ export default function GestaoContratosPanel({
                             </div>
                           </div>
 
-                          {hc.observacoes && (
+                          {hc.motivoEncerramento && (
                             <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.72rem', color: '#94a3b8' }}>
-                              <strong>Obs:</strong> {hc.observacoes}
+                              <strong>Obs:</strong> {hc.motivoEncerramento}
                             </div>
                           )}
                         </div>
