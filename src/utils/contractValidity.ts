@@ -24,6 +24,7 @@ export interface ContractValidityInfo {
   parcelasInfo?: string;
   hasOverdueInstallment?: boolean;
   isEndOfRecurrenceCycle?: boolean;
+  isRecorrente?: boolean;
   recorrenciaMeses?: number;
   isWithinTolerance?: boolean;
   toleranceDaysLeft?: number;
@@ -393,7 +394,8 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       parcelasInfo,
       hasOverdueInstallment,
       isEndOfRecurrenceCycle,
-      recorrenciaMeses
+      isRecorrente,
+      recorrenciaMeses: isRecorrente ? recorrenciaMeses : undefined
     };
   } catch (err) {
     console.error('[getContractValidityInfo] Error:', err);

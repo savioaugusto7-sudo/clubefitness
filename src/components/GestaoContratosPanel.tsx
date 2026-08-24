@@ -5464,9 +5464,9 @@ export default function GestaoContratosPanel({
                             <strong style={{ fontSize: '0.95rem', color: isDynamus ? '#22d3ee' : 'var(--text-main)', textTransform: 'capitalize' }}>
                               {isDynamus 
                                 ? (isSemestral ? 'Semestral (6 meses)' : 'Anual (12 meses)') 
-                                : info.recorrenciaMeses && info.recorrenciaMeses > 1 
+                                : (info.isRecorrente && info.recorrenciaMeses && info.recorrenciaMeses > 1) 
                                   ? `Recorrência (${info.recorrenciaMeses} meses)` 
-                                  : `${com.duracao || 'Mensal'} ${com.duracaoQtd ? `(${com.duracaoQtd}x)` : ''}`}
+                                  : `${com.duracao === 'semana' ? 'Semanal' : (com.duracao === 'anual' ? 'Anual' : 'Mensal')} (${com.duracaoQtd || com.vigenciaQtd || 1} ${com.duracao === 'semana' ? 'semanas' : (com.duracao === 'anual' ? 'ano(s)' : 'mês(es)')})`}
                             </strong>
                           </div>
                           <div>
