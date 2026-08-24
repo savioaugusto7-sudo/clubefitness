@@ -971,31 +971,27 @@ export default function GestaoContratosPanel({
   const [swSubmitting, setSwSubmitting] = useState(false);
 
   const handleOpenSalesWizard = (client: any) => {
-    const com = client.dadosComerciais || {};
-    const activePlans = plans.filter((p: any) => p.ativo !== false);
-    const defaultPlanId = com.planoId?._id || com.planoId || (activePlans[0]?._id || (plans[0]?._id || ''));
-    const planObj = plans.find(p => p._id === defaultPlanId) || activePlans[0] || plans[0];
-    const freq = com.frequencia || client.frequencia || 2;
-    const defaultCreditos = com.creditosTotal !== undefined ? com.creditosTotal : (freq === 1 ? 4 : freq === 2 ? 9 : freq === 3 ? 13 : freq === 4 ? 17 : 22);
-    const isAnual = (com.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal')) === 'anual';
-
     setSalesWizardClient(client);
-    setSwPlano(defaultPlanId);
-    setSwDuracao(com.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal'));
-    setSwVigenciaQtd(isAnual ? 1 : (com.duracaoQtd || 1));
-    setSwDataInicio(com.dataInicio || new Date().toISOString().split('T')[0]);
-    setSwValorUnitario(com.valorUnitario !== undefined ? com.valorUnitario : (planObj?.preco || 0));
-    setSwDescontoTipo(com.descontoTipo || 'percentual');
-    setSwDescontoValor(com.descontoValor || 0);
-    setSwFrequencia(freq);
-    setSwCreditosMensais(defaultCreditos);
-    setSwCreditosMassagem(com.creditosMassagem !== undefined ? com.creditosMassagem : (isAnual ? 1 : 0));
-    setSwCreditosEmergencia(com.creditosEmergencia !== undefined ? com.creditosEmergencia : (isAnual ? 1 : 0));
+    setSwPlano('');
+    setSwDuracao('mensal');
+    setSwVigenciaQtd(1);
+    setSwDataInicio(new Date().toISOString().split('T')[0]);
+    setSwValorUnitario(0);
+    setSwDescontoTipo('percentual');
+    setSwDescontoValor(0);
+    setSwFrequencia(3);
+    setSwCreditosMensais(12);
+    setSwCreditosMassagem(0);
+    setSwCreditosEmergencia(0);
   };
 
   const handleConfirmSalesWizard = async () => {
     if (!salesWizardClient || !swPlano) {
       alert('Por favor, selecione um plano.');
+      return;
+    }
+    if (!swValorUnitario || Number(swValorUnitario) <= 0) {
+      alert('Por favor, informe o valor da parcela/mensalidade negociada para esta proposta.');
       return;
     }
     setSwSubmitting(true);
@@ -5732,7 +5728,7 @@ export default function GestaoContratosPanel({
 
                 {/* Plano Ativo */}
                 <div className="form-group">
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Plano Comercial (Ativos)</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Plano / Modalidade Acordada <span style={{ color: 'var(--color-danger)' }}>*</span></label>
                   <select
                     className="select-custom"
                     style={{ width: '100%', padding: '10px' }}
@@ -5742,19 +5738,22 @@ export default function GestaoContratosPanel({
                       setSwPlano(pid);
                       const pObj = plans.find(p => p._id === pid);
                       if (pObj) {
-                        setSwValorUnitario(pObj.preco || 0);
+                        if (pObj.preco) setSwValorUnitario(pObj.preco);
                         if (pObj.tipo === 'Anual') {
                           setSwDuracao('anual');
                           setSwVigenciaQtd(12);
-                          setSwCreditosMassagem(1);
-                          setSwCreditosEmergencia(1);
                         } else {
                           setSwDuracao('mensal');
                           setSwVigenciaQtd(1);
                         }
+                        if (pObj.frequencia) setSwFrequencia(pObj.frequencia);
+                        if (pObj.creditosTotal) setSwCreditosMensais(pObj.creditosTotal);
+                      } else {
+                        setSwValorUnitario(0);
                       }
                     }}
                   >
+                    <option value="">-- Selecione o Plano / Modalidade * --</option>
                     {activePlans.map((p: any) => (
                       <option key={p._id} value={p._id}>{p.nome}</option>
                     ))}
@@ -5961,8 +5960,8 @@ export default function GestaoContratosPanel({
                   type="button"
                   className="btn btn-primary"
                   onClick={handleConfirmSalesWizard}
-                  disabled={swSubmitting || !swPlano}
-                  style={{ background: '#8b5cf6', borderColor: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  disabled={swSubmitting || !swPlano || !swValorUnitario || Number(swValorUnitario) <= 0}
+                  style={{ background: '#8b5cf6', borderColor: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '6px', opacity: (!swPlano || !swValorUnitario || Number(swValorUnitario) <= 0) ? 0.5 : 1 }}
                 >
                   {swSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-paper-plane"></i>}
                   Gerar Link & Compartilhar
