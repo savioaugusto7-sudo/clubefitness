@@ -3,6 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { generateContractTemplate } from '@/utils/contractTemplate';
+import { getCardRateForInstallment } from '@/utils/paymentRates';
 
 export default function VendaPage({ params }: { params: any }) {
   const router = useRouter();
@@ -122,7 +123,6 @@ export default function VendaPage({ params }: { params: any }) {
   }
 
   const basePrice = proposal.valorAcordado || 0;
-  const finalPrice = formaPagamento === 'cartao' ? basePrice * 1.05 : basePrice;
 
   // Plan duration in months
   let durationInMonths = 1;
@@ -152,6 +152,8 @@ export default function VendaPage({ params }: { params: any }) {
   })();
 
   const currentInstallments = Math.min(parcelas, maxInstallments);
+  const cardRate = formaPagamento === 'cartao' ? getCardRateForInstallment(currentInstallments) : 0;
+  const finalPrice = formaPagamento === 'cartao' ? Number((basePrice * (1 + cardRate)).toFixed(2)) : basePrice;
 
   const handlePaymentChange = (type: 'pix' | 'boleto' | 'cartao') => {
     setFormaPagamento(type);
@@ -692,10 +694,13 @@ export default function VendaPage({ params }: { params: any }) {
                   style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }}
                 >
                   {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => {
-                    const instVal = finalPrice / num;
+                    const rate = formaPagamento === 'cartao' ? getCardRateForInstallment(num) : 0;
+                    const total = formaPagamento === 'cartao' ? Number((basePrice * (1 + rate)).toFixed(2)) : basePrice;
+                    const instVal = total / num;
+                    const ratePercent = (rate * 100).toFixed(2).replace('.', ',');
                     return (
                       <option key={num} value={num} style={{ background: '#1e293b', color: '#fff' }}>
-                        {num}x de R$ {instVal.toFixed(2).replace('.', ',')} {num === 1 ? '(À vista)' : ''}
+                        {num}x de R$ {instVal.toFixed(2).replace('.', ',')} {formaPagamento === 'cartao' ? `(Total: R$ ${total.toFixed(2).replace('.', ',')} • Taxa ${ratePercent}%)` : (num === 1 ? '(À vista)' : '')}
                       </option>
                     );
                   })}
@@ -741,7 +746,7 @@ export default function VendaPage({ params }: { params: any }) {
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
                     {formaPagamento === 'pix' && 'Pagamento instantâneo via Pix (à vista)'}
                     {formaPagamento === 'boleto' && (dataVencimento ? `Primeiro vencimento em ${new Date(dataVencimento + 'T00:00:00').toLocaleDateString('pt-BR')}` : 'Carnê / Boleto Bancário')}
-                    {formaPagamento === 'cartao' && 'Parcelamento no Cartão de Crédito (+5%)'}
+                    {formaPagamento === 'cartao' && `Parcelamento no Cartão de Crédito (+${(cardRate * 100).toFixed(2).replace('.', ',')}%)`}
                   </span>
                 </div>
 
@@ -755,7 +760,7 @@ export default function VendaPage({ params }: { params: any }) {
               </div>
               {formaPagamento === 'cartao' && (
                 <p style={{ color: 'var(--color-warning)', fontSize: '0.78rem', margin: '5px 0 0 0', textAlign: 'right' }}>
-                  * Inclui taxa de 5% de acréscimo do parcelamento no cartão de crédito.
+                  * Inclui taxa de {(cardRate * 100).toFixed(2).replace('.', ',')}% de acréscimo do parcelamento em {currentInstallments}x no cartão de crédito.
                 </p>
               )}
             </div>

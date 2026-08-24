@@ -7,6 +7,7 @@ import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import { smartSearchMatch } from '@/utils/smartSearch';
 import { getContractValidityInfo } from '@/utils/contractValidity';
+import { getCardRateForInstallment } from '@/utils/paymentRates';
 import ClicksignPanel from './ClicksignPanel';
 import MoneyInput from './MoneyInput';
 
@@ -3832,9 +3833,10 @@ export default function GestaoContratosPanel({
                     setDcVencimento(activeProposal.dataVencimentoEscolhida);
                   }
                   if (activeProposal.formaPagamentoEscolhida === 'cartao') {
-                    setDcValorUnitario(activeProposal.valorUnitario * 1.05);
+                    const rate = getCardRateForInstallment(activeProposal.parcelasEscolhidas || 1);
+                    setDcValorUnitario(activeProposal.valorFinalRecalculado || Number((activeProposal.valorUnitario * (1 + rate)).toFixed(2)));
                   } else {
-                    setDcValorUnitario(activeProposal.valorUnitario);
+                    setDcValorUnitario(activeProposal.valorFinalRecalculado || activeProposal.valorUnitario);
                   }
                   if (activeProposal.dataInicio) {
                     setDcDataInicio(activeProposal.dataInicio);
