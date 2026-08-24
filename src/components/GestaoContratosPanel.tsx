@@ -4074,60 +4074,43 @@ export default function GestaoContratosPanel({
                   gap: '16px',
                   boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 300px' }}>
-                    <div style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.25rem',
-                      fontWeight: 800,
-                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                    }}>
-                      {(dcNome || 'A').charAt(0).toUpperCase()}
+                  <div style={{ flex: '1 1 300px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                        {dcNome || 'Aluno sem nome'}
+                      </h3>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        background: info.badgeBg,
+                        color: info.badgeColor,
+                        border: `1px solid ${info.badgeBorder}`,
+                        textTransform: 'uppercase'
+                      }}>
+                        {info.statusLabel}
+                      </span>
                     </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
-                          {dcNome || 'Aluno sem nome'}
-                        </h3>
-                        <span style={{
-                          padding: '2px 8px',
-                          borderRadius: '6px',
-                          fontSize: '0.72rem',
-                          fontWeight: 800,
-                          background: info.badgeBg,
-                          color: info.badgeColor,
-                          border: `1px solid ${info.badgeBorder}`,
-                          textTransform: 'uppercase'
-                        }}>
-                          {info.statusLabel}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
-                        <span><strong style={{ color: '#cbd5e1' }}>CPF:</strong> {dcCpf || 'Não informado'}</span>
-                        <span><strong style={{ color: '#cbd5e1' }}>E-mail:</strong> {dcEmail || 'Não informado'}</span>
-                        {dcTelefone && (
-                          <a
-                            href={telClean ? `https://wa.me/55${telClean}` : '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: '#34d399', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            <i className="fa-brands fa-whatsapp"></i> {dcTelefone}
-                          </a>
-                        )}
-                      </div>
-                      {fullAddr && (
-                        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '3px' }}>
-                          <i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }}></i> {fullAddr}
-                        </div>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
+                      <span><strong style={{ color: '#cbd5e1' }}>CPF:</strong> {dcCpf || 'Não informado'}</span>
+                      <span><strong style={{ color: '#cbd5e1' }}>E-mail:</strong> {dcEmail || 'Não informado'}</span>
+                      {dcTelefone && (
+                        <a
+                          href={telClean ? `https://wa.me/55${telClean}` : '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#34d399', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-brands fa-whatsapp"></i> {dcTelefone}
+                        </a>
                       )}
                     </div>
+                    {fullAddr && (
+                      <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '3px' }}>
+                        <i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }}></i> {fullAddr}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>
