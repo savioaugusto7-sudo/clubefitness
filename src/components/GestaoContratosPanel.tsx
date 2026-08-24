@@ -4194,15 +4194,11 @@ export default function GestaoContratosPanel({
                     </div>
                   </div>
 
-                  {/* Segunda Linha: Créditos & Recorrência */}
+                  {/* Segunda Linha: Frequência, Recorrência & Asaas */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
                     <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
                       <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Frequência Semanal:</span>
                       <strong>{dcFrequencia ? `${dcFrequencia}x por semana` : 'Conforme Plano'}</strong>
-                    </div>
-                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Carteira de Créditos:</span>
-                      <strong style={{ color: '#c084fc' }}>{dcCreditosTotal || 0} totais ({selectedClient.dadosComerciais?.creditosUsados || 0} usados)</strong>
                     </div>
                     <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
                       <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Recorrência Mensal:</span>
