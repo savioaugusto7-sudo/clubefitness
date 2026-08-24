@@ -41,6 +41,74 @@ export async function GET(request: Request) {
     });
   }
 
+  // ── Ação: corrigir dados do Reginaldo (6 semanas arquivadas no histórico) ──
+  if (action === 'fix-reginaldo') {
+    const Plan = (await import('@/models/Plan')).default;
+    const client = await Client.findOne({
+      $or: [
+        { 'dadosPessoais.cpf': '056.960.776-09' },
+        { 'dadosPessoais.email': email.toLowerCase() },
+        { userId: user._id }
+      ]
+    });
+
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'Cliente Reginaldo não encontrado' }, { status: 404 });
+    }
+
+    const planObj = await Plan.findOne({ nome: /Tratamento Personalizado/i }) || await Plan.findOne();
+
+    client.historicoContratos = [{
+      planoId: planObj?._id,
+      planoNome: 'Tratamento Personalizado',
+      tipoPlano: 'semana',
+      dataInicio: '2026-07-08',
+      dataFim: '2026-08-19',
+      valorContratado: 333.33,
+      formaPagamento: 'pix',
+      creditosTotal: 12,
+      creditosUsados: 12,
+      statusCiclo: 'concluido',
+      duracao: 'semana',
+      duracaoQtd: 6,
+      motivoEncerramento: 'Contrato concluído (Ciclo 08/07/2026 a 19/08/2026 • 6 semanas)'
+    }];
+
+    client.dadosComerciais = {
+      status: 'finalizado',
+      planoId: planObj?._id,
+      planoNome: 'Tratamento Personalizado',
+      duracao: 'semana',
+      duracaoQtd: 6,
+      dataInicio: '2026-07-08',
+      vencimento: '2026-08-19',
+      valorUnitario: 333.33,
+      formaPagamento: 'pix',
+      parcelas: 1,
+      frequencia: 2,
+      creditosTotal: 12,
+      creditosUsados: 12,
+      creditosReservados: 0,
+      creditosMassagemTotal: 0,
+      creditosMassagemUsados: 0,
+      creditosMassagemReservados: 0,
+      creditosEmergenciaTotal: 0,
+      creditosEmergenciaUsados: 0,
+      creditosEmergenciaReservados: 0,
+      descontoTipo: 'percentual',
+      descontoValor: 0
+    } as any;
+
+    await client.save();
+
+    return NextResponse.json({
+      success: true,
+      message: `✅ Cadastro do Reginaldo restaurado com sucesso! Contrato anterior (08/07 a 19/08 • 6 semanas • R$ 333,33) arquivado no histórico e status definido como Finalizado.`,
+      dadosComerciais: client.dadosComerciais,
+      historicoContratos: client.historicoContratos
+    });
+  }
+
   // ── Ação: restaurar papel profissional ──
   if (action === 'restore-professional') {
     const crefito = searchParams.get('crefito') || 'CREFITO/00000-F';
