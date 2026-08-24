@@ -1052,32 +1052,6 @@ export default function GestaoContratosPanel({
       });
       const data = await res.json();
 
-      // 2. Salvar dados comerciais no cadastro do aluno
-      await fetch('/api/clients', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: salesWizardClient._id,
-          dadosComerciais: {
-            planoId: swPlano,
-            status: 'lead',
-            duracao: swDuracao,
-            duracaoQtd: swVigenciaQtd,
-            valorUnitario: swValorUnitario,
-            vencimento: dataFimCalculada,
-            dataInicio: swDataInicio,
-            frequencia: swFrequencia,
-            creditosTotal: swCreditosMensais,
-            creditosMassagem: swCreditosMassagem,
-            creditosMassagemTotal: swCreditosMassagem,
-            creditosEmergencia: swCreditosEmergencia,
-            creditosEmergenciaTotal: swCreditosEmergencia,
-            descontoTipo: swDescontoTipo,
-            descontoValor: swDescontoValor
-          }
-        })
-      });
-
       if (data.success && data.data) {
         const url = window.location.origin + '/vendas/' + data.data._id;
         setGeneratedProposalUrl(url);
@@ -6637,13 +6611,19 @@ export default function GestaoContratosPanel({
                     <strong style={{ color: '#f8fafc' }}>{historyModalClient.dadosComerciais?.planoId?.nome || historyModalClient.dadosComerciais?.planoNome || 'Plano Atual'}</strong>
                   </div>
                   <div>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Vigência:</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Vigência / Período:</span>
                     <strong style={{ color: '#f8fafc' }}>
                       {historyModalClient.dadosComerciais?.dataInicio ? new Date(historyModalClient.dadosComerciais.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {historyModalClient.dadosComerciais?.vencimento ? new Date(historyModalClient.dadosComerciais.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
                     </strong>
                   </div>
                   <div>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Condição:</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Tipo / Quantidade de Vigência:</span>
+                    <strong style={{ color: '#34d399' }}>
+                      {historyModalClient.dadosComerciais?.duracao === 'anual' ? 'Anual' : (historyModalClient.dadosComerciais?.criarRecorrenciaMensal ? 'Recorrência Mensal' : 'Mensal')} • {historyModalClient.dadosComerciais?.duracaoQtd || 1} {historyModalClient.dadosComerciais?.duracao === 'semana' ? 'semana(s)' : (historyModalClient.dadosComerciais?.duracao === 'anual' ? 'ano(s)' : 'mês(es)')}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>Condição Comercial:</span>
                     <strong style={{ color: '#38bdf8' }}>
                       R$ {Number(historyModalClient.dadosComerciais?.valorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(historyModalClient.dadosComerciais?.formaPagamento || 'PIX').toUpperCase()})
                     </strong>
@@ -6714,6 +6694,12 @@ export default function GestaoContratosPanel({
                             <div>
                               <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Período do Ciclo:</span>
                               <span style={{ color: '#cbd5e1' }}>{hc.dataInicio} até {hc.dataFim}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Tipo / Quantidade de Vigência:</span>
+                              <span style={{ color: '#34d399', fontWeight: 600 }}>
+                                {hc.tipoPlano || (hc.duracao === 'anual' ? 'Anual' : 'Mensal')} • {hc.duracaoQtd || 1} {hc.duracao === 'anual' ? 'ano' : 'mês'}
+                              </span>
                             </div>
                             <div>
                               <span style={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>Valor Contratado:</span>
