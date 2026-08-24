@@ -4148,12 +4148,12 @@ export default function GestaoContratosPanel({
                     </span>
                   </div>
 
-                  {/* Grid de 4 Blocos de Leitura Executiva */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                  {/* Grid de Blocos de Leitura Executiva com 1º Vencimento Visual */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                     {/* Bloco 1: Plano */}
                     <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Plano Contratado</span>
-                      <strong style={{ fontSize: '0.95rem', color: '#ffffff', marginTop: '2px', display: 'block' }}>
+                      <strong style={{ fontSize: '0.92rem', color: '#ffffff', marginTop: '2px', display: 'block' }}>
                         {selectedPlan?.nome || selectedClient.dadosComerciais?.planoNome || 'Plano Atual'}
                       </strong>
                     </div>
@@ -4161,23 +4161,34 @@ export default function GestaoContratosPanel({
                     {/* Bloco 2: Vigência */}
                     <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo / Qtd Vigência</span>
-                      <strong style={{ fontSize: '0.95rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
+                      <strong style={{ fontSize: '0.92rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
                         {tipoLabel} • {qtdVal}
                       </strong>
                     </div>
 
-                    {/* Bloco 3: Período */}
+                    {/* Bloco 3: Período Oficial */}
                     <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial</span>
                       <strong style={{ fontSize: '0.85rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
-                        {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                        {info.dataInicioFormatted || (dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-')} até {info.dataFimFormatted || (dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-')}
                       </strong>
                     </div>
 
-                    {/* Bloco 4: Financeiro */}
+                    {/* Bloco 4: 1º Vencimento (Visual Financeiro) */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(251, 191, 36, 0.3)', borderRadius: '10px', padding: '12px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#fbbf24', textTransform: 'uppercase', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-calendar-day"></i> 1º Vencimento
+                      </span>
+                      <strong style={{ fontSize: '0.88rem', color: '#fde68a', marginTop: '2px', display: 'block' }}>
+                        {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                        {dcVencimento && <span style={{ fontSize: '0.72rem', color: '#f59e0b', marginLeft: '4px', fontWeight: 600 }}>(Dia {new Date(dcVencimento + 'T00:00:00').getDate().toString().padStart(2, '0')})</span>}
+                      </strong>
+                    </div>
+
+                    {/* Bloco 5: Financeiro */}
                     <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Condição Financeira</span>
-                      <strong style={{ fontSize: '0.95rem', color: '#38bdf8', marginTop: '2px', display: 'block' }}>
+                      <strong style={{ fontSize: '0.92rem', color: '#38bdf8', marginTop: '2px', display: 'block' }}>
                         R$ {Number(dcValorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(dcFormaPag || 'PIX').toUpperCase()})
                       </strong>
                     </div>
