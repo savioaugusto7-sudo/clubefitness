@@ -868,6 +868,7 @@ export default function GestaoContratosPanel({
   const [issuingContract, setIssuingContract] = useState(false);
 
   // Modals & Triggers
+  const [showEditClientModal, setShowEditClientModal] = useState(false);
   const [showTextPreview, setShowTextPreview] = useState(false);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [showImportSignedModal, setShowImportSignedModal] = useState(false);
@@ -875,6 +876,78 @@ export default function GestaoContratosPanel({
   const [importPdfBase64, setImportPdfBase64] = useState<string>('');
   const [importPdfName, setImportPdfName] = useState<string>('');
   const [submittingImport, setSubmittingImport] = useState(false);
+
+  const handleSaveClientModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient) return;
+    setSavingComercial(true);
+    setSaveError('');
+    setSaveSuccess(false);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedClient._id,
+          dadosPessoais: {
+            ...(selectedClient.dadosPessoais || {}),
+            nome: dcNome,
+            email: dcEmail,
+            cpf: dcCpf,
+            telefone: dcTelefone,
+            dataNascimento: dcNascimento,
+            sexo: dcSexo,
+            cep: dcCep,
+            endereco: dcEndereco,
+            numero: dcNumero,
+            complemento: dcComplemento,
+            bairro: dcBairro,
+            cidade: dcCidade,
+            estado: dcEstado
+          },
+          dadosComerciais: {
+            ...(selectedClient.dadosComerciais || {}),
+            asaasCustomerId: dcAsaasCustomerId
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaveSuccess(true);
+        setSelectedClient({
+          ...selectedClient,
+          dadosPessoais: {
+            ...(selectedClient.dadosPessoais || {}),
+            nome: dcNome,
+            email: dcEmail,
+            cpf: dcCpf,
+            telefone: dcTelefone,
+            dataNascimento: dcNascimento,
+            sexo: dcSexo,
+            cep: dcCep,
+            endereco: dcEndereco,
+            numero: dcNumero,
+            complemento: dcComplemento,
+            bairro: dcBairro,
+            cidade: dcCidade,
+            estado: dcEstado
+          },
+          dadosComerciais: {
+            ...(selectedClient.dadosComerciais || {}),
+            asaasCustomerId: dcAsaasCustomerId
+          }
+        });
+        setShowEditClientModal(false);
+        if (typeof fetchData === 'function') fetchData();
+      } else {
+        setSaveError(data.error || 'Erro ao salvar alterações');
+      }
+    } catch (err: any) {
+      setSaveError(err.message || 'Erro de conexão');
+    } finally {
+      setSavingComercial(false);
+    }
+  };
 
   // Sales Proposal States
   const [showProposalModal, setShowProposalModal] = useState(false);
@@ -3966,292 +4039,66 @@ export default function GestaoContratosPanel({
           })()}
 
           {/* =========================================================================
-              BLOCO DADOS CADASTRAIS DO CONTRATANTE (BLINDADOS / LIBERÁVEIS POR ADMIN)
+              PAINEL EXECUTIVO DO ALUNO & AUDITORIA (RESPONSIVO DESKTOP / MOBILE)
               ========================================================================= */}
           {(() => {
-            const isClientLocked = selectedClient.bloqueioCadastral?.bloqueado !== false;
-            const lockMotivo = selectedClient.bloqueioCadastral?.motivo || (selectedClient.dadosPessoais?.cpf ? 'Informação fornecida pelo contratante' : 'Dado consolidado no cadastro');
-
-            return (
-              <div style={{
-                background: 'var(--bg-secondary)',
-                border: isClientLocked ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border-color)',
-                borderRadius: '10px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <i className="fa-solid fa-id-card" style={{ color: isClientLocked ? '#34d399' : 'var(--color-primary)', fontSize: '1.05rem' }}></i>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      Dados Cadastrais do Contratante
-                    </h4>
-                    {isClientLocked ? (
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-solid fa-lock"></i> {lockMotivo} (Blindado)
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-solid fa-pen"></i> Modo Edição Liberado
-                      </span>
-                    )}
-                  </div>
-
-                  {isClientLocked && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setShowUnlockModal(true)}
-                      style={{
-                        fontSize: '0.75rem',
-                        padding: '4px 10px',
-                        background: 'rgba(251, 191, 36, 0.15)',
-                        color: '#fbbf24',
-                        borderColor: 'rgba(251, 191, 36, 0.4)',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Nome Completo {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcNome} onChange={e => setDcNome(e.target.value)} disabled={isClientLocked} required />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      E-mail {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="email" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcEmail} onChange={e => setDcEmail(e.target.value)} disabled={isClientLocked} required />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      CPF {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcCpf} onChange={e => setDcCpf(e.target.value)} disabled={isClientLocked} placeholder="000.000.000-00" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Telefone / WhatsApp {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} disabled={isClientLocked} placeholder="(00) 00000-0000" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Data de Nascimento {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="date" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} disabled={isClientLocked} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Sexo {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <select className="select-custom" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcSexo} onChange={e => setDcSexo(e.target.value)} disabled={isClientLocked}>
-                      <option value="M">Masculino</option>
-                      <option value="F">Feminino</option>
-                      <option value="O">Outro</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 0.8fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      CEP {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcCep} onChange={e => setDcCep(e.target.value)} disabled={isClientLocked} placeholder="00000-000" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Endereço (Rua/Avenida) {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} disabled={isClientLocked} placeholder="Rua..." />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Número {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcNumero} onChange={e => setDcNumero(e.target.value)} disabled={isClientLocked} placeholder="123" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Complemento {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcComplemento} onChange={e => setDcComplemento(e.target.value)} disabled={isClientLocked} placeholder="Apto, Bloco..." />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 0.8fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Bairro {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcBairro} onChange={e => setDcBairro(e.target.value)} disabled={isClientLocked} placeholder="Bairro" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Cidade {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcCidade} onChange={e => setDcCidade(e.target.value)} disabled={isClientLocked} placeholder="Cidade" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Estado (UF) {isClientLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input type="text" className="form-control" style={{ fontSize: '0.83rem', opacity: isClientLocked ? 0.75 : 1 }} value={dcEstado} onChange={e => setDcEstado(e.target.value)} disabled={isClientLocked} placeholder="UF" />
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* BLOCO VÍNCULO E BUSCA ASAAS */}
-          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-              <i className="fa-solid fa-credit-card" style={{ color: 'var(--color-primary)' }}></i> Vínculo Asaas (ID do Cliente)
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                className="form-control"
-                style={{ fontSize: '0.83rem', flex: 1 }}
-                value={dcAsaasCustomerId}
-                onChange={e => setDcAsaasCustomerId(e.target.value)}
-                placeholder="ex: cus_0000057489 (ou deixe em branco para CPF)"
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: '0.78rem', whiteSpace: 'nowrap', background: 'rgba(16,185,129,0.1)', color: 'var(--color-primary)', borderColor: 'rgba(16,185,129,0.3)' }}
-                onClick={handleSearchAsaas}
-                disabled={searchingAsaas}
-              >
-                {searchingAsaas ? (
-                  <span><i className="fa-solid fa-spinner fa-spin"></i> Buscando...</span>
-                ) : (
-                  <span><i className="fa-solid fa-magnifying-glass"></i> Buscar no Asaas</span>
-                )}
-              </button>
-            </div>
-            <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '4px' }}>
-              Insira o ID ou deixe em branco para buscar por CPF/E-mail no Asaas.
-            </small>
-          </div>
-
-          {/* =========================================================================
-              BLOCO DADOS COMERCIAIS DO CONTRATO (AUDITORIA CONSOLIDADA OU EDIÇÃO ADMIN)
-              ========================================================================= */}
-          {(() => {
-            const hasContractOrProposal = Boolean(
-              selectedClient.dadosComerciais?.planoId || 
-              selectedClient.dadosComerciais?.status === 'ativo' ||
-              selectedClient.dadosComerciais?.status === 'finalizado' ||
-              activeProposal ||
-              (contracts && contracts.length > 0)
-            );
-            const isCommercialLocked = Boolean(hasContractOrProposal && selectedClient.bloqueioCadastral?.bloqueado !== false);
-            const selectedPlan = plans.find(p => p._id === dcPlano);
+            const selectedPlan = plans.find(p => p._id === (selectedClient.dadosComerciais?.planoId || dcPlano));
             const clientPy = allPaymentsMap[selectedClient._id] || [];
             const info = getContractValidityInfo(selectedClient, selectedPlan, clientPy);
 
-            const rawTipo = String(dcDuracao || 'mensal').toLowerCase();
+            const rawTipo = String(selectedClient.dadosComerciais?.duracao || dcDuracao || 'mensal').toLowerCase();
             const tipoLabel = rawTipo === 'semana' ? 'Semana' : (rawTipo === 'anual' ? 'Anual' : 'Mensal');
-            const qtdVal = dcVigenciaQtd || 1;
+            const qtdVal = selectedClient.dadosComerciais?.duracaoQtd || selectedClient.dadosComerciais?.vigenciaQtd || dcVigenciaQtd || 1;
 
-            if (isCommercialLocked) {
-              return (
+            const telClean = String(dcTelefone || '').replace(/\D/g, '');
+            const fullAddr = [
+              dcEndereco ? `${dcEndereco}${dcNumero ? `, ${dcNumero}` : ''}` : '',
+              dcComplemento,
+              dcBairro,
+              dcCidade ? `${dcCidade}${dcEstado ? ` - ${dcEstado}` : ''}` : '',
+              dcCep ? `CEP: ${dcCep}` : ''
+            ].filter(Boolean).join(' • ');
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* 1. CARD PERFIL EXECUTIVO DO ALUNO (SEM INPUTS SOLTOS) */}
                 <div style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                  border: '1px solid rgba(255,255,255,0.08)',
                   borderRadius: '14px',
-                  padding: '20px',
+                  padding: '18px 20px',
                   display: 'flex',
-                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
                   gap: '16px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
                 }}>
-                  {/* Header de Auditoria */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                        <i className="fa-solid fa-file-contract"></i>
-                      </div>
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#ffffff' }}>
-                          Radiografia & Auditoria do Contrato
-                        </h4>
-                        <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
-                          Single Source of Truth • Dados Oficiais Blindados
-                        </div>
-                      </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 300px' }}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                    }}>
+                      {(dcNome || 'A').charAt(0).toUpperCase()}
                     </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                        <i className="fa-solid fa-lock"></i> Contrato Blindado
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setShowUnlockModal(true)}
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '4px 10px',
-                          background: 'rgba(251, 191, 36, 0.15)',
-                          color: '#fbbf24',
-                          borderColor: 'rgba(251, 191, 36, 0.4)',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Card 1: Plano & Vigência */}
-                  <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ fontSize: '0.74rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-calendar-check"></i> Plano & Vigência Oficial
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Plano Contratado</span>
-                        <strong style={{ fontSize: '1rem', color: '#ffffff' }}>
-                          {selectedPlan?.nome || selectedClient.dadosComerciais?.planoNome || 'Plano Atual'}
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Tipo / Quantidade de Vigência</span>
-                        <strong style={{ fontSize: '0.95rem', color: '#34d399' }}>
-                          {tipoLabel} • {qtdVal}
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Período Oficial</span>
-                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                          {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Status do Contrato</span>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                          {dcNome || 'Aluno sem nome'}
+                        </h3>
                         <span style={{
-                          display: 'inline-block',
-                          marginTop: '2px',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          fontSize: '0.74rem',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.72rem',
                           fontWeight: 800,
                           background: info.badgeBg,
                           color: info.badgeColor,
@@ -4261,302 +4108,208 @@ export default function GestaoContratosPanel({
                           {info.statusLabel}
                         </span>
                       </div>
+                      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
+                        <span><strong style={{ color: '#cbd5e1' }}>CPF:</strong> {dcCpf || 'Não informado'}</span>
+                        <span><strong style={{ color: '#cbd5e1' }}>E-mail:</strong> {dcEmail || 'Não informado'}</span>
+                        {dcTelefone && (
+                          <a
+                            href={telClean ? `https://wa.me/55${telClean}` : '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#34d399', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <i className="fa-brands fa-whatsapp"></i> {dcTelefone}
+                          </a>
+                        )}
+                      </div>
+                      {fullAddr && (
+                        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '3px' }}>
+                          <i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }}></i> {fullAddr}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Card 2: Condições Financeiras */}
-                  <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ fontSize: '0.74rem', color: '#34d399', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-wallet"></i> Condições Financeiras & Pagamento
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Valor Contratado</span>
-                        <strong style={{ fontSize: '1.1rem', color: '#34d399' }}>
-                          R$ {Number(dcValorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Forma de Pagamento</span>
-                        <strong style={{ fontSize: '0.95rem', color: '#ffffff', textTransform: 'uppercase' }}>
-                          {String(dcFormaPag || 'PIX')}
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Parcelas / Vencimento</span>
-                        <strong style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>
-                          {dcParcelas || 1}x • Venc. Dia {dcVencimento ? new Date(dcVencimento + 'T00:00:00').getDate() : '—'}
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Recorrência Automática</span>
-                        <strong style={{ fontSize: '0.85rem', color: (dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '#10b981' : '#64748b' }}>
-                          {(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '🟢 Ativa' : '⚪ Desativada'}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Carteira de Créditos & Sessões */}
-                  <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ fontSize: '0.74rem', color: '#c084fc', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-dumbbell"></i> Carteira de Créditos & Frequência
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Frequência Semanal</span>
-                        <strong style={{ fontSize: '0.95rem', color: '#ffffff' }}>
-                          {dcFrequencia ? `${dcFrequencia}x por semana` : 'Livre / Conforme Plano'}
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Créditos de Treino</span>
-                        <strong style={{ fontSize: '1rem', color: '#c084fc' }}>
-                          {dcCreditosTotal || 0} totais ({selectedClient.dadosComerciais?.creditosUsados || 0} usados)
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Créditos de Massagem</span>
-                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                          {dcCreditosMassagem || 0} créditos/mês
-                        </strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Créditos Emergência</span>
-                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                          {dcCreditosEmergencia || 0} créditos/mês
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 4: Mini-Linha do Tempo de Ciclos Anteriores Integrada */}
-                  {Array.isArray(selectedClient.historicoContratos) && selectedClient.historicoContratos.length > 0 && (
-                    <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '0.74rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
-                          <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '6px', color: '#38bdf8' }}></i> Ciclos Anteriores Arquivados ({selectedClient.historicoContratos.length})
-                        </span>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setHistoryModalClient(selectedClient)}
-                          style={{ fontSize: '0.72rem', padding: '2px 8px', color: '#38bdf8' }}
-                        >
-                          Ver Detalhes
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {selectedClient.historicoContratos.slice(0, 2).map((hc: any, idx: number) => (
-                          <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.76rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: '#ffffff', fontWeight: 600 }}>{hc.planoNome}</span>
-                            <span style={{ color: '#34d399' }}>{hc.tipoPlano === 'semana' ? 'Semana' : 'Mensal'} • {hc.duracaoQtd || 1}</span>
-                            <span style={{ color: '#94a3b8' }}>{hc.dataInicio} até {hc.dataFim}</span>
-                            <span style={{ color: '#38bdf8', fontWeight: 700 }}>R$ {Number(hc.valorContratado || 0).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            // MODO EDIÇÃO ADMIN (QUANDO DESBLOQUEADO)
-            return (
-              <div style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '10px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <i className="fa-solid fa-pen" style={{ color: '#60a5fa', fontSize: '1.05rem' }}></i>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      Edição Comercial Liberada (Modo Administrador)
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Plano</label>
-                  <select
-                    className="select-custom"
-                    value={dcPlano}
-                    onChange={e => {
-                      const newPlanoId = e.target.value;
-                      setDcPlano(newPlanoId);
-                      const plan = plans.find(p => p._id === newPlanoId);
-                      if (plan) {
-                        setDcValorUnitario(plan.preco);
-                        setDcDuracao(plan.tipo === 'Anual' ? 'anual' : 'mensal');
-                        setDcVigenciaQtd(1);
-                        setDcCreditosTotal(plan.creditosTotal || 0);
-                      }
-                    }}
-                    required
-                  >
-                    <option value="">Selecione um plano...</option>
-                    {plans.filter((p: any) => p.ativo !== false).map((p: any) => (
-                      <option key={p._id} value={p._id}>{p.nome}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-solid fa-signal" style={{ color: dcStatus === 'ativo' ? '#10b981' : dcStatus === 'lead' ? '#8b5cf6' : dcStatus === 'congelado' ? '#f59e0b' : '#94a3b8' }}></i>
-                    Status Comercial do Contrato
-                  </label>
-                  <select
-                    className="select-custom"
-                    value={dcStatus}
-                    style={{ fontWeight: 600 }}
-                    onChange={e => setDcStatus(e.target.value)}
-                  >
-                    <option value="ativo">🟢 Contrato Ativo (Matrícula Efetivada)</option>
-                    <option value="lead">🟣 Lead / Em Avaliação</option>
-                    <option value="congelado">🟡 Congelado</option>
-                    <option value="finalizado">🏁 Finalizado</option>
-                    <option value="inativo">⚪ Inativo</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Forma de Pagamento</label>
-                    <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} required>
-                      <option value="pix">Pix</option>
-                      <option value="cartao">Cartão de Crédito</option>
-                      <option value="boleto">Boleto Bancário</option>
-                      <option value="dinheiro">Dinheiro</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Dia de Vencimento (1º Vencimento)</label>
-                    <input type="date" className="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} required />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Tipo de Vigência</label>
-                    <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} required>
-                      <option value="semana">Semana</option>
-                      <option value="mensal">Mensal</option>
-                      <option value="anual">Anual</option>
-                      <option value="indeterminado">Indeterminado</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Quantidade de Vigência</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={dcVigenciaQtd}
-                      onFocus={selectOnFocus}
-                      onChange={e => setDcVigenciaQtd(Math.max(1, parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10)))}
-                      min={1}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Nº Parcelas</label>
-                    <select className="select-custom" value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} required>
-                      {[...Array(12)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>{i + 1}x</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Valor Unitário (R$)</label>
-                    <MoneyInput value={dcValorUnitario} onChange={setDcValorUnitario} placeholder="R$ 0,00" required />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Frequência Semanal</label>
-                    <select
-                      className="select-custom"
-                      value={dcFrequencia}
-                      onChange={e => {
-                        const freq = Number(e.target.value);
-                        setDcFrequencia(freq);
-                        if (freq === 1) setDcCreditosTotal(4);
-                        else if (freq === 2) setDcCreditosTotal(9);
-                        else if (freq === 3) setDcCreditosTotal(13);
-                        else if (freq === 4) setDcCreditosTotal(17);
-                        else if (freq === 5) setDcCreditosTotal(22);
-                      }}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setShowEditClientModal(true)}
+                      style={{ fontSize: '0.76rem', padding: '6px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.12)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <option value={1}>1x por semana (4 sessões/mês)</option>
-                      <option value={2}>2x por semana (9 sessões/mês)</option>
-                      <option value={3}>3x por semana (13 sessões/mês)</option>
-                      <option value={4}>4x por semana (17 sessões/mês)</option>
-                      <option value={5}>5x por semana (22 sessões/mês)</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Data de Início</label>
-                    <input type="date" className="form-control" value={dcDataInicio} onChange={e => setDcDataInicio(e.target.value)} required />
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>Créditos Mensais</label>
-                    <input type="number" className="form-control" value={dcCreditosTotal} onFocus={selectOnFocus} onChange={e => setDcCreditosTotal(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))} min={0} required />
+                      <i className="fa-solid fa-pen-to-square"></i> Editar Cadastro
+                    </button>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
-                  <button type="submit" className="btn btn-primary" disabled={savingComercial} style={{ flex: 1 }}>
-                    {savingComercial ? <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</span> : <span><i className="fa-solid fa-floppy-disk"></i> Salvar Alterações</span>}
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setSelectedClient({ ...selectedClient })}>
-                    Cancelar
-                  </button>
+                {/* 2. GRID DE AUDITORIA DO CONTRATO ATUAL (CARDS EXECUTIVOS DE LEITURA) */}
+                <div style={{
+                  background: 'rgba(15, 23, 42, 0.7)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: '14px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-file-contract" style={{ color: '#34d399', fontSize: '1.1rem' }}></i>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.3px' }}>
+                        Auditoria & Condições Comerciais do Contrato
+                      </h4>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                      <i className="fa-solid fa-shield-halved" style={{ marginRight: '4px' }}></i> Single Source of Truth (Blindado)
+                    </span>
+                  </div>
+
+                  {/* Grid de 4 Blocos de Leitura Executiva */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                    {/* Bloco 1: Plano */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Plano Contratado</span>
+                      <strong style={{ fontSize: '0.95rem', color: '#ffffff', marginTop: '2px', display: 'block' }}>
+                        {selectedPlan?.nome || selectedClient.dadosComerciais?.planoNome || 'Plano Atual'}
+                      </strong>
+                    </div>
+
+                    {/* Bloco 2: Vigência */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo / Qtd Vigência</span>
+                      <strong style={{ fontSize: '0.95rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
+                        {tipoLabel} • {qtdVal}
+                      </strong>
+                    </div>
+
+                    {/* Bloco 3: Período */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
+                        {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                      </strong>
+                    </div>
+
+                    {/* Bloco 4: Financeiro */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Condição Financeira</span>
+                      <strong style={{ fontSize: '0.95rem', color: '#38bdf8', marginTop: '2px', display: 'block' }}>
+                        R$ {Number(dcValorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({String(dcFormaPag || 'PIX').toUpperCase()})
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Segunda Linha: Créditos & Recorrência */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Frequência Semanal:</span>
+                      <strong>{dcFrequencia ? `${dcFrequencia}x por semana` : 'Conforme Plano'}</strong>
+                    </div>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Carteira de Créditos:</span>
+                      <strong style={{ color: '#c084fc' }}>{dcCreditosTotal || 0} totais ({selectedClient.dadosComerciais?.creditosUsados || 0} usados)</strong>
+                    </div>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Recorrência Mensal:</span>
+                      <strong style={{ color: (dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '#10b981' : '#64748b' }}>
+                        {(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '🟢 Ativa' : '⚪ Desativada'}
+                      </strong>
+                    </div>
+                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Vínculo Asaas:</span>
+                      <strong style={{ color: dcAsaasCustomerId ? '#34d399' : '#64748b' }}>{dcAsaasCustomerId || 'Via CPF / E-mail'}</strong>
+                    </div>
+                  </div>
                 </div>
+
+                {/* 3. LINHA DO TEMPO DE CICLOS ANTERIORES ARQUIVADOS (INTEGRADA NA TELA) */}
+                {Array.isArray(selectedClient.historicoContratos) && selectedClient.historicoContratos.length > 0 && (
+                  <div style={{
+                    background: 'rgba(15, 23, 42, 0.7)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8' }}></i>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
+                          Ciclos e Contratos Anteriores Arquivados ({selectedClient.historicoContratos.length})
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setHistoryModalClient(selectedClient)}
+                        style={{ fontSize: '0.74rem', padding: '3px 10px', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+                      >
+                        Ver Detalhes Completos
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedClient.historicoContratos.map((hc: any, idx: number) => {
+                        const rawH = String(hc.tipoPlano || hc.duracao || 'mensal').toLowerCase();
+                        const tipoH = rawH === 'semana' ? 'Semana' : 'Mensal';
+                        const qtdH = hc.duracaoQtd || 6;
+                        return (
+                          <div key={idx} style={{
+                            background: 'rgba(30, 41, 59, 0.6)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            borderRadius: '10px',
+                            padding: '12px 14px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '10px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {selectedClient.historicoContratos.length - idx}
+                              </span>
+                              <div>
+                                <strong style={{ color: '#ffffff', fontSize: '0.88rem' }}>{hc.planoNome}</strong>
+                                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block' }}>
+                                  {hc.dataInicio} até {hc.dataFim} • Status: <span style={{ color: '#34d399', textTransform: 'uppercase', fontWeight: 700 }}>{hc.statusCiclo}</span>
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.8rem' }}>
+                              <span style={{ color: '#34d399', fontWeight: 700 }}>{tipoH} • {qtdH}</span>
+                              <span style={{ color: '#38bdf8', fontWeight: 700 }}>R$ {Number(hc.valorContratado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
-
-          {/* RODAPÉ DO FORMULÁRIO DE CADASTRO */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
-            {saveSuccess && (
-              <span style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <i className="fa-solid fa-circle-check" /> Salvo com sucesso!
-              </span>
-            )}
-            {saveError && (
-              <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <i className="fa-solid fa-circle-xmark" /> {saveError}
-              </span>
-            )}
-          </div>
         </form>
       </div>
 
-        {/* Right Column: Issuance & Central de Ações Rápidas */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Right Column: Issuance & Central de Ações Rápidas (35% no Desktop / 100% Touch no Mobile) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
           {/* Painel 1: Ações Comerciais */}
-          <div className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="content-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '14px' }}>
+            <h3 style={{ margin: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span><i className="fa-solid fa-bolt" style={{ marginRight: '8px' }}></i> Ações Comerciais & Vendas</span>
-              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>1 Clique</span>
+              <span style={{ fontSize: '0.72rem', background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>1 Toque</span>
             </h3>
 
             <button
               type="button"
               className="btn btn-primary"
               disabled={generatingProposal || issuingContract}
-              style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', borderColor: '#7c3aed', color: '#fff', fontWeight: 800, display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)' }}
+              style={{ width: '100%', minHeight: '48px', padding: '12px', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', borderColor: '#7c3aed', color: '#fff', fontWeight: 800, fontSize: '0.92rem', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)', cursor: 'pointer' }}
               onClick={() => handleOpenSalesWizard(selectedClient)}
             >
               <i className="fa-solid fa-bolt"></i> Gerar Link de Venda (Proposta / Adicional)
@@ -4568,43 +4321,42 @@ export default function GestaoContratosPanel({
                 className="btn btn-secondary"
                 disabled={Boolean(generatingRenewalClientId)}
                 onClick={() => handleGenerateRenewalLink(selectedClient)}
-                style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)', fontWeight: 700, fontSize: '0.8rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                style={{ minHeight: '42px', padding: '8px', background: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
               >
-                <i className="fa-solid fa-arrows-rotate"></i> Link de Renovação
+                <i className="fa-solid fa-arrows-rotate"></i> Renovação (+5%)
               </button>
 
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setHistoryModalClient(selectedClient)}
-                style={{ padding: '10px', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.4)', fontWeight: 700, fontSize: '0.8rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+                style={{ minHeight: '42px', padding: '8px', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.4)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
               >
-                <i className="fa-solid fa-clock-rotate-left"></i> Histórico Completo
+                <i className="fa-solid fa-clock-rotate-left"></i> Histórico
               </button>
             </div>
           </div>
 
           {/* Painel 2: Documentos & Assinatura */}
-          <div className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="content-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '14px' }}>
+            <h3 style={{ margin: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span><i className="fa-solid fa-file-signature" style={{ marginRight: '8px' }}></i> Documentos & Clicksign</span>
-              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Contratos</span>
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ padding: '9px', background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 600, fontSize: '0.78rem' }}
+                style={{ minHeight: '40px', padding: '8px', background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 600, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => setShowTextPreview(true)}
               >
-                <i className="fa-solid fa-book-open" style={{ marginRight: '5px' }}></i> Ver Minuta
+                <i className="fa-solid fa-book-open"></i> Ver Minuta
               </button>
 
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ padding: '9px', background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.3)', color: '#3b82f6', fontWeight: 600, fontSize: '0.78rem' }}
+                style={{ minHeight: '40px', padding: '8px', background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.3)', color: '#3b82f6', fontWeight: 600, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => {
                   const plan = plans.find(p => p._id === dcPlano);
                   if (!plan) {
@@ -4614,7 +4366,7 @@ export default function GestaoContratosPanel({
                   downloadContractPDF(selectedClient, plan, generateContractText(), { _id: 'draft' });
                 }}
               >
-                <i className="fa-solid fa-file-pdf" style={{ marginRight: '5px' }}></i> Baixar PDF
+                <i className="fa-solid fa-file-pdf"></i> Baixar PDF
               </button>
             </div>
 
@@ -4623,7 +4375,7 @@ export default function GestaoContratosPanel({
                 type="button"
                 className="btn btn-primary"
                 disabled={issuingContract}
-                style={{ background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
+                style={{ minHeight: '42px', background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
                 onClick={() => handleOpenSignatureModal()}
               >
                 <i className="fa-solid fa-hand-pointer"></i> Assinar na Tela
@@ -4633,10 +4385,10 @@ export default function GestaoContratosPanel({
                 type="button"
                 className="btn btn-secondary"
                 disabled={issuingContract}
-                style={{ color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
+                style={{ minHeight: '42px', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
                 onClick={() => handleIssueContract('clicksign')}
               >
-                <i className="fa-brands fa-whatsapp"></i> Clicksign WhatsApp
+                <i className="fa-brands fa-whatsapp"></i> WhatsApp Clicksign
               </button>
             </div>
 
@@ -4644,16 +4396,16 @@ export default function GestaoContratosPanel({
               type="button"
               className="btn btn-secondary"
               disabled={issuingContract}
-              style={{ width: '100%', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.78rem' }}
+              style={{ width: '100%', minHeight: '38px', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.78rem' }}
               onClick={() => setShowImportSignedModal(true)}
             >
-              <i className="fa-solid fa-file-circle-check"></i> Anexar Contrato Já Assinado (PDF)
+              <i className="fa-solid fa-file-circle-check"></i> Anexar Já Assinado (PDF)
             </button>
           </div>
 
-          {/* Painel 3: Operações & Encerramento */}
-          <div className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1rem', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Painel 3: Gestão Operacional */}
+          <div className="content-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '14px' }}>
+            <h3 style={{ margin: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span><i className="fa-solid fa-sliders" style={{ marginRight: '8px' }}></i> Gestão Operacional</span>
             </h3>
 
@@ -4663,9 +4415,9 @@ export default function GestaoContratosPanel({
                 className="btn btn-secondary"
                 disabled={generatingPayments}
                 onClick={handleGeneratePaymentsExplicitly}
-                style={{ color: '#34d399', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', fontWeight: 700, fontSize: '0.8rem' }}
+                style={{ minHeight: '40px', color: '#34d399', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
               >
-                <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '5px' }}></i> Lançar Parcelas
+                <i className="fa-solid fa-file-invoice-dollar"></i> Lançar Parcelas
               </button>
 
               <button
@@ -4673,9 +4425,9 @@ export default function GestaoContratosPanel({
                 className="btn btn-secondary"
                 disabled={renewingValidity}
                 onClick={() => handleRenewContractValidity(selectedClient)}
-                style={{ color: '#3b82f6', borderColor: 'rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.08)', fontWeight: 700, fontSize: '0.8rem' }}
+                style={{ minHeight: '40px', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.08)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
               >
-                <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '5px' }}></i> +1 Ciclo
+                <i className="fa-solid fa-arrows-rotate"></i> +1 Ciclo
               </button>
             </div>
 
@@ -4683,9 +4435,9 @@ export default function GestaoContratosPanel({
               type="button"
               className="btn btn-secondary"
               onClick={() => handleOpenFinalizeModal(selectedClient)}
-              style={{ width: '100%', background: 'rgba(239, 68, 68, 0.12)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.35)', fontWeight: 700, fontSize: '0.82rem', marginTop: '4px' }}
+              style={{ width: '100%', minHeight: '40px', background: 'rgba(239, 68, 68, 0.12)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.35)', fontWeight: 700, fontSize: '0.82rem', marginTop: '2px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
             >
-              <i className="fa-solid fa-flag-checkered" style={{ marginRight: '6px' }}></i> Finalizar Aluno (Não Renovou)
+              <i className="fa-solid fa-flag-checkered"></i> Finalizar Aluno (Não Renovou)
             </button>
           </div>
 
@@ -6665,6 +6417,120 @@ export default function GestaoContratosPanel({
                 Fechar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIÇÃO CADASTRAL & COMERCIAL DIRETA (ADMIN) */}
+      {showEditClientModal && (
+        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowEditClientModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header">
+              <h3><i className="fa-solid fa-pen-to-square" style={{ marginRight: '8px', color: '#38bdf8' }}></i> Editar Dados do Aluno (Administrador)</h3>
+              <button className="modal-close" onClick={() => setShowEditClientModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleSaveClientModal}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  1. Dados Pessoais & Contato
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Nome Completo</label>
+                    <input type="text" className="form-control" value={dcNome} onChange={e => setDcNome(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>E-mail</label>
+                    <input type="email" className="form-control" value={dcEmail} onChange={e => setDcEmail(e.target.value)} required />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>CPF</label>
+                    <input type="text" className="form-control" value={dcCpf} onChange={e => setDcCpf(e.target.value)} placeholder="000.000.000-00" />
+                  </div>
+                  <div className="form-group">
+                    <label>Telefone / WhatsApp</label>
+                    <input type="text" className="form-control" value={dcTelefone} onChange={e => setDcTelefone(e.target.value)} placeholder="(00) 00000-0000" />
+                  </div>
+                  <div className="form-group">
+                    <label>Data de Nascimento</label>
+                    <input type="date" className="form-control" value={dcNascimento} onChange={e => setDcNascimento(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Sexo</label>
+                    <select className="select-custom" value={dcSexo} onChange={e => setDcSexo(e.target.value)}>
+                      <option value="M">Masculino</option>
+                      <option value="F">Feminino</option>
+                      <option value="O">Outro</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 0.8fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>CEP</label>
+                    <input type="text" className="form-control" value={dcCep} onChange={e => setDcCep(e.target.value)} placeholder="00000-000" />
+                  </div>
+                  <div className="form-group">
+                    <label>Endereço (Rua/Av.)</label>
+                    <input type="text" className="form-control" value={dcEndereco} onChange={e => setDcEndereco(e.target.value)} placeholder="Rua..." />
+                  </div>
+                  <div className="form-group">
+                    <label>Número</label>
+                    <input type="text" className="form-control" value={dcNumero} onChange={e => setDcNumero(e.target.value)} placeholder="123" />
+                  </div>
+                  <div className="form-group">
+                    <label>Complemento</label>
+                    <input type="text" className="form-control" value={dcComplemento} onChange={e => setDcComplemento(e.target.value)} placeholder="Apto..." />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 0.8fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Bairro</label>
+                    <input type="text" className="form-control" value={dcBairro} onChange={e => setDcBairro(e.target.value)} placeholder="Bairro" />
+                  </div>
+                  <div className="form-group">
+                    <label>Cidade</label>
+                    <input type="text" className="form-control" value={dcCidade} onChange={e => setDcCidade(e.target.value)} placeholder="Cidade" />
+                  </div>
+                  <div className="form-group">
+                    <label>Estado (UF)</label>
+                    <input type="text" className="form-control" value={dcEstado} onChange={e => setDcEstado(e.target.value)} placeholder="UF" />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Vínculo Asaas (ID do Cliente)</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={dcAsaasCustomerId}
+                      onChange={e => setDcAsaasCustomerId(e.target.value)}
+                      placeholder="ex: cus_0000057489"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleSearchAsaas}
+                      disabled={searchingAsaas}
+                      style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+                    >
+                      {searchingAsaas ? 'Buscando...' : 'Buscar no Asaas'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px 20px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEditClientModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={savingComercial}>
+                  {savingComercial ? <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</span> : <span><i className="fa-solid fa-floppy-disk"></i> Salvar Alterações</span>}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
