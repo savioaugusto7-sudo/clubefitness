@@ -8133,28 +8133,58 @@ goniometria: {
                               const diffAnt = Math.abs(antD - antE);
                               const diffPM = Math.abs(pmD - pmE);
                               const diffPL = Math.abs(plD - plE);
-                              const hasAsymmetry = diffAnt > 10 || diffPM > 10 || diffPL > 10;
+                              const diffScore = Math.abs(scoreD - scoreE);
+
+                              const hasReachRisk = diffAnt > 4.0 || diffPM > 4.0 || diffPL > 4.0;
+                              const hasAsymmetry = diffScore > 10.0;
                               const hasLowScore = scoreD < 94 || scoreE < 94;
+
+                              let alerts: string[] = [];
+                              if (hasReachRisk) {
+                                const reachDetails = [];
+                                if (diffAnt > 4.0) reachDetails.push(`Ant: ${diffAnt.toFixed(1)}cm`);
+                                if (diffPM > 4.0) reachDetails.push(`PM: ${diffPM.toFixed(1)}cm`);
+                                if (diffPL > 4.0) reachDetails.push(`PL: ${diffPL.toFixed(1)}cm`);
+                                alerts.push(`Risco de Lesão (Diferença de alcance > 4.0cm: ${reachDetails.join(', ')})`);
+                              }
+                              if (hasAsymmetry) {
+                                alerts.push(`Alerta de Assimetria (Diferença > 10% entre direito e esquerdo: ${diffScore.toFixed(1)}%)`);
+                              }
+                              if (hasLowScore) {
+                                alerts.push('Baixo desempenho dinâmico (Composite Score < 94%)');
+                              }
+
                               return (
                                 <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.78rem' }}>
-                                  {(hasAsymmetry || hasLowScore) ? (
-                                    <div style={{ marginBottom: '8px' }}>
-                                      {hasAsymmetry && <span style={{ display: 'inline-block', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', padding: '2px 8px', marginRight: '6px', marginBottom: '4px', fontSize: '0.72rem' }}>⚠ Assimetria significativa (&gt;10cm) — Risco de Lesão!</span>}
-                                      {hasLowScore && <span style={{ display: 'inline-block', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', padding: '2px 8px', fontSize: '0.72rem' }}>⚠ Alto risco (Pontuação normalizada &lt;94%)</span>}
+                                  {alerts.length > 0 ? (
+                                    <div style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      {alerts.map((al, idx) => (
+                                        <span key={idx} className="badge badge-danger" style={{ display: 'block', padding: '6px 10px', textAlign: 'left', fontSize: '0.74rem' }}>
+                                          <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> {al}
+                                        </span>
+                                      ))}
                                     </div>
                                   ) : (
                                     <div style={{ marginBottom: '8px' }}>
-                                      <span style={{ display: 'inline-block', background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid #10b981', borderRadius: '4px', padding: '2px 8px', fontSize: '0.72rem' }}>✓ Sem alertas de risco detectados</span>
+                                      <span className="badge badge-success" style={{ display: 'block', padding: '6px', textAlign: 'center', fontSize: '0.74rem' }}>
+                                        <i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Sem alertas de risco detectados
+                                      </span>
                                     </div>
                                   )}
                                   <div className="resp-grid-1-1" style={{ gap: '8px' }}>
                                     <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}%</div>
-                                    <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}%</div>
+                                    <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}% {hasAsymmetry && <span style={{ color: '#f59e0b', fontWeight: 700 }}>({diffScore.toFixed(1)}% dif ⚠️)</span>}</div>
                                   </div>
                                   <div style={{ marginTop: '6px', borderTop: '1px solid var(--border-color)', paddingTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                                    <div><strong>Dif. Anterior:</strong> {diffAnt.toFixed(1)} cm</div>
-                                    <div><strong>Dif. Posteromedial:</strong> {diffPM.toFixed(1)} cm</div>
-                                    <div><strong>Dif. Posterolateral:</strong> {diffPL.toFixed(1)} cm</div>
+                                    <div style={{ color: diffAnt > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffAnt > 4.0 ? 700 : 400 }}>
+                                      <strong>Dif. Anterior:</strong> {diffAnt.toFixed(1)} cm {diffAnt > 4.0 && '⚠️'}
+                                    </div>
+                                    <div style={{ color: diffPM > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPM > 4.0 ? 700 : 400 }}>
+                                      <strong>Dif. Posteromedial:</strong> {diffPM.toFixed(1)} cm {diffPM > 4.0 && '⚠️'}
+                                    </div>
+                                    <div style={{ color: diffPL > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPL > 4.0 ? 700 : 400 }}>
+                                      <strong>Dif. Posterolateral:</strong> {diffPL.toFixed(1)} cm {diffPL > 4.0 && '⚠️'}
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -10005,28 +10035,58 @@ goniometria: {
                             const diffPL = Math.abs(yPLD - yPLE);
                             const scoreD = ((yAntD + yPMD + yPLD) / (3 * yLenD)) * 100;
                             const scoreE = ((yAntE + yPME + yPLE) / (3 * yLenE)) * 100;
+                            const diffScore = Math.abs(scoreD - scoreE);
                             
-                            let alerts = [];
-                            if (diffAnt > 10 || diffPM > 10 || diffPL > 10) alerts.push('Assimetria significativa (> 10cm) - Risco de Lesão!');
-                            if (scoreD < 94 || scoreE < 94) alerts.push('Alto risco de lesão (Pontuação normalizada inferior a 94%)');
+                            const hasReachRisk = diffAnt > 4.0 || diffPM > 4.0 || diffPL > 4.0;
+                            const hasAsymmetry = diffScore > 10.0;
+                            const hasLowScore = scoreD < 94 || scoreE < 94;
+
+                            let alerts: string[] = [];
+                            if (hasReachRisk) {
+                              const reachDetails = [];
+                              if (diffAnt > 4.0) reachDetails.push(`Ant: ${diffAnt.toFixed(1)}cm`);
+                              if (diffPM > 4.0) reachDetails.push(`PM: ${diffPM.toFixed(1)}cm`);
+                              if (diffPL > 4.0) reachDetails.push(`PL: ${diffPL.toFixed(1)}cm`);
+                              alerts.push(`Risco de Lesão (Diferença de alcance > 4.0cm: ${reachDetails.join(', ')})`);
+                            }
+                            if (hasAsymmetry) {
+                              alerts.push(`Alerta de Assimetria (Diferença > 10% entre direito e esquerdo: ${diffScore.toFixed(1)}%)`);
+                            }
+                            if (hasLowScore) {
+                              alerts.push('Baixo desempenho dinâmico (Composite Score < 94%)');
+                            }
                             
                             return (
                               <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.8rem', marginTop: '12px' }}>
                                 <div style={{ marginBottom: '8px' }}>
                                   {alerts.length > 0 ? (
-                                    <span className="badge badge-danger" style={{ display: 'block', padding: '6px', textAlign: 'center', marginBottom: '8px' }}><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> {alerts.join(' | ')}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      {alerts.map((al, idx) => (
+                                        <span key={idx} className="badge badge-danger" style={{ display: 'block', padding: '6px 10px', textAlign: 'left', fontSize: '0.74rem' }}>
+                                          <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> {al}
+                                        </span>
+                                      ))}
+                                    </div>
                                   ) : (
-                                    <span className="badge badge-success" style={{ display: 'block', padding: '6px', textAlign: 'center', marginBottom: '8px' }}><i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Sem alertas de risco detectados</span>
+                                    <span className="badge badge-success" style={{ display: 'block', padding: '6px', textAlign: 'center' }}>
+                                      <i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Sem alertas de risco detectados
+                                    </span>
                                   )}
                                 </div>
                                 <div className="resp-grid-1-1" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '8px' }}>
                                   <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}% <br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenD})</span></div>
-                                  <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}% <br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenE})</span></div>
+                                  <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}% {hasAsymmetry && <span style={{ color: '#f59e0b', fontWeight: 700 }}>({diffScore.toFixed(1)}% dif ⚠️)</span>}<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenE})</span></div>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem' }}>
-                                  <div>Diferença Anterior: <strong>{diffAnt.toFixed(1)} cm</strong></div>
-                                  <div>Diferença Posteromedial: <strong>{diffPM.toFixed(1)} cm</strong></div>
-                                  <div>Diferença Posterolateral: <strong>{diffPL.toFixed(1)} cm</strong></div>
+                                  <div style={{ color: diffAnt > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffAnt > 4.0 ? 700 : 400 }}>
+                                    Diferença Anterior: <strong>{diffAnt.toFixed(1)} cm {diffAnt > 4.0 && '⚠️'}</strong>
+                                  </div>
+                                  <div style={{ color: diffPM > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPM > 4.0 ? 700 : 400 }}>
+                                    Diferença Posteromedial: <strong>{diffPM.toFixed(1)} cm {diffPM > 4.0 && '⚠️'}</strong>
+                                  </div>
+                                  <div style={{ color: diffPL > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPL > 4.0 ? 700 : 400 }}>
+                                    Diferença Posterolateral: <strong>{diffPL.toFixed(1)} cm {diffPL > 4.0 && '⚠️'}</strong>
+                                  </div>
                                 </div>
                               </div>
                             );

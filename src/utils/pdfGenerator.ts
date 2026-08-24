@@ -650,10 +650,23 @@ export async function downloadReportPDF(report: any) {
       const diffAnt = Math.abs(yd.anterior - ye.anterior);
       const diffPM = Math.abs(yd.posteromedial - ye.posteromedial);
       const diffPL = Math.abs(yd.posterolateral - ye.posterolateral);
+      const diffScore = Math.abs(scoreD - scoreE);
 
       let alerts = [];
-      if (diffAnt > 10 || diffPM > 10 || diffPL > 10) alerts.push('Assimetria significativa (> 10cm) - Risco de Lesão!');
-      if (scoreD < 94 || scoreE < 94) alerts.push('Alto risco de lesão (Composite Score < 94%)');
+      const hasReachRisk = diffAnt > 4.0 || diffPM > 4.0 || diffPL > 4.0;
+      if (hasReachRisk) {
+        const reachDetails = [];
+        if (diffAnt > 4.0) reachDetails.push(`Ant: ${diffAnt.toFixed(1)}cm`);
+        if (diffPM > 4.0) reachDetails.push(`PM: ${diffPM.toFixed(1)}cm`);
+        if (diffPL > 4.0) reachDetails.push(`PL: ${diffPL.toFixed(1)}cm`);
+        alerts.push(`Risco de Lesão (Diferença de alcance > 4.0cm: ${reachDetails.join(', ')})`);
+      }
+      if (diffScore > 10.0) {
+        alerts.push(`Alerta de Assimetria (Diferença > 10% entre direito e esquerdo: ${diffScore.toFixed(1)}%)`);
+      }
+      if (scoreD < 94 || scoreE < 94) {
+        alerts.push('Baixo desempenho dinâmico (Composite Score < 94%)');
+      }
 
       yTestHtml = `
         <table class="table-data">
@@ -676,29 +689,37 @@ export async function downloadReportPDF(report: any) {
               <td style="font-weight:600;">Alcance Ant</td>
               <td style="text-align:center;">${yd.anterior} cm</td>
               <td style="text-align:center;">${ye.anterior} cm</td>
-              <td style="text-align:center;">${diffAnt.toFixed(1)} cm</td>
+              <td style="text-align:center; ${diffAnt > 4.0 ? 'color:#dc2626; font-weight:bold;' : ''}">
+                ${diffAnt.toFixed(1)} cm${diffAnt > 4.0 ? ' ⚠️' : ''}
+              </td>
             </tr>
             <tr>
               <td style="font-weight:600;">Alcance PM</td>
               <td style="text-align:center;">${yd.posteromedial} cm</td>
               <td style="text-align:center;">${ye.posteromedial} cm</td>
-              <td style="text-align:center;">${diffPM.toFixed(1)} cm</td>
+              <td style="text-align:center; ${diffPM > 4.0 ? 'color:#dc2626; font-weight:bold;' : ''}">
+                ${diffPM.toFixed(1)} cm${diffPM > 4.0 ? ' ⚠️' : ''}
+              </td>
             </tr>
             <tr>
               <td style="font-weight:600;">Alcance PL</td>
               <td style="text-align:center;">${yd.posterolateral} cm</td>
               <td style="text-align:center;">${ye.posterolateral} cm</td>
-              <td style="text-align:center;">${diffPL.toFixed(1)} cm</td>
+              <td style="text-align:center; ${diffPL > 4.0 ? 'color:#dc2626; font-weight:bold;' : ''}">
+                ${diffPL.toFixed(1)} cm${diffPL > 4.0 ? ' ⚠️' : ''}
+              </td>
             </tr>
             <tr style="font-weight:bold; background:#f8fafc;">
               <td>Composite Score</td>
               <td style="text-align:center;">${scoreD.toFixed(1)}%</td>
               <td style="text-align:center;">${scoreE.toFixed(1)}%</td>
-              <td style="text-align:center;">-</td>
+              <td style="text-align:center; ${diffScore > 10.0 ? 'color:#d97706; font-weight:bold;' : ''}">
+                ${diffScore.toFixed(1)}%${diffScore > 10.0 ? ' ⚠️' : ''}
+              </td>
             </tr>
           </tbody>
         </table>
-        ${alerts.length > 0 ? `<div style="margin-top:6px; color:#ef4444; font-weight:bold; font-size:7.5px;">⚠️ Alertas: ${alerts.join(' | ')}</div>` : ''}
+        ${alerts.length > 0 ? `<div style="margin-top:6px; color:#dc2626; font-weight:bold; font-size:7.5px;">⚠️ Alertas Clínicos: ${alerts.join(' | ')}</div>` : ''}
       `;
     }
 
