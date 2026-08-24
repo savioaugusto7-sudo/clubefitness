@@ -697,10 +697,9 @@ export default function VendaPage({ params }: { params: any }) {
                     const rate = formaPagamento === 'cartao' ? getCardRateForInstallment(num) : 0;
                     const total = formaPagamento === 'cartao' ? Number((basePrice * (1 + rate)).toFixed(2)) : basePrice;
                     const instVal = total / num;
-                    const ratePercent = (rate * 100).toFixed(2).replace('.', ',');
                     return (
                       <option key={num} value={num} style={{ background: '#1e293b', color: '#fff' }}>
-                        {num}x de R$ {instVal.toFixed(2).replace('.', ',')} {formaPagamento === 'cartao' ? `(Total: R$ ${total.toFixed(2).replace('.', ',')} • Taxa ${ratePercent}%)` : (num === 1 ? '(À vista)' : '')}
+                        {num}x de R$ {instVal.toFixed(2).replace('.', ',')} {formaPagamento === 'cartao' ? `(Total: R$ ${total.toFixed(2).replace('.', ',')})` : (num === 1 ? '(À vista)' : '')}
                       </option>
                     );
                   })}
@@ -746,7 +745,7 @@ export default function VendaPage({ params }: { params: any }) {
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
                     {formaPagamento === 'pix' && 'Pagamento instantâneo via Pix (à vista)'}
                     {formaPagamento === 'boleto' && (dataVencimento ? `Primeiro vencimento em ${new Date(dataVencimento + 'T00:00:00').toLocaleDateString('pt-BR')}` : 'Carnê / Boleto Bancário')}
-                    {formaPagamento === 'cartao' && `Parcelamento no Cartão de Crédito (+${(cardRate * 100).toFixed(2).replace('.', ',')}%)`}
+                    {formaPagamento === 'cartao' && 'Parcelamento no Cartão de Crédito'}
                   </span>
                 </div>
 
@@ -758,11 +757,6 @@ export default function VendaPage({ params }: { params: any }) {
                   </span>
                 </div>
               </div>
-              {formaPagamento === 'cartao' && (
-                <p style={{ color: 'var(--color-warning)', fontSize: '0.78rem', margin: '5px 0 0 0', textAlign: 'right' }}>
-                  * Inclui taxa de {(cardRate * 100).toFixed(2).replace('.', ',')}% de acréscimo do parcelamento em {currentInstallments}x no cartão de crédito.
-                </p>
-              )}
             </div>
           </div>
 
