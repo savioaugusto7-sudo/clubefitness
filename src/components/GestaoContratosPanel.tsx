@@ -4150,21 +4150,223 @@ export default function GestaoContratosPanel({
           </div>
 
           {/* =========================================================================
-              BLOCO DADOS COMERCIAIS DO CONTRATO (BLINDADOS SE CONTRATADO / LIBERÁVEIS)
+              BLOCO DADOS COMERCIAIS DO CONTRATO (AUDITORIA CONSOLIDADA OU EDIÇÃO ADMIN)
               ========================================================================= */}
           {(() => {
             const hasContractOrProposal = Boolean(
               selectedClient.dadosComerciais?.planoId || 
               selectedClient.dadosComerciais?.status === 'ativo' ||
+              selectedClient.dadosComerciais?.status === 'finalizado' ||
               activeProposal ||
               (contracts && contracts.length > 0)
             );
             const isCommercialLocked = Boolean(hasContractOrProposal && selectedClient.bloqueioCadastral?.bloqueado !== false);
+            const selectedPlan = plans.find(p => p._id === dcPlano);
+            const clientPy = allPaymentsMap[selectedClient._id] || [];
+            const info = getContractValidityInfo(selectedClient, selectedPlan, clientPy);
 
+            const rawTipo = String(dcDuracao || 'mensal').toLowerCase();
+            const tipoLabel = rawTipo === 'semana' ? 'Semana' : (rawTipo === 'anual' ? 'Anual' : 'Mensal');
+            const qtdVal = dcVigenciaQtd || 1;
+
+            if (isCommercialLocked) {
+              return (
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  borderRadius: '14px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+                }}>
+                  {/* Header de Auditoria */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                        <i className="fa-solid fa-file-contract"></i>
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#ffffff' }}>
+                          Radiografia & Auditoria do Contrato
+                        </h4>
+                        <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                          Single Source of Truth • Dados Oficiais Blindados
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <i className="fa-solid fa-lock"></i> Contrato Blindado
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setShowUnlockModal(true)}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '4px 10px',
+                          background: 'rgba(251, 191, 36, 0.15)',
+                          color: '#fbbf24',
+                          borderColor: 'rgba(251, 191, 36, 0.4)',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card 1: Plano & Vigência */}
+                  <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+                    <div style={{ fontSize: '0.74rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-calendar-check"></i> Plano & Vigência Oficial
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Plano Contratado</span>
+                        <strong style={{ fontSize: '1rem', color: '#ffffff' }}>
+                          {selectedPlan?.nome || selectedClient.dadosComerciais?.planoNome || 'Plano Atual'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Tipo / Quantidade de Vigência</span>
+                        <strong style={{ fontSize: '0.95rem', color: '#34d399' }}>
+                          {tipoLabel} • {qtdVal}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Período Oficial</span>
+                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                          {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Status do Contrato</span>
+                        <span style={{
+                          display: 'inline-block',
+                          marginTop: '2px',
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          fontSize: '0.74rem',
+                          fontWeight: 800,
+                          background: info.badgeBg,
+                          color: info.badgeColor,
+                          border: `1px solid ${info.badgeBorder}`,
+                          textTransform: 'uppercase'
+                        }}>
+                          {info.statusLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Condições Financeiras */}
+                  <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+                    <div style={{ fontSize: '0.74rem', color: '#34d399', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-wallet"></i> Condições Financeiras & Pagamento
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Valor Contratado</span>
+                        <strong style={{ fontSize: '1.1rem', color: '#34d399' }}>
+                          R$ {Number(dcValorUnitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Forma de Pagamento</span>
+                        <strong style={{ fontSize: '0.95rem', color: '#ffffff', textTransform: 'uppercase' }}>
+                          {String(dcFormaPag || 'PIX')}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Parcelas / Vencimento</span>
+                        <strong style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>
+                          {dcParcelas || 1}x • Venc. Dia {dcVencimento ? new Date(dcVencimento + 'T00:00:00').getDate() : '—'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Recorrência Automática</span>
+                        <strong style={{ fontSize: '0.85rem', color: (dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '#10b981' : '#64748b' }}>
+                          {(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '🟢 Ativa' : '⚪ Desativada'}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Carteira de Créditos & Sessões */}
+                  <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+                    <div style={{ fontSize: '0.74rem', color: '#c084fc', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-dumbbell"></i> Carteira de Créditos & Frequência
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Frequência Semanal</span>
+                        <strong style={{ fontSize: '0.95rem', color: '#ffffff' }}>
+                          {dcFrequencia ? `${dcFrequencia}x por semana` : 'Livre / Conforme Plano'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Créditos de Treino</span>
+                        <strong style={{ fontSize: '1rem', color: '#c084fc' }}>
+                          {dcCreditosTotal || 0} totais ({selectedClient.dadosComerciais?.creditosUsados || 0} usados)
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Créditos de Massagem</span>
+                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                          {dcCreditosMassagem || 0} créditos/mês
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>Créditos Emergência</span>
+                        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                          {dcCreditosEmergencia || 0} créditos/mês
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Mini-Linha do Tempo de Ciclos Anteriores Integrada */}
+                  {Array.isArray(selectedClient.historicoContratos) && selectedClient.historicoContratos.length > 0 && (
+                    <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.74rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.5px' }}>
+                          <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '6px', color: '#38bdf8' }}></i> Ciclos Anteriores Arquivados ({selectedClient.historicoContratos.length})
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => setHistoryModalClient(selectedClient)}
+                          style={{ fontSize: '0.72rem', padding: '2px 8px', color: '#38bdf8' }}
+                        >
+                          Ver Detalhes
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {selectedClient.historicoContratos.slice(0, 2).map((hc: any, idx: number) => (
+                          <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '8px 12px', fontSize: '0.76rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: '#ffffff', fontWeight: 600 }}>{hc.planoNome}</span>
+                            <span style={{ color: '#34d399' }}>{hc.tipoPlano === 'semana' ? 'Semana' : 'Mensal'} • {hc.duracaoQtd || 1}</span>
+                            <span style={{ color: '#94a3b8' }}>{hc.dataInicio} até {hc.dataFim}</span>
+                            <span style={{ color: '#38bdf8', fontWeight: 700 }}>R$ {Number(hc.valorContratado || 0).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // MODO EDIÇÃO ADMIN (QUANDO DESBLOQUEADO)
             return (
               <div style={{
                 background: 'var(--bg-secondary)',
-                border: isCommercialLocked ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border-color)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '10px',
                 padding: '16px',
                 display: 'flex',
@@ -4173,78 +4375,18 @@ export default function GestaoContratosPanel({
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <i className="fa-solid fa-file-contract" style={{ color: isCommercialLocked ? '#34d399' : 'var(--color-primary)', fontSize: '1.05rem' }}></i>
+                    <i className="fa-solid fa-pen" style={{ color: '#60a5fa', fontSize: '1.05rem' }}></i>
                     <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      Auditoria & Condições Comerciais do Contrato
+                      Edição Comercial Liberada (Modo Administrador)
                     </h4>
-                    {isCommercialLocked ? (
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-solid fa-lock"></i> Contratado pelo Aluno (Blindado)
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-solid fa-pen"></i> Edição Comercial Liberada
-                      </span>
-                    )}
-                  </div>
-
-                  {isCommercialLocked && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setShowUnlockModal(true)}
-                      style={{
-                        fontSize: '0.75rem',
-                        padding: '4px 10px',
-                        background: 'rgba(251, 191, 36, 0.15)',
-                        color: '#fbbf24',
-                        borderColor: 'rgba(251, 191, 36, 0.4)',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <i className="fa-solid fa-lock-open"></i> Liberar Edição (Admin)
-                    </button>
-                  )}
-                </div>
-
-                {/* Banner de Auditoria de Vigência */}
-                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo de Vigência</span>
-                    <strong style={{ fontSize: '0.92rem', color: '#38bdf8', textTransform: 'capitalize' }}>
-                      {dcDuracao === 'semana' ? 'Semanal' : (dcDuracao === 'anual' ? 'Anual' : 'Mensal')}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Quantidade de Vigência</span>
-                    <strong style={{ fontSize: '0.92rem', color: '#34d399' }}>
-                      {dcVigenciaQtd} {dcDuracao === 'semana' ? (dcVigenciaQtd === 1 ? 'semana' : 'semanas') : (dcDuracao === 'anual' ? (dcVigenciaQtd === 1 ? 'ano' : 'anos') : (dcVigenciaQtd === 1 ? 'mês' : 'meses'))}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial</span>
-                    <strong style={{ fontSize: '0.85rem', color: '#f8fafc' }}>
-                      {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-'} até {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Recorrência Automática</span>
-                    <strong style={{ fontSize: '0.85rem', color: (dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '#10b981' : '#64748b' }}>
-                      {(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '🟢 Ativa' : '⚪ Inativa'}
-                    </strong>
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>
-                    Plano {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                  </label>
+                  <label>Plano</label>
                   <select
                     className="select-custom"
                     value={dcPlano}
-                    disabled={isCommercialLocked}
-                    style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
                     onChange={e => {
                       const newPlanoId = e.target.value;
                       setDcPlano(newPlanoId);
@@ -4268,13 +4410,12 @@ export default function GestaoContratosPanel({
                 <div className="form-group">
                   <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <i className="fa-solid fa-signal" style={{ color: dcStatus === 'ativo' ? '#10b981' : dcStatus === 'lead' ? '#8b5cf6' : dcStatus === 'congelado' ? '#f59e0b' : '#94a3b8' }}></i>
-                    Status Comercial do Contrato {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
+                    Status Comercial do Contrato
                   </label>
                   <select
                     className="select-custom"
                     value={dcStatus}
-                    disabled={isCommercialLocked}
-                    style={{ fontWeight: 600, opacity: isCommercialLocked ? 0.75 : 1 }}
+                    style={{ fontWeight: 600 }}
                     onChange={e => setDcStatus(e.target.value)}
                   >
                     <option value="ativo">🟢 Contrato Ativo (Matrícula Efetivada)</option>
@@ -4287,10 +4428,8 @@ export default function GestaoContratosPanel({
 
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Forma de Pagamento {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }} required>
+                    <label>Forma de Pagamento</label>
+                    <select className="select-custom" value={dcFormaPag} onChange={e => setDcFormaPag(e.target.value)} required>
                       <option value="pix">Pix</option>
                       <option value="cartao">Cartão de Crédito</option>
                       <option value="boleto">Boleto Bancário</option>
@@ -4298,27 +4437,15 @@ export default function GestaoContratosPanel({
                     </select>
                   </div>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Dia de Vencimento (1º Vencimento) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={dcVencimento}
-                      onChange={e => setDcVencimento(e.target.value)}
-                      disabled={isCommercialLocked}
-                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
-                      required
-                    />
+                    <label>Dia de Vencimento (1º Vencimento)</label>
+                    <input type="date" className="form-control" value={dcVencimento} onChange={e => setDcVencimento(e.target.value)} required />
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Tipo de Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }} required>
+                    <label>Tipo de Vigência</label>
+                    <select className="select-custom" value={dcDuracao} onChange={e => setDcDuracao(e.target.value as any)} required>
                       <option value="semana">Semana</option>
                       <option value="mensal">Mensal</option>
                       <option value="anual">Anual</option>
@@ -4326,9 +4453,7 @@ export default function GestaoContratosPanel({
                     </select>
                   </div>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Quantidade de Vigência {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
+                    <label>Quantidade de Vigência</label>
                     <input
                       type="number"
                       className="form-control"
@@ -4336,8 +4461,6 @@ export default function GestaoContratosPanel({
                       onFocus={selectOnFocus}
                       onChange={e => setDcVigenciaQtd(Math.max(1, parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10)))}
                       min={1}
-                      disabled={isCommercialLocked}
-                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
                       required
                     />
                   </div>
@@ -4345,76 +4468,25 @@ export default function GestaoContratosPanel({
 
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Desconto Tipo {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <select className="select-custom" value={dcDescontoTipo} onChange={e => setDcDescontoTipo(e.target.value as any)} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }}>
-                      <option value="percentual">Percentual (%)</option>
-                      <option value="fixo">Fixo (R$)</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Desconto Valor {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    {dcDescontoTipo === 'percentual' ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="form-control"
-                        placeholder="0%"
-                        value={dcDescontoValor || ''}
-                        onFocus={selectOnFocus}
-                        onChange={e => setDcDescontoValor(parseFloat(e.target.value) || 0)}
-                        disabled={isCommercialLocked}
-                        style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
-                      />
-                    ) : (
-                      <MoneyInput
-                        value={dcDescontoValor}
-                        onChange={setDcDescontoValor}
-                        placeholder="R$ 0,00"
-                        disabled={isCommercialLocked}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Nº Parcelas {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <select className="select-custom" value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} disabled={isCommercialLocked} style={{ opacity: isCommercialLocked ? 0.75 : 1 }} required>
+                    <label>Nº Parcelas</label>
+                    <select className="select-custom" value={dcParcelas} onChange={e => setDcParcelas(Number(e.target.value))} required>
                       {[...Array(12)].map((_, i) => (
                         <option key={i + 1} value={i + 1}>{i + 1}x</option>
                       ))}
                     </select>
                   </div>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Valor Unitário (R$) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <MoneyInput
-                      value={dcValorUnitario}
-                      onChange={setDcValorUnitario}
-                      placeholder="R$ 0,00"
-                      disabled={isCommercialLocked}
-                      required
-                    />
+                    <label>Valor Unitário (R$)</label>
+                    <MoneyInput value={dcValorUnitario} onChange={setDcValorUnitario} placeholder="R$ 0,00" required />
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Frequência Semanal Contratada {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
+                    <label>Frequência Semanal</label>
                     <select
                       className="select-custom"
                       value={dcFrequencia}
-                      disabled={isCommercialLocked}
-                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
                       onChange={e => {
                         const freq = Number(e.target.value);
                         setDcFrequencia(freq);
@@ -4433,397 +4505,188 @@ export default function GestaoContratosPanel({
                     </select>
                   </div>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Data de Início {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={dcDataInicio}
-                      onChange={e => setDcDataInicio(e.target.value)}
-                      disabled={isCommercialLocked}
-                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
-                      required
-                    />
+                    <label>Data de Início</label>
+                    <input type="date" className="form-control" value={dcDataInicio} onChange={e => setDcDataInicio(e.target.value)} required />
                   </div>
                   <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Créditos Mensais {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={dcCreditosTotal}
-                      onFocus={selectOnFocus}
-                      onChange={e => setDcCreditosTotal(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
-                      min={0}
-                      disabled={isCommercialLocked}
-                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
-                      required
-                    />
+                    <label>Créditos Mensais</label>
+                    <input type="number" className="form-control" value={dcCreditosTotal} onFocus={selectOnFocus} onChange={e => setDcCreditosTotal(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))} min={0} required />
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Créditos de Massagem (Mensais) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={dcCreditosMassagem}
-                      onFocus={selectOnFocus}
-                      onChange={e => setDcCreditosMassagem(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
-                      min={0}
-                      disabled={isCommercialLocked}
-                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
-                    />
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 200px' }}>
-                    <label>
-                      Créditos de Emergência (Mensais) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                    </label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={dcCreditosEmergencia}
-                      onFocus={selectOnFocus}
-                      onChange={e => setDcCreditosEmergencia(parseInt(e.target.value.replace(/^0+(?=\d)/, '') || '0', 10))}
-                      min={0}
-                      disabled={isCommercialLocked}
-                      style={{ opacity: isCommercialLocked ? 0.75 : 1 }}
-                    />
-                  </div>
-                </div>
-
-                {/* CAIXA DE RECORRÊNCIA MENSAL AUTOMÁTICA */}
-                <div style={{ marginTop: '8px', marginBottom: '4px', padding: '14px', background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: isCommercialLocked ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', margin: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={dcCriarRecorrencia}
-                      onChange={e => setDcCriarRecorrencia(e.target.checked)}
-                      disabled={isCommercialLocked}
-                      style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)' }}
-                    />
-                    <span><i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px', color: '#3b82f6' }}></i> Criar Recorrência Mensal Automática para este Plano {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}</span>
-                  </label>
-                  {dcCriarRecorrencia && (
-                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Duração da Recorrência Mensal:</label>
-                      <select
-                        className="select-custom"
-                        value={dcRecorrenciaMeses}
-                        onChange={e => setDcRecorrenciaMeses(Number(e.target.value))}
-                        disabled={isCommercialLocked}
-                        style={{ width: '160px', padding: '6px 10px', fontSize: '0.83rem', opacity: isCommercialLocked ? 0.75 : 1 }}
-                      >
-                        <option value={3}>3 Meses</option>
-                        <option value={6}>6 Meses</option>
-                        <option value={12}>12 Meses (1 Ano)</option>
-                        <option value={24}>24 Meses (2 Anos)</option>
-                      </select>
-                      <small style={{ color: '#3b82f6', fontSize: '0.75rem', flex: '1 1 100%' }}>
-                        Gera cobranças mensais automáticas consecutivas a partir da Data do 1º Vencimento.
-                      </small>
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label>
-                    Observações Contratuais (Opcional) {isCommercialLocked && <span style={{ color: '#34d399', fontSize: '0.68rem' }}>[Blindado]</span>}
-                  </label>
-                  <textarea
-                    className="form-control"
-                    value={dcObservacoesContratuais}
-                    onChange={e => setDcObservacoesContratuais(e.target.value)}
-                    placeholder="Inserir observações opcionais..."
-                    disabled={isCommercialLocked}
-                    style={{ minHeight: '60px', resize: 'vertical', opacity: isCommercialLocked ? 0.75 : 1 }}
-                  />
+                <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+                  <button type="submit" className="btn btn-primary" disabled={savingComercial} style={{ flex: 1 }}>
+                    {savingComercial ? <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</span> : <span><i className="fa-solid fa-floppy-disk"></i> Salvar Alterações</span>}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setSelectedClient({ ...selectedClient })}>
+                    Cancelar
+                  </button>
                 </div>
               </div>
             );
           })()}
 
-          {/* SIMULADOR DE PREÇO & FECHAMENTO */}
-          {(() => {
-            const brutoSim = dcValorUnitario * dcVigenciaQtd;
-            const descValSim = Number(dcDescontoValor) || 0;
-            let liquidoSim = brutoSim;
-            if (dcDescontoTipo === 'percentual') {
-              liquidoSim = brutoSim * (1 - descValSim / 100);
-            } else {
-              liquidoSim = Math.max(0, brutoSim - descValSim);
-            }
-            const descontoReaisSim = brutoSim - liquidoSim;
-            const valorParcelaSim = liquidoSim / (Number(dcParcelas) || 1);
-
-            const endD = new Date((dcDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
-            if (dcDuracao === 'semana') {
-              endD.setDate(endD.getDate() + (dcVigenciaQtd * 7));
-            } else if (dcDuracao === 'anual') {
-              endD.setMonth(endD.getMonth() + (dcVigenciaQtd * 12));
-            } else {
-              endD.setMonth(endD.getMonth() + dcVigenciaQtd);
-            }
-            const dataFimSimStr = endD.toLocaleDateString('pt-BR');
-
-            return (
-              <div style={{
-                marginTop: '10px',
-                padding: '16px',
-                background: 'rgba(16, 185, 129, 0.04)',
-                border: '1px dashed rgba(16, 185, 129, 0.35)',
-                borderRadius: '10px',
-                color: 'var(--text-main)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
-                  <h4 style={{ margin: 0, color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    <i className="fa-solid fa-receipt" style={{ marginRight: '6px' }}></i> Resumo de Venda & Fechamento (Apresentação ao Cliente)
-                  </h4>
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.12)', color: 'var(--color-primary)', fontWeight: 'bold' }}>
-                    Fechamento
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' }}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Período de Vigência</div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-calendar-week" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}></i>
-                      {dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} até {dataFimSimStr}
-                    </div>
-                    <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
-                      Duração: {dcDuracao === 'semana' ? `${dcVigenciaQtd} semana(s)` : dcDuracao === 'mensal' ? `${dcVigenciaQtd} mês(es)` : `${dcVigenciaQtd} ano(s)`}
-                    </small>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Valor Total (Líquido)</div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-circle-check" style={{ color: 'var(--color-success)', fontSize: '0.85rem' }}></i>
-                      R$ {liquidoSim.toFixed(2).replace('.', ',')}
-                    </div>
-                    <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
-                      Bruto: R$ {brutoSim.toFixed(2).replace('.', ',')} (Desc: R$ {descontoReaisSim.toFixed(2).replace('.', ',')})
-                    </small>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Condição de Pagamento</div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-credit-card" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}></i>
-                      {dcParcelas}x de R$ {valorParcelaSim.toFixed(2).replace('.', ',')}
-                    </div>
-                    <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', marginTop: '2px' }}>
-                      Forma: {dcFormaPag.toUpperCase()}
-                    </small>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
+          {/* RODAPÉ DO FORMULÁRIO DE CADASTRO */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
-            <button
-              type="submit"
-              className="btn btn-secondary"
-              disabled={savingComercial}
-              style={{ flex: '1 1 140px' }}
-            >
-              {savingComercial ? (
-                <span><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</span>
-              ) : (
-                <span><i className="fa-solid fa-floppy-disk"></i> Salvar no Perfil</span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => handleOpenFinalizeModal(selectedClient)}
-              style={{
-                flex: '0 0 auto',
-                background: 'rgba(107, 114, 128, 0.2)',
-                color: '#d1d5db',
-                border: '1px solid rgba(107, 114, 128, 0.4)',
-                fontWeight: 700
-              }}
-              title="Encerrar este contrato/aluno e mover para Finalizados"
-            >
-              <i className="fa-solid fa-flag-checkered"></i> Finalizar Aluno (Não Renovou)
-            </button>
-
             {saveSuccess && (
-              <span style={{
-                color: '#10b981',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                alignSelf: 'center',
-                animation: 'fadeIn 0.3s ease'
-              }}>
+              <span style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <i className="fa-solid fa-circle-check" /> Salvo com sucesso!
               </span>
             )}
             {saveError && (
-              <span style={{
-                color: '#ef4444',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                alignSelf: 'center'
-              }}>
+              <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <i className="fa-solid fa-circle-xmark" /> {saveError}
               </span>
             )}
-
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={generatingPayments}
-              onClick={handleGeneratePaymentsExplicitly}
-              style={{ flex: '1 1 200px', background: '#10b981', borderColor: '#10b981', color: '#ffffff', fontWeight: 'bold' }}
-            >
-              {generatingPayments ? (
-                <span><i className="fa-solid fa-spinner fa-spin"></i> Lançando...</span>
-              ) : (
-                <span><i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i> Lançar Parcelas</span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={renewingValidity}
-              onClick={() => handleRenewContractValidity(selectedClient)}
-              style={{ flex: '1 1 180px', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.08)', fontWeight: 'bold' }}
-            >
-              {renewingValidity ? (
-                <span><i className="fa-solid fa-spinner fa-spin"></i> Renovando...</span>
-              ) : (
-                <span><i className="fa-solid fa-arrows-rotate" style={{ marginRight: '6px' }}></i> Renovar Vigência (+1 Ciclo)</span>
-              )}
-            </button>
-
-             {Boolean(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) && (
-               <button
-                 type="button"
-                 className="btn btn-secondary"
-                 disabled={cancelingRecurrence}
-                 onClick={() => handleCancelRecurrence(selectedClient)}
-                 style={{ flex: '1 1 180px', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)', fontWeight: 'bold' }}
-               >
-                 {cancelingRecurrence ? (
-                   <span><i className="fa-solid fa-spinner fa-spin"></i> Finalizando...</span>
-                 ) : (
-                   <span><i className="fa-solid fa-circle-stop" style={{ marginRight: '6px' }}></i> Finalizar Recorrência</span>
-                 )}
-               </button>
-             )}
           </div>
         </form>
       </div>
 
-        {/* Right Column: Issuance & History */}
+        {/* Right Column: Issuance & Central de Ações Rápidas */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* Box 1: Issue actions */}
-          <div className="content-panel" style={{ padding: '20px' }}>
-            <h3 style={{ margin: '0 0 14px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <span>
-                <i className="fa-solid fa-file-invoice" style={{ marginRight: '8px' }}></i> Emissão de Novo Contrato
-              </span>
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', background: 'var(--bg-secondary)', padding: '3px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                <i className="fa-solid fa-user" style={{ marginRight: '6px', color: 'var(--color-primary)' }}></i>
-                {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Aluno'}
-              </span>
+          {/* Painel 1: Ações Comerciais */}
+          <div className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span><i className="fa-solid fa-bolt" style={{ marginRight: '8px' }}></i> Ações Comerciais & Vendas</span>
+              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>1 Clique</span>
             </h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={generatingProposal || issuingContract}
+              style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', borderColor: '#7c3aed', color: '#fff', fontWeight: 800, display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)' }}
+              onClick={() => handleOpenSalesWizard(selectedClient)}
+            >
+              <i className="fa-solid fa-bolt"></i> Gerar Link de Venda (Proposta / Adicional)
+            </button>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ width: '100%', padding: '10px', background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 600 }}
-                onClick={() => setShowTextPreview(true)}
+                disabled={Boolean(generatingRenewalClientId)}
+                onClick={() => handleGenerateRenewalLink(selectedClient)}
+                style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)', fontWeight: 700, fontSize: '0.8rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
               >
-                <i className="fa-solid fa-book-open" style={{ marginRight: '6px' }}></i> Visualizar Texto Completo do Contrato
+                <i className="fa-solid fa-arrows-rotate"></i> Link de Renovação
               </button>
 
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ width: '100%', padding: '10px', background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.3)', color: '#3b82f6', fontWeight: 600 }}
+                onClick={() => setHistoryModalClient(selectedClient)}
+                style={{ padding: '10px', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.4)', fontWeight: 700, fontSize: '0.8rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+              >
+                <i className="fa-solid fa-clock-rotate-left"></i> Histórico Completo
+              </button>
+            </div>
+          </div>
+
+          {/* Painel 2: Documentos & Assinatura */}
+          <div className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span><i className="fa-solid fa-file-signature" style={{ marginRight: '8px' }}></i> Documentos & Clicksign</span>
+              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Contratos</span>
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '9px', background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 600, fontSize: '0.78rem' }}
+                onClick={() => setShowTextPreview(true)}
+              >
+                <i className="fa-solid fa-book-open" style={{ marginRight: '5px' }}></i> Ver Minuta
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '9px', background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.3)', color: '#3b82f6', fontWeight: 600, fontSize: '0.78rem' }}
                 onClick={() => {
                   const plan = plans.find(p => p._id === dcPlano);
                   if (!plan) {
-                    alert('Selecione um plano comercial na coluna da esquerda para gerar o PDF.');
+                    alert('Selecione um plano comercial para gerar o PDF.');
                     return;
                   }
                   downloadContractPDF(selectedClient, plan, generateContractText(), { _id: 'draft' });
                 }}
               >
-                <i className="fa-solid fa-file-pdf" style={{ marginRight: '6px' }}></i> Baixar PDF do Modelo do Contrato
+                <i className="fa-solid fa-file-pdf" style={{ marginRight: '5px' }}></i> Baixar PDF
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={issuingContract}
+                style={{ background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
+                onClick={() => handleOpenSignatureModal()}
+              >
+                <i className="fa-solid fa-hand-pointer"></i> Assinar na Tela
               </button>
 
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={issuingContract}
-                  style={{ flex: 1, minWidth: '140px', background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', opacity: issuingContract ? 0.6 : 1 }}
-                  onClick={() => handleOpenSignatureModal()}
-                >
-                  <i className="fa-solid fa-hand-pointer"></i> Assinatura Presencial
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={issuingContract}
-                  style={{ flex: 1, minWidth: '140px', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: issuingContract ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', cursor: issuingContract ? 'not-allowed' : 'pointer' }}
-                  onClick={() => handleIssueContract('clicksign')}
-                  title="Enviar link de assinatura diretamente para o WhatsApp do aluno e E-mail da clínica via Clicksign"
-                >
-                  {issuingContract ? (
-                    <span><i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Enviando p/ Clicksign...</span>
-                  ) : (
-                    <span><i className="fa-brands fa-whatsapp" style={{ fontSize: '1.05rem', marginRight: '6px' }}></i> Enviar p/ Clicksign (WhatsApp)</span>
-                  )}
-                </button>
-                 <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={issuingContract}
-                  style={{ flex: 1, minWidth: '140px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', opacity: issuingContract ? 0.6 : 1 }}
-                  onClick={() => handleIssueContract('pendente')}
-                >
-                  <i className="fa-solid fa-clock"></i> Emitir Pendente
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={generatingProposal || issuingContract}
-                  style={{ flex: 1, minWidth: '140px', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', opacity: (generatingProposal || issuingContract) ? 0.6 : 1 }}
-                  onClick={() => handleOpenSalesWizard(selectedClient)}
-                >
-                  <i className="fa-solid fa-bolt"></i> Gerar Link de Venda
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={issuingContract}
-                  style={{ flex: 1, minWidth: '100%', color: '#10b981', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.1)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', marginTop: '6px', opacity: issuingContract ? 0.6 : 1 }}
-                  onClick={() => setShowImportSignedModal(true)}
-                >
-                  <i className="fa-solid fa-file-circle-check"></i> Registrar Já Assinado (Anexar PDF)
-                </button>
-              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={issuingContract}
+                style={{ color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
+                onClick={() => handleIssueContract('clicksign')}
+              >
+                <i className="fa-brands fa-whatsapp"></i> Clicksign WhatsApp
+              </button>
             </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={issuingContract}
+              style={{ width: '100%', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.78rem' }}
+              onClick={() => setShowImportSignedModal(true)}
+            >
+              <i className="fa-solid fa-file-circle-check"></i> Anexar Contrato Já Assinado (PDF)
+            </button>
+          </div>
+
+          {/* Painel 3: Operações & Encerramento */}
+          <div className="content-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <h3 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontSize: '1rem', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span><i className="fa-solid fa-sliders" style={{ marginRight: '8px' }}></i> Gestão Operacional</span>
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={generatingPayments}
+                onClick={handleGeneratePaymentsExplicitly}
+                style={{ color: '#34d399', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', fontWeight: 700, fontSize: '0.8rem' }}
+              >
+                <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '5px' }}></i> Lançar Parcelas
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={renewingValidity}
+                onClick={() => handleRenewContractValidity(selectedClient)}
+                style={{ color: '#3b82f6', borderColor: 'rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.08)', fontWeight: 700, fontSize: '0.8rem' }}
+              >
+                <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '5px' }}></i> +1 Ciclo
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => handleOpenFinalizeModal(selectedClient)}
+              style={{ width: '100%', background: 'rgba(239, 68, 68, 0.12)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.35)', fontWeight: 700, fontSize: '0.82rem', marginTop: '4px' }}
+            >
+              <i className="fa-solid fa-flag-checkered" style={{ marginRight: '6px' }}></i> Finalizar Aluno (Não Renovou)
+            </button>
           </div>
 
           {/* Box 2: Contract History */}
