@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
+import { getStrengthAtlasKey, getDynamicStrengthAtlasBase64, renderStrengthAtlasFooterHtml, extractActiveJoints } from '@/utils/strengthAtlas';
 
 declare const Chart: any;
 declare const PDFLib: any;
@@ -3119,9 +3120,15 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const data = fmtDate(st.data || st.createdAt?.split('T')[0] || '');
   const peso = st.pesoCliente || client?.dadosMedidos?.peso || '-';
 
-  const [logoBase64, anatomyAtlas] = await Promise.all([
+  const isNew = st.testesRealizados && st.testesRealizados.length > 0;
+
+  // Extrair o conjunto de articulações testadas e a chave combinatória (63 combinações)
+  const testedJoints = extractActiveJoints(st.testesRealizados || [], st.comparativos || []);
+  const atlasKey = getStrengthAtlasKey(st.testesRealizados || [], st.comparativos || []);
+
+  const [logoBase64, splitAtlasBase64] = await Promise.all([
     getLogoBase64(),
-    getAnatomyAtlasBase64()
+    getDynamicStrengthAtlasBase64(atlasKey)
   ]);
 
   const pdfWrapper = document.createElement('div');
@@ -3130,17 +3137,6 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   pdfContainer.style.cssText = 'background:#ffffff;color:#1e293b;padding:0;margin:0;width:794px;box-sizing:border-box;';
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
-
-  const isNew = st.testesRealizados && st.testesRealizados.length > 0;
-
-  // Extrair o conjunto de articulações testadas
-  const testedJoints = new Set<string>();
-  if (st.testesRealizados) {
-    st.testesRealizados.forEach((t: any) => { if (t.articulacao) testedJoints.add(t.articulacao); });
-  }
-  if (st.comparativos) {
-    st.comparativos.forEach((c: any) => { if (c.articulacao) testedJoints.add(c.articulacao); });
-  }
 
   const pdfStyles = `
     <style>
@@ -3438,36 +3434,22 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
           </div>
         </div>
 
-        <!-- 3. Mapeamento Anatômico Médico de Alta Resolução (Nível Imagem 2 - Vistas Anterior e Posterior) -->
+        <!-- 3. Mapeamento Anatômico Integrado Split-Body -->
         <div class="section-card">
           <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Mapeamento Anatômico de Recrutamento e Força Muscular</span>
-            <span style="font-size: 7px; font-weight: 400; opacity: 0.9;">Atlas Biomecânico de Alta Definição</span>
+            <span>Mapeamento Anatômico de Recrutamento & Articulações Avaliadas</span>
+            <span style="font-size: 7.5px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px;">
+              ${testedJoints.size === 0 || testedJoints.size === 6 ? 'Bateria Completa (6 Articulações)' : `${testedJoints.size} de 6 Articulações Avaliadas`}
+            </span>
           </div>
-          <div class="section-card-content" style="padding: 10px; background: #ffffff;">
-            <div style="display: flex; justify-content: space-around; align-items: flex-start; gap: 16px;">
-              
-              <!-- Card Atlas Vista Anterior (Frontal) -->
-              <div style="flex: 1; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; background: #fafafa;">
-                <span style="font-size: 8px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">
-                  VISTA ANTERIOR (FRONTAL)
-                </span>
-                <div style="width: 100%; max-width: 290px; margin: 0 auto; overflow: hidden; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                  <img src="${anatomyAtlas.anterior}" style="width: 100%; height: auto; max-height: 290px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Vista Anterior" />
-                </div>
-              </div>
-
-              <!-- Card Atlas Vista Posterior (Dorsal) -->
-              <div style="flex: 1; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; background: #fafafa;">
-                <span style="font-size: 8px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">
-                  VISTA POSTERIOR (DORSAL)
-                </span>
-                <div style="width: 100%; max-width: 290px; margin: 0 auto; overflow: hidden; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                  <img src="${anatomyAtlas.posterior}" style="width: 100%; height: auto; max-height: 290px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Vista Posterior" />
-                </div>
-              </div>
-
+          <div class="section-card-content" style="padding: 12px 14px; background: #ffffff; text-align: center;">
+            <!-- Imagem Split-Body (Eixo Central Divisório com Lado Anterior e Posterior Integrados) -->
+            <div style="width: 100%; max-width: 320px; margin: 0 auto 10px auto; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+              <img src="${splitAtlasBase64}" style="width: 100%; height: auto; max-height: 330px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Split-Body" />
             </div>
+
+            <!-- Grid de Rodapé Dinâmico (6 Cartões Cinesiológicos Padronizados) -->
+            ${renderStrengthAtlasFooterHtml(testedJoints)}
           </div>
         </div>
 
