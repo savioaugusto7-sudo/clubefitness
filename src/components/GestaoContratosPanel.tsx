@@ -1148,6 +1148,319 @@ export default function GestaoContratosPanel({
     }
   };
 
+  // ==========================================
+  // ESTADOS E HANDLERS: VENDA MANUAL (ADMIN)
+  // ==========================================
+  const [manualSaleClient, setManualSaleClient] = useState<any>(null);
+  const [msSubmitting, setMsSubmitting] = useState(false);
+
+  // 1. Dados Comerciais
+  const [msPlano, setMsPlano] = useState('');
+  const [msValorUnitario, setMsValorUnitario] = useState<number>(0);
+  const [msDuracao, setMsDuracao] = useState<'mensal' | 'anual' | 'semana'>('mensal');
+  const [msVigenciaQtd, setMsVigenciaQtd] = useState<number>(1);
+  const [msDataInicio, setMsDataInicio] = useState('');
+  const [msCriarRecorrencia, setMsCriarRecorrencia] = useState(false);
+  const [msRecorrenciaMeses, setMsRecorrenciaMeses] = useState(12);
+  const [msDescontoTipo, setMsDescontoTipo] = useState<'percentual' | 'fixo'>('percentual');
+  const [msDescontoValor, setMsDescontoValor] = useState<number>(0);
+  const [msFrequencia, setMsFrequencia] = useState<number>(3);
+  const [msCreditosMensais, setMsCreditosMensais] = useState<number>(13);
+  const [msCreditosMassagem, setMsCreditosMassagem] = useState<number>(0);
+  const [msCreditosEmergencia, setMsCreditosEmergencia] = useState<number>(0);
+
+  // 2. Dados Pessoais do Aluno
+  const [msNome, setMsNome] = useState('');
+  const [msCpf, setMsCpf] = useState('');
+  const [msEmail, setMsEmail] = useState('');
+  const [msTelefone, setMsTelefone] = useState('');
+  const [msDataNascimento, setMsDataNascimento] = useState('');
+
+  // 3. Dados do Responsável Legal (quando menor de idade)
+  const [msRespNome, setMsRespNome] = useState('');
+  const [msRespCpf, setMsRespCpf] = useState('');
+  const [msRespEmail, setMsRespEmail] = useState('');
+  const [msRespTelefone, setMsRespTelefone] = useState('');
+
+  // 4. Endereço Residencial
+  const [msCep, setMsCep] = useState('');
+  const [msEndereco, setMsEndereco] = useState('');
+  const [msNumero, setMsNumero] = useState('');
+  const [msComplemento, setMsComplemento] = useState('');
+  const [msBairro, setMsBairro] = useState('');
+  const [msCidade, setMsCidade] = useState('');
+  const [msEstado, setMsEstado] = useState('MG');
+  const [msBuscandoCep, setMsBuscandoCep] = useState(false);
+
+  // 5. Condições de Pagamento (Superpoderes Admin)
+  const [msFormaPagamento, setMsFormaPagamento] = useState<'boleto' | 'cartao'>('boleto');
+  const [msParcelas, setMsParcelas] = useState<number>(1);
+  const [msDataPrimeiroVencimento, setMsDataPrimeiroVencimento] = useState('');
+
+  const handleMsCepBlur = async () => {
+    const clean = (msCep || '').replace(/\D/g, '');
+    if (clean.length !== 8) return;
+    setMsBuscandoCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        if (data.logradouro) setMsEndereco(data.logradouro);
+        if (data.bairro) setMsBairro(data.bairro);
+        if (data.localidade) setMsCidade(data.localidade);
+        if (data.uf) setMsEstado(data.uf);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setMsBuscandoCep(false);
+    }
+  };
+
+  const handleOpenManualSale = (client: any) => {
+    setManualSaleClient(client);
+    const dp = client?.dadosPessoais || {};
+    const com = client?.dadosComerciais || {};
+
+    // 1. Dados Pessoais
+    setMsNome(dp.nome || '');
+    setMsCpf(dp.cpf || '');
+    setMsEmail(dp.email || '');
+    setMsTelefone(dp.telefone || '');
+    setMsDataNascimento(dp.dataNascimento || dp.nascimento || '');
+
+    // Responsável (se menor)
+    setMsRespNome('');
+    setMsRespCpf('');
+    setMsRespEmail('');
+    setMsRespTelefone('');
+
+    // Endereço
+    setMsCep(dp.cep || '');
+    setMsEndereco(dp.endereco || '');
+    setMsNumero(dp.numero || '');
+    setMsComplemento(dp.complemento || '');
+    setMsBairro(dp.bairro || '');
+    setMsCidade(dp.cidade || '');
+    setMsEstado(dp.estado || 'MG');
+
+    // 2. Dados Comerciais
+    const defaultPlanId = com.planoId || (plans.length > 0 ? plans[0]._id : '');
+    const plan = plans.find(p => p._id === defaultPlanId);
+    setMsPlano(defaultPlanId);
+    setMsValorUnitario(Number(com.valorUnitario) || plan?.preco || 0);
+    setMsDuracao((com.duracao as any) || (plan?.tipo === 'Anual' ? 'anual' : 'mensal'));
+    setMsVigenciaQtd(Number(com.vigenciaQtd) || 1);
+    setMsDataInicio(new Date().toISOString().split('T')[0]);
+    setMsCriarRecorrencia(Boolean(com.criarRecorrenciaMensal));
+    setMsRecorrenciaMeses(12);
+    setMsDescontoTipo('percentual');
+    setMsDescontoValor(0);
+    setMsFrequencia(Number(com.frequencia) || 3);
+    setMsCreditosMensais(Number(com.creditosMensaisTotal) || 13);
+    setMsCreditosMassagem(0);
+    setMsCreditosEmergencia(0);
+
+    // 3. Pagamento
+    setMsFormaPagamento('boleto');
+    setMsParcelas(1);
+    setMsDataPrimeiroVencimento(new Date().toISOString().split('T')[0]);
+  };
+
+  const handleConfirmManualSale = async (actionType: 'clicksign' | 'presencial') => {
+    if (!manualSaleClient || !msPlano) {
+      alert('Por favor, selecione um plano.');
+      return;
+    }
+    if (!msNome.trim() || !msCpf.trim() || !msEmail.trim() || !msTelefone.trim()) {
+      alert('Por favor, preencha os dados cadastrais básicos do aluno (Nome, CPF, E-mail e WhatsApp).');
+      return;
+    }
+
+    const birthDateStr = msDataNascimento || manualSaleClient?.dadosPessoais?.dataNascimento || manualSaleClient?.dadosPessoais?.nascimento;
+    const isMinor = isMinorFromBirthDate(birthDateStr);
+    if (isMinor) {
+      if (!msRespNome.trim() || !msRespCpf.trim() || !msRespEmail.trim() || !msRespTelefone.trim()) {
+        alert('Este aluno é menor de idade. Por favor, preencha todos os campos do Responsável Legal (Nome, CPF, E-mail e WhatsApp).');
+        return;
+      }
+    }
+
+    if (!msEndereco.trim() || !msNumero.trim() || !msBairro.trim() || !msCidade.trim()) {
+      alert('Por favor, preencha o endereço residencial completo (Rua, Número, Bairro e Cidade).');
+      return;
+    }
+
+    setMsSubmitting(true);
+    try {
+      const plan = plans.find(p => p._id === msPlano);
+      const grossPrice = Number(msValorUnitario) * Number(msVigenciaQtd);
+      let discountDeduction = 0;
+      if (msDescontoTipo === 'percentual') {
+        discountDeduction = (grossPrice * (Number(msDescontoValor) || 0)) / 100;
+      } else {
+        discountDeduction = Number(msDescontoValor) || 0;
+      }
+      const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
+
+      const numParcelas = Number(msParcelas) || 1;
+      const cardRate = msFormaPagamento === 'cartao' ? getCardRateForInstallment(numParcelas) : 0;
+      const finalPrice = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + cardRate)).toFixed(2)) : calculatedValorLiquido;
+
+      const isAnual = msDuracao === 'anual' || Number(msVigenciaQtd) >= 12;
+      const planVigencia = isAnual ? 12 : Number(msVigenciaQtd) || 1;
+      const vigenciaMeses = Math.max(planVigencia, numParcelas);
+
+      const startD = new Date((msDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+      const endD = new Date(startD);
+      if (msDuracao === 'semana') {
+        endD.setDate(endD.getDate() + (msVigenciaQtd * 7));
+      } else if (isAnual) {
+        endD.setMonth(endD.getMonth() + (msVigenciaQtd * 12));
+      } else {
+        endD.setMonth(endD.getMonth() + msVigenciaQtd);
+      }
+      const dataFimCalculada = endD.toISOString().split('T')[0];
+
+      // 1. Atualizar dados cadastrais e comerciais do cliente
+      const clientUpdatePayload = {
+        _id: manualSaleClient._id,
+        dadosPessoais: {
+          ...manualSaleClient.dadosPessoais,
+          nome: msNome,
+          cpf: msCpf,
+          email: isMinor ? msRespEmail : msEmail,
+          telefone: isMinor ? msRespTelefone : msTelefone,
+          dataNascimento: msDataNascimento,
+          cep: msCep,
+          endereco: msEndereco,
+          numero: msNumero,
+          complemento: msComplemento,
+          bairro: msBairro,
+          cidade: msCidade,
+          estado: msEstado
+        },
+        dadosComerciais: {
+          ...manualSaleClient.dadosComerciais,
+          planoId: msPlano,
+          status: actionType === 'presencial' ? 'ativo' : (manualSaleClient.dadosComerciais?.status || 'pendente'),
+          valorUnitario: msValorUnitario,
+          descontoTipo: msDescontoTipo,
+          descontoValor: msDescontoValor,
+          formaPagamento: msFormaPagamento,
+          dataInicio: msDataInicio,
+          vencimento: msDataPrimeiroVencimento || msDataInicio,
+          duracao: msDuracao,
+          vigenciaQtd: msVigenciaQtd,
+          frequencia: msFrequencia,
+          creditosMensaisTotal: msCreditosMensais,
+          creditosMassagemTotal: msCreditosMassagem,
+          creditosEmergenciaTotal: msCreditosEmergencia,
+          criarRecorrenciaMensal: msCriarRecorrencia,
+          recorrenciaMeses: msRecorrenciaMeses
+        },
+        bloqueioCadastral: {
+          bloqueado: true,
+          motivo: 'Cadastro e venda manual realizada pela Administração',
+          dadosInformadosPeloCliente: true,
+          origemCadastro: 'venda_manual_admin',
+          historicoDesbloqueios: manualSaleClient.bloqueioCadastral?.historicoDesbloqueios || []
+        }
+      };
+
+      await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientUpdatePayload)
+      });
+
+      // 2. Gerar texto do contrato unificado
+      const contractData = {
+        clientNome: isMinor ? msRespNome : msNome,
+        clientCpf: isMinor ? msRespCpf : msCpf,
+        clientEmail: isMinor ? msRespEmail : msEmail,
+        clientTelefone: isMinor ? msRespTelefone : msTelefone,
+        clientDataNascimento: isMinor ? '' : msDataNascimento,
+        clientCep: msCep,
+        clientEndereco: msEndereco,
+        clientNumero: msNumero,
+        clientComplemento: msComplemento,
+        clientBairro: msBairro,
+        clientCidade: msCidade,
+        planNome: plan?.nome || 'Plano Clube Fitness',
+        planTipo: plan?.tipo || (isAnual ? 'Anual' : 'Mensal'),
+        planPreco: plan?.preco || grossPrice,
+        valorUnitario: msValorUnitario,
+        valorLiquido: finalPrice,
+        descontoTipo: msDescontoTipo,
+        descontoValor: msDescontoValor,
+        duracao: msDuracao,
+        vigenciaQtd: msVigenciaQtd,
+        parcelas: numParcelas,
+        formaPagamento: msFormaPagamento,
+        dataInicio: msDataInicio,
+        dataVencimento: msDataPrimeiroVencimento || msDataInicio,
+        creditosMensais: msCreditosMensais,
+        unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
+        isMinor,
+        beneficiarioNome: isMinor ? msNome : undefined,
+        beneficiarioCpf: isMinor ? msCpf : undefined
+      };
+
+      const unifiedContractText = getUnifiedTemplate(contractData);
+
+      // 3. Criar Contrato Oficial
+      const contractPayload: any = {
+        clientId: manualSaleClient._id,
+        planoId: msPlano,
+        planoNome: plan?.nome,
+        planoTipo: isAnual ? 'Anual' : 'Mensal',
+        valorBruto: grossPrice,
+        descontoTipo: msDescontoTipo,
+        descontoValor: msDescontoValor,
+        valorLiquido: finalPrice,
+        parcelas: numParcelas,
+        formaPagamento: msFormaPagamento,
+        diaVencimento: msDataPrimeiroVencimento ? parseInt(msDataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate(),
+        dataPrimeiroVencimento: msDataPrimeiroVencimento || msDataInicio,
+        dataInicio: msDataInicio,
+        dataFim: dataFimCalculada,
+        vigenciaMeses,
+        status: actionType === 'presencial' ? 'vigente' : 'pendente',
+        contratoTexto: unifiedContractText,
+        usuarioEmissor: userCargo || 'Administrador',
+        unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
+        frequencia: msFrequencia,
+        creditosTotal: msCreditosMensais,
+        enviarClicksign: actionType === 'clicksign',
+        assinaturaNome: actionType === 'presencial' ? 'Assinatura Presencial (Balcão)' : undefined
+      };
+
+      const contractRes = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contractPayload)
+      });
+      const contractJson = await contractRes.json();
+
+      if (contractJson.success) {
+        if (actionType === 'clicksign') {
+          alert(`✅ Contrato emitido com sucesso e enviado pela Clicksign diretamente para o WhatsApp de ${isMinor ? msRespNome : msNome}!`);
+        } else {
+          alert(`✅ Venda manual cadastrada com sucesso! Contrato ativado e créditos liberados.`);
+        }
+        setManualSaleClient(null);
+        fetchData(true);
+      } else {
+        alert('Erro ao emitir contrato: ' + (contractJson.error || 'Erro desconhecido'));
+      }
+    } catch (err: any) {
+      alert('Erro ao processar venda manual: ' + err.message);
+    } finally {
+      setMsSubmitting(false);
+    }
+  };
+
   // 3. Wizard de Emissão Direta de Contrato & Clicksign
   const [directContractClient, setDirectContractClient] = useState<any>(null);
   const [dcwStep, setDcwStep] = useState(1);
@@ -4338,6 +4651,36 @@ export default function GestaoContratosPanel({
               <i className="fa-solid fa-bolt"></i> Gerar Link de Venda (Proposta / Adicional)
             </button>
 
+            {/* Botão Venda Manual / Balcão (Exclusivo Administrador) */}
+            {(userCargo === 'Administrador' || userCargo === 'admin' || userCargo?.toLowerCase().includes('admin')) && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={generatingProposal || issuingContract}
+                style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  padding: '10px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%)',
+                  borderColor: 'rgba(16, 185, 129, 0.5)',
+                  color: '#34d399',
+                  fontWeight: 800,
+                  fontSize: '0.88rem',
+                  display: 'flex',
+                  gap: '8px',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.15)',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => handleOpenManualSale(selectedClient)}
+              >
+                <i className="fa-solid fa-file-pen"></i> Cadastrar Venda Manual (Admin)
+              </button>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"
@@ -5674,6 +6017,659 @@ export default function GestaoContratosPanel({
                   Gerar Link & Compartilhar
                 </button>
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* =========================================================================
+          MODAL EXECUTIVO: CADASTRO DE VENDA MANUAL / BALCÃO (ADMIN)
+          ========================================================================= */}
+      {manualSaleClient && (() => {
+        const activePlans = plans.filter((p: any) => p.ativo !== false);
+        const grossPrice = Number(msValorUnitario) * Number(msVigenciaQtd || 1);
+        let discountDeduction = 0;
+        if (msDescontoTipo === 'percentual') {
+          discountDeduction = (grossPrice * (Number(msDescontoValor) || 0)) / 100;
+        } else {
+          discountDeduction = Number(msDescontoValor) || 0;
+        }
+        const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
+
+        const numParcelas = Number(msParcelas) || 1;
+        const cardRate = msFormaPagamento === 'cartao' ? getCardRateForInstallment(numParcelas) : 0;
+        const finalPrice = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + cardRate)).toFixed(2)) : calculatedValorLiquido;
+        const valorParcela = Number((finalPrice / numParcelas).toFixed(2));
+
+        const birthDateStr = msDataNascimento || manualSaleClient?.dadosPessoais?.dataNascimento || manualSaleClient?.dadosPessoais?.nascimento;
+        const isMinorDetected = isMinorFromBirthDate(birthDateStr);
+
+        return (
+          <div className="modal-overlay" onClick={() => { if (!msSubmitting) setManualSaleClient(null); }} style={{ zIndex: 10000 }}>
+            <div
+              className="modal-content"
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: '860px', width: '95%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.4)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}
+            >
+              {/* Header */}
+              <div
+                className="modal-header"
+                style={{
+                  padding: '18px 24px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
+                  borderBottom: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#34d399', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-file-pen"></i> Cadastrar Venda Manual (Balcão / Admin)
+                  </h3>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span>Aluno: <strong style={{ color: '#fff' }}>{msNome || manualSaleClient.dadosPessoais?.nome || 'Aluno'}</strong></span>
+                    {isMinorDetected && (
+                      <span style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#fde047', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '4px', padding: '1px 7px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i>
+                        Menor de Idade (Requer Responsável Legal)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={() => { if (!msSubmitting) setManualSaleClient(null); }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.4rem', cursor: 'pointer' }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="modal-body" style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                
+                {/* ETAPA 1: DADOS COMERCIAIS */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ margin: '0 0 14px 0', fontSize: '0.92rem', fontWeight: 800, color: '#c084fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-tag"></i> 1. Condições Comerciais do Plano
+                  </h4>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Plano / Modalidade *</label>
+                      <select
+                        className="select-custom"
+                        style={{ width: '100%', padding: '9px 10px' }}
+                        value={msPlano}
+                        onChange={e => {
+                          const pId = e.target.value;
+                          setMsPlano(pId);
+                          const p = plans.find(x => x._id === pId);
+                          if (p) {
+                            setMsValorUnitario(p.preco || 0);
+                            setMsDuracao((p.tipo === 'Anual' ? 'anual' : 'mensal'));
+                            setMsVigenciaQtd(p.tipo === 'Anual' ? 12 : 1);
+                            setMsCreditosMensais(p.creditos || 13);
+                            setMsFrequencia(p.frequencia || 3);
+                          }
+                        }}
+                      >
+                        <option value="">Selecione o plano...</option>
+                        {activePlans.map(p => (
+                          <option key={p._id} value={p._id}>
+                            {p.nome} — R$ {(p.preco || 0).toFixed(2).replace('.', ',')} ({p.tipo || 'Mensal'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo de Vigência</label>
+                      <select
+                        className="select-custom"
+                        style={{ width: '100%', padding: '9px 10px' }}
+                        value={msDuracao}
+                        onChange={e => {
+                          const val = e.target.value as any;
+                          setMsDuracao(val);
+                          if (val === 'anual') setMsVigenciaQtd(12);
+                          else if (val === 'semana') setMsVigenciaQtd(1);
+                          else setMsVigenciaQtd(1);
+                        }}
+                      >
+                        <option value="mensal">Mensal (Meses)</option>
+                        <option value="anual">Anual (12 Meses)</option>
+                        <option value="semana">Semanal (Semanas)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        Qtd. de Vigência ({msDuracao === 'anual' ? 'Meses (ex: 12)' : msDuracao === 'semana' ? 'Semanas' : 'Meses'})
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msVigenciaQtd}
+                        onChange={e => setMsVigenciaQtd(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data de Início do Acesso</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msDataInicio}
+                        onChange={e => setMsDataInicio(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Frequência, Créditos e Valores */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Frequência Semanal</label>
+                      <select
+                        className="select-custom"
+                        style={{ width: '100%', padding: '9px 10px' }}
+                        value={msFrequencia}
+                        onChange={e => {
+                          const freq = Number(e.target.value);
+                          setMsFrequencia(freq);
+                          if (freq === 1) setMsCreditosMensais(4);
+                          else if (freq === 2) setMsCreditosMensais(9);
+                          else if (freq === 3) setMsCreditosMensais(13);
+                          else if (freq === 4) setMsCreditosMensais(17);
+                          else if (freq === 5) setMsCreditosMensais(22);
+                        }}
+                      >
+                        <option value={1}>1x por semana (4 aulas)</option>
+                        <option value={2}>2x por semana (9 aulas)</option>
+                        <option value={3}>3x por semana (13 aulas)</option>
+                        <option value={4}>4x por semana (17 aulas)</option>
+                        <option value={5}>5x por semana (22 aulas)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos Mensais</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msCreditosMensais}
+                        onChange={e => setMsCreditosMensais(parseInt(e.target.value, 10) || 0)}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor da Parcela / Mês *</label>
+                      <MoneyInput
+                        style={{ padding: '9px 10px', fontWeight: 750, color: 'var(--color-primary)' }}
+                        value={msValorUnitario}
+                        onChange={setMsValorUnitario}
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Desconto</label>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <select
+                          className="select-custom"
+                          style={{ width: '90px', padding: '9px 6px' }}
+                          value={msDescontoTipo}
+                          onChange={e => setMsDescontoTipo(e.target.value as any)}
+                        >
+                          <option value="percentual">%</option>
+                          <option value="fixo">R$</option>
+                        </select>
+                        {msDescontoTipo === 'percentual' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="form-control"
+                            placeholder="0%"
+                            style={{ padding: '9px 8px' }}
+                            value={msDescontoValor || ''}
+                            onFocus={selectOnFocus}
+                            onChange={e => setMsDescontoValor(parseFloat(e.target.value) || 0)}
+                          />
+                        ) : (
+                          <MoneyInput
+                            style={{ padding: '9px 8px' }}
+                            value={msDescontoValor}
+                            onChange={setMsDescontoValor}
+                            placeholder="R$ 0,00"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resumo Líquido Base */}
+                  <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      Bruto: <strong>R$ {grossPrice.toFixed(2).replace('.', ',')}</strong>
+                      {discountDeduction > 0 && <span style={{ color: '#ef4444', marginLeft: '10px' }}>Desconto: - R$ {discountDeduction.toFixed(2).replace('.', ',')}</span>}
+                    </span>
+                    <span style={{ fontWeight: 800, color: '#34d399', fontSize: '1rem' }}>
+                      Valor Líquido Base: R$ {calculatedValorLiquido.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ETAPA 2: DADOS PESSOAIS & ENDEREÇO */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ margin: '0 0 14px 0', fontSize: '0.92rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-user-check"></i> 2. Dados Cadastrais & Endereço do Contratante
+                  </h4>
+
+                  {/* Dados do Aluno */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Nome Completo do Aluno *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msNome}
+                        onChange={e => setMsNome(e.target.value)}
+                        placeholder="Nome completo"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>CPF do Aluno *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msCpf}
+                        onChange={e => setMsCpf(e.target.value)}
+                        placeholder="000.000.000-00"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>WhatsApp / Celular *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msTelefone}
+                        onChange={e => setMsTelefone(e.target.value)}
+                        placeholder="(31) 99999-9999"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>E-mail *</label>
+                      <input
+                        type="email"
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msEmail}
+                        onChange={e => setMsEmail(e.target.value)}
+                        placeholder="aluno@email.com"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data de Nascimento</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msDataNascimento}
+                        onChange={e => setMsDataNascimento(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Campos do Responsável Legal se Menor */}
+                  {isMinorDetected && (
+                    <div style={{ background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fde047', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <i className="fa-solid fa-user-shield"></i> Dados do Responsável Legal (Contratante e Signatário Clicksign)
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                        <div className="form-group">
+                          <label style={{ fontSize: '0.78rem', color: '#fde047', marginBottom: '3px' }}>Nome do Responsável *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            style={{ padding: '8px 10px' }}
+                            value={msRespNome}
+                            onChange={e => setMsRespNome(e.target.value)}
+                            placeholder="Nome do pai/mãe/tutor"
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label style={{ fontSize: '0.78rem', color: '#fde047', marginBottom: '3px' }}>CPF do Responsável *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            style={{ padding: '8px 10px' }}
+                            value={msRespCpf}
+                            onChange={e => setMsRespCpf(e.target.value)}
+                            placeholder="000.000.000-00"
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label style={{ fontSize: '0.78rem', color: '#fde047', marginBottom: '3px' }}>WhatsApp do Responsável *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            style={{ padding: '8px 10px' }}
+                            value={msRespTelefone}
+                            onChange={e => setMsRespTelefone(e.target.value)}
+                            placeholder="(31) 99999-9999"
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label style={{ fontSize: '0.78rem', color: '#fde047', marginBottom: '3px' }}>E-mail do Responsável *</label>
+                          <input
+                            type="email"
+                            className="form-control"
+                            style={{ padding: '8px 10px' }}
+                            value={msRespEmail}
+                            onChange={e => setMsRespEmail(e.target.value)}
+                            placeholder="responsavel@email.com"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Endereço Residencial */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1.5fr 90px 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>
+                        CEP {msBuscandoCep && <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--color-primary)' }}></i>}
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '8px 10px' }}
+                        value={msCep}
+                        onBlur={handleMsCepBlur}
+                        onChange={e => setMsCep(e.target.value)}
+                        placeholder="00000-000"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>Rua / Logradouro *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '8px 10px' }}
+                        value={msEndereco}
+                        onChange={e => setMsEndereco(e.target.value)}
+                        placeholder="Av. Principal"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>Número *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '8px 10px' }}
+                        value={msNumero}
+                        onChange={e => setMsNumero(e.target.value)}
+                        placeholder="123"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>Complemento</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '8px 10px' }}
+                        value={msComplemento}
+                        onChange={e => setMsComplemento(e.target.value)}
+                        placeholder="Apto 101"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: '10px' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>Bairro *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '8px 10px' }}
+                        value={msBairro}
+                        onChange={e => setMsBairro(e.target.value)}
+                        placeholder="Bairro"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>Cidade *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '8px 10px' }}
+                        value={msCidade}
+                        onChange={e => setMsCidade(e.target.value)}
+                        placeholder="Cidade"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>UF *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ padding: '8px 10px' }}
+                        value={msEstado}
+                        onChange={e => setMsEstado(e.target.value.toUpperCase())}
+                        placeholder="MG"
+                        maxLength={2}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ETAPA 3: CONDIÇÕES DE PAGAMENTO (ADMIN) */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}>
+                  <h4 style={{ margin: '0 0 14px 0', fontSize: '0.92rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-credit-card"></i> 3. Condições de Pagamento (Poder Total Administrador)
+                  </h4>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                    {/* Botão Boleto / Pix */}
+                    <div
+                      onClick={() => { setMsFormaPagamento('boleto'); setMsParcelas(1); }}
+                      style={{
+                        background: msFormaPagamento === 'boleto' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.02)',
+                        border: `2px solid ${msFormaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                        borderRadius: '10px',
+                        padding: '14px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                    >
+                      <i className="fa-solid fa-barcode fa-2x" style={{ color: msFormaPagamento === 'boleto' ? 'var(--color-primary)' : 'var(--text-muted)' }}></i>
+                      <div>
+                        <strong style={{ color: '#fff', fontSize: '0.95rem', display: 'block' }}>Boleto / Pix</strong>
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Liberado de 1x até 10x sem juros</small>
+                      </div>
+                    </div>
+
+                    {/* Botão Cartão de Crédito */}
+                    <div
+                      onClick={() => { setMsFormaPagamento('cartao'); setMsParcelas(1); }}
+                      style={{
+                        background: msFormaPagamento === 'cartao' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.02)',
+                        border: `2px solid ${msFormaPagamento === 'cartao' ? '#3b82f6' : 'var(--border-color)'}`,
+                        borderRadius: '10px',
+                        padding: '14px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                    >
+                      <i className="fa-solid fa-credit-card fa-2x" style={{ color: msFormaPagamento === 'cartao' ? '#60a5fa' : 'var(--text-muted)' }}></i>
+                      <div>
+                        <strong style={{ color: '#fff', fontSize: '0.95rem', display: 'block' }}>Cartão de Crédito</strong>
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Liberado de 1x até 12x</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        Número de Parcelas ({msFormaPagamento === 'cartao' ? 'Até 12x' : 'Até 10x'})
+                      </label>
+                      <select
+                        className="select-custom"
+                        style={{ width: '100%', padding: '9px 10px' }}
+                        value={msParcelas}
+                        onChange={e => setMsParcelas(Number(e.target.value))}
+                      >
+                        {Array.from({ length: msFormaPagamento === 'cartao' ? 12 : 10 }, (_, i) => i + 1).map(num => {
+                          const rate = msFormaPagamento === 'cartao' ? getCardRateForInstallment(num) : 0;
+                          const total = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + rate)).toFixed(2)) : calculatedValorLiquido;
+                          const instVal = Number((total / num).toFixed(2));
+                          return (
+                            <option key={num} value={num}>
+                              {num}x de R$ {instVal.toFixed(2).replace('.', ',')} (Total: R$ {total.toFixed(2).replace('.', ',')})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data do 1º Vencimento</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msDataPrimeiroVencimento}
+                        onChange={e => setMsDataPrimeiroVencimento(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Resumo Final da Venda */}
+                  <div style={{ marginTop: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Forma Selecionada:</div>
+                      <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem' }}>
+                        {msFormaPagamento === 'boleto' ? 'Boleto / Pix' : 'Cartão de Crédito'}
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: msFormaPagamento === 'boleto' ? 'var(--color-primary)' : '#60a5fa' }}>
+                        {numParcelas}x de R$ {valorParcela.toFixed(2).replace('.', ',')}
+                      </div>
+                      <small style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                        Valor Total Contratado: <strong style={{ color: '#fff' }}>R$ {finalPrice.toFixed(2).replace('.', ',')}</strong>
+                      </small>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer / Botões de Ação */}
+              <div
+                className="modal-footer"
+                style={{
+                  padding: '16px 24px',
+                  background: 'var(--bg-darker)',
+                  borderTop: '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => { if (!msSubmitting) setManualSaleClient(null); }}
+                  disabled={msSubmitting}
+                >
+                  Cancelar
+                </button>
+
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {/* Opção 1: WhatsApp Clicksign */}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={msSubmitting || !msPlano || !msValorUnitario || Number(msValorUnitario) <= 0}
+                    style={{
+                      background: 'rgba(34, 197, 94, 0.2)',
+                      borderColor: '#22c55e',
+                      color: '#4ade80',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 16px',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => handleConfirmManualSale('clicksign')}
+                  >
+                    {msSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-brands fa-whatsapp fa-lg"></i>}
+                    Disparar WhatsApp Clicksign
+                  </button>
+
+                  {/* Opção 2: Concluir Presencialmente */}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={msSubmitting || !msPlano || !msValorUnitario || Number(msValorUnitario) <= 0}
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      borderColor: '#059669',
+                      color: '#fff',
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+                    }}
+                    onClick={() => handleConfirmManualSale('presencial')}
+                  >
+                    {msSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                    Concluir & Ativar Presencialmente
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         );
