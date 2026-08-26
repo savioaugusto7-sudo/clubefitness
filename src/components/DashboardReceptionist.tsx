@@ -924,7 +924,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
       if (fsDurationType === 'contrato') {
         const selectedClientObj = clients.find(c => c._id === fsClient);
         const com = selectedClientObj?.dadosComerciais || {};
-        const hasRecurrence = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+        const hasRecurrence = Boolean(com.criarRecorrenciaMensal);
 
         if (hasRecurrence) {
           // Aluno com recorrência ativada -> Vigência contínua/recorrente sem data final fixa
@@ -1131,7 +1131,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     }
 
     // 5. Recurrence
-    const hasRecurrence = Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia);
+    const hasRecurrence = Boolean(c.dadosComerciais?.criarRecorrenciaMensal);
     if (clientFilterRecurrence !== 'todos') {
       if (clientFilterRecurrence === 'com' && !hasRecurrence) return false;
       if (clientFilterRecurrence === 'sem' && hasRecurrence) return false;
@@ -1350,7 +1350,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
 
       // 5. Recurrence filter
       if (clientFilterRecurrence !== 'todos') {
-        const hasRec = Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia);
+        const hasRec = Boolean(c.dadosComerciais?.criarRecorrenciaMensal);
         if (clientFilterRecurrence === 'com' && !hasRec) return false;
         if (clientFilterRecurrence === 'sem' && hasRec) return false;
       }
@@ -3377,7 +3377,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     {fsDurationType === 'contrato' && fsClient && (() => {
                       const selObj = clients.find(c => c._id === fsClient);
                       const com = selObj?.dadosComerciais || {};
-                      const hasRecurrence = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+                      const hasRecurrence = Boolean(com.criarRecorrenciaMensal);
                       const venc = com.vencimento;
 
                       if (hasRecurrence) {

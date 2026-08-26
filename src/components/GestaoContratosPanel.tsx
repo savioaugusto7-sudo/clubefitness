@@ -66,7 +66,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   const dp = c?.dadosPessoais || {};
   const info = getContractValidityInfo(c, plan, clientPayments);
 
-  const isRecorrente = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia || latestContract?.criarRecorrenciaMensal);
+  const isRecorrente = Boolean(com.criarRecorrenciaMensal || latestContract?.criarRecorrenciaMensal);
   const isBoleto = (latestContract?.formaPagamento || com.formaPagamento) === 'boleto';
   const hasAsaasBoleto = Boolean(latestContract?.asaasBoletoPdf || latestContract?.asaasInvoiceUrl);
   const hasPaidInstallment = Boolean(clientPayments && clientPayments.some((p: any) => p.status === 'Pago'));

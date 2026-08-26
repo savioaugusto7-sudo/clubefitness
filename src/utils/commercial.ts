@@ -9,7 +9,7 @@ export async function syncClientPlanValidity(clientId: string): Promise<void> {
     if (!client || !client.dadosComerciais) return;
 
     const com = client.dadosComerciais;
-    const isRecurring = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+    const isRecurring = Boolean(com.criarRecorrenciaMensal);
 
     // If client does NOT have recurrence active, do not auto-extend validity based on paid installments!
     if (!isRecurring) return;

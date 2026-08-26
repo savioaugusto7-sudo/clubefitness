@@ -797,7 +797,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       if (fsDurationType === 'contrato') {
         const selectedClientObj = clients.find(c => c._id === fsClient);
         const com = selectedClientObj?.dadosComerciais || {};
-        const hasRecurrence = Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+        const hasRecurrence = Boolean(com.criarRecorrenciaMensal);
 
         if (hasRecurrence) {
           // Aluno com recorrência ativada -> Vigência contínua/recorrente sem data final fixa
@@ -3073,7 +3073,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           <td>{c.dadosPessoais?.telefone || '-'}</td>
                           <td>
                             {planName}
-                            {Boolean(c.dadosComerciais?.criarRecorrenciaMensal || c.dadosComerciais?.recorrenciaVigencia) && (
+                            {Boolean(c.dadosComerciais?.criarRecorrenciaMensal) && (
                               <div style={{ marginTop: '2px' }}>
                                 <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.62rem', padding: '2px 4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '3px' }}>
                                   <i className="fa-solid fa-arrows-rotate fa-spin" style={{ fontSize: '0.55rem' }}></i> Recorrência

@@ -223,7 +223,6 @@ export async function PUT(request: Request) {
     client.dadosComerciais.vencimento = renewal.dataFimCalculada;
     client.dadosComerciais.frequencia = renewal.frequencia;
     client.dadosComerciais.creditosTotal = renewal.creditosMensais;
-    client.dadosComerciais.recorrenciaVigencia = true;
     client.dadosComerciais.diaVencimento = diaVenc;
     client.dadosComerciais.formaPagamento = formaPagamento;
     client.dadosComerciais.parcelas = numParcelas;

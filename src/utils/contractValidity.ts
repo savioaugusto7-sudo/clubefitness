@@ -178,18 +178,15 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     const dataInicioRaw = com.dataInicio || client?.createdAt || new Date();
     
     // RECORRÊNCIA É EXCLUSIVAMENTE QUANDO HÁ CONFIGURAÇÃO EXPLÍCITA DE ASSINATURA RECORRENTE
-    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal || com.recorrenciaVigencia);
+    const isRecorrente = isDynamus ? false : Boolean(com.criarRecorrenciaMensal);
 
     const dataInicio = safeFormatYYYYMMDD(safeParseDate(dataInicioRaw));
 
-    // 1. DATA FIM DO CICLO CONTRATUAL TOTAL (12 Meses ou Total de Parcelas da Recorrência)
-    let recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
-    if (Array.isArray(paymentsList) && paymentsList.length > recorrenciaMeses) {
-      recorrenciaMeses = paymentsList.length;
-    }
+    // 1. DATA FIM DO CICLO CONTRATUAL TOTAL (12 Meses para Anual / Vigência Contratada)
+    const recorrenciaMeses = Number(com.recorrenciaMeses) > 0 ? Number(com.recorrenciaMeses) : 12;
 
     let dataFimCicloTotal = isRecorrente
-      ? calculateContractEndDate(dataInicio, 'anual', recorrenciaMeses === 12 ? 1 : Math.ceil(recorrenciaMeses / 12), undefined, false)
+      ? calculateContractEndDate(dataInicio, 'anual', 1, undefined, false)
       : calculateContractEndDate(dataInicio, duracao, vigenciaQtd, undefined, false);
     let dataFimRecorrencia = dataFimCicloTotal;
 
