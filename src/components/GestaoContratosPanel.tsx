@@ -165,7 +165,11 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   }
 
   // 2. Proposta Comercial Enviada via Link (Pendente de Resposta do Aluno)
-  const isPendingProposal = Boolean(latestProposal && latestProposal.status === 'pendente');
+  const isPendingProposal = Boolean(
+    (latestProposal && latestProposal.status === 'pendente') ||
+    com.status === 'proposta_enviada' ||
+    com.status === 'proposta'
+  );
   if (isPendingProposal) {
     return {
       stageKey: 'proposta',

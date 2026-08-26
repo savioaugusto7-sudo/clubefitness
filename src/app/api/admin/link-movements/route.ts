@@ -167,20 +167,20 @@ export async function GET() {
       }
 
       if (isExpirada && p.status !== 'respondida' && p.status !== 'aceita') {
-        infoList.push({ label: 'Validade', value: 'Expirado (3 dias)' });
+        infoList.push({ label: 'Validade', value: p.status === 'expirada' ? 'Expirado (Substituído ou Prazo)' : 'Expirado (3 dias)' });
       }
 
       movements.push({
         _id: `prop_${p._id}`,
         createdAt: p.updatedAt || p.createdAt || new Date().toISOString(),
         tipo: 'venda',
-        tipoLabel: isExpirada && p.status === 'pendente' ? 'Link Expirado (3 dias)' : 'Link de Venda / Pagamento',
-        badgeColor: isExpirada && p.status === 'pendente' ? '#ef4444' : '#3b82f6',
+        tipoLabel: isExpirada && p.status !== 'respondida' && p.status !== 'aceita' ? 'Link Expirado' : 'Link de Venda / Pagamento',
+        badgeColor: isExpirada && p.status !== 'respondida' && p.status !== 'aceita' ? '#ef4444' : '#3b82f6',
         linkNome: 'Link de Venda Online',
         linkUrl: `/vendas/${p._id}`,
         abertoEm: p.abertoEm || null,
         visualizado: Boolean(p.visualizado || p.abertoEm),
-        statusProposta: isExpirada && p.status === 'pendente' ? 'expirada' : (p.status || 'pendente'),
+        statusProposta: isExpirada && p.status !== 'respondida' && p.status !== 'aceita' ? 'expirada' : (p.status || 'pendente'),
         cliente: {
           _id: cli._id || p.clientId,
           nome: cli.dadosPessoais?.nome || 'Cliente',

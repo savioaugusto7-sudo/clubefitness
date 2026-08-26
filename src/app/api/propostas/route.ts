@@ -112,6 +112,13 @@ export async function POST(request: Request) {
     const clientBirthDate = client.dadosPessoais?.dataNascimento || (client.dadosPessoais as any)?.nascimento;
     const isMinorCalculated = isMinor !== undefined ? Boolean(isMinor) : isMinorFromBirthDate(clientBirthDate);
 
+    // 1. Expirar automaticamente qualquer proposta pendente anterior do mesmo cliente
+    await Proposal.updateMany(
+      { clientId: client._id, status: 'pendente' },
+      { $set: { status: 'expirada', expiradoEm: new Date() } }
+    );
+
+    // 2. Criar nova proposta com status pendente
     const proposal = await Proposal.create({
       clientId,
       planoId,
@@ -133,6 +140,14 @@ export async function POST(request: Request) {
       isMinor: isMinorCalculated,
       status: 'pendente'
     });
+
+    // 3. Atualizar status do cliente para proposta_enviada se não for um contrato já assinado/ativo
+    if (client.dadosComerciais) {
+      if (client.dadosComerciais.status !== 'ativo' && client.dadosComerciais.status !== 'finalizado') {
+        client.dadosComerciais.status = 'proposta_enviada';
+        await client.save();
+      }
+    }
 
     return NextResponse.json({ success: true, data: proposal });
   } catch (error: any) {
