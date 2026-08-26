@@ -113,8 +113,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   // Search states
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
   const [linkMovements, setLinkMovements] = useState<any[]>([]);
-  const [loadingLinkMovements, setLoadingLinkMovements] = useState(false);
+  const [loadingLinkMovements, setLoadingLinkMovements] = useState<boolean>(false);
   const [linkMovementTypeFilter, setLinkMovementTypeFilter] = useState<string>('todos');
+  const [linkMovementViewFilter, setLinkMovementViewFilter] = useState<string>('todos');
+  const [linkMovementStatusFilter, setLinkMovementStatusFilter] = useState<string>('todos');
+  const [linkMovementPeriodFilter, setLinkMovementPeriodFilter] = useState<string>('todos');
+  const [linkMovementPlanFilter, setLinkMovementPlanFilter] = useState<string>('todos');
+  const [linkMovementSort, setLinkMovementSort] = useState<string>('data_desc');
   const [selectedLinkMovementDetails, setSelectedLinkMovementDetails] = useState<any>(null);
 
   const fetchLinkMovements = async (silent = false) => {
@@ -4004,361 +4009,660 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       })()}
 
       {/* View: Movimentos Realizados via Link */}
-      {activeTab === 'movimentos_links' && (
-        <>
-          <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-            <div className="view-title-group">
-              <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <i className="fa-solid fa-satellite-dish" style={{ color: '#10b981' }}></i>
-                Movimentos Realizados via Link
-              </h1>
-              <p>Acompanhe em tempo real os links preenchidos por clientes e todas as informações enviadas.</p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button 
-                className="btn btn-secondary btn-sm" 
-                onClick={() => fetchLinkMovements(false)} 
-                disabled={loadingLinkMovements}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <i className={`fa-solid fa-arrows-rotate ${loadingLinkMovements ? 'fa-spin' : ''}`}></i>
-                Atualizar
-              </button>
-            </div>
-          </div>
+      {activeTab === 'movimentos_links' && (() => {
+        const q = getSearchQuery('movimentos_links');
+        const now = new Date();
 
-          {/* Cards de Resumo */}
-          {(() => {
-            const total = linkMovements.length;
-            const cadastros = linkMovements.filter(m => m.tipo === 'cadastro').length;
-            const dynamus = linkMovements.filter(m => m.tipo === 'dynamus').length;
-            const vendas = linkMovements.filter(m => m.tipo === 'venda').length;
+        // 1. Filtragem Multidimensional
+        const filtered = linkMovements.filter(m => {
+          // Tipo
+          if (linkMovementTypeFilter !== 'todos' && m.tipo !== linkMovementTypeFilter) {
+            return false;
+          }
 
-            return (
-              <div className="metrics-grid" style={{ marginBottom: '24px' }}>
-                <div className="metric-card">
-                  <div className="metric-info">
-                    <h3>Total de Movimentos</h3>
-                    <div className="value">{total}</div>
+          // Visualização
+          const isOpened = Boolean(m.abertoEm || m.visualizado);
+          if (linkMovementViewFilter === 'visualizado' && !isOpened) {
+            return false;
+          }
+          if (linkMovementViewFilter === 'nao_visualizado' && isOpened) {
+            return false;
+          }
+
+          // Status da Proposta
+          if (linkMovementStatusFilter !== 'todos') {
+            const st = (m.statusProposta || m.raw?.status || '').toLowerCase();
+            if (linkMovementStatusFilter === 'pendente' && st !== 'pendente') return false;
+            if (linkMovementStatusFilter === 'respondida' && !['respondida', 'aceita', 'concluido', 'assinado'].includes(st)) return false;
+            if (linkMovementStatusFilter === 'expirada' && st !== 'expirada') return false;
+          }
+
+          // Período
+          if (linkMovementPeriodFilter !== 'todos' && m.createdAt) {
+            const dt = new Date(m.createdAt);
+            if (!isNaN(dt.getTime())) {
+              const diffDays = (now.getTime() - dt.getTime()) / (1000 * 60 * 60 * 24);
+              if (linkMovementPeriodFilter === 'hoje') {
+                const isToday = dt.getDate() === now.getDate() && dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
+                if (!isToday) return false;
+              } else if (linkMovementPeriodFilter === '7dias') {
+                if (diffDays > 7) return false;
+              } else if (linkMovementPeriodFilter === '30dias') {
+                if (diffDays > 30) return false;
+              } else if (linkMovementPeriodFilter === 'mes_atual') {
+                const isThisMonth = dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
+                if (!isThisMonth) return false;
+              }
+            }
+          }
+
+          // Plano / Modalidade
+          if (linkMovementPlanFilter !== 'todos') {
+            const plInfo = m.infoList?.find((i: any) => i.label?.toLowerCase().includes('plano') || i.label?.toLowerCase().includes('modalidade'));
+            const planName = plInfo?.value || m.raw?.planoNome || m.raw?.dadosComerciais?.planoId?.nome || '';
+            if (planName !== linkMovementPlanFilter) return false;
+          }
+
+          // Busca Textual Inteligente
+          const infoTexts = (m.infoList || []).map((i: any) => `${i.label} ${i.value}`).join(' ');
+          return smartSearchMatch([
+            m.cliente?.nome,
+            m.cliente?.telefone,
+            m.cliente?.cpf,
+            m.cliente?.email,
+            m.linkNome,
+            m.tipoLabel,
+            infoTexts
+          ], q);
+        });
+
+        // 2. Ordenação Inteligente
+        filtered.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+          if (linkMovementSort === 'data_asc') {
+            return timeA - timeB;
+          }
+          if (linkMovementSort === 'visualizado_recente') {
+            const viewA = a.abertoEm ? new Date(a.abertoEm).getTime() : 0;
+            const viewB = b.abertoEm ? new Date(b.abertoEm).getTime() : 0;
+            if (viewA !== viewB) return viewB - viewA;
+            return timeB - timeA;
+          }
+          if (linkMovementSort === 'nao_visualizado') {
+            const isAOpened = Boolean(a.abertoEm || a.visualizado);
+            const isBOpened = Boolean(b.abertoEm || b.visualizado);
+            if (isAOpened !== isBOpened) return isAOpened ? 1 : -1;
+            return timeB - timeA;
+          }
+          if (linkMovementSort === 'prioridade_conversao') {
+            const getPriority = (item: any) => {
+              const isOp = Boolean(item.abertoEm || item.visualizado);
+              const st = (item.statusProposta || item.raw?.status || '').toLowerCase();
+              if (item.tipo === 'venda' && st === 'pendente' && isOp) return 1; // Quente: Abriu e não pagou
+              if (item.tipo === 'venda' && st === 'pendente' && !isOp) return 2; // Pendente não aberto
+              if (item.tipo === 'cadastro' || item.tipo === 'dynamus') return 3; // Novos cadastros
+              if (['respondida', 'aceita', 'concluido', 'assinado'].includes(st)) return 4; // Concluído
+              if (st === 'expirada') return 5; // Expirado
+              return 6;
+            };
+            const pA = getPriority(a);
+            const pB = getPriority(b);
+            if (pA !== pB) return pA - pB;
+            return timeB - timeA;
+          }
+          if (linkMovementSort === 'valor_desc' || linkMovementSort === 'valor_asc') {
+            const getVal = (item: any) => {
+              const raw = item.raw || {};
+              return Number(raw.valorFinalRecalculado || raw.valorAcordado || raw.dadosComerciais?.valorMensalidade || 0);
+            };
+            const valA = getVal(a);
+            const valB = getVal(b);
+            if (valA !== valB) {
+              return linkMovementSort === 'valor_desc' ? valB - valA : valA - valB;
+            }
+            return timeB - timeA;
+          }
+          if (linkMovementSort === 'nome_asc') {
+            return (a.cliente?.nome || '').localeCompare(b.cliente?.nome || '');
+          }
+          if (linkMovementSort === 'nome_desc') {
+            return (b.cliente?.nome || '').localeCompare(a.cliente?.nome || '');
+          }
+
+          // Padrão: data_desc
+          return timeB - timeA;
+        });
+
+        const size = getPageSize('movimentos_links');
+        const activeP = getPage('movimentos_links');
+        const totalPages = Math.ceil(filtered.length / size);
+        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
+        const paginated = filtered.slice((curP - 1) * size, curP * size);
+
+        return (
+          <>
+            <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div className="view-title-group">
+                <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-satellite-dish" style={{ color: '#10b981' }}></i>
+                  Movimentos Realizados via Link
+                </h1>
+                <p>Acompanhe em tempo real os links preenchidos por clientes e todas as informações enviadas.</p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  onClick={() => fetchLinkMovements(false)} 
+                  disabled={loadingLinkMovements}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <i className={`fa-solid fa-arrows-rotate ${loadingLinkMovements ? 'fa-spin' : ''}`}></i>
+                  Atualizar
+                </button>
+              </div>
+            </div>
+
+            {/* Cards de Resumo */}
+            {(() => {
+              const total = linkMovements.length;
+              const cadastros = linkMovements.filter(m => m.tipo === 'cadastro').length;
+              const dynamus = linkMovements.filter(m => m.tipo === 'dynamus').length;
+              const vendas = linkMovements.filter(m => m.tipo === 'venda').length;
+
+              return (
+                <div className="metrics-grid" style={{ marginBottom: '24px' }}>
+                  <div className="metric-card">
+                    <div className="metric-info">
+                      <h3>Total de Movimentos</h3>
+                      <div className="value">{total}</div>
+                    </div>
+                    <div className="metric-icon"><i className="fa-solid fa-link"></i></div>
                   </div>
-                  <div className="metric-icon"><i className="fa-solid fa-link"></i></div>
+                  <div className="metric-card">
+                    <div className="metric-info">
+                      <h3>Cadastros via Link</h3>
+                      <div className="value">{cadastros}</div>
+                    </div>
+                    <div className="metric-icon" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.15)' }}><i className="fa-solid fa-user-plus"></i></div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-info">
+                      <h3>Cadastros / Compras Dynamus</h3>
+                      <div className="value">{dynamus}</div>
+                    </div>
+                    <div className="metric-icon" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)' }}><i className="fa-solid fa-bolt"></i></div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-info">
+                      <h3>Links de Venda / Pagamentos</h3>
+                      <div className="value">{vendas}</div>
+                    </div>
+                    <div className="metric-icon" style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.15)' }}><i className="fa-solid fa-credit-card"></i></div>
+                  </div>
                 </div>
-                <div className="metric-card">
-                  <div className="metric-info">
-                    <h3>Cadastros via Link</h3>
-                    <div className="value">{cadastros}</div>
+              );
+            })()}
+
+            {/* Filtros e Busca Multidimensional */}
+            <div className="content-panel" style={{ marginBottom: '24px', padding: '18px 20px' }}>
+              {/* Linha 1: Busca + Filtro por Tipo + Ordenação Inteligente */}
+              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', flex: 1, minWidth: '280px' }}>
+                  <div style={{ flex: 1, minWidth: '220px', maxWidth: '340px' }}>
+                    <SmartSearchInput
+                      placeholder="Buscar por aluno, telefone, CPF, e-mail, plano..."
+                      value={getSearchQuery('movimentos_links')}
+                      onChange={val => setSearchQueryForKey('movimentos_links', val)}
+                    />
                   </div>
-                  <div className="metric-icon" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.15)' }}><i className="fa-solid fa-user-plus"></i></div>
+
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {[
+                      { id: 'todos', label: 'Todos' },
+                      { id: 'cadastro', label: 'Cadastros' },
+                      { id: 'dynamus', label: 'Dynamus' },
+                      { id: 'venda', label: 'Vendas/Pagamentos' },
+                      { id: 'clicksign', label: 'Clicksign' }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        className={`btn btn-sm ${linkMovementTypeFilter === tab.id ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => {
+                          setLinkMovementTypeFilter(tab.id);
+                          setPage('movimentos_links', 1);
+                        }}
+                        style={{ fontSize: '0.8rem', padding: '6px 12px', borderRadius: '8px' }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="metric-card">
-                  <div className="metric-info">
-                    <h3>Cadastros / Compras Dynamus</h3>
-                    <div className="value">{dynamus}</div>
-                  </div>
-                  <div className="metric-icon" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)' }}><i className="fa-solid fa-bolt"></i></div>
-                </div>
-                <div className="metric-card">
-                  <div className="metric-info">
-                    <h3>Links de Venda / Pagamentos</h3>
-                    <div className="value">{vendas}</div>
-                  </div>
-                  <div className="metric-icon" style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.15)' }}><i className="fa-solid fa-credit-card"></i></div>
+
+                {/* Seletor de Ordenação Inteligente */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-dim)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <i className="fa-solid fa-arrow-down-wide-short" style={{ color: 'var(--color-primary)' }}></i>
+                    Ordenar por:
+                  </label>
+                  <select
+                    className="form-control"
+                    value={linkMovementSort}
+                    onChange={e => {
+                      setLinkMovementSort(e.target.value);
+                      setPage('movimentos_links', 1);
+                    }}
+                    style={{
+                      fontSize: '0.82rem',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-main)',
+                      border: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      minWidth: '190px'
+                    }}
+                  >
+                    <option value="data_desc">🕒 Mais recentes primeiro</option>
+                    <option value="data_asc">⏳ Mais antigos primeiro</option>
+                    <option value="visualizado_recente">👁️ Visualizados recentemente</option>
+                    <option value="nao_visualizado">⚠️ Não visualizados primeiro</option>
+                    <option value="prioridade_conversao">🎯 Prioridade de Conversão</option>
+                    <option value="valor_desc">💰 Maior Valor (R$)</option>
+                    <option value="valor_asc">💵 Menor Valor (R$)</option>
+                    <option value="nome_asc">🔤 Nome do Aluno (A → Z)</option>
+                    <option value="nome_desc">🔤 Nome do Aluno (Z → A)</option>
+                  </select>
                 </div>
               </div>
-            );
-          })()}
 
-          {/* Filtros e Busca */}
-          <div className="content-panel" style={{ marginBottom: '24px', padding: '16px 20px' }}>
-            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', flex: 1, minWidth: '280px' }}>
-                <div style={{ flex: 1, minWidth: '220px', maxWidth: '380px' }}>
-                  <SmartSearchInput
-                    placeholder="Buscar por aluno, telefone, CPF ou e-mail..."
-                    value={getSearchQuery('movimentos_links')}
-                    onChange={val => setSearchQueryForKey('movimentos_links', val)}
-                  />
+              {/* Linha 2: Filtros Específicos (Visualização, Status, Período, Plano) */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                {/* Filtro por Visualização */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <select
+                    className="form-control"
+                    value={linkMovementViewFilter}
+                    onChange={e => {
+                      setLinkMovementViewFilter(e.target.value);
+                      setPage('movimentos_links', 1);
+                    }}
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      background: linkMovementViewFilter !== 'todos' ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-secondary)',
+                      color: linkMovementViewFilter !== 'todos' ? '#38bdf8' : 'var(--text-main)',
+                      border: linkMovementViewFilter !== 'todos' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-color)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="todos">👁️ Visualização: Todas</option>
+                    <option value="visualizado">👁️ Apenas Visualizados / Abertos</option>
+                    <option value="nao_visualizado">👁️‍🗨️ Apenas Não Visualizados</option>
+                  </select>
                 </div>
 
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {[
-                    { id: 'todos', label: 'Todos' },
-                    { id: 'cadastro', label: 'Cadastros' },
-                    { id: 'dynamus', label: 'Dynamus' },
-                    { id: 'venda', label: 'Vendas/Pagamentos' },
-                    { id: 'clicksign', label: 'Clicksign' }
-                  ].map(tab => (
+                {/* Filtro por Status da Proposta */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <select
+                    className="form-control"
+                    value={linkMovementStatusFilter}
+                    onChange={e => {
+                      setLinkMovementStatusFilter(e.target.value);
+                      setPage('movimentos_links', 1);
+                    }}
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      background: linkMovementStatusFilter !== 'todos' ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-secondary)',
+                      color: linkMovementStatusFilter !== 'todos' ? '#f59e0b' : 'var(--text-main)',
+                      border: linkMovementStatusFilter !== 'todos' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-color)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="todos">📋 Status: Todos</option>
+                    <option value="pendente">🟡 Pendente / Em aberto</option>
+                    <option value="respondida">🟢 Respondida / Aceita</option>
+                    <option value="expirada">🔴 Expirada (3 dias)</option>
+                  </select>
+                </div>
+
+                {/* Filtro por Período */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <select
+                    className="form-control"
+                    value={linkMovementPeriodFilter}
+                    onChange={e => {
+                      setLinkMovementPeriodFilter(e.target.value);
+                      setPage('movimentos_links', 1);
+                    }}
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      background: linkMovementPeriodFilter !== 'todos' ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-secondary)',
+                      color: linkMovementPeriodFilter !== 'todos' ? '#10b981' : 'var(--text-main)',
+                      border: linkMovementPeriodFilter !== 'todos' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-color)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="todos">📅 Período: Todo o Histórico</option>
+                    <option value="hoje">📅 Hoje</option>
+                    <option value="7dias">📅 Últimos 7 dias</option>
+                    <option value="30dias">📅 Últimos 30 dias</option>
+                    <option value="mes_atual">📅 Este Mês</option>
+                  </select>
+                </div>
+
+                {/* Filtro por Plano / Modalidade */}
+                {(() => {
+                  const uniquePlans = Array.from(new Set(
+                    linkMovements.map(m => {
+                      const pl = m.infoList?.find((i: any) => i.label?.toLowerCase().includes('plano') || i.label?.toLowerCase().includes('modalidade'));
+                      return pl?.value || m.raw?.planoNome || m.raw?.dadosComerciais?.planoId?.nome;
+                    }).filter(Boolean)
+                  )) as string[];
+
+                  return uniquePlans.length > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <select
+                        className="form-control"
+                        value={linkMovementPlanFilter}
+                        onChange={e => {
+                          setLinkMovementPlanFilter(e.target.value);
+                          setPage('movimentos_links', 1);
+                        }}
+                        style={{
+                          fontSize: '0.78rem',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          background: linkMovementPlanFilter !== 'todos' ? 'rgba(139, 92, 246, 0.15)' : 'var(--bg-secondary)',
+                          color: linkMovementPlanFilter !== 'todos' ? '#a78bfa' : 'var(--text-main)',
+                          border: linkMovementPlanFilter !== 'todos' ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          maxWidth: '200px'
+                        }}
+                      >
+                        <option value="todos">🏋️ Plano: Todos</option>
+                        {uniquePlans.map((pn, pidx) => (
+                          <option key={pidx} value={pn}>{pn}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Botão de Limpar Filtros */}
+                {(() => {
+                  const hasActiveFilters = 
+                    linkMovementTypeFilter !== 'todos' ||
+                    linkMovementViewFilter !== 'todos' ||
+                    linkMovementStatusFilter !== 'todos' ||
+                    linkMovementPeriodFilter !== 'todos' ||
+                    linkMovementPlanFilter !== 'todos' ||
+                    linkMovementSort !== 'data_desc' ||
+                    Boolean(getSearchQuery('movimentos_links'));
+
+                  if (!hasActiveFilters) return null;
+
+                  return (
                     <button
-                      key={tab.id}
                       type="button"
-                      className={`btn btn-sm ${linkMovementTypeFilter === tab.id ? 'btn-primary' : 'btn-secondary'}`}
+                      className="btn btn-secondary btn-sm"
                       onClick={() => {
-                        setLinkMovementTypeFilter(tab.id);
+                        setLinkMovementTypeFilter('todos');
+                        setLinkMovementViewFilter('todos');
+                        setLinkMovementStatusFilter('todos');
+                        setLinkMovementPeriodFilter('todos');
+                        setLinkMovementPlanFilter('todos');
+                        setLinkMovementSort('data_desc');
+                        setSearchQueryForKey('movimentos_links', '');
                         setPage('movimentos_links', 1);
                       }}
-                      style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '5px 10px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        background: 'rgba(239, 68, 68, 0.1)'
+                      }}
                     >
-                      {tab.label}
+                      <i className="fa-solid fa-filter-circle-xmark"></i>
+                      Limpar Filtros
                     </button>
-                  ))}
+                  );
+                })()}
+
+                {/* Badge Contador de Resultados */}
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)' }}></i>
+                  <span>Exibindo <strong>{filtered.length}</strong> de <strong>{linkMovements.length}</strong> movimentos</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Tabela de Movimentos */}
-          <div className="content-panel">
-            {loadingLinkMovements ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <div className="spinner"></div>
-                <p style={{ marginTop: '12px', color: 'var(--text-dim)' }}>Carregando movimentos de links...</p>
-              </div>
-            ) : (
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '140px' }}>Data / Hora</th>
-                      <th style={{ width: '180px' }}>Cliente</th>
-                      <th style={{ width: '170px' }}>Link Preenchido</th>
-                      <th>Informações Informadas pelo Cliente</th>
-                      <th style={{ textAlign: 'center', width: '260px' }}>Ações Rápidas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const q = getSearchQuery('movimentos_links');
-                      const filtered = linkMovements.filter(m => {
-                        if (linkMovementTypeFilter !== 'todos' && m.tipo !== linkMovementTypeFilter) {
-                          return false;
-                        }
-                        return smartSearchMatch([
-                          m.cliente?.nome,
-                          m.cliente?.telefone,
-                          m.cliente?.cpf,
-                          m.cliente?.email,
-                          m.linkNome,
-                          m.tipoLabel
-                        ], q);
-                      });
+            {/* Tabela de Movimentos */}
+            <div className="content-panel">
+              {loadingLinkMovements ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <div className="spinner"></div>
+                  <p style={{ marginTop: '12px', color: 'var(--text-dim)' }}>Carregando movimentos de links...</p>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '140px' }}>Data / Hora</th>
+                        <th style={{ width: '180px' }}>Cliente</th>
+                        <th style={{ width: '170px' }}>Link Preenchido</th>
+                        <th>Informações Informadas pelo Cliente</th>
+                        <th style={{ textAlign: 'center', width: '260px' }}>Ações Rápidas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.length === 0 ? (
+                        <tr>
+                          <td colSpan={5}>
+                            <div className="empty-state-card">
+                              <i className="fa-solid fa-satellite-dish empty-state-icon"></i>
+                              <div className="empty-state-title">Nenhum movimento encontrado</div>
+                              <div className="empty-state-desc">Não foram encontrados preenchimentos de links com os filtros atuais selecionados.</div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        paginated.map(m => {
+                          const clientName = m.cliente?.nome || 'Aluno';
+                          const cleanPhone = (m.cliente?.telefone || '').replace(/\D/g, '');
+                          const fullPhone = cleanPhone.length <= 11 ? '55' + cleanPhone : cleanPhone;
+                          const dateFormatted = (() => {
+                            if (!m.createdAt) return '-';
+                            const d = new Date(m.createdAt);
+                            if (isNaN(d.getTime())) return m.createdAt;
+                            return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                          })();
 
-                      const size = getPageSize('movimentos_links');
-                      const activeP = getPage('movimentos_links');
-                      const totalPages = Math.ceil(filtered.length / size);
-                      const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                      const paginated = filtered.slice((curP - 1) * size, curP * size);
-
-                      if (paginated.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={5}>
-                              <div className="empty-state-card">
-                                <i className="fa-solid fa-satellite-dish empty-state-icon"></i>
-                                <div className="empty-state-title">Nenhum movimento encontrado</div>
-                                <div className="empty-state-desc">Não foram encontrados preenchimentos de links com os filtros atuais.</div>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return paginated.map(m => {
-                        const clientName = m.cliente?.nome || 'Aluno';
-                        const cleanPhone = (m.cliente?.telefone || '').replace(/\D/g, '');
-                        const fullPhone = cleanPhone.length <= 11 ? '55' + cleanPhone : cleanPhone;
-                        const dateFormatted = (() => {
-                          if (!m.createdAt) return '-';
-                          const d = new Date(m.createdAt);
-                          if (isNaN(d.getTime())) return m.createdAt;
-                          return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                        })();
-
-                        return (
-                          <tr key={m._id}>
-                            <td data-label="Data / Hora" style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                              <i className="fa-regular fa-clock" style={{ marginRight: '5px', color: 'var(--text-muted)' }}></i>
-                              <strong>{dateFormatted}</strong>
-                            </td>
-                            <td data-label="Cliente">
-                              <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{clientName}</div>
-                              {m.cliente?.telefone && (
-                                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                                  <i className="fa-solid fa-phone" style={{ fontSize: '0.7rem', marginRight: '4px' }}></i>
-                                  {m.cliente.telefone}
-                                </div>
-                              )}
-                              {m.cliente?.email && (
-                                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '1px' }}>
-                                  {m.cliente.email}
-                                </div>
-                              )}
-                            </td>
-                            <td data-label="Link Preenchido">
-                              <span 
-                                style={{ 
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  gap: '6px', 
-                                  padding: '4px 10px', 
-                                  borderRadius: '20px', 
-                                  fontSize: '0.78rem', 
-                                  fontWeight: 700,
-                                  background: `${m.badgeColor}20`,
-                                  color: m.badgeColor,
-                                  border: `1px solid ${m.badgeColor}40`
-                                }}
-                              >
-                                {m.tipo === 'dynamus' && <i className="fa-solid fa-bolt"></i>}
-                                {m.tipo === 'cadastro' && <i className="fa-solid fa-user-plus"></i>}
-                                {m.tipo === 'venda' && <i className="fa-solid fa-credit-card"></i>}
-                                {m.tipo === 'clicksign' && <i className="fa-solid fa-file-signature"></i>}
-                                {m.tipoLabel}
-                              </span>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'monospace' }}>
-                                {m.linkUrl}
-                              </div>
-
-                              {m.tipo === 'venda' && (
-                                <div style={{ marginTop: '6px' }}>
-                                  {m.abertoEm ? (
-                                    <span 
-                                      style={{ 
-                                        display: 'inline-flex', 
-                                        alignItems: 'center', 
-                                        gap: '5px', 
-                                        padding: '3px 8px', 
-                                        borderRadius: '6px', 
-                                        fontSize: '0.72rem', 
-                                        fontWeight: 700, 
-                                        background: 'rgba(56, 189, 248, 0.15)', 
-                                        color: '#38bdf8', 
-                                        border: '1px solid rgba(56, 189, 248, 0.35)' 
-                                      }}
-                                      title={`Link aberto em ${new Date(m.abertoEm).toLocaleString('pt-BR')}`}
-                                    >
-                                      <i className="fa-solid fa-eye"></i> Aberto {new Date(m.abertoEm).toLocaleDateString('pt-BR')} {new Date(m.abertoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  ) : (
-                                    <span 
-                                      style={{ 
-                                        display: 'inline-flex', 
-                                        alignItems: 'center', 
-                                        gap: '5px', 
-                                        padding: '3px 8px', 
-                                        borderRadius: '6px', 
-                                        fontSize: '0.72rem', 
-                                        fontWeight: 600, 
-                                        background: 'rgba(148, 163, 184, 0.1)', 
-                                        color: '#94a3b8', 
-                                        border: '1px solid rgba(148, 163, 184, 0.2)' 
-                                      }}
-                                    >
-                                      <i className="fa-regular fa-eye-slash"></i> Não visualizado
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                            <td data-label="Informações Preenchidas">
-                              {m.infoList && m.infoList.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                  {m.infoList.map((info: any, idx: number) => (
-                                    <div key={idx} style={{ fontSize: '0.8rem', lineHeight: '1.3' }}>
-                                      <strong style={{ color: 'var(--text-secondary)' }}>• {info.label}:</strong>{' '}
-                                      <span style={{ color: 'var(--text-main)' }}>{info.value}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dados básicos de cadastro</span>
-                              )}
-                            </td>
-                            <td data-label="Ações Rápidas" style={{ textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                {cleanPhone && (
-                                  <a
-                                    href={`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(`Olá, ${clientName}! Recebemos a sua solicitação no Clube Fitness Fisio. Como podemos te ajudar?`)}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn btn-success btn-sm"
-                                    style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600 }}
-                                    title="Chamar no WhatsApp"
-                                  >
-                                    <i className="fa-brands fa-whatsapp"></i> WhatsApp
-                                  </a>
+                          return (
+                            <tr key={m._id}>
+                              <td data-label="Data / Hora" style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                <i className="fa-regular fa-clock" style={{ marginRight: '5px', color: 'var(--text-muted)' }}></i>
+                                <strong>{dateFormatted}</strong>
+                              </td>
+                              <td data-label="Cliente">
+                                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{clientName}</div>
+                                {m.cliente?.telefone && (
+                                  <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                    <i className="fa-solid fa-phone" style={{ fontSize: '0.7rem', marginRight: '4px' }}></i>
+                                    {m.cliente.telefone}
+                                  </div>
                                 )}
+                                {m.cliente?.email && (
+                                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '1px' }}>
+                                    {m.cliente.email}
+                                  </div>
+                                )}
+                              </td>
+                              <td data-label="Link Preenchido">
+                                <span 
+                                  style={{ 
+                                    display: 'inline-flex', 
+                                    alignItems: 'center', 
+                                    gap: '6px', 
+                                    padding: '4px 10px', 
+                                    borderRadius: '20px', 
+                                    fontSize: '0.78rem', 
+                                    fontWeight: 700, 
+                                    background: `${m.badgeColor}20`, 
+                                    color: m.badgeColor, 
+                                    border: `1px solid ${m.badgeColor}40` 
+                                  }}
+                                >
+                                  {m.tipo === 'dynamus' && <i className="fa-solid fa-bolt"></i>}
+                                  {m.tipo === 'cadastro' && <i className="fa-solid fa-user-plus"></i>}
+                                  {m.tipo === 'venda' && <i className="fa-solid fa-credit-card"></i>}
+                                  {m.tipo === 'clicksign' && <i className="fa-solid fa-file-signature"></i>}
+                                  {m.tipoLabel}
+                                </span>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'monospace' }}>
+                                  {m.linkUrl}
+                                </div>
 
-                                {m.tipo === 'dynamus' && (
+                                {m.tipo === 'venda' && (
+                                  <div style={{ marginTop: '6px' }}>
+                                    {m.abertoEm ? (
+                                      <span 
+                                        style={{ 
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          gap: '5px', 
+                                          padding: '3px 8px', 
+                                          borderRadius: '6px', 
+                                          fontSize: '0.72rem', 
+                                          fontWeight: 700, 
+                                          background: 'rgba(56, 189, 248, 0.15)', 
+                                          color: '#38bdf8', 
+                                          border: '1px solid rgba(56, 189, 248, 0.35)' 
+                                        }}
+                                        title={`Link aberto em ${new Date(m.abertoEm).toLocaleString('pt-BR')}`}
+                                      >
+                                        <i className="fa-solid fa-eye"></i> Aberto {new Date(m.abertoEm).toLocaleDateString('pt-BR')} {new Date(m.abertoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    ) : (
+                                      <span 
+                                        style={{ 
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          gap: '5px', 
+                                          padding: '3px 8px', 
+                                          borderRadius: '6px', 
+                                          fontSize: '0.72rem', 
+                                          fontWeight: 600, 
+                                          background: 'rgba(148, 163, 184, 0.1)', 
+                                          color: '#94a3b8', 
+                                          border: '1px solid rgba(148, 163, 184, 0.2)' 
+                                        }}
+                                      >
+                                        <i className="fa-regular fa-eye-slash"></i> Não visualizado
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td data-label="Informações Preenchidas">
+                                {m.infoList && m.infoList.length > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    {m.infoList.map((info: any, idx: number) => (
+                                      <div key={idx} style={{ fontSize: '0.8rem', lineHeight: '1.3' }}>
+                                        <strong style={{ color: 'var(--text-secondary)' }}>• {info.label}:</strong>{' '}
+                                        <span style={{ color: 'var(--text-main)' }}>{info.value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dados básicos de cadastro</span>
+                                )}
+                              </td>
+                              <td data-label="Ações Rápidas" style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                  {cleanPhone && (
+                                    <a
+                                      href={`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(`Olá, ${clientName}! Recebemos a sua solicitação no Clube Fitness Fisio. Como podemos te ajudar?`)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="btn btn-success btn-sm"
+                                      style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600 }}
+                                      title="Chamar no WhatsApp"
+                                    >
+                                      <i className="fa-brands fa-whatsapp"></i> WhatsApp
+                                    </a>
+                                  )}
+
                                   <button
                                     type="button"
-                                    className="btn btn-warning btn-sm"
-                                    style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, background: '#f59e0b', borderColor: '#f59e0b', color: '#000' }}
+                                    className="btn btn-primary btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem' }}
                                     onClick={() => {
-                                      setSearchQueryForKey('dynamus', clientName);
-                                      setActiveTab('dynamus');
+                                      setSearchQueryForKey('gestao_contratos', clientName);
+                                      setActiveTab('gestao_contratos');
                                     }}
-                                    title="Ir para Consumo Dynamus deste aluno"
+                                    title="Ir para Gestão de Contratos deste aluno"
                                   >
-                                    <i className="fa-solid fa-bolt"></i> Consumo Dynamus
+                                    <i className="fa-solid fa-file-contract"></i> Contratos
                                   </button>
-                                )}
 
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                                  onClick={() => {
-                                    setSearchQueryForKey('gestao_contratos', clientName);
-                                    setActiveTab('gestao_contratos');
-                                  }}
-                                  title="Ir para Gestão de Contratos deste aluno"
-                                >
-                                  <i className="fa-solid fa-file-signature"></i> Contratos
-                                </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                    onClick={() => {
+                                      setSearchQueryForKey('clientes', clientName);
+                                      setActiveTab('clientes');
+                                    }}
+                                    title="Ver cadastro completo em Clientes"
+                                  >
+                                    <i className="fa-solid fa-user"></i> Ver Aluno
+                                  </button>
 
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                                  onClick={() => {
-                                    setSearchQueryForKey('clientes', clientName);
-                                    setActiveTab('clientes');
-                                  }}
-                                  title="Ver cadastro completo em Clientes"
-                                >
-                                  <i className="fa-solid fa-user"></i> Ver Aluno
-                                </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                    onClick={() => setSelectedLinkMovementDetails(m)}
+                                    title="Ver todas as informações brutas"
+                                  >
+                                    <i className="fa-solid fa-eye"></i> Detalhes
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                                  onClick={() => setSelectedLinkMovementDetails(m)}
-                                  title="Ver todas as informações brutas"
-                                >
-                                  <i className="fa-solid fa-eye"></i> Detalhes
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Paginação */}
-            {linkMovements.length > 0 && (
-              <Pagination
-                currentPage={getPage('movimentos_links')}
-                totalItems={linkMovements.length}
-                itemsPerPage={getPageSize('movimentos_links')}
-                onPageChange={page => setPage('movimentos_links', page)}
-              />
-            )}
-          </div>
+              {/* Paginação Sincronizada */}
+              {filtered.length > 0 && (
+                <Pagination
+                  currentPage={getPage('movimentos_links')}
+                  totalItems={filtered.length}
+                  itemsPerPage={getPageSize('movimentos_links')}
+                  onPageChange={page => setPage('movimentos_links', page)}
+                />
+              )}
+            </div>
 
           {/* Modal de Detalhes Brutos do Movimento */}
           {selectedLinkMovementDetails && (
@@ -4403,7 +4707,8 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
             </div>
           )}
         </>
-      )}
+      );
+    })()}
 
       {/* 8. View: Testes de Força */}
       {activeTab === 'testes_forca' && (() => {
