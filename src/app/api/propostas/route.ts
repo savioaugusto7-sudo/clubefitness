@@ -4,6 +4,7 @@ import Proposal from '@/models/Proposal';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import { checkSessionPermission } from '@/utils/authHelper';
+import { isMinorFromBirthDate } from '@/utils/dateUtils';
 
 export async function GET(request: Request) {
   try {
@@ -82,6 +83,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Plano não encontrado.' }, { status: 404 });
     }
 
+    const clientBirthDate = client.dadosPessoais?.dataNascimento || (client.dadosPessoais as any)?.nascimento;
+    const isMinorCalculated = isMinor !== undefined ? Boolean(isMinor) : isMinorFromBirthDate(clientBirthDate);
+
     const proposal = await Proposal.create({
       clientId,
       planoId,
@@ -100,7 +104,7 @@ export async function POST(request: Request) {
       descontoValor,
       observacoesContratuais,
       unidadeContratada,
-      isMinor: !!isMinor,
+      isMinor: isMinorCalculated,
       status: 'pendente'
     });
 

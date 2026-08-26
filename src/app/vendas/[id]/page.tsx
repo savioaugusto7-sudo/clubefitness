@@ -4,6 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { generateContractTemplate } from '@/utils/contractTemplate';
 import { getCardRateForInstallment } from '@/utils/paymentRates';
+import { isMinorFromBirthDate } from '@/utils/dateUtils';
 
 export default function VendaPage({ params }: { params: any }) {
   const router = useRouter();
@@ -57,7 +58,8 @@ export default function VendaPage({ params }: { params: any }) {
       .then((json) => {
         if (json.success && json.data) {
           const prop = json.data;
-          setProposal(prop);
+          const isMinorCalc = Boolean(prop.isMinor || isMinorFromBirthDate(prop.clientId?.dadosPessoais?.dataNascimento || prop.clientId?.dadosPessoais?.nascimento));
+          setProposal({ ...prop, isMinor: isMinorCalc });
           
           // Prefill with client personal data if already exists
           const pes = prop.clientId?.dadosPessoais || {};

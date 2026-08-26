@@ -8,6 +8,7 @@ import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import { smartSearchMatch } from '@/utils/smartSearch';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 import { getCardRateForInstallment } from '@/utils/paymentRates';
+import { calculateAgeAndMinorStatus, isMinorFromBirthDate } from '@/utils/dateUtils';
 import ClicksignPanel from './ClicksignPanel';
 import MoneyInput from './MoneyInput';
 
@@ -1044,7 +1045,6 @@ export default function GestaoContratosPanel({
   const [swCreditosEmergencia, setSwCreditosEmergencia] = useState(0);
   const [swCriarRecorrenciaMensal, setSwCriarRecorrenciaMensal] = useState(false);
   const [swRecorrenciaMeses, setSwRecorrenciaMeses] = useState(12);
-  const [swIsMinor, setSwIsMinor] = useState(false);
   const [swSubmitting, setSwSubmitting] = useState(false);
 
   const handleOpenSalesWizard = (client: any) => {
@@ -1062,7 +1062,6 @@ export default function GestaoContratosPanel({
     setSwCreditosEmergencia(0);
     setSwCriarRecorrenciaMensal(false);
     setSwRecorrenciaMeses(12);
-    setSwIsMinor(false);
   };
 
   const handleConfirmSalesWizard = async () => {
@@ -1098,6 +1097,9 @@ export default function GestaoContratosPanel({
       }
       const dataFimCalculada = endD.toISOString().split('T')[0];
 
+      const clientBirthDate = salesWizardClient?.dadosPessoais?.dataNascimento || salesWizardClient?.dadosPessoais?.nascimento;
+      const isMinorDetected = isMinorFromBirthDate(clientBirthDate);
+
       // 1. Criar Proposta Comercial
       const payload = {
         clientId: salesWizardClient._id,
@@ -1118,7 +1120,7 @@ export default function GestaoContratosPanel({
         descontoValor: swDescontoValor,
         observacoesContratuais: '',
         unidadeContratada: plan?.unidadeAtendimento || '',
-        isMinor: swIsMinor
+        isMinor: isMinorDetected
       };
 
       const res = await fetch('/api/propostas', {
@@ -5435,34 +5437,35 @@ export default function GestaoContratosPanel({
                   </label>
                 </div>
 
-                {/* Checkbox Menor de Idade / Responsável Legal */}
-                <div 
-                  style={{ 
-                    background: swIsMinor ? 'rgba(245, 158, 11, 0.14)' : 'rgba(255, 255, 255, 0.03)', 
-                    border: '1px solid',
-                    borderColor: swIsMinor ? '#f59e0b' : 'rgba(255, 255, 255, 0.1)', 
-                    borderRadius: '10px', 
-                    padding: '12px 14px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '10px', 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => setSwIsMinor(!swIsMinor)}
-                >
-                  <input
-                    type="checkbox"
-                    id="swIsMinor"
-                    checked={swIsMinor}
-                    onChange={e => setSwIsMinor(e.target.checked)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#f59e0b' }}
-                  />
-                  <label htmlFor="swIsMinor" style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-solid fa-child" style={{ color: '#f59e0b' }}></i>
-                    Este cliente é menor de idade (contrato com Responsável Legal)
-                  </label>
-                </div>
+                {/* Aviso automático de Menor de Idade / Responsável Legal baseado na Data de Nascimento */}
+                {(() => {
+                  const clientBirthDate = salesWizardClient?.dadosPessoais?.dataNascimento || salesWizardClient?.dadosPessoais?.nascimento;
+                  const minorInfo = calculateAgeAndMinorStatus(clientBirthDate);
+                  if (!minorInfo.isMinor) return null;
+                  return (
+                    <div 
+                      style={{ 
+                        background: 'rgba(245, 158, 11, 0.12)', 
+                        border: '1px solid rgba(245, 158, 11, 0.4)', 
+                        borderRadius: '10px', 
+                        padding: '12px 14px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px'
+                      }}
+                    >
+                      <i className="fa-solid fa-child" style={{ color: '#f59e0b', fontSize: '1.2rem' }}></i>
+                      <div style={{ fontSize: '0.84rem', color: '#f8fafc' }}>
+                        <strong style={{ color: '#f59e0b', display: 'block' }}>
+                          Aluno Menor de Idade {minorInfo.age !== null ? `(${minorInfo.age} anos)` : ''}
+                        </strong>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                          Identificado automaticamente pela data de nascimento. O link de vendas solicitará o preenchimento e assinatura do Responsável Legal.
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Duração, Qtd Vigência e Data de Início */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '10px' }}>
