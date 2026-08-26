@@ -5122,9 +5122,29 @@ export default function GestaoContratosPanel({
               </button>
             </div>
             
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '16px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '12px' }}>
               Copie o link abaixo e envie para o aluno via WhatsApp ou E-mail. Ele poderá preencher os próprios dados cadastrais (CPF, CEP, etc.) e escolher a forma de pagamento/parcelas com base nas regras comerciais configuradas.
             </p>
+
+            {activeProposal && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                  <span style={{ color: 'var(--text-dim)' }}>
+                    <i className="fa-solid fa-hourglass-half" style={{ marginRight: '5px' }}></i>
+                    Validade do Link: <strong>3 dias</strong>
+                  </span>
+                  {activeProposal.abertoEm ? (
+                    <span style={{ color: '#38bdf8', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <i className="fa-solid fa-eye"></i> Aberto {new Date(activeProposal.abertoEm).toLocaleDateString('pt-BR')} às {new Date(activeProposal.abertoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#94a3b8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <i className="fa-regular fa-eye-slash"></i> Ainda não visualizado
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexDirection: 'column' }}>
               <div style={{ display: 'flex', gap: '8px' }}>

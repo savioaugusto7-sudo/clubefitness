@@ -22,11 +22,37 @@ export async function GET(request: Request) {
       if (!proposal) {
         return NextResponse.json({ success: false, error: 'Proposta não encontrada.' }, { status: 404 });
       }
+
+      const now = new Date();
+      const createdTime = new Date(proposal.createdAt).getTime();
+      const diffDays = (now.getTime() - createdTime) / (1000 * 60 * 60 * 24);
+
+      // 1. Checar se a proposta expirou (mais de 3 dias)
+      if (diffDays > 3 && proposal.status === 'pendente') {
+        proposal.status = 'expirada';
+        proposal.expiradoEm = proposal.expiradoEm || now;
+        await proposal.save();
+      }
+
+      // 2. Registrar visualização / abertura do link
+      if (!proposal.abertoEm) {
+        proposal.abertoEm = now;
+        proposal.visualizado = true;
+        await proposal.save();
+      }
+
       return NextResponse.json({ success: true, data: proposal });
     }
 
     // Authenticated access for admin/receptionist to view proposals
     await checkSessionPermission(['admin', 'receptionist']);
+
+    // Expirar em lote propostas pendentes com mais de 3 dias
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    await Proposal.updateMany(
+      { status: 'pendente', createdAt: { $lt: threeDaysAgo } },
+      { $set: { status: 'expirada', expiradoEm: new Date() } }
+    );
 
     let query = {};
     if (clientId) {

@@ -138,6 +138,53 @@ export default function VendaPage({ params }: { params: any }) {
     );
   }
 
+  // Se a proposta expirou (mais de 3 dias)
+  if (proposal.status === 'expirada') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '20px' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)', padding: '40px 30px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', border: '2px solid #ef4444' }}>
+            <i className="fa-solid fa-clock-rotate-left fa-2x" style={{ color: '#ef4444' }}></i>
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.5rem', marginBottom: '12px', color: '#fff' }}>Link de Venda Expirado</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '20px' }}>
+            Este link de proposta comercial possuía validade de <strong>3 dias</strong> e expirou por segurança.
+          </p>
+          <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '25px' }}>
+            Entre em contato com a equipe da <strong>Clube Fitness Fisio</strong> para receber um novo link de contratação.
+          </p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => router.push('/')}
+            style={{ width: '100%', padding: '12px' }}
+          >
+            Voltar ao Início
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Se a proposta já foi respondida ou finalizada
+  if (proposal.status === 'respondida' || proposal.status === 'aceita' || proposal.status === 'finalizada') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '20px' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 'var(--radius-md)', padding: '40px 30px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', border: '2px solid #22c55e' }}>
+            <i className="fa-solid fa-check fa-2x" style={{ color: '#22c55e' }}></i>
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.5rem', marginBottom: '12px', color: '#fff' }}>Proposta Já Concluída!</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '20px' }}>
+            Os dados desta proposta já foram preenchidos e a contratação foi enviada com sucesso.
+          </p>
+          <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+            Acesse o seu WhatsApp para assinar o documento pelo Clicksign caso ainda não tenha assinado.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const basePrice = proposal.valorAcordado || 0;
 
   const isAnual = proposal.duracao === 'anual' || (proposal.planoTipo && proposal.planoTipo.toLowerCase().includes('anual')) || (proposal.vigenciaQtd || 1) >= 12;

@@ -153,18 +153,34 @@ export async function GET() {
       if (p.dadosPreenchidos?.telefone) {
         infoList.push({ label: 'WhatsApp Preenchido', value: p.dadosPreenchidos.telefone });
       }
-      if (p.dadosPreenchidos?.endereco) {
-        infoList.push({ label: 'Endereço', value: `${p.dadosPreenchidos.endereco} ${p.dadosPreenchidos.numero || ''}` });
+      // Informações de visualização e expiração
+      const isExpirada = p.status === 'expirada' || (!['respondida', 'aceita', 'concluido'].includes(p.status) && (Date.now() - new Date(p.createdAt).getTime() > 3 * 24 * 60 * 60 * 1000));
+      
+      if (p.abertoEm) {
+        const dAb = new Date(p.abertoEm);
+        infoList.push({ 
+          label: '👁️ Visualização', 
+          value: `Aberto em ${dAb.toLocaleDateString('pt-BR')} às ${dAb.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` 
+        });
+      } else {
+        infoList.push({ label: '👁️ Visualização', value: 'Ainda não aberto' });
+      }
+
+      if (isExpirada && p.status !== 'respondida' && p.status !== 'aceita') {
+        infoList.push({ label: 'Validade', value: 'Expirado (3 dias)' });
       }
 
       movements.push({
         _id: `prop_${p._id}`,
         createdAt: p.updatedAt || p.createdAt || new Date().toISOString(),
         tipo: 'venda',
-        tipoLabel: 'Link de Venda / Pagamento',
-        badgeColor: '#3b82f6',
+        tipoLabel: isExpirada && p.status === 'pendente' ? 'Link Expirado (3 dias)' : 'Link de Venda / Pagamento',
+        badgeColor: isExpirada && p.status === 'pendente' ? '#ef4444' : '#3b82f6',
         linkNome: 'Link de Venda Online',
         linkUrl: `/vendas/${p._id}`,
+        abertoEm: p.abertoEm || null,
+        visualizado: Boolean(p.visualizado || p.abertoEm),
+        statusProposta: isExpirada && p.status === 'pendente' ? 'expirada' : (p.status || 'pendente'),
         cliente: {
           _id: cli._id || p.clientId,
           nome: cli.dadosPessoais?.nome || 'Cliente',

@@ -148,6 +148,8 @@ export default function DashboardPage() {
 function ChangePasswordCard({ userEmail }: { userEmail: string }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -168,40 +170,40 @@ function ChangePasswordCard({ userEmail }: { userEmail: string }) {
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPassword })
+        body: JSON.stringify({ password: newPassword }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setSuccessMsg('Senha cadastrada com sucesso!');
       } else {
         setErrorMsg(data.error || 'Erro ao atualizar a senha.');
-        setLoading(false);
       }
-    } catch (err) {
-      setErrorMsg('Erro de conexão. Tente novamente.');
+    } catch {
+      setErrorMsg('Erro de conexão ao salvar a senha.');
+    } finally {
       setLoading(false);
     }
   };
 
   if (successMsg) {
     return (
-      <div className="login-card" style={{ width: '100%', maxWidth: '420px', padding: '32px' }}>
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ fontSize: '3rem', color: 'var(--color-primary)' }}>
-            <i className="fa-solid fa-circle-check"></i>
-          </div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Senha Cadastrada!</h2>
-          <p style={{ fontSize: '0.88rem', color: 'var(--text-dim)', margin: 0 }}>
-            Sua senha inicial foi atualizada com segurança. Por favor, faça login novamente usando a sua nova senha.
-          </p>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => signOut({ callbackUrl: '/login?from=logout' })}
-            style={{ width: '100%', padding: '12px', marginTop: '8px' }}
-          >
-            Fazer Login Novamente
-          </button>
+      <div className="login-card" style={{ width: '100%', maxWidth: '420px', padding: '32px', textAlign: 'center' }}>
+        <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+          <i className="fa-solid fa-check" style={{ color: '#22c55e', fontSize: '1.4rem' }}></i>
         </div>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Senha Cadastrada!</h2>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '8px', lineHeight: '1.5' }}>
+          Sua senha inicial foi atualizada com segurança. Por favor, faça login novamente usando a sua nova senha.
+        </p>
+        <button 
+          className="btn btn-primary" 
+          onClick={() => {
+            signOut({ callbackUrl: '/login' });
+          }} 
+          style={{ width: '100%', marginTop: '16px', padding: '11px' }}
+        >
+          Fazer Login com a Nova Senha
+        </button>
       </div>
     );
   }
@@ -234,29 +236,73 @@ function ChangePasswordCard({ userEmail }: { userEmail: string }) {
         )}
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>Nova Senha</label>
-          <input 
-            type="password" 
-            className="form-control" 
-            placeholder="Mínimo 6 caracteres" 
-            value={newPassword} 
-            onChange={e => setNewPassword(e.target.value)} 
-            required 
-            disabled={loading}
-            style={{ fontSize: '0.85rem', padding: '10px 12px' }} 
-          />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input 
+              type={showNewPassword ? "text" : "password"} 
+              className="form-control" 
+              placeholder="Mínimo 6 caracteres" 
+              value={newPassword} 
+              onChange={e => setNewPassword(e.target.value)} 
+              required 
+              disabled={loading}
+              style={{ fontSize: '0.85rem', padding: '10px 42px 10px 12px', width: '100%' }} 
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              tabIndex={-1}
+              title={showNewPassword ? "Ocultar senha" : "Ver senha"}
+            >
+              <i className={showNewPassword ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"} style={{ fontSize: '0.95rem', color: '#ffffff' }}></i>
+            </button>
+          </div>
         </div>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>Confirmar Nova Senha</label>
-          <input 
-            type="password" 
-            className="form-control" 
-            placeholder="Repita a senha" 
-            value={confirmPassword} 
-            onChange={e => setConfirmPassword(e.target.value)} 
-            required 
-            disabled={loading}
-            style={{ fontSize: '0.85rem', padding: '10px 12px' }} 
-          />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input 
+              type={showConfirmPassword ? "text" : "password"} 
+              className="form-control" 
+              placeholder="Repita a senha" 
+              value={confirmPassword} 
+              onChange={e => setConfirmPassword(e.target.value)} 
+              required 
+              disabled={loading}
+              style={{ fontSize: '0.85rem', padding: '10px 42px 10px 12px', width: '100%' }} 
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              tabIndex={-1}
+              title={showConfirmPassword ? "Ocultar senha" : "Ver senha"}
+            >
+              <i className={showConfirmPassword ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"} style={{ fontSize: '0.95rem', color: '#ffffff' }}></i>
+            </button>
+          </div>
         </div>
         <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', marginTop: '8px', padding: '11px' }}>
           {loading ? 'Salvando...' : 'Salvar e Acessar'}
@@ -265,5 +311,3 @@ function ChangePasswordCard({ userEmail }: { userEmail: string }) {
     </div>
   );
 }
-
-

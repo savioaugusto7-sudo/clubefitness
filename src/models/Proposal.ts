@@ -21,6 +21,9 @@ const ProposalSchema = new Schema({
   isMinor: { type: Boolean, default: false },
 
   status: { type: String, default: 'pendente' },
+  abertoEm: { type: Date, default: null },
+  visualizado: { type: Boolean, default: false },
+  expiradoEm: { type: Date, default: null },
   formaPagamentoEscolhida: { type: String, default: '' }, // 'pix', 'boleto', 'cartao'
   parcelasEscolhidas: { type: Number, default: 1 },
   valorFinalRecalculado: { type: Number, default: 0 },

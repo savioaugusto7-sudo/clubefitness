@@ -4217,6 +4217,47 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'monospace' }}>
                                 {m.linkUrl}
                               </div>
+
+                              {m.tipo === 'venda' && (
+                                <div style={{ marginTop: '6px' }}>
+                                  {m.abertoEm ? (
+                                    <span 
+                                      style={{ 
+                                        display: 'inline-flex', 
+                                        alignItems: 'center', 
+                                        gap: '5px', 
+                                        padding: '3px 8px', 
+                                        borderRadius: '6px', 
+                                        fontSize: '0.72rem', 
+                                        fontWeight: 700, 
+                                        background: 'rgba(56, 189, 248, 0.15)', 
+                                        color: '#38bdf8', 
+                                        border: '1px solid rgba(56, 189, 248, 0.35)' 
+                                      }}
+                                      title={`Link aberto em ${new Date(m.abertoEm).toLocaleString('pt-BR')}`}
+                                    >
+                                      <i className="fa-solid fa-eye"></i> Aberto {new Date(m.abertoEm).toLocaleDateString('pt-BR')} {new Date(m.abertoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  ) : (
+                                    <span 
+                                      style={{ 
+                                        display: 'inline-flex', 
+                                        alignItems: 'center', 
+                                        gap: '5px', 
+                                        padding: '3px 8px', 
+                                        borderRadius: '6px', 
+                                        fontSize: '0.72rem', 
+                                        fontWeight: 600, 
+                                        background: 'rgba(148, 163, 184, 0.1)', 
+                                        color: '#94a3b8', 
+                                        border: '1px solid rgba(148, 163, 184, 0.2)' 
+                                      }}
+                                    >
+                                      <i className="fa-regular fa-eye-slash"></i> Não visualizado
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td data-label="Informações Preenchidas">
                               {m.infoList && m.infoList.length > 0 ? (

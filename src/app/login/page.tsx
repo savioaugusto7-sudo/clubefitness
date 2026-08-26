@@ -16,6 +16,7 @@ function LoginContent() {
   const [loginMethod, setLoginMethod] = useState<'google' | 'email'>('google');
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginErrorMsg, setLoginErrorMsg] = useState('');
 
   const error = searchParams.get('error');
@@ -251,15 +252,37 @@ function LoginContent() {
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>Senha</label>
-              <input 
-                type="password" 
-                className="form-control" 
-                placeholder="Sua senha" 
-                value={passwordInput} 
-                onChange={e => setPasswordInput(e.target.value)} 
-                required 
-                style={{ fontSize: '0.85rem', padding: '10px 12px' }} 
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  className="form-control" 
+                  placeholder="Sua senha" 
+                  value={passwordInput} 
+                  onChange={e => setPasswordInput(e.target.value)} 
+                  required 
+                  style={{ fontSize: '0.85rem', padding: '10px 42px 10px 12px', width: '100%' }} 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  tabIndex={-1}
+                  title={showPassword ? "Ocultar senha" : "Ver senha"}
+                >
+                  <i className={showPassword ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"} style={{ fontSize: '0.95rem', color: '#ffffff' }}></i>
+                </button>
+              </div>
             </div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px', padding: '11px' }}>
               Entrar
