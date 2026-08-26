@@ -216,7 +216,7 @@ export async function PUT(request: Request) {
         descontoValor: proposal.descontoValor || 0,
         valorLiquido,
         parcelas: numParcelas,
-        formaPagamento: formaPagamentoEscolhida || 'pix',
+        formaPagamento: formaPagamentoEscolhida || 'boleto',
         diaVencimento: diaVenc,
         dataPrimeiroVencimento: dataVencimentoEscolhida || '',
         dataInicio: proposal.dataInicio || new Date().toISOString().split('T')[0],

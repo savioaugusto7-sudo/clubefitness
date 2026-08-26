@@ -257,11 +257,11 @@ export function generateContractTemplate(data: ContractData): string {
   const diaVenc = dateVenc.split('-')[2] ? parseInt(dateVenc.split('-')[2], 10) : 5;
 
   const formaPag = ({
-    pix: 'Pix',
-    boleto: 'Boleto Bancário',
+    pix: 'Boleto / Pix',
+    boleto: 'Boleto / Pix',
     cartao: 'Cartão de Crédito',
     dinheiro: 'Dinheiro'
-  } as any)[(data.formaPagamento || '').toLowerCase()] || data.formaPagamento || 'Pix';
+  } as any)[(data.formaPagamento || '').toLowerCase()] || data.formaPagamento || 'Boleto / Pix';
 
   // Address
   const addressParts = [
