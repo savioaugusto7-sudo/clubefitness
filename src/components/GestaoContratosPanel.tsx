@@ -1153,6 +1153,7 @@ export default function GestaoContratosPanel({
   // ==========================================
   const [manualSaleClient, setManualSaleClient] = useState<any>(null);
   const [msSubmitting, setMsSubmitting] = useState(false);
+  const [showMsContractPreview, setShowMsContractPreview] = useState(false);
 
   // 1. Dados Comerciais
   const [msPlano, setMsPlano] = useState('');
@@ -1219,6 +1220,7 @@ export default function GestaoContratosPanel({
 
   const handleOpenManualSale = (client: any) => {
     setManualSaleClient(client);
+    setShowMsContractPreview(false);
     const dp = client?.dadosPessoais || {};
     const com = client?.dadosComerciais || {};
 
@@ -6613,14 +6615,37 @@ export default function GestaoContratosPanel({
                   gap: '10px'
                 }}
               >
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => { if (!msSubmitting) setManualSaleClient(null); }}
-                  disabled={msSubmitting}
-                >
-                  Cancelar
-                </button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => { if (!msSubmitting) setManualSaleClient(null); }}
+                    disabled={msSubmitting}
+                  >
+                    Cancelar
+                  </button>
+
+                  {/* Botão Ver Minuta */}
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={!msPlano || !msValorUnitario || Number(msValorUnitario) <= 0}
+                    style={{
+                      borderColor: 'rgba(56, 189, 248, 0.4)',
+                      background: 'rgba(56, 189, 248, 0.08)',
+                      color: '#38bdf8',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '10px 16px',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setShowMsContractPreview(true)}
+                  >
+                    <i className="fa-solid fa-eye"></i> Visualizar Minuta do Contrato
+                  </button>
+                </div>
 
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {/* Opção 1: WhatsApp Clicksign */}
@@ -6669,6 +6694,176 @@ export default function GestaoContratosPanel({
                   </button>
                 </div>
               </div>
+
+              {/* MODAL SOBREPOSTO: PRÉ-VISUALIZAÇÃO DA MINUTA DO CONTRATO */}
+              {showMsContractPreview && (() => {
+                const planSel = plans.find(p => p._id === msPlano);
+                const isAnualPlan = msDuracao === 'anual' || Number(msVigenciaQtd) >= 12;
+                const liveContractData = {
+                  clientNome: isMinorDetected ? (msRespNome || 'Nome do Responsável Legal') : (msNome || 'Nome do Aluno'),
+                  clientCpf: isMinorDetected ? (msRespCpf || '000.000.000-00') : (msCpf || '000.000.000-00'),
+                  clientEmail: isMinorDetected ? msRespEmail : msEmail,
+                  clientTelefone: isMinorDetected ? msRespTelefone : msTelefone,
+                  clientDataNascimento: isMinorDetected ? '' : msDataNascimento,
+                  clientCep: msCep,
+                  clientEndereco: msEndereco,
+                  clientNumero: msNumero,
+                  clientComplemento: msComplemento,
+                  clientBairro: msBairro,
+                  clientCidade: msCidade,
+                  clientEstado: msEstado,
+                  planNome: planSel?.nome || 'Plano Clube Fitness',
+                  planTipo: planSel?.tipo || (isAnualPlan ? 'Anual' : 'Mensal'),
+                  planPreco: planSel?.preco || grossPrice,
+                  valorUnitario: msValorUnitario,
+                  valorLiquido: finalPrice,
+                  descontoTipo: msDescontoTipo,
+                  descontoValor: msDescontoValor,
+                  duracao: msDuracao,
+                  vigenciaQtd: msVigenciaQtd,
+                  parcelas: numParcelas,
+                  formaPagamento: msFormaPagamento,
+                  dataInicio: msDataInicio,
+                  dataVencimento: msDataPrimeiroVencimento || msDataInicio,
+                  creditosMensais: msCreditosMensais,
+                  unidadeContratada: planSel?.unidadeAtendimento || 'Clube Fitness',
+                  isMinor: isMinorDetected,
+                  beneficiarioNome: isMinorDetected ? (msNome || 'Nome do Menor') : undefined,
+                  beneficiarioCpf: isMinorDetected ? (msCpf || '000.000.000-00') : undefined
+                };
+                const liveContractHtml = getUnifiedTemplate(liveContractData);
+
+                return (
+                  <div
+                    className="modal-overlay"
+                    style={{ display: 'flex', zIndex: 11000, background: 'rgba(0,0,0,0.8)' }}
+                    onClick={() => setShowMsContractPreview(false)}
+                  >
+                    <div
+                      className="modal-content"
+                      onClick={e => e.stopPropagation()}
+                      style={{ maxWidth: '860px', width: '95%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', border: '1px solid rgba(56, 189, 248, 0.4)', boxShadow: '0 25px 70px rgba(0,0,0,0.85)' }}
+                    >
+                      <div
+                        className="modal-header"
+                        style={{
+                          padding: '16px 22px',
+                          background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(3, 105, 161, 0.15) 100%)',
+                          borderBottom: '1px solid rgba(56, 189, 248, 0.3)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <i className="fa-solid fa-file-contract"></i> Pré-Visualização da Minuta do Contrato
+                          </h3>
+                          <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            Revise os dados cadastrais, partes qualificadas e condições de pagamento
+                          </small>
+                        </div>
+                        <button
+                          type="button"
+                          className="close-btn"
+                          onClick={() => setShowMsContractPreview(false)}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.4rem', cursor: 'pointer' }}
+                        >
+                          &times;
+                        </button>
+                      </div>
+
+                      <div
+                        className="modal-body"
+                        style={{
+                          padding: '24px 30px',
+                          background: '#ffffff',
+                          color: '#1e293b',
+                          maxHeight: '65vh',
+                          overflowY: 'auto',
+                          fontSize: '0.92rem',
+                          lineHeight: '1.6'
+                        }}
+                      >
+                        <div dangerouslySetInnerHTML={{ __html: liveContractHtml }} />
+                      </div>
+
+                      <div
+                        className="modal-footer"
+                        style={{
+                          padding: '14px 22px',
+                          background: 'var(--bg-darker)',
+                          borderTop: '1px solid var(--border-color)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '10px'
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setShowMsContractPreview(false)}
+                        >
+                          Fechar Prévia
+                        </button>
+
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={msSubmitting || !msPlano || !msValorUnitario || Number(msValorUnitario) <= 0}
+                            style={{
+                              background: 'rgba(34, 197, 94, 0.2)',
+                              borderColor: '#22c55e',
+                              color: '#4ade80',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '9px 15px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                              setShowMsContractPreview(false);
+                              handleConfirmManualSale('clicksign');
+                            }}
+                          >
+                            {msSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-brands fa-whatsapp fa-lg"></i>}
+                            Disparar WhatsApp Clicksign
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={msSubmitting || !msPlano || !msValorUnitario || Number(msValorUnitario) <= 0}
+                            style={{
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              borderColor: '#059669',
+                              color: '#fff',
+                              fontWeight: 800,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '9px 16px',
+                              cursor: 'pointer',
+                              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+                            }}
+                            onClick={() => {
+                              setShowMsContractPreview(false);
+                              handleConfirmManualSale('presencial');
+                            }}
+                          >
+                            {msSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                            Concluir & Ativar Presencialmente
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
             </div>
           </div>
