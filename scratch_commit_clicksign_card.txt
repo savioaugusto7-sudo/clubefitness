@@ -1,6 +1,0 @@
-feat: destaque visual de contratos abertos no clicksign e dados manuais na gestao de contratos
-
-- Priorizada a identificacao de contratos pendentes de assinatura no Clicksign no resolveClientContractStage
-- Substituido badge do perfil do aluno para exibir 'Aguardando Assinatura (Clicksign)'
-- Adicionado Card Executivo de Contrato Clicksign no workspace com status em tempo real, Document Key, link direto, atalhos de copiar, reenviar WhatsApp, sincronizar Clicksign, marcar assinado e baixar PDF
-- Adicionado banner informativo quando dados comerciais estao cadastrados manualmente pelo administrador sem contrato emitido
