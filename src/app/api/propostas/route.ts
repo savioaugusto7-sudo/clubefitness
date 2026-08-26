@@ -64,7 +64,8 @@ export async function POST(request: Request) {
       descontoTipo,
       descontoValor,
       observacoesContratuais,
-      unidadeContratada
+      unidadeContratada,
+      isMinor
     } = body;
 
     if (!clientId || !planoId || valorAcordado === undefined || !creditosMensais) {
@@ -99,6 +100,7 @@ export async function POST(request: Request) {
       descontoValor,
       observacoesContratuais,
       unidadeContratada,
+      isMinor: !!isMinor,
       status: 'pendente'
     });
 
