@@ -4445,9 +4445,19 @@ export default function GestaoContratosPanel({
               dcCep || selectedClient.dadosPessoais?.cep ? `CEP: ${dcCep || selectedClient.dadosPessoais?.cep}` : ''
             ].filter(Boolean).join(' • ');
 
+            const isRecorrenteResolved = Boolean(
+              latestContract?.criarRecorrenciaMensal || 
+              selectedClient.dadosComerciais?.criarRecorrenciaMensal || 
+              currentProposal?.criarRecorrenciaMensal || 
+              dcCriarRecorrencia
+            );
+
             // Período Oficial
-            const dtInicioStr = latestContract?.dataInicio || selectedClient.dadosComerciais?.dataInicio || currentProposal?.dataInicio || dcDataInicio || '';
+            const dtInicioStr = info.dataInicio || latestContract?.dataInicio || selectedClient.dadosComerciais?.dataInicio || currentProposal?.dataInicio || dcDataInicio || '';
             const dtFimStr = (() => {
+              if (isRecorrenteResolved) {
+                return info.dataFim || selectedClient.dadosComerciais?.vencimento || '';
+              }
               if (currentProposal?.dataFim) return currentProposal.dataFim;
               if (dtInicioStr) {
                 return calculateContractEndDate(dtInicioStr, rawTipo, qtdVal, undefined, false);
@@ -4554,13 +4564,6 @@ export default function GestaoContratosPanel({
               freqDeducao ||
               selectedClient.frequencia || 
               0
-            );
-
-            const isRecorrenteResolved = Boolean(
-              latestContract?.criarRecorrenciaMensal || 
-              selectedClient.dadosComerciais?.criarRecorrenciaMensal || 
-              currentProposal?.criarRecorrenciaMensal || 
-              dcCriarRecorrencia
             );
 
             return (
@@ -4862,6 +4865,12 @@ export default function GestaoContratosPanel({
                       <strong style={{ fontSize: '0.85rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
                         {periodoOficialDisplay}
                       </strong>
+                      {isRecorrenteResolved && (
+                        <span style={{ fontSize: '0.68rem', color: '#34d399', marginTop: '3px', display: 'block', fontWeight: 600 }}>
+                          <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '3px' }}></i>
+                          {info.daysLeftText || 'Ciclo ativo'}
+                        </span>
+                      )}
                     </div>
 
                     {/* Bloco 4: 1º Vencimento (Estilo Neutro + Origem) */}

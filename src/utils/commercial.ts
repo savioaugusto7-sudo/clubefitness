@@ -20,20 +20,22 @@ export async function syncClientPlanValidity(clientId: string): Promise<void> {
       status: 'Pago'
     }).sort({ vencimento: 1 });
 
-    let cycles = 1;
-    if (paidPayments.length > 0) {
-      const lastPaid = paidPayments[paidPayments.length - 1];
-      const lastPaidDateStr = lastPaid.vencimento || lastPaid.dataPagamento;
-      if (lastPaidDateStr) {
-        const dStr = (lastPaidDateStr.includes('T') ? lastPaidDateStr.split('T')[0] : lastPaidDateStr);
-        const lastPaidDate = new Date(dStr + 'T00:00:00');
-        const baseD = new Date((com.dataInicio || dStr) + 'T00:00:00');
-        const monthDiff = (lastPaidDate.getFullYear() - baseD.getFullYear()) * 12 + (lastPaidDate.getMonth() - baseD.getMonth()) + 1;
-        cycles = Math.min(12, Math.max(1, monthDiff + 1));
-      } else {
-        cycles = Math.min(12, Math.max(1, paidPayments.length + 1));
+    // Trava de unicidade mensal (1 pagamento por mês de competência YYYY-MM)
+    const paidCompetenceMonths = new Set<string>();
+    paidPayments.forEach((p: any) => {
+      const rawDate = p.vencimento || p.dataPagamento;
+      if (rawDate) {
+        const dStr = (rawDate.includes('T') ? rawDate.split('T')[0] : rawDate);
+        const ym = dStr.slice(0, 7);
+        if (ym && ym.length === 7) {
+          paidCompetenceMonths.add(ym);
+        }
       }
-    }
+    });
+
+    const distinctPaidCount = paidCompetenceMonths.size;
+    const maxRecorrencia = Number(com.recorrenciaMeses) || 12;
+    const cycles = Math.min(maxRecorrencia, Math.max(1, 1 + distinctPaidCount));
 
     // Calculate new validity end date (+cycles relative to dataInicio)
     // "vigencia comercial atualizada deve ser atrelada a data de inicio, nao deve ser relacionada a data de vencimento e nem pagamento"

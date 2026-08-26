@@ -263,24 +263,29 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     } else {
       // =========================================================================
       // 🅱️ CASO 2: COM RECORRÊNCIA ATIVADA (Assinatura Mensal Contínua)
-      // A ÂNCORA É SEMPRE O DIA DA DATA DE INÍCIO (ex: dia 01, dia 24)
-      // REGRA DE OURO (K + 1): O pagamento da parcela K destrava o mês atual e o próximo ciclo
-      // garantindo que o aluno NUNCA fique descoberto antes do próximo vencimento!
+      // A ÂNCORA É SEMPRE O DIA DA DATA DE INÍCIO (ex: dia 26)
+      // REGRA OFICIAL (1 Ciclo na Assinatura + 1 por Mês Pago com Trava de Unicidade):
+      // 1. Ao assinar contrato: O cliente está ativo e possui o 1º ciclo garantido.
+      // 2. Ao confirmar o 1º pagamento: Renova e destrava o 2º ciclo.
+      // 3. Ao confirmar o 2º pagamento e seguintes: Aceita estritamente 1 avanço por mês
+      //    de competência (YYYY-MM), blindando contra duplicidade de boletos e 2ª vias!
       // =========================================================================
       const startD = safeParseDate(dataInicio);
-      let cyclesUnlocked = 1;
-
-      if (pagas.length > 0) {
-        const pagasSorted = [...pagas].sort((a: any, b: any) => (a.vencimento || '').localeCompare(b.vencimento || ''));
-        const lastPaid = pagasSorted[pagasSorted.length - 1];
-        if (lastPaid?.vencimento) {
-          const lastPaidDate = safeParseDate(lastPaid.vencimento);
-          const monthDiff = (lastPaidDate.getFullYear() - startD.getFullYear()) * 12 + (lastPaidDate.getMonth() - startD.getMonth()) + 1;
-          cyclesUnlocked = Math.min(recorrenciaMeses, Math.max(1, monthDiff + 1));
-        } else {
-          cyclesUnlocked = Math.min(recorrenciaMeses, Math.max(1, pagas.length + 1));
+      
+      const paidCompetenceMonths = new Set<string>();
+      pagas.forEach((p: any) => {
+        const rawDate = p.vencimento || p.dataPagamento;
+        if (rawDate) {
+          const dateStr = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+          const ym = dateStr.slice(0, 7); // 'YYYY-MM'
+          if (ym && ym.length === 7) {
+            paidCompetenceMonths.add(ym);
+          }
         }
-      }
+      });
+
+      const distinctPaidCount = paidCompetenceMonths.size;
+      const cyclesUnlocked = Math.min(recorrenciaMeses, Math.max(1, 1 + distinctPaidCount));
 
       const cycleEndD = new Date(startD);
       cycleEndD.setMonth(cycleEndD.getMonth() + cyclesUnlocked);
