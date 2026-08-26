@@ -19,6 +19,29 @@ const normalizeText = (str: string) => {
     .toLowerCase();
 };
 
+export const isFunnelTerm = (str?: string): boolean => {
+  if (!str) return true;
+  const clean = str.trim().toLowerCase();
+  return [
+    'captação',
+    'captacao',
+    'lead',
+    'indicação',
+    'indicacao',
+    'instagram',
+    'balcão',
+    'balcao',
+    'orgânico',
+    'organico',
+    'marketing',
+    'whatsapp',
+    'anúncio',
+    'anuncio',
+    'tráfego pago',
+    'trafego pago'
+  ].includes(clean);
+};
+
 export interface ClientContractStage {
   stageKey: 'ativo' | 'renovacao' | 'vencido' | 'pendente' | 'proposta' | 'congelado' | 'lead' | 'dynamus' | 'finalizado';
   stageLabel: string;
@@ -1965,6 +1988,8 @@ export default function GestaoContratosPanel({
     setSelectedClient(client);
     const com = client.dadosComerciais || {};
     const pes = client.dadosPessoais || {};
+    const latestContract = allContractsMap[client._id];
+    const latestProposal = allProposalsMap[client._id];
 
     setDcNome(pes.nome || client.nome || '');
     setDcEmail(pes.email || client.email || '');
@@ -1980,36 +2005,38 @@ export default function GestaoContratosPanel({
     setDcEstado(pes.estado || '');
     setDcCep(pes.cep || '');
     
-    const planIdStr = com.planoId?._id || (typeof com.planoId === 'string' ? com.planoId : '');
-    setDcPlano(planIdStr);
-    setDcStatus(com.status || 'lead');
-    setDcFormaPag(com.formaPagamento || 'pix');
+    const effectivePlanoId = com.planoId?._id || (typeof com.planoId === 'string' ? com.planoId : '') || latestContract?.planoId?._id || latestContract?.planoId || latestProposal?.planoId || '';
+    const effectivePlanoNome = latestContract?.planoNome || latestProposal?.planoNome || com.planoNome || '';
+    const planObj = plans.find(p => (effectivePlanoId && p._id === effectivePlanoId) || (effectivePlanoNome && p.nome === effectivePlanoNome));
 
-    const planObj = plans.find(p => p._id === planIdStr || p.nome === com.planoNome);
-    const isAnual = com.duracao === 'anual' || planObj?.tipo === 'Anual' || (planObj?.nome || '').toLowerCase().includes('anual');
-    setDcDuracao(isAnual ? 'anual' : (com.duracao || 'mensal'));
-    setDcVigenciaQtd(isAnual ? 1 : (Number(com.duracaoQtd) || Number(com.vigenciaQtd) || 1));
+    setDcPlano(planObj?._id || effectivePlanoId);
+    setDcStatus(latestContract?.status || com.status || 'lead');
+    setDcFormaPag(latestContract?.formaPagamento || latestProposal?.formaPagamentoEscolhida || com.formaPagamento || 'pix');
 
-    setDcValorUnitario(com.valorUnitario || 0);
-    // NÃO assumir data atual se não foi preenchido
-    setDcVencimento(com.dataPrimeiroVencimento || '');
-    setDcDescontoTipo(com.descontoTipo || 'percentual');
-    setDcDescontoValor(com.descontoValor || 0);
-    setDcParcelas(com.parcelas || 1);
-    setDcDataInicio(com.dataInicio || '');
-    setDcResponsavelVenda(com.responsavelVenda || '');
-    setDcUnidadeContratada(com.unidadeContratada || '');
-    setDcObservacoesContratuais(com.observacoesContratuais || '');
-    setDcFrequencia(com.frequencia || client.frequencia || planObj?.frequencia || 0);
-    setDcCreditosTotal(com.creditosTotal || 0);
-    setDcCreditosMassagem(com.creditosMassagemTotal || (com.duracao === 'anual' ? 1 : 0));
-    setDcCreditosEmergencia(com.creditosEmergenciaTotal || (com.duracao === 'anual' ? 1 : 0));
-    setDcCriarRecorrencia(Boolean(com.criarRecorrenciaMensal));
-    setDcRecorrenciaMeses(com.recorrenciaMeses || 12);
+    const effectiveDuracao = latestContract?.duracao || latestProposal?.duracao || com.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal');
+    const isAnual = effectiveDuracao === 'anual' || planObj?.tipo === 'Anual' || (effectivePlanoNome || '').toLowerCase().includes('anual');
+    setDcDuracao(isAnual ? 'anual' : (effectiveDuracao === 'semana' ? 'semana' : 'mensal'));
+    setDcVigenciaQtd(isAnual ? 1 : (Number(latestContract?.vigenciaMeses || latestContract?.vigenciaQtd || latestProposal?.vigenciaQtd || com.duracaoQtd || com.vigenciaQtd) || 1));
+
+    setDcValorUnitario(Number(latestContract?.valorUnitario || latestProposal?.valorUnitario || com.valorUnitario || planObj?.preco || 0));
+    setDcVencimento(latestContract?.dataPrimeiroVencimento || latestContract?.dataVencimento || latestProposal?.dataVencimentoEscolhida || latestProposal?.dataVencimento || com.dataPrimeiroVencimento || com.vencimento || '');
+    setDcDescontoTipo(latestContract?.descontoTipo || latestProposal?.descontoTipo || com.descontoTipo || 'percentual');
+    setDcDescontoValor(Number(latestContract?.descontoValor || latestProposal?.descontoValor || com.descontoValor || 0));
+    setDcParcelas(Number(latestContract?.parcelas || latestProposal?.parcelasEscolhidas || com.parcelas || 1));
+    setDcDataInicio(latestContract?.dataInicio || latestProposal?.dataInicio || com.dataInicio || '');
+    setDcResponsavelVenda(latestContract?.usuarioEmissor || com.responsavelVenda || '');
+    setDcUnidadeContratada(latestContract?.unidadeContratada || latestProposal?.unidadeContratada || com.unidadeContratada || planObj?.unidadeAtendimento || '');
+    setDcObservacoesContratuais(latestContract?.observacoesContratuais || latestProposal?.observacoesContratuais || com.observacoesContratuais || '');
+    setDcFrequencia(Number(latestContract?.frequencia || latestProposal?.frequencia || com.frequencia || client.frequencia || planObj?.frequencia || 0));
+    setDcCreditosTotal(Number(latestContract?.creditosTotal || latestProposal?.creditosMensais || com.creditosTotal || 0));
+    setDcCreditosMassagem(Number(latestContract?.creditosMassagem || latestProposal?.creditosMassagem || com.creditosMassagemTotal || (isAnual ? 1 : 0)));
+    setDcCreditosEmergencia(Number(latestContract?.creditosEmergencia || latestProposal?.creditosEmergencia || com.creditosEmergenciaTotal || (isAnual ? 1 : 0)));
+    setDcCriarRecorrencia(Boolean(latestContract?.criarRecorrenciaMensal || latestProposal?.criarRecorrenciaMensal || com.criarRecorrenciaMensal));
+    setDcRecorrenciaMeses(Number(latestContract?.recorrenciaMeses || latestProposal?.recorrenciaMeses || com.recorrenciaMeses || 12));
     setDcAsaasCustomerId(com.asaasCustomerId || '');
 
     // Fetch active proposals for this client
-    setActiveProposal(null);
+    setActiveProposal(latestProposal || null);
     fetch(`/api/propostas?clientId=${client._id}`)
       .then(res => res.json())
       .then(json => {
@@ -3480,7 +3507,7 @@ export default function GestaoContratosPanel({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
                               <span style={{ color: '#94a3b8', fontWeight: 500 }}>Plano:</span>
                               <strong style={{ color: '#ffffff', fontWeight: 700, textAlign: 'right' }}>
-                                {plan?.nome || 'A definir'}
+                                {latestContract?.planoNome || latestProposal?.planoNome || com.planoNome || plan?.nome || (!isFunnelTerm(c.plano) ? c.plano : null) || 'A definir'}
                               </strong>
                             </div>
 
@@ -3524,7 +3551,11 @@ export default function GestaoContratosPanel({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
                               <span style={{ color: '#94a3b8', fontWeight: 500 }}>Condição:</span>
                               <strong style={{ color: '#38bdf8', fontWeight: 700 }}>
-                                {stage.stageKey === 'dynamus' ? 'Convênio Corporativo Dynamus' : (com.valorUnitario ? `R$ ${com.valorUnitario.toFixed(2).replace('.', ',')} (${(com.formaPagamento || 'pix').toUpperCase()}${com.parcelas > 1 ? ` ${com.parcelas}x` : ''})` : 'A definir')}
+                                {stage.stageKey === 'dynamus'
+                                  ? 'Convênio Corporativo Dynamus'
+                                  : (latestContract?.valorLiquido || latestContract?.valorTotal || latestProposal?.valorFinalRecalculado || latestProposal?.valorAcordado || com.valorTotal || com.valorUnitario)
+                                    ? `R$ ${Number(latestContract?.valorLiquido || latestContract?.valorTotal || latestProposal?.valorFinalRecalculado || latestProposal?.valorAcordado || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')} (${(latestContract?.formaPagamento || latestProposal?.formaPagamentoEscolhida || com.formaPagamento || 'pix').toUpperCase()}${(latestContract?.parcelas || latestProposal?.parcelasEscolhidas || com.parcelas || 1) > 1 ? ` ${(latestContract?.parcelas || latestProposal?.parcelasEscolhidas || com.parcelas)}x` : ''})`
+                                    : 'A definir'}
                               </strong>
                             </div>
 
@@ -4357,38 +4388,56 @@ export default function GestaoContratosPanel({
               PAINEL EXECUTIVO DO ALUNO & AUDITORIA (RESPONSIVO DESKTOP / MOBILE)
               ========================================================================= */}
           {(() => {
-            const planIdStr = selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
-            const selectedPlan = plans.find(p => p._id === planIdStr || p.nome === selectedClient.dadosComerciais?.planoNome || (typeof selectedClient.dadosComerciais?.planoId === 'object' && p._id === selectedClient.dadosComerciais?.planoId?._id));
+            const latestContract = (contracts && contracts.length > 0 ? contracts[0] : null) || allContractsMap[selectedClient._id] || null;
+            const currentProposal = activeProposal || allProposalsMap[selectedClient._id] || null;
+            const planIdStr = latestContract?.planoId?._id || latestContract?.planoId || currentProposal?.planoId || selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
+            const selectedPlan = plans.find(p => p._id === planIdStr || p.nome === latestContract?.planoNome || p.nome === currentProposal?.planoNome || p.nome === selectedClient.dadosComerciais?.planoNome || (typeof selectedClient.dadosComerciais?.planoId === 'object' && p._id === selectedClient.dadosComerciais?.planoId?._id));
             const clientPy = allPaymentsMap[selectedClient._id] || [];
-            const latestContract = contracts && contracts.length > 0 ? contracts[0] : null;
-            const stage = resolveClientContractStage(selectedClient, selectedPlan, latestContract, activeProposal, clientPy);
+            const stage = resolveClientContractStage(selectedClient, selectedPlan, latestContract, currentProposal, clientPy);
             const info = getContractValidityInfo(selectedClient, selectedPlan, clientPy);
 
-            const planNameResolved = selectedPlan?.nome || 
-              (typeof selectedClient.dadosComerciais?.planoId === 'object' ? selectedClient.dadosComerciais?.planoId?.nome : null) ||
+            const planNameResolved = 
+              latestContract?.planoNome ||
+              currentProposal?.planoNome ||
               selectedClient.dadosComerciais?.planoNome ||
-              selectedClient.plano ||
-              activeProposal?.planoNome ||
-              (contracts[0]?.planoNome) ||
-              'Nenhum Plano Vinculado';
+              selectedPlan?.nome ||
+              (typeof selectedClient.dadosComerciais?.planoId === 'object' ? selectedClient.dadosComerciais?.planoId?.nome : null) ||
+              (!isFunnelTerm(selectedClient.plano) ? selectedClient.plano : null) ||
+              (dcPlano ? plans.find(p => p._id === dcPlano)?.nome : null) ||
+              'Plano Personalizado';
 
-            const rawTipo = String(selectedClient.dadosComerciais?.duracao || activeProposal?.duracao || dcDuracao || 'mensal').toLowerCase();
+            const rawTipo = String(
+              latestContract?.duracao ||
+              selectedClient.dadosComerciais?.duracao || 
+              currentProposal?.duracao || 
+              dcDuracao || 
+              (selectedPlan?.tipo === 'Anual' ? 'anual' : 'mensal')
+            ).toLowerCase();
+
             const isAnual = rawTipo === 'anual' || selectedPlan?.tipo === 'Anual' || (planNameResolved || '').toLowerCase().includes('anual');
             const tipoLabel = rawTipo === 'semana' ? 'Semana' : (isAnual ? 'Anual' : 'Mensal');
-            const qtdVal = Number(selectedClient.dadosComerciais?.duracaoQtd || selectedClient.dadosComerciais?.vigenciaQtd || activeProposal?.vigenciaQtd || dcVigenciaQtd || 1);
+            const qtdVal = Number(
+              latestContract?.vigenciaMeses ||
+              latestContract?.vigenciaQtd ||
+              selectedClient.dadosComerciais?.duracaoQtd || 
+              selectedClient.dadosComerciais?.vigenciaQtd || 
+              currentProposal?.vigenciaQtd || 
+              dcVigenciaQtd || 
+              1
+            );
 
-            const telClean = String(dcTelefone || '').replace(/\D/g, '');
+            const telClean = String(dcTelefone || selectedClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
             const fullAddr = [
-              dcEndereco ? `${dcEndereco}${dcNumero ? `, ${dcNumero}` : ''}` : '',
-              dcComplemento,
-              dcBairro,
-              dcCidade ? `${dcCidade}${dcEstado ? ` - ${dcEstado}` : ''}` : '',
-              dcCep ? `CEP: ${dcCep}` : ''
+              dcEndereco || selectedClient.dadosPessoais?.endereco ? `${dcEndereco || selectedClient.dadosPessoais?.endereco}${dcNumero || selectedClient.dadosPessoais?.numero ? `, ${dcNumero || selectedClient.dadosPessoais?.numero}` : ''}` : '',
+              dcComplemento || selectedClient.dadosPessoais?.complemento,
+              dcBairro || selectedClient.dadosPessoais?.bairro,
+              dcCidade || selectedClient.dadosPessoais?.cidade ? `${dcCidade || selectedClient.dadosPessoais?.cidade}${dcEstado || selectedClient.dadosPessoais?.estado ? ` - ${dcEstado || selectedClient.dadosPessoais?.estado}` : ''}` : '',
+              dcCep || selectedClient.dadosPessoais?.cep ? `CEP: ${dcCep || selectedClient.dadosPessoais?.cep}` : ''
             ].filter(Boolean).join(' • ');
 
             // Período Oficial
-            const dtInicioStr = selectedClient.dadosComerciais?.dataInicio || activeProposal?.dataInicio || dcDataInicio || '';
-            const dtFimStr = selectedClient.dadosComerciais?.vencimento || info.dataFim || '';
+            const dtInicioStr = latestContract?.dataInicio || selectedClient.dadosComerciais?.dataInicio || currentProposal?.dataInicio || dcDataInicio || '';
+            const dtFimStr = latestContract?.dataFim || latestContract?.vencimento || selectedClient.dadosComerciais?.vencimento || currentProposal?.dataFim || info.dataFim || '';
             const periodoOficialDisplay = (() => {
               if (!dtInicioStr) return 'Não definido';
               const startFmt = new Date(dtInicioStr + (dtInicioStr.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR');
@@ -4402,23 +4451,101 @@ export default function GestaoContratosPanel({
             })();
 
             // 1º Vencimento
-            const firstVencDate = selectedClient.dadosComerciais?.dataPrimeiroVencimento || activeProposal?.dataVencimentoEscolhida || dcVencimento || '';
-            const firstVencSource = activeProposal?.dataVencimentoEscolhida ? 'Link de Venda (Cliente)' : (selectedClient.dadosComerciais?.dataPrimeiroVencimento ? 'Painel Admin' : '');
+            const firstVencDate = 
+              latestContract?.dataPrimeiroVencimento || 
+              latestContract?.dataVencimento || 
+              latestContract?.vencimento ||
+              currentProposal?.dataVencimentoEscolhida || 
+              currentProposal?.dataVencimento ||
+              selectedClient.dadosComerciais?.dataPrimeiroVencimento || 
+              selectedClient.dadosComerciais?.vencimento || 
+              dcVencimento || 
+              selectedClient.dadosComerciais?.dataInicio ||
+              latestContract?.dataInicio ||
+              '';
+
+            const firstVencSource = (() => {
+              if (latestContract?.dataPrimeiroVencimento || latestContract?.dataVencimento || latestContract?.vencimento) {
+                return latestContract.clicksignDocKey ? 'Contrato Clicksign' : 'Contrato Emitido';
+              }
+              if (currentProposal?.dataVencimentoEscolhida) return 'Link de Venda (Cliente)';
+              if (currentProposal?.dataVencimento) return 'Proposta Comercial';
+              if (selectedClient.dadosComerciais?.dataPrimeiroVencimento) return 'Painel Admin';
+              if (selectedClient.dadosComerciais?.vencimento) return 'Vencimento Cadastrado';
+              if (dcVencimento) return 'Configurado no Workspace';
+              if (selectedClient.dadosComerciais?.dataInicio || latestContract?.dataInicio) return 'Data de Início';
+              return '';
+            })();
 
             // Condição Financeira
-            const numParcelas = Number(selectedClient.dadosComerciais?.parcelas || activeProposal?.parcelasEscolhidas || dcParcelas || 1);
-            const valorUnitarioBase = Number(selectedClient.dadosComerciais?.valorUnitario || activeProposal?.valorUnitario || selectedPlan?.preco || 0);
-            const valorTotalContrato = Number(selectedClient.dadosComerciais?.valorTotal || activeProposal?.valorFinalRecalculado || activeProposal?.valorAcordado || (valorUnitarioBase * (qtdVal > 1 ? qtdVal : 1)));
+            const numParcelas = Number(
+              latestContract?.parcelas || 
+              selectedClient.dadosComerciais?.parcelas || 
+              currentProposal?.parcelasEscolhidas || 
+              currentProposal?.parcelas ||
+              dcParcelas || 
+              1
+            );
+
+            const valorUnitarioBase = Number(
+              latestContract?.valorUnitario ||
+              selectedClient.dadosComerciais?.valorUnitario || 
+              currentProposal?.valorUnitario || 
+              selectedPlan?.preco || 
+              0
+            );
+
+            const valorTotalContrato = Number(
+              latestContract?.valorLiquido ||
+              latestContract?.valorTotal ||
+              selectedClient.dadosComerciais?.valorTotal || 
+              selectedClient.dadosComerciais?.valorLiquido ||
+              currentProposal?.valorFinalRecalculado || 
+              currentProposal?.valorAcordado || 
+              (valorUnitarioBase * (qtdVal > 1 ? qtdVal : 1)) ||
+              selectedClient.dadosComerciais?.valorUnitario ||
+              0
+            );
+
             const valorParcelaIndividual = numParcelas > 0 ? (valorTotalContrato / numParcelas) : valorTotalContrato;
 
-            const descTipo = selectedClient.dadosComerciais?.descontoTipo || activeProposal?.descontoTipo || dcDescontoTipo || 'percentual';
-            const descValor = Number(selectedClient.dadosComerciais?.descontoValor || activeProposal?.descontoValor || dcDescontoValor || 0);
+            const descTipo = latestContract?.descontoTipo || selectedClient.dadosComerciais?.descontoTipo || currentProposal?.descontoTipo || dcDescontoTipo || 'percentual';
+            const descValor = Number(latestContract?.descontoValor || selectedClient.dadosComerciais?.descontoValor || currentProposal?.descontoValor || dcDescontoValor || 0);
             const hasDesconto = descValor > 0;
 
-            const formaPagamentoFinal = String(selectedClient.dadosComerciais?.formaPagamento || activeProposal?.formaPagamentoEscolhida || dcFormaPag || 'PIX').toUpperCase();
+            const formaPagamentoFinal = String(
+              latestContract?.formaPagamento || 
+              selectedClient.dadosComerciais?.formaPagamento || 
+              currentProposal?.formaPagamentoEscolhida || 
+              currentProposal?.formaPagamento ||
+              dcFormaPag || 
+              'PIX'
+            ).toUpperCase();
 
             // Frequência Semanal
-            const freqSemanal = Number(selectedClient.dadosComerciais?.frequencia || activeProposal?.frequencia || selectedPlan?.frequencia || selectedClient.frequencia || dcFrequencia || 0);
+            const creditosBase = Number(latestContract?.creditosTotal || currentProposal?.creditosMensais || selectedClient.dadosComerciais?.creditosTotal || dcCreditosTotal || 0);
+            const freqDeducao = creditosBase > 0 
+              ? (creditosBase <= 4 ? 1 : creditosBase <= 9 ? 2 : creditosBase <= 14 ? 3 : creditosBase <= 18 ? 4 : 5) 
+              : 0;
+
+            const freqSemanal = Number(
+              latestContract?.frequencia || 
+              latestContract?.frequenciaSemanal ||
+              currentProposal?.frequencia || 
+              selectedClient.dadosComerciais?.frequencia || 
+              dcFrequencia || 
+              selectedPlan?.frequencia || 
+              freqDeducao ||
+              selectedClient.frequencia || 
+              0
+            );
+
+            const isRecorrenteResolved = Boolean(
+              latestContract?.criarRecorrenciaMensal || 
+              selectedClient.dadosComerciais?.criarRecorrenciaMensal || 
+              currentProposal?.criarRecorrenciaMensal || 
+              dcCriarRecorrencia
+            );
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -4784,8 +4911,8 @@ export default function GestaoContratosPanel({
                     </div>
                     <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
                       <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Recorrência Mensal:</span>
-                      <strong style={{ color: (dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '#10b981' : '#64748b' }}>
-                        {(dcCriarRecorrencia || selectedClient?.dadosComerciais?.criarRecorrenciaMensal) ? '🟢 Ativa' : '⚪ Desativada'}
+                      <strong style={{ color: isRecorrenteResolved ? '#10b981' : '#64748b' }}>
+                        {isRecorrenteResolved ? '🟢 Ativa' : '⚪ Desativada'}
                       </strong>
                     </div>
                     <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
