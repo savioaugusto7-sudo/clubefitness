@@ -114,16 +114,65 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 1. Contrato Assinado, Perfil Ativo com Vigência Válida ou Recorrência em Dia
+  // 1. Contrato Pendente de Assinatura (Clicksign / Presencial)
+  const isPendingContract = Boolean(
+    (latestContract && (latestContract.status === 'pendente' || latestContract.clicksignStatus === 'pendente')) ||
+    (com.status === 'pendente' && latestContract?.status !== 'assinado')
+  );
+  if (isPendingContract) {
+    const isClicksign = Boolean(latestContract?.clicksignDocKey);
+    return {
+      stageKey: 'pendente',
+      stageLabel: isClicksign ? '⏳ Aguardando Assinatura (Clicksign)' : '⏳ Aguardando Assinatura',
+      badgeBg: 'rgba(245, 158, 11, 0.18)',
+      badgeColor: '#fbbf24',
+      badgeBorder: '1px solid rgba(245, 158, 11, 0.4)',
+      orientacaoKey: 'sincronizar_clicksign',
+      orientacaoLabel: isClicksign ? '🔄 Sincronizar Clicksign' : '✍️ Formalizar Assinatura',
+      isRecorrente,
+      isBoleto,
+      hasAsaasBoleto,
+      hasCpf,
+      hasPhone,
+      hasEndereco,
+      hasBirthDate,
+      isMissingData,
+      info
+    };
+  }
+
+  // 2. Proposta Comercial Enviada via Link (Pendente de Resposta do Aluno)
+  const isPendingProposal = Boolean(latestProposal && latestProposal.status === 'pendente');
+  if (isPendingProposal) {
+    return {
+      stageKey: 'proposta',
+      stageLabel: '⏳ Proposta Enviada (Link)',
+      badgeBg: 'rgba(139, 92, 246, 0.18)',
+      badgeColor: '#c084fc',
+      badgeBorder: '1px solid rgba(139, 92, 246, 0.4)',
+      orientacaoKey: 'reenviar_link',
+      orientacaoLabel: '📲 Reenviar Link de Venda',
+      isRecorrente,
+      isBoleto,
+      hasAsaasBoleto,
+      hasCpf,
+      hasPhone,
+      hasEndereco,
+      hasBirthDate,
+      isMissingData,
+      info
+    };
+  }
+
+  // 3. Contrato Assinado / Perfil Ativo com Vigência Válida ou Recorrência em Dia
   const hasActiveContract = Boolean(
     latestContract?.status === 'assinado' ||
     latestContract?.clicksignStatus === 'assinado' ||
     com.status === 'ativo' ||
     com.status === 'assinado' ||
     (isRecorrente && hasPaidInstallment && !info.isExpired) ||
-    (plan && !info.isExpired && (com.valorUnitario > 0 || latestContract || hasPaidInstallment)) ||
-    (com.valorUnitario > 0 && (com.vencimento || com.dataInicio)) ||
-    (com.planoId && (com.vencimento || com.dataInicio))
+    (plan && !info.isExpired && (com.valorUnitario > 0 || hasPaidInstallment)) ||
+    (com.valorUnitario > 0 && (com.vencimento || com.dataInicio) && com.status !== 'lead')
   );
 
   const isExpired = Boolean(info.isExpired);
@@ -181,55 +230,6 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       badgeBorder: 'none',
       orientacaoKey: isBoleto ? 'gerar_asaas' : 'baixar_pdf',
       orientacaoLabel: isBoleto ? (hasAsaasBoleto ? '💳 Ver Boletos Asaas' : '💳 Gerar Boletos Asaas') : '📄 Baixar Contrato PDF',
-      isRecorrente,
-      isBoleto,
-      hasAsaasBoleto,
-      hasCpf,
-      hasPhone,
-      hasEndereco,
-      hasBirthDate,
-      isMissingData,
-      info
-    };
-  }
-
-  // 2. Contrato Pendente de Assinatura (Clicksign)
-  const isPendingContract = Boolean(
-    (latestContract && (latestContract.status === 'pendente' || latestContract.clicksignStatus === 'pendente')) ||
-    com.status === 'pendente'
-  );
-  if (isPendingContract) {
-    return {
-      stageKey: 'pendente',
-      stageLabel: '⏳ Aguardando Assinatura',
-      badgeBg: 'rgba(245, 158, 11, 0.18)',
-      badgeColor: '#fbbf24',
-      badgeBorder: '1px solid rgba(245, 158, 11, 0.4)',
-      orientacaoKey: 'sincronizar_clicksign',
-      orientacaoLabel: '🔄 Sincronizar Clicksign',
-      isRecorrente,
-      isBoleto,
-      hasAsaasBoleto,
-      hasCpf,
-      hasPhone,
-      hasEndereco,
-      hasBirthDate,
-      isMissingData,
-      info
-    };
-  }
-
-  // 3. Proposta Comercial Enviada
-  const isPendingProposal = Boolean(latestProposal && latestProposal.status === 'pendente');
-  if (isPendingProposal) {
-    return {
-      stageKey: 'proposta',
-      stageLabel: '⏳ Proposta Enviada',
-      badgeBg: 'rgba(139, 92, 246, 0.18)',
-      badgeColor: '#c084fc',
-      badgeBorder: '1px solid rgba(139, 92, 246, 0.4)',
-      orientacaoKey: 'reenviar_link',
-      orientacaoLabel: '📲 Reenviar Link de Venda',
       isRecorrente,
       isBoleto,
       hasAsaasBoleto,
@@ -4360,6 +4360,8 @@ export default function GestaoContratosPanel({
             const planIdStr = selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
             const selectedPlan = plans.find(p => p._id === planIdStr || p.nome === selectedClient.dadosComerciais?.planoNome || (typeof selectedClient.dadosComerciais?.planoId === 'object' && p._id === selectedClient.dadosComerciais?.planoId?._id));
             const clientPy = allPaymentsMap[selectedClient._id] || [];
+            const latestContract = contracts && contracts.length > 0 ? contracts[0] : null;
+            const stage = resolveClientContractStage(selectedClient, selectedPlan, latestContract, activeProposal, clientPy);
             const info = getContractValidityInfo(selectedClient, selectedPlan, clientPy);
 
             const planNameResolved = selectedPlan?.nome || 
@@ -4439,16 +4441,19 @@ export default function GestaoContratosPanel({
                         {dcNome || 'Aluno sem nome'}
                       </h3>
                       <span style={{
-                        padding: '2px 8px',
+                        padding: '3px 10px',
                         borderRadius: '6px',
-                        fontSize: '0.72rem',
+                        fontSize: '0.74rem',
                         fontWeight: 800,
-                        background: info.badgeBg,
-                        color: info.badgeColor,
-                        border: `1px solid ${info.badgeBorder}`,
-                        textTransform: 'uppercase'
+                        background: stage.badgeBg,
+                        color: stage.badgeColor,
+                        border: stage.badgeBorder || 'none',
+                        textTransform: 'uppercase',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px'
                       }}>
-                        {info.statusLabel}
+                        {stage.stageLabel}
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
@@ -4483,6 +4488,186 @@ export default function GestaoContratosPanel({
                     </button>
                   </div>
                 </div>
+
+                {/* 1.1 CARD DE DESTAQUE: CONTRATO CLICKSIGN & ASSINATURA */}
+                {latestContract && (
+                  <div style={{
+                    background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado')
+                      ? 'linear-gradient(135deg, rgba(6, 95, 70, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)'
+                      : 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                    border: `1px solid ${(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.45)'}`,
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '14px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.25)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                          color: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#34d399' : '#fbbf24',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.3rem'
+                        }}>
+                          <i className={latestContract.clicksignDocKey ? 'fa-solid fa-file-signature' : 'fa-solid fa-file-contract'}></i>
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            {latestContract.clicksignDocKey ? 'Contrato Eletrônico Clicksign' : 'Contrato Emitido'}
+                            <span style={{
+                              fontSize: '0.72rem',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontWeight: 800,
+                              background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#065f46' : 'rgba(245, 158, 11, 0.2)',
+                              color: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#34d399' : '#fbbf24',
+                              border: `1px solid ${(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#10b981' : '#f59e0b'}`
+                            }}>
+                              {(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado')
+                                ? '✅ ASSINADO'
+                                : '⏳ AGUARDANDO ASSINATURA'}
+                            </span>
+                          </h4>
+                          <span style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '3px', display: 'block' }}>
+                            Plano: <strong style={{ color: '#cbd5e1' }}>{latestContract.planoNome}</strong> • Emissão: {new Date(latestContract.dataEmissao).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} • Versão #{latestContract.versao || 1} • Emissor: <strong style={{ color: '#cbd5e1' }}>{latestContract.usuarioEmissor || 'Painel Admin'}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {latestContract.clicksignDocKey && (
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', fontFamily: 'monospace' }}>
+                          <i className="fa-solid fa-key" style={{ marginRight: '5px', color: '#38bdf8' }}></i>
+                          Doc Key: {latestContract.clicksignDocKey.substring(0, 16)}...
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Barra de Ações Rápidas do Contrato */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                        <a
+                          href={latestContract.clicksignUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-primary"
+                          style={{ padding: '7px 14px', fontSize: '0.8rem', fontWeight: 800, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderColor: '#4f46e5', color: '#fff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <i className="fa-solid fa-arrow-up-right-from-square"></i> Abrir Link Clicksign
+                        </a>
+                      )}
+
+                      {latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '7px 12px', fontSize: '0.8rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)', background: 'rgba(56, 189, 248, 0.1)', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                          onClick={() => {
+                            navigator.clipboard.writeText(latestContract.clicksignUrl);
+                            alert('Link do Clicksign copiado com sucesso!');
+                          }}
+                        >
+                          <i className="fa-regular fa-copy"></i> Copiar Link
+                        </button>
+                      )}
+
+                      {dcTelefone && latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                        <a
+                          href={`https://wa.me/55${telClean}?text=${encodeURIComponent(`Olá, ${dcNome || 'Aluno'}! Segue o link para assinatura do seu contrato no Clube Fitness via Clicksign: ${latestContract.clicksignUrl}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary"
+                          style={{ padding: '7px 12px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <i className="fa-brands fa-whatsapp"></i> Reenviar WhatsApp
+                        </a>
+                      )}
+
+                      {latestContract.clicksignDocKey && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '7px 12px', fontSize: '0.8rem', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)', background: 'rgba(251, 191, 36, 0.1)', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                          onClick={() => handleSyncClicksign(latestContract._id)}
+                        >
+                          <i className="fa-solid fa-rotate"></i> Sincronizar Clicksign
+                        </button>
+                      )}
+
+                      {(latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                        <button
+                          type="button"
+                          className="btn btn-success"
+                          style={{ padding: '7px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                          onClick={() => handleConfirmSignContract(latestContract._id)}
+                        >
+                          <i className="fa-solid fa-file-circle-check"></i> Marcar Assinado
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '7px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                        onClick={() => {
+                          const plan = plans.find(p => p._id === (latestContract.planoId?._id || latestContract.planoId));
+                          if (plan) downloadContractPDF(selectedClient, plan, latestContract.contratoTexto, latestContract);
+                        }}
+                      >
+                        <i className="fa-solid fa-file-pdf"></i> Baixar PDF
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 1.2 ALERTA: DADOS MANUAIS CADASTRADOS (SEM CONTRATO EMITIDO) */}
+                {!latestContract && (dcPlano || dcValorUnitario > 0) && (
+                  <div style={{
+                    background: 'rgba(56, 189, 248, 0.08)',
+                    border: '1px dashed rgba(56, 189, 248, 0.35)',
+                    borderRadius: '12px',
+                    padding: '14px 18px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <i className="fa-solid fa-file-pen" style={{ color: '#38bdf8', fontSize: '1.2rem' }}></i>
+                      <div>
+                        <strong style={{ color: '#f8fafc', fontSize: '0.88rem' }}>Dados Comerciais Cadastrados Manualmente</strong>
+                        <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8' }}>
+                          O plano e valores estão configurados no sistema. Para formalizar, envie o contrato para o Clicksign ou assine na tela.
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        style={{ background: '#22c55e', borderColor: '#22c55e', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => handleIssueContract('clicksign')}
+                      >
+                        <i className="fa-brands fa-whatsapp"></i> Emitir no Clicksign
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => handleOpenSignatureModal()}
+                      >
+                        <i className="fa-solid fa-hand-pointer"></i> Assinar na Tela
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* 2. GRID DE AUDITORIA DO CONTRATO ATUAL (CARDS EXECUTIVOS DE LEITURA) */}
                 <div style={{
