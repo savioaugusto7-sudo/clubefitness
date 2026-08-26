@@ -391,7 +391,12 @@ export async function POST(request: Request) {
       frequencia,
       creditosTotal,
       assinaturaPresencialImage,
-      trilhaAuditoria
+      trilhaAuditoria,
+      signerNome,
+      signerCpf,
+      signerEmail,
+      signerTelefone,
+      isMinor
     } = body;
 
     if (!clientId || !planoId || !dataInicio) {
@@ -459,22 +464,29 @@ export async function POST(request: Request) {
     let clicksignStatus = 'pendente';
 
     if (enviarClicksign) {
-      if (!client.dadosPessoais?.email) {
-        return NextResponse.json({ success: false, error: 'O aluno precisa de um e-mail cadastrado para assinar pela Clicksign.' }, { status: 400 });
+      const recipientEmail = signerEmail || client.dadosPessoais?.email;
+      const recipientNome = signerNome || client.dadosPessoais?.nome;
+      const recipientCpf = signerCpf || client.dadosPessoais?.cpf;
+      const recipientTelefone = signerTelefone || client.dadosPessoais?.telefone;
+      const recipientBirth = isMinor ? '' : (client.dadosPessoais?.dataNascimento || client.dadosPessoais?.nascimento || '');
+
+      if (!recipientEmail) {
+        return NextResponse.json({ success: false, error: 'O signatário precisa de um e-mail cadastrado para assinar pela Clicksign.' }, { status: 400 });
       }
-      if (!client.dadosPessoais?.cpf) {
-        return NextResponse.json({ success: false, error: 'O aluno precisa de um CPF cadastrado para assinar pela Clicksign.' }, { status: 400 });
+      if (!recipientCpf) {
+        return NextResponse.json({ success: false, error: 'O signatário precisa de um CPF cadastrado para assinar pela Clicksign.' }, { status: 400 });
       }
-      if (!client.dadosPessoais?.telefone) {
-        return NextResponse.json({ success: false, error: 'O aluno precisa de um número de celular/WhatsApp cadastrado para assinar pela Clicksign.' }, { status: 400 });
+      if (!recipientTelefone) {
+        return NextResponse.json({ success: false, error: 'O signatário precisa de um número de celular/WhatsApp cadastrado para assinar pela Clicksign.' }, { status: 400 });
       }
 
-      const cleanPhone = (client.dadosPessoais.telefone || '').replace(/\D/g, '');
+      const cleanPhone = (recipientTelefone || '').replace(/\D/g, '');
       if (cleanPhone.length < 10) {
-        return NextResponse.json({ success: false, error: 'O número de celular/WhatsApp do aluno deve conter DDD e pelo menos 10 ou 11 dígitos válidos.' }, { status: 400 });
+        return NextResponse.json({ success: false, error: 'O número de celular/WhatsApp do signatário deve conter DDD e pelo menos 10 ou 11 dígitos válidos.' }, { status: 400 });
       }
 
-      const fileName = `Contrato_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_V${versao}.pdf`;
+      const clientNameSafe = (recipientNome || 'Cliente').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      const fileName = `Contrato_${clientNameSafe}_V${versao}.pdf`;
       let base64File = contratoPdfBase64;
       if (!base64File || !base64File.startsWith('data:application/pdf')) {
         base64File = await generateContractPDFBase64(contratoTexto || '');
@@ -484,11 +496,11 @@ export async function POST(request: Request) {
         const cSignResult = await createClicksignDocument(
           fileName,
           base64File,
-          client.dadosPessoais.email,
-          client.dadosPessoais.nome,
-          client.dadosPessoais.cpf,
-          client.dadosPessoais.nascimento || '',
-          client.dadosPessoais.telefone
+          recipientEmail,
+          recipientNome,
+          recipientCpf,
+          recipientBirth,
+          recipientTelefone
         );
         clicksignDocKey = cSignResult.docKey;
         clicksignSignerKey = cSignResult.signerKey;
@@ -624,14 +636,14 @@ export async function POST(request: Request) {
     // await Payment.insertMany(paymentRecords);
 
     // 5. Arquivar contrato anterior no historicoContratos se existente (Anti-Sobrescrita)
-    if (client.dadosComerciais && (client.dadosComerciais.planoId || client.dadosComerciais.valorUnitario || client.dadosComerciais.dataInicio)) {
+    if (client.dadosComerciais && client.dadosComerciais.status === 'ativo' && client.dadosComerciais.dataInicio && client.dadosComerciais.vencimento) {
       const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
       const prevSnapshot = buildContractSnapshot(
         client.dadosComerciais, 
-        client.dadosComerciais.status === 'ativo' ? 'renovado' : 'concluido', 
+        'renovado', 
         `Substituído por novo contrato V${versao} (${plan.nome})`
       );
-      if (prevSnapshot) {
+      if (prevSnapshot && prevSnapshot.dataInicio && prevSnapshot.dataFim) {
         if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
         const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
         if (!alreadyArchived) {
@@ -641,7 +653,7 @@ export async function POST(request: Request) {
     }
 
     // 6. Atualizar o perfil comercial do cliente com os dados do contrato emitido
-    const targetClientStatus = status === 'assinado' ? 'ativo' : 'pendente';
+    const targetClientStatus = (status === 'assinado' || status === 'vigente') ? 'ativo' : 'pendente';
 
     Object.assign(client.dadosComerciais, {
       planoId: planoId,
@@ -658,7 +670,7 @@ export async function POST(request: Request) {
       responsavelVenda: responsavelVenda || '',
       observacoesContratuais: observacoesContratuais || '',
       frequencia: frequencia !== undefined ? Number(frequencia) : client.dadosComerciais.frequencia,
-      creditosTotal: calcCreditos,
+      creditosTotal: creditosTotal || calcCreditos,
       creditosUsados: 0,
       creditosReservados: 0,
       creditosMassagemTotal: isAnual ? 1 : 0,

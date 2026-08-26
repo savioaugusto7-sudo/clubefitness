@@ -77,14 +77,15 @@ export async function POST(request: Request) {
           const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
 
           // Arquivar contrato anterior se existente (Anti-Sobrescrita)
-          if (client.dadosComerciais && (client.dadosComerciais.planoId || client.dadosComerciais.valorUnitario || client.dadosComerciais.dataInicio)) {
+          // Arquivar contrato anterior se existente (Anti-Sobrescrita)
+          if (client.dadosComerciais && client.dadosComerciais.status === 'ativo' && client.dadosComerciais.dataInicio && client.dadosComerciais.vencimento) {
             const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
             const prevSnapshot = buildContractSnapshot(
               client.dadosComerciais,
-              client.dadosComerciais.status === 'ativo' ? 'renovado' : 'concluido',
+              'renovado',
               `Ativação de novo contrato via Clicksign (${contract.planoNome || plan?.nome})`
             );
-            if (prevSnapshot) {
+            if (prevSnapshot && prevSnapshot.dataInicio && prevSnapshot.dataFim) {
               if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
               const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
               if (!alreadyArchived) {
@@ -115,6 +116,15 @@ export async function POST(request: Request) {
             creditosMassagemUsados: 0,
             creditosMassagemReservados: 0
           });
+
+          client.bloqueioCadastral = {
+            bloqueado: false,
+            motivo: 'Contrato assinado via Clicksign',
+            dadosInformadosPeloCliente: true,
+            origemCadastro: client.bloqueioCadastral?.origemCadastro || 'clicksign',
+            historicoDesbloqueios: client.bloqueioCadastral?.historicoDesbloqueios || []
+          };
+
           await client.save();
 
           // Se a forma de pagamento for BOLETO e ainda não possuir cobrança Asaas gerada, criar automaticamente

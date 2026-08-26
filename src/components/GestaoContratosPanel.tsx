@@ -1331,8 +1331,8 @@ export default function GestaoContratosPanel({
           ...manualSaleClient.dadosPessoais,
           nome: msNome,
           cpf: msCpf,
-          email: isMinor ? msRespEmail : msEmail,
-          telefone: isMinor ? msRespTelefone : msTelefone,
+          email: msEmail,
+          telefone: msTelefone,
           dataNascimento: msDataNascimento,
           cep: msCep,
           endereco: msEndereco,
@@ -1340,30 +1340,17 @@ export default function GestaoContratosPanel({
           complemento: msComplemento,
           bairro: msBairro,
           cidade: msCidade,
-          estado: msEstado
-        },
-        dadosComerciais: {
-          ...manualSaleClient.dadosComerciais,
-          planoId: msPlano,
-          status: actionType === 'presencial' ? 'ativo' : (manualSaleClient.dadosComerciais?.status || 'pendente'),
-          valorUnitario: msValorUnitario,
-          descontoTipo: msDescontoTipo,
-          descontoValor: msDescontoValor,
-          formaPagamento: msFormaPagamento,
-          dataInicio: msDataInicio,
-          vencimento: msDataPrimeiroVencimento || msDataInicio,
-          duracao: msDuracao,
-          vigenciaQtd: msVigenciaQtd,
-          frequencia: msFrequencia,
-          creditosMensaisTotal: msCreditosMensais,
-          creditosMassagemTotal: msCreditosMassagem,
-          creditosEmergenciaTotal: msCreditosEmergencia,
-          criarRecorrenciaMensal: msCriarRecorrencia,
-          recorrenciaMeses: msRecorrenciaMeses
+          estado: msEstado,
+          responsavelLegal: isMinor ? {
+            nome: msRespNome,
+            cpf: msRespCpf,
+            email: msRespEmail,
+            telefone: msRespTelefone
+          } : undefined
         },
         bloqueioCadastral: {
-          bloqueado: true,
-          motivo: 'Cadastro e venda manual realizada pela Administração',
+          bloqueado: actionType === 'clicksign',
+          motivo: actionType === 'clicksign' ? 'Aguardando assinatura do contrato via Clicksign' : 'Venda manual concluída presencialmente',
           dadosInformadosPeloCliente: true,
           origemCadastro: 'venda_manual_admin',
           historicoDesbloqueios: manualSaleClient.bloqueioCadastral?.historicoDesbloqueios || []
@@ -1435,7 +1422,12 @@ export default function GestaoContratosPanel({
         frequencia: msFrequencia,
         creditosTotal: msCreditosMensais,
         enviarClicksign: actionType === 'clicksign',
-        assinaturaNome: actionType === 'presencial' ? 'Assinatura Presencial (Balcão)' : undefined
+        assinaturaNome: actionType === 'presencial' ? 'Assinatura Presencial (Balcão)' : undefined,
+        signerNome: isMinor ? msRespNome : msNome,
+        signerCpf: isMinor ? msRespCpf : msCpf,
+        signerEmail: isMinor ? msRespEmail : msEmail,
+        signerTelefone: isMinor ? msRespTelefone : msTelefone,
+        isMinor
       };
 
       const contractRes = await fetch('/api/contracts', {

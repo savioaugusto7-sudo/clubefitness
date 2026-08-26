@@ -131,6 +131,15 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
             creditosMassagemUsados: 0,
             creditosMassagemReservados: 0
           });
+
+          client.bloqueioCadastral = {
+            bloqueado: false,
+            motivo: 'Contrato assinado via Clicksign',
+            dadosInformadosPeloCliente: true,
+            origemCadastro: client.bloqueioCadastral?.origemCadastro || 'clicksign',
+            historicoDesbloqueios: client.bloqueioCadastral?.historicoDesbloqueios || []
+          };
+
           await client.save();
 
           // Se a forma de pagamento for BOLETO e ainda não possuir cobrança Asaas gerada, criar automaticamente

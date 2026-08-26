@@ -32,8 +32,11 @@ export function buildContractSnapshot(
   motivo: string = ''
 ): ArchivedContractSnapshot | null {
   if (!com) return null;
+  // Só arquiva no histórico se houver um contrato/ciclo anterior real com datas válidas
+  if (!com.dataInicio || !com.vencimento || (!com.planoId && !com.valorUnitario)) {
+    return null;
+  }
   const planoNome = com.planoNome || (com.planoId?.nome) || 'Plano Anterior';
-  if (!com.dataInicio && !com.valorUnitario && !com.planoId) return null;
 
   return {
     contratoId: com.contratoId || com._id,
