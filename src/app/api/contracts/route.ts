@@ -468,7 +468,7 @@ export async function POST(request: Request) {
     let clicksignDocKey = '';
     let clicksignSignerKey = '';
     let clicksignUrl = '';
-    let clicksignStatus = 'pendente';
+    let clicksignStatus = enviarClicksign ? 'pendente' : 'dispensado';
 
     if (enviarClicksign) {
       const recipientEmail = signerEmail || client.dadosPessoais?.email;

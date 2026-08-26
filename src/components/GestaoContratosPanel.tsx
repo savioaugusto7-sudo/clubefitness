@@ -137,10 +137,18 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 1. Contrato Pendente de Assinatura (Clicksign / Presencial)
-  const isPendingContract = Boolean(
-    (latestContract && (latestContract.status === 'pendente' || latestContract.clicksignStatus === 'pendente')) ||
-    (com.status === 'pendente' && latestContract?.status !== 'assinado')
+  // 1. Verificar se há contrato assinado/ativo (Prioridade Máxima)
+  const isContractSigned = Boolean(
+    latestContract?.status === 'assinado' ||
+    latestContract?.clicksignStatus === 'assinado' ||
+    com.status === 'assinado'
+  );
+
+  // 2. Contrato Pendente de Assinatura (Clicksign / Presencial)
+  // Só é considerado pendente se o contrato NÃO estiver assinado e houver pendência real
+  const isPendingContract = !isContractSigned && Boolean(
+    (latestContract && (latestContract.status === 'pendente' || (latestContract.clicksignDocKey && latestContract.clicksignStatus === 'pendente'))) ||
+    (com.status === 'pendente' && !latestContract)
   );
   if (isPendingContract) {
     const isClicksign = Boolean(latestContract?.clicksignDocKey);
@@ -164,8 +172,8 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 2. Proposta Comercial Enviada via Link (Pendente de Resposta do Aluno)
-  const isPendingProposal = Boolean(
+  // 3. Proposta Comercial Enviada via Link (Pendente de Resposta do Aluno)
+  const isPendingProposal = !isContractSigned && Boolean(
     (latestProposal && latestProposal.status === 'pendente') ||
     com.status === 'proposta_enviada' ||
     com.status === 'proposta'
@@ -191,12 +199,10 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 3. Contrato Assinado / Perfil Ativo com Vigência Válida ou Recorrência em Dia
+  // 4. Contrato Assinado / Perfil Ativo com Vigência Válida ou Recorrência em Dia
   const hasActiveContract = Boolean(
-    latestContract?.status === 'assinado' ||
-    latestContract?.clicksignStatus === 'assinado' ||
+    isContractSigned ||
     com.status === 'ativo' ||
-    com.status === 'assinado' ||
     (isRecorrente && hasPaidInstallment && !info.isExpired) ||
     (plan && !info.isExpired && (com.valorUnitario > 0 || hasPaidInstallment)) ||
     (com.valorUnitario > 0 && (com.vencimento || com.dataInicio) && com.status !== 'lead')

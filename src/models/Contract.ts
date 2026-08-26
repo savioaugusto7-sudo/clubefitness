@@ -43,7 +43,7 @@ const ContractSchema = new Schema({
   clicksignDocKey: { type: String, default: '' },
   clicksignSignerKey: { type: String, default: '' },
   clicksignUrl: { type: String, default: '' },
-  clicksignStatus: { type: String, default: 'pendente' },
+  clicksignStatus: { type: String, default: '' },
   assinaturaPresencialImage: { type: String, default: '' },
   trilhaAuditoria: {
     ip: { type: String, default: '' },
