@@ -160,7 +160,7 @@ export async function GET() {
         const dAb = new Date(p.abertoEm);
         infoList.push({ 
           label: '👁️ Visualização', 
-          value: `Aberto em ${dAb.toLocaleDateString('pt-BR')} às ${dAb.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` 
+          value: `Aberto em ${dAb.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${dAb.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}` 
         });
       } else {
         infoList.push({ label: '👁️ Visualização', value: 'Ainda não aberto' });

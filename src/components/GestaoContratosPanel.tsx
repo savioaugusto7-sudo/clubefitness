@@ -5135,7 +5135,7 @@ export default function GestaoContratosPanel({
                   </span>
                   {activeProposal.abertoEm ? (
                     <span style={{ color: '#38bdf8', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <i className="fa-solid fa-eye"></i> Aberto {new Date(activeProposal.abertoEm).toLocaleDateString('pt-BR')} às {new Date(activeProposal.abertoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      <i className="fa-solid fa-eye"></i> Aberto {new Date(activeProposal.abertoEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às {new Date(activeProposal.abertoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   ) : (
                     <span style={{ color: '#94a3b8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
