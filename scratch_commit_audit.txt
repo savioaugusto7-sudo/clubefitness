@@ -1,0 +1,9 @@
+fix: revisao completa da auditoria de condicoes comerciais e sincronizacao de propostas
+
+- Resolucao precisa do nome real do plano (evita 'Plano Atual')
+- Exibicao clara de vigencia em meses fechados (ex: Mensal . 2)
+- Calculo exato do periodo oficial a partir da data de inicio e vigencia total
+- 1º vencimento com estilo neutro, sem fallback automatico para hoje e com tag de Origem (Link/Admin)
+- Condicao financeira com valor total do contrato, parcelamento e valor base mensal
+- Frequencia semanal real sem fallback forcado para 3x
+- Sincronizacao de dados comerciais no aceite de propostas de venda (PUT)

@@ -6,7 +6,7 @@ import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contract
 import { validateContractClientData } from '@/utils/contractValidator';
 import { formatCurrencyBRL, selectOnFocus } from '@/utils/currencyMask';
 import { smartSearchMatch } from '@/utils/smartSearch';
-import { getContractValidityInfo } from '@/utils/contractValidity';
+import { getContractValidityInfo, calculateContractEndDate } from '@/utils/contractValidity';
 import { getCardRateForInstallment } from '@/utils/paymentRates';
 import { calculateAgeAndMinorStatus, isMinorFromBirthDate } from '@/utils/dateUtils';
 import ClicksignPanel from './ClicksignPanel';
@@ -1980,25 +1980,27 @@ export default function GestaoContratosPanel({
     setDcEstado(pes.estado || '');
     setDcCep(pes.cep || '');
     
-    setDcPlano(com.planoId?._id || com.planoId || '');
+    const planIdStr = com.planoId?._id || (typeof com.planoId === 'string' ? com.planoId : '');
+    setDcPlano(planIdStr);
     setDcStatus(com.status || 'lead');
     setDcFormaPag(com.formaPagamento || 'pix');
 
-    const planObj = plans.find(p => p._id === (com.planoId?._id || com.planoId));
-    const isAnual = com.duracao === 'anual' || planObj?.tipo === 'Anual' || planObj?.nome?.toLowerCase().includes('anual');
+    const planObj = plans.find(p => p._id === planIdStr || p.nome === com.planoNome);
+    const isAnual = com.duracao === 'anual' || planObj?.tipo === 'Anual' || (planObj?.nome || '').toLowerCase().includes('anual');
     setDcDuracao(isAnual ? 'anual' : (com.duracao || 'mensal'));
-    setDcVigenciaQtd(isAnual ? 1 : (com.duracaoQtd || 1));
+    setDcVigenciaQtd(isAnual ? 1 : (Number(com.duracaoQtd) || Number(com.vigenciaQtd) || 1));
 
     setDcValorUnitario(com.valorUnitario || 0);
-    setDcVencimento(com.dataPrimeiroVencimento || com.dataInicio || new Date().toISOString().split('T')[0]);
+    // NÃO assumir data atual se não foi preenchido
+    setDcVencimento(com.dataPrimeiroVencimento || '');
     setDcDescontoTipo(com.descontoTipo || 'percentual');
     setDcDescontoValor(com.descontoValor || 0);
     setDcParcelas(com.parcelas || 1);
-    setDcDataInicio(com.dataInicio || new Date().toISOString().split('T')[0]);
+    setDcDataInicio(com.dataInicio || '');
     setDcResponsavelVenda(com.responsavelVenda || '');
     setDcUnidadeContratada(com.unidadeContratada || '');
     setDcObservacoesContratuais(com.observacoesContratuais || '');
-    setDcFrequencia(com.frequencia || client.frequencia || 3);
+    setDcFrequencia(com.frequencia || client.frequencia || planObj?.frequencia || 0);
     setDcCreditosTotal(com.creditosTotal || 0);
     setDcCreditosMassagem(com.creditosMassagemTotal || (com.duracao === 'anual' ? 1 : 0));
     setDcCreditosEmergencia(com.creditosEmergenciaTotal || (com.duracao === 'anual' ? 1 : 0));
@@ -2012,7 +2014,8 @@ export default function GestaoContratosPanel({
       .then(res => res.json())
       .then(json => {
         if (json.success && json.data && json.data.length > 0) {
-          setActiveProposal(json.data[0]); // latest proposal
+          const latestProp = json.data[0];
+          setActiveProposal(latestProp);
         }
       })
       .catch(() => {});
@@ -4354,13 +4357,23 @@ export default function GestaoContratosPanel({
               PAINEL EXECUTIVO DO ALUNO & AUDITORIA (RESPONSIVO DESKTOP / MOBILE)
               ========================================================================= */}
           {(() => {
-            const selectedPlan = plans.find(p => p._id === (selectedClient.dadosComerciais?.planoId || dcPlano));
+            const planIdStr = selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
+            const selectedPlan = plans.find(p => p._id === planIdStr || p.nome === selectedClient.dadosComerciais?.planoNome || (typeof selectedClient.dadosComerciais?.planoId === 'object' && p._id === selectedClient.dadosComerciais?.planoId?._id));
             const clientPy = allPaymentsMap[selectedClient._id] || [];
             const info = getContractValidityInfo(selectedClient, selectedPlan, clientPy);
 
-            const rawTipo = String(selectedClient.dadosComerciais?.duracao || dcDuracao || 'mensal').toLowerCase();
-            const tipoLabel = rawTipo === 'semana' ? 'Semana' : (rawTipo === 'anual' ? 'Anual' : 'Mensal');
-            const qtdVal = selectedClient.dadosComerciais?.duracaoQtd || selectedClient.dadosComerciais?.vigenciaQtd || dcVigenciaQtd || 1;
+            const planNameResolved = selectedPlan?.nome || 
+              (typeof selectedClient.dadosComerciais?.planoId === 'object' ? selectedClient.dadosComerciais?.planoId?.nome : null) ||
+              selectedClient.dadosComerciais?.planoNome ||
+              selectedClient.plano ||
+              activeProposal?.planoNome ||
+              (contracts[0]?.planoNome) ||
+              'Nenhum Plano Vinculado';
+
+            const rawTipo = String(selectedClient.dadosComerciais?.duracao || activeProposal?.duracao || dcDuracao || 'mensal').toLowerCase();
+            const isAnual = rawTipo === 'anual' || selectedPlan?.tipo === 'Anual' || (planNameResolved || '').toLowerCase().includes('anual');
+            const tipoLabel = rawTipo === 'semana' ? 'Semana' : (isAnual ? 'Anual' : 'Mensal');
+            const qtdVal = Number(selectedClient.dadosComerciais?.duracaoQtd || selectedClient.dadosComerciais?.vigenciaQtd || activeProposal?.vigenciaQtd || dcVigenciaQtd || 1);
 
             const telClean = String(dcTelefone || '').replace(/\D/g, '');
             const fullAddr = [
@@ -4370,6 +4383,40 @@ export default function GestaoContratosPanel({
               dcCidade ? `${dcCidade}${dcEstado ? ` - ${dcEstado}` : ''}` : '',
               dcCep ? `CEP: ${dcCep}` : ''
             ].filter(Boolean).join(' • ');
+
+            // Período Oficial
+            const dtInicioStr = selectedClient.dadosComerciais?.dataInicio || activeProposal?.dataInicio || dcDataInicio || '';
+            const dtFimStr = selectedClient.dadosComerciais?.vencimento || info.dataFim || '';
+            const periodoOficialDisplay = (() => {
+              if (!dtInicioStr) return 'Não definido';
+              const startFmt = new Date(dtInicioStr + (dtInicioStr.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR');
+              if (dtFimStr) {
+                const endFmt = new Date(dtFimStr + (dtFimStr.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR');
+                return `${startFmt} até ${endFmt}`;
+              }
+              const endCalc = calculateContractEndDate(dtInicioStr, rawTipo, qtdVal, undefined, false);
+              const endFmt = new Date(endCalc + 'T12:00:00').toLocaleDateString('pt-BR');
+              return `${startFmt} até ${endFmt}`;
+            })();
+
+            // 1º Vencimento
+            const firstVencDate = selectedClient.dadosComerciais?.dataPrimeiroVencimento || activeProposal?.dataVencimentoEscolhida || dcVencimento || '';
+            const firstVencSource = activeProposal?.dataVencimentoEscolhida ? 'Link de Venda (Cliente)' : (selectedClient.dadosComerciais?.dataPrimeiroVencimento ? 'Painel Admin' : '');
+
+            // Condição Financeira
+            const numParcelas = Number(selectedClient.dadosComerciais?.parcelas || activeProposal?.parcelasEscolhidas || dcParcelas || 1);
+            const valorUnitarioBase = Number(selectedClient.dadosComerciais?.valorUnitario || activeProposal?.valorUnitario || selectedPlan?.preco || 0);
+            const valorTotalContrato = Number(selectedClient.dadosComerciais?.valorTotal || activeProposal?.valorFinalRecalculado || activeProposal?.valorAcordado || (valorUnitarioBase * (qtdVal > 1 ? qtdVal : 1)));
+            const valorParcelaIndividual = numParcelas > 0 ? (valorTotalContrato / numParcelas) : valorTotalContrato;
+
+            const descTipo = selectedClient.dadosComerciais?.descontoTipo || activeProposal?.descontoTipo || dcDescontoTipo || 'percentual';
+            const descValor = Number(selectedClient.dadosComerciais?.descontoValor || activeProposal?.descontoValor || dcDescontoValor || 0);
+            const hasDesconto = descValor > 0;
+
+            const formaPagamentoFinal = String(selectedClient.dadosComerciais?.formaPagamento || activeProposal?.formaPagamentoEscolhida || dcFormaPag || 'PIX').toUpperCase();
+
+            // Frequência Semanal
+            const freqSemanal = Number(selectedClient.dadosComerciais?.frequencia || activeProposal?.frequencia || selectedPlan?.frequencia || selectedClient.frequencia || dcFrequencia || 0);
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -4466,7 +4513,7 @@ export default function GestaoContratosPanel({
                     <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Plano Contratado</span>
                       <strong style={{ fontSize: '0.92rem', color: '#ffffff', marginTop: '2px', display: 'block' }}>
-                        {selectedPlan?.nome || selectedClient.dadosComerciais?.planoNome || 'Plano Atual'}
+                        {planNameResolved}
                       </strong>
                     </div>
 
@@ -4476,69 +4523,79 @@ export default function GestaoContratosPanel({
                       <strong style={{ fontSize: '0.92rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
                         {tipoLabel} • {qtdVal}
                       </strong>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px', display: 'block' }}>
+                        ({qtdVal} {tipoLabel.toLowerCase()}{qtdVal > 1 ? (tipoLabel === 'Mensal' ? 'es' : 's') : ''} fechado{qtdVal > 1 ? 's' : ''})
+                      </span>
                     </div>
 
                     {/* Bloco 3: Período Oficial */}
                     <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial</span>
                       <strong style={{ fontSize: '0.85rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
-                        {info.dataInicioFormatted || (dcDataInicio ? new Date(dcDataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '-')} até {info.dataFimFormatted || (dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-')}
+                        {periodoOficialDisplay}
                       </strong>
                     </div>
 
-                    {/* Bloco 4: 1º Vencimento (Visual Financeiro) */}
-                    <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(251, 191, 36, 0.3)', borderRadius: '10px', padding: '12px' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#fbbf24', textTransform: 'uppercase', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-solid fa-calendar-day"></i> 1º Vencimento
+                    {/* Bloco 4: 1º Vencimento (Estilo Neutro + Origem) */}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '12px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-regular fa-calendar-check"></i> 1º Vencimento
                       </span>
-                      <strong style={{ fontSize: '0.88rem', color: '#fde68a', marginTop: '2px', display: 'block' }}>
-                        {dcVencimento ? new Date(dcVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                        {dcVencimento && <span style={{ fontSize: '0.72rem', color: '#f59e0b', marginLeft: '4px', fontWeight: 600 }}>(Dia {new Date(dcVencimento + 'T00:00:00').getDate().toString().padStart(2, '0')})</span>}
+                      <strong style={{ fontSize: '0.88rem', color: firstVencDate ? '#f8fafc' : '#64748b', marginTop: '2px', display: 'block' }}>
+                        {firstVencDate ? (
+                          <>
+                            {new Date(firstVencDate + (firstVencDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}
+                            <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginLeft: '4px', fontWeight: 600 }}>
+                              (Dia {new Date(firstVencDate + (firstVencDate.includes('T') ? '' : 'T12:00:00')).getDate().toString().padStart(2, '0')})
+                            </span>
+                          </>
+                        ) : (
+                          'Não informado'
+                        )}
                       </strong>
+                      {firstVencSource && (
+                        <span style={{ fontSize: '0.68rem', color: '#38bdf8', marginTop: '3px', display: 'block' }}>
+                          <i className="fa-solid fa-circle-info" style={{ marginRight: '3px' }}></i>
+                          Origem: {firstVencSource}
+                        </span>
+                      )}
                     </div>
 
                     {/* Bloco 5: Condição Financeira Expandida */}
-                    {(() => {
-                      const numParcelas = Number(selectedClient.dadosComerciais?.parcelas || dcParcelas || 1);
-                      const valorTotalContrato = Number(selectedClient.dadosComerciais?.valorTotal || (Number(dcValorUnitario || 0) * (numParcelas > 1 ? numParcelas : 1)));
-                      const valorParcelaIndividual = numParcelas > 1 ? (valorTotalContrato / numParcelas) : Number(dcValorUnitario || valorTotalContrato);
-
-                      const descTipo = selectedClient.dadosComerciais?.descontoTipo || dcDescontoTipo || 'percentual';
-                      const descValor = Number(selectedClient.dadosComerciais?.descontoValor || dcDescontoValor || 0);
-                      const hasDesconto = descValor > 0;
-
-                      return (
-                        <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.68rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800 }}>Condição Financeira</span>
-                            <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase' }}>
-                              {String(dcFormaPag || 'PIX')}
-                            </span>
-                          </div>
-                          <strong style={{ fontSize: '0.95rem', color: '#ffffff', marginTop: '1px', display: 'block' }}>
-                            R$ {valorTotalContrato.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </strong>
-                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '1px' }}>
-                            <span>
-                              <strong style={{ color: '#cbd5e1' }}>Parcelas:</strong> {numParcelas}x de R$ {valorParcelaIndividual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>
-                            {hasDesconto && (
-                              <span style={{ color: '#34d399', fontWeight: 600 }}>
-                                <i className="fa-solid fa-tag" style={{ marginRight: '4px' }}></i>
-                                Desconto: {descTipo === 'percentual' ? `${descValor}% OFF` : `R$ ${descValor.toFixed(2)} OFF`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.68rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800 }}>Condição Financeira</span>
+                        <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase' }}>
+                          {formaPagamentoFinal}
+                        </span>
+                      </div>
+                      <strong style={{ fontSize: '0.95rem', color: '#ffffff', marginTop: '1px', display: 'block' }}>
+                        R$ {valorTotalContrato.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </strong>
+                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '1px' }}>
+                        <span>
+                          <strong style={{ color: '#cbd5e1' }}>Parcelas:</strong> {numParcelas}x de R$ {valorParcelaIndividual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                        {qtdVal > 1 && valorUnitarioBase > 0 && (
+                          <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>
+                            Valor base: R$ {valorUnitarioBase.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / {tipoLabel.toLowerCase()}
+                          </span>
+                        )}
+                        {hasDesconto && (
+                          <span style={{ color: '#34d399', fontWeight: 600 }}>
+                            <i className="fa-solid fa-tag" style={{ marginRight: '4px' }}></i>
+                            Desconto: {descTipo === 'percentual' ? `${descValor}% OFF` : `R$ ${descValor.toFixed(2)} OFF`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Segunda Linha: Frequência, Recorrência & Asaas */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
                     <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
                       <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Frequência Semanal:</span>
-                      <strong>{dcFrequencia ? `${dcFrequencia}x por semana` : 'Conforme Plano'}</strong>
+                      <strong>{freqSemanal > 0 ? `${freqSemanal}x por semana` : 'Conforme Plano'}</strong>
                     </div>
                     <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
                       <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Recorrência Mensal:</span>

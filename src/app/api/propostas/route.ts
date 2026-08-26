@@ -178,7 +178,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Cliente correspondente não encontrado.' }, { status: 404 });
     }
 
-    // 1. Update client's personal and address details in DB
+    // 1. Update client's personal and address details, and sync commercial terms in DB
     const pes = client.dadosPessoais || {};
     client.dadosPessoais = {
       ...pes,
@@ -192,6 +192,47 @@ export async function PUT(request: Request) {
       bairro: dadosPreenchidos.bairro || pes.bairro,
       cidade: dadosPreenchidos.cidade || pes.cidade,
       estado: dadosPreenchidos.estado || pes.estado
+    };
+
+    const planObj = await Plan.findById(proposal.planoId);
+    const isAnualPlan = planObj?.tipo === 'Anual' || proposal.duracao === 'anual' || (proposal.vigenciaQtd && proposal.vigenciaQtd >= 12);
+    const numVigenciaQtd = Number(proposal.vigenciaQtd) || Number(parcelasEscolhidas) || 1;
+    const duracaoTipo = proposal.duracao || (isAnualPlan ? 'anual' : 'mensal');
+
+    const startDCalc = new Date((proposal.dataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
+    const endDCalc = new Date(startDCalc);
+    if (duracaoTipo === 'semana') {
+      endDCalc.setDate(endDCalc.getDate() + (numVigenciaQtd * 7));
+    } else if (duracaoTipo === 'anual' || isAnualPlan) {
+      endDCalc.setFullYear(endDCalc.getFullYear() + (numVigenciaQtd >= 12 ? 1 : numVigenciaQtd));
+    } else {
+      endDCalc.setMonth(endDCalc.getMonth() + numVigenciaQtd);
+    }
+    const dataFimCalculadaComercial = endDCalc.toISOString().split('T')[0];
+
+    const comCurrent = client.dadosComerciais || {};
+    client.dadosComerciais = {
+      ...comCurrent,
+      planoId: proposal.planoId,
+      planoNome: proposal.planoNome || planObj?.nome || comCurrent.planoNome,
+      status: 'ativo',
+      formaPagamento: formaPagamentoEscolhida || comCurrent.formaPagamento || 'pix',
+      duracao: duracaoTipo,
+      duracaoQtd: numVigenciaQtd,
+      valorUnitario: proposal.valorUnitario || (proposal.valorAcordado / (numVigenciaQtd > 0 ? numVigenciaQtd : 1)),
+      valorTotal: valorFinalRecalculado || proposal.valorAcordado,
+      parcelas: Number(parcelasEscolhidas) || 1,
+      dataInicio: proposal.dataInicio || new Date().toISOString().split('T')[0],
+      dataPrimeiroVencimento: dataVencimentoEscolhida || '',
+      vencimento: dataFimCalculadaComercial,
+      frequencia: proposal.frequencia || planObj?.frequencia || comCurrent.frequencia || 3,
+      creditosTotal: proposal.creditosMensais || comCurrent.creditosTotal || 0,
+      unidadeContratada: proposal.unidadeContratada || comCurrent.unidadeContratada || 'Clube Fitness',
+      observacoesContratuais: proposal.observacoesContratuais || comCurrent.observacoesContratuais || '',
+      descontoTipo: proposal.descontoTipo || 'percentual',
+      descontoValor: proposal.descontoValor || 0,
+      criarRecorrenciaMensal: Boolean(proposal.criarRecorrenciaMensal),
+      recorrenciaMeses: proposal.recorrenciaMeses || 12
     };
 
     client.bloqueioCadastral = {
