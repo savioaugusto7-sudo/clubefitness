@@ -71,6 +71,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'configuracoes', label: 'Configurações', icon: 'fa-gear' }
       ]
     },
+    /* Ocultado temporariamente (Gabi IA) - Para reativar, descomentar o bloco abaixo
     {
       title: 'INTELIGÊNCIA ARTIFICIAL',
       icon: 'fa-robot',
@@ -78,6 +79,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'gabi', label: 'Gabi (Atendente IA)', icon: 'fa-headset' }
       ]
     },
+    */
     {
       title: 'PRESCRIÇÕES & RECURSOS',
       icon: 'fa-briefcase-medical',
@@ -110,14 +112,16 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'testes_forca', label: 'Testes de Força', icon: 'fa-weight-hanging' },
         { id: 'prontuarios', label: 'Prontuários', icon: 'fa-notes-medical' }
       ]
-    },
-    {
+    }
+    /* Ocultado temporariamente (Gabi IA)
+    ,{
       title: 'INTELIGÊNCIA ARTIFICIAL',
       icon: 'fa-robot',
       tabs: [
         { id: 'gabi', label: 'Gabi (Atendente IA)', icon: 'fa-headset' }
       ]
     }
+    */
   ],
   receptionist: [
     {
@@ -139,14 +143,16 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'contratos', label: 'Contratos', icon: 'fa-file-contract' },
         { id: 'dynamus', label: 'Consumo Dynamus', icon: 'fa-bolt' }
       ]
-    },
-    {
+    }
+    /* Ocultado temporariamente (Gabi IA)
+    ,{
       title: 'INTELIGÊNCIA ARTIFICIAL',
       icon: 'fa-robot',
       tabs: [
         { id: 'gabi', label: 'Gabi (Atendente IA)', icon: 'fa-headset' }
       ]
     }
+    */
   ],
   client: [
     {
@@ -162,14 +168,16 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'creditos', label: 'Meus Créditos', icon: 'fa-coins' },
         { id: 'trancamento', label: 'Trancar Plano', icon: 'fa-snowflake' }
       ]
-    },
-    {
+    }
+    /* Ocultado temporariamente (Gabi IA)
+    ,{
       title: 'ATENDIMENTO VIRTUAL',
       icon: 'fa-robot',
       tabs: [
         { id: 'gabi', label: 'Falar com a Gabi (IA)', icon: 'fa-headset' }
       ]
     }
+    */
   ]
 };
 

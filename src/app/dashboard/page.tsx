@@ -139,8 +139,8 @@ export default function DashboardPage() {
         {renderContent()}
       </main>
 
-      {/* Copiloto Inteligente IA */}
-      <AiCopilotWidget />
+      {/* Copiloto Inteligente IA (Ocultado temporariamente) */}
+      {/* <AiCopilotWidget /> */}
     </div>
   );
 }
