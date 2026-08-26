@@ -419,20 +419,27 @@ export async function POST(request: Request) {
 
     const numParcelas = Number(parcelas) || 1;
 
-    // 2. Definir Vigência (Anual = 12 meses, ou especificada em vigenciaMeses)
+    // 2. Definir Vigência (Anual = 12 meses, ou especificada em vigenciaMeses/duracaoQtd)
     const isAnual = body.planoTipo === 'Anual' || 
                     plan.tipo === 'Anual' || 
                     (plan.nome || '').toLowerCase().includes('anual') || 
-                    Number(body.vigenciaMeses) >= 12;
-    const planVigencia = isAnual ? 12 : (Number(body.vigenciaMeses) || numParcelas || 1);
-    const vigenciaMeses = Math.max(planVigencia, numParcelas);
+                    body.duracao === 'anual' ||
+                    (body.vigenciaMeses && Number(body.vigenciaMeses) >= 12);
+    const vigenciaMeses = isAnual ? 12 : (Number(body.vigenciaMeses) || Number(body.duracaoQtd) || Number(body.vigenciaQtd) || 1);
 
     // Calcular data de fim de vigência
     let dataFim = manualDataFim;
     if (!dataFim) {
       const startD = new Date(dataInicio + 'T00:00:00');
-      startD.setMonth(startD.getMonth() + vigenciaMeses);
-      dataFim = startD.toISOString().split('T')[0];
+      const endD = new Date(startD);
+      if (body.duracao === 'semana') {
+        endD.setDate(endD.getDate() + (vigenciaMeses * 7));
+      } else if (isAnual) {
+        endD.setFullYear(endD.getFullYear() + (vigenciaMeses >= 12 ? 1 : vigenciaMeses));
+      } else {
+        endD.setMonth(endD.getMonth() + vigenciaMeses);
+      }
+      dataFim = endD.toISOString().split('T')[0];
     }
 
     // 3. Cálculos de Descontos e Valores - Prioriza valor informado/negociado na tela

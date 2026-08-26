@@ -196,7 +196,7 @@ export async function PUT(request: Request) {
 
     const planObj = await Plan.findById(proposal.planoId);
     const isAnualPlan = planObj?.tipo === 'Anual' || proposal.duracao === 'anual' || (proposal.vigenciaQtd && proposal.vigenciaQtd >= 12);
-    const numVigenciaQtd = Number(proposal.vigenciaQtd) || Number(parcelasEscolhidas) || 1;
+    const numVigenciaQtd = isAnualPlan ? 1 : (Number(proposal.vigenciaQtd) || 1);
     const duracaoTipo = proposal.duracao || (isAnualPlan ? 'anual' : 'mensal');
 
     const startDCalc = new Date((proposal.dataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
@@ -258,14 +258,20 @@ export async function PUT(request: Request) {
     // 3. Se solicitado o disparo no Clicksign, gerar o contrato e acionar o envelope
     if (dispararClicksign) {
       const plan = await Plan.findById(proposal.planoId);
-      const isAnual = plan?.tipo === 'Anual' || proposal.duracao === 'anual' || proposal.vigenciaQtd >= 12;
+      const isAnual = plan?.tipo === 'Anual' || proposal.duracao === 'anual' || (proposal.vigenciaQtd && proposal.vigenciaQtd >= 12);
       const numParcelas = Number(parcelasEscolhidas) || 1;
-      const planVigencia = isAnual ? 12 : 1;
-      const vigenciaMeses = Math.max(planVigencia, numParcelas);
+      const vigenciaMeses = isAnual ? 12 : (Number(proposal.vigenciaQtd) || 1);
 
       const startD = new Date((proposal.dataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
-      startD.setMonth(startD.getMonth() + vigenciaMeses);
-      const dataFim = startD.toISOString().split('T')[0];
+      const endD = new Date(startD);
+      if (proposal.duracao === 'semana') {
+        endD.setDate(endD.getDate() + (vigenciaMeses * 7));
+      } else if (isAnual) {
+        endD.setFullYear(endD.getFullYear() + (vigenciaMeses >= 12 ? 1 : vigenciaMeses));
+      } else {
+        endD.setMonth(endD.getMonth() + vigenciaMeses);
+      }
+      const dataFim = endD.toISOString().split('T')[0];
 
       const count = await Contract.countDocuments({ clientId: client._id });
       const versao = count + 1;

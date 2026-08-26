@@ -1333,17 +1333,16 @@ export default function GestaoContratosPanel({
       const finalPrice = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + cardRate)).toFixed(2)) : calculatedValorLiquido;
 
       const isAnual = msDuracao === 'anual' || Number(msVigenciaQtd) >= 12;
-      const planVigencia = isAnual ? 12 : Number(msVigenciaQtd) || 1;
-      const vigenciaMeses = Math.max(planVigencia, numParcelas);
+      const vigenciaMeses = isAnual ? 12 : (Number(msVigenciaQtd) || 1);
 
       const startD = new Date((msDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
       const endD = new Date(startD);
       if (msDuracao === 'semana') {
-        endD.setDate(endD.getDate() + (msVigenciaQtd * 7));
+        endD.setDate(endD.getDate() + (vigenciaMeses * 7));
       } else if (isAnual) {
-        endD.setMonth(endD.getMonth() + (msVigenciaQtd * 12));
+        endD.setFullYear(endD.getFullYear() + (vigenciaMeses >= 12 ? 1 : vigenciaMeses));
       } else {
-        endD.setMonth(endD.getMonth() + msVigenciaQtd);
+        endD.setMonth(endD.getMonth() + vigenciaMeses);
       }
       const dataFimCalculada = endD.toISOString().split('T')[0];
 
@@ -2016,7 +2015,15 @@ export default function GestaoContratosPanel({
     const effectiveDuracao = latestContract?.duracao || latestProposal?.duracao || com.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal');
     const isAnual = effectiveDuracao === 'anual' || planObj?.tipo === 'Anual' || (effectivePlanoNome || '').toLowerCase().includes('anual');
     setDcDuracao(isAnual ? 'anual' : (effectiveDuracao === 'semana' ? 'semana' : 'mensal'));
-    setDcVigenciaQtd(isAnual ? 1 : (Number(latestContract?.vigenciaMeses || latestContract?.vigenciaQtd || latestProposal?.vigenciaQtd || com.duracaoQtd || com.vigenciaQtd) || 1));
+    const effectiveVigenciaQtd = isAnual ? 1 : (() => {
+      if (latestProposal?.vigenciaQtd) return Number(latestProposal.vigenciaQtd);
+      if (latestContract?.vigenciaQtd) return Number(latestContract.vigenciaQtd);
+      if (com.duracaoQtd && com.duracaoQtd !== com.parcelas) return Number(com.duracaoQtd);
+      if (com.vigenciaQtd) return Number(com.vigenciaQtd);
+      if (latestContract?.vigenciaMeses && latestContract.vigenciaMeses !== latestContract.parcelas) return Number(latestContract.vigenciaMeses);
+      return Number(com.duracaoQtd || 1);
+    })();
+    setDcVigenciaQtd(effectiveVigenciaQtd);
 
     setDcValorUnitario(Number(latestContract?.valorUnitario || latestProposal?.valorUnitario || com.valorUnitario || planObj?.preco || 0));
     setDcVencimento(latestContract?.dataPrimeiroVencimento || latestContract?.dataVencimento || latestProposal?.dataVencimentoEscolhida || latestProposal?.dataVencimento || com.dataPrimeiroVencimento || com.vencimento || '');
@@ -4416,15 +4423,18 @@ export default function GestaoContratosPanel({
 
             const isAnual = rawTipo === 'anual' || selectedPlan?.tipo === 'Anual' || (planNameResolved || '').toLowerCase().includes('anual');
             const tipoLabel = rawTipo === 'semana' ? 'Semana' : (isAnual ? 'Anual' : 'Mensal');
-            const qtdVal = Number(
-              latestContract?.vigenciaMeses ||
-              latestContract?.vigenciaQtd ||
-              selectedClient.dadosComerciais?.duracaoQtd || 
-              selectedClient.dadosComerciais?.vigenciaQtd || 
-              currentProposal?.vigenciaQtd || 
-              dcVigenciaQtd || 
-              1
-            );
+            const qtdVal = isAnual ? 1 : (() => {
+              if (currentProposal?.vigenciaQtd) return Number(currentProposal.vigenciaQtd);
+              if (latestContract?.vigenciaQtd) return Number(latestContract.vigenciaQtd);
+              if (selectedClient.dadosComerciais?.duracaoQtd && selectedClient.dadosComerciais.duracaoQtd !== selectedClient.dadosComerciais.parcelas) {
+                return Number(selectedClient.dadosComerciais.duracaoQtd);
+              }
+              if (selectedClient.dadosComerciais?.vigenciaQtd) return Number(selectedClient.dadosComerciais.vigenciaQtd);
+              if (latestContract?.vigenciaMeses && latestContract.vigenciaMeses !== latestContract.parcelas) {
+                return Number(latestContract.vigenciaMeses);
+              }
+              return Number(dcVigenciaQtd || selectedClient.dadosComerciais?.duracaoQtd || 1);
+            })();
 
             const telClean = String(dcTelefone || selectedClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
             const fullAddr = [
@@ -4437,7 +4447,13 @@ export default function GestaoContratosPanel({
 
             // Período Oficial
             const dtInicioStr = latestContract?.dataInicio || selectedClient.dadosComerciais?.dataInicio || currentProposal?.dataInicio || dcDataInicio || '';
-            const dtFimStr = latestContract?.dataFim || latestContract?.vencimento || selectedClient.dadosComerciais?.vencimento || currentProposal?.dataFim || info.dataFim || '';
+            const dtFimStr = (() => {
+              if (currentProposal?.dataFim) return currentProposal.dataFim;
+              if (dtInicioStr) {
+                return calculateContractEndDate(dtInicioStr, rawTipo, qtdVal, undefined, false);
+              }
+              return latestContract?.dataFim || selectedClient.dadosComerciais?.vencimento || info.dataFim || '';
+            })();
             const periodoOficialDisplay = (() => {
               if (!dtInicioStr) return 'Não definido';
               const startFmt = new Date(dtInicioStr + (dtInicioStr.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR');
@@ -4836,7 +4852,7 @@ export default function GestaoContratosPanel({
                         {tipoLabel} • {qtdVal}
                       </strong>
                       <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px', display: 'block' }}>
-                        ({qtdVal} {tipoLabel.toLowerCase()}{qtdVal > 1 ? (tipoLabel === 'Mensal' ? 'es' : 's') : ''} fechado{qtdVal > 1 ? 's' : ''})
+                        ({tipoLabel === 'Semana' ? `${qtdVal} semana${qtdVal > 1 ? 's' : ''} fechada${qtdVal > 1 ? 's' : ''}` : tipoLabel === 'Anual' ? `${qtdVal} ano${qtdVal > 1 ? 's' : ''} fechado${qtdVal > 1 ? 's' : ''}` : `${qtdVal} ${qtdVal === 1 ? 'mês' : 'meses'} fechado${qtdVal > 1 ? 's' : ''}`})
                       </span>
                     </div>
 
