@@ -1,5 +1,0 @@
-fix: fuso horario America/Sao_Paulo em datas de abertura e movimentos de link
-
-- Aplicado timeZone: 'America/Sao_Paulo' na formatacao de abertoEm no backend (route.ts)
-- Aplicado timeZone: 'America/Sao_Paulo' na coluna Data/Hora e tag de visualizacao no DashboardAdmin
-- Aplicado timeZone: 'America/Sao_Paulo' no indicador de visualizacao no GestaoContratosPanel
