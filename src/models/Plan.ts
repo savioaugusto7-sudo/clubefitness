@@ -8,7 +8,7 @@ const PlanSchema = new Schema({
   preco: { type: Number, default: 0 },
   creditosTotal: { type: Number, default: 0 },
   servicosPermitidos: [{ type: String }],
-  tipo: { type: String, enum: ['Mensal', 'Anual'], default: 'Mensal' },
+  tipo: { type: String, default: 'Mensal' },
   beneficiosInclusos: [{ type: String }],
   unidadeAtendimento: { type: String, default: '' },
   ativo: { type: Boolean, default: true }

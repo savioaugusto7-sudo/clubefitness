@@ -4,7 +4,7 @@ const RenewalProposalSchema = new Schema({
   clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
   planoId: { type: Schema.Types.ObjectId, ref: 'Plan', required: true },
   planoNome: { type: String, required: true },
-  planoTipo: { type: String, enum: ['Mensal', 'Anual', 'Semestral'], default: 'Mensal' },
+  planoTipo: { type: String, default: 'Mensal' },
   
   // Valores
   valorAnterior: { type: Number, required: true },
@@ -22,11 +22,11 @@ const RenewalProposalSchema = new Schema({
 
   // Escolhas do aluno
   dataPrimeiroVencimento: { type: String, default: '' },
-  formaPagamento: { type: String, enum: ['pix', 'boleto', 'cartao', ''], default: '' },
+  formaPagamento: { type: String, default: '' },
   parcelas: { type: Number, default: 1 },
   
   // Status
-  status: { type: String, enum: ['pendente', 'aceita', 'recusada'], default: 'pendente' },
+  status: { type: String, default: 'pendente' },
   
   // Clicksign
   clicksignDocKey: { type: String, default: '' },

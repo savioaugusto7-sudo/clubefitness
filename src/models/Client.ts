@@ -35,7 +35,7 @@ const DadosComerciaisSchema = new Schema({
   vencimento: { type: String },
   frequencia: { type: Number, default: 3 },
   parcelas: { type: Number, default: 1 },
-  status: { type: String, enum: ['ativo', 'vencido', 'inativo', 'suspenso', 'cancelado', 'pendente', 'lead', 'excluido_anonimizado', 'finalizado'], default: 'pendente' },
+  status: { type: String, default: 'pendente' },
   contrato: { type: String },
   creditosTotal: { type: Number, default: 0 },
   creditosUsados: { type: Number, default: 0 },
@@ -77,7 +77,6 @@ const BloqueioCadastralSchema = new Schema({
   dadosInformadosPeloCliente: { type: Boolean, default: false },
   origemCadastro: { 
     type: String, 
-    enum: ['publico_onboarding', 'link_venda', 'admin_painel', 'importacao'],
     default: 'admin_painel'
   },
   historicoDesbloqueios: [{
@@ -94,7 +93,7 @@ const ContratoAtivoSchema = new Schema({
   contratoId: { type: Schema.Types.ObjectId, ref: 'Contract' },
   planoId: { type: Schema.Types.ObjectId, ref: 'Plan' },
   planoNome: { type: String, required: true },
-  tipoPlano: { type: String, enum: ['Principal', 'Adicional', 'Avulso', 'Tratamento'], default: 'Principal' },
+  tipoPlano: { type: String, default: 'Principal' },
   valorUnitario: { type: Number, required: true },
   formaPagamento: { type: String, default: 'pix' },
   parcelas: { type: Number, default: 1 },
@@ -109,7 +108,7 @@ const ContratoAtivoSchema = new Schema({
   creditosRecoveryUsados: { type: Number, default: 0 },
   creditosEmergenciaTotal: { type: Number, default: 0 },
   creditosEmergenciaUsados: { type: Number, default: 0 },
-  status: { type: String, enum: ['ativo', 'vencido', 'suspenso', 'encerrado'], default: 'ativo' },
+  status: { type: String, default: 'ativo' },
   asaasCustomerId: { type: String, default: '' },
   observacoes: { type: String, default: '' }
 }, { _id: true, timestamps: true });
@@ -129,7 +128,6 @@ const HistoricoContratoSchema = new Schema({
   dataFim: { type: String, default: '' },
   statusCiclo: { 
     type: String, 
-    enum: ['concluido', 'renovado', 'cancelado', 'migrado_upgrade', 'expirado_nao_renovou'],
     default: 'concluido'
   },
   creditosTotal: { type: Number, default: 0 },

@@ -4,7 +4,7 @@ const ProposalSchema = new Schema({
   clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
   planoId: { type: Schema.Types.ObjectId, ref: 'Plan', required: true },
   planoNome: { type: String, required: true },
-  planoTipo: { type: String, enum: ['Mensal', 'Anual'], default: 'Mensal' },
+  planoTipo: { type: String, default: 'Mensal' },
   valorAcordado: { type: Number, required: true },
   creditosMensais: { type: Number, required: true },
   frequencia: { type: Number, default: 3 },
@@ -20,7 +20,7 @@ const ProposalSchema = new Schema({
   recorrenciaMeses: { type: Number, default: 12 },
   isMinor: { type: Boolean, default: false },
 
-  status: { type: String, enum: ['pendente', 'respondida', 'aceita', 'recusada'], default: 'pendente' },
+  status: { type: String, default: 'pendente' },
   formaPagamentoEscolhida: { type: String, default: '' }, // 'pix', 'boleto', 'cartao'
   parcelasEscolhidas: { type: Number, default: 1 },
   valorFinalRecalculado: { type: Number, default: 0 },

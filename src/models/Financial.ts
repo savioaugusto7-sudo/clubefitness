@@ -6,7 +6,7 @@ const FinancialSchema = new Schema({
   valor: { type: Number, required: true },
   vencimento: { type: String, required: true },
   data_pagamento: { type: String, default: '' },
-  status: { type: String, enum: ['Pendente', 'Pago', 'Atrasado'], default: 'Pendente' },
+  status: { type: String, default: 'Pendente' },
   forma_pagamento: { type: String, default: '' },
   observacoes: { type: String, default: '' },
   anexo_url: { type: String, default: '' }
