@@ -36,6 +36,12 @@ export default function VendaPage({ params }: { params: any }) {
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
 
+  // Form States - Responsável Legal (quando menor de idade)
+  const [respNome, setRespNome] = useState('');
+  const [respCpf, setRespCpf] = useState('');
+  const [respEmail, setRespEmail] = useState('');
+  const [respTelefone, setRespTelefone] = useState('');
+
   // Form States - Pagamento
   const [formaPagamento, setFormaPagamento] = useState<'pix' | 'boleto' | 'cartao'>('pix');
   const [parcelas, setParcelas] = useState(1);
@@ -165,16 +171,25 @@ export default function VendaPage({ params }: { params: any }) {
     setValidationErrors([]);
     
     const errorsList: string[] = [];
-    if (!nome.trim()) errorsList.push('Nome Completo é obrigatório.');
-    if (!cpf.trim() || cpf.length !== 11) errorsList.push('CPF inválido (deve conter 11 dígitos).');
-    if (!email.trim() || !email.includes('@')) errorsList.push('E-mail válido é obrigatório.');
-    if (!telefone.trim()) errorsList.push('Telefone / WhatsApp é obrigatório.');
     if (!cep.trim() || cep.length !== 8) errorsList.push('CEP inválido (deve conter 8 dígitos).');
     if (!endereco.trim()) errorsList.push('Endereço (Rua/Avenida) é obrigatório.');
     if (!numero.trim()) errorsList.push('Número residencial é obrigatório.');
     if (!bairro.trim()) errorsList.push('Bairro é obrigatório.');
     if (!cidade.trim()) errorsList.push('Cidade é obrigatória.');
     if (!estado.trim() || estado.length !== 2) errorsList.push('UF do estado é obrigatória (2 letras).');
+
+    // Validação adicional para menor de idade
+    if (proposal.isMinor) {
+      if (!respNome.trim()) errorsList.push('Nome do Responsável Legal é obrigatório.');
+      if (!respCpf.trim() || respCpf.length !== 11) errorsList.push('CPF do Responsável Legal inválido (11 dígitos).');
+      if (!respEmail.trim() || !respEmail.includes('@')) errorsList.push('E-mail do Responsável Legal é obrigatório.');
+      if (!respTelefone.trim()) errorsList.push('Telefone/WhatsApp do Responsável Legal é obrigatório.');
+    } else {
+      if (!nome.trim()) errorsList.push('Nome Completo é obrigatório.');
+      if (!cpf.trim() || cpf.length !== 11) errorsList.push('CPF inválido (deve conter 11 dígitos).');
+      if (!email.trim() || !email.includes('@')) errorsList.push('E-mail válido é obrigatório.');
+      if (!telefone.trim()) errorsList.push('Telefone / WhatsApp é obrigatório.');
+    }
 
     if (!dataVencimento) {
       errorsList.push('Data do primeiro vencimento é obrigatória.');
@@ -199,11 +214,18 @@ export default function VendaPage({ params }: { params: any }) {
     const todayStr = new Date().toISOString().split('T')[0];
 
     // Gerar minuta HTML do contrato com os dados informados
+    // Quando menor: clientNome/clientCpf = dados do RESPONSÁVEL (quem assina o contrato)
+    // beneficiarioNome/beneficiarioCpf = dados do MENOR (quem usa o serviço)
+    const contractClientNome = proposal.isMinor ? respNome : nome;
+    const contractClientCpf = proposal.isMinor ? respCpf : cpf;
+    const contractClientEmail = proposal.isMinor ? respEmail : email;
+    const contractClientTelefone = proposal.isMinor ? respTelefone : telefone;
+
     const html = generateContractTemplate({
-      clientNome: nome,
-      clientCpf: cpf,
-      clientEmail: email,
-      clientTelefone: telefone,
+      clientNome: contractClientNome,
+      clientCpf: contractClientCpf,
+      clientEmail: contractClientEmail,
+      clientTelefone: contractClientTelefone,
       clientEndereco: endereco,
       clientNumero: numero,
       clientComplemento: complemento,
@@ -226,7 +248,11 @@ export default function VendaPage({ params }: { params: any }) {
       duracao: proposal.duracao,
       vigenciaQtd: proposal.vigenciaQtd,
       criarRecorrenciaMensal: proposal.criarRecorrenciaMensal,
-      recorrenciaMeses: proposal.recorrenciaMeses
+      recorrenciaMeses: proposal.recorrenciaMeses,
+      // Menor de idade
+      isMinor: proposal.isMinor || false,
+      beneficiarioNome: proposal.isMinor ? nome : undefined,
+      beneficiarioCpf: proposal.isMinor ? cpf : undefined
     });
 
     setContractHtml(html);
@@ -248,7 +274,22 @@ export default function VendaPage({ params }: { params: any }) {
         parcelasEscolhidas: currentInstallments,
         valorFinalRecalculado: finalPrice,
         dataVencimentoEscolhida: dataVencimento,
-        dadosPreenchidos: {
+        dadosPreenchidos: proposal.isMinor ? {
+          // Quando menor: NÃO envia nome/cpf (mantém do menor em dadosPessoais)
+          // Sobrescreve apenas contato e endereço com dados do responsável
+          telefone: respTelefone,
+          email: respEmail,
+          cep,
+          endereco,
+          numero,
+          complemento,
+          bairro,
+          cidade,
+          estado,
+          // Dados do responsável para Clicksign
+          responsavelNome: respNome,
+          responsavelCpf: respCpf
+        } : {
           nome,
           cpf,
           email,
@@ -540,39 +581,99 @@ export default function VendaPage({ params }: { params: any }) {
             </div>
           </div>
 
-          {/* 2. Dados Pessoais */}
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
-            <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className="fa-solid fa-user-gear"></i> 1. Dados Pessoais
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' }}>
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nome Completo *</label>
-                <input className="form-control" type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+          {/* 2. Dados Pessoais / Responsável Legal */}
+          {proposal.isMinor ? (
+            <>
+              {/* Banner: Contrato para Menor de Idade */}
+              <div style={{ background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: 'var(--radius-md)', padding: '16px 20px', marginBottom: '25px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <i className="fa-solid fa-child" style={{ color: '#eab308', fontSize: '1.3rem', marginTop: '2px' }}></i>
+                <div>
+                  <strong style={{ color: '#eab308', display: 'block', marginBottom: '4px' }}>Contrato para Menor de Idade</strong>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                    Esta proposta foi configurada para um(a) beneficiário(a) menor de idade. Preencha os dados do <strong>Responsável Legal</strong> que assinará o contrato. O contrato será enviado para o WhatsApp do responsável.
+                  </span>
+                </div>
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>E-mail (Para assinatura eletrônica) *</label>
-                <input className="form-control" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+              {/* Beneficiário (read-only — dados do menor, preenchidos pelo admin) */}
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
+                <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '20px', color: '#eab308', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-child"></i> 1. Beneficiário (Menor de Idade)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' }}>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nome do Beneficiário</label>
+                    <input className="form-control" type="text" value={nome} readOnly style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-dim)', cursor: 'not-allowed' }} />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF do Beneficiário</label>
+                    <input className="form-control" type="text" value={cpf} readOnly style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-dim)', cursor: 'not-allowed' }} />
+                  </div>
+                </div>
               </div>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp (Para recebimento do contrato) *</label>
-                <input className="form-control" type="text" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(99) 99999-9999" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+              {/* Responsável Legal (editável — quem assina) */}
+              <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
+                <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-user-shield"></i> 2. Dados do Responsável Legal
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', marginTop: '-8px' }}>
+                  O responsável legal será o signatário do contrato e receberá o documento pelo WhatsApp.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' }}>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nome Completo do Responsável *</label>
+                    <input className="form-control" type="text" value={respNome} onChange={(e) => setRespNome(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF do Responsável (Apenas números) *</label>
+                    <input className="form-control" type="text" value={respCpf} onChange={(e) => setRespCpf(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="12345678900" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>E-mail do Responsável *</label>
+                    <input className="form-control" type="email" value={respEmail} onChange={(e) => setRespEmail(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp do Responsável (Contrato será enviado aqui) *</label>
+                    <input className="form-control" type="text" value={respTelefone} onChange={(e) => setRespTelefone(e.target.value)} placeholder="(99) 99999-9999" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                  </div>
+                </div>
               </div>
+            </>
+          ) : (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-user-gear"></i> 1. Dados Pessoais
+              </h3>
 
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF (Apenas números) *</label>
-                <input className="form-control" type="text" value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="12345678900" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' }}>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nome Completo *</label>
+                  <input className="form-control" type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>E-mail (Para assinatura eletrônica) *</label>
+                  <input className="form-control" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telefone / WhatsApp (Para recebimento do contrato) *</label>
+                  <input className="form-control" type="text" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(99) 99999-9999" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>CPF (Apenas números) *</label>
+                  <input className="form-control" type="text" value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="12345678900" required style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', color: '#fff' }} />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* 3. Endereço Residencial */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
             <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className="fa-solid fa-map-location-dot"></i> 2. Endereço Residencial
+              <i className="fa-solid fa-map-location-dot"></i> {proposal.isMinor ? '3' : '2'}. Endereço Residencial
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' }}>
@@ -616,7 +717,7 @@ export default function VendaPage({ params }: { params: any }) {
           {/* 4. Forma de Pagamento */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '25px', marginBottom: '25px', boxShadow: 'var(--shadow-card)' }}>
             <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className="fa-solid fa-credit-card"></i> 3. Condições de Pagamento
+              <i className="fa-solid fa-credit-card"></i> {proposal.isMinor ? '4' : '3'}. Condições de Pagamento
             </h3>
 
             {/* Payment Method Selector */}

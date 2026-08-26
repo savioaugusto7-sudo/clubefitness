@@ -18,6 +18,7 @@ const ProposalSchema = new Schema({
   dataInicio: { type: String, default: '' },
   criarRecorrenciaMensal: { type: Boolean, default: false },
   recorrenciaMeses: { type: Number, default: 12 },
+  isMinor: { type: Boolean, default: false },
 
   status: { type: String, enum: ['pendente', 'respondida', 'aceita', 'recusada'], default: 'pendente' },
   formaPagamentoEscolhida: { type: String, default: '' }, // 'pix', 'boleto', 'cartao'
@@ -33,7 +34,9 @@ const ProposalSchema = new Schema({
     bairro: { type: String, default: '' },
     cidade: { type: String, default: '' },
     estado: { type: String, default: '' },
-    cpf: { type: String, default: '' }
+    cpf: { type: String, default: '' },
+    responsavelNome: { type: String, default: '' },
+    responsavelCpf: { type: String, default: '' }
   }
 }, { timestamps: true });
 

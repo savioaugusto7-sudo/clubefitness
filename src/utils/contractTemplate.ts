@@ -125,6 +125,11 @@ export interface ContractData {
   vigenciaQtd?: number;
   criarRecorrenciaMensal?: boolean;
   recorrenciaMeses?: number;
+
+  // Menor de idade / Responsável Legal
+  isMinor?: boolean;
+  beneficiarioNome?: string;
+  beneficiarioCpf?: string;
 }
 
 function renderClausulaPagamento(options: {
@@ -279,6 +284,35 @@ export function generateContractTemplate(data: ContractData): string {
 
   const contratadoText = `<strong>CONTRATADO:</strong> CLUBE FITNESS FISIO LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.883.492/0001-04, com sede na Rua Senador Lima Guimarães, nº 229, Estoril, Belo Horizonte/MG, CEP 30455-600, neste ato representada na forma de seu contrato social`;
 
+  // ─── MENOR DE IDADE: textos reutilizáveis ──────────────────────────────────
+  const _isMinor = !!data.isMinor && !!data.beneficiarioNome;
+  const _benefNome = data.beneficiarioNome || '[-]';
+  const _benefCpf = data.beneficiarioCpf || '[-]';
+
+  // Bloco de identificação do Responsável Legal (quando isMinor)
+  function renderContratanteMinor(label: 'CONTRATANTE' | 'CONTRATANTE / RESPONSÁVEL LEGAL' = 'CONTRATANTE / RESPONSÁVEL LEGAL') {
+    return `<strong>${label}:</strong> ${data.clientNome || '[-]'}, inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, na qualidade de responsável legal pelo(a) beneficiário(a) abaixo qualificado(a), doravante denominado(a) simplesmente CONTRATANTE.`;
+  }
+
+  // Bloco de identificação do Beneficiário menor
+  function renderBeneficiario() {
+    return `<strong>BENEFICIÁRIO(A):</strong> ${_benefNome}, inscrito(a) no CPF sob o nº ${_benefCpf}, menor de idade, que utilizará os serviços objeto deste contrato sob a responsabilidade do(a) CONTRATANTE acima qualificado(a).`;
+  }
+
+  // Bloco de assinatura com Beneficiário (adicionado após CONTRATANTE + CONTRATADA)
+  function renderSignatureBeneficiario() {
+    if (!_isMinor) return '';
+    return `
+      <div style="margin-top: 30px; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid;">
+        <div style="width: 50%; border-top: 1px solid #333; padding-top: 6px; margin-top: 10px;">
+          <strong>BENEFICIÁRIO(A):</strong><br/>
+          ${_benefNome}<br/>
+          <small>CPF: ${_benefCpf}</small>
+        </div>
+      </div>
+    `;
+  }
+
   // Generate Date in words for signing
   const now = new Date();
   const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -293,8 +327,11 @@ export function generateContractTemplate(data: ContractData): string {
     data.planNome.toLowerCase().includes('protocolo');
 
   if (isMonitorado) {
-    // Fix A: sem RG na qualificação do CONTRATANTE
-    const contratanteTextMonitorado = `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, doravante denominado(a) simplesmente CONTRATANTE.`;
+    // Identificação do CONTRATANTE — condicional para menor de idade
+    const contratanteTextMonitorado = _isMinor
+      ? renderContratanteMinor()
+      : `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, doravante denominado(a) simplesmente CONTRATANTE.`;
+    const beneficiarioTextMonitorado = _isMinor ? renderBeneficiario() : '';
 
     const contratadaTextMonitorado = `<strong>CONTRATADA:</strong> CLUBE FITNESS FISIO LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.883.492/0001-04, com sede na Rua Senador Lima Guimarães, nº 229, Estoril, Belo Horizonte/MG, CEP 30455-600, doravante denominada simplesmente CONTRATADA.`;
 
@@ -336,6 +373,7 @@ export function generateContractTemplate(data: ContractData): string {
       <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">
         ${contratanteTextMonitorado}
       </p>
+      ${beneficiarioTextMonitorado ? `<p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${beneficiarioTextMonitorado}</p>` : ''}
 
       <p style="font-size: 9.5pt; margin-bottom: 14px; line-height: 1.4; text-align: justify;">
         As partes acima qualificadas celebram o presente Termo de Adesão, que se regerá pelas seguintes cláusulas e condições:
@@ -474,7 +512,7 @@ export function generateContractTemplate(data: ContractData): string {
       <div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid;">
         <div style="flex: 1; text-align: center; margin-right: 20px;">
           <div style="border-top: 1px solid #333; padding-top: 6px; margin-top: 30px;">
-            <strong>CONTRATANTE:</strong><br/>
+            <strong>${_isMinor ? 'CONTRATANTE / RESPONSÁVEL LEGAL' : 'CONTRATANTE'}:</strong><br/>
             ${data.clientNome || '[-]'}<br/>
             <small>CPF: ${data.clientCpf || '[-]'}</small>
           </div>
@@ -487,6 +525,7 @@ export function generateContractTemplate(data: ContractData): string {
           </div>
         </div>
       </div>
+      ${renderSignatureBeneficiario()}
     `;
 
     if (data.observacoesContratuais) {
@@ -503,7 +542,10 @@ export function generateContractTemplate(data: ContractData): string {
 
   // ─── TRATAMENTO PERSONALIZADO ────────────────────────────────────────────────
   if (isTratamentoPersonalizado) {
-    const contratanteTratamento = `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, doravante denominado(a) simplesmente CONTRATANTE.`;
+    const contratanteTratamento = _isMinor
+      ? renderContratanteMinor()
+      : `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, doravante denominado(a) simplesmente CONTRATANTE.`;
+    const beneficiarioTextTratamento = _isMinor ? renderBeneficiario() : '';
     const contratadaTratamento = `<strong>CONTRATADA:</strong> CLUBE FITNESS FISIO LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.883.492/0001-04, com sede na Rua Senador Lima Guimarães, nº 229, Estoril, Belo Horizonte/MG, CEP 30455-600, doravante denominada simplesmente CONTRATADA.`;
 
     let formaVigenciaTrat = 'Mensal';
@@ -536,6 +578,7 @@ export function generateContractTemplate(data: ContractData): string {
 
       <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${contratadaTratamento}</p>
       <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${contratanteTratamento}</p>
+      ${beneficiarioTextTratamento ? `<p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${beneficiarioTextTratamento}</p>` : ''}
       <p style="font-size: 9.5pt; margin-bottom: 14px; line-height: 1.4; text-align: justify;">As partes acima qualificadas celebram o presente Termo de Adesão, que se regerá pelas seguintes cláusulas e condições:</p>
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA PRIMEIRA - DO OBJETO</h3>
@@ -613,7 +656,7 @@ export function generateContractTemplate(data: ContractData): string {
       <div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid;">
         <div style="flex: 1; text-align: center; margin-right: 20px;">
           <div style="border-top: 1px solid #333; padding-top: 6px; margin-top: 30px;">
-            <strong>CONTRATANTE:</strong><br/>${data.clientNome || '[-]'}<br/><small>CPF: ${data.clientCpf || '[-]'}</small>
+            <strong>${_isMinor ? 'CONTRATANTE / RESPONSÁVEL LEGAL' : 'CONTRATANTE'}:</strong><br/>${data.clientNome || '[-]'}<br/><small>CPF: ${data.clientCpf || '[-]'}</small>
           </div>
         </div>
         <div style="flex: 1; text-align: center; margin-left: 20px;">
@@ -622,6 +665,7 @@ export function generateContractTemplate(data: ContractData): string {
           </div>
         </div>
       </div>
+      ${renderSignatureBeneficiario()}
     `;
 
     if (data.observacoesContratuais) {
@@ -632,7 +676,10 @@ export function generateContractTemplate(data: ContractData): string {
 
   // ─── PROTOCOLO INDIVIDUALIZADO ───────────────────────────────────────────────
   if (isProtocoloIndividualizado) {
-    const contratanteProtocolo = `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, doravante denominado(a) simplesmente CONTRATANTE.`;
+    const contratanteProtocolo = _isMinor
+      ? renderContratanteMinor()
+      : `<strong>CONTRATANTE:</strong> ${data.clientNome || '[-]'}, inscrito(a) no CPF sob o nº ${data.clientCpf || '[-]'}${clientDetails ? `, ${clientDetails}` : ''}, residente e domiciliado(a) em: ${enderecoCompleto}, doravante denominado(a) simplesmente CONTRATANTE.`;
+    const beneficiarioTextProtocolo = _isMinor ? renderBeneficiario() : '';
     const contratadaProtocolo = `<strong>CONTRATADA:</strong> CLUBE FITNESS FISIO LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 52.883.492/0001-04, com sede na Rua Senador Lima Guimarães, nº 229, Estoril, Belo Horizonte/MG, CEP 30455-600, doravante denominada simplesmente CONTRATADA.`;
 
     let formaVigenciaProt = 'Mensal';
@@ -671,6 +718,7 @@ export function generateContractTemplate(data: ContractData): string {
 
       <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${contratadaProtocolo}</p>
       <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${contratanteProtocolo}</p>
+      ${beneficiarioTextProtocolo ? `<p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${beneficiarioTextProtocolo}</p>` : ''}
       <p style="font-size: 9.5pt; margin-bottom: 14px; line-height: 1.4; text-align: justify;">As partes acima qualificadas celebram o presente Termo de Adesão, que se regerá pelas seguintes cláusulas e condições:</p>
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA PRIMEIRA - DO OBJETO</h3>
@@ -747,7 +795,7 @@ export function generateContractTemplate(data: ContractData): string {
       <div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid;">
         <div style="flex: 1; text-align: center; margin-right: 20px;">
           <div style="border-top: 1px solid #333; padding-top: 6px; margin-top: 30px;">
-            <strong>CONTRATANTE:</strong><br/>${data.clientNome || '[-]'}<br/><small>CPF: ${data.clientCpf || '[-]'}</small>
+            <strong>${_isMinor ? 'CONTRATANTE / RESPONSÁVEL LEGAL' : 'CONTRATANTE'}:</strong><br/>${data.clientNome || '[-]'}<br/><small>CPF: ${data.clientCpf || '[-]'}</small>
           </div>
         </div>
         <div style="flex: 1; text-align: center; margin-left: 20px;">
@@ -756,6 +804,7 @@ export function generateContractTemplate(data: ContractData): string {
           </div>
         </div>
       </div>
+      ${renderSignatureBeneficiario()}
     `;
 
     if (data.observacoesContratuais) {
@@ -768,8 +817,9 @@ export function generateContractTemplate(data: ContractData): string {
     <h2 style="font-size: 13pt; font-weight: bold; margin: 10px 0 20px 0; text-transform: uppercase; text-align: center;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h2>
 
     <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">
-      ${contratanteText} (“Contratante”); e
+      ${_isMinor ? renderContratanteMinor('CONTRATANTE') : contratanteText} ("Contratante"); e
     </p>
+    ${_isMinor ? `<p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">${renderBeneficiario()}</p>` : ''}
 
     <p style="font-size: 9.5pt; margin-bottom: 12px; line-height: 1.4; text-align: justify;">
       ${contratadoText} (“Contratado”).
@@ -897,7 +947,7 @@ export function generateContractTemplate(data: ContractData): string {
     <div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid;">
       <div style="flex: 1; text-align: center; margin-right: 20px;">
         <div style="border-top: 1px solid #333; padding-top: 6px; margin-top: 30px;">
-          <strong>CONTRATANTE:</strong><br/>
+          <strong>${_isMinor ? 'CONTRATANTE / RESPONSÁVEL LEGAL' : 'CONTRATANTE'}:</strong><br/>
           ${data.clientNome || '[-]'}<br/>
           <small>CPF: ${data.clientCpf || '[-]'}</small>
         </div>
@@ -910,6 +960,7 @@ export function generateContractTemplate(data: ContractData): string {
         </div>
       </div>
     </div>
+    ${renderSignatureBeneficiario()}
 
     <!-- Witnesses -->
     <div style="margin-top: 50px; font-size: 9.5pt; page-break-inside: avoid; break-inside: avoid;">

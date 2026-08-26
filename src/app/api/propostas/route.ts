@@ -233,15 +233,25 @@ export async function PUT(request: Request) {
         base64File = await generateContractPDFBase64(contratoTexto || '');
       }
 
+      // Quando menor: usar dados do responsável legal como signatário do Clicksign
+      const signerNome = (proposal.isMinor && dadosPreenchidos?.responsavelNome)
+        ? dadosPreenchidos.responsavelNome
+        : client.dadosPessoais.nome;
+      const signerCpf = (proposal.isMinor && dadosPreenchidos?.responsavelCpf)
+        ? dadosPreenchidos.responsavelCpf
+        : client.dadosPessoais.cpf;
+      const signerEmail = client.dadosPessoais.email; // já foi sobrescrito com o do responsável no step 1
+      const signerTelefone = client.dadosPessoais.telefone; // idem
+
       try {
         const cSignResult = await createClicksignDocument(
           fileName,
           base64File,
-          client.dadosPessoais.email,
-          client.dadosPessoais.nome,
-          client.dadosPessoais.cpf,
+          signerEmail,
+          signerNome,
+          signerCpf,
           client.dadosPessoais.dataNascimento || '',
-          client.dadosPessoais.telefone
+          signerTelefone
         );
 
         newContract.clicksignDocKey = cSignResult.docKey;

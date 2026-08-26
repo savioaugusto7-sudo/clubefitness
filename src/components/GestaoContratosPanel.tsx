@@ -1044,6 +1044,7 @@ export default function GestaoContratosPanel({
   const [swCreditosEmergencia, setSwCreditosEmergencia] = useState(0);
   const [swCriarRecorrenciaMensal, setSwCriarRecorrenciaMensal] = useState(false);
   const [swRecorrenciaMeses, setSwRecorrenciaMeses] = useState(12);
+  const [swIsMinor, setSwIsMinor] = useState(false);
   const [swSubmitting, setSwSubmitting] = useState(false);
 
   const handleOpenSalesWizard = (client: any) => {
@@ -1061,6 +1062,7 @@ export default function GestaoContratosPanel({
     setSwCreditosEmergencia(0);
     setSwCriarRecorrenciaMensal(false);
     setSwRecorrenciaMeses(12);
+    setSwIsMinor(false);
   };
 
   const handleConfirmSalesWizard = async () => {
@@ -1115,7 +1117,8 @@ export default function GestaoContratosPanel({
         descontoTipo: swDescontoTipo,
         descontoValor: swDescontoValor,
         observacoesContratuais: '',
-        unidadeContratada: plan?.unidadeAtendimento || ''
+        unidadeContratada: plan?.unidadeAtendimento || '',
+        isMinor: swIsMinor
       };
 
       const res = await fetch('/api/propostas', {
@@ -5429,6 +5432,35 @@ export default function GestaoContratosPanel({
                   <label htmlFor="swCriarRecorrenciaMensal" style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <i className="fa-solid fa-arrows-rotate" style={{ color: '#3b82f6' }}></i>
                     Criar Recorrência Mensal Automática para este Plano
+                  </label>
+                </div>
+
+                {/* Checkbox Menor de Idade / Responsável Legal */}
+                <div 
+                  style={{ 
+                    background: swIsMinor ? 'rgba(245, 158, 11, 0.14)' : 'rgba(255, 255, 255, 0.03)', 
+                    border: '1px solid',
+                    borderColor: swIsMinor ? '#f59e0b' : 'rgba(255, 255, 255, 0.1)', 
+                    borderRadius: '10px', 
+                    padding: '12px 14px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px', 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setSwIsMinor(!swIsMinor)}
+                >
+                  <input
+                    type="checkbox"
+                    id="swIsMinor"
+                    checked={swIsMinor}
+                    onChange={e => setSwIsMinor(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#f59e0b' }}
+                  />
+                  <label htmlFor="swIsMinor" style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-child" style={{ color: '#f59e0b' }}></i>
+                    Este cliente é menor de idade (contrato com Responsável Legal)
                   </label>
                 </div>
 
