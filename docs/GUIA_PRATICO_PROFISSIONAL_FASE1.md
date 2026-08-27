@@ -1,7 +1,7 @@
 # 🚀 Guia Prático do Profissional — Fase 1: Transição e Agenda
 
 > **💡 Dica de Ouro para a Equipe:**  
-> Não faça desse processo algo penoso! A partir de agora, cada falha ou ajuste faz parte da solução que estamos construindo juntos. Com empenho e colaboração diária, vamos consolidar 100% dos nossos alunos e atendimentos no sistema! 💪
+> Não faça desse processo algo penoso! A partir de agora, cada falha faz parte da solução que estamos construindo. Com empenho, vamos conseguir consolidar 100% dos nossos clientes no sistema! 💪
 
 ---
 
