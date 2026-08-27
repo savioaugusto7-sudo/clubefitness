@@ -3495,7 +3495,12 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       detalhe: string;
     }> = [];
 
-    const alertasClinicos: string[] = [];
+    const riscosOrtopedicos: Array<{
+      titulo: string;
+      valorPill: string;
+      detalheProporcao: string;
+      riscoClinico: string;
+    }> = [];
 
     // 1. Razão I:Q (Joelho: Flexores / Extensores)
     const extJoelho = getAvgForceN('Joelho', 'Extensão');
@@ -3514,9 +3519,12 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         detalhe: isCrit ? 'Déficit isquiotibial severo (<60%)' : (isAlt ? 'Fora da faixa ideal 60-75%' : 'Equilíbrio biomecânico seguro')
       });
       if (isCrit) {
-        alertasClinicos.push(`🔴 <strong>Risco Crítico de Lesão de LCA (Razão I:Q = ${iq.toFixed(1)}%)</strong>: Isquiotibiais insuficientes para desacelerar o vetor anterior da tíbia gerado pelo quadríceps (< 60%). Risco aumentado em desacelerações e saltos.`);
-      } else if (isAlt) {
-        alertasClinicos.push(`⚠️ <strong>Atenção na Razão I:Q (${iq.toFixed(1)}%)</strong>: Relação flexores/extensores fora da faixa ideal (60% a 75%). Recomendado fortalecimento de isquiotibiais.`);
+        riscosOrtopedicos.push({
+          titulo: 'Razão I:Q Crítica (< 60%)',
+          valorPill: `${iq.toFixed(0)}%`,
+          detalheProporcao: `Isquiotibiais representam apenas ${iq.toFixed(1)}% da força do quadríceps. (Ref: 60% - 75%)`,
+          riscoClinico: 'Risco crítico de ruptura de LCA e estiramento de isquiotibiais (2 a 8x maior com lesão pregressa).'
+        });
       }
     }
 
@@ -3537,9 +3545,19 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         detalhe: isHigh ? 'Dominância Adutora (>1.15)' : (isLow ? 'Instabilidade Medial (<0.80)' : 'Equilíbrio cinesiológico ideal')
       });
       if (isHigh) {
-        alertasClinicos.push(`🔴 <strong>Risco de Pubalgia Atlética (Razão Ad/Abd = ${adAbd.toFixed(2)})</strong>: Adutores excessivamente dominantes sobre os abdutores (> 1.15). Tensão repetitiva na sínfise púbica.`);
+        riscosOrtopedicos.push({
+          titulo: 'Razão Adutor / Abdutor Elevada (> 1.15)',
+          valorPill: adAbd.toFixed(2),
+          detalheProporcao: `Adutores ${(adAbd * 100).toFixed(0)}% mais fortes que os abdutores. (Ref: 0.80 - 1.15)`,
+          riscoClinico: 'Risco elevado de Pubalgia atlética e estresse na sínfise púbica.'
+        });
       } else if (isLow) {
-        alertasClinicos.push(`⚠️ <strong>Instabilidade Medial de Quadril (Razão Ad/Abd = ${adAbd.toFixed(2)})</strong>: Fraqueza adutora em relação aos abdutores (< 0.80).`);
+        riscosOrtopedicos.push({
+          titulo: 'Déficit de Adutores de Quadril (< 0.80)',
+          valorPill: adAbd.toFixed(2),
+          detalheProporcao: `Adutores representam apenas ${(adAbd * 100).toFixed(0)}% dos abdutores. (Ref: 0.80 - 1.15)`,
+          riscoClinico: 'Instabilidade medial da pelve e vulnerabilidade em mudanças bruscas de direção.'
+        });
       }
     }
 
@@ -3558,7 +3576,12 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         detalhe: isLow ? 'Abaixo do limiar normativo' : 'Sustentação pélvica adequada'
       });
       if (isLow) {
-        alertasClinicos.push(`⚠️ <strong>Déficit de Glúteo Médio (${gmPC.toFixed(1)}% PC)</strong>: Força relativa abaixo da referência (${minRef}% PC). Predisposição a queda pélvica e valgo dinâmico.`);
+        riscosOrtopedicos.push({
+          titulo: `Glúteo Médio Fraco (< ${minRef}% PC)`,
+          valorPill: `${gmPC.toFixed(1)}% PC`,
+          detalheProporcao: `Glúteo médio/abdutores atingiram ${gmPC.toFixed(1)}% do peso corporal. (Ref: > ${minRef}% PC)`,
+          riscoClinico: 'Forte correlação com Síndrome da Dor Patelofemoral (SDPF), queda pélvica e valgo dinâmico.'
+        });
       }
     }
 
@@ -3578,7 +3601,12 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         detalhe: isLow ? 'Insuficiência de Rot. Externos (<0.70)' : 'Equilíbrio glenoumeral preservado'
       });
       if (isLow) {
-        alertasClinicos.push(`🔴 <strong>Instabilidade Glenoumeral (Razão RE/RI = ${rotRatio.toFixed(2)})</strong>: Rotadores externos insuficientes (< 0.70). Risco aumentado de impacto subacromial e tendinopatia.`);
+        riscosOrtopedicos.push({
+          titulo: 'Desequilíbrio de Rotadores de Ombro (< 0.70)',
+          valorPill: rotRatio.toFixed(2),
+          detalheProporcao: `Rotadores externos representam ${(rotRatio * 100).toFixed(0)}% dos rotadores internos. (Ref: ≥ 0.70)`,
+          riscoClinico: 'Risco de Síndrome do Impacto Subacromial e tendinopatia do supraespinal.'
+        });
       }
     }
 
@@ -3598,7 +3626,12 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         detalhe: isLow ? 'Dominância anterior / peitoral' : 'Proporção equilibrada'
       });
       if (isLow) {
-        alertasClinicos.push(`⚠️ <strong>Dominância Anterior de Tronco (Remada/Supino = ${rHor.toFixed(2)})</strong>: Retratores escapulares fracos em relação aos depressores/peitorais (< 0.80).`);
+        riscosOrtopedicos.push({
+          titulo: 'Dominância Anterior de Tronco (Remada/Supino < 0.80)',
+          valorPill: rHor.toFixed(2),
+          detalheProporcao: `Remada atingiu ${(rHor * 100).toFixed(0)}% da força de supino. (Ref: ≥ 0.80)`,
+          riscoClinico: 'Protração escapular excessiva e instabilidade anterior do ombro.'
+        });
       }
     }
 
@@ -3618,14 +3651,24 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         detalhe: isLow ? 'Insuficiência de depressores' : 'Proporção equilibrada'
       });
       if (isLow) {
-        alertasClinicos.push(`⚠️ <strong>Desequilíbrio Vertical (Puxada/Desenvolvimento = ${rVer.toFixed(2)})</strong>: Proporção abaixo da referência normativa (≥ 1.00).`);
+        riscosOrtopedicos.push({
+          titulo: 'Déficit Vertical (Puxada/Desenvolvimento < 1.00)',
+          valorPill: rVer.toFixed(2),
+          detalheProporcao: `Puxada atingiu ${(rVer * 100).toFixed(0)}% do desenvolvimento. (Ref: ≥ 1.00)`,
+          riscoClinico: 'Insuficiência de depressores escapulares (trapézio inferior e grande dorsal).'
+        });
       }
     }
 
     // 7. Assimetrias Bilaterais Críticas (>15%)
     (st.comparativos || []).forEach((c: any) => {
       if (c.deficit > 15) {
-        alertasClinicos.push(`🔴 <strong>Assimetria Relevante em ${c.articulacao} - ${c.movimento} (${c.deficit.toFixed(1)}% de déficit)</strong>: Diferença contralateral superior a 15%. Risco de sobrecarga compensatória.`);
+        riscosOrtopedicos.push({
+          titulo: `Assimetria em ${c.articulacao} - ${c.movimento} (> 15%)`,
+          valorPill: `${c.deficit.toFixed(1)}%`,
+          detalheProporcao: `Lado direito: ${c.valorD?.toFixed(1)} N vs Lado esquerdo: ${c.valorE?.toFixed(1)} N (Déficit: ${c.deficit?.toFixed(1)}%)`,
+          riscoClinico: 'Sobrecarga mecânica assimétrica e compensação postural em cadeia cinética fechada.'
+        });
       }
     });
 
@@ -3683,49 +3726,115 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       `;
     }).join('');
 
-    // HTML de Cards de Razões
+    // HTML de Cards de Razões Biomecânicas
     const ratiosCardsHtml = ratiosList.length > 0 ? `
-      <div class="section-card avoid-break">
-        <div class="section-card-title">Razões Biomecânicas e Equilíbrio Muscular Cinesiológico</div>
-        <div class="section-card-content">
-          <div class="ratio-grid">
-            ${ratiosList.map(r => `
-              <div class="ratio-card">
-                <div class="ratio-card-header">
-                  <span class="ratio-card-title">${r.nome}</span>
-                  <span class="metric-badge ${r.badgeClass}">${r.status}</span>
+      <div class="pdf-section-wrapper avoid-break">
+        <div class="section-card" style="margin-bottom: 0;">
+          <div class="section-card-title">Razões Biomecânicas e Equilíbrio Muscular Cinesiológico</div>
+          <div class="section-card-content">
+            <div class="ratio-grid">
+              ${ratiosList.map(r => `
+                <div class="ratio-card">
+                  <div class="ratio-card-header">
+                    <span class="ratio-card-title">${r.nome}</span>
+                    <span class="metric-badge ${r.badgeClass}">${r.status}</span>
+                  </div>
+                  <div class="ratio-card-body">
+                    <div class="ratio-val">${r.valorStr}</div>
+                    <div class="ratio-ref">Referência: <strong>${r.referencia}</strong></div>
+                  </div>
+                  <div style="font-size: 7px; color: #64748b; margin-top: 3px; font-weight: 500;">${r.detalhe}</div>
                 </div>
-                <div class="ratio-card-body">
-                  <div class="ratio-val">${r.valorStr}</div>
-                  <div class="ratio-ref">Referência: <strong>${r.referencia}</strong></div>
-                </div>
-                <div style="font-size: 7px; color: #64748b; margin-top: 3px; font-weight: 500;">${r.detalhe}</div>
-              </div>
-            `).join('')}
+              `).join('')}
+            </div>
           </div>
         </div>
       </div>
     ` : '';
 
-    // HTML de Advertências e Alertas Clínicos
-    const warningsPanelHtml = `
-      <div class="section-card avoid-break">
-        <div class="section-card-title" style="background: ${alertasClinicos.length > 0 ? '#991b1b' : '#065f46'};">
-          ${alertasClinicos.length > 0 ? '⚠️ Alertas Clínicos & Riscos Biomecânicos Detectados' : '✓ Conformidade Biomecânica & Segurança'}
+    // HTML do Banner de Riscos Ortopédicos (Estilo Imagem 2)
+    const riscosPanelHtml = riscosOrtopedicos.length > 0 ? `
+      <div class="pdf-section-wrapper avoid-break">
+        <div class="section-card" style="border: 1.5px solid #f87171; margin-bottom: 0;">
+          <div class="section-card-title" style="background: #991b1b; color: #ffffff; display: flex; align-items: center; gap: 6px;">
+            <span>⚠️ RAZÕES MUSCULARES, DESEQUILÍBRIOS E RISCOS ORTOPÉDICOS (${riscosOrtopedicos.length})</span>
+          </div>
+          <div class="section-card-content" style="padding: 10px; background: #fff5f5;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+              ${riscosOrtopedicos.map(r => `
+                <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 6px; padding: 8px 10px; box-sizing: border-box;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                    <span style="font-size: 8px; font-weight: 800; color: #991b1b; text-transform: uppercase; font-family: 'Outfit', sans-serif;">${r.titulo}</span>
+                    <span style="background: #0f172a; color: #ffffff; font-size: 7.5px; font-weight: 800; padding: 1.5px 6px; border-radius: 4px; font-family: 'Outfit', sans-serif; margin-left: 6px; white-space: nowrap;">${r.valorPill}</span>
+                  </div>
+                  <div style="font-size: 7px; color: #475569; margin-bottom: 3px; line-height: 1.3;">${r.detalheProporcao}</div>
+                  <div style="font-size: 7px; color: #b91c1c; font-weight: 600; line-height: 1.35;">⚠️ <strong>Risco Clínico:</strong> ${r.riscoClinico}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
         </div>
-        <div class="section-card-content" style="padding: 10px 12px; background: ${alertasClinicos.length > 0 ? '#fef2f2' : '#f0fdf4'};">
-          ${alertasClinicos.length > 0
-            ? alertasClinicos.map(a => `<div style="font-size: 8px; color: #991b1b; line-height: 1.4; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed #fecaca;">${a}</div>`).join('')
-            : `<div style="font-size: 8.5px; color: #15803d; font-weight: 600; line-height: 1.35;">✓ Todas as proporções articulares, simetrias bilaterais e razões agonista/antagonista avaliadas encontram-se dentro dos parâmetros normativos de estabilidade e segurança.</div>`
-          }
+      </div>
+    ` : `
+      <div class="pdf-section-wrapper avoid-break">
+        <div class="section-card" style="border: 1.5px solid #86efac; margin-bottom: 0;">
+          <div class="section-card-title" style="background: #065f46; color: #ffffff;">
+            ✓ Conformidade Biomecânica & Segurança
+          </div>
+          <div class="section-card-content" style="padding: 10px 12px; background: #f0fdf4;">
+            <div style="font-size: 8.5px; color: #15803d; font-weight: 600; line-height: 1.35;">✓ Todas as proporções articulares, simetrias bilaterais e razões agonista/antagonista avaliadas encontram-se dentro dos parâmetros normativos de estabilidade e segurança.</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // HTML do Painel de Interpretação Clínica (4 Quadrantes da Imagem 2)
+    const interpretacaoClinicaHtml = `
+      <div class="pdf-section-wrapper avoid-break">
+        <div class="section-card" style="margin-bottom: 0;">
+          <div class="section-card-title">Interpretação Clínica dos Resultados</div>
+          <div class="section-card-content" style="padding: 8px 10px;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+              <!-- Quadrante 1: Normal -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 6px; padding: 6px 8px; box-sizing: border-box;">
+                <div style="font-size: 8px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">≥ 90% do Valor de Referência</div>
+                <div style="font-size: 7px; color: #475569; line-height: 1.3;">
+                  <strong>Força normal:</strong> o paciente apresenta força muscular dentro dos parâmetros normativos para sua faixa demográfica. Liberação para progressão de carga ou retorno ao esporte/atividades.
+                </div>
+              </div>
+              <!-- Quadrante 2: Leve -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 6px 8px; box-sizing: border-box;">
+                <div style="font-size: 8px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">75-89% do Valor de Referência</div>
+                <div style="font-size: 7px; color: #475569; line-height: 1.3;">
+                  <strong>Déficit leve:</strong> força levemente reduzida. Indica necessidade de fortalecimento direcionado, porém funcionalidade preservada para a maioria das atividades de vida diária.
+                </div>
+              </div>
+              <!-- Quadrante 3: Moderado -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 6px 8px; box-sizing: border-box;">
+                <div style="font-size: 8px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">50-74% do Valor de Referência</div>
+                <div style="font-size: 7px; color: #475569; line-height: 1.3;">
+                  <strong>Déficit moderado:</strong> comprometimento funcional relevante. Requer programa de reabilitação estruturado com reavaliação periódica. Restrição de atividades de maior demanda.
+                </div>
+              </div>
+              <!-- Quadrante 4: Grave -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #ef4444; border-radius: 6px; padding: 6px 8px; box-sizing: border-box;">
+                <div style="font-size: 8px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">&lt; 50% do Valor de Referência</div>
+                <div style="font-size: 7px; color: #475569; line-height: 1.3;">
+                  <strong>Déficit grave:</strong> fraqueza muscular importante com alto impacto funcional. Investigação de causas subjacentes, possível encaminhamento médico e reabilitação intensiva são indicados.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `;
 
     const observationHtml = st.observacoes 
-      ? `<div class="section-card avoid-break">
-          <div class="section-card-title">Observações Clínicas / Recomendações</div>
-          <div class="section-card-content" style="font-size:8.5px; line-height:1.4; white-space:pre-wrap; background:#fafafa;">${st.observacoes}</div>
+      ? `<div class="pdf-section-wrapper avoid-break">
+          <div class="section-card" style="margin-bottom: 0;">
+            <div class="section-card-title">Observações Clínicas / Recomendações</div>
+            <div class="section-card-content" style="font-size:8.5px; line-height:1.4; white-space:pre-wrap; background:#fafafa;">${st.observacoes}</div>
+          </div>
          </div>`
       : '';
 
@@ -3771,81 +3880,90 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         </div>
 
         <!-- 3. Mapeamento Anatômico Integrado Dual-Body (Compacto para permitir subida da tabela) -->
-        <div class="section-card" style="margin-top: 6px; margin-bottom: 10px;">
-          <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Mapeamento Anatômico de Recrutamento & Articulações Avaliadas</span>
-            <span style="font-size: 7.5px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px;">
-              ${testedJoints.size === 0 || testedJoints.size === 6 ? 'Bateria Completa (6 Articulações)' : `${testedJoints.size} de 6 Articulações Avaliadas`}
-            </span>
-          </div>
-          <div class="section-card-content" style="padding: 10px 14px; background: #ffffff; text-align: center;">
-            <!-- Imagem Dual-Body Compacta e Nítida -->
-            <div style="width: 100%; max-width: 440px; margin: 0 auto 6px auto; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
-              <img src="${splitAtlasBase64}" style="width: 100%; height: auto; max-height: 230px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Dual Body" />
+        <div class="pdf-section-wrapper avoid-break" style="margin-top: 6px; margin-bottom: 10px;">
+          <div class="section-card" style="margin-bottom: 0;">
+            <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Mapeamento Anatômico de Recrutamento & Articulações Avaliadas</span>
+              <span style="font-size: 7.5px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px;">
+                ${testedJoints.size === 0 || testedJoints.size === 6 ? 'Bateria Completa (6 Articulações)' : `${testedJoints.size} de 6 Articulações Avaliadas`}
+              </span>
             </div>
+            <div class="section-card-content" style="padding: 10px 14px; background: #ffffff; text-align: center;">
+              <!-- Imagem Dual-Body Compacta e Nítida -->
+              <div style="width: 100%; max-width: 440px; margin: 0 auto 6px auto; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
+                <img src="${splitAtlasBase64}" style="width: 100%; height: auto; max-height: 230px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Dual Body" />
+              </div>
 
-            <!-- Grid de Rodapé Dinâmico das Articulações -->
-            ${renderStrengthAtlasFooterHtml(testedJoints)}
+              <!-- Grid de Rodapé Dinâmico das Articulações -->
+              ${renderStrengthAtlasFooterHtml(testedJoints)}
+            </div>
           </div>
         </div>
 
-        <!-- 4. Tabela de Testes Individuais (Começa logo abaixo na Página 1 de forma nobre e contínua) -->
-        <div class="section-card">
-          <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
-          <div class="section-card-content" style="padding:0;">
-            <table class="table-data">
-              <thead>
-                <tr>
-                  <th>Articulação</th>
-                  <th>Movimento</th>
-                  <th style="text-align:center;">Lado</th>
-                  <th style="text-align:right;">Valor</th>
-                  <th style="text-align:right;">Força (N)</th>
-                  <th style="text-align:right;">%PC</th>
-                  <th style="text-align:center;">Ref. Média</th>
-                  <th style="text-align:right;">% Ref.</th>
-                  <th style="text-align:center;">Classificação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${testsHtml}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 5. Tabela de Comparação Bilateral -->
-        ${st.comparativos && st.comparativos.length > 0 ? `
-          <div class="section-card avoid-break">
-            <div class="section-card-title">Análise de Simetria e Déficit Lateral (Agonista / Antagonista)</div>
+        <!-- 4. Tabela de Testes Individuais (Começa logo abaixo na Página 1 de forma contínua) -->
+        <div class="pdf-section-wrapper" style="margin-bottom: 12px;">
+          <div class="section-card" style="margin-bottom: 0;">
+            <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
             <div class="section-card-content" style="padding:0;">
               <table class="table-data">
                 <thead>
                   <tr>
                     <th>Articulação</th>
                     <th>Movimento</th>
-                    <th style="text-align:right;">Dir (N)</th>
-                    <th style="text-align:right;">Esq (N)</th>
-                    <th style="text-align:right;">Déficit (%)</th>
-                    <th style="text-align:right; width: 110px;">Simetria (%)</th>
-                    <th style="text-align:center;">Status</th>
+                    <th style="text-align:center;">Lado</th>
+                    <th style="text-align:right;">Valor</th>
+                    <th style="text-align:right;">Força (N)</th>
+                    <th style="text-align:right;">%PC</th>
+                    <th style="text-align:center;">Ref. Média</th>
+                    <th style="text-align:right;">% Ref.</th>
+                    <th style="text-align:center;">Classificação</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${compsHtml}
+                  ${testsHtml}
                 </tbody>
               </table>
             </div>
           </div>
+        </div>
+
+        <!-- 5. Tabela de Comparação Bilateral -->
+        ${st.comparativos && st.comparativos.length > 0 ? `
+          <div class="pdf-section-wrapper avoid-break" style="margin-bottom: 12px;">
+            <div class="section-card" style="margin-bottom: 0;">
+              <div class="section-card-title">Análise de Simetria e Déficit Lateral (Agonista / Antagonista)</div>
+              <div class="section-card-content" style="padding:0;">
+                <table class="table-data">
+                  <thead>
+                    <tr>
+                      <th>Articulação</th>
+                      <th>Movimento</th>
+                      <th style="text-align:right;">Dir (N)</th>
+                      <th style="text-align:right;">Esq (N)</th>
+                      <th style="text-align:right;">Déficit (%)</th>
+                      <th style="text-align:right; width: 110px;">Simetria (%)</th>
+                      <th style="text-align:center;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${compsHtml}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         ` : ''}
 
-        <!-- 6. Cards de Razões Biomecânicas e Equilíbrio Muscular -->
+        <!-- 6. Banner de Riscos Ortopédicos (Estilo Imagem 2) -->
+        ${riscosPanelHtml}
+
+        <!-- 7. Cards de Razões Biomecânicas e Equilíbrio Muscular -->
         ${ratiosCardsHtml}
 
-        <!-- 7. Painel de Alertas Clínicos & Riscos de Lesão -->
-        ${warningsPanelHtml}
+        <!-- 8. Interpretação Clínica dos Resultados (4 Quadrantes da Imagem 2) -->
+        ${interpretacaoClinicaHtml}
 
-        <!-- 8. Observações Clínicas -->
+        <!-- 9. Observações Clínicas -->
         ${observationHtml}
 
         <!-- Footer Geral Institucional -->
@@ -3989,9 +4107,9 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
     margin: [8, 8, 10, 8],
     filename: filename,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['.pdf-section-wrapper', '.section-card', '.avoid-break', 'tr'] }
   };
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
