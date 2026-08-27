@@ -61,6 +61,14 @@ export async function syncClientPlanValidity(clientId: string): Promise<void> {
     com.vencimento = nextValidityIso;
     await client.save();
     console.log(`[syncClientPlanValidity] Client ${client.dadosPessoais?.nome || clientId} validity updated to ${nextValidityIso} based on ${paidPayments.length} paid payments from start date ${baseDateStr}`);
+
+    // Propagar automaticamente para as regras de horários fixos e gerar agendamentos na grade
+    try {
+      const { syncClientFixedSchedulesValidity } = await import('./fixedScheduleSync');
+      await syncClientFixedSchedulesValidity(clientId);
+    } catch (schedErr) {
+      console.error('[syncClientPlanValidity] Erro ao sincronizar horários fixos:', schedErr);
+    }
   } catch (error) {
     console.error('Error syncing client plan validity:', error);
   }
