@@ -2501,93 +2501,113 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           {/* MÓDULO 1: TERMÔMETRO OPERACIONAL DA CLÍNICA (HOJE) */}
           <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '20px' }}>
-            <div className="panel-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-clock"></i> Termômetro Operacional da Clínica (Hoje)
-              </h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveTab('agenda')} style={{ fontSize: '0.78rem' }}>
-                  <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i> Abrir Agenda Completa
-                </button>
-              </div>
-            </div>
+            {/* Header com Botão para Agenda Completa */}
+            {(() => {
+              const getAptClientName = (a: any) => {
+                if (a.clienteNome && a.clienteNome !== 'Aluno') return a.clienteNome;
+                if (a.clienteId && typeof a.clienteId === 'object' && a.clienteId.dadosPessoais?.nome) {
+                  return a.clienteId.dadosPessoais.nome;
+                }
+                const cId = typeof a.clienteId === 'string' ? a.clienteId : a.clienteId?._id?.toString();
+                if (cId) {
+                  const found = clients.find(c => c._id?.toString() === cId);
+                  if (found?.dadosPessoais?.nome) return found.dadosPessoais.nome;
+                }
+                return a.clienteNome || 'Aluno';
+              };
 
-            {/* Cards de Turnos do Dia */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
-              
-              {/* Manhã */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fde047', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-solid fa-sun"></i> Turno Manhã (06h - 12h)
-                  </span>
-                  <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{manhaApts.length} atendimentos</span>
-                </div>
-                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                  {manhaApts.length > 0 ? (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                      {manhaApts.slice(0, 5).map((a, idx) => (
-                        <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
-                          {a.horario} • {a.clienteNome || 'Aluno'}
-                        </span>
-                      ))}
-                      {manhaApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.72rem' }}>+{manhaApts.length - 5} mais</span>}
+              return (
+                <>
+                  <div className="panel-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-clock"></i> Termômetro Operacional da Clínica (Hoje)
+                    </h2>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveTab('agenda_completa')} style={{ fontSize: '0.78rem' }}>
+                        <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i> Abrir Agenda Completa
+                      </button>
                     </div>
-                  ) : (
-                    <span>Nenhum atendimento agendado para a manhã.</span>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Tarde */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fb923c', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-solid fa-cloud-sun"></i> Turno Tarde (12h - 18h)
-                  </span>
-                  <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{tardeApts.length} atendimentos</span>
-                </div>
-                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                  {tardeApts.length > 0 ? (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                      {tardeApts.slice(0, 5).map((a, idx) => (
-                        <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
-                          {a.horario} • {a.clienteNome || 'Aluno'}
+                  {/* Cards de Turnos do Dia */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                    
+                    {/* Manhã */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fde047', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-sun"></i> Turno Manhã (06h - 12h)
                         </span>
-                      ))}
-                      {tardeApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.72rem' }}>+{tardeApts.length - 5} mais</span>}
+                        <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{manhaApts.length} atendimentos</span>
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                        {manhaApts.length > 0 ? (
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                            {manhaApts.slice(0, 5).map((a, idx) => (
+                              <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <strong style={{ color: '#fde047' }}>{a.horario}</strong> • {getAptClientName(a)}
+                              </span>
+                            ))}
+                            {manhaApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.74rem', fontWeight: 700, padding: '3px 6px' }}>+{manhaApts.length - 5} mais</span>}
+                          </div>
+                        ) : (
+                          <span>Nenhum atendimento agendado para a manhã.</span>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <span>Nenhum atendimento agendado para a tarde.</span>
-                  )}
-                </div>
-              </div>
 
-              {/* Noite */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-solid fa-moon"></i> Turno Noite (18h - 22h)
-                  </span>
-                  <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{noiteApts.length} atendimentos</span>
-                </div>
-                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                  {noiteApts.length > 0 ? (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                      {noiteApts.slice(0, 5).map((a, idx) => (
-                        <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
-                          {a.horario} • {a.clienteNome || 'Aluno'}
+                    {/* Tarde */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fb923c', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-cloud-sun"></i> Turno Tarde (12h - 18h)
                         </span>
-                      ))}
-                      {noiteApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.72rem' }}>+{noiteApts.length - 5} mais</span>}
+                        <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{tardeApts.length} atendimentos</span>
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                        {tardeApts.length > 0 ? (
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                            {tardeApts.slice(0, 5).map((a, idx) => (
+                              <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <strong style={{ color: '#fb923c' }}>{a.horario}</strong> • {getAptClientName(a)}
+                              </span>
+                            ))}
+                            {tardeApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.74rem', fontWeight: 700, padding: '3px 6px' }}>+{tardeApts.length - 5} mais</span>}
+                          </div>
+                        ) : (
+                          <span>Nenhum atendimento agendado para a tarde.</span>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <span>Nenhum atendimento agendado para a noite.</span>
-                  )}
-                </div>
-              </div>
 
-            </div>
+                    {/* Noite */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-moon"></i> Turno Noite (18h - 22h)
+                        </span>
+                        <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{noiteApts.length} atendimentos</span>
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                        {noiteApts.length > 0 ? (
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                            {noiteApts.slice(0, 5).map((a, idx) => (
+                              <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <strong style={{ color: '#818cf8' }}>{a.horario}</strong> • {getAptClientName(a)}
+                              </span>
+                            ))}
+                            {noiteApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.74rem', fontWeight: 700, padding: '3px 6px' }}>+{noiteApts.length - 5} mais</span>}
+                          </div>
+                        ) : (
+                          <span>Nenhum atendimento agendado para a noite.</span>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* MÓDULO 2: CENTRAL DE INTELIGÊNCIA DE RETENÇÃO (FILA DE TRATATIVAS) */}
