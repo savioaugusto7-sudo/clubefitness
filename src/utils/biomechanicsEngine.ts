@@ -629,6 +629,8 @@ export function calculateYTestAnalysis(data: {
 
 /**
  * 4. Análise Clínica e Alertas do Step Down Test em Tempo Real
+ * Baseado na metodologia de controle cinemático (Piva et al., Herman et al., Earl et al.)
+ * O score real é uma contagem de erros (0 a 4 pontos por membro) e não a soma direta de graus angulares.
  */
 export interface StepDownAnalysis {
   scoreD: number;
@@ -647,43 +649,158 @@ export function calculateStepDownAnalysis(data: {
   valgoE?: number | string;
   prpsD?: number | string;
   prpsE?: number | string;
+  sexo?: string;
 }): StepDownAnalysis {
-  const toNum = (v: any) => Number(v) || 0;
-  const scoreD = toNum(data.pelvicaD) + toNum(data.aducaoD) + toNum(data.valgoD) + toNum(data.prpsD);
-  const scoreE = toNum(data.pelvicaE) + toNum(data.aducaoE) + toNum(data.valgoE) + toNum(data.prpsE);
+  const toNum = (v: any) => (v !== '' && v !== null && v !== undefined && !isNaN(Number(v))) ? Number(v) : null;
+  const pelvicaD = toNum(data.pelvicaD);
+  const pelvicaE = toNum(data.pelvicaE);
+  const aducaoD = toNum(data.aducaoD);
+  const aducaoE = toNum(data.aducaoE);
+  const valgoD = toNum(data.valgoD);
+  const valgoE = toNum(data.valgoE);
+  const prpsD = toNum(data.prpsD);
+  const prpsE = toNum(data.prpsE);
+  const isFeminino = (data.sexo || '').trim().toUpperCase().startsWith('F');
+  const valgoLimit = isFeminino ? 15 : 10;
+
+  const alerts: BiomechanicAlert[] = [];
+
+  // Avaliação de Erros por Critério Clínico
+  let scoreD = 0;
+  let scoreE = 0;
+
+  // 1. Queda Pélvica (Ref: até 5°)
+  if (pelvicaD !== null && pelvicaD > 5) {
+    scoreD += 1;
+    alerts.push({
+      tipo: pelvicaD > 8 ? 'critico' : 'atencao',
+      titulo: 'Queda Pélvica Excessiva no Step Down (> 5°)',
+      articulacao: 'Quadril / Pelve',
+      lado: 'Direito',
+      valorCalculado: `${pelvicaD}°`,
+      referenciaIdeal: '≤ 5°',
+      descricao: `Queda pélvica de ${pelvicaD}° no apoio unipodal direito.`,
+      riscoClinico: 'Indica fraqueza de abdutores/glúteo médio contralateral ou instabilidade do core.'
+    });
+  }
+  if (pelvicaE !== null && pelvicaE > 5) {
+    scoreE += 1;
+    alerts.push({
+      tipo: pelvicaE > 8 ? 'critico' : 'atencao',
+      titulo: 'Queda Pélvica Excessiva no Step Down (> 5°)',
+      articulacao: 'Quadril / Pelve',
+      lado: 'Esquerdo',
+      valorCalculado: `${pelvicaE}°`,
+      referenciaIdeal: '≤ 5°',
+      descricao: `Queda pélvica de ${pelvicaE}° no apoio unipodal esquerdo.`,
+      riscoClinico: 'Indica fraqueza de abdutores/glúteo médio contralateral ou instabilidade do core.'
+    });
+  }
+
+  // 2. Adução do Quadril (Ref: até 10°)
+  if (aducaoD !== null && aducaoD > 10) {
+    scoreD += 1;
+    alerts.push({
+      tipo: aducaoD > 15 ? 'critico' : 'atencao',
+      titulo: 'Adução do Quadril Aumentada no Step Down (> 10°)',
+      articulacao: 'Quadril',
+      lado: 'Direito',
+      valorCalculado: `${aducaoD}°`,
+      referenciaIdeal: '≤ 10°',
+      descricao: `Adução femoral de ${aducaoD}° no apoio unipodal direito.`,
+      riscoClinico: 'Sobrecarga no trato iliotibial (STIT) e aumento do vetor de valgo no joelho.'
+    });
+  }
+  if (aducaoE !== null && aducaoE > 10) {
+    scoreE += 1;
+    alerts.push({
+      tipo: aducaoE > 15 ? 'critico' : 'atencao',
+      titulo: 'Adução do Quadril Aumentada no Step Down (> 10°)',
+      articulacao: 'Quadril',
+      lado: 'Esquerdo',
+      valorCalculado: `${aducaoE}°`,
+      referenciaIdeal: '≤ 10°',
+      descricao: `Adução femoral de ${aducaoE}° no apoio unipodal esquerdo.`,
+      riscoClinico: 'Sobrecarga no trato iliotibial (STIT) e aumento do vetor de valgo no joelho.'
+    });
+  }
+
+  // 3. Valgo Dinâmico do Joelho (Ref: M ≤ 10° | F ≤ 15°)
+  if (valgoD !== null && valgoD > valgoLimit) {
+    scoreD += 1;
+    alerts.push({
+      tipo: valgoD > valgoLimit + 5 ? 'critico' : 'atencao',
+      titulo: `Colapso em Valgo Dinâmico no Step Down (> ${valgoLimit}°)`,
+      articulacao: 'Joelho',
+      lado: 'Direito',
+      valorCalculado: `${valgoD}°`,
+      referenciaIdeal: `≤ ${valgoLimit}° (${isFeminino ? 'Feminino' : 'Masculino'})`,
+      descricao: `Valgo de joelho de ${valgoD}° durante a descida excêntrica.`,
+      riscoClinico: 'Forte correlação com Síndrome da Dor Patelofemoral (SDPF), estresse de LCA e menisco lateral.'
+    });
+  }
+  if (valgoE !== null && valgoE > valgoLimit) {
+    scoreE += 1;
+    alerts.push({
+      tipo: valgoE > valgoLimit + 5 ? 'critico' : 'atencao',
+      titulo: `Colapso em Valgo Dinâmico no Step Down (> ${valgoLimit}°)`,
+      articulacao: 'Joelho',
+      lado: 'Esquerdo',
+      valorCalculado: `${valgoE}°`,
+      referenciaIdeal: `≤ ${valgoLimit}° (${isFeminino ? 'Feminino' : 'Masculino'})`,
+      descricao: `Valgo de joelho de ${valgoE}° durante a descida excêntrica.`,
+      riscoClinico: 'Forte correlação com Síndrome da Dor Patelofemoral (SDPF), estresse de LCA e menisco lateral.'
+    });
+  }
+
+  // 4. Ângulo Excêntrico / PRPS (Ref: acima de 60°)
+  if (prpsD !== null && prpsD > 0 && prpsD < 60) {
+    scoreD += 1;
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Amplitude Excêntrica Reduzida no Step Down (< 60°)',
+      articulacao: 'Joelho / Tornozelo',
+      lado: 'Direito',
+      valorCalculado: `${prpsD}°`,
+      referenciaIdeal: '≥ 60°',
+      descricao: `Flexão excêntrica de apenas ${prpsD}° antes de compensar.`,
+      riscoClinico: 'Déficit de dorsiflexão de tornozelo ou fraqueza excêntrica de quadríceps.'
+    });
+  }
+  if (prpsE !== null && prpsE > 0 && prpsE < 60) {
+    scoreE += 1;
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Amplitude Excêntrica Reduzida no Step Down (< 60°)',
+      articulacao: 'Joelho / Tornozelo',
+      lado: 'Esquerdo',
+      valorCalculado: `${prpsE}°`,
+      referenciaIdeal: '≥ 60°',
+      descricao: `Flexão excêntrica de apenas ${prpsE}° antes de compensar.`,
+      riscoClinico: 'Déficit de dorsiflexão de tornozelo ou fraqueza excêntrica de quadríceps.'
+    });
+  }
 
   const getClass = (score: number) => {
-    if (score <= 1) return 'Excelente / Bom';
-    if (score <= 3) return 'Moderado';
-    return 'Pobre / Risco Elevado';
+    if (score <= 1) return 'Excelente / Bom (0 a 1 erro)';
+    if (score === 2) return 'Moderado (2 erros)';
+    return 'Pobre / Risco Elevado (≥ 3 erros)';
   };
 
   const classificacaoD = getClass(scoreD);
   const classificacaoE = getClass(scoreE);
 
-  const alerts: BiomechanicAlert[] = [];
-
-  if (scoreD >= 4 || scoreE >= 4) {
-    alerts.push({
+  // Alerta global somente se houver falhas múltiplas (≥ 3 erros)
+  if (scoreD >= 3 || scoreE >= 3) {
+    alerts.unshift({
       tipo: 'critico',
-      titulo: 'Controle Cinemático Pobre no Step Down (Score ≥ 4)',
-      articulacao: 'Joelho / Quadril',
-      lado: scoreD >= 4 && scoreE >= 4 ? 'Bilateral' : scoreD >= 4 ? 'Direito' : 'Esquerdo',
-      valorCalculado: `D: ${scoreD} pts | E: ${scoreE} pts`,
-      referenciaIdeal: '0 a 1 pt (Bom)',
-      descricao: `Escore de ${Math.max(scoreD, scoreE)} pontos indica falha múltipla de alinhamento.`,
-      riscoClinico: 'Forte associação com Síndrome da Dor Patelofemoral (SDPF), sobrecarga no menisco e tendão patelar.'
-    });
-  } else if (scoreD >= 2 || scoreE >= 2) {
-    alerts.push({
-      tipo: 'atencao',
-      titulo: 'Compensação Moderada no Step Down (Score 2-3)',
-      articulacao: 'Joelho / Quadril',
-      lado: scoreD >= 2 && scoreE >= 2 ? 'Bilateral' : scoreD >= 2 ? 'Direito' : 'Esquerdo',
-      valorCalculado: `D: ${scoreD} pts | E: ${scoreE} pts`,
-      referenciaIdeal: '0 a 1 pt (Bom)',
-      descricao: 'Presença de queda pélvica, valgo dinâmico leve ou pronação subtalar.',
-      riscoClinico: 'Risco moderado de sobrecarga articular na descida de degraus ou aterrissagem de saltos.'
+      titulo: 'Controle Cinemático Global Pobre no Step Down (≥ 3 Erros)',
+      articulacao: 'Membro Inferior',
+      lado: scoreD >= 3 && scoreE >= 3 ? 'Bilateral' : scoreD >= 3 ? 'Direito' : 'Esquerdo',
+      valorCalculado: `D: ${scoreD}/4 erros | E: ${scoreE}/4 erros`,
+      referenciaIdeal: '0 a 1 erro (Bom)',
+      descricao: 'Múltiplas compensações biomecânicas simultâneas observadas no teste.',
+      riscoClinico: 'Elevada sobrecarga articular no joelho, quadril e tornozelo durante desacelerações.'
     });
   }
 
