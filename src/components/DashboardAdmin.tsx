@@ -2676,10 +2676,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             gap: '12px'
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '280px', flex: '1 1 300px' }}>
-                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.95rem', flexShrink: 0 }}>
-                              {c.dadosPessoais?.nome?.charAt(0) || 'A'}
-                            </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '280px', flex: '1 1 300px' }}>
                             <div>
                               <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem' }}>
                                 {c.dadosPessoais?.nome}
@@ -2747,10 +2744,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                             gap: '12px'
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '280px', flex: '1 1 300px' }}>
-                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.95rem', flexShrink: 0 }}>
-                              ✓
-                            </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '280px', flex: '1 1 300px' }}>
                             <div>
                               <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {c.dadosPessoais?.nome}
