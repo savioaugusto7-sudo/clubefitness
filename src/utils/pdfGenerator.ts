@@ -3413,15 +3413,223 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         border-radius: 50%;
         display: inline-block;
       }
-      p, li, tr, h2, h3, h4, table, tbody {
+      .ratio-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .ratio-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 10px;
+        box-sizing: border-box;
+      }
+      .ratio-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+      .ratio-card-title {
+        font-size: 8px;
+        font-weight: 750;
+        color: #0f172a;
+        text-transform: uppercase;
+        font-family: 'Outfit', sans-serif;
+      }
+      .ratio-card-body {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .ratio-val {
+        font-size: 13px;
+        font-weight: 800;
+        color: #0f172a;
+        font-family: 'Outfit', sans-serif;
+      }
+      .ratio-ref {
+        font-size: 7.5px;
+        color: #64748b;
+        font-weight: 600;
+      }
+      .avoid-break, .section-card, tr, tbody {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+      }
+      thead {
+        display: table-header-group;
       }
     </style>
   `;
 
   if (isNew) {
-    // Individual tests logic
+    const pesoNum = Number(peso) || Number(client?.dadosMedidos?.peso) || 0;
+
+    // Helper de Cálculo de Razões Musculares & Alertas Clínicos
+    const mapTests: Record<string, Record<string, { D?: any, E?: any }>> = {};
+    (st.testesRealizados || []).forEach((t: any) => {
+      if (!mapTests[t.articulacao]) mapTests[t.articulacao] = {};
+      if (!mapTests[t.articulacao][t.movimento]) mapTests[t.articulacao][t.movimento] = {};
+      const side = (t.lado || '').toUpperCase().startsWith('E') ? 'E' : 'D';
+      mapTests[t.articulacao][t.movimento][side] = t;
+    });
+
+    const getAvgForceN = (art: string, mov: string): number => {
+      const item = mapTests[art]?.[mov];
+      if (!item) return 0;
+      const vD = item.D?.forcaN || 0;
+      const vE = item.E?.forcaN || 0;
+      if (vD > 0 && vE > 0) return (vD + vE) / 2;
+      return vD || vE || 0;
+    };
+
+    const ratiosList: Array<{
+      nome: string;
+      articulacao: string;
+      valorStr: string;
+      referencia: string;
+      status: 'EQUILIBRADO' | 'ATENÇÃO' | 'RISCO CRÍTICO';
+      badgeClass: string;
+      detalhe: string;
+    }> = [];
+
+    const alertasClinicos: string[] = [];
+
+    // 1. Razão I:Q (Joelho: Flexores / Extensores)
+    const extJoelho = getAvgForceN('Joelho', 'Extensão');
+    const flexJoelho = getAvgForceN('Joelho', 'Flexão');
+    if (extJoelho > 0 && flexJoelho > 0) {
+      const iq = (flexJoelho / extJoelho) * 100;
+      const isCrit = iq < 60;
+      const isAlt = iq < 65 || iq > 80;
+      ratiosList.push({
+        nome: 'Razão I:Q (Isquiotibiais / Quadríceps)',
+        articulacao: 'Joelho',
+        valorStr: `${iq.toFixed(1)}%`,
+        referencia: '60% a 75%',
+        status: isCrit ? 'RISCO CRÍTICO' : (isAlt ? 'ATENÇÃO' : 'EQUILIBRADO'),
+        badgeClass: isCrit ? 'badge-red' : (isAlt ? 'badge-orange' : 'badge-green'),
+        detalhe: isCrit ? 'Déficit isquiotibial severo (<60%)' : (isAlt ? 'Fora da faixa ideal 60-75%' : 'Equilíbrio biomecânico seguro')
+      });
+      if (isCrit) {
+        alertasClinicos.push(`🔴 <strong>Risco Crítico de Lesão de LCA (Razão I:Q = ${iq.toFixed(1)}%)</strong>: Isquiotibiais insuficientes para desacelerar o vetor anterior da tíbia gerado pelo quadríceps (< 60%). Risco aumentado em desacelerações e saltos.`);
+      } else if (isAlt) {
+        alertasClinicos.push(`⚠️ <strong>Atenção na Razão I:Q (${iq.toFixed(1)}%)</strong>: Relação flexores/extensores fora da faixa ideal (60% a 75%). Recomendado fortalecimento de isquiotibiais.`);
+      }
+    }
+
+    // 2. Razão Adutor / Abdutor (Quadril)
+    const abdQuadril = getAvgForceN('Quadril', 'Abdução');
+    const addQuadril = getAvgForceN('Quadril', 'Adução');
+    if (abdQuadril > 0 && addQuadril > 0) {
+      const adAbd = addQuadril / abdQuadril;
+      const isHigh = adAbd > 1.15;
+      const isLow = adAbd < 0.80;
+      ratiosList.push({
+        nome: 'Razão Adutor / Abdutor',
+        articulacao: 'Quadril',
+        valorStr: adAbd.toFixed(2),
+        referencia: '0.80 a 1.15 (Ideal 1:1)',
+        status: (isHigh || isLow) ? 'RISCO CRÍTICO' : 'EQUILIBRADO',
+        badgeClass: (isHigh || isLow) ? 'badge-red' : 'badge-green',
+        detalhe: isHigh ? 'Dominância Adutora (>1.15)' : (isLow ? 'Instabilidade Medial (<0.80)' : 'Equilíbrio cinesiológico ideal')
+      });
+      if (isHigh) {
+        alertasClinicos.push(`🔴 <strong>Risco de Pubalgia Atlética (Razão Ad/Abd = ${adAbd.toFixed(2)})</strong>: Adutores excessivamente dominantes sobre os abdutores (> 1.15). Tensão repetitiva na sínfise púbica.`);
+      } else if (isLow) {
+        alertasClinicos.push(`⚠️ <strong>Instabilidade Medial de Quadril (Razão Ad/Abd = ${adAbd.toFixed(2)})</strong>: Fraqueza adutora em relação aos abdutores (< 0.80).`);
+      }
+    }
+
+    // 3. Força Relativa Glúteo Médio (%PC)
+    if (abdQuadril > 0 && pesoNum > 0) {
+      const gmPC = (abdQuadril / 9.80665 / pesoNum) * 100;
+      const minRef = sex === 'F' ? 20 : 25;
+      const isLow = gmPC < minRef;
+      ratiosList.push({
+        nome: 'Glúteo Médio Relativo (%PC)',
+        articulacao: 'Quadril',
+        valorStr: `${gmPC.toFixed(1)}% PC`,
+        referencia: sex === 'F' ? '≥ 20% PC' : '≥ 25% PC',
+        status: isLow ? 'ATENÇÃO' : 'EQUILIBRADO',
+        badgeClass: isLow ? 'badge-orange' : 'badge-green',
+        detalhe: isLow ? 'Abaixo do limiar normativo' : 'Sustentação pélvica adequada'
+      });
+      if (isLow) {
+        alertasClinicos.push(`⚠️ <strong>Déficit de Glúteo Médio (${gmPC.toFixed(1)}% PC)</strong>: Força relativa abaixo da referência (${minRef}% PC). Predisposição a queda pélvica e valgo dinâmico.`);
+      }
+    }
+
+    // 4. Razão Rotadores de Ombro (RE / RI)
+    const rotExtOmbro = getAvgForceN('Ombro', 'Rotação Externa');
+    const rotIntOmbro = getAvgForceN('Ombro', 'Rotação Interna');
+    if (rotExtOmbro > 0 && rotIntOmbro > 0) {
+      const rotRatio = rotExtOmbro / rotIntOmbro;
+      const isLow = rotRatio < 0.70;
+      ratiosList.push({
+        nome: 'Rotadores de Ombro (RE / RI)',
+        articulacao: 'Ombro',
+        valorStr: rotRatio.toFixed(2),
+        referencia: '0.70 a 0.85',
+        status: isLow ? 'RISCO CRÍTICO' : 'EQUILIBRADO',
+        badgeClass: isLow ? 'badge-red' : 'badge-green',
+        detalhe: isLow ? 'Insuficiência de Rot. Externos (<0.70)' : 'Equilíbrio glenoumeral preservado'
+      });
+      if (isLow) {
+        alertasClinicos.push(`🔴 <strong>Instabilidade Glenoumeral (Razão RE/RI = ${rotRatio.toFixed(2)})</strong>: Rotadores externos insuficientes (< 0.70). Risco aumentado de impacto subacromial e tendinopatia.`);
+      }
+    }
+
+    // 5. Razão Remada / Supino (Tração / Empurre Horizontal)
+    const remada = getAvgForceN('Membro Superior', 'Remada');
+    const supino = getAvgForceN('Membro Superior', 'Supino');
+    if (remada > 0 && supino > 0) {
+      const rHor = remada / supino;
+      const isLow = rHor < 0.80;
+      ratiosList.push({
+        nome: 'Tração / Empurre Horizontal (Remada / Supino)',
+        articulacao: 'Membro Superior',
+        valorStr: rHor.toFixed(2),
+        referencia: '≥ 0.80 a 1.00',
+        status: isLow ? 'ATENÇÃO' : 'EQUILIBRADO',
+        badgeClass: isLow ? 'badge-orange' : 'badge-green',
+        detalhe: isLow ? 'Dominância anterior / peitoral' : 'Proporção equilibrada'
+      });
+      if (isLow) {
+        alertasClinicos.push(`⚠️ <strong>Dominância Anterior de Tronco (Remada/Supino = ${rHor.toFixed(2)})</strong>: Retratores escapulares fracos em relação aos depressores/peitorais (< 0.80).`);
+      }
+    }
+
+    // 6. Razão Puxada / Desenvolvimento (Tração / Empurre Vertical)
+    const puxada = getAvgForceN('Membro Superior', 'Puxada');
+    const desenv = getAvgForceN('Membro Superior', 'Desenvolvimento');
+    if (puxada > 0 && desenv > 0) {
+      const rVer = puxada / desenv;
+      const isLow = rVer < 1.00;
+      ratiosList.push({
+        nome: 'Tração / Empurre Vertical (Puxada / Desenv.)',
+        articulacao: 'Membro Superior',
+        valorStr: rVer.toFixed(2),
+        referencia: '≥ 1.00 a 1.10',
+        status: isLow ? 'ATENÇÃO' : 'EQUILIBRADO',
+        badgeClass: isLow ? 'badge-orange' : 'badge-green',
+        detalhe: isLow ? 'Insuficiência de depressores' : 'Proporção equilibrada'
+      });
+      if (isLow) {
+        alertasClinicos.push(`⚠️ <strong>Desequilíbrio Vertical (Puxada/Desenvolvimento = ${rVer.toFixed(2)})</strong>: Proporção abaixo da referência normativa (≥ 1.00).`);
+      }
+    }
+
+    // 7. Assimetrias Bilaterais Críticas (>15%)
+    (st.comparativos || []).forEach((c: any) => {
+      if (c.deficit > 15) {
+        alertasClinicos.push(`🔴 <strong>Assimetria Relevante em ${c.articulacao} - ${c.movimento} (${c.deficit.toFixed(1)}% de déficit)</strong>: Diferença contralateral superior a 15%. Risco de sobrecarga compensatória.`);
+      }
+    });
+
+    // Tabela de Testes Individuais
     const testsHtml = st.testesRealizados.map((t: any) => {
       const refData = STRENGTH_REFERENCE_TABLE[t.articulacao]?.[t.movimento]?.[sex === 'F' ? 'F' : 'M'] || { min: 0, max: 0 };
       const refText = refData.min > 0 ? `${refData.min}-${refData.max} %PC` : '-';
@@ -3446,7 +3654,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       `;
     }).join('');
 
-    // Bilateral comparisons logic
+    // Tabela de Comparativos Bilaterais
     const compsHtml = (st.comparativos || []).map((c: any) => {
       let badgeClass = 'badge-green';
       if (c.classificacaoSimetria === 'Aceitável') badgeClass = 'badge-blue';
@@ -3475,8 +3683,47 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       `;
     }).join('');
 
+    // HTML de Cards de Razões
+    const ratiosCardsHtml = ratiosList.length > 0 ? `
+      <div class="section-card avoid-break">
+        <div class="section-card-title">Razões Biomecânicas e Equilíbrio Muscular Cinesiológico</div>
+        <div class="section-card-content">
+          <div class="ratio-grid">
+            ${ratiosList.map(r => `
+              <div class="ratio-card">
+                <div class="ratio-card-header">
+                  <span class="ratio-card-title">${r.nome}</span>
+                  <span class="metric-badge ${r.badgeClass}">${r.status}</span>
+                </div>
+                <div class="ratio-card-body">
+                  <div class="ratio-val">${r.valorStr}</div>
+                  <div class="ratio-ref">Referência: <strong>${r.referencia}</strong></div>
+                </div>
+                <div style="font-size: 7px; color: #64748b; margin-top: 3px; font-weight: 500;">${r.detalhe}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    ` : '';
+
+    // HTML de Advertências e Alertas Clínicos
+    const warningsPanelHtml = `
+      <div class="section-card avoid-break">
+        <div class="section-card-title" style="background: ${alertasClinicos.length > 0 ? '#991b1b' : '#065f46'};">
+          ${alertasClinicos.length > 0 ? '⚠️ Alertas Clínicos & Riscos Biomecânicos Detectados' : '✓ Conformidade Biomecânica & Segurança'}
+        </div>
+        <div class="section-card-content" style="padding: 10px 12px; background: ${alertasClinicos.length > 0 ? '#fef2f2' : '#f0fdf4'};">
+          ${alertasClinicos.length > 0
+            ? alertasClinicos.map(a => `<div style="font-size: 8px; color: #991b1b; line-height: 1.4; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed #fecaca;">${a}</div>`).join('')
+            : `<div style="font-size: 8.5px; color: #15803d; font-weight: 600; line-height: 1.35;">✓ Todas as proporções articulares, simetrias bilaterais e razões agonista/antagonista avaliadas encontram-se dentro dos parâmetros normativos de estabilidade e segurança.</div>`
+          }
+        </div>
+      </div>
+    `;
+
     const observationHtml = st.observacoes 
-      ? `<div class="section-card">
+      ? `<div class="section-card avoid-break">
           <div class="section-card-title">Observações Clínicas / Recomendações</div>
           <div class="section-card-content" style="font-size:8.5px; line-height:1.4; white-space:pre-wrap; background:#fafafa;">${st.observacoes}</div>
          </div>`
@@ -3484,152 +3731,127 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
     pdfContainer.innerHTML = `
       ${pdfStyles}
-      <!-- ================= PÁGINA 1: SÍNTESE & ATLAS ANATÔMICO ================= -->
-      <div class="pdf-page" style="page-break-after: always;">
-        <div class="pdf-page-content">
-          <!-- 1. Header Clínico -->
-          <div class="grid-header">
-            <div class="logo-box">
-              ${logoBase64 
-                ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-                : `<div style="width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 16px; font-family: 'Outfit', sans-serif; flex-shrink: 0;">CFF</div>`
-              }
-              <div>
-                <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
-                <p class="logo-subtitle">Laudo Clínico de Avaliação de Força & Simetria Biomecânica</p>
-              </div>
-            </div>
-            <div class="date-box">
-              <span>Data da Avaliação</span>
-              <strong>${data}</strong>
-            </div>
-          </div>
-
-          <!-- 2. Ficha do Aluno -->
-          <div class="client-bar">
-            <div class="client-bar-item">
-              <span>Aluno / Paciente</span>
-              <strong>${nome}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>CPF</span>
-              <strong>${cpf}</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Peso Corporal</span>
-              <strong>${peso} kg</strong>
-            </div>
-            <div class="client-bar-item">
-              <span>Sexo</span>
-              <strong>${sex === 'F' ? 'Feminino' : 'Masculino'}</strong>
-            </div>
-          </div>
-
-          <!-- 3. Mapeamento Anatômico Integrado Dual-Body -->
-          <div class="section-card" style="margin-top: 10px;">
-            <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
-              <span>Mapeamento Anatômico de Recrutamento & Articulações Avaliadas</span>
-              <span style="font-size: 7.5px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px;">
-                ${testedJoints.size === 0 || testedJoints.size === 6 ? 'Bateria Completa (6 Articulações)' : `${testedJoints.size} de 6 Articulações Avaliadas`}
-              </span>
-            </div>
-            <div class="section-card-content" style="padding: 16px 18px; background: #ffffff; text-align: center;">
-              <!-- Imagem Dual-Body (Anterior + Posterior Lado a Lado) -->
-              <div style="width: 100%; max-width: 500px; margin: 0 auto 12px auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #f1f5f9; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
-                <img src="${splitAtlasBase64}" style="width: 100%; height: auto; max-height: 480px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Dual Body" />
-              </div>
-
-              <!-- Grid de Rodapé Dinâmico (6 Cartões Cinesiológicos Padronizados) -->
-              ${renderStrengthAtlasFooterHtml(testedJoints)}
-            </div>
-          </div>
-        </div>
-
-        <!-- Footer Página 1 -->
-        <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
-          <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
-          <strong>Página 1 de 2</strong>
-        </div>
-      </div>
-
-      <!-- ================= PÁGINA 2: DADOS QUANTITATIVOS & SIMETRIA ================= -->
       <div class="pdf-page">
-        <div class="pdf-page-content">
-          <!-- Mini Header Clínico de Continuação -->
-          <div class="grid-header" style="padding-bottom: 8px; margin-bottom: 12px;">
-            <div class="logo-box">
-              ${logoBase64 
-                ? `<img src="${logoBase64}" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;" alt="Logo CFF">`
-                : `<div style="width: 32px; height: 32px; border-radius: 6px; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 12px;">CFF</div>`
-              }
-              <div>
-                <strong style="font-size: 13px; color: #0f172a; font-family: 'Outfit', sans-serif;">CLUBE FITNESS FISIO &nbsp;•&nbsp; LAUDO QUANTITATIVO</strong>
-                <p style="font-size: 8px; color: #64748b; margin: 0;">Paciente: <strong>${nome}</strong> &nbsp;|&nbsp; Data: <strong>${data}</strong></p>
-              </div>
-            </div>
-            <div style="font-size: 8px; color: #475569; font-weight: 700; text-transform: uppercase;">
-              Bateria de Força & Simetria
+        <!-- 1. Header Clínico Principal -->
+        <div class="grid-header">
+          <div class="logo-box">
+            ${logoBase64 
+              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+              : `<div style="width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 16px; font-family: 'Outfit', sans-serif; flex-shrink: 0;">CFF</div>`
+            }
+            <div>
+              <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+              <p class="logo-subtitle">Laudo Clínico de Avaliação de Força & Simetria Biomecânica</p>
             </div>
           </div>
+          <div class="date-box">
+            <span>Data da Avaliação</span>
+            <strong>${data}</strong>
+          </div>
+        </div>
 
-          <!-- 4. Tabela de Testes Individuais -->
-          <div class="section-card">
-            <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
+        <!-- 2. Ficha do Aluno -->
+        <div class="client-bar">
+          <div class="client-bar-item">
+            <span>Aluno / Paciente</span>
+            <strong>${nome}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>CPF</span>
+            <strong>${cpf}</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Peso Corporal</span>
+            <strong>${peso} kg</strong>
+          </div>
+          <div class="client-bar-item">
+            <span>Sexo</span>
+            <strong>${sex === 'F' ? 'Feminino' : 'Masculino'}</strong>
+          </div>
+        </div>
+
+        <!-- 3. Mapeamento Anatômico Integrado Dual-Body (Compacto para permitir subida da tabela) -->
+        <div class="section-card" style="margin-top: 6px; margin-bottom: 10px;">
+          <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Mapeamento Anatômico de Recrutamento & Articulações Avaliadas</span>
+            <span style="font-size: 7.5px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px;">
+              ${testedJoints.size === 0 || testedJoints.size === 6 ? 'Bateria Completa (6 Articulações)' : `${testedJoints.size} de 6 Articulações Avaliadas`}
+            </span>
+          </div>
+          <div class="section-card-content" style="padding: 10px 14px; background: #ffffff; text-align: center;">
+            <!-- Imagem Dual-Body Compacta e Nítida -->
+            <div style="width: 100%; max-width: 440px; margin: 0 auto 6px auto; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
+              <img src="${splitAtlasBase64}" style="width: 100%; height: auto; max-height: 230px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Dual Body" />
+            </div>
+
+            <!-- Grid de Rodapé Dinâmico das Articulações -->
+            ${renderStrengthAtlasFooterHtml(testedJoints)}
+          </div>
+        </div>
+
+        <!-- 4. Tabela de Testes Individuais (Começa logo abaixo na Página 1 de forma nobre e contínua) -->
+        <div class="section-card">
+          <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
+          <div class="section-card-content" style="padding:0;">
+            <table class="table-data">
+              <thead>
+                <tr>
+                  <th>Articulação</th>
+                  <th>Movimento</th>
+                  <th style="text-align:center;">Lado</th>
+                  <th style="text-align:right;">Valor</th>
+                  <th style="text-align:right;">Força (N)</th>
+                  <th style="text-align:right;">%PC</th>
+                  <th style="text-align:center;">Ref. Média</th>
+                  <th style="text-align:right;">% Ref.</th>
+                  <th style="text-align:center;">Classificação</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${testsHtml}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 5. Tabela de Comparação Bilateral -->
+        ${st.comparativos && st.comparativos.length > 0 ? `
+          <div class="section-card avoid-break">
+            <div class="section-card-title">Análise de Simetria e Déficit Lateral (Agonista / Antagonista)</div>
             <div class="section-card-content" style="padding:0;">
               <table class="table-data">
                 <thead>
                   <tr>
                     <th>Articulação</th>
                     <th>Movimento</th>
-                    <th style="text-align:center;">Lado</th>
-                    <th style="text-align:right;">Valor</th>
-                    <th style="text-align:right;">Força (N)</th>
-                    <th style="text-align:right;">%PC</th>
-                    <th style="text-align:center;">Ref. Média</th>
-                    <th style="text-align:right;">% Ref.</th>
-                    <th style="text-align:center;">Classificação</th>
+                    <th style="text-align:right;">Dir (N)</th>
+                    <th style="text-align:right;">Esq (N)</th>
+                    <th style="text-align:right;">Déficit (%)</th>
+                    <th style="text-align:right; width: 110px;">Simetria (%)</th>
+                    <th style="text-align:center;">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${testsHtml}
+                  ${compsHtml}
                 </tbody>
               </table>
             </div>
           </div>
+        ` : ''}
 
-          <!-- 5. Tabela de Comparação Bilateral -->
-          ${st.comparativos && st.comparativos.length > 0 ? `
-            <div class="section-card">
-              <div class="section-card-title">Análise de Simetria e Déficit Lateral (Agonista / Antagonista)</div>
-              <div class="section-card-content" style="padding:0;">
-                <table class="table-data">
-                  <thead>
-                    <tr>
-                      <th>Articulação</th>
-                      <th>Movimento</th>
-                      <th style="text-align:right;">Dir (N)</th>
-                      <th style="text-align:right;">Esq (N)</th>
-                      <th style="text-align:right;">Déficit (%)</th>
-                      <th style="text-align:right; width: 110px;">Simetria (%)</th>
-                      <th style="text-align:center;">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${compsHtml}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ` : ''}
+        <!-- 6. Cards de Razões Biomecânicas e Equilíbrio Muscular -->
+        ${ratiosCardsHtml}
 
-          <!-- 6. Observações Clínicas -->
-          ${observationHtml}
-        </div>
+        <!-- 7. Painel de Alertas Clínicos & Riscos de Lesão -->
+        ${warningsPanelHtml}
 
-        <!-- Footer Página 2 -->
-        <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+        <!-- 8. Observações Clínicas -->
+        ${observationHtml}
+
+        <!-- Footer Geral Institucional -->
+        <div class="avoid-break" style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
           <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
-          <strong>Página 2 de 2</strong>
+          <strong>Laudo de Avaliação Biomecânica Computadorizada</strong>
         </div>
       </div>
     `;
@@ -3764,7 +3986,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
   const filename = `Analise_Forca_${nome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
   const options = {
-    margin: 0,
+    margin: [8, 8, 10, 8],
     filename: filename,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
