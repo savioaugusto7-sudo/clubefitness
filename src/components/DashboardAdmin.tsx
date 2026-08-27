@@ -797,36 +797,22 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       let finalEndDate: string | null = '';
       if (fsDurationType === 'contrato') {
         const selectedClientObj = clients.find(c => c._id === fsClient);
-        const com = selectedClientObj?.dadosComerciais || {};
-        const hasRecurrence = Boolean(com.criarRecorrenciaMensal);
-
-        if (hasRecurrence) {
-          // Aluno com recorrência ativada -> Vigência contínua/recorrente sem data final fixa
-          finalEndDate = null;
-        } else if (com.vencimento && com.vencimento >= fsDate) {
-          // 1. Vencimento comercial futuro ou igual à data de início
-          finalEndDate = com.vencimento;
-        } else {
-          // 2. Buscar contrato assinado com dataFim válida (futura)
-          const resContracts = await fetch(`/api/contracts?clientId=${fsClient}`);
-          const dataContracts = await resContracts.json();
-          if (dataContracts.success && Array.isArray(dataContracts.data)) {
-            const activeContract = dataContracts.data.find((c: any) => 
-              (c.status === 'assinado' || c.status === 'congelado' || c.status === 'ativo' || c.status === 'pendente') && c.dataFim && c.dataFim >= fsDate
-            );
-            if (activeContract && activeContract.dataFim) {
-              finalEndDate = activeContract.dataFim;
+        if (selectedClientObj) {
+          const valInfo = getContractValidityInfo(selectedClientObj, undefined, contractsAdminList);
+          if (valInfo && valInfo.dataFim && !valInfo.isExpired) {
+            finalEndDate = valInfo.dataFim;
+          } else {
+            const com = selectedClientObj.dadosComerciais || {};
+            if (com.dataFim && com.dataFim >= fsDate) {
+              finalEndDate = com.dataFim;
+            } else if (com.vencimento && com.vencimento >= fsDate) {
+              finalEndDate = com.vencimento;
             }
           }
         }
 
-        // 3. Se não tem recorrência e não encontrou vigência válida futura
-        if (!hasRecurrence && !finalEndDate) {
-          if (com.vencimento && com.vencimento < fsDate) {
-            alert(`O plano deste aluno expirou em ${new Date(com.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')} (anterior à data de início ${new Date(fsDate + 'T12:00:00').toLocaleDateString('pt-BR')}). Por favor, renove a vigência na Gestão de Contratos, ative a recorrência ou selecione "Definir data final manualmente".`);
-          } else {
-            alert('Não foi encontrada nenhuma data de vigência/vencimento ativa para este aluno. Por favor, selecione "Definir data final manualmente" ou "Sem data final (Indeterminado)".');
-          }
+        if (!finalEndDate) {
+          alert('Não foi encontrada nenhuma data de vigência ativa para este aluno. Por favor, renove a vigência na Gestão de Contratos, ative a recorrência ou selecione "Definir data final manualmente".');
           return;
         }
       } else if (fsDurationType === 'manual') {
@@ -7460,15 +7446,33 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       if (!selClient) return null;
 
                       if (fsDurationType === 'contrato') {
-                        if (selClient.dadosContratuais?.dataFim) {
-                          const df = selClient.dadosContratuais.dataFim;
+                        const valInfo = getContractValidityInfo(selClient, undefined, contractsAdminList);
+                        if (valInfo && valInfo.dataFim && !valInfo.isExpired) {
                           return (
                             <div style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <i className="fa-solid fa-shield-halved"></i>
-                              Regra válida até: <strong>{df.split('-').reverse().join('/')}</strong> (Fim do Contrato)
+                              Vigência ativa até: <strong>{valInfo.dataFimFormatted}</strong> {valInfo.isRecorrente ? '(Recorrência Mensal)' : '(Fim da Vigência)'}
+                            </div>
+                          );
+                        } else if (valInfo && valInfo.isExpired) {
+                          return (
+                            <div style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-triangle-exclamation"></i>
+                              Plano vencido em {valInfo.dataFimFormatted}. Recomendado renovar antes de fixar horário.
                             </div>
                           );
                         } else {
+                          const com = selClient.dadosComerciais || {};
+                          const rawDate = com.dataFim || com.vencimento;
+                          if (rawDate) {
+                            const dfFormatted = rawDate.split('-').reverse().join('/');
+                            return (
+                              <div style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-shield-halved"></i>
+                                Vigência até: <strong>{dfFormatted}</strong> (Cadastro Comercial)
+                              </div>
+                            );
+                          }
                           return (
                             <div style={{ color: '#fdcb6e', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <i className="fa-solid fa-triangle-exclamation"></i>
