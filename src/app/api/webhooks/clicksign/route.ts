@@ -139,7 +139,11 @@ export async function POST(request: Request) {
               }
               const { createAsaasPayment } = await import('@/utils/asaas');
               const numParcelas = Number(contract.parcelas) || 1;
-              const totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+              let totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+              // Trava de segurança: se o contrato for parcelado e o valorLiquido for compatível com uma única parcela, usar valorBruto
+              if (numParcelas > 1 && contract.valorBruto && totalLiquido < (contract.valorBruto * 0.75) && (!contract.descontoValor || contract.descontoValor === 0)) {
+                totalLiquido = Number(contract.valorBruto);
+              }
               const valorParcela = numParcelas > 1 ? Number((totalLiquido / numParcelas).toFixed(2)) : totalLiquido;
               const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0];
 

@@ -296,7 +296,7 @@ export async function PUT(request: Request) {
       valorBruto: valorFinalTotal,
       descontoTipo: 'fixo',
       descontoValor: 0,
-      valorLiquido: valorParcela,
+      valorLiquido: valorFinalTotal,
       formaPagamento,
       parcelas: numParcelas,
       dataPrimeiroVencimento,
