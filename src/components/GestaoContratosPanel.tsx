@@ -105,38 +105,6 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 0.1 Aluno Convênio Dynamus (Não é Lead, Já entra como Dynamus)
-  const isDynamus = Boolean(
-    plan?.nome?.toLowerCase().includes('dynamus') ||
-    com.planoNome?.toLowerCase().includes('dynamus') ||
-    dp.email?.toLowerCase().includes('dynamus') ||
-    dp.endereco?.toLowerCase().includes('dynamus') ||
-    c?.codigo?.toUpperCase().includes('DYN') ||
-    c?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
-  );
-
-  if (isDynamus) {
-    const isDynamusComplete = Boolean(dp.nome && isCpfValid);
-    return {
-      stageKey: 'dynamus',
-      stageLabel: '⚡ ALUNO DYNAMUS',
-      badgeBg: 'rgba(6, 182, 212, 0.18)',
-      badgeColor: '#22d3ee',
-      badgeBorder: '1px solid rgba(6, 182, 212, 0.4)',
-      orientacaoKey: 'gerenciar_dynamus',
-      orientacaoLabel: '⚡ Gerenciar Aluno Dynamus',
-      isRecorrente: false,
-      isBoleto: false,
-      hasAsaasBoleto: false,
-      hasCpf: isCpfValid,
-      hasPhone: true, // Dispensado para Dynamus (dados do convênio)
-      hasEndereco: true, // Dispensado para Dynamus (dados do convênio)
-      hasBirthDate: true, // Dispensado para Dynamus
-      isMissingData: !isDynamusComplete,
-      info
-    };
-  }
-
   // 1. Verificar se há contrato assinado/ativo (Prioridade Máxima)
   const isContractSigned = Boolean(
     latestContract?.status === 'assinado' ||
@@ -145,7 +113,6 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   );
 
   // 2. Contrato Pendente de Assinatura (Clicksign / Presencial)
-  // Só é considerado pendente se o contrato NÃO estiver assinado e houver pendência real
   const isPendingContract = !isContractSigned && Boolean(
     (latestContract && (latestContract.status === 'pendente' || (latestContract.clicksignDocKey && latestContract.clicksignStatus === 'pendente'))) ||
     (com.status === 'pendente' && !latestContract)
@@ -172,7 +139,7 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 3. Proposta Comercial Enviada via Link (Pendente de Resposta do Aluno)
+  // 3. Proposta Comercial Enviada via Link (Pendente de Resposta do Aluno / Lead)
   const isPendingProposal = !isContractSigned && Boolean(
     (latestProposal && latestProposal.status === 'pendente') ||
     com.status === 'proposta_enviada' ||
@@ -195,6 +162,39 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
       hasEndereco,
       hasBirthDate,
       isMissingData,
+      info
+    };
+  }
+
+  // 4. Aluno Convênio Dynamus (Sem proposta/contrato Clube em andamento)
+  const isDynamus = Boolean(
+    com.isConvenioDynamus ||
+    plan?.nome?.toLowerCase().includes('dynamus') ||
+    com.planoNome?.toLowerCase().includes('dynamus') ||
+    dp.email?.toLowerCase().includes('dynamus') ||
+    dp.endereco?.toLowerCase().includes('dynamus') ||
+    c?.codigo?.toUpperCase().includes('DYN') ||
+    c?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
+  );
+
+  if (isDynamus) {
+    const isDynamusComplete = Boolean(dp.nome && isCpfValid);
+    return {
+      stageKey: 'dynamus',
+      stageLabel: '⚡ ALUNO DYNAMUS',
+      badgeBg: 'rgba(6, 182, 212, 0.18)',
+      badgeColor: '#22d3ee',
+      badgeBorder: '1px solid rgba(6, 182, 212, 0.4)',
+      orientacaoKey: 'gerenciar_dynamus',
+      orientacaoLabel: '⚡ Gerenciar Aluno Dynamus',
+      isRecorrente: false,
+      isBoleto: false,
+      hasAsaasBoleto: false,
+      hasCpf: isCpfValid,
+      hasPhone: true, // Dispensado para Dynamus (dados do convênio)
+      hasEndereco: true, // Dispensado para Dynamus (dados do convênio)
+      hasBirthDate: true, // Dispensado para Dynamus
+      isMissingData: !isDynamusComplete,
       info
     };
   }
@@ -6537,7 +6537,7 @@ export default function GestaoContratosPanel({
                         <option value="">Selecione o plano...</option>
                         {activePlans.map(p => (
                           <option key={p._id} value={p._id}>
-                            {p.nome} — R$ {(p.preco || 0).toFixed(2).replace('.', ',')} ({p.tipo || 'Mensal'})
+                            {p.nome}
                           </option>
                         ))}
                       </select>

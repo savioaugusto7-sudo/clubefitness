@@ -66,18 +66,24 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
   const [retroError, setRetroError] = useState('');
   const [retroSuccess, setRetroSuccess] = useState('');
 
-  // Modal de Link de Venda / Proposta Comercial Clube Fitness
-  const [proposalClient, setProposalClient] = useState<any | null>(null);
-  const [proposalPlanId, setProposalPlanId] = useState<string>('');
-  const [proposalFormaPagamento, setProposalFormaPagamento] = useState<string>('pix');
-  const [proposalParcelas, setProposalParcelas] = useState<number>(1);
-  const [proposalDuracao, setProposalDuracao] = useState<string>('mensal');
-  const [proposalDuracaoQtd, setProposalDuracaoQtd] = useState<number>(1);
-  const [proposalValor, setProposalValor] = useState<number>(0);
-  const [generatingProposal, setGeneratingProposal] = useState(false);
-  const [generatedProposalUrl, setGeneratedProposalUrl] = useState('');
-  const [proposalError, setProposalError] = useState('');
-  const [proposalCopied, setProposalCopied] = useState(false);
+  // Modal Oficial de Link de Venda (SalesWizard)
+  const [salesWizardClient, setSalesWizardClient] = useState<any | null>(null);
+  const [swPlano, setSwPlano] = useState<string>('');
+  const [swCriarRecorrenciaMensal, setSwCriarRecorrenciaMensal] = useState<boolean>(false);
+  const [swDuracao, setSwDuracao] = useState<'mensal' | 'anual' | 'semana'>('mensal');
+  const [swVigenciaQtd, setSwVigenciaQtd] = useState<number>(1);
+  const [swDataInicio, setSwDataInicio] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [swFrequencia, setSwFrequencia] = useState<number>(3);
+  const [swCreditosMensais, setSwCreditosMensais] = useState<number>(13);
+  const [swCreditosMassagem, setSwCreditosMassagem] = useState<number>(0);
+  const [swCreditosEmergencia, setSwCreditosEmergencia] = useState<number>(0);
+  const [swValorUnitario, setSwValorUnitario] = useState<number>(0);
+  const [swDescontoTipo, setSwDescontoTipo] = useState<'percentual' | 'fixo'>('percentual');
+  const [swDescontoValor, setSwDescontoValor] = useState<number>(0);
+  const [swSubmitting, setSwSubmitting] = useState<boolean>(false);
+  const [swGeneratedProposalUrl, setSwGeneratedProposalUrl] = useState<string>('');
+  const [swCopied, setSwCopied] = useState<boolean>(false);
+  const [swError, setSwError] = useState<string>('');
 
   // Filter Dynamus clients (usando vínculo explícito isConvenioDynamus ou saldo dedicado)
   const dynamusClients = clients.filter(c => 
@@ -342,40 +348,52 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
     }
   };
 
-  const handleOpenProposal = (client: any) => {
-    setProposalClient(client);
-    const nonDynamusPlans = plans.filter(p => !p.nome?.toLowerCase().includes('dynamus'));
+  const handleOpenSalesWizard = (c: any) => {
+    setSalesWizardClient(c);
+    const nonDynamusPlans = plans.filter(p => !p.nome?.toLowerCase().includes('dynamus') && p.ativo !== false);
     const defaultPlan = nonDynamusPlans[0] || plans[0];
-    setProposalPlanId(defaultPlan?._id || '');
-    setProposalValor(defaultPlan?.preco || 0);
-    setProposalFormaPagamento('pix');
-    setProposalParcelas(1);
-    setProposalDuracao(defaultPlan?.tipo === 'Anual' ? 'anual' : 'mensal');
-    setProposalDuracaoQtd(1);
-    setGeneratedProposalUrl('');
-    setProposalError('');
-    setProposalCopied(false);
+    const pid = defaultPlan?._id || '';
+    setSwPlano(pid);
+    setSwCriarRecorrenciaMensal(false);
+    setSwDuracao(defaultPlan?.tipo === 'Anual' ? 'anual' : 'mensal');
+    setSwVigenciaQtd(defaultPlan?.tipo === 'Anual' ? 12 : 1);
+    setSwDataInicio(new Date().toISOString().split('T')[0]);
+    setSwFrequencia(defaultPlan?.frequencia || 3);
+    setSwCreditosMensais(defaultPlan?.creditosTotal || 13);
+    setSwCreditosMassagem(defaultPlan?.tipo === 'Anual' ? 1 : 0);
+    setSwCreditosEmergencia(defaultPlan?.tipo === 'Anual' ? 1 : 0);
+    setSwValorUnitario(defaultPlan?.preco || 0);
+    setSwDescontoTipo('percentual');
+    setSwDescontoValor(0);
+    setSwSubmitting(false);
+    setSwGeneratedProposalUrl('');
+    setSwCopied(false);
+    setSwError('');
   };
 
-  const handleGenerateProposal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!proposalClient || !proposalPlanId) return;
-
-    setGeneratingProposal(true);
-    setProposalError('');
-
+  const handleConfirmSalesWizard = async () => {
+    if (!salesWizardClient || !swPlano || Number(swValorUnitario) <= 0) return;
+    setSwSubmitting(true);
+    setSwError('');
     try {
       const res = await fetch('/api/propostas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clientId: proposalClient._id,
-          planoId: proposalPlanId,
-          formaPagamento: proposalFormaPagamento,
-          parcelas: proposalParcelas,
-          duracao: proposalDuracao,
-          duracaoQtd: proposalDuracaoQtd,
-          valorUnitario: proposalValor
+          clientId: salesWizardClient._id,
+          planoId: swPlano,
+          duracao: swDuracao,
+          duracaoQtd: swVigenciaQtd,
+          frequencia: swFrequencia,
+          creditosMensais: swCreditosMensais,
+          creditosMassagem: swCreditosMassagem,
+          creditosEmergencia: swCreditosEmergencia,
+          valorUnitario: swValorUnitario,
+          descontoTipo: swDescontoTipo,
+          descontoValor: swDescontoValor,
+          dataInicio: swDataInicio,
+          criarRecorrenciaMensal: swCriarRecorrenciaMensal,
+          unidadeContratada: 'Matriz'
         })
       });
       const data = await res.json();
@@ -383,11 +401,12 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
         throw new Error(data.error || 'Erro ao gerar proposta comercial.');
       }
       const url = `${window.location.origin}/proposta/${data.data._id}`;
-      setGeneratedProposalUrl(url);
+      setSwGeneratedProposalUrl(url);
+      fetchData(); // Atualiza a base para aparecer como Lead na Gestão de Contratos
     } catch (err: any) {
-      setProposalError(err.message || 'Erro ao gerar proposta.');
+      setSwError(err.message || 'Erro ao gerar proposta.');
     } finally {
-      setGeneratingProposal(false);
+      setSwSubmitting(false);
     }
   };
 
@@ -657,7 +676,7 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                             <button 
                               className="btn btn-sm" 
                               style={{ padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: '#10b981', borderColor: '#10b981', color: '#fff', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700 }}
-                              onClick={() => handleOpenProposal(c)}
+                              onClick={() => handleOpenSalesWizard(c)}
                               title="Gerar Link de Venda para este aluno"
                             >
                               <i className="fa-solid fa-share-nodes"></i>
@@ -1210,163 +1229,389 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
         </div>
       )}
 
-      {/* Modal de Geração de Link de Venda para Aluno Dynamus */}
-      {proposalClient && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, padding: '20px' }}>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '18px', width: '100%', maxWidth: '520px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', fontSize: '1.2rem' }}>
-                  <i className="fa-solid fa-share-nodes"></i>
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Gerar Link de Venda</h3>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Aluno: <strong>{proposalClient.dadosPessoais?.nome || proposalClient.nome}</strong>
+      {/* =========================================================================
+          MODAL OFICIAL: GERAR LINK DE VENDA (SALES WIZARD - IMAGEM 2)
+          ========================================================================= */}
+      {salesWizardClient && (() => {
+        const com = salesWizardClient.dadosComerciais || {};
+        const activePlans = plans.filter((p: any) => p.ativo !== false && !p.nome?.toLowerCase().includes('dynamus'));
+        const gross = Number(swValorUnitario || 0) * (swCriarRecorrenciaMensal ? 1 : Number(swVigenciaQtd || 1));
+        let discountVal = 0;
+        if (swDescontoTipo === 'percentual') {
+          discountVal = (gross * (Number(swDescontoValor) || 0)) / 100;
+        } else {
+          discountVal = Number(swDescontoValor) || 0;
+        }
+        discountVal = Math.min(discountVal, gross);
+        const netVal = Math.max(0, gross - discountVal);
+
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, padding: '20px' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '18px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+              
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a78bfa', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-link"></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Gerar Link de Venda</h3>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Aluno: <strong>{salesWizardClient.dadosPessoais?.nome || salesWizardClient.nome}</strong>
+                    </div>
                   </div>
                 </div>
+                <button onClick={() => setSalesWizardClient(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.3rem', cursor: 'pointer' }}>&times;</button>
               </div>
-              <button onClick={() => setProposalClient(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.3rem', cursor: 'pointer' }}>&times;</button>
-            </div>
 
-            <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '10px', padding: '12px', fontSize: '0.82rem', color: '#10b981', lineHeight: '1.4' }}>
-              <i className="fa-solid fa-circle-check" style={{ marginRight: '6px' }}></i>
-              Ao comprar por este link, o aluno ganha acesso ao <strong>Portal do Aluno</strong> com os créditos do Clube, mantendo seus créditos Dynamus 100% preservados.
-            </div>
-
-            {!generatedProposalUrl ? (
-              <form onSubmit={handleGenerateProposal} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>Plano a Ofertar:</label>
-                  <select
-                    className="form-control"
-                    value={proposalPlanId}
-                    onChange={e => {
-                      const pId = e.target.value;
-                      setProposalPlanId(pId);
-                      const p = plans.find(plan => plan._id === pId);
-                      if (p) {
-                        setProposalValor(p.preco || 0);
-                        setProposalDuracao(p.tipo === 'Anual' ? 'anual' : 'mensal');
-                      }
-                    }}
-                    style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
-                    required
-                  >
-                    {plans.filter(p => !p.nome?.toLowerCase().includes('dynamus')).map(p => (
-                      <option key={p._id} value={p._id}>
-                        {p.nome} - R$ {Number(p.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({p.tipo || 'Mensal'})
-                      </option>
-                    ))}
-                  </select>
+              {/* Banner Status Atual do Convênio Dynamus */}
+              <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '12px', fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <strong style={{ color: '#34d399', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-circle-check"></i> Convênio Dynamus Ativo
+                  </strong>
+                  <span style={{ fontSize: '0.7rem', background: '#10b981', color: '#000', fontWeight: 800, padding: '1px 6px', borderRadius: '4px' }}>
+                    Vigente
+                  </span>
                 </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', color: '#cbd5e1' }}>
+                  <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Vínculo: </span><strong style={{ color: '#fff' }}>DYNAMUS</strong></div>
+                  <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Periodicidade: </span><strong style={{ color: '#34d399' }}>{com.periodicidadeDynamus === 'semestral' ? 'Semestral' : 'Anual'}</strong></div>
+                  <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Vigência até: </span>{com.vigenciaDynamusFim || com.vencimento || '-'}</div>
+                  <div><span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Saldo Dynamus: </span>{Math.max(0, (com.creditosDynamusTotal || 10) - (com.creditosDynamusUsados || 0))} créditos</div>
+                </div>
+              </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {/* Banner Informativo */}
+              <div style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.25)', borderRadius: '10px', padding: '12px', fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
+                💡 <strong>Como funciona:</strong> Informe os dados comerciais acordados. O aluno receberá o link exclusivo para escolher as parcelas (até 12x), a forma de pagamento (Pix/Cartão/Boleto) e o 1º vencimento no próprio smartphone!
+              </div>
+
+              {!swGeneratedProposalUrl ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Plano / Modalidade Acordada */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>Forma de Pagamento:</label>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Plano / Modalidade Acordada <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
                     <select
-                      className="form-control"
-                      value={proposalFormaPagamento}
-                      onChange={e => setProposalFormaPagamento(e.target.value)}
-                      style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={swPlano}
+                      onChange={e => {
+                        const pid = e.target.value;
+                        setSwPlano(pid);
+                        const pObj = plans.find(p => p._id === pid);
+                        if (pObj) {
+                          if (pObj.preco) setSwValorUnitario(pObj.preco);
+                          if (pObj.tipo === 'Anual') {
+                            setSwDuracao('anual');
+                            setSwVigenciaQtd(12);
+                            setSwCreditosMassagem(1);
+                            setSwCreditosEmergencia(1);
+                          } else {
+                            setSwDuracao('mensal');
+                            setSwVigenciaQtd(1);
+                            setSwCreditosMassagem(0);
+                            setSwCreditosEmergencia(0);
+                          }
+                          if (pObj.frequencia) setSwFrequencia(pObj.frequencia);
+                          if (pObj.creditosTotal) setSwCreditosMensais(pObj.creditosTotal);
+                        } else {
+                          setSwValorUnitario(0);
+                        }
+                      }}
+                      style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '0.88rem' }}
                     >
-                      <option value="pix">PIX</option>
-                      <option value="boleto">Boleto Bancário</option>
-                      <option value="cartao">Cartão de Crédito</option>
+                      <option value="">-- Selecione o Plano / Modalidade * --</option>
+                      {activePlans.map((p: any) => (
+                        <option key={p._id} value={p._id}>{p.nome}</option>
+                      ))}
                     </select>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>Parcelas:</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="12"
-                      className="form-control"
-                      value={proposalParcelas}
-                      onChange={e => setProposalParcelas(Math.max(1, parseInt(e.target.value) || 1))}
-                      style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
-                    />
-                  </div>
-                </div>
 
-                {proposalError && (
-                  <div style={{ color: '#ef4444', fontSize: '0.82rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                    ⚠️ {proposalError}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                  <button type="button" onClick={() => setProposalClient(null)} className="btn btn-secondary" style={{ padding: '8px 16px', borderRadius: '8px' }}>
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={generatingProposal}
-                    className="btn btn-primary"
-                    style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700, padding: '8px 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  {/* Checkbox Recorrência Mensal Automática */}
+                  <div 
+                    style={{ 
+                      background: swCriarRecorrenciaMensal ? 'rgba(59, 130, 246, 0.14)' : 'rgba(255, 255, 255, 0.03)', 
+                      border: '1px solid',
+                      borderColor: swCriarRecorrenciaMensal ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)', 
+                      borderRadius: '10px', 
+                      padding: '12px 14px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '10px', 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => setSwCriarRecorrenciaMensal(!swCriarRecorrenciaMensal)}
                   >
-                    {generatingProposal ? <><i className="fa-solid fa-spinner fa-spin"></i> Gerando...</> : <><i className="fa-solid fa-bolt"></i> Criar Link de Venda</>}
-                  </button>
+                    <input
+                      type="checkbox"
+                      id="swCriarRecorrenciaMensalDynamus"
+                      checked={swCriarRecorrenciaMensal}
+                      onChange={e => setSwCriarRecorrenciaMensal(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3b82f6' }}
+                    />
+                    <label htmlFor="swCriarRecorrenciaMensalDynamus" style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-arrows-rotate" style={{ color: '#3b82f6' }}></i>
+                      Criar Recorrência Mensal Automática para este Plano
+                    </label>
+                  </div>
+
+                  {/* Duração, Qtd Vigência e Data de Início */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo Vigência</label>
+                      <select
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swDuracao}
+                        onChange={e => {
+                          const dur = e.target.value as any;
+                          setSwDuracao(dur);
+                          if (dur === 'anual') {
+                            setSwVigenciaQtd(12);
+                            setSwCreditosMassagem(1);
+                            setSwCreditosEmergencia(1);
+                          } else {
+                            setSwVigenciaQtd(1);
+                          }
+                        }}
+                      >
+                        <option value="anual">Anual</option>
+                        <option value="mensal">Mensal</option>
+                        <option value="semana">Semanal</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Qtd Vigência</label>
+                      <input
+                        type="number"
+                        min={1}
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swVigenciaQtd}
+                        onChange={e => setSwVigenciaQtd(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data de Início</label>
+                      <input
+                        type="date"
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swDataInicio}
+                        onChange={e => setSwDataInicio(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Frequência Semanal e Créditos */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Frequência Semanal</label>
+                      <select
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swFrequencia}
+                        onChange={e => {
+                          const freq = Number(e.target.value);
+                          setSwFrequencia(freq);
+                          if (freq === 1) setSwCreditosMensais(4);
+                          else if (freq === 2) setSwCreditosMensais(9);
+                          else if (freq === 3) setSwCreditosMensais(13);
+                          else if (freq === 4) setSwCreditosMensais(17);
+                          else if (freq === 5) setSwCreditosMensais(22);
+                        }}
+                      >
+                        <option value={1}>1x por semana (4 créditos/mês)</option>
+                        <option value={2}>2x por semana (9 créditos/mês)</option>
+                        <option value={3}>3x por semana (13 créditos/mês)</option>
+                        <option value={4}>4x por semana (17 créditos/mês)</option>
+                        <option value={5}>5x por semana (22 créditos/mês)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos Mensais / Aulas</label>
+                      <input
+                        type="number"
+                        min={0}
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swCreditosMensais}
+                        onChange={e => setSwCreditosMensais(parseInt(e.target.value, 10) || 0)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Créditos Especiais (Massagem e Emergência) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos de Massagem (Mensais)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swCreditosMassagem}
+                        onChange={e => setSwCreditosMassagem(parseInt(e.target.value, 10) || 0)}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos de Emergência (Mensais)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swCreditosEmergencia}
+                        onChange={e => setSwCreditosEmergencia(parseInt(e.target.value, 10) || 0)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Valor Unitário, Tipo Desconto e Abatimento Concedido */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--color-primary)', fontWeight: 700, borderRadius: '8px' }}
+                        value={swValorUnitario || ''}
+                        onChange={e => setSwValorUnitario(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo de Desconto</label>
+                      <select
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swDescontoTipo}
+                        onChange={e => setSwDescontoTipo(e.target.value as any)}
+                      >
+                        <option value="percentual">🏷️ Porcentagem (%)</option>
+                        <option value="fixo">💵 Valor Fixo (R$)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        Abatimento ({swDescontoTipo === 'percentual' ? '%' : 'R$'})
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={swDescontoValor || ''}
+                        onChange={e => setSwDescontoValor(parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Resumo Financeiro em Tempo Real */}
+                  <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Valor Bruto ({swVigenciaQtd}x)</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                        R$ {gross.toFixed(2).replace('.', ',')}
+                      </div>
+                    </div>
+                    {discountVal > 0 && (
+                      <div>
+                        <div style={{ fontSize: '0.74rem', color: '#ef4444' }}>Desconto Aplicado</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ef4444' }}>
+                          - R$ {discountVal.toFixed(2).replace('.', ',')} {swDescontoTipo === 'percentual' ? `(${swDescontoValor}%)` : ''}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Valor Líquido da Proposta</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                        R$ {netVal.toFixed(2).replace('.', ',')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {swError && (
+                    <div style={{ color: '#ef4444', fontSize: '0.82rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                      ⚠️ {swError}
+                    </div>
+                  )}
+
+                  {/* Footer Ações */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                    <button type="button" onClick={() => setSalesWizardClient(null)} className="btn btn-secondary" style={{ padding: '9px 18px', borderRadius: '8px' }}>
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmSalesWizard}
+                      disabled={swSubmitting || !swPlano || !swValorUnitario || Number(swValorUnitario) <= 0}
+                      style={{ background: '#8b5cf6', borderColor: '#8b5cf6', color: '#fff', fontWeight: 700, padding: '9px 22px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', cursor: (!swPlano || !swValorUnitario || Number(swValorUnitario) <= 0) ? 'not-allowed' : 'pointer', opacity: (!swPlano || !swValorUnitario || Number(swValorUnitario) <= 0) ? 0.5 : 1 }}
+                    >
+                      {swSubmitting ? <><i className="fa-solid fa-spinner fa-spin"></i> Gerando...</> : <><i className="fa-solid fa-paper-plane"></i> Gerar Link & Compartilhar</>}
+                    </button>
+                  </div>
                 </div>
-              </form>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    readOnly
-                    value={generatedProposalUrl}
-                    style={{ flex: 1, padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '0.85rem' }}
-                    onClick={e => (e.target as HTMLInputElement).select()}
-                  />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      readOnly
+                      value={swGeneratedProposalUrl}
+                      style={{ flex: 1, padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '0.85rem' }}
+                      onClick={e => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(swGeneratedProposalUrl);
+                        setSwCopied(true);
+                        setTimeout(() => setSwCopied(false), 3000);
+                      }}
+                      style={{ background: swCopied ? '#10b981' : 'var(--color-primary)', border: 'none', color: '#fff', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <i className={swCopied ? "fa-solid fa-check" : "fa-solid fa-copy"}></i>
+                      {swCopied ? 'Copiado!' : 'Copiar'}
+                    </button>
+                  </div>
+
                   <button
                     type="button"
+                    style={{ background: '#25D366', border: 'none', color: '#fff', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem' }}
                     onClick={() => {
-                      navigator.clipboard.writeText(generatedProposalUrl);
-                      setProposalCopied(true);
-                      setTimeout(() => setProposalCopied(false), 3000);
+                      const clientName = salesWizardClient.dadosPessoais?.nome || salesWizardClient.nome || '';
+                      const planObj = plans.find(p => p._id === swPlano);
+                      const planName = planObj?.nome || 'Plano Clube Fitness';
+                      const phone = (salesWizardClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
+                      const message = 
+                        `🏋️‍♂️ *Olá ${clientName}! Tudo bem?*\n\n` +
+                        `Sua proposta comercial do *Clube Fitness* para o plano *${planName}* está pronta! 📄✨\n\n` +
+                        `Clique no link abaixo para conferir as condições, revisar e assinar seu contrato:\n` +
+                        `${swGeneratedProposalUrl}\n\n` +
+                        `_Qualquer dúvida, estamos à total disposição!_ 💚`;
+                      const text = encodeURIComponent(message);
+                      const whatsappUrl = phone && phone.length >= 10 && !phone.includes('99999')
+                        ? `https://api.whatsapp.com/send?phone=55${phone}&text=${text}`
+                        : `https://api.whatsapp.com/send?text=${text}`;
+                      window.open(whatsappUrl, '_blank');
                     }}
-                    style={{ background: proposalCopied ? '#10b981' : 'var(--color-primary)', border: 'none', color: '#fff', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
-                    <i className={proposalCopied ? "fa-solid fa-check" : "fa-solid fa-copy"}></i>
-                    {proposalCopied ? 'Copiado!' : 'Copiar'}
+                    <i className="fa-brands fa-whatsapp fa-lg"></i> Enviar via WhatsApp
                   </button>
-                </div>
 
-                <button
-                  type="button"
-                  style={{ background: '#25D366', border: 'none', color: '#fff', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem' }}
-                  onClick={() => {
-                    const clientName = proposalClient.dadosPessoais?.nome || proposalClient.nome || '';
-                    const planObj = plans.find(p => p._id === proposalPlanId);
-                    const planName = planObj?.nome || 'Plano Clube Fitness';
-                    const phone = (proposalClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
-                    const message = 
-                      `🏋️‍♂️ *Olá ${clientName}! Tudo bem?*\n\n` +
-                      `Sua proposta comercial do *Clube Fitness* para o plano *${planName}* está pronta! 📄✨\n\n` +
-                      `Clique no link abaixo para conferir as condições, revisar e assinar seu contrato:\n` +
-                      `${generatedProposalUrl}\n\n` +
-                      `_Qualquer dúvida, estamos à total disposição!_ 💚`;
-                    const text = encodeURIComponent(message);
-                    const whatsappUrl = phone && phone.length >= 10 && !phone.includes('99999')
-                      ? `https://api.whatsapp.com/send?phone=55${phone}&text=${text}`
-                      : `https://api.whatsapp.com/send?text=${text}`;
-                    window.open(whatsappUrl, '_blank');
-                  }}
-                >
-                  <i className="fa-brands fa-whatsapp fa-lg"></i> Enviar via WhatsApp
-                </button>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-                  <button type="button" onClick={() => setProposalClient(null)} className="btn btn-secondary" style={{ padding: '8px 18px', borderRadius: '8px' }}>
-                    Concluir
-                  </button>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                    <button type="button" onClick={() => setSalesWizardClient(null)} className="btn btn-secondary" style={{ padding: '8px 18px', borderRadius: '8px' }}>
+                      Concluir
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
