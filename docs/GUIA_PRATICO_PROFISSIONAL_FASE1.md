@@ -24,7 +24,7 @@ flowchart TD
 1. **Confirmar Presença / Falta:** Todos os atendimentos devem ter seu status atualizado na agenda do nosso sistema.
 2. **Aluno agendado no Admin Fit que não apareceu no sistema:** Apenas informe ao **Sávio**.
 3. **Aluno sem cadastro no sistema:** 
-   - 🔍 **Cuidado com Duplicações:** Antes de enviar link, pesquise o nome na barra de busca superior do sistema (é super fácil e rápido).
+   - 🔍 **Cuidado com Duplicações:** Antes de enviar link, pesquise o nome na página **Clientes vinculados** (é super fácil e rápido).
    - Se realmente não existir, envie o link de cadastro ou preencha com o aluno e avise o **Sávio** em seguida.
 4. **Agendamento Manual pelo Profissional:**
    - Como os alunos ainda usam o **Admin Fit**, antes de agendar qualquer aluno pelo nosso sistema:
