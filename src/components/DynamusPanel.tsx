@@ -125,8 +125,14 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
     .sort((a, b) => {
       const comA = a.dadosComerciais || {};
       const comB = b.dadosComerciais || {};
-      const restA = Math.max(0, (comA.creditosTotal || 0) - (comA.creditosUsados || 0) - (comA.creditosReservados || 0));
-      const restB = Math.max(0, (comB.creditosTotal || 0) - (comB.creditosUsados || 0) - (comB.creditosReservados || 0));
+      const totA = comA.creditosDynamusTotal ?? comA.creditosTotal ?? 0;
+      const totB = comB.creditosDynamusTotal ?? comB.creditosTotal ?? 0;
+      const usedA = comA.creditosDynamusUsados ?? comA.creditosUsados ?? 0;
+      const usedB = comB.creditosDynamusUsados ?? comB.creditosUsados ?? 0;
+      const resA = comA.creditosDynamusReservados ?? comA.creditosReservados ?? 0;
+      const resB = comB.creditosDynamusReservados ?? comB.creditosReservados ?? 0;
+      const restA = Math.max(0, totA - usedA - resA);
+      const restB = Math.max(0, totB - usedB - resB);
 
       if (dynamusSortOrder === 'maior_saldo') return restB - restA;
       if (dynamusSortOrder === 'menor_saldo') return restA - restB;
@@ -137,8 +143,8 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
         return (b.dadosPessoais?.nome || b.nome || '').localeCompare(a.dadosPessoais?.nome || a.nome || '');
       }
       if (dynamusSortOrder === 'vencimento_asc') {
-        const vA = comA.vencimento || '9999-12-31';
-        const vB = comB.vencimento || '9999-12-31';
+        const vA = comA.vigenciaDynamusFim || comA.vencimento || '9999-12-31';
+        const vB = comB.vigenciaDynamusFim || comB.vencimento || '9999-12-31';
         return vA.localeCompare(vB);
       }
       return 0;
@@ -146,8 +152,8 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
 
   // Metrics
   const totalDynamus = dynamusClients.length;
-  const activeDynamus = dynamusClients.filter(c => c.dadosComerciais?.status === 'ativo').length;
-  const totalCreditsUsed = dynamusClients.reduce((sum, c) => sum + (c.dadosComerciais?.creditosUsados || 0), 0);
+  const activeDynamus = dynamusClients.filter(c => c.dadosComerciais?.isConvenioDynamus || c.dadosComerciais?.status === 'ativo').length;
+  const totalCreditsUsed = dynamusClients.reduce((sum, c) => sum + (c.dadosComerciais?.creditosDynamusUsados ?? c.dadosComerciais?.creditosUsados ?? 0), 0);
 
   const handleCopyLink = () => {
     const link = window.location.origin + '/cadastro-dynamus';
@@ -581,9 +587,9 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                 filteredClients.map(c => {
                   const com = c.dadosComerciais || {};
                   const isExpanded = expandedClientId === c._id;
-                  const total = com.creditosTotal || 0;
-                  const usados = com.creditosUsados || 0;
-                  const reservados = com.creditosReservados || 0;
+                  const total = com.creditosDynamusTotal ?? com.creditosTotal ?? 0;
+                  const usados = com.creditosDynamusUsados ?? com.creditosUsados ?? 0;
+                  const reservados = com.creditosDynamusReservados ?? com.creditosReservados ?? 0;
                   const restantes = Math.max(0, total - usados - reservados);
 
                   const recoveryTotal = com.creditosRecoveryTotal || 0;
@@ -594,11 +600,11 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                   const massagemUsados = com.creditosMassagemUsados || 0;
                   const massagemRestantes = Math.max(0, massagemTotal - massagemUsados);
 
-                  const isSemestral = (com.duracao || '').toLowerCase().includes('semestral') ||
+                  const isSemestral = (com.periodicidadeDynamus || com.duracao || '').toLowerCase().includes('semestral') ||
                                       (com.planoId?.nome || '').toLowerCase().includes('semestral') ||
                                       com.parcelas === 6;
                   const periodicidadeLabel = isSemestral ? 'Semestral' : 'Anual';
-                  const expDateDisplay = formatExpiryDisplay(com.dataInicio, periodicidadeLabel, com.vencimento);
+                  const expDateDisplay = formatExpiryDisplay(com.dataInicio, periodicidadeLabel, com.vigenciaDynamusFim || com.vencimento);
 
                   return (
                     <React.Fragment key={c._id}>
@@ -611,7 +617,7 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                         </td>
                         <td style={{ padding: '14px 16px' }}>
                           <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
-                            {com.planoId?.nome || 'Dynamus'}
+                            {com.planoId?.nome || 'DYNAMUS'}
                           </span>
                         </td>
                         <td style={{ padding: '14px 16px' }}>
