@@ -141,6 +141,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Campos obrigatórios ausentes (clienteId, servico, dataInicio).' }, { status: 400 });
     }
 
+    // Sanitização de dataFim: se vier dataFim no passado (< dataInicio), corrigir ou anular para modo contínuo
+    let validDataFim = dataFim || null;
+    if (validDataFim && validDataFim < dataInicio) {
+      const clientObj = await Client.findById(clienteId);
+      const com = clientObj?.dadosComerciais || {};
+      if (com.vencimento && com.vencimento >= dataInicio) {
+        validDataFim = com.vencimento;
+      } else if (com.dataFim && com.dataFim >= dataInicio) {
+        validDataFim = com.dataFim;
+      } else {
+        validDataFim = null;
+      }
+    }
+
     // Suporte a criação de múltiplos slots de dia/horário em lote
     const itemsToCreate: any[] = [];
 
@@ -154,7 +168,7 @@ export async function POST(request: Request) {
           servico,
           dataInicio,
           duracaoSemanas: duracaoSemanas ? Number(duracaoSemanas) : null,
-          dataFim: dataFim || null
+          dataFim: validDataFim
         });
       }
     } else if (diaSemana !== undefined && horario) {
@@ -166,7 +180,7 @@ export async function POST(request: Request) {
         servico,
         dataInicio,
         duracaoSemanas: duracaoSemanas ? Number(duracaoSemanas) : null,
-        dataFim: dataFim || null
+        dataFim: validDataFim
       });
     } else {
       return NextResponse.json({ success: false, error: 'Nenhum dia ou horário informado.' }, { status: 400 });
