@@ -216,7 +216,7 @@ export async function syncPhysicalAssessmentTests(assessmentDoc: any) {
         dados: { oberD: te.oberD, oberE: te.oberE },
         metricas: {
           classificacao: te.oberD === 'Positivo' || te.oberE === 'Positivo' ? 'Retração Positiva' : 'Normal',
-          alertasClinicos: oberAlerts.map(a => ({
+          alertasClinicos: oberAlerts.map((a: any) => ({
             tipo: a.tipo,
             titulo: a.titulo,
             descricao: a.descricao,
@@ -399,7 +399,7 @@ export async function syncPhysioReportTests(reportDoc: any) {
         dados: { oberD: te.oberD, oberE: te.oberE },
         metricas: {
           classificacao: te.oberD === 'Positivo' || te.oberE === 'Positivo' ? 'Retração Positiva' : 'Normal',
-          alertasClinicos: oberAlerts.map(a => ({
+          alertasClinicos: oberAlerts.map((a: any) => ({
             tipo: a.tipo,
             titulo: a.titulo,
             descricao: a.descricao,

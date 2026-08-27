@@ -250,7 +250,7 @@ export function calculateGoniometryAlerts(gonio: any): BiomechanicAlert[] {
 /**
  * 2. Análise Clínica e Alertas dos Testes de Força Muscular (Dinamometria)
  */
-export function calculateStrengthTestAlerts(testesList: any[], pesoKg: number = 70, sexo: 'M' | 'F' = 'M'): BiomechanicAlert[] {
+export function calculateStrengthTestAlerts(testesList: any[], pesoKg: number = 70, sexo: 'M' | 'F' = 'M', extraData?: any): BiomechanicAlert[] {
   const alerts: BiomechanicAlert[] = [];
   if (!testesList || testesList.length === 0) return alerts;
 
@@ -515,6 +515,48 @@ export function calculateStrengthTestAlerts(testesList: any[], pesoKg: number = 
         riscoClinico: 'Sobrecarga na tíbia (canelite) ou tendinopatia de Aquiles.'
       });
     }
+  }
+
+  // 2.10 NOVO ÍNDICE: ICAI (Capacidade de Absorção de Impacto)
+  if (quad.max > 0 && pesoKg > 0) {
+    const quadPc = (quad.max / 9.80665) / pesoKg * 100;
+    const dfGonio = Number(extraData?.dorsiflexaoTornozelo || extraData?.goniometria?.tornozeloDorsiflexaoD || extraData?.testesEspeciais?.lungeTestD || 0);
+    const lungeVal = Number(extraData?.lungeCm || extraData?.testesEspeciais?.lungeTestD || 0);
+    if (quadPc < 60 && ((dfGonio > 0 && dfGonio < 35) || (lungeVal > 0 && lungeVal < 10))) {
+      alerts.push(...calculateImpactAbsorptionCapacityAlerts({
+        quadricepsPc: quadPc,
+        dorsiflexaoGraus: dfGonio,
+        lungeCm: lungeVal
+      }));
+    }
+  }
+
+  // 2.11 NOVO ÍNDICE: CORE COMPLEX (Estabilidade Lombopélvica de Janda)
+  const extTroncoForce = getForca('Coluna / Tronco', 'Extensão').max || getForca('Tronco', 'Extensão').max || getForca('Coluna', 'Extensão').max;
+  const flexTroncoForce = getForca('Coluna / Tronco', 'Flexão').max || getForca('Tronco', 'Flexão').max || getForca('Coluna', 'Flexão').max;
+  const extTroncoPc = extTroncoForce > 0 && pesoKg > 0 ? (extTroncoForce / 9.80665) / pesoKg * 100 : 0;
+  const isThomas = extraData?.thomasPositivo === true || 
+                   extraData?.testesEspeciais?.thomasIliopsoasDStatus === 'positivo' || 
+                   extraData?.testesEspeciais?.thomasIliopsoasEStatus === 'positivo';
+  if (isThomas && extTroncoPc > 0 && extTroncoPc < 100) {
+    alerts.push(...calculateLumbopelvicStabilityAlerts({
+      thomasPositivo: true,
+      extensoresTroncoPc: extTroncoPc,
+      razaoFlexExt: (flexTroncoForce > 0 && extTroncoForce > 0) ? (flexTroncoForce / extTroncoForce) : undefined
+    }));
+  }
+
+  // 2.12 NOVO ÍNDICE: ISE (Saúde Escapulotorácica)
+  const remadaForce = getForca('Membro Superior', 'Remada').max || getForca('Ombro', 'Remada').max || getForca('Tronco', 'Remada').max;
+  const supinoForce = getForca('Membro Superior', 'Supino').max || getForca('Ombro', 'Supino').max || getForca('Tórax', 'Supino').max;
+  const disc = extraData?.discinesiaEscapular || extraData?.testesEspeciais?.discinesiaEscapular || extraData?.testesEspeciais?.kibler;
+  if (disc && remadaForce > 0 && supinoForce > 0 && (remadaForce / supinoForce) < 0.80) {
+    alerts.push(...calculateScapulothoracicHealthAlerts({
+      discinesiaTipo: String(disc),
+      razaoRemadaSupino: remadaForce / supinoForce,
+      remadaN: remadaForce,
+      supinoN: supinoForce
+    }));
   }
 
   return alerts;
@@ -916,6 +958,221 @@ export function calculateOberAlerts(oberD: string, oberE: string): BiomechanicAl
       riscoClinico: 'Fricção do trato iliotibial no côndilo lateral do fêmur (STIT) e dor lateral de joelho.'
     });
   }
+  return alerts;
+}
+
+/**
+ * 7. Índice de Capacidade de Absorção de Impacto (ICAI)
+ * Cruza a força de Quadríceps (%PC) com a Dorsiflexão de Tornozelo em Carga (Lunge Test / Goniometria).
+ * Se Quadríceps < 60% e Dorsiflexão < 35° -> Alerta Crítico.
+ */
+export function calculateImpactAbsorptionCapacityAlerts(data: {
+  quadricepsPc?: number;
+  dorsiflexaoGraus?: number;
+  lungeCm?: number;
+  lado?: 'Direito' | 'Esquerdo' | 'Bilateral';
+}): BiomechanicAlert[] {
+  const alerts: BiomechanicAlert[] = [];
+  const quad = Number(data.quadricepsPc) || 0;
+  const df = Number(data.dorsiflexaoGraus) || 0;
+  const lunge = Number(data.lungeCm) || 0;
+
+  // Condição: Quadríceps < 60% E (Dorsiflexão < 35° OU Lunge < 10cm)
+  const hasDorsiflexionDeficit = (df > 0 && df < 35) || (lunge > 0 && lunge < 10);
+  const hasQuadDeficit = quad > 0 && quad < 60;
+
+  if (hasQuadDeficit && hasDorsiflexionDeficit) {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Incapacidade de Amortecimento Excêntrico (ICAI)',
+      articulacao: 'Joelho / Tornozelo',
+      lado: data.lado || 'Bilateral',
+      valorCalculado: `Quad: ${quad.toFixed(0)}% PC | DF: ${df > 0 ? df + '°' : lunge + ' cm'}`,
+      referenciaIdeal: 'Quadríceps ≥ 60% PC | Dorsiflexão ≥ 35° (Lunge ≥ 10 cm)',
+      descricao: `Força de quadríceps em ${quad.toFixed(0)}% do peso corporal associada a déficit de dorsiflexão em cadeia fechada (${df > 0 ? df + '°' : lunge + ' cm'}).`,
+      riscoClinico: 'Incapacidade de Amortecimento Excêntrico; Proibir pliometria de alto impacto e saltos até restauração do arco articular.'
+    });
+  }
+
+  return alerts;
+}
+
+/**
+ * 8. Índice de Estabilidade Lombopélvica (CORE COMPLEX)
+ * Cruza Força de Extensores de Tronco (%PC) + Razão Flex/Ext + Teste de Thomas.
+ * Se Thomas (+) com Extensores < 100% -> Alerta Crítico.
+ */
+export function calculateLumbopelvicStabilityAlerts(data: {
+  thomasPositivo?: boolean | string;
+  extensoresTroncoPc?: number;
+  razaoFlexExt?: number;
+}): BiomechanicAlert[] {
+  const alerts: BiomechanicAlert[] = [];
+  const isThomasPos = data.thomasPositivo === true || data.thomasPositivo === 'positivo' || String(data.thomasPositivo).toLowerCase().includes('pos');
+  const extTronco = Number(data.extensoresTroncoPc) || 0;
+  const ratioFlexExt = Number(data.razaoFlexExt) || 0;
+
+  if (isThomasPos && extTronco > 0 && extTronco < 100) {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Síndrome Cruzada Pélvica de Janda (CORE COMPLEX)',
+      articulacao: 'Coluna Lombar / Pelve / Quadril',
+      lado: 'Bilateral',
+      valorCalculado: `Thomas (+) | Ext. Tronco: ${extTronco.toFixed(0)}% PC${ratioFlexExt > 0 ? ` | Razão F/E: ${ratioFlexExt.toFixed(2)}` : ''}`,
+      referenciaIdeal: 'Thomas Negativo | Extensores Tronco ≥ 100% PC | Razão Flex/Ext 0.70 - 0.80',
+      descricao: `Encurtamento de flexores de quadril no Teste de Thomas com fraqueza da cadeia extensora do tronco (${extTronco.toFixed(0)}% PC).`,
+      riscoClinico: 'Síndrome Cruzada Pélvica de Janda (Hiperlordose com inibição glútea e sobrecarga discal em L5-S1).'
+    });
+  }
+
+  return alerts;
+}
+
+/**
+ * 9. Índice de Saúde Escapulotorácica (ISE)
+ * Cruza Discinesia Escapular (Kibler) + GIRD de Ombro + Razão Remada/Supino.
+ * Se Discinesia Tipo I/II + Remada/Supino < 0.80 -> Alerta Crítico.
+ */
+export function calculateScapulothoracicHealthAlerts(data: {
+  discinesiaTipo?: string;
+  razaoRemadaSupino?: number;
+  remadaN?: number;
+  supinoN?: number;
+  hasGird?: boolean;
+}): BiomechanicAlert[] {
+  const alerts: BiomechanicAlert[] = [];
+  const disc = String(data.discinesiaTipo || '').trim().toUpperCase();
+  const isDiscinesiaIouII = disc.includes('I') || disc.includes('II') || disc.includes('1') || disc.includes('2') || disc.includes('TIPO I') || disc.includes('TIPO II');
+  
+  let ratio = Number(data.razaoRemadaSupino) || 0;
+  if (!ratio && data.remadaN && data.supinoN && data.supinoN > 0) {
+    ratio = data.remadaN / data.supinoN;
+  }
+
+  if (isDiscinesiaIouII && ratio > 0 && ratio < 0.80) {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Risco Escapulotorácico Crítico (ISE)',
+      articulacao: 'Ombro / Cintura Escapular',
+      lado: 'Bilateral',
+      valorCalculado: `Discinesia ${data.discinesiaTipo || 'Tipo I/II'} | Remada/Supino: ${(ratio * 100).toFixed(0)}%`,
+      referenciaIdeal: 'Sem Discinesia (Tipo 0) | Razão Remada/Supino ≥ 0.80 - 1.0',
+      descricao: `Discinesia escapular associada a predomínio excessivo de força de empurrar sobre puxar (${(ratio * 100).toFixed(0)}%).`,
+      riscoClinico: 'Risco Crítico de Tendinopatia do Manguito e Bursite Subacromial em Exercícios de Empurre.'
+    });
+  }
+
+  return alerts;
+}
+
+/**
+ * 10. Avaliador Integrado Transdisciplinar
+ * Cruza Força Muscular, Goniometria e Testes Especiais para disparar alertas completos e índices avançados (ICAI, CORE COMPLEX, ISE).
+ */
+export function calculateIntegratedCrossDisciplinaryAlerts(params: {
+  goniometria?: any;
+  testesEspeciais?: any;
+  testesForcaList?: any[];
+  pesoKg?: number;
+  sexo?: 'M' | 'F';
+}): BiomechanicAlert[] {
+  const alerts: BiomechanicAlert[] = [];
+  const g = params.goniometria || {};
+  const te = params.testesEspeciais || {};
+  const tf = params.testesForcaList || [];
+  const peso = Number(params.pesoKg) || 70;
+  const sexo = params.sexo || 'M';
+
+  // 1. Alertas de Goniometria
+  alerts.push(...calculateGoniometryAlerts(g));
+
+  // 2. Alertas de Testes de Força
+  alerts.push(...calculateStrengthTestAlerts(tf, peso, sexo));
+
+  // 3. Alertas de Y-Test
+  if (te.yTest) {
+    const yRes = calculateYTestAnalysis(te.yTest);
+    alerts.push(...yRes.alerts);
+  }
+
+  // 4. Alertas de Step Down
+  if (te.stepDown) {
+    const sdRes = calculateStepDownAnalysis({ ...te.stepDown, sexo });
+    alerts.push(...sdRes.alerts);
+  }
+
+  // 5. Alertas de Thomas
+  alerts.push(...calculateThomasAlerts(te));
+
+  // 6. Alertas de Ober
+  if (te.oberD || te.oberE) {
+    alerts.push(...calculateOberAlerts(te.oberD, te.oberE));
+  }
+
+  // Extrair forças relevantes para os 3 novos índices
+  const getForcaMax = (art: string, mov: string) => {
+    const matching = tf.filter((t: any) => 
+      (t.articulacao || '').toLowerCase().includes(art.toLowerCase()) && 
+      (t.movimento || '').toLowerCase().includes(mov.toLowerCase())
+    );
+    if (matching.length === 0) return 0;
+    return Math.max(...matching.map((t: any) => Number(t.forcaN) || (Number(t.valorObtido) * (t.unidade === 'kgf' ? 9.80665 : 1)) || 0));
+  };
+
+  const quadN = getForcaMax('Joelho', 'Extensão');
+  const quadPc = quadN > 0 && peso > 0 ? (quadN / 9.80665) / peso * 100 : 0;
+
+  const extTroncoN = getForcaMax('Coluna', 'Extensão') || getForcaMax('Tronco', 'Extensão');
+  const flexTroncoN = getForcaMax('Coluna', 'Flexão') || getForcaMax('Tronco', 'Flexão');
+  const extTroncoPc = extTroncoN > 0 && peso > 0 ? (extTroncoN / 9.80665) / peso * 100 : 0;
+  const ratioFlexExt = flexTroncoN > 0 && extTroncoN > 0 ? flexTroncoN / extTroncoN : 0;
+
+  const remadaN = getForcaMax('Ombro', 'Remada') || getForcaMax('Tronco', 'Remada') || getForcaMax('Escápula', 'Retração');
+  const supinoN = getForcaMax('Ombro', 'Supino') || getForcaMax('Tórax', 'Supino') || getForcaMax('Ombro', 'Flexão');
+  const ratioRemadaSupino = remadaN > 0 && supinoN > 0 ? remadaN / supinoN : 0;
+
+  // Goniometria de Tornozelo / Lunge
+  const getGonioNum = (v: any) => {
+    if (!v) return 0;
+    if (typeof v === 'object') return Number(v.semForca || v.ativo || v.comForca || v.passivo) || 0;
+    return Number(v) || 0;
+  };
+  const dfD = getGonioNum(g.tornozeloDorsiflexaoD);
+  const dfE = getGonioNum(g.tornozeloDorsiflexaoE);
+  const minDf = dfD > 0 && dfE > 0 ? Math.min(dfD, dfE) : (dfD || dfE || 0);
+  const lungeMin = Math.min(Number(te.lungeTestD) || 99, Number(te.lungeTestE) || 99);
+
+  // 7. NOVO ÍNDICE: ICAI (Capacidade de Absorção de Impacto)
+  if (quadPc > 0 && (minDf > 0 || lungeMin < 99)) {
+    alerts.push(...calculateImpactAbsorptionCapacityAlerts({
+      quadricepsPc: quadPc,
+      dorsiflexaoGraus: minDf,
+      lungeCm: lungeMin < 99 ? lungeMin : undefined
+    }));
+  }
+
+  // 8. NOVO ÍNDICE: CORE COMPLEX (Estabilidade Lombopélvica de Janda)
+  const isThomasPos = te.thomasIliopsoasDStatus === 'positivo' || te.thomasIliopsoasEStatus === 'positivo' || 
+                      te.thomasRetofemoralDStatus === 'positivo' || te.thomasRetofemoralEStatus === 'positivo';
+  if (isThomasPos && extTroncoPc > 0) {
+    alerts.push(...calculateLumbopelvicStabilityAlerts({
+      thomasPositivo: true,
+      extensoresTroncoPc: extTroncoPc,
+      razaoFlexExt: ratioFlexExt
+    }));
+  }
+
+  // 9. NOVO ÍNDICE: ISE (Saúde Escapulotorácica)
+  const discinesia = te.discinesiaEscapular || te.kibler || te.discinesia;
+  if (discinesia && ratioRemadaSupino > 0) {
+    alerts.push(...calculateScapulothoracicHealthAlerts({
+      discinesiaTipo: String(discinesia),
+      razaoRemadaSupino: ratioRemadaSupino,
+      remadaN,
+      supinoN
+    }));
+  }
+
   return alerts;
 }
 

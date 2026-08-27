@@ -3738,6 +3738,46 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       }
     });
 
+    // 8. NOVO ÍNDICE: ICAI (Capacidade de Absorção de Impacto)
+    const quadPCVal = extJoelho > 0 && pesoNum > 0 ? (extJoelho / 9.80665 / pesoNum) * 100 : 0;
+    const dfGonio = Number(st.dorsiflexaoTornozelo || st.goniometria?.tornozeloDorsiflexaoD || client?.dadosMedidos?.testesEspeciais?.lungeTestD || 0);
+    const lungeVal = Number(client?.dadosMedidos?.testesEspeciais?.lungeTestD || st.lungeTest || 0);
+    if (quadPCVal > 0 && quadPCVal < 60 && ((dfGonio > 0 && dfGonio < 35) || (lungeVal > 0 && lungeVal < 10))) {
+      riscosOrtopedicos.push({
+        titulo: 'Incapacidade de Amortecimento Excêntrico (ICAI)',
+        valorPill: `${quadPCVal.toFixed(0)}% PC`,
+        detalheProporcao: `Quadríceps (${quadPCVal.toFixed(0)}% PC) < 60% cruzado com Dorsiflexão de Tornozelo < 35°.`,
+        riscoClinico: 'Incapacidade de Amortecimento Excêntrico; Proibir pliometria de alto impacto e saltos até restauração do arco articular.'
+      });
+    }
+
+    // 9. NOVO ÍNDICE: CORE COMPLEX (Estabilidade Lombopélvica de Janda)
+    const extTroncoForce = getAvgForceN('Coluna / Tronco', 'Extensão') || getAvgForceN('Tronco', 'Extensão') || getAvgForceN('Coluna', 'Extensão');
+    const extTroncoPCVal = extTroncoForce > 0 && pesoNum > 0 ? (extTroncoForce / 9.80665 / pesoNum) * 100 : 0;
+    const isThomasPos = st.thomasPositivo === true || 
+                        client?.dadosMedidos?.testesEspeciais?.thomasIliopsoasDStatus === 'positivo' || 
+                        client?.dadosMedidos?.testesEspeciais?.thomasIliopsoasEStatus === 'positivo';
+    if (isThomasPos && extTroncoPCVal > 0 && extTroncoPCVal < 100) {
+      riscosOrtopedicos.push({
+        titulo: 'Síndrome Cruzada Pélvica de Janda (CORE COMPLEX)',
+        valorPill: `${extTroncoPCVal.toFixed(0)}% PC`,
+        detalheProporcao: `Teste de Thomas positivo cruzado com força de extensores de tronco < 100% PC.`,
+        riscoClinico: 'Síndrome Cruzada Pélvica de Janda (Hiperlordose com inibição glútea e sobrecarga discal em L5-S1).'
+      });
+    }
+
+    // 10. NOVO ÍNDICE: ISE (Saúde Escapulotorácica)
+    const discinesia = client?.dadosMedidos?.testesEspeciais?.discinesiaEscapular || st.discinesiaEscapular || client?.dadosMedidos?.testesEspeciais?.kibler;
+    const isDisc = discinesia && (String(discinesia).includes('I') || String(discinesia).includes('II') || String(discinesia).includes('1') || String(discinesia).includes('2'));
+    if (isDisc && remada > 0 && supino > 0 && (remada / supino) < 0.80) {
+      riscosOrtopedicos.push({
+        titulo: 'Risco Escapulotorácico Crítico (ISE)',
+        valorPill: (remada / supino).toFixed(2),
+        detalheProporcao: `Discinesia Escapular associada a Razão Remada/Supino ${(remada / supino).toFixed(2)} (< 0.80).`,
+        riscoClinico: 'Risco Crítico de Tendinopatia do Manguito e Bursite Subacromial em Exercícios de Empurre.'
+      });
+    }
+
     // Tabela de Testes Individuais
     const testsHtml = st.testesRealizados.map((t: any) => {
       const refData = STRENGTH_REFERENCE_TABLE[t.articulacao]?.[t.movimento]?.[sex === 'F' ? 'F' : 'M'] || { min: 0, max: 0 };

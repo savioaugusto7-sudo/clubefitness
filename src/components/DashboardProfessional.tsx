@@ -11700,7 +11700,10 @@ goniometria: {
                   const selectedClientObj = clients.find(c => String(c._id) === String(stClient));
                   const clientSex: 'M' | 'F' = selectedClientObj?.dadosPessoais?.sexo === 'F' ? 'F' : 'M';
                   const clientWeight = Number(stPeso) || Number(selectedClientObj?.dadosPessoais?.peso) || 70;
-                  const strengthAlerts = calculateStrengthTestAlerts(stTestesList, clientWeight, clientSex);
+                  const strengthAlerts = calculateStrengthTestAlerts(stTestesList, clientWeight, clientSex, {
+                    goniometria: selectedClientObj?.dadosMedidos?.goniometria || selectedClientObj?.goniometria,
+                    testesEspeciais: selectedClientObj?.dadosMedidos?.testesEspeciais || selectedClientObj?.testesEspeciais
+                  });
 
                   if (strengthAlerts.length === 0) return null;
 
