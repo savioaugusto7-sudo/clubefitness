@@ -853,43 +853,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const renderActiveStudentHeader = (clientId: string, onSwitchStudent?: () => void) => {
     const student = clients.find(c => String(c._id) === String(clientId));
-    if (!student) {
-      return (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(13,148,136,0.08) 0%, rgba(30,41,59,0.5) 100%)',
-          border: '1px solid rgba(13,148,136,0.25)',
-          borderRadius: '12px',
-          padding: '12px 16px',
-          marginBottom: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '50%',
-            background: 'rgba(13,148,136,0.15)',
-            color: 'var(--color-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.1rem',
-            flexShrink: 0
-          }}>
-            <i className="fa-solid fa-user-plus"></i>
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>
-              Selecione o Aluno / Paciente para Iniciar
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-              Busque pelo nome na lista abaixo para carregar o histórico de saúde, dados antropométricos e testes anteriores.
-            </div>
-          </div>
-        </div>
-      );
-    }
+    if (!student) return null;
 
     const rawSex = student.dadosPessoais?.sexo || asSex || 'M';
     const sexLabel = rawSex.trim().toUpperCase().startsWith('F') ? 'Feminino' : 'Masculino';
@@ -906,67 +870,54 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const height = asHeight || student.dadosPessoais?.altura || (student.dadosMedidos?.altura) || 1.75;
     const weight = asWeight || student.dadosPessoais?.peso || (student.dadosMedidos?.peso) || undefined;
     const imc = weight && height ? (Number(weight) / (Number(height) * Number(height))).toFixed(1) : undefined;
-    const initials = (student.nome || 'AL').split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
 
     return (
       <div style={{
         background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%)',
         border: '1px solid rgba(13, 148, 136, 0.35)',
         borderRadius: '12px',
-        padding: '10px 16px',
+        padding: '12px 18px',
         marginBottom: '16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '10px',
+        gap: '12px',
         boxShadow: '0 4px 16px rgba(0,0,0,0.25)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--color-primary) 0%, #059669 100%)',
-            color: '#ffffff',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(13,148,136,0.35)',
-            flexShrink: 0
-          }}>
-            {initials}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{
+              fontWeight: 800,
+              fontSize: '1.2rem',
+              color: '#ffffff',
+              letterSpacing: '0.3px',
+              textShadow: '0 1px 4px rgba(0,0,0,0.4)'
+            }}>
+              {student.nome}
+            </span>
+            <span className="badge badge-success" style={{ fontSize: '0.72rem', padding: '3px 10px', borderRadius: '20px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <i className="fa-solid fa-circle-check"></i> Aluno Selecionado
+            </span>
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#f8fafc' }}>
-                {student.nome}
-              </span>
-              <span className="badge badge-success" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i> Aluno Selecionado
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px', fontSize: '0.76rem', color: '#cbd5e1' }}>
-              <span><strong>Sexo:</strong> {sexLabel}</span>
-              <span>•</span>
-              <span><strong>Idade:</strong> {age} anos</span>
-              <span>•</span>
-              <span><strong>Altura:</strong> {height} m</span>
-              {weight && (
-                <>
-                  <span>•</span>
-                  <span><strong>Peso:</strong> {weight} kg</span>
-                </>
-              )}
-              {imc && (
-                <>
-                  <span>•</span>
-                  <span><strong>IMC:</strong> {imc}</span>
-                </>
-              )}
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.82rem', color: '#cbd5e1' }}>
+            <span><strong>Sexo:</strong> {sexLabel}</span>
+            <span style={{ opacity: 0.5 }}>•</span>
+            <span><strong>Idade:</strong> {age} anos</span>
+            <span style={{ opacity: 0.5 }}>•</span>
+            <span><strong>Altura:</strong> {height} m</span>
+            {weight && (
+              <>
+                <span style={{ opacity: 0.5 }}>•</span>
+                <span><strong>Peso:</strong> {weight} kg</span>
+              </>
+            )}
+            {imc && (
+              <>
+                <span style={{ opacity: 0.5 }}>•</span>
+                <span><strong>IMC:</strong> {imc}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -975,11 +926,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={onSwitchStudent}
-            title="Trocar aluno"
-            style={{ fontSize: '0.75rem', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.06)' }}
+            style={{
+              fontSize: '0.78rem',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.15)'
+            }}
           >
-            <i className="fa-solid fa-user-pen"></i>
-            <span>Trocar Aluno</span>
+            <i className="fa-solid fa-user-pen"></i> Alterar Aluno
           </button>
         )}
       </div>
