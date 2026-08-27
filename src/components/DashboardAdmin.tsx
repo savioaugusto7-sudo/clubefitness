@@ -204,6 +204,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [especialidade, setEspecialidade] = useState('');
   const [registro, setRegistro] = useState('');
   const [pin, setPin] = useState('');
+  const [isEstagiario, setIsEstagiario] = useState(false);
   const [userRole, setUserRole] = useState<string>('aluno');
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['client']);
   const [creditAmount, setCreditAmount] = useState(1);
@@ -1667,12 +1668,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       setNome(item.nome || '');
       setEspecialidade(item.especialidade || '');
       setRegistro(item.registro || '');
+      setIsEstagiario(item.isEstagiario || false);
       setPin(item.pin || '1234');
     } else {
       setEmail('');
       setNome('');
       setEspecialidade('');
       setRegistro('');
+      setIsEstagiario(false);
       setPin('1234');
     }
     setShowModal(true);
@@ -2013,6 +2016,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           especialidade,
           registro,
           cargo: especialidade,
+          isEstagiario,
           pin
         };
         const method = editingItem ? 'PUT' : 'POST';
@@ -2559,15 +2563,32 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                   <tbody>
                     {paginated.map(p => (
                       <tr key={p._id}>
-                        <td><strong>{p.nome}</strong></td>
+                        <td>
+                          <strong>{p.nome}</strong>
+                          {p.isEstagiario && (
+                            <span 
+                              className="badge" 
+                              style={{ 
+                                marginLeft: '8px', 
+                                background: 'rgba(245, 158, 11, 0.15)', 
+                                color: '#f59e0b', 
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                fontSize: '0.7rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              ESTAGIÁRIO
+                            </span>
+                          )}
+                        </td>
                         <td><span className="badge badge-info">{p.especialidade}</span></td>
                         <td><code>{p.registro}</code></td>
                         <td>{p.userId?.email}</td>
                         <td>
-                          <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenProfModal(p)}>
+                          <button className="btn btn-secondary btn-sm" style={{ marginRight: '8px' }} onClick={() => handleOpenProfModal(p)} title="Editar Profissional">
                             <i className="fa-solid fa-pen"></i>
                           </button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProf(p._id)}>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProf(p._id)} title="Excluir Profissional">
                             <i className="fa-solid fa-trash"></i>
                           </button>
                         </td>
@@ -6639,9 +6660,25 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       </div>
                       <div className="form-group">
                         <label>Registro Profissional (Ex: CREFITO)</label>
-                        <input type="text" className="form-control" value={registro} onChange={e => setRegistro(e.target.value)} required />
+                        <input type="text" className="form-control" value={registro} onChange={e => setRegistro(e.target.value)} placeholder="Ex: CREFITO ou -" required />
                       </div>
                     </div>
+
+                    <div className="form-group" style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '8px', padding: '12px 14px', marginTop: '6px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', margin: 0, fontWeight: 700, color: 'var(--text-main)' }}>
+                        <input
+                          type="checkbox"
+                          checked={isEstagiario}
+                          onChange={e => setIsEstagiario(e.target.checked)}
+                          style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                        />
+                        <span>Profissional é Estagiário</span>
+                      </label>
+                      <small style={{ display: 'block', marginTop: '4px', color: 'var(--text-muted)', fontSize: '0.75rem', paddingLeft: '28px' }}>
+                        Identifica o profissional como estagiário na equipe e definirá o modelo de assinatura/responsabilidade técnica nos laudos de avaliação.
+                      </small>
+                    </div>
+
                     <div className="form-group">
                       <label>PIN de Acesso Coletivo (Senha Curta de 4 Dígitos)</label>
                       <input type="text" className="form-control" value={pin} onChange={e => setPin(e.target.value)} maxLength={6} placeholder="Ex: 1234" required />

@@ -539,7 +539,7 @@ export async function executeAiTool(name: string, args: any): Promise<any> {
           consumeCredito: appointmentType === 'academia',
           tipoCredito: appointmentType === 'academia' ? 'academia' : 'nenhum',
           clienteId: client._id,
-          profissionalId: professional._id,
+          profissionalId: professional?._id || client._id,
           status: 'agendado'
         });
 

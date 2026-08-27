@@ -5,6 +5,7 @@ const ProfessionalSchema = new Schema({
   nome: { type: String, required: true },
   especialidade: { type: String, required: true },
   registro: { type: String, required: true },
+  isEstagiario: { type: Boolean, default: false },
   googleTokens: {
     accessToken: { type: String, default: '' },
     refreshToken: { type: String, default: '' },
@@ -14,4 +15,8 @@ const ProfessionalSchema = new Schema({
   pin: { type: String, default: '1234' }
 }, { timestamps: true });
 
-export default models.Professional || model('Professional', ProfessionalSchema);
+if (models.Professional) {
+  delete (models as any).Professional;
+}
+
+export default model('Professional', ProfessionalSchema);

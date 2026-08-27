@@ -42,13 +42,15 @@ export async function GET(request: Request) {
 
     // Escuta por novos tokens gerados por auto-refresh e atualiza no BD
     oAuth2Client.on('tokens', async (newTokens) => {
-      if (newTokens.access_token) {
-        professional.googleTokens.accessToken = newTokens.access_token;
+      if (professional?.googleTokens) {
+        if (newTokens.access_token) {
+          professional.googleTokens.accessToken = newTokens.access_token;
+        }
+        if (newTokens.expiry_date) {
+          professional.googleTokens.tokenExpiry = new Date(newTokens.expiry_date);
+        }
+        await professional.save();
       }
-      if (newTokens.expiry_date) {
-        professional.googleTokens.tokenExpiry = new Date(newTokens.expiry_date);
-      }
-      await professional.save();
     });
 
     const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
