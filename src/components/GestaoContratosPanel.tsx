@@ -611,6 +611,146 @@ export default function GestaoContratosPanel({
     }
   };
 
+  // Modal de Edição Executiva de Condições Comerciais & Ativação de Vigência
+  const [editContractClient, setEditContractClient] = useState<any | null>(null);
+  const [ecPlanoId, setEcPlanoId] = useState<string>('');
+  const [ecStatus, setEcStatus] = useState<string>('ativo');
+  const [ecDuracao, setEcDuracao] = useState<'mensal' | 'anual' | 'semestral' | 'semana'>('mensal');
+  const [ecVigenciaQtd, setEcVigenciaQtd] = useState<number>(1);
+  const [ecDataInicio, setEcDataInicio] = useState<string>('');
+  const [ecVencimento, setEcVencimento] = useState<string>('');
+  const [ecDataPrimeiroVencimento, setEcDataPrimeiroVencimento] = useState<string>('');
+  const [ecFormaPagamento, setEcFormaPagamento] = useState<string>('pix');
+  const [ecValorUnitario, setEcValorUnitario] = useState<number>(0);
+  const [ecParcelas, setEcParcelas] = useState<number>(1);
+  const [ecDescontoTipo, setEcDescontoTipo] = useState<'percentual' | 'fixo'>('percentual');
+  const [ecDescontoValor, setEcDescontoValor] = useState<number>(0);
+  const [ecFrequencia, setEcFrequencia] = useState<number>(3);
+  const [ecCreditosTotal, setEcCreditosTotal] = useState<number>(13);
+  const [ecCreditosMassagemTotal, setEcCreditosMassagemTotal] = useState<number>(0);
+  const [ecCreditosEmergenciaTotal, setEcCreditosEmergenciaTotal] = useState<number>(0);
+  const [ecCriarRecorrenciaMensal, setEcCriarRecorrenciaMensal] = useState<boolean>(false);
+  const [ecSaving, setEcSaving] = useState<boolean>(false);
+  const [ecError, setEcError] = useState<string>('');
+
+  const handleOpenEditContractModal = (client: any) => {
+    setEditContractClient(client);
+    const com = client.dadosComerciais || {};
+    const latestC = allContractsMap[client._id];
+    const latestP = allProposalsMap[client._id];
+    
+    // Resolver plano
+    const resolvedPlanoId = com.planoId?._id || com.planoId || latestC?.planoId?._id || latestC?.planoId || latestP?.planoId?._id || latestP?.planoId || '';
+    setEcPlanoId(resolvedPlanoId);
+
+    // Status
+    setEcStatus(com.status || client.status || 'ativo');
+
+    // Duração & Vigência
+    const rawDur = (com.duracao || latestC?.duracao || (com.planoId?.tipo === 'Anual' ? 'anual' : 'mensal')).toLowerCase();
+    const dur: any = ['anual', 'semestral', 'semana', 'mensal'].includes(rawDur) ? rawDur : 'mensal';
+    setEcDuracao(dur);
+    setEcVigenciaQtd(Number(com.duracaoQtd || com.vigenciaQtd || latestC?.vigenciaQtd || (dur === 'anual' ? 12 : 1)) || 1);
+
+    // Datas
+    const dInicio = com.dataInicio || latestC?.dataInicio || new Date().toISOString().split('T')[0];
+    setEcDataInicio(dInicio);
+    const dVenc = com.vencimento || latestC?.vencimento || '';
+    setEcVencimento(dVenc);
+
+    // 1º Vencimento
+    const dPrimeiroVenc = com.dataPrimeiroVencimento || latestC?.dataPrimeiroVencimento || latestP?.dataPrimeiroVencimento || '';
+    setEcDataPrimeiroVencimento(dPrimeiroVenc);
+
+    // Forma de Pagamento & Parcelas
+    const forma = (com.formaPagamento || latestC?.formaPagamento || latestP?.formaPagamento || 'pix').toLowerCase();
+    setEcFormaPagamento(forma);
+    setEcParcelas(Number(com.parcelas || latestC?.parcelas || latestP?.parcelas || 1) || 1);
+
+    // Valor & Desconto
+    const val = Number(com.valorUnitario || latestC?.valorContratado || latestC?.valorUnitario || latestP?.valorUnitario || 0);
+    setEcValorUnitario(val);
+    setEcDescontoTipo(com.descontoTipo || 'percentual');
+    setEcDescontoValor(Number(com.descontoValor || 0));
+
+    // Frequência & Créditos
+    setEcFrequencia(Number(com.frequencia || 3));
+    setEcCreditosTotal(Number(com.creditosTotal !== undefined ? com.creditosTotal : 13));
+    setEcCreditosMassagemTotal(Number(com.creditosMassagemTotal || 0));
+    setEcCreditosEmergenciaTotal(Number(com.creditosEmergenciaTotal || 0));
+
+    // Recorrência
+    setEcCriarRecorrenciaMensal(Boolean(com.criarRecorrenciaMensal));
+
+    setEcSaving(false);
+    setEcError('');
+  };
+
+  const handleSaveContractConditions = async (activateAsVigente: boolean) => {
+    if (!editContractClient) return;
+    setEcSaving(true);
+    setEcError('');
+
+    try {
+      const finalStatus = activateAsVigente ? 'ativo' : ecStatus;
+      const finalEndDate = ecVencimento || calculateContractEndDate(ecDataInicio, ecDuracao, ecVigenciaQtd, undefined, ecCriarRecorrenciaMensal);
+
+      const payload: any = {
+        id: editContractClient._id,
+        dadosComerciais: {
+          ...(editContractClient.dadosComerciais || {}),
+          planoId: ecPlanoId || null,
+          status: finalStatus,
+          duracao: ecDuracao,
+          duracaoQtd: ecVigenciaQtd,
+          dataInicio: ecDataInicio,
+          vencimento: finalEndDate,
+          dataPrimeiroVencimento: ecDataPrimeiroVencimento,
+          formaPagamento: ecFormaPagamento,
+          valorUnitario: ecValorUnitario,
+          parcelas: ecParcelas,
+          descontoTipo: ecDescontoTipo,
+          descontoValor: ecDescontoValor,
+          frequencia: ecFrequencia,
+          creditosTotal: ecCreditosTotal,
+          creditosMassagemTotal: ecCreditosMassagemTotal,
+          creditosEmergenciaTotal: ecCreditosEmergenciaTotal,
+          criarRecorrenciaMensal: ecCriarRecorrenciaMensal
+        }
+      };
+
+      const res = await fetch('/api/clients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao salvar condições comerciais.');
+      }
+
+      if (activateAsVigente) {
+        const latestP = allProposalsMap[editContractClient._id];
+        if (latestP?._id) {
+          await fetch(`/api/propostas?id=${latestP._id}`, { method: 'DELETE' }).catch(() => {});
+        }
+      }
+
+      if (selectedClient && selectedClient._id === editContractClient._id) {
+        setSelectedClient(data.data);
+      }
+
+      fetchData();
+      loadContractsAndProposalsOverview();
+      setEditContractClient(null);
+    } catch (err: any) {
+      setEcError(err.message || 'Erro ao salvar.');
+    } finally {
+      setEcSaving(false);
+    }
+  };
+
   useEffect(() => {
     loadContractsAndProposalsOverview();
   }, [clients]);
@@ -4843,9 +4983,34 @@ export default function GestaoContratosPanel({
                         Auditoria & Condições Comerciais do Contrato
                       </h4>
                     </div>
-                    <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                      <i className="fa-solid fa-shield-halved" style={{ marginRight: '4px' }}></i> Single Source of Truth (Blindado)
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '5px 12px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)'
+                        }}
+                        onClick={() => handleOpenEditContractModal(selectedClient)}
+                        title="Editar condições comerciais, datas e ativar facilmente como vigente"
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i>
+                        Editar Condições & Ativar
+                      </button>
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                        <i className="fa-solid fa-shield-halved" style={{ marginRight: '4px' }}></i> Single Source of Truth (Blindado)
+                      </span>
+                    </div>
                   </div>
 
                   {/* Grid de Blocos de Leitura Executiva com 1º Vencimento Visual */}
@@ -8194,6 +8359,448 @@ export default function GestaoContratosPanel({
           </div>
         </div>
       )}
+      {/* =========================================================================
+          MODAL EXECUTIVO: EDITAR CONDIÇÕES COMERCIAIS & ATIVAR VIGÊNCIA (ADMIN)
+          ========================================================================= */}
+      {editContractClient && (() => {
+        const activePlans = plans.filter((p: any) => p.ativo !== false && !p.nome?.toLowerCase().includes('dynamus'));
+        const gross = Number(ecValorUnitario || 0) * (ecCriarRecorrenciaMensal ? 1 : Number(ecVigenciaQtd || 1));
+        let discountVal = 0;
+        if (ecDescontoTipo === 'percentual') {
+          discountVal = (gross * (Number(ecDescontoValor) || 0)) / 100;
+        } else {
+          discountVal = Number(ecDescontoValor) || 0;
+        }
+        discountVal = Math.min(discountVal, gross);
+        const netVal = Math.max(0, gross - discountVal);
+        const valorParc = netVal / (Number(ecParcelas) || 1);
+
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, padding: '20px' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '18px', width: '100%', maxWidth: '640px', maxHeight: '92vh', overflowY: 'auto', padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+              
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-pen-to-square"></i>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Editar Condições & Ativar Vigência</h3>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Aluno: <strong>{editContractClient.dadosPessoais?.nome || editContractClient.nome}</strong>
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setEditContractClient(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.3rem', cursor: 'pointer' }}>&times;</button>
+              </div>
+
+              {/* Status e Ação Rápida */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>
+                    Status Comercial Atual
+                  </label>
+                  <select
+                    value={ecStatus}
+                    onChange={e => setEcStatus(e.target.value)}
+                    style={{ padding: '6px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700 }}
+                  >
+                    <option value="ativo">🟢 Ativo (Vigente / Formalizado)</option>
+                    <option value="pendente">⏳ Pendente (Aguardando Assinatura)</option>
+                    <option value="lead">🟣 Lead / Novo Cadastro</option>
+                    <option value="renovacao">🟡 Renovação Pendente</option>
+                    <option value="vencido">🔴 Vencido</option>
+                    <option value="finalizado">⚪ Finalizado / Inativo</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEcStatus('ativo')}
+                  style={{
+                    background: ecStatus === 'ativo' ? '#10b981' : 'rgba(16, 185, 129, 0.15)',
+                    color: ecStatus === 'ativo' ? '#fff' : '#34d399',
+                    border: '1px solid #10b981',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <i className="fa-solid fa-circle-check"></i>
+                  {ecStatus === 'ativo' ? 'Definido como Vigente' : 'Marcar como Vigente'}
+                </button>
+              </div>
+
+              {/* Form Grid */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Plano Contratado */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Plano Contratado <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <select
+                    value={ecPlanoId}
+                    onChange={e => {
+                      const pid = e.target.value;
+                      setEcPlanoId(pid);
+                      const pObj = plans.find(p => p._id === pid);
+                      if (pObj) {
+                        if (pObj.preco) setEcValorUnitario(pObj.preco);
+                        if (pObj.tipo === 'Anual') {
+                          setEcDuracao('anual');
+                          setEcVigenciaQtd(12);
+                          setEcCreditosMassagemTotal(1);
+                          setEcCreditosEmergenciaTotal(1);
+                        } else {
+                          setEcDuracao('mensal');
+                          setEcVigenciaQtd(1);
+                          setEcCreditosMassagemTotal(0);
+                          setEcCreditosEmergenciaTotal(0);
+                        }
+                        if (pObj.frequencia) setEcFrequencia(pObj.frequencia);
+                        if (pObj.creditosTotal) setEcCreditosTotal(pObj.creditosTotal);
+                        const end = calculateContractEndDate(ecDataInicio || new Date().toISOString().split('T')[0], pObj.tipo === 'Anual' ? 'anual' : 'mensal', pObj.tipo === 'Anual' ? 12 : 1, undefined, ecCriarRecorrenciaMensal);
+                        setEcVencimento(end);
+                      }
+                    }}
+                    style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '0.88rem' }}
+                  >
+                    <option value="">-- Selecione o Plano --</option>
+                    {activePlans.map((p: any) => (
+                      <option key={p._id} value={p._id}>{p.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Recorrência Mensal Automática */}
+                <div 
+                  style={{ 
+                    background: ecCriarRecorrenciaMensal ? 'rgba(59, 130, 246, 0.14)' : 'rgba(255, 255, 255, 0.03)', 
+                    border: '1px solid',
+                    borderColor: ecCriarRecorrenciaMensal ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)', 
+                    borderRadius: '10px', 
+                    padding: '12px 14px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px', 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => {
+                    const next = !ecCriarRecorrenciaMensal;
+                    setEcCriarRecorrenciaMensal(next);
+                    const end = calculateContractEndDate(ecDataInicio, ecDuracao, ecVigenciaQtd, undefined, next);
+                    setEcVencimento(end);
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    id="ecCriarRecorrenciaMensal"
+                    checked={ecCriarRecorrenciaMensal}
+                    onChange={e => {
+                      setEcCriarRecorrenciaMensal(e.target.checked);
+                      const end = calculateContractEndDate(ecDataInicio, ecDuracao, ecVigenciaQtd, undefined, e.target.checked);
+                      setEcVencimento(end);
+                    }}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3b82f6' }}
+                  />
+                  <label htmlFor="ecCriarRecorrenciaMensal" style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-arrows-rotate" style={{ color: '#3b82f6' }}></i>
+                    Contrato com Recorrência Mensal Automática
+                  </label>
+                </div>
+
+                {/* Duração & Datas do Período Oficial */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.8fr 1.1fr 1.1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo Vigência</label>
+                    <select
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecDuracao}
+                      onChange={e => {
+                        const dur = e.target.value as any;
+                        setEcDuracao(dur);
+                        const qty = dur === 'anual' ? 12 : (dur === 'semestral' ? 6 : 1);
+                        setEcVigenciaQtd(qty);
+                        const end = calculateContractEndDate(ecDataInicio, dur, qty, undefined, ecCriarRecorrenciaMensal);
+                        setEcVencimento(end);
+                      }}
+                    >
+                      <option value="anual">Anual</option>
+                      <option value="semestral">Semestral</option>
+                      <option value="mensal">Mensal</option>
+                      <option value="semana">Semanal</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Qtd Vigência</label>
+                    <input
+                      type="number"
+                      min={1}
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecVigenciaQtd}
+                      onChange={e => {
+                        const q = Math.max(1, parseInt(e.target.value, 10) || 1);
+                        setEcVigenciaQtd(q);
+                        const end = calculateContractEndDate(ecDataInicio, ecDuracao, q, undefined, ecCriarRecorrenciaMensal);
+                        setEcVencimento(end);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data de Início</label>
+                    <input
+                      type="date"
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecDataInicio}
+                      onChange={e => {
+                        const d = e.target.value;
+                        setEcDataInicio(d);
+                        const end = calculateContractEndDate(d, ecDuracao, ecVigenciaQtd, undefined, ecCriarRecorrenciaMensal);
+                        setEcVencimento(end);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data Fim (Vencimento)</label>
+                    <input
+                      type="date"
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: '#34d399', fontWeight: 700, borderRadius: '8px' }}
+                      value={ecVencimento}
+                      onChange={e => setEcVencimento(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* 1º Vencimento da Parcela & Condição Financeira */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.8fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      <i className="fa-regular fa-calendar-check" style={{ marginRight: '4px' }}></i> 1º Vencimento Parcela
+                    </label>
+                    <input
+                      type="date"
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', fontWeight: 700, borderRadius: '8px' }}
+                      value={ecDataPrimeiroVencimento}
+                      onChange={e => setEcDataPrimeiroVencimento(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Forma Pagamento</label>
+                    <select
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecFormaPagamento}
+                      onChange={e => setEcFormaPagamento(e.target.value)}
+                    >
+                      <option value="pix">PIX</option>
+                      <option value="boleto">Boleto Bancário</option>
+                      <option value="cartao">Cartão de Crédito</option>
+                      <option value="dinheiro">Dinheiro</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--color-primary)', fontWeight: 700, borderRadius: '8px' }}
+                      value={ecValorUnitario || ''}
+                      onChange={e => setEcValorUnitario(parseFloat(e.target.value) || 0)}
+                      placeholder="R$ 0,00"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Parcelas</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecParcelas}
+                      onChange={e => setEcParcelas(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    />
+                  </div>
+                </div>
+
+                {/* Descontos */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo de Desconto</label>
+                    <select
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecDescontoTipo}
+                      onChange={e => setEcDescontoTipo(e.target.value as any)}
+                    >
+                      <option value="percentual">🏷️ Porcentagem (%)</option>
+                      <option value="fixo">💵 Valor Fixo (R$)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Abatimento ({ecDescontoTipo === 'percentual' ? '%' : 'R$'})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecDescontoValor || ''}
+                      onChange={e => setEcDescontoValor(parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                {/* Frequência e Créditos */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Frequência Semanal</label>
+                    <select
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecFrequencia}
+                      onChange={e => {
+                        const freq = Number(e.target.value);
+                        setEcFrequencia(freq);
+                        if (freq === 1) setEcCreditosTotal(4);
+                        else if (freq === 2) setEcCreditosTotal(9);
+                        else if (freq === 3) setEcCreditosTotal(13);
+                        else if (freq === 4) setEcCreditosTotal(17);
+                        else if (freq === 5) setEcCreditosTotal(22);
+                      }}
+                    >
+                      <option value={1}>1x/sem (4 créd/mês)</option>
+                      <option value={2}>2x/sem (9 créd/mês)</option>
+                      <option value={3}>3x/sem (13 créd/mês)</option>
+                      <option value={4}>4x/sem (17 créd/mês)</option>
+                      <option value={5}>5x/sem (22 créd/mês)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos Treino/Mês</label>
+                    <input
+                      type="number"
+                      min={0}
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecCreditosTotal}
+                      onChange={e => setEcCreditosTotal(parseInt(e.target.value, 10) || 0)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos Massagem</label>
+                    <input
+                      type="number"
+                      min={0}
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecCreditosMassagemTotal}
+                      onChange={e => setEcCreditosMassagemTotal(parseInt(e.target.value, 10) || 0)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos Emergência</label>
+                    <input
+                      type="number"
+                      min={0}
+                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                      value={ecCreditosEmergenciaTotal}
+                      onChange={e => setEcCreditosEmergenciaTotal(parseInt(e.target.value, 10) || 0)}
+                    />
+                  </div>
+                </div>
+
+                {/* Resumo Financeiro em Tempo Real */}
+                <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Valor Bruto ({ecVigenciaQtd}x)</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                      R$ {gross.toFixed(2).replace('.', ',')}
+                    </div>
+                  </div>
+                  {discountVal > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.74rem', color: '#ef4444' }}>Desconto Aplicado</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ef4444' }}>
+                        - R$ {discountVal.toFixed(2).replace('.', ',')} {ecDescontoTipo === 'percentual' ? `(${ecDescontoValor}%)` : ''}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Valor Total Líquido</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                      R$ {netVal.toFixed(2).replace('.', ',')}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+                      {ecParcelas}x de R$ {valorParc.toFixed(2).replace('.', ',')}
+                    </div>
+                  </div>
+                </div>
+
+                {ecError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.82rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    ⚠️ {ecError}
+                  </div>
+                )}
+
+                {/* Footer de Ações */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
+                  <button type="button" onClick={() => setEditContractClient(null)} className="btn btn-secondary" style={{ padding: '9px 18px', borderRadius: '8px' }}>
+                    Cancelar
+                  </button>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveContractConditions(false)}
+                      disabled={ecSaving || !ecPlanoId}
+                      className="btn btn-secondary"
+                      style={{ padding: '9px 18px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
+                    >
+                      {ecSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
+                      Salvar Alterações
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSaveContractConditions(true)}
+                      disabled={ecSaving || !ecPlanoId}
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        border: 'none',
+                        color: '#fff',
+                        fontWeight: 800,
+                        padding: '9px 22px',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: (!ecPlanoId || ecSaving) ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)'
+                      }}
+                    >
+                      {ecSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-bolt"></i>}
+                      Salvar & Ativar como Vigente
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
