@@ -258,6 +258,89 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [planValidade, setPlanValidade] = useState(30);
   const [planAcademia, setPlanAcademia] = useState(0);
   const [planConsultorio, setPlanConsultorio] = useState(0);
+
+  // ==========================================
+  // ESTADOS: DASHBOARD 2.0 & FILA DE TRATATIVAS
+  // ==========================================
+  const getWeekKey = (d: Date = new Date()) => {
+    const startOfWeek = new Date(d);
+    const day = startOfWeek.getDay() || 7;
+    if (day !== 1) startOfWeek.setHours(-24 * (day - 1));
+    return startOfWeek.toISOString().split('T')[0];
+  };
+
+  const currentWeekKey = getWeekKey();
+  const [tratativas, setTratativas] = useState<Record<string, { data: string; motivo: string; responsavel: string; tipo: 'whatsapp' | 'manual'; obs?: string }>>({});
+  const [activeRetentionTab, setActiveRetentionTab] = useState<'pendentes' | 'tratados' | 'todos'>('pendentes');
+  const [tratativaModalClient, setTratativaModalClient] = useState<any>(null);
+  const [tratativaMotivo, setTratativaMotivo] = useState<string>('agendou');
+  const [tratativaObs, setTratativaObs] = useState<string>('');
+  const [contractTratativas, setContractTratativas] = useState<Record<string, { data: string; motivo: string; responsavel: string }>>({});
+  const [activeContractAlertTab, setActiveContractAlertTab] = useState<'vencidos' | 'vencendo' | 'tratados'>('vencidos');
+
+  // Carregar tratativas salvas no localStorage
+  useEffect(() => {
+    try {
+      const savedRetention = localStorage.getItem(`cf_tratativas_retencao_${currentWeekKey}`);
+      if (savedRetention) setTratativas(JSON.parse(savedRetention));
+      const savedContracts = localStorage.getItem(`cf_tratativas_contratos`);
+      if (savedContracts) setContractTratativas(JSON.parse(savedContracts));
+    } catch (e) {
+      console.error('Erro ao carregar tratativas do localStorage:', e);
+    }
+  }, [currentWeekKey]);
+
+  const saveRetentionTratativa = (clientId: string, data: { motivo: string; tipo: 'whatsapp' | 'manual'; obs?: string }) => {
+    const nowStr = new Date().toLocaleString('pt-BR');
+    const updated = {
+      ...tratativas,
+      [clientId]: {
+        data: nowStr,
+        motivo: data.motivo,
+        tipo: data.tipo,
+        obs: data.obs || '',
+        responsavel: 'Recepção / Admin'
+      }
+    };
+    setTratativas(updated);
+    try {
+      localStorage.setItem(`cf_tratativas_retencao_${currentWeekKey}`, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const removeRetentionTratativa = (clientId: string) => {
+    const updated = { ...tratativas };
+    delete updated[clientId];
+    setTratativas(updated);
+    try {
+      localStorage.setItem(`cf_tratativas_retencao_${currentWeekKey}`, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const saveContractTratativa = (clientId: string, motivo: string) => {
+    const nowStr = new Date().toLocaleString('pt-BR');
+    const updated = {
+      ...contractTratativas,
+      [clientId]: {
+        data: nowStr,
+        motivo,
+        responsavel: 'Recepção / Admin'
+      }
+    };
+    setContractTratativas(updated);
+    try {
+      localStorage.setItem(`cf_tratativas_contratos`, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const removeContractTratativa = (clientId: string) => {
+    const updated = { ...contractTratativas };
+    delete updated[clientId];
+    setContractTratativas(updated);
+    try {
+      localStorage.setItem(`cf_tratativas_contratos`, JSON.stringify(updated));
+    } catch (e) {}
+  };
   const [planPrice, setPlanPrice] = useState(0);
   const [planCreditos, setPlanCreditos] = useState(0);
 
@@ -1676,28 +1759,40 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
     setShowModal(true);
   };
 
-  const sendPreventiveAlert = (client: any) => {
-    const metrics = getWeeklyFrequencyMetrics(client, appointments, simulatedDate);
+  const handleEngageWhatsAppWithTratativa = (client: any, metrics: any) => {
     if (!metrics) return;
-
     const diasRestantesNomes: Record<number, string> = {
       4: '(terça a sexta)',
       3: '(quarta a sexta)',
       2: '(quinta e sexta)',
       1: '(sexta-feira)'
     };
-
     const diasRestantesTexto = diasRestantesNomes[metrics.diasRestantes] || '';
-    const msg = `Olá, ${client.dadosPessoais.nome}! Notamos que você realizou ${metrics.realizados} de seus ${metrics.frequenciaSemanal} treinos contratados esta semana. Para garantir que você cumpra a sua meta semanal, restam ${metrics.diasRestantes} dia(s) útil(eis) na semana ${diasRestantesTexto} e você ainda tem ${metrics.pendentes} treino(s) pendente(s). Vamos agendar seu próximo treino? 💪`;
+    const msg = `Olá, ${client.dadosPessoais?.nome}! Tudo bem? 💪\nPassando para acompanhar sua rotina no Clube Fitness: você realizou ${metrics.realizados} de seus ${metrics.frequenciaSemanal} treinos contratados esta semana. Ainda restam ${metrics.diasRestantes} dia(s) útil(eis) ${diasRestantesTexto} e você tem ${metrics.pendentes} treino(s) disponível(is). Que tal garantirmos seu horário? Vamos agendar?`;
 
     const cleanPhone = client.dadosPessoais?.telefone?.replace(/\D/g, '');
     if (cleanPhone) {
       const formattedPhone = cleanPhone.length <= 11 ? '55' + cleanPhone : cleanPhone;
       const url = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(msg)}`;
       window.open(url, '_blank');
-    } else {
-      alert(`Mensagem preventiva de WhatsApp para ${client.dadosPessoais.nome}:\n\n"${msg}"`);
     }
+    saveRetentionTratativa(client._id, {
+      motivo: 'Mensagem de WhatsApp enviada para engajamento e agendamento',
+      tipo: 'whatsapp'
+    });
+  };
+
+  const handleEngageAllPending = (pendingList: any[]) => {
+    if (pendingList.length === 0) return;
+    if (!confirm(`Deseja engajar ${pendingList.length} aluno(s) pendente(s) e registrar a tratativa da semana para todos?`)) return;
+
+    pendingList.forEach(item => {
+      saveRetentionTratativa(item.client._id, {
+        motivo: 'Engajamento em lote disparado pela recepção',
+        tipo: 'whatsapp'
+      });
+    });
+    alert(`✅ Sucesso!\n\nForam registradas as tratativas de engajamento para os ${pendingList.length} alunos!`);
   };
 
   const handleOpenUserModal = (item: any = null) => {
@@ -2247,259 +2342,678 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   }
 
   // Dashboard calculations
-  const totalClients = clients.length;
-  const activeClients = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
+  // ==========================================
+  // CÁLCULOS E INTELIGÊNCIA OPERACIONAL 2.0
+  // ==========================================
+  // Alunos Clube Fitness (ignora convênio Dynamus puro que não possui plano contratado conosco)
+  const cfClients = clients.filter(c => !c.dadosComerciais?.convenioDynamus || (c.dadosComerciais?.planoId && c.dadosComerciais?.status === 'ativo'));
+  const totalClients = cfClients.length;
+  const activeClients = cfClients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado').length;
   
-  // Receita Est. Mensal: soma de todas as parcelas com vencimento no mês atual (Pagas ou Em Aberto)
+  // Receita Est. Mensal
   const currentMonthStr = getYearMonth(new Date());
   const currentMonthPayments = payments.filter(p => p.vencimento && getYearMonth(p.vencimento) === currentMonthStr && p.status !== 'Cancelado' && p.valor <= 2000);
-  const activeClientsList = clients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado');
+  const activeClientsList = cfClients.filter(c => c.dadosComerciais?.status === 'ativo' || c.dadosComerciais?.status === 'assinado');
   
   const revenueEst = currentMonthPayments.length > 0
     ? currentMonthPayments.reduce((sum, p) => sum + p.valor, 0)
     : activeClientsList.reduce((acc, c) => acc + (Number(c.dadosComerciais?.valorUnitario) || 310), 0);
-  const todayApts = appointments.filter(a => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    return a.data === todayStr && a.status !== 'cancelado';
-  }).length;
+
+  // Atendimentos de Hoje por Turno
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments.filter(a => a.data === todayStr && a.status !== 'cancelado');
+  const todayApts = todayAppointments.length;
+  const presencasHoje = todayAppointments.filter(a => a.status === 'presenca').length;
+  const agendadosHoje = todayAppointments.filter(a => a.status === 'agendado').length;
+  const faltasHoje = todayAppointments.filter(a => a.status === 'falta').length;
+
+  const manhaApts = todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h < 12; });
+  const tardeApts = todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h >= 12 && h < 18; });
+  const noiteApts = todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h >= 18; });
+
+  // Métricas de Retenção e Frequência Semanal
+  const retentionList = cfClients
+    .map(c => ({ client: c, metrics: getWeeklyFrequencyMetrics(c, appointments, simulatedDate) }))
+    .filter((x): x is { client: any; metrics: NonNullable<ReturnType<typeof getWeeklyFrequencyMetrics>> } => Boolean(x.metrics && x.metrics.frequenciaSemanal > 0));
+
+  const totalComMeta = retentionList.length;
+  const emRiscoList = retentionList.filter(x => x.metrics.alerta && x.client.dadosComerciais?.status === 'ativo');
+  const emConformidadeList = retentionList.filter(x => !x.metrics.alerta && x.client.dadosComerciais?.status === 'ativo');
+  const taxaRetencao = totalComMeta > 0 ? Math.round((emConformidadeList.length / totalComMeta) * 100) : 100;
+
+  const pendentesRetencao = emRiscoList.filter(x => !tratativas[x.client._id]);
+  const tratadosRetencao = emRiscoList.filter(x => !!tratativas[x.client._id]);
+
+  // Alertas de Contratos
+  const expiredContracts = cfClients.filter(c => {
+    if (c.dadosComerciais?.status === 'congelado' || c.dadosComerciais?.status === 'inativo') return false;
+    const info = getContractValidityInfo(c);
+    return info.isExpired;
+  });
+
+  const expiringContracts = cfClients.filter(c => {
+    if (c.dadosComerciais?.status !== 'ativo') return false;
+    const info = getContractValidityInfo(c);
+    return !info.isExpired && info.daysLeft <= 15 && info.daysLeft >= 0;
+  });
+
+  const pendingExpiredContracts = expiredContracts.filter(c => !contractTratativas[c._id]);
+  const pendingExpiringContracts = expiringContracts.filter(c => !contractTratativas[c._id]);
 
   return (
     <div>
-      {/* 1. View: Dashboard Principal */}
+      {/* 1. View: Dashboard Principal 2.0 */}
       {activeTab === 'dashboard' && (
-        <>
-          <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          
+          {/* Cabeçalho Executivo */}
+          <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', margin: 0 }}>
             <div className="view-title-group">
-              <h1>Dashboard Administrativo</h1>
-              <p>Visão geral de faturamento, alunos ativos e ocupação diária.</p>
+              <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-gauge-high" style={{ color: '#10b981' }}></i> Dashboard Administrativo & Cockpit Operacional
+              </h1>
+              <p>Monitoramento em tempo real de ocupação, retenção de treinos e saúde da clínica.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '6px 14px', borderRadius: '10px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-regular fa-calendar" style={{ color: '#38bdf8' }}></i>
+                <span>Hoje: <strong style={{ color: '#fff' }}>{formatDateBR(todayStr)}</strong></span>
+              </div>
+              <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '6px 14px', borderRadius: '10px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399' }}>
+                <i className="fa-solid fa-bullseye"></i>
+                <span>Meta Retenção: <strong>&gt; 80%</strong></span>
+              </div>
             </div>
           </div>
 
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-info">
-                <h3>Total de Alunos</h3>
-                <div className="value">{totalClients}</div>
+          {/* Grid de 4 KPIs Operacionais Vivos */}
+          <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            
+            {/* Card 1: Taxa de Retenção Semanal */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(6, 78, 59, 0.15) 100%)', border: `1px solid ${taxaRetencao >= 80 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.4)'}` }}>
+              <div className="metric-info" style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <h3 style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8' }}>Taxa de Retenção Semanal</h3>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', background: taxaRetencao >= 80 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: taxaRetencao >= 80 ? '#34d399' : '#fbbf24' }}>
+                    {taxaRetencao >= 80 ? 'META ATINGIDA' : 'ATENÇÃO'}
+                  </span>
+                </div>
+                <div className="value" style={{ color: taxaRetencao >= 80 ? '#34d399' : '#fbbf24', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {taxaRetencao}%
+                </div>
+                {/* Progress bar */}
+                <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', margin: '8px 0 6px 0', overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ width: `${Math.min(100, taxaRetencao)}%`, height: '100%', background: taxaRetencao >= 80 ? '#10b981' : '#f59e0b', borderRadius: '4px', transition: 'width 0.4s ease' }}></div>
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  {emConformidadeList.length} de {totalComMeta} alunos em dia na semana
+                </small>
               </div>
-              <div className="metric-icon"><i className="fa-solid fa-users"></i></div>
             </div>
-            <div className="metric-card">
+
+            {/* Card 2: Ocupação do Dia (Hoje) */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.15) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
               <div className="metric-info">
-                <h3>Alunos Ativos</h3>
-                <div className="value">{activeClients}</div>
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Atendimentos Hoje</h3>
+                <div className="value" style={{ color: '#38bdf8', fontSize: '1.8rem', fontWeight: 900 }}>{todayApts}</div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px', fontSize: '0.72rem', flexWrap: 'wrap' }}>
+                  <span style={{ color: '#34d399' }}>✓ {presencasHoje} Feitos</span>
+                  <span style={{ color: '#38bdf8' }}>🕒 {agendadosHoje} Agendados</span>
+                  {faltasHoje > 0 && <span style={{ color: '#f87171' }}>✗ {faltasHoje} Faltas</span>}
+                </div>
               </div>
-              <div className="metric-icon"><i className="fa-solid fa-user-check"></i></div>
+              <div className="metric-icon indigo" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                <i className="fa-solid fa-calendar-check"></i>
+              </div>
             </div>
-            <div className="metric-card">
+
+            {/* Card 3: Fila de Retenção (Ação Necessária) */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(153, 27, 27, 0.15) 100%)', border: `1px solid ${pendentesRetencao.length > 0 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.1)'}` }}>
               <div className="metric-info">
-                <h3>Atendimentos Hoje</h3>
-                <div className="value">{todayApts}</div>
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Fila Anti-Churn (Sem Tratativa)</h3>
+                <div className="value" style={{ color: pendentesRetencao.length > 0 ? '#f87171' : '#34d399', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {pendentesRetencao.length}
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  {tratadosRetencao.length} tratado(s) nesta semana
+                </small>
               </div>
-              <div className="metric-icon indigo"><i className="fa-solid fa-calendar-day"></i></div>
+              <div className="metric-icon" style={{ background: pendentesRetencao.length > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', color: pendentesRetencao.length > 0 ? '#ef4444' : '#10b981' }}>
+                <i className="fa-solid fa-user-shield"></i>
+              </div>
             </div>
-            <div className="metric-card">
+
+            {/* Card 4: Alunos Ativos & Receita */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(107, 33, 168, 0.15) 100%)', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
               <div className="metric-info">
-                <h3>Receita Est. Mensal</h3>
-                <div className="value">R$ {formatCurrencyBRL(revenueEst)}</div>
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Alunos Ativos Clube</h3>
+                <div className="value" style={{ color: '#c084fc', fontSize: '1.8rem', fontWeight: 900 }}>{activeClients}</div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  Faturamento Est.: <strong style={{ color: '#fff' }}>R$ {formatCurrencyBRL(revenueEst)}</strong>
+                </small>
               </div>
-              <div className="metric-icon warning"><i className="fa-solid fa-wallet"></i></div>
+              <div className="metric-icon" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
+                <i className="fa-solid fa-users"></i>
+              </div>
+            </div>
+
+          </div>
+
+          {/* MÓDULO 1: TERMÔMETRO OPERACIONAL DA CLÍNICA (HOJE) */}
+          <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '20px' }}>
+            <div className="panel-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-clock"></i> Termômetro Operacional da Clínica (Hoje)
+              </h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveTab('agenda')} style={{ fontSize: '0.78rem' }}>
+                  <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i> Abrir Agenda Completa
+                </button>
+              </div>
+            </div>
+
+            {/* Cards de Turnos do Dia */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+              
+              {/* Manhã */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fde047', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-sun"></i> Turno Manhã (06h - 12h)
+                  </span>
+                  <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{manhaApts.length} atendimentos</span>
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                  {manhaApts.length > 0 ? (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {manhaApts.slice(0, 5).map((a, idx) => (
+                        <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
+                          {a.horario} • {a.clienteNome || 'Aluno'}
+                        </span>
+                      ))}
+                      {manhaApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.72rem' }}>+{manhaApts.length - 5} mais</span>}
+                    </div>
+                  ) : (
+                    <span>Nenhum atendimento agendado para a manhã.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Tarde */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fb923c', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-cloud-sun"></i> Turno Tarde (12h - 18h)
+                  </span>
+                  <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{tardeApts.length} atendimentos</span>
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                  {tardeApts.length > 0 ? (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {tardeApts.slice(0, 5).map((a, idx) => (
+                        <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
+                          {a.horario} • {a.clienteNome || 'Aluno'}
+                        </span>
+                      ))}
+                      {tardeApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.72rem' }}>+{tardeApts.length - 5} mais</span>}
+                    </div>
+                  ) : (
+                    <span>Nenhum atendimento agendado para a tarde.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Noite */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-moon"></i> Turno Noite (18h - 22h)
+                  </span>
+                  <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{noiteApts.length} atendimentos</span>
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                  {noiteApts.length > 0 ? (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {noiteApts.slice(0, 5).map((a, idx) => (
+                        <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
+                          {a.horario} • {a.clienteNome || 'Aluno'}
+                        </span>
+                      ))}
+                      {noiteApts.length > 5 && <span style={{ color: '#38bdf8', fontSize: '0.72rem' }}>+{noiteApts.length - 5} mais</span>}
+                    </div>
+                  ) : (
+                    <span>Nenhum atendimento agendado para a noite.</span>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {/* Alertas de Notificação do Sistema */}
-          {(() => {
-            const expiredClients = clients.filter(c => {
-              if (c.dadosComerciais?.status === 'congelado' || c.dadosComerciais?.status === 'inativo') return false;
-              const info = getContractValidityInfo(c);
-              return info.isExpired;
-            });
-            const alertClients = clients.filter(c => {
-              if (c.dadosComerciais?.status !== 'ativo') return false;
-              const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
-              return metrics?.alerta;
-            });
-
-            if (expiredClients.length === 0 && alertClients.length === 0) return null;
-
-            return (
-              <div className="content-panel" style={{ marginTop: '24px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.02)' }}>
-                <div className="panel-header">
-                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171' }}>
-                    <i className="fa-solid fa-triangle-exclamation"></i> Alertas do Sistema
-                  </h2>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                  {expiredClients.map(c => {
-                    const info = getContractValidityInfo(c);
-                    return (
-                      <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.1)', width: '100%', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px', minWidth: 0 }}>
-                          <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', flexShrink: 0 }}></i>
-                          <span style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>
-                            O plano de <strong>{c.dadosPessoais?.nome}</strong> venceu em <strong>{info.dataFimFormatted}</strong>. Status atual: <strong>Vencido</strong>.
-                          </span>
-                        </div>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => alert('Notificação enviada ao aluno!')} style={{ flexShrink: 0 }}>
-                          Notificar
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {alertClients.map(c => {
-                    const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
-                    if (!metrics) return null;
-                    const diasRestantesNomes: Record<number, string> = {
-                      4: '(terça a sexta)',
-                      3: '(quarta a sexta)',
-                      2: '(quinta e sexta)',
-                      1: '(sexta-feira)'
-                    };
-                    const diasRestantesTexto = diasRestantesNomes[metrics.diasRestantes] || '';
-                    return (
-                      <div key={c._id} className="notification-card unread" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(245, 158, 11, 0.1)', width: '100%', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px', minWidth: 0 }}>
-                          <i className="fa-solid fa-clock-rotate-left" style={{ color: '#f59e0b', flexShrink: 0 }}></i>
-                          <span style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>
-                            <strong>Risco de Evasão Semanal</strong>: <strong>{c.dadosPessoais?.nome}</strong> contratou <strong>{metrics.frequenciaSemanal}x/sem</strong>, mas realizou <strong>{metrics.realizados}</strong> e agendou <strong>{metrics.agendados}</strong> treinos. Restam apenas <strong>{metrics.diasRestantes}</strong> dias úteis na semana {diasRestantesTexto} para <strong>{metrics.pendentes}</strong> treino(s) pendente(s).
-                          </span>
-                        </div>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={() => sendPreventiveAlert(c)} style={{ background: '#10b981', borderColor: '#10b981', flexShrink: 0 }}>
-                          <i className="fa-brands fa-whatsapp" style={{ marginRight: '6px' }}></i> Engajar
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* MÓDULO 2: CENTRAL DE INTELIGÊNCIA DE RETENÇÃO (FILA DE TRATATIVAS) */}
+          <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '20px' }}>
+            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-shield-halved"></i> Central de Retenção & Fila de Tratativas (Anti-Churn)
+                </h2>
+                <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                  Acompanhamento preditivo de frequência semanal com tratativa ativa e resolução de pendências.
+                </small>
               </div>
-            );
-          })()}
 
-          {/* Quick Frequency Monitoring Table */}
-          <div className="content-panel" style={{ marginTop: '24px' }}>
-            <div className="panel-header">
-              <h2>Acompanhamento de Frequência Contratada</h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <span style={{ fontSize: '0.75rem', background: 'var(--color-primary)', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
-                  Frequência Semanal (Seg-Sex)
-                </span>
-              </div>
+              {/* Botões de Ação Global */}
+              {pendentesRetencao.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleEngageAllPending(pendentesRetencao)}
+                  style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderColor: '#059669', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <i className="fa-brands fa-whatsapp"></i> Engajar Todos os Pendentes ({pendentesRetencao.length})
+                </button>
+              )}
             </div>
-            <div className="table-responsive" style={{ marginTop: '12px' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Cliente</th>
-                    <th>Plano</th>
-                    <th style={{ textAlign: 'center' }}>Freq. Contratada</th>
-                    <th style={{ textAlign: 'center' }}>Treinos Feitos</th>
-                    <th style={{ textAlign: 'center' }}>Treinos Agendados</th>
-                    <th style={{ textAlign: 'center' }}>Pendentes</th>
-                    <th style={{ textAlign: 'center' }}>Dias Restantes</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                    <th style={{ textAlign: 'center' }}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const listKey = 'dashboard_freq';
-                    const activeP = getPage(listKey);
-                    const size = getPageSize(listKey);
-                    const q = normalizeText(getSearchQuery(listKey));
-                    const filtered = clients.filter(c => normalizeText(c.dadosPessoais?.nome).includes(q));
-                    const totalPages = Math.ceil(filtered.length / size);
-                    const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                    const paginated = filtered.slice((curP - 1) * size, curP * size);
 
-                    return paginated.map(c => {
-                      const planName = c.dadosComerciais?.planoId?.nome || 'Plano Personalizado';
-                      const metrics = getWeeklyFrequencyMetrics(c, appointments, simulatedDate);
-                      const status = c.dadosComerciais?.status || 'ativo';
+            {/* Abas de Navegação da Retenção */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeRetentionTab === 'pendentes' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveRetentionTab('pendentes')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-circle-exclamation" style={{ color: activeRetentionTab === 'pendentes' ? '#fff' : '#ef4444' }}></i>
+                Pendentes de Tratativa ({pendentesRetencao.length})
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeRetentionTab === 'tratados' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveRetentionTab('tratados')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-circle-check" style={{ color: activeRetentionTab === 'tratados' ? '#fff' : '#10b981' }}></i>
+                Tratados nesta Semana ({tratadosRetencao.length})
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeRetentionTab === 'todos' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveRetentionTab('todos')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <i className="fa-solid fa-list"></i> Todos os Alunos com Meta ({totalComMeta})
+              </button>
+            </div>
 
-                      if (!metrics) {
-                        return (
-                          <tr key={c._id}>
-                            <td><strong>{c.dadosPessoais?.nome}</strong></td>
-                            <td>{planName}</td>
-                            <td style={{ textAlign: 'center' }}>-</td>
-                            <td style={{ textAlign: 'center' }}>-</td>
-                            <td style={{ textAlign: 'center' }}>-</td>
-                            <td style={{ textAlign: 'center' }}>-</td>
-                            <td style={{ textAlign: 'center' }}>-</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)' }}>
-                                Sem Meta
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)}>
-                                <i className="fa-solid fa-coins" style={{ marginRight: '6px' }}></i> Adicionar Créditos
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      }
+            {/* ABA 1: PENDENTES DE TRATATIVA */}
+            {activeRetentionTab === 'pendentes' && (
+              <div>
+                {pendentesRetencao.length === 0 ? (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
+                    <i className="fa-solid fa-circle-check fa-2x" style={{ color: '#10b981', marginBottom: '10px' }}></i>
+                    <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem', fontWeight: 700 }}>Parabéns! Nenhuma pendência de tratativa ativa.</h3>
+                    <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: '6px 0 0 0' }}>
+                      Todos os alunos em risco nesta semana já foram engajados ou tiveram suas tratativas registradas.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {pendentesRetencao.map(({ client: c, metrics }) => {
+                      const diasNomes: Record<number, string> = { 4: '(terça a sexta)', 3: '(quarta a sexta)', 2: '(quinta e sexta)', 1: '(sexta-feira)' };
+                      const diasTexto = diasNomes[metrics.diasRestantes] || '';
+                      return (
+                        <div
+                          key={c._id}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.04)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            borderRadius: '12px',
+                            padding: '14px 18px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '12px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '280px', flex: '1 1 300px' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.95rem', flexShrink: 0 }}>
+                              {c.dadosPessoais?.nome?.charAt(0) || 'A'}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem' }}>
+                                {c.dadosPessoais?.nome}
+                              </div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '2px' }}>
+                                Contratou <strong style={{ color: '#fde047' }}>{metrics.frequenciaSemanal}x/sem</strong> • Fez <strong style={{ color: '#34d399' }}>{metrics.realizados}</strong> • Agendou <strong style={{ color: '#38bdf8' }}>{metrics.agendados}</strong> • Restam <strong style={{ color: '#f87171' }}>{metrics.pendentes} pendente(s)</strong> ({metrics.diasRestantes} dias úteis {diasTexto})
+                              </div>
+                            </div>
+                          </div>
 
-                      const statusBadge = metrics.alerta 
-                        ? <span className="badge badge-danger"><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i> Zona Crítica</span>
-                        : <span className="badge badge-success"><i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i> Seguro</span>;
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setTratativaModalClient(c);
+                                setTratativaMotivo('agendou');
+                                setTratativaObs('');
+                              }}
+                              style={{ fontSize: '0.78rem' }}
+                            >
+                              <i className="fa-solid fa-pen-to-square" style={{ marginRight: '5px' }}></i> Registrar Tratativa
+                            </button>
 
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleEngageWhatsAppWithTratativa(c, metrics)}
+                              style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <i className="fa-brands fa-whatsapp"></i> Engajar WhatsApp
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ABA 2: TRATADOS NESTA SEMANA */}
+            {activeRetentionTab === 'tratados' && (
+              <div>
+                {tratadosRetencao.length === 0 ? (
+                  <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '12px', padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                    Nenhuma tratativa registrada nesta semana ainda.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {tratadosRetencao.map(({ client: c, metrics }) => {
+                      const t = tratativas[c._id];
+                      return (
+                        <div
+                          key={c._id}
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.04)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            borderRadius: '12px',
+                            padding: '14px 18px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '12px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '280px', flex: '1 1 300px' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.95rem', flexShrink: 0 }}>
+                              ✓
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {c.dadosPessoais?.nome}
+                                <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontSize: '0.72rem', padding: '1px 8px', borderRadius: '6px' }}>
+                                  Tratado
+                                </span>
+                              </div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '2px' }}>
+                                <strong>Motivo/Ação:</strong> {t?.motivo || 'Engajamento realizado'} {t?.obs ? `(${t.obs})` : ''} • <span style={{ color: '#64748b' }}>Tratado em {t?.data}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => removeRetentionTratativa(c._id)}
+                              style={{ fontSize: '0.76rem', color: '#94a3b8' }}
+                              title="Retornar para a lista de pendentes"
+                            >
+                              <i className="fa-solid fa-arrow-rotate-left" style={{ marginRight: '5px' }}></i> Desfazer Tratativa
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ABA 3: TODOS OS ALUNOS COM META */}
+            {activeRetentionTab === 'todos' && (
+              <div className="table-responsive" style={{ marginTop: '6px' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Plano</th>
+                      <th style={{ textAlign: 'center' }}>Freq. Contratada</th>
+                      <th style={{ textAlign: 'center' }}>Treinos Feitos</th>
+                      <th style={{ textAlign: 'center' }}>Agendados</th>
+                      <th style={{ textAlign: 'center' }}>Pendentes</th>
+                      <th style={{ textAlign: 'center' }}>Dias Restantes</th>
+                      <th style={{ textAlign: 'center' }}>Status Semanal</th>
+                      <th style={{ textAlign: 'center' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {retentionList.map(({ client: c, metrics }) => {
+                      const planName = c.dadosComerciais?.planoId?.nome || 'Plano Clube';
+                      const isTreated = !!tratativas[c._id];
                       return (
                         <tr key={c._id}>
-                          <td data-label="Cliente"><strong>{c.dadosPessoais?.nome}</strong></td>
-                          <td data-label="Plano">{planName}</td>
-                          <td data-label="Freq. Contratada" style={{ textAlign: 'center', fontWeight: 600 }}>{metrics.frequenciaSemanal}x/semana</td>
-                          <td data-label="Treinos Feitos" style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-success)' }}>{metrics.realizados}</td>
-                          <td data-label="Treinos Agendados" style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-info)' }}>{metrics.agendados}</td>
-                          <td data-label="Pendentes" style={{ textAlign: 'center', fontWeight: 700, color: metrics.pendentes > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{metrics.pendentes}</td>
-                          <td data-label="Dias Restantes" style={{ textAlign: 'center' }}>{metrics.diasRestantes} dias</td>
-                          <td data-label="Status" style={{ textAlign: 'center' }}>
-                            {status === 'ativo' ? statusBadge : (
-                              <span className="badge badge-danger">Vencido</span>
+                          <td><strong>{c.dadosPessoais?.nome}</strong></td>
+                          <td>{planName}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{metrics.frequenciaSemanal}x/semana</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-success)' }}>{metrics.realizados}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--color-info)' }}>{metrics.agendados}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: metrics.pendentes > 0 ? '#f59e0b' : '#64748b' }}>{metrics.pendentes}</td>
+                          <td style={{ textAlign: 'center' }}>{metrics.diasRestantes} dias</td>
+                          <td style={{ textAlign: 'center' }}>
+                            {metrics.alerta ? (
+                              isTreated ? (
+                                <span className="badge badge-success" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }}>✓ Tratado</span>
+                              ) : (
+                                <span className="badge badge-danger">⚠️ Zona Crítica</span>
+                              )
+                            ) : (
+                              <span className="badge badge-success">✓ Seguro</span>
                             )}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                              <button className="btn btn-secondary btn-sm" onClick={() => handleOpenCreditModal(c)} title="Adicionar Créditos">
-                                <i className="fa-solid fa-coins"></i>
-                              </button>
-                              {metrics.alerta && status === 'ativo' && (
-                                <button className="btn btn-primary btn-sm" onClick={() => sendPreventiveAlert(c)} style={{ background: '#10b981', borderColor: '#10b981' }} title="Engajar WhatsApp">
-                                  <i className="fa-brands fa-whatsapp"></i> Engajar
-                                </button>
-                              )}
-                            </div>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleEngageWhatsAppWithTratativa(c, metrics)}
+                              title="Engajar WhatsApp"
+                              style={{ padding: '5px 10px' }}
+                            >
+                              <i className="fa-brands fa-whatsapp" style={{ color: '#10b981' }}></i>
+                            </button>
                           </td>
                         </tr>
                       );
-                    });
-                  })()}
-                  {clients.length === 0 && (
-                    <tr>
-                      <td colSpan={9}>
-                        <div className="empty-state-card">
-                          <i className="fa-solid fa-users-slash empty-state-icon"></i>
-                          <div className="empty-state-title">Nenhum aluno cadastrado</div>
-                          <div className="empty-state-desc">Não há alunos registrados no sistema para acompanhamento.</div>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenClientModal()}>
-                            <i className="fa-solid fa-plus"></i> Novo Aluno
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+          </div>
+
+          {/* MÓDULO 3: RADAR DE VENCIMENTOS & RENOVAÇÃO PROATIVA (COM TRATATIVAS) */}
+          {(pendingExpiredContracts.length > 0 || pendingExpiringContracts.length > 0) && (
+            <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '20px' }}>
+              <div className="panel-header" style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#f87171', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-file-contract"></i> Radar de Vencimentos & Renovações Pendentes
+                </h2>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${activeContractAlertTab === 'vencidos' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveContractAlertTab('vencidos')}
+                  >
+                    Vencidos ({pendingExpiredContracts.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${activeContractAlertTab === 'vencendo' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveContractAlertTab('vencendo')}
+                  >
+                    Vencendo em 15 dias ({pendingExpiringContracts.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de Vencidos */}
+              {activeContractAlertTab === 'vencidos' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {pendingExpiredContracts.map(c => {
+                    const info = getContractValidityInfo(c);
+                    return (
+                      <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px' }}>
+                          <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444' }}></i>
+                          <span style={{ fontSize: '0.86rem' }}>
+                            O contrato de <strong>{c.dadosPessoais?.nome}</strong> venceu em <strong>{info.dataFimFormatted}</strong>.
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => saveContractTratativa(c._id, 'Renovação em negociação com aluno')}
+                            style={{ fontSize: '0.78rem' }}
+                          >
+                            Marcar como Tratado
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => setActiveTab('contratos')}
+                            style={{ fontSize: '0.78rem' }}
+                          >
+                            <i className="fa-solid fa-rotate" style={{ marginRight: '5px' }}></i> Renovar na Gestão
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Lista de Vencendo nos próximos 15 dias */}
+              {activeContractAlertTab === 'vencendo' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {pendingExpiringContracts.map(c => {
+                    const info = getContractValidityInfo(c);
+                    return (
+                      <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px' }}>
+                          <i className="fa-solid fa-clock" style={{ color: '#f59e0b' }}></i>
+                          <span style={{ fontSize: '0.86rem' }}>
+                            O contrato de <strong>{c.dadosPessoais?.nome}</strong> vencerá em <strong>{info.dataFimFormatted}</strong> ({info.daysLeft} dias restantes).
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => saveContractTratativa(c._id, 'Abordado preventivamente para renovação')}
+                            style={{ fontSize: '0.78rem' }}
+                          >
+                            Marcar como Tratado
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => setActiveTab('contratos')}
+                            style={{ fontSize: '0.78rem' }}
+                          >
+                            <i className="fa-solid fa-rotate" style={{ marginRight: '5px' }}></i> Renovar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            {clients.length > 0 && (
-              <Pagination
-                currentPage={getPage('dashboard_freq')}
-                totalItems={clients.length}
-                itemsPerPage={getPageSize('dashboard_freq')}
-                onPageChange={page => setPage('dashboard_freq', page)}
-              />
-            )}
-          </div>
-        </>
+          )}
+
+          {/* MODAL DE REGISTRO MANUAL DE TRATATIVA DE RETENÇÃO */}
+          {tratativaModalClient && (
+            <div className="modal-overlay" style={{ display: 'flex', zIndex: 12000, background: 'rgba(0,0,0,0.8)' }} onClick={() => setTratativaModalClient(null)}>
+              <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '95%', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-pen-to-square"></i> Registrar Tratativa de Retenção
+                  </h3>
+                  <button type="button" className="close-btn" onClick={() => setTratativaModalClient(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.4rem', cursor: 'pointer' }}>&times;</button>
+                </div>
+
+                <div style={{ fontSize: '0.86rem', color: '#cbd5e1', marginBottom: '14px' }}>
+                  Aluno: <strong style={{ color: '#fff' }}>{tratativaModalClient.dadosPessoais?.nome}</strong>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>Motivo / Desfecho da Tratativa *</label>
+                  <select
+                    className="select-custom"
+                    style={{ width: '100%', padding: '10px 12px' }}
+                    value={tratativaMotivo}
+                    onChange={e => setTratativaMotivo(e.target.value)}
+                  >
+                    <option value="Agendou horário de reposição">Agendou horário de reposição</option>
+                    <option value="Aluno em viagem justificada">Aluno em viagem justificada</option>
+                    <option value="Atestado médico / Motivo de saúde">Atestado médico / Motivo de saúde</option>
+                    <option value="Compromisso pessoal / Reagendará na próxima semana">Compromisso pessoal / Reagendará na próxima semana</option>
+                    <option value="Contato via WhatsApp / Aguardando resposta">Contato via WhatsApp / Aguardando resposta</option>
+                    <option value="Outro motivo">Outro motivo</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '18px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>Observações Adicionais</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    style={{ width: '100%', padding: '10px 12px', resize: 'vertical' }}
+                    placeholder="Ex: Aluno informou que volta na segunda-feira e fará treino duplo..."
+                    value={tratativaObs}
+                    onChange={e => setTratativaObs(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setTratativaModalClient(null)}>
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ background: '#10b981', borderColor: '#10b981', fontWeight: 700 }}
+                    onClick={() => {
+                      saveRetentionTratativa(tratativaModalClient._id, {
+                        motivo: tratativaMotivo,
+                        tipo: 'manual',
+                        obs: tratativaObs
+                      });
+                      setTratativaModalClient(null);
+                    }}
+                  >
+                    Salvar Tratativa
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
       )}
 
       {/* 2. View: Profissionais */}
