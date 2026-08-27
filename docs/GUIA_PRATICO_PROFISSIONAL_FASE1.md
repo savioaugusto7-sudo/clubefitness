@@ -83,8 +83,14 @@ O **Resumo do Dia** é o painel principal de trabalho diário do profissional:
 
 ---
 
-### 🏋️‍♂️ 6. Fichas de Treino
-1. No menu do profissional, acesse a aba **"Fichas de Treino"**.
-2. Clique em **"Criar / Editar Treino"**.
-3. Selecione os exercícios na biblioteca integrada.
-4. Salve para disponibilizar na tela de execução do treino monitorado.
+### 🏋️‍♂️ 6. Fichas de Treino & Banco de Exercícios
+1. **Atualização de Fichas:** Não deixe de atualizar a ficha dos alunos que estão sem! No menu do profissional, acesse **"Fichas de Treino"**, procure pelo aluno e clique em **"Criar / Editar Treino"**.
+2. Selecione os exercícios na biblioteca integrada e salve para disponibilizar na tela de execução do treino monitorado.
+3. **Faltou algum exercício?** Vá para o **Banco de Exercícios** e faça o cadastro do exercício. Ele seguirá para aprovação do Sávio e em seguida já estará disponível no sistema. Essa é uma missão de todos!
+
+---
+
+## 📢 Mensagem Final para a Equipe
+
+> **⚠️ Atenção:**  
+> Essa primeira etapa irá nos apresentar muitas falhas, entendam que não vamos nos adaptar aos pequenos erros, tudo precisa ser informado. Nesse momento interrompemos a criação de funcionalidades, trabalhando apenas na correção do que iremos começar a utilizar.
