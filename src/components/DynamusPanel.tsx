@@ -66,20 +66,35 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
   const [retroError, setRetroError] = useState('');
   const [retroSuccess, setRetroSuccess] = useState('');
 
-  // Filter Dynamus clients
+  // Modal de Link de Venda / Proposta Comercial Clube Fitness
+  const [proposalClient, setProposalClient] = useState<any | null>(null);
+  const [proposalPlanId, setProposalPlanId] = useState<string>('');
+  const [proposalFormaPagamento, setProposalFormaPagamento] = useState<string>('pix');
+  const [proposalParcelas, setProposalParcelas] = useState<number>(1);
+  const [proposalDuracao, setProposalDuracao] = useState<string>('mensal');
+  const [proposalDuracaoQtd, setProposalDuracaoQtd] = useState<number>(1);
+  const [proposalValor, setProposalValor] = useState<number>(0);
+  const [generatingProposal, setGeneratingProposal] = useState(false);
+  const [generatedProposalUrl, setGeneratedProposalUrl] = useState('');
+  const [proposalError, setProposalError] = useState('');
+  const [proposalCopied, setProposalCopied] = useState(false);
+
+  // Filter Dynamus clients (usando vínculo explícito isConvenioDynamus ou saldo dedicado)
   const dynamusClients = clients.filter(c => 
+    c.dadosComerciais?.isConvenioDynamus ||
     c.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') ||
     c.planoNome?.toLowerCase().includes('dynamus') ||
+    (c.dadosComerciais?.creditosDynamusTotal && c.dadosComerciais.creditosDynamusTotal > 0) ||
     (c.dadosComerciais?.saldoCreditosDynamus && c.dadosComerciais.saldoCreditosDynamus > 0)
   );
 
   const filteredClients = dynamusClients
     .filter(c => {
       const com = c.dadosComerciais || {};
-      const planName = com.planoId?.nome || c.planoNome || 'Dynamus';
-      const total = com.creditosTotal || 0;
-      const usados = com.creditosUsados || 0;
-      const reservados = com.creditosReservados || 0;
+      const planName = com.planoId?.nome || c.planoNome || 'Convênio Dynamus';
+      const total = com.creditosDynamusTotal || com.creditosTotal || 0;
+      const usados = com.creditosDynamusUsados || com.creditosUsados || 0;
+      const reservados = com.creditosDynamusReservados || com.creditosReservados || 0;
       const restantes = Math.max(0, total - usados - reservados);
 
       // 1. Smart Multi-Terms Match
@@ -318,6 +333,55 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
       setRetroError('Erro de conexão ao registrar consumo.');
     } finally {
       setSavingRetro(false);
+    }
+  };
+
+  const handleOpenProposal = (client: any) => {
+    setProposalClient(client);
+    const nonDynamusPlans = plans.filter(p => !p.nome?.toLowerCase().includes('dynamus'));
+    const defaultPlan = nonDynamusPlans[0] || plans[0];
+    setProposalPlanId(defaultPlan?._id || '');
+    setProposalValor(defaultPlan?.preco || 0);
+    setProposalFormaPagamento('pix');
+    setProposalParcelas(1);
+    setProposalDuracao(defaultPlan?.tipo === 'Anual' ? 'anual' : 'mensal');
+    setProposalDuracaoQtd(1);
+    setGeneratedProposalUrl('');
+    setProposalError('');
+    setProposalCopied(false);
+  };
+
+  const handleGenerateProposal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!proposalClient || !proposalPlanId) return;
+
+    setGeneratingProposal(true);
+    setProposalError('');
+
+    try {
+      const res = await fetch('/api/propostas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: proposalClient._id,
+          planoId: proposalPlanId,
+          formaPagamento: proposalFormaPagamento,
+          parcelas: proposalParcelas,
+          duracao: proposalDuracao,
+          duracaoQtd: proposalDuracaoQtd,
+          valorUnitario: proposalValor
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao gerar proposta comercial.');
+      }
+      const url = `${window.location.origin}/proposta/${data.data._id}`;
+      setGeneratedProposalUrl(url);
+    } catch (err: any) {
+      setProposalError(err.message || 'Erro ao gerar proposta.');
+    } finally {
+      setGeneratingProposal(false);
     }
   };
 
@@ -584,6 +648,16 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                         </td>
                         <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <button 
+                              className="btn btn-sm" 
+                              style={{ padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: '#10b981', borderColor: '#10b981', color: '#fff', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700 }}
+                              onClick={() => handleOpenProposal(c)}
+                              title="Gerar Link de Venda para este aluno"
+                            >
+                              <i className="fa-solid fa-share-nodes"></i>
+                              Link Venda
+                            </button>
+
                             <button 
                               className="btn btn-warning btn-sm" 
                               style={{ padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: '#f59e0b', borderColor: '#f59e0b', color: '#000', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700 }}
@@ -1126,6 +1200,164 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Geração de Link de Venda para Aluno Dynamus */}
+      {proposalClient && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, padding: '20px' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '18px', width: '100%', maxWidth: '520px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', fontSize: '1.2rem' }}>
+                  <i className="fa-solid fa-share-nodes"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Gerar Link de Venda</h3>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Aluno: <strong>{proposalClient.dadosPessoais?.nome || proposalClient.nome}</strong>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setProposalClient(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.3rem', cursor: 'pointer' }}>&times;</button>
+            </div>
+
+            <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '10px', padding: '12px', fontSize: '0.82rem', color: '#10b981', lineHeight: '1.4' }}>
+              <i className="fa-solid fa-circle-check" style={{ marginRight: '6px' }}></i>
+              Ao comprar por este link, o aluno ganha acesso ao <strong>Portal do Aluno</strong> com os créditos do Clube, mantendo seus créditos Dynamus 100% preservados.
+            </div>
+
+            {!generatedProposalUrl ? (
+              <form onSubmit={handleGenerateProposal} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>Plano a Ofertar:</label>
+                  <select
+                    className="form-control"
+                    value={proposalPlanId}
+                    onChange={e => {
+                      const pId = e.target.value;
+                      setProposalPlanId(pId);
+                      const p = plans.find(plan => plan._id === pId);
+                      if (p) {
+                        setProposalValor(p.preco || 0);
+                        setProposalDuracao(p.tipo === 'Anual' ? 'anual' : 'mensal');
+                      }
+                    }}
+                    style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                    required
+                  >
+                    {plans.filter(p => !p.nome?.toLowerCase().includes('dynamus')).map(p => (
+                      <option key={p._id} value={p._id}>
+                        {p.nome} - R$ {Number(p.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({p.tipo || 'Mensal'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>Forma de Pagamento:</label>
+                    <select
+                      className="form-control"
+                      value={proposalFormaPagamento}
+                      onChange={e => setProposalFormaPagamento(e.target.value)}
+                      style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                    >
+                      <option value="pix">PIX</option>
+                      <option value="boleto">Boleto Bancário</option>
+                      <option value="cartao">Cartão de Crédito</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>Parcelas:</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      className="form-control"
+                      value={proposalParcelas}
+                      onChange={e => setProposalParcelas(Math.max(1, parseInt(e.target.value) || 1))}
+                      style={{ width: '100%', padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                    />
+                  </div>
+                </div>
+
+                {proposalError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.82rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    ⚠️ {proposalError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <button type="button" onClick={() => setProposalClient(null)} className="btn btn-secondary" style={{ padding: '8px 16px', borderRadius: '8px' }}>
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={generatingProposal}
+                    className="btn btn-primary"
+                    style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700, padding: '8px 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {generatingProposal ? <><i className="fa-solid fa-spinner fa-spin"></i> Gerando...</> : <><i className="fa-solid fa-bolt"></i> Criar Link de Venda</>}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={generatedProposalUrl}
+                    style={{ flex: 1, padding: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '0.85rem' }}
+                    onClick={e => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedProposalUrl);
+                      setProposalCopied(true);
+                      setTimeout(() => setProposalCopied(false), 3000);
+                    }}
+                    style={{ background: proposalCopied ? '#10b981' : 'var(--color-primary)', border: 'none', color: '#fff', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <i className={proposalCopied ? "fa-solid fa-check" : "fa-solid fa-copy"}></i>
+                    {proposalCopied ? 'Copiado!' : 'Copiar'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  style={{ background: '#25D366', border: 'none', color: '#fff', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem' }}
+                  onClick={() => {
+                    const clientName = proposalClient.dadosPessoais?.nome || proposalClient.nome || '';
+                    const planObj = plans.find(p => p._id === proposalPlanId);
+                    const planName = planObj?.nome || 'Plano Clube Fitness';
+                    const phone = (proposalClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
+                    const message = 
+                      `🏋️‍♂️ *Olá ${clientName}! Tudo bem?*\n\n` +
+                      `Sua proposta comercial do *Clube Fitness* para o plano *${planName}* está pronta! 📄✨\n\n` +
+                      `Clique no link abaixo para conferir as condições, revisar e assinar seu contrato:\n` +
+                      `${generatedProposalUrl}\n\n` +
+                      `_Qualquer dúvida, estamos à total disposição!_ 💚`;
+                    const text = encodeURIComponent(message);
+                    const whatsappUrl = phone && phone.length >= 10 && !phone.includes('99999')
+                      ? `https://api.whatsapp.com/send?phone=55${phone}&text=${text}`
+                      : `https://api.whatsapp.com/send?text=${text}`;
+                    window.open(whatsappUrl, '_blank');
+                  }}
+                >
+                  <i className="fa-brands fa-whatsapp fa-lg"></i> Enviar via WhatsApp
+                </button>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                  <button type="button" onClick={() => setProposalClient(null)} className="btn btn-secondary" style={{ padding: '8px 18px', borderRadius: '8px' }}>
+                    Concluir
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

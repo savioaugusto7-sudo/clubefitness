@@ -107,17 +107,25 @@ export async function POST(request: Request) {
         observacoes: 'Cadastrado simplificado via link Dynamus.'
       },
       dadosComerciais: {
-        status: 'ativo',
-        planoId: plan._id,
-        dataInicio: dataAdesao,
-        vencimento,
-        duracao: planoName.toLowerCase().includes('semestral') ? 'semestral' : 'anual',
+        status: 'lead', // Não possui contrato comercial ativo no Clube até comprar pelo Link de Venda
+        planoId: null,
+        dataInicio: '',
+        vencimento: '',
+        duracao: 'mensal',
         duracaoQtd: 1,
         frequencia: 3,
-        parcelas: planoName.toLowerCase().includes('semestral') ? 6 : 12,
-        creditosTotal: 13,
+        parcelas: 1,
+        creditosTotal: 0,
         creditosUsados: 0,
-        creditosReservados: 0
+        creditosReservados: 0,
+        // Carteira Dedicada do Convênio Dynamus
+        isConvenioDynamus: true,
+        vigenciaDynamusFim: vencimento,
+        periodicidadeDynamus: planoName.toLowerCase().includes('semestral') ? 'semestral' : 'anual',
+        creditosDynamusTotal: 13,
+        creditosDynamusUsados: 0,
+        creditosDynamusReservados: 0,
+        saldoCreditosDynamus: 13
       }
     });
 

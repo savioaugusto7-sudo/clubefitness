@@ -68,7 +68,8 @@ export async function POST(request: Request) {
     } else if (tipoCredito === 'massagem') {
       client.dadosComerciais.creditosMassagemUsados = (client.dadosComerciais.creditosMassagemUsados || 0) + qtd;
     } else {
-      // Geral
+      // Geral Dynamus
+      client.dadosComerciais.creditosDynamusUsados = (client.dadosComerciais.creditosDynamusUsados || 0) + qtd;
       client.dadosComerciais.creditosUsados = (client.dadosComerciais.creditosUsados || 0) + qtd;
     }
 

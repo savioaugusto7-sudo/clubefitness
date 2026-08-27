@@ -68,7 +68,15 @@ const DadosComerciaisSchema = new Schema({
     permiteRolagem: { type: Boolean, default: false },
     diasRetencaoFalta: { type: Number, default: 0 },
     deducaoFaltaAtraso: { type: Number, default: 1 }
-  }
+  },
+  // Vínculo e Carteira Dedicada do Convênio Dynamus
+  isConvenioDynamus: { type: Boolean, default: false },
+  vigenciaDynamusFim: { type: String, default: '' },
+  periodicidadeDynamus: { type: String, default: 'anual' },
+  creditosDynamusTotal: { type: Number, default: 0 },
+  creditosDynamusUsados: { type: Number, default: 0 },
+  creditosDynamusReservados: { type: Number, default: 0 },
+  saldoCreditosDynamus: { type: Number, default: 0 }
 }, { _id: false });
 
 const BloqueioCadastralSchema = new Schema({

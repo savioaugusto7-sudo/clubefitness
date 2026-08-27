@@ -330,13 +330,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Cliente não encontrado' }, { status: 404 });
     }
 
-    const isDynamus = client.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || false;
+    const isDynamus = Boolean(
+      client.dadosComerciais?.isConvenioDynamus ||
+      client.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus')
+    );
     const creditCfg = getServiceCreditConfig(servico, isDynamus);
     tipoCredito = creditCfg.tipoCredito;
     const cost = creditCfg.cost;
 
-    // --- Bloquear agendamento se cliente for LEAD (Sem Plano) ---
-    if (!bypassRestrictions && (client.dadosComerciais?.status === 'lead' || client.dadosComerciais?.status === 'pendente' || !client.dadosComerciais?.status)) {
+    // --- Bloquear agendamento se cliente for LEAD sem plano e sem convênio Dynamus ---
+    if (!bypassRestrictions && !isDynamus && (client.dadosComerciais?.status === 'lead' || client.dadosComerciais?.status === 'pendente' || !client.dadosComerciais?.status)) {
       return NextResponse.json({
         success: false,
         error: 'Cliente em fase de cadastro/avaliação (Lead) não pode realizar agendamento sem antes contratar um plano comercial ativo.'
@@ -355,7 +358,7 @@ export async function POST(request: Request) {
     }
 
     // --- Bloquear agendamento se plano vencido há mais de 10 dias ---
-    if (!bypassRestrictions && client.dadosComerciais.status === 'vencido' && client.dadosComerciais.vencimento) {
+    if (!bypassRestrictions && !isDynamus && client.dadosComerciais.status === 'vencido' && client.dadosComerciais.vencimento) {
       const venc = new Date(client.dadosComerciais.vencimento + 'T00:00:00');
       const hojeZero = new Date();
       hojeZero.setHours(0, 0, 0, 0);
@@ -370,13 +373,17 @@ export async function POST(request: Request) {
       const com = client.dadosComerciais;
 
       if (tipoCredito === 'academia') {
-        const total = com.creditosTotal || 0;
-        const usados = com.creditosUsados || 0;
+        let total = com.creditosTotal || 0;
+        let usados = com.creditosUsados || 0;
+        if (isDynamus && !com.planoId) {
+          total = com.creditosDynamusTotal || com.creditosTotal || 0;
+          usados = com.creditosDynamusUsados || com.creditosUsados || 0;
+        }
         const mesAgendamento = data.slice(0, 7);
         const reservados = await getReservadosCredits(clienteId, tipoCredito, mesAgendamento);
         const disponiveis = Math.max(0, total - usados - reservados);
         if (disponiveis < cost) {
-          return NextResponse.json({ success: false, error: `Créditos de academia insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
+          return NextResponse.json({ success: false, error: `Créditos insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
         }
       } else if (tipoCredito === 'massagem') {
         const total = com.creditosMassagemTotal || 0;

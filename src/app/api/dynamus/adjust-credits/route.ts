@@ -51,6 +51,8 @@ export async function POST(request: Request) {
     let alterouVigencia = false;
 
     // 1. Atualizar vigência / periodicidade se fornecidos
+    client.dadosComerciais.isConvenioDynamus = true;
+
     if (dataInicio) {
       client.dadosComerciais.dataInicio = dataInicio;
       alterouVigencia = true;
@@ -58,23 +60,24 @@ export async function POST(request: Request) {
 
     if (periodicidade) {
       const isSemestral = periodicidade.toLowerCase().includes('semestral');
-      client.dadosComerciais.duracao = isSemestral ? 'semestral' : 'anual';
-      client.dadosComerciais.parcelas = isSemestral ? 6 : 12;
+      client.dadosComerciais.periodicidadeDynamus = isSemestral ? 'semestral' : 'anual';
       alterouVigencia = true;
     }
 
     if (alterouVigencia) {
       const baseData = client.dadosComerciais.dataInicio || new Date().toISOString().split('T')[0];
-      const dur = client.dadosComerciais.duracao || 'anual';
-      client.dadosComerciais.vencimento = calculateExpirationDate(baseData, dur);
+      const dur = client.dadosComerciais.periodicidadeDynamus || 'anual';
+      client.dadosComerciais.vigenciaDynamusFim = calculateExpirationDate(baseData, dur);
     }
 
-    // 2. Ajustar créditos se fornecidos
+    // 2. Ajustar créditos se fornecidos na carteira dedicada Dynamus
     if (tipoCredito && operacao && quantidade && Number(quantidade) > 0) {
       const qtd = Number(quantidade);
       if (tipoCredito === 'geral') {
-        const atual = client.dadosComerciais.creditosTotal || 0;
-        client.dadosComerciais.creditosTotal = operacao === 'adicionar' ? atual + qtd : Math.max(0, atual - qtd);
+        const atual = client.dadosComerciais.creditosDynamusTotal || client.dadosComerciais.creditosTotal || 0;
+        const novoTotal = operacao === 'adicionar' ? atual + qtd : Math.max(0, atual - qtd);
+        client.dadosComerciais.creditosDynamusTotal = novoTotal;
+        client.dadosComerciais.saldoCreditosDynamus = novoTotal;
       } else if (tipoCredito === 'recovery') {
         const atual = client.dadosComerciais.creditosRecoveryTotal || 0;
         client.dadosComerciais.creditosRecoveryTotal = operacao === 'adicionar' ? atual + qtd : Math.max(0, atual - qtd);

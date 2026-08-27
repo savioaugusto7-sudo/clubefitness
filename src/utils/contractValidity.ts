@@ -132,12 +132,16 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
 
     // Detecção de Convênio Dynamus
     const isDynamus = Boolean(
+      com.isConvenioDynamus ||
       planObj?.nome?.toLowerCase().includes('dynamus') ||
       com.planoNome?.toLowerCase().includes('dynamus') ||
       dp.email?.toLowerCase().includes('dynamus') ||
       client?.codigo?.toUpperCase().includes('DYN') ||
       client?.dadosClinicos?.observacoes?.toLowerCase().includes('dynamus')
     );
+
+    // Se tiver convênio Dynamus mas NÃO tiver plano Clube Fitness contratado:
+    const hasClubePlan = Boolean(com.planoId && !planObj?.nome?.toLowerCase().includes('dynamus'));
 
     // TRATAMENTO FACTUAL DE LEADS E CADASTROS SEM CONTRATO:
     // Se for Lead ou não tiver data de início nem pagamentos nem contrato emitido, NÃO INVENTAR DATAS!
@@ -146,7 +150,7 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     const isLeadStatus = statusSaved === 'lead';
     const isUncontracted = !com.dataInicio && !com.vencimento && !hasPaidPayments && !isDynamus;
 
-    if (isLeadStatus || (isUncontracted && statusSaved !== 'ativo')) {
+    if ((isDynamus && !hasClubePlan && !hasPaidPayments) || isLeadStatus || (isUncontracted && statusSaved !== 'ativo')) {
       return {
         dataInicio: '',
         dataFim: '',
