@@ -78,7 +78,7 @@ O **Resumo do Dia** é o painel principal de trabalho diário do profissional:
 1. No menu do profissional, acesse a aba **"Prontuários"** (ou **"Dados Clínicos"**):
    - Clique em **"Nova Evolução / Anotação"** e selecione o aluno.
    - Escreva a conduta realizada na sessão ou observações clínicas relevantes.
-   - Salve. O histórico fica cronologicamente seguro e disponível para consulta de toda a equipe.
+   - Salve.
    - Se necessário, clique em **"Exportar Prontuário em PDF"**.
 
 ---
@@ -86,11 +86,5 @@ O **Resumo do Dia** é o painel principal de trabalho diário do profissional:
 ### 🏋️‍♂️ 6. Fichas de Treino
 1. No menu do profissional, acesse a aba **"Fichas de Treino"**.
 2. Clique em **"Criar / Editar Treino"**.
-3. Selecione os exercícios na biblioteca integrada (com gifs demonstrativos, séries, repetições e métodos).
+3. Selecione os exercícios na biblioteca integrada.
 4. Salve para disponibilizar na tela de execução do treino monitorado.
-
----
-
-### 🤝 Resumo de Contatos & Suporte:
-- **Dúvidas de agendamento ou cadastros ausentes:** Sávio Augusto
-- **Responsável Técnico / Protocolos Clínicos:** Dr. Albert Nunes (CREFITO 4/350430-F)
