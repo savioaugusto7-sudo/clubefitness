@@ -3198,8 +3198,37 @@ goniometria: {
     setRepExamesList(repExamesList.filter((_, idx) => idx !== index));
   };
 
-  const getRepPrefilledStyle = (key: string) => {
-    return repPrefilledFields[key] ? { color: '#ef4444' } : {};
+  const getAsPrefilledStyle = (key: string, baseStyle?: React.CSSProperties): React.CSSProperties => {
+    if (asPrefilledFields[key]) {
+      return {
+        ...baseStyle,
+        color: '#ef4444',
+        borderColor: 'rgba(239, 68, 68, 0.45)',
+        fontWeight: '600'
+      };
+    }
+    return baseStyle || {};
+  };
+
+  const clearAsPrefill = (key: string) => {
+    setAsPrefilledFields(prev => {
+      if (!prev[key]) return prev;
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+  };
+
+  const getRepPrefilledStyle = (key: string, baseStyle?: React.CSSProperties): React.CSSProperties => {
+    if (repPrefilledFields[key]) {
+      return {
+        ...baseStyle,
+        color: '#ef4444',
+        borderColor: 'rgba(239, 68, 68, 0.45)',
+        fontWeight: '600'
+      };
+    }
+    return baseStyle || {};
   };
 
   const clearRepPrefill = (key: string) => {
@@ -7864,7 +7893,19 @@ goniometria: {
             </div>
             
             {/* Wizard Steps indicator */}
-            <div className="wizard-step-bar" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+            <div className="wizard-step-bar" style={{
+              display: 'flex',
+              alignItems: 'center',
+              borderBottom: '1px solid var(--border-color)',
+              background: 'var(--bg-card)',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              padding: '10px 14px',
+              gap: '8px',
+              flexShrink: 0,
+              minHeight: '52px'
+            }}>
               {[
                 { step: 1, label: '1. Aluno' },
                 { step: 2, label: '2. Biometria' },
@@ -7887,18 +7928,20 @@ goniometria: {
                     }}
                     style={{
                       flex: '1 0 auto',
-                      minWidth: '105px',
-                      padding: '12px 10px',
+                      minWidth: '110px',
+                      padding: '8px 12px',
                       textAlign: 'center',
-                      fontSize: '12px',
+                      fontSize: '0.82rem',
                       fontWeight: isCurrent ? 750 : 600,
                       cursor: 'pointer',
                       userSelect: 'none',
                       touchAction: 'manipulation',
-                      color: isCurrent ? 'var(--color-primary)' : isPassed ? '#10b981' : 'var(--text-dim)',
-                      borderBottom: isCurrent ? '3px solid var(--color-primary)' : isPassed ? '3px solid #10b981' : '3px solid transparent',
-                      background: isCurrent ? 'rgba(13,148,136,0.06)' : 'transparent',
-                      transition: 'all 0.15s ease'
+                      borderRadius: '8px',
+                      color: isCurrent ? '#ffffff' : isPassed ? '#10b981' : 'var(--text-dim)',
+                      background: isCurrent ? 'var(--color-primary)' : isPassed ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isCurrent ? '1px solid var(--color-primary)' : isPassed ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                      boxShadow: isCurrent ? '0 2px 8px rgba(13, 148, 136, 0.35)' : 'none',
+                      transition: 'all 0.18s ease'
                     }}
                   >
                     {isPassed ? `✓ ${label}` : label}
@@ -7978,15 +8021,47 @@ goniometria: {
                     <div className="resp-grid-1-1-1" style={{ marginBottom: '16px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ fontWeight: 600 }}>Idade (anos)</label>
-                        <input type="number" className="form-control" value={asAge} onChange={e => setAsAge(Number(e.target.value))} required />
+                        <input
+                          type="number"
+                          className="form-control"
+                          style={getAsPrefilledStyle('idade')}
+                          value={asAge}
+                          onChange={e => {
+                            setAsAge(Number(e.target.value));
+                            clearAsPrefill('idade');
+                          }}
+                          required
+                        />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ fontWeight: 600 }}>Peso Atual (kg)</label>
-                        <input type="number" step="0.1" className="form-control" value={asWeight} onChange={e => setAsWeight(e.target.value)} required />
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('peso')}
+                          value={asWeight}
+                          onChange={e => {
+                            setAsWeight(e.target.value);
+                            clearAsPrefill('peso');
+                          }}
+                          required
+                        />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ fontWeight: 600 }}>Altura (m)</label>
-                        <input type="number" step="0.01" className="form-control" value={asHeight} onChange={e => setAsHeight(e.target.value)} required />
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="form-control"
+                          style={getAsPrefilledStyle('altura')}
+                          value={asHeight}
+                          onChange={e => {
+                            setAsHeight(e.target.value);
+                            clearAsPrefill('altura');
+                          }}
+                          required
+                        />
                       </div>
                     </div>
 
@@ -7997,32 +8072,86 @@ goniometria: {
                     <div className="resp-grid-1-1-1" style={{ marginBottom: '14px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Horas de Sono / Noite</label>
-                        <input type="text" className="form-control" value={asSono} onChange={e => setAsSono(e.target.value)} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={getAsPrefilledStyle('saudeGeral.sono')}
+                          value={asSono}
+                          onChange={e => {
+                            setAsSono(e.target.value);
+                            clearAsPrefill('saudeGeral.sono');
+                          }}
+                        />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Nutrição / Alimentação</label>
-                        <input type="text" className="form-control" value={asNutricao} onChange={e => setAsNutricao(e.target.value)} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={getAsPrefilledStyle('saudeGeral.nutricao')}
+                          value={asNutricao}
+                          onChange={e => {
+                            setAsNutricao(e.target.value);
+                            clearAsPrefill('saudeGeral.nutricao');
+                          }}
+                        />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Atividade Física Atual</label>
-                        <input type="text" className="form-control" value={asAtivFisica} onChange={e => setAsAtivFisica(e.target.value)} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={getAsPrefilledStyle('saudeGeral.atividadeFisica')}
+                          value={asAtivFisica}
+                          onChange={e => {
+                            setAsAtivFisica(e.target.value);
+                            clearAsPrefill('saudeGeral.atividadeFisica');
+                          }}
+                        />
                       </div>
                     </div>
 
                     <div className="resp-grid-1-1" style={{ marginBottom: '14px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Medicamentos em Uso</label>
-                        <input type="text" className="form-control" value={asMedicamentos} onChange={e => setAsMedicamentos(e.target.value)} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={getAsPrefilledStyle('saudeGeral.medicamentos')}
+                          value={asMedicamentos}
+                          onChange={e => {
+                            setAsMedicamentos(e.target.value);
+                            clearAsPrefill('saudeGeral.medicamentos');
+                          }}
+                        />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Cirurgias Anteriores</label>
-                        <input type="text" className="form-control" value={asCirurgias} onChange={e => setAsCirurgias(e.target.value)} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={getAsPrefilledStyle('saudeGeral.cirurgias')}
+                          value={asCirurgias}
+                          onChange={e => {
+                            setAsCirurgias(e.target.value);
+                            clearAsPrefill('saudeGeral.cirurgias');
+                          }}
+                        />
                       </div>
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>Principais Queixas / Dores</label>
-                      <input type="text" className="form-control" value={asQueixas} onChange={e => setAsQueixas(e.target.value)} />
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={getAsPrefilledStyle('saudeGeral.queixas')}
+                        value={asQueixas}
+                        onChange={e => {
+                          setAsQueixas(e.target.value);
+                          clearAsPrefill('saudeGeral.queixas');
+                        }}
+                      />
                     </div>
                   </>
                 )}
@@ -8031,26 +8160,208 @@ goniometria: {
                   <>
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Circunferências Corporais (cm)</h4>
                     <div className="form-row">
-                      <div className="form-group"><label>Pescoço</label><input type="number" step="0.1" className="form-control" value={asCirc.pescoco} onChange={e => setAsCirc({ ...asCirc, pescoco: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Ombros</label><input type="number" step="0.1" className="form-control" value={asCirc.ombros} onChange={e => setAsCirc({ ...asCirc, ombros: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Tórax</label><input type="number" step="0.1" className="form-control" value={asCirc.torax} onChange={e => setAsCirc({ ...asCirc, torax: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Cintura</label><input type="number" step="0.1" className="form-control" value={asCirc.cintura} onChange={e => setAsCirc({ ...asCirc, cintura: e.target.value as any })} /></div>
+                      <div className="form-group">
+                        <label>Pescoço</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.pescoco')}
+                          value={asCirc.pescoco}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, pescoco: e.target.value as any });
+                            clearAsPrefill('circ.pescoco');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Ombros</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.ombros')}
+                          value={asCirc.ombros}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, ombros: e.target.value as any });
+                            clearAsPrefill('circ.ombros');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Tórax</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.torax')}
+                          value={asCirc.torax}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, torax: e.target.value as any });
+                            clearAsPrefill('circ.torax');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Cintura</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.cintura')}
+                          value={asCirc.cintura}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, cintura: e.target.value as any });
+                            clearAsPrefill('circ.cintura');
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="form-row">
-                      <div className="form-group"><label>Abdômen</label><input type="number" step="0.1" className="form-control" value={asCirc.abdomen} onChange={e => setAsCirc({ ...asCirc, abdomen: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Quadril</label><input type="number" step="0.1" className="form-control" value={asCirc.quadril} onChange={e => setAsCirc({ ...asCirc, quadril: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Braço Direito</label><input type="number" step="0.1" className="form-control" value={asCirc.braçoD} onChange={e => setAsCirc({ ...asCirc, braçoD: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Braço Esquerdo</label><input type="number" step="0.1" className="form-control" value={asCirc.braçoE} onChange={e => setAsCirc({ ...asCirc, braçoE: e.target.value as any })} /></div>
+                      <div className="form-group">
+                        <label>Abdômen</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.abdomen')}
+                          value={asCirc.abdomen}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, abdomen: e.target.value as any });
+                            clearAsPrefill('circ.abdomen');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Quadril</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.quadril')}
+                          value={asCirc.quadril}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, quadril: e.target.value as any });
+                            clearAsPrefill('circ.quadril');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Braço Direito</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.braçoD')}
+                          value={asCirc.braçoD}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, braçoD: e.target.value as any });
+                            clearAsPrefill('circ.braçoD');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Braço Esquerdo</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.braçoE')}
+                          value={asCirc.braçoE}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, braçoE: e.target.value as any });
+                            clearAsPrefill('circ.braçoE');
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="form-row">
-                      <div className="form-group"><label>Antebraço D</label><input type="number" step="0.1" className="form-control" value={asCirc.antebraçoD} onChange={e => setAsCirc({ ...asCirc, antebraçoD: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Antebraço E</label><input type="number" step="0.1" className="form-control" value={asCirc.antebraçoE} onChange={e => setAsCirc({ ...asCirc, antebraçoE: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Coxa Direita</label><input type="number" step="0.1" className="form-control" value={asCirc.coxaD} onChange={e => setAsCirc({ ...asCirc, coxaD: e.target.value as any })} /></div>
-                      <div className="form-group"><label>Coxa Esquerda</label><input type="number" step="0.1" className="form-control" value={asCirc.coxaE} onChange={e => setAsCirc({ ...asCirc, coxaE: e.target.value as any })} /></div>
+                      <div className="form-group">
+                        <label>Antebraço D</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.antebraçoD')}
+                          value={asCirc.antebraçoD}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, antebraçoD: e.target.value as any });
+                            clearAsPrefill('circ.antebraçoD');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Antebraço E</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.antebraçoE')}
+                          value={asCirc.antebraçoE}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, antebraçoE: e.target.value as any });
+                            clearAsPrefill('circ.antebraçoE');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Coxa Direita</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.coxaD')}
+                          value={asCirc.coxaD}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, coxaD: e.target.value as any });
+                            clearAsPrefill('circ.coxaD');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Coxa Esquerda</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.coxaE')}
+                          value={asCirc.coxaE}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, coxaE: e.target.value as any });
+                            clearAsPrefill('circ.coxaE');
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="form-row">
-                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha D</label><input type="number" step="0.1" className="form-control" value={asCirc.panturrilhaD} onChange={e => setAsCirc({ ...asCirc, panturrilhaD: e.target.value as any })} /></div>
-                      <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha E</label><input type="number" step="0.1" className="form-control" value={asCirc.panturrilhaE} onChange={e => setAsCirc({ ...asCirc, panturrilhaE: e.target.value as any })} /></div>
+                      <div className="form-group" style={{ maxWidth: '25%' }}>
+                        <label>Panturrilha D</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.panturrilhaD')}
+                          value={asCirc.panturrilhaD}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, panturrilhaD: e.target.value as any });
+                            clearAsPrefill('circ.panturrilhaD');
+                          }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ maxWidth: '25%' }}>
+                        <label>Panturrilha E</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="form-control"
+                          style={getAsPrefilledStyle('circ.panturrilhaE')}
+                          value={asCirc.panturrilhaE}
+                          onChange={e => {
+                            setAsCirc({ ...asCirc, panturrilhaE: e.target.value as any });
+                            clearAsPrefill('circ.panturrilhaE');
+                          }}
+                        />
+                      </div>
                     </div>
                     {(() => {
                       const prevPeri = clientTestMemory['PERIMETRIA'];
@@ -8129,7 +8440,12 @@ goniometria: {
                                       step="0.1"
                                       placeholder={`M${subIdx+1}`}
                                       className="form-control form-control-sm"
-                                      style={{ textAlign: 'center', height: '28px', flex: 1 }}
+                                      style={{
+                                        textAlign: 'center',
+                                        height: '28px',
+                                        flex: 1,
+                                        ...(isPrefilled ? { color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.45)', fontWeight: '600' } : {})
+                                      }}
                                       value={readings[subIdx]}
                                       onChange={e => handleDobraReadingChange(dobra.key, subIdx, e.target.value)}
                                     />
@@ -8256,7 +8572,7 @@ goniometria: {
                                       type="number"
                                       placeholder="1"
                                       className="form-control form-control-sm"
-                                      style={{ textAlign: 'center', height: '26px' }}
+                                      style={getAsPrefilledStyle('gonio.' + row.keyD, { textAlign: 'center', height: '26px' })}
                                       value={valD.semForca}
                                       onChange={e => updateField(row.keyD, 'semForca', e.target.value)}
                                     />
@@ -8266,7 +8582,7 @@ goniometria: {
                                       type="number"
                                       placeholder="2"
                                       className="form-control form-control-sm"
-                                      style={{ textAlign: 'center', height: '26px' }}
+                                      style={getAsPrefilledStyle('gonio.' + row.keyD, { textAlign: 'center', height: '26px' })}
                                       value={valD.comForca}
                                       onChange={e => updateField(row.keyD, 'comForca', e.target.value)}
                                     />
@@ -8277,7 +8593,7 @@ goniometria: {
                                       type="number"
                                       placeholder="1"
                                       className="form-control form-control-sm"
-                                      style={{ textAlign: 'center', height: '26px' }}
+                                      style={getAsPrefilledStyle('gonio.' + row.keyE, { textAlign: 'center', height: '26px' })}
                                       value={valE.semForca}
                                       onChange={e => updateField(row.keyE, 'semForca', e.target.value)}
                                     />
@@ -8287,7 +8603,7 @@ goniometria: {
                                       type="number"
                                       placeholder="2"
                                       className="form-control form-control-sm"
-                                      style={{ textAlign: 'center', height: '26px' }}
+                                      style={getAsPrefilledStyle('gonio.' + row.keyE, { textAlign: 'center', height: '26px' })}
                                       value={valE.comForca}
                                       onChange={e => updateField(row.keyE, 'comForca', e.target.value)}
                                     />
@@ -9476,51 +9792,62 @@ goniometria: {
 
 
                 {/* Wizard Progress Bar */}
-                {true && (
-                  <div className="physio-wizard-progress" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', overflowX: 'auto', gap: '10px', paddingBottom: '8px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
-                    {[
-                      { step: 1, label: 'Anamnese' },
-                      { step: 2, label: 'Histórico & Hábitos' },
-                      { step: 3, label: 'Goniometria & Ober' },
-                      { step: 4, label: 'Perimetria' },
-                      { step: 5, label: 'Termo & Exames' },
-                      { step: 6, label: 'Testes Avançados' },
-                      { step: 7, label: 'Conduta & Salvar' }
-                    ].map(s => {
-                      const isActive = repActiveStep === s.step;
-                      const isCompleted = repActiveStep > s.step;
-                      return (
-                        <div
-                          key={s.step}
-                          onClick={() => {
-                            if (!repClient) {
-                              alert('Selecione o cliente no Passo 1 antes de navegar.');
-                              return;
-                            }
-                            changeRepStep(s.step);
-                          }}
-                          style={{
-                            flex: '1 0 auto',
-                            minWidth: '110px',
-                            textAlign: 'center',
-                            cursor: 'pointer',
-                            padding: '8px 10px',
-                            touchAction: 'manipulation',
-                            userSelect: 'none',
-                            borderRadius: '6px',
-                            background: isActive ? 'var(--color-primary)' : isCompleted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.02)',
-                            border: isActive ? '1px solid var(--color-primary)' : isCompleted ? '1px solid #10b981' : '1px solid var(--border-color)',
-                            color: isActive ? '#ffffff' : isCompleted ? '#10b981' : 'var(--text-muted)',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{s.step}</div>
-                          <div style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{s.label}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="physio-wizard-progress" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '20px',
+                  position: 'relative',
+                  overflowX: 'auto',
+                  gap: '8px',
+                  padding: '6px 4px 10px 4px',
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none',
+                  flexShrink: 0,
+                  minHeight: '52px'
+                }}>
+                  {[
+                    { step: 1, label: 'Anamnese' },
+                    { step: 2, label: 'Histórico & Hábitos' },
+                    { step: 3, label: 'Goniometria & Ober' },
+                    { step: 4, label: 'Perimetria' },
+                    { step: 5, label: 'Termo & Exames' },
+                    { step: 6, label: 'Testes Avançados' },
+                    { step: 7, label: 'Conduta & Salvar' }
+                  ].map(s => {
+                    const isActive = repActiveStep === s.step;
+                    const isCompleted = repActiveStep > s.step;
+                    return (
+                      <div
+                        key={s.step}
+                        onClick={() => {
+                          if (!repClient) {
+                            alert('Selecione o cliente no Passo 1 antes de navegar.');
+                            return;
+                          }
+                          changeRepStep(s.step);
+                        }}
+                        style={{
+                          flex: '1 0 auto',
+                          minWidth: '110px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          padding: '8px 12px',
+                          touchAction: 'manipulation',
+                          userSelect: 'none',
+                          borderRadius: '8px',
+                          background: isActive ? 'var(--color-primary)' : isCompleted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.03)',
+                          border: isActive ? '1px solid var(--color-primary)' : isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255,255,255,0.08)',
+                          color: isActive ? '#ffffff' : isCompleted ? '#10b981' : 'var(--text-dim)',
+                          boxShadow: isActive ? '0 2px 8px rgba(13, 148, 136, 0.35)' : 'none',
+                          transition: 'all 0.18s ease'
+                        }}
+                      >
+                        <div style={{ fontWeight: 'bold', fontSize: '0.84rem' }}>{s.step}. {s.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {/* Card de Identificação e Contexto do Aluno Selecionado (Visível em Todas as Etapas) */}
                 {renderActiveStudentHeader(repClient, repActiveStep > 1 ? () => changeRepStep(1) : undefined)}
