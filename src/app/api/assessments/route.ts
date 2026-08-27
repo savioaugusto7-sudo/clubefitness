@@ -5,6 +5,7 @@ import PhysicalAssessment from '@/models/PhysicalAssessment';
 import '@/models/Client';
 import '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
+import { syncPhysicalAssessmentTests } from '@/utils/testMemorySync';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -329,6 +330,7 @@ export async function POST(request: Request) {
       assessmentDoc.isDraft = false;
 
       await assessmentDoc.save();
+      await syncPhysicalAssessmentTests(assessmentDoc);
       const cleanDoc = assessmentDoc.toObject ? assessmentDoc.toObject() : { ...assessmentDoc };
       delete cleanDoc.pdf_url;
       return NextResponse.json({ success: true, data: cleanDoc });
@@ -349,6 +351,8 @@ export async function POST(request: Request) {
       status: 'concluido',
       isDraft: false
     });
+
+    await syncPhysicalAssessmentTests(assessment);
 
     const cleanDoc = assessment.toObject ? assessment.toObject() : { ...assessment };
     delete cleanDoc.pdf_url;

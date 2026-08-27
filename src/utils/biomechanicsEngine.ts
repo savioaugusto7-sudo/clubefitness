@@ -519,3 +519,286 @@ export function calculateStrengthTestAlerts(testesList: any[], pesoKg: number = 
 
   return alerts;
 }
+
+/**
+ * 3. Análise Clínica e Alertas do Y-Balance Test (Y-Test) em Tempo Real
+ */
+export interface YTestAnalysis {
+  compostoD: number;
+  compostoE: number;
+  assimetriaAnt: number;
+  assimetriaPM: number;
+  assimetriaPL: number;
+  assimetriaComposta: number;
+  alerts: BiomechanicAlert[];
+}
+
+export function calculateYTestAnalysis(data: {
+  lenD?: number | string;
+  lenE?: number | string;
+  antD?: number | string;
+  antE?: number | string;
+  pmD?: number | string;
+  pmE?: number | string;
+  plD?: number | string;
+  plE?: number | string;
+}): YTestAnalysis {
+  const toNum = (v: any) => Number(v) || 0;
+  const lenD = toNum(data.lenD);
+  const lenE = toNum(data.lenE);
+  const antD = toNum(data.antD);
+  const antE = toNum(data.antE);
+  const pmD = toNum(data.pmD);
+  const pmE = toNum(data.pmE);
+  const plD = toNum(data.plD);
+  const plE = toNum(data.plE);
+
+  const somaD = antD + pmD + plD;
+  const somaE = antE + pmE + plE;
+
+  const compostoD = lenD > 0 && somaD > 0 ? Number(((somaD / (3 * lenD)) * 100).toFixed(1)) : 0;
+  const compostoE = lenE > 0 && somaE > 0 ? Number(((somaE / (3 * lenE)) * 100).toFixed(1)) : 0;
+
+  const assimetriaAnt = (antD > 0 && antE > 0) ? Number(Math.abs(antD - antE).toFixed(1)) : 0;
+  const assimetriaPM = (pmD > 0 && pmE > 0) ? Number(Math.abs(pmD - pmE).toFixed(1)) : 0;
+  const assimetriaPL = (plD > 0 && plE > 0) ? Number(Math.abs(plD - plE).toFixed(1)) : 0;
+  const assimetriaComposta = (compostoD > 0 && compostoE > 0) ? Number(Math.abs(compostoD - compostoE).toFixed(1)) : 0;
+
+  const alerts: BiomechanicAlert[] = [];
+
+  if (assimetriaAnt >= 4.0) {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Assimetria Anterior Crítica (≥ 4.0 cm)',
+      articulacao: 'Membro Inferior / Joelho',
+      lado: antD < antE ? 'Direito' : 'Esquerdo',
+      valorCalculado: `${assimetriaAnt} cm`,
+      referenciaIdeal: '< 4.0 cm',
+      descricao: `Diferença de ${assimetriaAnt} cm no alcance anterior entre os membros.`,
+      riscoClinico: '2.5x a 3.8x mais chance de lesão ligamentar de membro inferior (especialmente LCA).'
+    });
+  } else if (assimetriaAnt >= 3.0) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Leve Assimetria Anterior (3.0 a 3.9 cm)',
+      articulacao: 'Membro Inferior',
+      lado: antD < antE ? 'Direito' : 'Esquerdo',
+      valorCalculado: `${assimetriaAnt} cm`,
+      referenciaIdeal: '< 4.0 cm',
+      descricao: `Diferença de ${assimetriaAnt} cm em alcance anterior.`,
+      riscoClinico: 'Atenção ao controle de estabilidade unipodal na desaceleração.'
+    });
+  }
+
+  if (assimetriaPM >= 6.0 || assimetriaPL >= 6.0) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Assimetria Posterior Relevante (≥ 6.0 cm)',
+      articulacao: 'Quadril / Tornozelo',
+      lado: 'Bilateral',
+      valorCalculado: `PM: ${assimetriaPM}cm | PL: ${assimetriaPL}cm`,
+      referenciaIdeal: '< 6.0 cm',
+      descricao: 'Diferença significativa nos alcances posteromediais ou posterolaterais.',
+      riscoClinico: 'Déficit de mobilidade rotacional e estabilidade dinâmica do quadril e tornozelo.'
+    });
+  }
+
+  if ((compostoD > 0 && compostoD < 94) || (compostoE > 0 && compostoE < 94)) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Escore Composto Abaixo do Ideal (< 94%)',
+      articulacao: 'Global Unipodal',
+      lado: compostoD < 94 && compostoE < 94 ? 'Bilateral' : compostoD < 94 ? 'Direito' : 'Esquerdo',
+      valorCalculado: `D: ${compostoD}% | E: ${compostoE}%`,
+      referenciaIdeal: '≥ 94% - 100%',
+      descricao: 'Escore composto relativo ao comprimento do membro inferior reduzido.',
+      riscoClinico: 'Menor equilíbrio dinâmico global e menor capacidade de amortecimento de impacto.'
+    });
+  }
+
+  return {
+    compostoD,
+    compostoE,
+    assimetriaAnt,
+    assimetriaPM,
+    assimetriaPL,
+    assimetriaComposta,
+    alerts
+  };
+}
+
+/**
+ * 4. Análise Clínica e Alertas do Step Down Test em Tempo Real
+ */
+export interface StepDownAnalysis {
+  scoreD: number;
+  scoreE: number;
+  classificacaoD: string;
+  classificacaoE: string;
+  alerts: BiomechanicAlert[];
+}
+
+export function calculateStepDownAnalysis(data: {
+  pelvicaD?: number | string;
+  pelvicaE?: number | string;
+  aducaoD?: number | string;
+  aducaoE?: number | string;
+  valgoD?: number | string;
+  valgoE?: number | string;
+  prpsD?: number | string;
+  prpsE?: number | string;
+}): StepDownAnalysis {
+  const toNum = (v: any) => Number(v) || 0;
+  const scoreD = toNum(data.pelvicaD) + toNum(data.aducaoD) + toNum(data.valgoD) + toNum(data.prpsD);
+  const scoreE = toNum(data.pelvicaE) + toNum(data.aducaoE) + toNum(data.valgoE) + toNum(data.prpsE);
+
+  const getClass = (score: number) => {
+    if (score <= 1) return 'Excelente / Bom';
+    if (score <= 3) return 'Moderado';
+    return 'Pobre / Risco Elevado';
+  };
+
+  const classificacaoD = getClass(scoreD);
+  const classificacaoE = getClass(scoreE);
+
+  const alerts: BiomechanicAlert[] = [];
+
+  if (scoreD >= 4 || scoreE >= 4) {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Controle Cinemático Pobre no Step Down (Score ≥ 4)',
+      articulacao: 'Joelho / Quadril',
+      lado: scoreD >= 4 && scoreE >= 4 ? 'Bilateral' : scoreD >= 4 ? 'Direito' : 'Esquerdo',
+      valorCalculado: `D: ${scoreD} pts | E: ${scoreE} pts`,
+      referenciaIdeal: '0 a 1 pt (Bom)',
+      descricao: `Escore de ${Math.max(scoreD, scoreE)} pontos indica falha múltipla de alinhamento.`,
+      riscoClinico: 'Forte associação com Síndrome da Dor Patelofemoral (SDPF), sobrecarga no menisco e tendão patelar.'
+    });
+  } else if (scoreD >= 2 || scoreE >= 2) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Compensação Moderada no Step Down (Score 2-3)',
+      articulacao: 'Joelho / Quadril',
+      lado: scoreD >= 2 && scoreE >= 2 ? 'Bilateral' : scoreD >= 2 ? 'Direito' : 'Esquerdo',
+      valorCalculado: `D: ${scoreD} pts | E: ${scoreE} pts`,
+      referenciaIdeal: '0 a 1 pt (Bom)',
+      descricao: 'Presença de queda pélvica, valgo dinâmico leve ou pronação subtalar.',
+      riscoClinico: 'Risco moderado de sobrecarga articular na descida de degraus ou aterrissagem de saltos.'
+    });
+  }
+
+  return {
+    scoreD,
+    scoreE,
+    classificacaoD,
+    classificacaoE,
+    alerts
+  };
+}
+
+/**
+ * 5. Análise do Teste de Thomas em Tempo Real
+ */
+export function calculateThomasAlerts(data: {
+  thomasIliopsoasDStatus?: string;
+  thomasIliopsoasEStatus?: string;
+  thomasRetofemoralDStatus?: string;
+  thomasRetofemoralEStatus?: string;
+  thomasIliopsoasD?: number | string;
+  thomasIliopsoasE?: number | string;
+  thomasRetofemoralD?: number | string;
+  thomasRetofemoralE?: number | string;
+}): BiomechanicAlert[] {
+  const alerts: BiomechanicAlert[] = [];
+  const toNum = (v: any) => Number(v) || 0;
+
+  const ilioD = toNum(data.thomasIliopsoasD);
+  const ilioE = toNum(data.thomasIliopsoasE);
+  const retoD = toNum(data.thomasRetofemoralD);
+  const retoE = toNum(data.thomasRetofemoralE);
+
+  if (data.thomasIliopsoasDStatus === 'positivo' || ilioD > 5) {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Encurtamento de Iliopsoas Direito',
+      articulacao: 'Quadril',
+      lado: 'Direito',
+      valorCalculado: ilioD > 0 ? `${ilioD}°` : 'Positivo',
+      referenciaIdeal: '0° (Coxa apoiada na maca)',
+      descricao: 'Coxa direita não atinge o plano horizontal da maca.',
+      riscoClinico: 'Hiperlordose lombar compensatória, dor lombar e inibição glútea recíproca.'
+    });
+  }
+
+  if (data.thomasIliopsoasEStatus === 'positivo' || ilioE > 5) {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Encurtamento de Iliopsoas Esquerdo',
+      articulacao: 'Quadril',
+      lado: 'Esquerdo',
+      valorCalculado: ilioE > 0 ? `${ilioE}°` : 'Positivo',
+      referenciaIdeal: '0° (Coxa apoiada na maca)',
+      descricao: 'Coxa esquerda não atinge o plano horizontal da maca.',
+      riscoClinico: 'Hiperlordose lombar compensatória, dor lombar e inibição glútea recíproca.'
+    });
+  }
+
+  if (data.thomasRetofemoralDStatus === 'positivo' || (retoD > 0 && retoD < 80)) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Encurtamento de Retofemoral Direito',
+      articulacao: 'Joelho / Quadril',
+      lado: 'Direito',
+      valorCalculado: retoD > 0 ? `${retoD}°` : 'Positivo',
+      referenciaIdeal: '≥ 90° de flexão de joelho',
+      descricao: 'Joelho direito não atinge 90° de flexão passiva.',
+      riscoClinico: 'Tensão anterior no joelho, estresse no tendão patelar e sobrecarga femoropatelar.'
+    });
+  }
+
+  if (data.thomasRetofemoralEStatus === 'positivo' || (retoE > 0 && retoE < 80)) {
+    alerts.push({
+      tipo: 'atencao',
+      titulo: 'Encurtamento de Retofemoral Esquerdo',
+      articulacao: 'Joelho / Quadril',
+      lado: 'Esquerdo',
+      valorCalculado: retoE > 0 ? `${retoE}°` : 'Positivo',
+      referenciaIdeal: '≥ 90° de flexão de joelho',
+      descricao: 'Joelho esquerdo não atinge 90° de flexão passiva.',
+      riscoClinico: 'Tensão anterior no joelho, estresse no tendão patelar e sobrecarga femoropatelar.'
+    });
+  }
+
+  return alerts;
+}
+
+/**
+ * 6. Análise do Teste de Ober em Tempo Real
+ */
+export function calculateOberAlerts(oberD: string, oberE: string): BiomechanicAlert[] {
+  const alerts: BiomechanicAlert[] = [];
+  if (oberD === 'positivo') {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Teste de Ober Positivo (Direito)',
+      articulacao: 'Quadril / Joelho',
+      lado: 'Direito',
+      referenciaIdeal: 'Negativo (Membro aduz livremente)',
+      descricao: 'Retração do Trato Iliotibial e Tensor da Fáscia Lata no membro direito.',
+      riscoClinico: 'Fricção do trato iliotibial no côndilo lateral do fêmur (STIT) e dor lateral de joelho.'
+    });
+  }
+  if (oberE === 'positivo') {
+    alerts.push({
+      tipo: 'critico',
+      titulo: 'Teste de Ober Positivo (Esquerdo)',
+      articulacao: 'Quadril / Joelho',
+      lado: 'Esquerdo',
+      referenciaIdeal: 'Negativo (Membro aduz livremente)',
+      descricao: 'Retração do Trato Iliotibial e Tensor da Fáscia Lata no membro esquerdo.',
+      riscoClinico: 'Fricção do trato iliotibial no côndilo lateral do fêmur (STIT) e dor lateral de joelho.'
+    });
+  }
+  return alerts;
+}
+

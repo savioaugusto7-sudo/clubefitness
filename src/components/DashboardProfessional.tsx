@@ -6,7 +6,16 @@ import Pagination from './Pagination';
 import SearchableSelect from './SearchableSelect';
 import WorkoutBuilder from './WorkoutBuilder';
 import { downloadReportPDF, downloadAssessmentPDF, downloadProntuarioPDF, downloadUnifiedProntuariosPDF, downloadStrengthTestPDF } from '@/utils/pdfGenerator';
-import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
+import {
+  calculateGoniometryAlerts,
+  calculateStrengthTestAlerts,
+  calculateYTestAnalysis,
+  calculateStepDownAnalysis,
+  calculateThomasAlerts,
+  calculateOberAlerts
+} from '@/utils/biomechanicsEngine';
+import LiveClinicalAlert from './LiveClinicalAlert';
+import TestComparativeSummary, { ComparativeItem } from './TestComparativeSummary';
 import AgendaCompletaPanel from './AgendaCompletaPanel';
 import DadosClinicosPanel from './DadosClinicosPanel';
 import WellnessModal from './WellnessModal';
@@ -339,6 +348,25 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [cloudSaveStatus, setCloudSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [cloudLastSavedTime, setCloudLastSavedTime] = useState<string>('');
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+
+  // Client Test Memory (Time-Series & Comparative Records)
+  const [clientTestMemory, setClientTestMemory] = useState<Record<string, any>>({});
+
+  const loadClientTestMemory = async (clientId: string) => {
+    if (!clientId) {
+      setClientTestMemory({});
+      return;
+    }
+    try {
+      const res = await fetch(`/api/client-tests?clientId=${clientId}&latest=true`);
+      const data = await res.json();
+      if (data.success && data.data) {
+        setClientTestMemory(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load client test memory', err);
+    }
+  };
 
   const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises' | 'curation'>('clients');
   const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
@@ -948,6 +976,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   useEffect(() => {
     if (stClient) {
+      loadClientTestMemory(stClient);
       const clientAssessments = assessments.filter(a => {
         const cid = typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId;
         return cid === stClient;
@@ -1000,6 +1029,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [editExEquip, setEditExEquip] = useState('BARRA');
   const [editExInst, setEditExInst] = useState('');
   const [editExGifUrl, setEditExGifUrl] = useState('');
+
+  // Controle de tela cheia / modo workstation para modais clínicos
+  const [isClinicalModalMaximized, setIsClinicalModalMaximized] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1441,6 +1473,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
     if (repClient && repClient !== checkedRepDraftClient) {
       setCheckedRepDraftClient(repClient);
+      loadClientTestMemory(repClient);
       const loadReportData = async () => {
         let loadedDraft = false;
         const draft = localStorage.getItem('draft_report');
@@ -1859,6 +1892,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   // Carregar dados e histórico do aluno automaticamente ao selecioná-lo
   useEffect(() => {
     if (!asClient) return;
+    loadClientTestMemory(asClient);
     const client = clients.find(c => c._id === asClient);
     if (client) {
       // Calcular idade com base na data de nascimento
@@ -7537,11 +7571,14 @@ goniometria: {
 
       {/* 3. Physical Assessment Modal */}
       {showAssessmentModal && (
-        <div className="modal-overlay" style={{ padding: '20px 10px' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1150px', width: '96%', background: 'var(--bg-card, #1e293b)' }}>
+        <div className="modal-overlay" style={{ padding: '16px 10px' }}>
+          <div className={`modal-content modal-content-clinical ${isClinicalModalMaximized ? 'modal-content-fullscreen' : ''}`} onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card, #1e293b)' }}>
             <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <h3 style={{ margin: 0 }}>Nova Avaliação Física Fisioterapêutica</h3>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-file-waveform" style={{ color: 'var(--color-primary)' }}></i>
+                  Nova Avaliação Física Fisioterapêutica
+                </h3>
                 <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
                   ⏱️ Tempo: {formatTimer(asTimerSeconds)}
                 </span>
@@ -7558,6 +7595,16 @@ goniometria: {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsClinicalModalMaximized(!isClinicalModalMaximized)}
+                  title={isClinicalModalMaximized ? "Restaurar tamanho da janela" : "Expandir para tela cheia"}
+                  style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.06)' }}
+                >
+                  <i className={`fa-solid ${isClinicalModalMaximized ? 'fa-compress' : 'fa-expand'}`}></i>
+                  <span>{isClinicalModalMaximized ? 'Restaurar' : 'Tela Cheia'}</span>
+                </button>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
@@ -7619,72 +7666,85 @@ goniometria: {
                 </div>
 
                 {asStep === 1 && (
-                  <>
-                    <div className="form-group">
-                      <label>Aluno</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontWeight: 600 }}>Selecione o Aluno / Paciente</label>
                       <SearchableSelect options={clientOptions} value={asClient} onChange={setAsClient} required />
                       {asClient && (
-                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 12px', marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                          <strong>Informações do Aluno:</strong> Sexo: {asSex === 'M' ? 'Masculino' : 'Feminino'} | Idade: {asAge} anos | Altura: {asHeight} m
+                        <div style={{ background: 'rgba(13,148,136,0.06)', border: '1px solid rgba(13,148,136,0.25)', borderRadius: '8px', padding: '10px 14px', marginTop: '10px', fontSize: '0.85rem', color: '#f8fafc', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                          <div><strong>Sexo:</strong> {asSex === 'M' ? 'Masculino' : 'Feminino'}</div>
+                          <div><strong>Idade:</strong> {asAge} anos</div>
+                          <div><strong>Altura:</strong> {asHeight} m</div>
+                          {asWeight && <div><strong>Último Peso:</strong> {asWeight} kg</div>}
                         </div>
                       )}
                     </div>
-                    <div className="form-group">
-                      <label>Data</label>
-                      <input type="date" className="form-control" value={asDate} onChange={e => setAsDate(e.target.value)} required />
+                    <div className="resp-grid-1-1" style={{ marginTop: '4px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontWeight: 600 }}>Data da Avaliação</label>
+                        <input type="date" className="form-control" value={asDate} onChange={e => setAsDate(e.target.value)} required />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontWeight: 600 }}>Profissional Avaliador</label>
+                        <select className="form-control" value={asAvaliador} onChange={e => setAsAvaliador(e.target.value)} required>
+                          <option value="">Selecione o Avaliador</option>
+                          {professionals.map((p: any) => (
+                            <option key={p._id} value={p._id}>{p.nome}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="form-group">
-                      <label>Avaliador</label>
-                      <select className="form-control" value={asAvaliador} onChange={e => setAsAvaliador(e.target.value)} required>
-                        <option value="">Selecione o Avaliador</option>
-                        {professionals.map((p: any) => (
-                          <option key={p._id} value={p._id}>{p.nome}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </>
+                  </div>
                 )}
 
                 {asStep === 2 && (
                   <>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Idade (anos)</label>
+                    <div className="resp-grid-1-1-1" style={{ marginBottom: '16px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontWeight: 600 }}>Idade (anos)</label>
                         <input type="number" className="form-control" value={asAge} onChange={e => setAsAge(Number(e.target.value))} required />
                       </div>
-                      <div className="form-group">
-                        <label>Peso (kg)</label>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontWeight: 600 }}>Peso Atual (kg)</label>
                         <input type="number" step="0.1" className="form-control" style={asPrefilledFields['peso'] ? { color: '#ef4444' } : {}} value={asWeight} onChange={e => { setAsWeight(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['peso']; return c; }); }} required />
                       </div>
-                      <div className="form-group">
-                        <label>Altura (m)</label>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontWeight: 600 }}>Altura (m)</label>
                         <input type="number" step="0.01" className="form-control" style={asPrefilledFields['altura'] ? { color: '#ef4444' } : {}} value={asHeight} onChange={e => { setAsHeight(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['altura']; return c; }); }} required />
                       </div>
                     </div>
-                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '16px', marginBottom: '12px' }}>Saúde Geral</h4>
-                    <div className="form-group">
-                      <label>Horas de Sono / Noite</label>
-                      <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.sono'] ? { color: '#ef4444' } : {}} value={asSono} onChange={e => { setAsSono(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.sono']; return c; }); }} />
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Nutrição</label>
+
+                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '8px', marginBottom: '14px' }}>
+                      <i className="fa-solid fa-heart-pulse" style={{ marginRight: '6px' }}></i> Histórico de Saúde & Estilo de Vida
+                    </h4>
+
+                    <div className="resp-grid-1-1-1" style={{ marginBottom: '14px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Horas de Sono / Noite</label>
+                        <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.sono'] ? { color: '#ef4444' } : {}} value={asSono} onChange={e => { setAsSono(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.sono']; return c; }); }} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Nutrição / Alimentação</label>
                         <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.nutricao'] ? { color: '#ef4444' } : {}} value={asNutricao} onChange={e => { setAsNutricao(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.nutricao']; return c; }); }} />
                       </div>
-                      <div className="form-group">
-                        <label>Atividade Física</label>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Atividade Física Atual</label>
                         <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.atividadeFisica'] ? { color: '#ef4444' } : {}} value={asAtivFisica} onChange={e => { setAsAtivFisica(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.atividadeFisica']; return c; }); }} />
                       </div>
                     </div>
-                    <div className="form-group">
-                      <label>Medicamentos em Uso</label>
-                      <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.medicamentos'] ? { color: '#ef4444' } : {}} value={asMedicamentos} onChange={e => { setAsMedicamentos(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.medicamentos']; return c; }); }} />
+
+                    <div className="resp-grid-1-1" style={{ marginBottom: '14px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Medicamentos em Uso</label>
+                        <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.medicamentos'] ? { color: '#ef4444' } : {}} value={asMedicamentos} onChange={e => { setAsMedicamentos(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.medicamentos']; return c; }); }} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Cirurgias Anteriores</label>
+                        <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.cirurgias'] ? { color: '#ef4444' } : {}} value={asCirurgias} onChange={e => { setAsCirurgias(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.cirurgias']; return c; }); }} />
+                      </div>
                     </div>
-                    <div className="form-group">
-                      <label>Cirurgias Anteriores</label>
-                      <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.cirurgias'] ? { color: '#ef4444' } : {}} value={asCirurgias} onChange={e => { setAsCirurgias(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.cirurgias']; return c; }); }} />
-                    </div>
-                    <div className="form-group">
+
+                    <div className="form-group" style={{ margin: 0 }}>
                       <label>Principais Queixas / Dores</label>
                       <input type="text" className="form-control" style={asPrefilledFields['saudeGeral.queixas'] ? { color: '#ef4444' } : {}} value={asQueixas} onChange={e => { setAsQueixas(e.target.value); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['saudeGeral.queixas']; return c; }); }} />
                     </div>
@@ -7716,6 +7776,22 @@ goniometria: {
                       <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha D</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.panturrilhaD'] ? { color: '#ef4444' } : {}} value={asCirc.panturrilhaD} onChange={e => { setAsCirc({ ...asCirc, panturrilhaD: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.panturrilhaD']; return c; }); }} /></div>
                       <div className="form-group" style={{ maxWidth: '25%' }}><label>Panturrilha E</label><input type="number" step="0.1" className="form-control" style={asPrefilledFields['circ.panturrilhaE'] ? { color: '#ef4444' } : {}} value={asCirc.panturrilhaE} onChange={e => { setAsCirc({ ...asCirc, panturrilhaE: e.target.value as any }); setAsPrefilledFields(prev => { const c = { ...prev }; delete c['circ.panturrilhaE']; return c; }); }} /></div>
                     </div>
+                    {(() => {
+                      const prevPeri = clientTestMemory['PERIMETRIA'];
+                      const prevDate = prevPeri?.data ? formatDateBR(prevPeri.data) : undefined;
+                      const pd = prevPeri?.dados || {};
+                      const items: ComparativeItem[] = [
+                        { label: 'Tórax', prevValue: pd.torax, currValue: asCirc.torax, unit: 'cm' },
+                        { label: 'Cintura', prevValue: pd.cintura, currValue: asCirc.cintura, unit: 'cm', isLowerBetter: true },
+                        { label: 'Abdômen', prevValue: pd.abdomen, currValue: asCirc.abdomen, unit: 'cm', isLowerBetter: true },
+                        { label: 'Quadril', prevValue: pd.quadril, currValue: asCirc.quadril, unit: 'cm' },
+                        { label: 'Braço D', prevValue: pd.braçoD, currValue: asCirc.braçoD, unit: 'cm' },
+                        { label: 'Braço E', prevValue: pd.braçoE, currValue: asCirc.braçoE, unit: 'cm' },
+                        { label: 'Coxa D', prevValue: pd.coxaD, currValue: asCirc.coxaD, unit: 'cm' },
+                        { label: 'Coxa E', prevValue: pd.coxaE, currValue: asCirc.coxaE, unit: 'cm' }
+                      ];
+                      return <TestComparativeSummary testName="Perimetria Corporal" previousDate={prevDate} items={items} />;
+                    })()}
                   </>
                 )}
 
@@ -7797,6 +7873,18 @@ goniometria: {
                       <label style={{ fontWeight: 'bold', display: 'block', color: 'var(--color-primary)' }}>Soma das Dobras:</label>
                       <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-success)' }}>{asSomaDobras} mm</div>
                     </div>
+
+                    {(() => {
+                      const prevComp = clientTestMemory['COMPOSICAO_CORPORAL'];
+                      const prevDate = prevComp?.data ? formatDateBR(prevComp.data) : undefined;
+                      const items: ComparativeItem[] = [
+                        { label: '% Gordura Corporal', prevValue: prevComp?.metricas?.scorePrincipal, currValue: asFat, unit: '%', isLowerBetter: true },
+                        { label: 'Massa Magra', prevValue: prevComp?.dados?.resultados?.massaMagra, currValue: asMassaMagra, unit: 'kg' },
+                        { label: 'Massa Gorda', prevValue: prevComp?.dados?.resultados?.massaGorda, currValue: asMassaGorda, unit: 'kg', isLowerBetter: true },
+                        { label: 'Soma das Dobras', prevValue: prevComp?.dados?.somaDobras, currValue: asSomaDobras, unit: 'mm', isLowerBetter: true }
+                      ];
+                      return <TestComparativeSummary testName="Composição Corporal (Dobras)" previousDate={prevDate} items={items} />;
+                    })()}
                   </>
                 )}
 
@@ -7804,57 +7892,28 @@ goniometria: {
                   <>
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Flexibilidade & Goniometria (ADM em Graus)</h4>
                     
-                    {/* Alertas Biomecânicos & Prevenção de Lesões em Tempo Real */}
+                    {/* Alertas Biomecânicos & Resumo Comparativo de Goniometria */}
                     {(() => {
                       const biomechanicAlerts = calculateGoniometryAlerts(asGonio);
-                      if (biomechanicAlerts.length === 0) return null;
-
+                      const prevGonio = clientTestMemory['GONIOMETRIA'];
+                      const prevDate = prevGonio?.data ? formatDateBR(prevGonio.data) : undefined;
+                      const pg = prevGonio?.dados || {};
+                      const getGVal = (v: any) => typeof v === 'object' ? (v?.semForca || v?.ativo || '') : (v || '');
+                      const items: ComparativeItem[] = [
+                        { label: 'Quadril Rot. Interna (D)', prevValue: getGVal(pg.quadrilRotIntD), currValue: getGVal(asGonio.quadrilRotIntD), unit: '°' },
+                        { label: 'Quadril Rot. Interna (E)', prevValue: getGVal(pg.quadrilRotIntE), currValue: getGVal(asGonio.quadrilRotIntE), unit: '°' },
+                        { label: 'Quadril Flexão 2 (D)', prevValue: getGVal(pg.quadrilFlexao2D), currValue: getGVal(asGonio.quadrilFlexao2D), unit: '°' },
+                        { label: 'Quadril Flexão 2 (E)', prevValue: getGVal(pg.quadrilFlexao2E), currValue: getGVal(asGonio.quadrilFlexao2E), unit: '°' },
+                        { label: 'Tornozelo Dorsi 1 (D)', prevValue: getGVal(pg.tornozeloDorsi1D), currValue: getGVal(asGonio.tornozeloDorsi1D), unit: '°' },
+                        { label: 'Tornozelo Dorsi 1 (E)', prevValue: getGVal(pg.tornozeloDorsi1E), currValue: getGVal(asGonio.tornozeloDorsi1E), unit: '°' },
+                        { label: 'Ombro Rot. Interna (D)', prevValue: getGVal(pg.ombroRotIntD), currValue: getGVal(asGonio.ombroRotIntD), unit: '°' },
+                        { label: 'Ombro Rot. Interna (E)', prevValue: getGVal(pg.ombroRotIntE), currValue: getGVal(asGonio.ombroRotIntE), unit: '°' }
+                      ];
                       return (
-                        <div style={{
-                          background: 'rgba(239, 68, 68, 0.08)',
-                          border: '1px solid rgba(239, 68, 68, 0.4)',
-                          borderRadius: '12px',
-                          padding: '16px',
-                          marginBottom: '18px',
-                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                            <span style={{ color: '#ef4444', fontSize: '1.2rem' }}>
-                              <i className="fa-solid fa-triangle-exclamation"></i>
-                            </span>
-                            <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                              Alertas Biomecânicos & Fatores de Risco Ortopédico ({biomechanicAlerts.length})
-                            </strong>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '10px' }}>
-                            {biomechanicAlerts.map((al, idx) => (
-                              <div key={idx} style={{
-                                background: al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                                border: `1px solid ${al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
-                                borderRadius: '8px',
-                                padding: '10px 12px'
-                              }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                                  <strong style={{ fontSize: '0.82rem', color: al.tipo === 'critico' ? '#ef4444' : '#f59e0b' }}>
-                                    {al.titulo} {al.lado ? `(${al.lado})` : ''}
-                                  </strong>
-                                  {al.valorCalculado && (
-                                    <span className="badge" style={{ fontSize: '0.7rem', background: '#000', color: '#fff' }}>
-                                      {al.valorCalculado}
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '4px' }}>
-                                  {al.descricao}
-                                </div>
-                                <div style={{ fontSize: '0.73rem', color: '#fca5a5', marginTop: '3px', fontWeight: 600 }}>
-                                  ⚠️ Risco: {al.riscoClinico}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <>
+                          <LiveClinicalAlert alerts={biomechanicAlerts} title="Indicativos Clínicos de Goniometria" />
+                          <TestComparativeSummary testName="Goniometria & Mobilidade Articular" previousDate={prevDate} items={items} />
+                        </>
                       );
                     })()}
 
@@ -7898,20 +7957,16 @@ goniometria: {
                               const prefilledD = asPrefilledFields['gonio.' + row.keyD];
                               const prefilledE = asPrefilledFields['gonio.' + row.keyE];
 
-                              const updateField = (key: string, side: 'semForca' | 'comForca', value: string) => {
+                              const updateField = (key: string, subKey: string, val: string) => {
                                 setAsGonio(prev => {
-                                  const currentObj = prev[key] || { semForca: '', comForca: '' };
-                                  const numVal = value === '' ? '' : Number(value);
-                                  const nextObj = { ...currentObj, [side]: numVal };
-
-                                  // Remover dos prefilleds
-                                  setAsPrefilledFields(prevP => {
-                                    const copy = { ...prevP };
-                                    delete copy['gonio.' + key];
-                                    return copy;
-                                  });
-
-                                  return { ...prev, [key]: nextObj };
+                                  const obj: Record<string, any> = { ...(prev[key] || {}) };
+                                  obj[subKey] = val === '' ? '' : Number(val);
+                                  return { ...prev, [key]: obj as any };
+                                });
+                                setAsPrefilledFields(prev => {
+                                  const copy = { ...prev };
+                                  delete copy['gonio.' + key];
+                                  return copy;
                                 });
                               };
 
@@ -7972,6 +8027,42 @@ goniometria: {
                     </div>
 
                     <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '20px', marginBottom: '16px' }}>Testes Especiais Ortopédicos</h4>
+                    
+                    {/* Alertas & Comparativo de Thomas e Ober */}
+                    {(() => {
+                      const thomasAlerts = calculateThomasAlerts({
+                        thomasIliopsoasDStatus: asThomasIliopsoasDStatus,
+                        thomasIliopsoasEStatus: asThomasIliopsoasEStatus,
+                        thomasRetofemoralDStatus: asThomasRetofemoralDStatus,
+                        thomasRetofemoralEStatus: asThomasRetofemoralEStatus,
+                        thomasIliopsoasD: asThomasIliopsoasD,
+                        thomasIliopsoasE: asThomasIliopsoasE,
+                        thomasRetofemoralD: asThomasRetofemoralD,
+                        thomasRetofemoralE: asThomasRetofemoralE
+                      });
+                      const oberAlerts = calculateOberAlerts(asOberD, asOberE);
+                      const combined = [...thomasAlerts, ...oberAlerts];
+                      const prevThomas = clientTestMemory['THOMAS'];
+                      const prevOber = clientTestMemory['OBER'];
+                      const prevDate = (prevThomas?.data || prevOber?.data) ? formatDateBR(prevThomas?.data || prevOber?.data) : undefined;
+                      const pt = prevThomas?.dados || {};
+                      const po = prevOber?.dados || {};
+                      const items: ComparativeItem[] = [
+                        { label: 'Thomas Iliopsoas (D)', prevValue: pt.thomasIliopsoasDStatus || pt.thomasD, currValue: asThomasIliopsoasDStatus },
+                        { label: 'Thomas Iliopsoas (E)', prevValue: pt.thomasIliopsoasEStatus || pt.thomasE, currValue: asThomasIliopsoasEStatus },
+                        { label: 'Thomas Retofemoral (D)', prevValue: pt.thomasRetofemoralDStatus, currValue: asThomasRetofemoralDStatus },
+                        { label: 'Thomas Retofemoral (E)', prevValue: pt.thomasRetofemoralEStatus, currValue: asThomasRetofemoralEStatus },
+                        { label: 'Ober (D)', prevValue: po.oberD, currValue: asOberD },
+                        { label: 'Ober (E)', prevValue: po.oberE, currValue: asOberE }
+                      ];
+                      return (
+                        <>
+                          <LiveClinicalAlert alerts={combined} title="Indicativos Clínicos dos Testes Especiais" />
+                          <TestComparativeSummary testName="Testes de Thomas & Ober" previousDate={prevDate} items={items} />
+                        </>
+                      );
+                    })()}
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', fontSize: '12px' }}>
                       <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                         <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Ober</h5>
@@ -8110,7 +8201,7 @@ goniometria: {
                       {/* Y-Test — Structured numeric inputs */}
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asYTestRealizou === 'sim' ? '12px' : '0px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Y-Test (Equilíbrio)</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Y-Test (Equilíbrio Dinâmico)</span>
                           <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asYTestRealizou} onChange={e => setAsYTestRealizou(e.target.value)}>
                             <option value="nao">Não se Aplica</option>
                             <option value="sim">Realizado</option>
@@ -8150,76 +8241,34 @@ goniometria: {
                                 ))}
                               </div>
                             </div>
-                            {/* Composite Score results */}
+
+                            {/* Live Y-Test Analysis, Alerts & Comparative Summary */}
                             {(() => {
-                              const mD = Number(asYLenD) || 0;
-                              const mE = Number(asYLenE) || 0;
-                              if (mD <= 0 || mE <= 0) return (
-                                <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
-                                  Insira o comprimento dos membros de ambos os lados para calcular as pontuações e assimetrias.
-                                </div>
-                              );
-                              const antD = Number(asYAntD) || 0, antE = Number(asYAntE) || 0;
-                              const pmD = Number(asYPMD) || 0, pmE = Number(asYPME) || 0;
-                              const plD = Number(asYPLD) || 0, plE = Number(asYPLE) || 0;
-                              const scoreD = ((antD + pmD + plD) / (3 * mD)) * 100;
-                              const scoreE = ((antE + pmE + plE) / (3 * mE)) * 100;
-                              const diffAnt = Math.abs(antD - antE);
-                              const diffPM = Math.abs(pmD - pmE);
-                              const diffPL = Math.abs(plD - plE);
-                              const diffScore = Math.abs(scoreD - scoreE);
-
-                              const hasReachRisk = diffAnt > 4.0 || diffPM > 4.0 || diffPL > 4.0;
-                              const hasAsymmetry = diffScore > 10.0;
-                              const hasLowScore = scoreD < 94 || scoreE < 94;
-
-                              let alerts: string[] = [];
-                              if (hasReachRisk) {
-                                const reachDetails = [];
-                                if (diffAnt > 4.0) reachDetails.push(`Ant: ${diffAnt.toFixed(1)}cm`);
-                                if (diffPM > 4.0) reachDetails.push(`PM: ${diffPM.toFixed(1)}cm`);
-                                if (diffPL > 4.0) reachDetails.push(`PL: ${diffPL.toFixed(1)}cm`);
-                                alerts.push(`Risco de Lesão (Diferença de alcance > 4.0cm: ${reachDetails.join(', ')})`);
-                              }
-                              if (hasAsymmetry) {
-                                alerts.push(`Alerta de Assimetria (Diferença > 10% entre direito e esquerdo: ${diffScore.toFixed(1)}%)`);
-                              }
-                              if (hasLowScore) {
-                                alerts.push('Baixo desempenho dinâmico (Composite Score < 94%)');
-                              }
-
+                              const analysis = calculateYTestAnalysis({
+                                lenD: asYLenD,
+                                lenE: asYLenE,
+                                antD: asYAntD,
+                                antE: asYAntE,
+                                pmD: asYPMD,
+                                pmE: asYPME,
+                                plD: asYPLD,
+                                plE: asYPLE
+                              });
+                              const prevY = clientTestMemory['Y_TEST'];
+                              const prevDate = prevY?.data ? formatDateBR(prevY.data) : undefined;
+                              const pyd = prevY?.dados?.direita || {};
+                              const pye = prevY?.dados?.esquerda || {};
+                              const items: ComparativeItem[] = [
+                                { label: 'Alcance Anterior D', prevValue: pyd.anterior, currValue: asYAntD, unit: 'cm' },
+                                { label: 'Alcance Anterior E', prevValue: pye.anterior, currValue: asYAntE, unit: 'cm' },
+                                { label: 'Assimetria Anterior', prevValue: prevY?.metricas?.assimetriaAbsoluta, currValue: analysis.assimetriaAnt || undefined, unit: 'cm', isLowerBetter: true },
+                                { label: 'Composite Score D', prevValue: pyd.comprimentoMembro ? (((Number(pyd.anterior||0)+Number(pyd.posteromedial||0)+Number(pyd.posterolateral||0))/(3*pyd.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoD || undefined, unit: '%' },
+                                { label: 'Composite Score E', prevValue: pye.comprimentoMembro ? (((Number(pye.anterior||0)+Number(pye.posteromedial||0)+Number(pye.posterolateral||0))/(3*pye.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoE || undefined, unit: '%' }
+                              ];
                               return (
-                                <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.78rem' }}>
-                                  {alerts.length > 0 ? (
-                                    <div style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                      {alerts.map((al, idx) => (
-                                        <span key={idx} className="badge badge-danger" style={{ display: 'block', padding: '6px 10px', textAlign: 'left', fontSize: '0.74rem' }}>
-                                          <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> {al}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div style={{ marginBottom: '8px' }}>
-                                      <span className="badge badge-success" style={{ display: 'block', padding: '6px', textAlign: 'center', fontSize: '0.74rem' }}>
-                                        <i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Sem alertas de risco detectados
-                                      </span>
-                                    </div>
-                                  )}
-                                  <div className="resp-grid-1-1" style={{ gap: '8px' }}>
-                                    <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}%</div>
-                                    <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}% {hasAsymmetry && <span style={{ color: '#f59e0b', fontWeight: 700 }}>({diffScore.toFixed(1)}% dif ⚠️)</span>}</div>
-                                  </div>
-                                  <div style={{ marginTop: '6px', borderTop: '1px solid var(--border-color)', paddingTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                                    <div style={{ color: diffAnt > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffAnt > 4.0 ? 700 : 400 }}>
-                                      <strong>Dif. Anterior:</strong> {diffAnt.toFixed(1)} cm {diffAnt > 4.0 && '⚠️'}
-                                    </div>
-                                    <div style={{ color: diffPM > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPM > 4.0 ? 700 : 400 }}>
-                                      <strong>Dif. Posteromedial:</strong> {diffPM.toFixed(1)} cm {diffPM > 4.0 && '⚠️'}
-                                    </div>
-                                    <div style={{ color: diffPL > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPL > 4.0 ? 700 : 400 }}>
-                                      <strong>Dif. Posterolateral:</strong> {diffPL.toFixed(1)} cm {diffPL > 4.0 && '⚠️'}
-                                    </div>
-                                  </div>
+                                <div style={{ marginTop: '10px' }}>
+                                  <LiveClinicalAlert alerts={analysis.alerts} title="Indicativos do Y-Balance Test" />
+                                  <TestComparativeSummary testName="Y-Balance Test" previousDate={prevDate} items={items} />
                                 </div>
                               );
                             })()}
@@ -8230,7 +8279,7 @@ goniometria: {
                       {/* Step Down — Structured numeric inputs */}
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asStepDownRealizou === 'sim' ? '12px' : '0px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Step Down</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Step Down (Controle Cinemático)</span>
                           <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asStepDownRealizou} onChange={e => setAsStepDownRealizou(e.target.value)}>
                             <option value="nao">Não se Aplica</option>
                             <option value="sim">Realizado</option>
@@ -8239,7 +8288,6 @@ goniometria: {
                         {asStepDownRealizou === 'sim' && (
                           <div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                              {/* Item 1 */}
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Queda Pélvica<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: até 5°</span></div>
                                 <div>
@@ -8252,7 +8300,6 @@ goniometria: {
                                 </div>
                               </div>
                               
-                              {/* Item 2 */}
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Adução do Quadril<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: até 10°</span></div>
                                 <div>
@@ -8265,7 +8312,6 @@ goniometria: {
                                 </div>
                               </div>
 
-                              {/* Item 3 */}
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Valgo Dinâmico Joelho<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: M até 10° | F até 15°</span></div>
                                 <div>
@@ -8278,7 +8324,6 @@ goniometria: {
                                 </div>
                               </div>
 
-                              {/* Item 4 */}
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-darker)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Ângulo Excêntrico / PRPS<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 'normal' }}>Ref: acima de 60°</span></div>
                                 <div>
@@ -8291,32 +8336,36 @@ goniometria: {
                                 </div>
                               </div>
                             </div>
-                            {/* Risk alerts */}
+
+                            {/* Live Step Down Analysis, Alerts & Comparative Summary */}
                             {(() => {
-                              const qPelD = Number(asSdPelvicaD) || 0;
-                              const qPelE = Number(asSdPelvicaE) || 0;
-                              const adQD = Number(asSdAducaoD) || 0;
-                              const adQE = Number(asSdAducaoE) || 0;
-                              const valJoD = Number(asSdValgoD) || 0;
-                              const valJoE = Number(asSdValgoE) || 0;
-                              const compExD = Number(asSdPrpsD) || 0;
-                              const compExE = Number(asSdPrpsE) || 0;
-                              const valLimit = asSex === 'M' ? 10 : 15;
-                              const risks: string[] = [];
-                              if (qPelD > 5 || qPelE > 5) risks.push('Queda Pélvica elevada (>5°)');
-                              if (adQD > 10 || adQE > 10) risks.push('Adução de Quadril elevada (>10°)');
-                              if (valJoD > valLimit || valJoE > valLimit) risks.push(`Valgo Dinâmico elevado (>${valLimit}° para ${asSex === 'M' ? 'Masculino' : 'Feminino'})`);
-                              if ((compExD > 0 && compExD < 60) || (compExE > 0 && compExE < 60)) risks.push('Componente Excêntrico reduzido ou PRPS positivo (<60°)');
+                              const analysis = calculateStepDownAnalysis({
+                                pelvicaD: asSdPelvicaD,
+                                pelvicaE: asSdPelvicaE,
+                                aducaoD: asSdAducaoD,
+                                aducaoE: asSdAducaoE,
+                                valgoD: asSdValgoD,
+                                valgoE: asSdValgoE,
+                                prpsD: asSdPrpsD,
+                                prpsE: asSdPrpsE
+                              });
+                              const prevSd = clientTestMemory['STEP_DOWN'];
+                              const prevDate = prevSd?.data ? formatDateBR(prevSd.data) : undefined;
+                              const psd = prevSd?.dados || {};
+                              const prevScoreD = psd.quedaPelvicaD !== undefined ? (Number(psd.quedaPelvicaD||0)+Number(psd.aducaoQuadrilD||0)+Number(psd.valgoDinamicoJoelhoD||0)+Number(psd.compExcentricoPrpsD||0)) : undefined;
+                              const prevScoreE = psd.quedaPelvicaE !== undefined ? (Number(psd.quedaPelvicaE||0)+Number(psd.aducaoQuadrilE||0)+Number(psd.valgoDinamicoJoelhoE||0)+Number(psd.compExcentricoPrpsE||0)) : undefined;
+                              const items: ComparativeItem[] = [
+                                { label: 'Score Total D (0-6)', prevValue: prevScoreD, currValue: analysis.scoreD, unit: 'pts', isLowerBetter: true },
+                                { label: 'Score Total E (0-6)', prevValue: prevScoreE, currValue: analysis.scoreE, unit: 'pts', isLowerBetter: true },
+                                { label: 'Queda Pélvica D', prevValue: psd.quedaPelvicaD ?? psd.quedaPelvica, currValue: asSdPelvicaD, unit: '°', isLowerBetter: true },
+                                { label: 'Queda Pélvica E', prevValue: psd.quedaPelvicaE ?? psd.quedaPelvica, currValue: asSdPelvicaE, unit: '°', isLowerBetter: true },
+                                { label: 'Valgo Dinâmico D', prevValue: psd.valgoDinamicoJoelhoD ?? psd.valgoDinamicoJoelho, currValue: asSdValgoD, unit: '°', isLowerBetter: true },
+                                { label: 'Valgo Dinâmico E', prevValue: psd.valgoDinamicoJoelhoE ?? psd.valgoDinamicoJoelho, currValue: asSdValgoE, unit: '°', isLowerBetter: true }
+                              ];
                               return (
-                                <div style={{ marginTop: '10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', fontSize: '0.78rem' }}>
-                                  {risks.length > 0 ? (
-                                    <>
-                                      <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: '4px' }}>⚠ Risco Elevado de Lesão detectado</div>
-                                      <div style={{ color: 'var(--text-dim)' }}><strong>Fatores:</strong> {risks.join(', ')}.</div>
-                                    </>
-                                  ) : (
-                                    <div style={{ color: '#10b981' }}>✓ Controle Dinâmico Adequado — métricas dentro das referências.</div>
-                                  )}
+                                <div style={{ marginTop: '10px' }}>
+                                  <LiveClinicalAlert alerts={analysis.alerts} title="Indicativos do Step Down Test" />
+                                  <TestComparativeSummary testName="Step Down Test" previousDate={prevDate} items={items} />
                                 </div>
                               );
                             })()}
@@ -9118,19 +9167,34 @@ goniometria: {
 
       {/* 4. Physiotherapy Report Modal */}
       {showReportModal && (
-        <div className="modal-overlay" style={{ padding: '20px 10px' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1150px', width: '96%', background: 'var(--bg-card, #1e293b)' }}>
-            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <h3 style={{ margin: 0 }}>Novo Relatório Fisioterápico</h3>
+        <div className="modal-overlay" style={{ padding: '16px 10px' }}>
+          <div className={`modal-content modal-content-clinical ${isClinicalModalMaximized ? 'modal-content-fullscreen' : ''}`} onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card, #1e293b)' }}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-notes-medical" style={{ color: 'var(--color-primary)' }}></i>
+                  Novo Relatório Fisioterápico
+                </h3>
                 <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
                   ⏱️ Tempo: {formatTimer(repTimerSeconds)}
                 </span>
               </div>
-              <button className="modal-close" onClick={handleCloseReport}>&times;</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsClinicalModalMaximized(!isClinicalModalMaximized)}
+                  title={isClinicalModalMaximized ? "Restaurar tamanho da janela" : "Expandir para tela cheia"}
+                  style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.06)' }}
+                >
+                  <i className={`fa-solid ${isClinicalModalMaximized ? 'fa-compress' : 'fa-expand'}`}></i>
+                  <span>{isClinicalModalMaximized ? 'Restaurar' : 'Tela Cheia'}</span>
+                </button>
+                <button className="modal-close" onClick={handleCloseReport}>&times;</button>
+              </div>
             </div>
             <form onSubmit={handleCreateReport}>
-              <div className="modal-body step-fade-in" key={repActiveStep} style={{ maxHeight: '74vh', overflowY: 'auto', padding: '20px' }}>
+              <div className="modal-body step-fade-in" key={repActiveStep} style={{ padding: '20px' }}>
                 
 
 
@@ -9505,18 +9569,17 @@ goniometria: {
 
                 {/* PASSO 3: GONIOMETRIA E TESTES DE ENCURTAMENTO */}
                 {repActiveStep === 3 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ margin: 0 }}>Goniometria & Mobilidade Articular</h4>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', margin: 0 }}>Goniometria (Amplitude Articular em Graus)</h4>
+
                     {(() => {
                       const latest = getLatestRepAssessment();
-                      if (!latest) return null;
+                      if (!latest?.dadosMedidos?.goniometria) return null;
                       return (
-                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '4px' }}>
+                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
                             <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
-                            <span>Avaliação Física disponível: <strong>{fmtDateBR(latest.data)}</strong></span>
+                            <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Goniometria disponível</span>
                           </div>
                           <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['goniometria'])}>
                             <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Goniometria
@@ -9525,45 +9588,28 @@ goniometria: {
                       );
                     })()}
 
-                    {/* Alertas Biomecânicos no Relatório Clínico */}
+                    {/* Alertas Biomecânicos & Resumo Comparativo de Goniometria */}
                     {(() => {
                       const biomechanicAlerts = calculateGoniometryAlerts(gGonio);
-                      if (biomechanicAlerts.length === 0) return null;
-
+                      const prevGonio = clientTestMemory['GONIOMETRIA'];
+                      const prevDate = prevGonio?.data ? formatDateBR(prevGonio.data) : undefined;
+                      const pg = prevGonio?.dados || {};
+                      const getGVal = (v: any) => typeof v === 'object' ? (v?.semForca || v?.ativo || '') : (v || '');
+                      const items: ComparativeItem[] = [
+                        { label: 'Quadril Rot. Interna (D)', prevValue: getGVal(pg.quadrilRotIntD), currValue: getGVal(gGonio.quadrilRotIntD), unit: '°' },
+                        { label: 'Quadril Rot. Interna (E)', prevValue: getGVal(pg.quadrilRotIntE), currValue: getGVal(gGonio.quadrilRotIntE), unit: '°' },
+                        { label: 'Quadril Flexão 2 (D)', prevValue: getGVal(pg.quadrilFlexao2D), currValue: getGVal(gGonio.quadrilFlexao2D), unit: '°' },
+                        { label: 'Quadril Flexão 2 (E)', prevValue: getGVal(pg.quadrilFlexao2E), currValue: getGVal(gGonio.quadrilFlexao2E), unit: '°' },
+                        { label: 'Tornozelo Dorsi 1 (D)', prevValue: getGVal(pg.tornozeloDorsi1D), currValue: getGVal(gGonio.tornozeloDorsi1D), unit: '°' },
+                        { label: 'Tornozelo Dorsi 1 (E)', prevValue: getGVal(pg.tornozeloDorsi1E), currValue: getGVal(gGonio.tornozeloDorsi1E), unit: '°' },
+                        { label: 'Ombro Rot. Interna (D)', prevValue: getGVal(pg.ombroRotIntD), currValue: getGVal(gGonio.ombroRotIntD), unit: '°' },
+                        { label: 'Ombro Rot. Interna (E)', prevValue: getGVal(pg.ombroRotIntE), currValue: getGVal(gGonio.ombroRotIntE), unit: '°' }
+                      ];
                       return (
-                        <div style={{
-                          background: 'rgba(239, 68, 68, 0.08)',
-                          border: '1px solid rgba(239, 68, 68, 0.4)',
-                          borderRadius: '10px',
-                          padding: '12px 16px',
-                          marginBottom: '14px'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                            <span style={{ color: '#ef4444' }}>
-                              <i className="fa-solid fa-triangle-exclamation"></i>
-                            </span>
-                            <strong style={{ fontSize: '0.85rem', color: '#f8fafc' }}>
-                              Alertas Biomecânicos & Riscos Ortopédicos ({biomechanicAlerts.length})
-                            </strong>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '8px' }}>
-                            {biomechanicAlerts.map((al, idx) => (
-                              <div key={idx} style={{
-                                background: al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                                border: `1px solid ${al.tipo === 'critico' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-                                borderRadius: '6px',
-                                padding: '8px 10px',
-                                fontSize: '0.72rem'
-                              }}>
-                                <strong style={{ color: al.tipo === 'critico' ? '#ef4444' : '#f59e0b', display: 'block' }}>
-                                  {al.titulo} {al.lado ? `(${al.lado})` : ''} - {al.valorCalculado || ''}
-                                </strong>
-                                <div style={{ color: '#cbd5e1', marginTop: '2px' }}>{al.descricao}</div>
-                                <div style={{ color: '#fca5a5', marginTop: '2px', fontWeight: 600 }}>⚠️ {al.riscoClinico}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <>
+                          <LiveClinicalAlert alerts={biomechanicAlerts} title="Indicativos Clínicos de Goniometria" />
+                          <TestComparativeSummary testName="Goniometria & Mobilidade Articular" previousDate={prevDate} items={items} />
+                        </>
                       );
                     })()}
 
@@ -9699,6 +9745,42 @@ goniometria: {
                         </div>
                       );
                     })()}
+
+                    {/* Alertas & Comparativo de Thomas e Ober */}
+                    {(() => {
+                      const thomasAlerts = calculateThomasAlerts({
+                        thomasIliopsoasDStatus: tThomasIliopsoasDStatus,
+                        thomasIliopsoasEStatus: tThomasIliopsoasEStatus,
+                        thomasRetofemoralDStatus: tThomasRetofemoralDStatus,
+                        thomasRetofemoralEStatus: tThomasRetofemoralEStatus,
+                        thomasIliopsoasD: tThomasIliopsoasD,
+                        thomasIliopsoasE: tThomasIliopsoasE,
+                        thomasRetofemoralD: tThomasRetofemoralD,
+                        thomasRetofemoralE: tThomasRetofemoralE
+                      });
+                      const oberAlerts = calculateOberAlerts(tOberD, tOberE);
+                      const combined = [...thomasAlerts, ...oberAlerts];
+                      const prevThomas = clientTestMemory['THOMAS'];
+                      const prevOber = clientTestMemory['OBER'];
+                      const prevDate = (prevThomas?.data || prevOber?.data) ? formatDateBR(prevThomas?.data || prevOber?.data) : undefined;
+                      const pt = prevThomas?.dados || {};
+                      const po = prevOber?.dados || {};
+                      const items: ComparativeItem[] = [
+                        { label: 'Thomas Iliopsoas (D)', prevValue: pt.thomasIliopsoasDStatus || pt.thomasD, currValue: tThomasIliopsoasDStatus },
+                        { label: 'Thomas Iliopsoas (E)', prevValue: pt.thomasIliopsoasEStatus || pt.thomasE, currValue: tThomasIliopsoasEStatus },
+                        { label: 'Thomas Retofemoral (D)', prevValue: pt.thomasRetofemoralDStatus, currValue: tThomasRetofemoralDStatus },
+                        { label: 'Thomas Retofemoral (E)', prevValue: pt.thomasRetofemoralEStatus, currValue: tThomasRetofemoralEStatus },
+                        { label: 'Ober (D)', prevValue: po.oberD, currValue: tOberD },
+                        { label: 'Ober (E)', prevValue: po.oberE, currValue: tOberE }
+                      ];
+                      return (
+                        <>
+                          <LiveClinicalAlert alerts={combined} title="Indicativos Clínicos dos Testes Especiais" />
+                          <TestComparativeSummary testName="Testes de Thomas & Ober" previousDate={prevDate} items={items} />
+                        </>
+                      );
+                    })()}
+
                     <div className="resp-grid-1-1">
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px' }}>
                         <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Teste de Ober (Banda Iliotibial)</strong>
@@ -9919,6 +10001,23 @@ goniometria: {
                             </div>
                           </div>
                         </div>
+
+                        {(() => {
+                          const prevPeri = clientTestMemory['PERIMETRIA'];
+                          const prevDate = prevPeri?.data ? formatDateBR(prevPeri.data) : undefined;
+                          const pd = prevPeri?.dados || {};
+                          const items: ComparativeItem[] = [
+                            { label: 'Tórax', prevValue: pd.torax, currValue: repCirc.torax, unit: 'cm' },
+                            { label: 'Cintura', prevValue: pd.cintura, currValue: repCirc.cintura, unit: 'cm', isLowerBetter: true },
+                            { label: 'Abdômen', prevValue: pd.abdomen, currValue: repCirc.abdomen, unit: 'cm', isLowerBetter: true },
+                            { label: 'Quadril', prevValue: pd.quadril, currValue: repCirc.quadril, unit: 'cm' },
+                            { label: 'Braço D', prevValue: pd.braçoD, currValue: repCirc.braçoD, unit: 'cm' },
+                            { label: 'Braço E', prevValue: pd.braçoE, currValue: repCirc.braçoE, unit: 'cm' },
+                            { label: 'Coxa D', prevValue: pd.coxaD, currValue: repCirc.coxaD, unit: 'cm' },
+                            { label: 'Coxa E', prevValue: pd.coxaE, currValue: repCirc.coxaE, unit: 'cm' }
+                          ];
+                          return <TestComparativeSummary testName="Perimetria Corporal" previousDate={prevDate} items={items} />;
+                        })()}
                       </div>
                     )}
 
@@ -10063,67 +10162,33 @@ goniometria: {
                             </div>
                           </div>
 
-                          {/* Y TEST CALCULATIONS AND RESULTS */}
+                          {/* Live Y-Test Analysis, Alerts & Comparative Summary */}
                           {(() => {
-                            if (!yLenD || !yLenE) return <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Insira o comprimento dos membros de ambos os lados para visualizar as assimetrias e Composite Scores.</div>;
-                            const diffAnt = Math.abs(yAntD - yAntE);
-                            const diffPM = Math.abs(yPMD - yPME);
-                            const diffPL = Math.abs(yPLD - yPLE);
-                            const scoreD = ((yAntD + yPMD + yPLD) / (3 * yLenD)) * 100;
-                            const scoreE = ((yAntE + yPME + yPLE) / (3 * yLenE)) * 100;
-                            const diffScore = Math.abs(scoreD - scoreE);
-                            
-                            const hasReachRisk = diffAnt > 4.0 || diffPM > 4.0 || diffPL > 4.0;
-                            const hasAsymmetry = diffScore > 10.0;
-                            const hasLowScore = scoreD < 94 || scoreE < 94;
-
-                            let alerts: string[] = [];
-                            if (hasReachRisk) {
-                              const reachDetails = [];
-                              if (diffAnt > 4.0) reachDetails.push(`Ant: ${diffAnt.toFixed(1)}cm`);
-                              if (diffPM > 4.0) reachDetails.push(`PM: ${diffPM.toFixed(1)}cm`);
-                              if (diffPL > 4.0) reachDetails.push(`PL: ${diffPL.toFixed(1)}cm`);
-                              alerts.push(`Risco de Lesão (Diferença de alcance > 4.0cm: ${reachDetails.join(', ')})`);
-                            }
-                            if (hasAsymmetry) {
-                              alerts.push(`Alerta de Assimetria (Diferença > 10% entre direito e esquerdo: ${diffScore.toFixed(1)}%)`);
-                            }
-                            if (hasLowScore) {
-                              alerts.push('Baixo desempenho dinâmico (Composite Score < 94%)');
-                            }
-                            
+                            const analysis = calculateYTestAnalysis({
+                              lenD: yLenD,
+                              lenE: yLenE,
+                              antD: yAntD,
+                              antE: yAntE,
+                              pmD: yPMD,
+                              pmE: yPME,
+                              plD: yPLD,
+                              plE: yPLE
+                            });
+                            const prevY = clientTestMemory['Y_TEST'];
+                            const prevDate = prevY?.data ? formatDateBR(prevY.data) : undefined;
+                            const pyd = prevY?.dados?.direita || {};
+                            const pye = prevY?.dados?.esquerda || {};
+                            const items: ComparativeItem[] = [
+                              { label: 'Alcance Anterior D', prevValue: pyd.anterior, currValue: yAntD, unit: 'cm' },
+                              { label: 'Alcance Anterior E', prevValue: pye.anterior, currValue: yAntE, unit: 'cm' },
+                              { label: 'Assimetria Anterior', prevValue: prevY?.metricas?.assimetriaAbsoluta, currValue: analysis.assimetriaAnt || undefined, unit: 'cm', isLowerBetter: true },
+                              { label: 'Composite Score D', prevValue: pyd.comprimentoMembro ? (((Number(pyd.anterior||0)+Number(pyd.posteromedial||0)+Number(pyd.posterolateral||0))/(3*pyd.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoD || undefined, unit: '%' },
+                              { label: 'Composite Score E', prevValue: pye.comprimentoMembro ? (((Number(pye.anterior||0)+Number(pye.posteromedial||0)+Number(pye.posterolateral||0))/(3*pye.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoE || undefined, unit: '%' }
+                            ];
                             return (
-                              <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.8rem', marginTop: '12px' }}>
-                                <div style={{ marginBottom: '8px' }}>
-                                  {alerts.length > 0 ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                      {alerts.map((al, idx) => (
-                                        <span key={idx} className="badge badge-danger" style={{ display: 'block', padding: '6px 10px', textAlign: 'left', fontSize: '0.74rem' }}>
-                                          <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> {al}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <span className="badge badge-success" style={{ display: 'block', padding: '6px', textAlign: 'center' }}>
-                                      <i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Sem alertas de risco detectados
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="resp-grid-1-1" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '8px' }}>
-                                  <div><strong>Composite Score D:</strong> {scoreD.toFixed(1)}% <br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenD})</span></div>
-                                  <div><strong>Composite Score E:</strong> {scoreE.toFixed(1)}% {hasAsymmetry && <span style={{ color: '#f59e0b', fontWeight: 700 }}>({diffScore.toFixed(1)}% dif ⚠️)</span>}<br/><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(Ant+PM+PL) / (3 * {yLenE})</span></div>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', fontSize: '0.75rem' }}>
-                                  <div style={{ color: diffAnt > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffAnt > 4.0 ? 700 : 400 }}>
-                                    Diferença Anterior: <strong>{diffAnt.toFixed(1)} cm {diffAnt > 4.0 && '⚠️'}</strong>
-                                  </div>
-                                  <div style={{ color: diffPM > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPM > 4.0 ? 700 : 400 }}>
-                                    Diferença Posteromedial: <strong>{diffPM.toFixed(1)} cm {diffPM > 4.0 && '⚠️'}</strong>
-                                  </div>
-                                  <div style={{ color: diffPL > 4.0 ? '#ef4444' : 'inherit', fontWeight: diffPL > 4.0 ? 700 : 400 }}>
-                                    Diferença Posterolateral: <strong>{diffPL.toFixed(1)} cm {diffPL > 4.0 && '⚠️'}</strong>
-                                  </div>
-                                </div>
+                              <div style={{ marginTop: '12px' }}>
+                                <LiveClinicalAlert alerts={analysis.alerts} title="Indicativos do Y-Balance Test" />
+                                <TestComparativeSummary testName="Y-Balance Test" previousDate={prevDate} items={items} />
                               </div>
                             );
                           })()}
@@ -10177,23 +10242,41 @@ goniometria: {
                             };
 
                             return (
-                              <svg width="260" height="260" viewBox="0 0 380 300" style={{ display: 'block', margin: '0 auto', background: '#ffffff' }}>
-                                {/* Circles grid */}
+                              <svg width="260" height="205" viewBox="0 0 380 300">
+                                {/* Circles */}
                                 {[10, 20, 30, 40, 50].map(val => (
                                   <g key={val}>
-                                    <circle cx={cx} cy={cy} r={val * scale} fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
-                                    <text x={cx} y={cy - (val * scale) + 3} style={{ fontSize: '7px', fill: '#94a3b8', textAnchor: 'middle', fontWeight: 'bold' }}>{val}</text>
+                                    <circle cx={cx} cy={cy} r={val * scale} fill="none" stroke="#e2e8f0" strokeWidth="1" />
+                                    <text x={cx} y={cy - val * scale + 3} fontSize="8" fill="#94a3b8" textAnchor="middle">{val}</text>
                                   </g>
                                 ))}
-                                
-                                {/* Axis lines */}
-                                {angles.map((ang, aIdx) => (
-                                  <line key={aIdx} x1={cx} y1={cy} x2={cx + 100 * Math.cos(ang)} y2={cy + 100 * Math.sin(ang)} stroke="#94a3b8" strokeWidth="0.75" />
+
+                                {/* Axes */}
+                                {angles.map((ang, idx) => (
+                                  <line
+                                    key={idx}
+                                    x1={cx}
+                                    y1={cy}
+                                    x2={cx + 100 * Math.cos(ang)}
+                                    y2={cy + 100 * Math.sin(ang)}
+                                    stroke="#cbd5e1"
+                                    strokeWidth="1.2"
+                                  />
                                 ))}
-                                
-                                {/* Directions and labels */}
-                                {labels.map((lbl, lIdx) => (
-                                  <text key={lIdx} x={lbl.x} y={lbl.y} textAnchor={lbl.anchor} style={{ fontSize: '9px', fill: '#0f172a', fontWeight: 'bold' }}>{lbl.text}</text>
+
+                                {/* Direction and EVA Labels */}
+                                {labels.map((lbl, idx) => (
+                                  <text
+                                    key={idx}
+                                    x={lbl.x}
+                                    y={lbl.y}
+                                    fontSize="9.5"
+                                    fill="#1e293b"
+                                    fontWeight="bold"
+                                    textAnchor={lbl.anchor}
+                                  >
+                                    {lbl.text}
+                                  </text>
                                 ))}
 
                                 {/* Reference polygon */}
@@ -10255,6 +10338,24 @@ goniometria: {
                         </div>
                       </div>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic' }}>* Clique nos nós verdes do gráfico em teia ou use os controles deslizantes para alterar as amplitudes de movimento e dor.</p>
+
+                      {/* Maigne Comparative Summary */}
+                      {(() => {
+                        const prevM = clientTestMemory['MAIGNE'];
+                        const prevDate = prevM?.data ? formatDateBR(prevM.data) : undefined;
+                        const pmd = prevM?.dados || {};
+                        const items: ComparativeItem[] = [
+                          { label: 'Flexão (ADM)', prevValue: pmd.flexao, currValue: mFlex, unit: '°' },
+                          { label: 'Flexão (Dor EVA)', prevValue: pmd.flexaoEVA, currValue: mFlexEVA, unit: '/10', isLowerBetter: true },
+                          { label: 'Extensão (ADM)', prevValue: pmd.extensao, currValue: mExt, unit: '°' },
+                          { label: 'Extensão (Dor EVA)', prevValue: pmd.extensaoEVA, currValue: mExtEVA, unit: '/10', isLowerBetter: true },
+                          { label: 'Rot. D (ADM)', prevValue: pmd.rotacaoD, currValue: mRotD, unit: '°' },
+                          { label: 'Rot. D (Dor EVA)', prevValue: pmd.rotacaoDEVA, currValue: mRotDEVA, unit: '/10', isLowerBetter: true },
+                          { label: 'Rot. E (ADM)', prevValue: pmd.rotacaoE, currValue: mRotE, unit: '°' },
+                          { label: 'Rot. E (Dor EVA)', prevValue: pmd.rotacaoEEVA, currValue: mRotEEVA, unit: '/10', isLowerBetter: true }
+                        ];
+                        return <TestComparativeSummary testName="Estrela de Maigne (Coluna & Dor)" previousDate={prevDate} items={items} />;
+                      })()}
                         </>
                       )}
                     </div>
@@ -10341,31 +10442,35 @@ goniometria: {
                             </div>
                           </div>
 
-                          {/* Step Down Real-time Alerts */}
+                          {/* Live Step Down Analysis, Alerts & Comparative Summary */}
                           {(() => {
-                            const selCli = clients.find(c => c._id === repClient);
-                            const rawSex = selCli?.dadosPessoais?.sexo || 'M';
-                            const sex = rawSex === 'masculino' ? 'M' : rawSex === 'feminino' ? 'F' : rawSex === 'outro' ? 'O' : rawSex;
-                            let riskFactors = [];
-                            if (sdPelvicaD > 5 || sdPelvicaE > 5) riskFactors.push('Queda Pélvica elevada (> 5°)');
-                            if (sdAducaoD > 10 || sdAducaoE > 10) riskFactors.push('Adução de Quadril elevada (> 10°)');
-                            const limit = sex === 'M' ? 10 : 15;
-                            if (sdValgoD > limit || sdValgoE > limit) riskFactors.push(`Valgo Dinâmico elevado (> ${limit}° para sexo ${sex === 'M' ? 'Masculino' : 'Feminino'})`);
-                            if ((sdPrpsD > 0 && sdPrpsD < 60) || (sdPrpsE > 0 && sdPrpsE < 60)) riskFactors.push('Componente Excêntrico de Quadríceps reduzido ou PRPS positivo (< 60°)');
-
+                            const analysis = calculateStepDownAnalysis({
+                              pelvicaD: sdPelvicaD,
+                              pelvicaE: sdPelvicaE,
+                              aducaoD: sdAducaoD,
+                              aducaoE: sdAducaoE,
+                              valgoD: sdValgoD,
+                              valgoE: sdValgoE,
+                              prpsD: sdPrpsD,
+                              prpsE: sdPrpsE
+                            });
+                            const prevSd = clientTestMemory['STEP_DOWN'];
+                            const prevDate = prevSd?.data ? formatDateBR(prevSd.data) : undefined;
+                            const psd = prevSd?.dados || {};
+                            const prevScoreD = psd.quedaPelvicaD !== undefined ? (Number(psd.quedaPelvicaD||0)+Number(psd.aducaoQuadrilD||0)+Number(psd.valgoDinamicoJoelhoD||0)+Number(psd.compExcentricoPrpsD||0)) : undefined;
+                            const prevScoreE = psd.quedaPelvicaE !== undefined ? (Number(psd.quedaPelvicaE||0)+Number(psd.aducaoQuadrilE||0)+Number(psd.valgoDinamicoJoelhoE||0)+Number(psd.compExcentricoPrpsE||0)) : undefined;
+                            const items: ComparativeItem[] = [
+                              { label: 'Score Total D (0-6)', prevValue: prevScoreD, currValue: analysis.scoreD, unit: 'pts', isLowerBetter: true },
+                              { label: 'Score Total E (0-6)', prevValue: prevScoreE, currValue: analysis.scoreE, unit: 'pts', isLowerBetter: true },
+                              { label: 'Queda Pélvica D', prevValue: psd.quedaPelvicaD ?? psd.quedaPelvica, currValue: sdPelvicaD, unit: '°', isLowerBetter: true },
+                              { label: 'Queda Pélvica E', prevValue: psd.quedaPelvicaE ?? psd.quedaPelvica, currValue: sdPelvicaE, unit: '°', isLowerBetter: true },
+                              { label: 'Valgo Dinâmico D', prevValue: psd.valgoDinamicoJoelhoD ?? psd.valgoDinamicoJoelho, currValue: sdValgoD, unit: '°', isLowerBetter: true },
+                              { label: 'Valgo Dinâmico E', prevValue: psd.valgoDinamicoJoelhoE ?? psd.valgoDinamicoJoelho, currValue: sdValgoE, unit: '°', isLowerBetter: true }
+                            ];
                             return (
-                              <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', fontSize: '0.8rem', marginTop: '12px' }}>
-                                {riskFactors.length > 0 ? (
-                                  <>
-                                    <div className="badge badge-danger" style={{ marginBottom: '6px' }}><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '6px' }}></i> Risco Elevado de Lesão detectado</div>
-                                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}><strong>Fatores de risco identificados:</strong> {riskFactors.join(', ')}.</p>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="badge badge-success" style={{ marginBottom: '6px' }}><i className="fa-solid fa-check" style={{ marginRight: '6px' }}></i> Controle Dinâmico Adequado</div>
-                                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Todas as métricas estão dentro das referências clínicas saudáveis.</p>
-                                  </>
-                                )}
+                              <div style={{ marginTop: '12px' }}>
+                                <LiveClinicalAlert alerts={analysis.alerts} title="Indicativos do Step Down Test" />
+                                <TestComparativeSummary testName="Step Down Test" previousDate={prevDate} items={items} />
                               </div>
                             );
                           })()}
@@ -10752,16 +10857,31 @@ goniometria: {
 
       {/* 5. Strength Test Modal */}
       {showStModal && (
-        <div className="modal-overlay" style={{ padding: '20px 10px' }}>
-          <div className="modal-content" style={{ maxWidth: '1150px', width: '96%', background: 'var(--bg-card, #1e293b)' }}>
-            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <h3 style={{ margin: 0 }}>Registrar Teste de Força Muscular</h3>
+        <div className="modal-overlay" style={{ padding: '16px 10px' }}>
+          <div className={`modal-content modal-content-clinical ${isClinicalModalMaximized ? 'modal-content-fullscreen' : ''}`} style={{ background: 'var(--bg-card, #1e293b)' }}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-dumbbell" style={{ color: 'var(--color-primary)' }}></i>
+                  Registrar Teste de Força Muscular
+                </h3>
                 <span style={{ padding: '4px 10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>
                   ⏱️ Tempo: {formatTimer(stTimerSeconds)}
                 </span>
               </div>
-              <button className="modal-close" onClick={handleCloseSt}>&times;</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsClinicalModalMaximized(!isClinicalModalMaximized)}
+                  title={isClinicalModalMaximized ? "Restaurar tamanho da janela" : "Expandir para tela cheia"}
+                  style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.06)' }}
+                >
+                  <i className={`fa-solid ${isClinicalModalMaximized ? 'fa-compress' : 'fa-expand'}`}></i>
+                  <span>{isClinicalModalMaximized ? 'Restaurar' : 'Tela Cheia'}</span>
+                </button>
+                <button className="modal-close" onClick={handleCloseSt}>&times;</button>
+              </div>
             </div>
             <form onSubmit={handleCreateStrengthTest}>
               <div className="modal-body" style={{ padding: '20px' }}>
@@ -11016,6 +11136,23 @@ goniometria: {
                       </div>
                     </div>
                   );
+                })()}
+
+                {/* Resumo Comparativo com Dinamometria Anterior */}
+                {(() => {
+                  const prevSt = clientTestMemory['DINAMOMETRIA'];
+                  const prevDate = prevSt?.data ? formatDateBR(prevSt.data) : undefined;
+                  const prevTests = prevSt?.dados?.testesRealizados || prevSt?.dados?.exercicios || [];
+                  const items: ComparativeItem[] = stTestesList.map(currT => {
+                    const match = prevTests.find((pt: any) => pt.articulacao === currT.articulacao && pt.movimento === currT.movimento && pt.lado === currT.lado);
+                    return {
+                      label: `${currT.articulacao} - ${currT.movimento} (${currT.lado})`,
+                      prevValue: match ? (match.forcaN ? Number(match.forcaN.toFixed(1)) : match.valorObtido) : undefined,
+                      currValue: Number(currT.forcaN.toFixed(1)),
+                      unit: 'N'
+                    };
+                  });
+                  return <TestComparativeSummary testName="Dinamometria Isométrica Computadorizada" previousDate={prevDate} items={items} />;
                 })()}
 
                 <div className="form-group" style={{ marginTop: '15px' }}>

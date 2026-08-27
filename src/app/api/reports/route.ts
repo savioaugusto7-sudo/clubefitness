@@ -5,6 +5,7 @@ import PhysioReport from '@/models/PhysioReport';
 import '@/models/Client';
 import '@/models/Professional';
 import { checkSessionPermission } from '@/utils/authHelper';
+import { syncPhysioReportTests } from '@/utils/testMemorySync';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -110,6 +111,8 @@ export async function POST(request: Request) {
       pdf_url: pdf_url || '',
       tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
+
+    await syncPhysioReportTests(report);
 
     const populatedReport = await PhysioReport.findById(report._id)
       .populate('clienteId')

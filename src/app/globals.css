@@ -4041,7 +4041,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 18px !important;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2) !important;
-  max-width: 550px !important;
+  max-width: 860px;
   width: 95% !important;
   max-height: calc(100vh - 32px) !important;
   height: auto !important;
@@ -4052,6 +4052,33 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   margin: auto !important;
   box-sizing: border-box !important;
+  transition: max-width 0.2s ease, width 0.2s ease, max-height 0.2s ease;
+}
+
+/* Modais de Clínicos e Workstation (Avaliação Física, Relatório Fisioterápico, Dinamometria) */
+.modal-content-clinical,
+.modal-content-wide,
+.modal-content-xl {
+  max-width: 1480px !important;
+  width: 96vw !important;
+  max-height: calc(100vh - 28px) !important;
+}
+
+/* Modo Tela Cheia / Imersivo Total */
+.modal-content-fullscreen {
+  max-width: 98vw !important;
+  width: 98vw !important;
+  height: calc(100vh - 20px) !important;
+  max-height: calc(100vh - 20px) !important;
+  border-radius: 12px !important;
+}
+
+.modal-content-sm {
+  max-width: 480px !important;
+}
+
+.modal-content-md {
+  max-width: 680px !important;
 }
 
 .modal-content > form {

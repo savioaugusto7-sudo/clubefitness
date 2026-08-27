@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import StrengthTest from '@/models/StrengthTest';
 import { checkSessionPermission } from '@/utils/authHelper';
+import { syncStrengthTestRecord } from '@/utils/testMemorySync';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -85,6 +86,8 @@ export async function POST(request: Request) {
       comparativos,
       tempoGastoSegundos: Number(tempoGastoSegundos) || 0
     });
+
+    await syncStrengthTestRecord(test);
 
     return NextResponse.json({ success: true, data: test });
   } catch (error: any) {
