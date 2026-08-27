@@ -1,457 +1,441 @@
-# 📖 MANUAL & APOSTILA TÉCNICA DE AVALIAÇÃO FÍSICA E BIOMECÂNICA
-### Sistema Clube Fitness Fisio — Protocolos Clínicos, Fórmulas, Alertas e Tomada de Decisão
+# ⚙️ ESPECIFICAÇÃO TÉCNICA, EQUAÇÕES E MATRIZ DE RESULTADOS DOS TESTES
+### Sistema Clube Fitness Fisio — Mapeamento de Entradas (Inputs), Fórmulas, Saídas (Outputs), Alertas Atuais e Oportunidades de Expansão
 
 ---
 
-## 📑 Sumário
+## 📑 Sumário Executivo
 
-1. [MÓDULO 1: Fundamentos da Avaliação Física e Biometria](#módulo-1-fundamentos-da-avaliação-física-e-biometria)
-   - 1.1 Anamnese e Histórico de Hábitos
-   - 1.2 Medição de Peso, Altura e IMC
-   - 1.3 Protocolo Jackson & Pollock (7 Dobras Cutâneas)
-   - 1.4 Fórmulas Matemáticas de Densidade e Percentual de Gordura (Siri/Brozek)
-2. [MÓDULO 2: Perimetria e Rastreio de Assimetrias Corporais](#módulo-2-perimetria-e-rastreio-de-assimetrias-corporais)
-   - 2.1 Pontos Anatômicos Padronizados (14 Perímetros)
-   - 2.2 Critério de Assimetria Contralateral (>10%) e Riscos Ortopédicos
-3. [MÓDULO 3: Goniometria e Cinemática Articular](#módulo-3-goniometria-e-cinemática-articular)
-   - 3.1 Quadril: Rotação Interna, Externa e Alertas SIF (Impacto Femoroacetabular)
-   - 3.2 Quadril: Flexão Joelho Estendido vs Joelho Fletido
-   - 3.3 Joelho: Teste KFBO e Cinemática de Membro Inferior
-   - 3.4 Tornozelo: Lunge Test (Dorsiflexão em Carga) e Flexão Plantar
-   - 3.5 Ombro: Rotação Glenoumeral e Alerta GIRD (>20°)
-   - 3.6 Cinemática da Marcha/Corrida (Pico de Adução de Quadril)
-4. [MÓDULO 4: Testes Clínicos Especiais Ortopédicos](#módulo-4-testes-clínicos-especiais-ortopédicos)
-   - 4.1 Teste de Thomas (Iliopsoas e Retofemoral)
-   - 4.2 Teste de Ober (Trato Iliotibial e Tensor da Fáscia Lata)
-   - 4.3 Y-Balance Test (Y-Test) — Estabilidade Dinâmica e Escore Composto
-   - 4.4 Step Down Test — Controle Cinemático e Escala de Erros (0-4)
-   - 4.5 Estrela de Maigne (Rosa dos Ventos de Dor e Mobilidade da Coluna)
-   - 4.6 Discinesia Escapular (Classificação de Kibler - Tipos I a IV)
-   - 4.7 Termografia Clínica Inflamatória
-5. [MÓDULO 5: Dinamometria Isométrica e Atlas de Força (Strength Atlas)](#módulo-5-dinamometria-isométrica-e-atlas-de-força-strength-atlas)
-   - 5.1 Protocolo de Testagem com Dinamômetro Digital
-   - 5.2 Razão Adutor / Abdutor de Quadril (Pubalgia e Estabilidade)
-   - 5.3 Razão I:Q (Isquiotibiais / Quadríceps) e Prevenção de LCA
-   - 5.4 Força Relativa por Peso Corporal (%PC)
-   - 5.5 Razões de Tronco e Membro Superior (Remada/Supino, Rotadores de Ombro)
-6. [MÓDULO 6: Motor de Inteligência Biomecânica e Prescrição de Conduta](#módulo-6-motor-de-inteligência-biomecânica-e-prescrição-de-conduta)
-   - 6.1 Como o Sistema Cruza Múltiplos Testes
-   - 6.2 Matriz de Alertas Críticos vs Alertas de Atenção
-   - 6.3 Árvore de Decisão para Exercícios Corretivos e Terapia Manual
+1. [MÓDULO 1: Antropometria & Composição Corporal (Jackson & Pollock 7 Dobras)](#módulo-1-antropometria--composição-corporal-jackson--pollock-7-dobras)
+2. [MÓDULO 2: Perimetria Corporal & Análise de Assimetrias Contralaterais](#módulo-2-perimetria-corporal--análise-de-assimetrias-contralaterais)
+3. [MÓDULO 3: Goniometria Articular & Cinemática de Movimento](#módulo-3-goniometria-articular--cinemática-de-movimento)
+4. [MÓDULO 4: Teste de Thomas (Flexores de Quadril & Retofemoral)](#módulo-4-teste-de-thomas-flexores-de-quadril--retofemoral)
+5. [MÓDULO 5: Teste de Ober (Trato Iliotibial & Tensor da Fáscia Lata)](#módulo-5-teste-de-ober-trato-iliotibial--tensor-da-fáscia-lata)
+6. [MÓDULO 6: Y-Balance Test (Y-Test — Estabilidade Dinâmica Unipodal)](#módulo-6-y-balance-test-y-test--estabilidade-dinâmica-unipodal)
+7. [MÓDULO 7: Step Down Test (Controle Cinemático Excêntrico)](#módulo-7-step-down-test-controle-cinemático-excêntrico)
+8. [MÓDULO 8: Estrela de Maigne (Rosa dos Ventos de Dor & Mobilidade da Coluna)](#módulo-8-estrela-de-maigne-rosa-dos-ventos-de-dor--mobilidade-da-coluna)
+9. [MÓDULO 9: Discinesia Escapular (Avaliação de Ritmo Escapuloumeral)](#módulo-9-discinesia-escapular-avaliação-de-ritmo-escapuloumeral)
+10. [MÓDULO 10: Dinamometria Isométrica Computadorizada (Strength Atlas Engine)](#módulo-10-dinamometria-isométrica-computadorizada-strength-atlas-engine)
+11. [MÓDULO 11: Anamnese Estruturada, Escala de Dor EVA & Histórico Clínico](#módulo-11-anamnese-estruturada-escala-de-dor-eva--histórico-clínico)
+12. [MÓDULO 12: Painel Consolidado de Ideias para Novos Alertas e Índices Preditivos](#módulo-12-painel-consolidado-de-ideias-para-novos-alertas-e-índices-preditivos)
 
 ---
 
-# MÓDULO 1: Fundamentos da Avaliação Física e Biometria
+# MÓDULO 1: Antropometria & Composição Corporal (Jackson & Pollock 7 Dobras)
 
-A avaliação física é o ponto de partida indispensável para qualquer prescrição de treino ou reabilitação física. Ela estabelece a linha de base (*baseline*) do aluno, identifica fatores de risco cardiovasculares e osteometabólicos, e guia as metas a curto e longo prazo.
-
----
-
-### 1.1 Anamnese e Histórico de Hábitos
-Antes de qualquer mensuração mecânica, o avaliador deve investigar:
-1. **Sono**: Horas médias de sono e se o sono é contínuo ou intermitente. O sono insuficiente (<6h) eleva o cortisol, inibe a recuperação tecidual e reduz a tolerância mecânica articular.
-2. **Nutrição e Hidratação**: Padrão alimentar (déficit, manutenção, superávit) e ingestão hídrica. A desidratação diminui a viscoelasticidade do disco intervertebral e das fáscias musculares.
-3. **Histórico de Lesões e Cirurgias**: Lesões pregressas aumentam em até 8x a chance de reincidência se desequilíbrios de força ou mobilidade persistirem.
-
----
-
-### 1.2 Medição de Peso, Altura e IMC
-- **Peso Corporal ($kg$)**: Balança digital aferida, aluno descalço e com vestimenta leve.
-- **Estatura ($m$)**: Estadiômetro com o aluno em apneia inspiratória e plano de Frankfurt paralelo ao solo.
-- **Índice de Massa Corporal (IMC)**:
-  $$\text{IMC} = \frac{\text{Peso (kg)}}{\text{Altura (m)}^2}$$
+### 1.1 Inputs do Sistema (Campos de Entrada)
+| Campo | Tipo de Dado | Unidade | Descrição / Restrição |
+| :--- | :--- | :--- | :--- |
+| `idade` | Número Inteiro | Anos | Idade do aluno (calculada via data de nascimento ou inserida manualmente) |
+| `sexo` | String ('M' \| 'F') | - | Gênero biológico para determinação da fórmula de densidade |
+| `peso` | Número Decimal | $kg$ | Peso corporal total |
+| `altura` | Número Decimal | $m$ | Estatura em metros (ex: 1.75) |
+| `dobras.peitoral` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra peitoral |
+| `dobras.triceps` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra tricipital |
+| `dobras.subescapular` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra subescapular |
+| `dobras.subaxilar` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra axilar média |
+| `dobras.suprailiaca` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra supra-ilíaca |
+| `dobras.abdomen` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra abdominal |
+| `dobras.coxa` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra da coxa |
+| `dobras.panturrilha` | Array [M1, M2, M3] | $mm$ | Até 3 leituras da dobra da panturrilha (opcional) |
 
 ---
 
-### 1.3 Protocolo Jackson & Pollock (7 Dobras Cutâneas)
-O protocolo de 7 dobras de Jackson & Pollock (1978/1980) é o padrão ouro na antropometria clínica para determinação da densidade corporal.
+### 1.2 Equações e Processamento Lógico
 
-#### Como Medir:
-1. Todas as medidas devem ser realizadas no **lado direito** do avaliado.
-2. Segure a prega cutânea com o polegar e o indicador da mão esquerda a 1 cm do ponto de aplicação do adipômetro.
-3. Aplique as pontas do adipômetro perpendicularmente à prega e realize a leitura em **2 a 3 segundos**.
-4. Realize **3 medições** em cada ponto (M1, M2, M3). O sistema calcula automaticamente a **média aritmética** das leituras válidas.
+#### 1. Média Aritmética das Leituras por Ponto ($D_i$):
+Para cada dobra $i$, o sistema filtra as medidas preenchidas e calcula:
+$$\overline{D}_i = \frac{1}{n} \sum_{k=1}^{n} M_k \quad (n \in \{1, 2, 3\})$$
 
-#### Os 7 Pontos Anatômicos:
-1. **Peitoral (Torácica)**:
-   - *Homens*: Ponto médio entre a linha axilar anterior e o mamilo (prega diagonal).
-   - *Mulheres*: 1/3 da distância entre a linha axilar anterior e o mamilo.
-2. **Axilar Média**:
-   - Ponto na linha axilar média, no nível da junção xifosternal (prega horizontal/levemente oblíqua).
-3. **Tríceps**:
-   - Ponto médio entre o acrômio e o olécrano, na face posterior do braço (prega vertical).
-4. **Subescapular**:
-   - 2 cm abaixo do ângulo inferior da escápula (prega diagonal a 45°).
-5. **Supra-ilíaca**:
-   - Ponto imediatamente acima da crista ilíaca, na linha axilar anterior (prega oblíqua para frente e para baixo).
-6. **Abdômen**:
-   - 2 cm lateralmente à cicatriz umbilical (prega vertical).
-7. **Coxa**:
-   - Ponto médio na face anterior da coxa, entre a prega inguinal e a borda superior da patela (prega vertical).
+#### 2. Somatório das 7 Dobras ($\Sigma 7D$):
+$$\Sigma 7D = \overline{\text{Peitoral}} + \overline{\text{Tríceps}} + \overline{\text{Subescapular}} + \overline{\text{Axilar Média}} + \overline{\text{Supra-ilíaca}} + \overline{\text{Abdômen}} + \overline{\text{Coxa}}$$
 
----
+#### 3. Densidade Corporal ($D$ em $g/cm^3$) — Equações de Jackson & Pollock:
+- **Masculino**:
+  $$D_{\text{M}} = 1.1120000 - 0.00043499(\Sigma 7D) + 0.00000055(\Sigma 7D)^2 - 0.00028826(\text{Idade})$$
+- **Feminino**:
+  $$D_{\text{F}} = 1.0970000 - 0.00046971(\Sigma 7D) + 0.00000056(\Sigma 7D)^2 - 0.00012828(\text{Idade})$$
 
-### 1.4 Fórmulas Matemáticas de Densidade e Percentual de Gordura
-
-#### 1. Cálculo da Soma das 7 Dobras ($\Sigma 7D$):
-$$\Sigma 7D = \text{Peitoral} + \text{Axilar Média} + \text{Tríceps} + \text{Subescapular} + \text{Supra-ilíaca} + \text{Abdômen} + \text{Coxa}$$
-
-#### 2. Densidade Corporal ($D$) — Equações de Jackson & Pollock:
-- **Homens (18 a 61 anos)**:
-  $$D = 1.1120000 - 0.00043499(\Sigma 7D) + 0.00000055(\Sigma 7D)^2 - 0.00028826(\text{Idade})$$
-- **Mulheres (18 a 55 anos)**:
-  $$D = 1.0970000 - 0.00046971(\Sigma 7D) + 0.00000056(\Sigma 7D)^2 - 0.00012828(\text{Idade})$$
-
-#### 3. Conversão para Percentual de Gordura (%BF) — Fórmula de Siri:
+#### 4. Percentual de Gordura (%BF) — Fórmula de Siri:
 $$\%BF = \left( \frac{4.95}{D} - 4.50 \right) \times 100$$
 
-#### 4. Fracionamento da Composição Corporal:
-- **Massa Gorda ($kg$)**: $\text{Massa Gorda} = \text{Peso} \times \left(\frac{\%BF}{100}\right)$
-- **Massa Magra ($kg$)**: $\text{Massa Magra} = \text{Peso} - \text{Massa Gorda}$
+#### 5. Fracionamento de Massas Corporais e IMC:
+$$\text{Massa Gorda (kg)} = \text{Peso} \times \left(\frac{\%BF}{100}\right)$$
+$$\text{Massa Magra (kg)} = \text{Peso} - \text{Massa Gorda (kg)}$$
+$$\text{IMC} = \frac{\text{Peso (kg)}}{\text{Altura (m)}^2}$$
 
 ---
 
-# MÓDULO 2: Perimetria e Rastreio de Assimetrias Corporais
+### 1.3 Resultados Possíveis (Outputs Gerados)
+- **$\Sigma 7D$**: Número em $mm$ (Ex: $85.4\text{ mm}$).
+- **%BF Calculado**: Percentual de 3% a 60% (Ex: $14.2\%$).
+- **Massa Gorda**: $kg$ de tecido adiposo (Ex: $11.3\text{ kg}$).
+- **Massa Magra**: $kg$ de massa livre de gordura (músculo, osso, órgãos, água) (Ex: $68.7\text{ kg}$).
+- **IMC**: Valor com classificação OMS (Baixo Peso $<18.5$, Eutrófico $18.5-24.9$, Sobrepeso $25.0-29.9$, Obesidade $\ge 30.0$).
 
 ---
 
-### 2.1 Pontos Anatômicos Padronizados (14 Perímetros)
-A fita métrica metálica inelástica deve ser posicionada sem comprimir o tecido subcutâneo:
-1. **Pescoço**: Imediatamente acima da proeminência laríngea (pomo de Adão).
-2. **Ombros**: Ponto de maior circunferência sobre o contorno dos deltoides.
-3. **Tórax**: Na altura dos mamilos / 4º espaço intercostal (em expiração normal).
-4. **Cintura**: Ponto de menor circunferência entre a última costela e a crista ilíaca.
-5. **Abdômen**: Na altura da cicatriz umbilical.
-6. **Quadril**: Ponto de maior protuberância dos glúteos.
-7. **Braço Relaxado (D/E)**: Ponto médio entre o acrômio e o olécrano.
-8. **Antebraço (D/E)**: Ponto de maior diâmetro muscular, logo abaixo do cotovelo.
-9. **Coxa Medial (D/E)**: Ponto médio entre a prega inguinal e a patela.
-10. **Panturrilha (D/E)**: Ponto de maior circunferência do gastrocnêmio.
+### 1.4 Alertas Atuais do Sistema
+- ⚠️ **Alerta de Perda de Massa Magra / Composição Incompatível**: Quando comparado com avaliação anterior, se houver redução de massa magra simultânea ao aumento de %BF.
 
 ---
 
-### 2.2 Critério de Assimetria Contralateral (>10%)
-O motor biomecânico calcula a assimetria percentual entre os membros homólogos:
-$$\text{Assimetria (\%)} = \frac{|D - E|}{\max(D, E)} \times 100$$
-
-- **Normal**: $\le 5\%$ de assimetria.
-- **Atenção**: $5\% \text{ a } 10\%$.
-- **Alerta Crítico**: $> 10\%$ de assimetria.
-  - *Risco Clínico*: Assimetrias $>10\%$ em coxas ou panturrilhas indicam inibição muscular reflexa artrogênica ou sobrecarga mecânica unilateral em marcha, agachamentos e corrida.
+### 1.5 💡 Oportunidades de Novos Alertas e Referências a Adicionar
+1. **Índice de Massa Livre de Gordura (FFMI - Fat-Free Mass Index)**:
+   $$\text{FFMI} = \frac{\text{Massa Magra (kg)}}{\text{Altura (m)}^2} + 6.1 \times (1.8 - \text{Altura (m)})$$
+   - *Novo Alerta*: $\text{FFMI} < 17\text{ kg/m}^2$ (Risco de Sarcopenia em adultos/idosos); $\text{FFMI} > 25\text{ kg/m}^2$ (Limite biológico natural para hipertrofia).
+2. **Índice de Adiposidade Central (Razão Dobra Abdominal / Dobra da Coxa)**:
+   - *Novo Alerta*: $\frac{\text{Abdômen}}{\text{Coxa}} > 1.5$ (Predomínio de gordura visceral androgênica e risco cardiovascular aterogênico elevado).
 
 ---
 
-# MÓDULO 3: Goniometria e Cinemática Articular
+# MÓDULO 2: Perimetria Corporal & Análise de Assimetrias Contralaterais
+
+### 2.1 Inputs do Sistema
+14 medidas de perímetro corporal em centímetros ($cm$), passo decimal:
+`circ.pescoco`, `circ.ombros`, `circ.torax`, `circ.cintura`, `circ.abdomen`, `circ.quadril`, `circ.braçoD`, `circ.braçoE`, `circ.antebraçoD`, `circ.antebraçoE`, `circ.coxaD`, `circ.coxaE`, `circ.panturrilhaD`, `circ.panturrilhaE`.
 
 ---
 
-### 3.1 Quadril: Rotações e Alertas SIF (Impacto Femoroacetabular)
+### 2.2 Equações e Processamento Lógico
 
-#### Procedimento de Testagem:
-- **Posicionamento**: Paciente em decúbito ventral (ou sentado na borda da maca com joelhos a 90°).
-- **Goniômetro**: Eixo no centro da patela; braço fixo perpendicular ao solo; braço móvel alinhado com a tíbia anterior.
+#### 1. Razão Cintura-Quadril (RCQ):
+$$\text{RCQ} = \frac{\text{Cintura (cm)}}{\text{Quadril (cm)}}$$
 
-#### Valores de Referência e Regras de Disparo de Alertas:
-1. **Arco Total de Rotação (SIF)**:
-   $$\text{Arco Total} = \text{Rotação Interna (RI)} + \text{Rotação Externa (RE)}$$
-   - 🔴 **Alerta SIF (Arco Total < 85°)**:
-     - *Significado*: Restrição global da cápsula articular do quadril.
-     - *Risco*: Impacto femoroacetabular (tipo CAM/Pincer), lesão de labrum acetabular e dor crônica na virilha.
-2. **Rotação Interna Isolada (RI)**:
-   - 🔴 **Alerta Crítico (RI < 20°)**: Impacto direto na flexão e adução, gerando estresse na articulação sacroilíaca.
-   - ⚠️ **Alerta de Atenção (RI < 30°)**: Predisposição a valgo dinâmico de joelho por falta de compensação interna.
-3. **Rotação Externa Isolada (RE)**:
-   - ⚠️ **Alerta de Cisalhamento Meniscal (RE < 35°)**: Quando a RE de quadril é restrita, a rotação axial é transferida para o joelho, gerando cisalhamento sobre o corno posterior do menisco medial e ligamento colateral medial (LCM).
+#### 2. Razão Cintura-Estatura (RCEst):
+$$\text{RCEst} = \frac{\text{Cintura (cm)}}{\text{Altura (cm)}}$$
+
+#### 3. Assimetria Percentual Contralateral ($\text{Assy}_{\%}$):
+Para cada par de membros $\{(\text{Braço D, E}), (\text{Antebraço D, E}), (\text{Coxa D, E}), (\text{Panturrilha D, E})\}$:
+$$\text{Assy}_{\%} = \frac{|D - E|}{\max(D, E)} \times 100$$
 
 ---
 
-### 3.2 Quadril: Flexão com Joelho Estendido vs Fletido
-- **Joelho Estendido (Teste de Elevação da Perna Reta)**:
-  - *Ref*: $70^\circ - 85^\circ$. Avalia flexibilidade de isquiotibiais e tensão neural do nervo ciático.
-- **Joelho Fletido**:
-  - *Ref*: $120^\circ - 135^\circ$. Avalia cápsula posterior do quadril e glúteo máximo.
-  - 🔴 **Alerta Crítico (< 120°)**: Restrição mecânica de flexão que força a coluna lombar a hiperfletir prematuramente no agachamento (*butt wink*), causando sobrecarga discal em L4-L5 e L5-S1.
+### 2.3 Resultados Possíveis (Outputs)
+- **Tabela Comparativa Contralateral**: Lista lado direito vs esquerdo e a diferença percentual.
+- **Comparativo Temporal Histórico**: Mostra evolução delta ($\Delta$) em relação à avaliação anterior com indicação de *Melhora* (verde) ou *Piora* (vermelho/amarelo).
 
 ---
 
-### 3.3 Joelho: Teste KFBO (Knee-to-Floor Beyond Obstacle)
-- **Como Executar**: Mede a distância máxima (em cm) do joelho até a parede sem elevar o calcanhar.
-- 🔴 **Alerta de Assimetria KFBO (> 15 cm)**:
-  - *Risco Clínico*: O paciente apresenta **2.3x mais risco** de colapso em valgo dinâmico e estresse ligamentar do LCA e LCM no membro com menor alcance.
+### 2.4 Alertas Atuais do Sistema
+- 🔴 **Assimetria Crítica (> 10%)**: Disparado individualmente para braço, antebraço, coxa ou panturrilha quando a diferença entre os membros excede 10%.
+  - *Risco*: Inibição reflexa artrogênica pós-traumática ou sobrecarga mecânica assimétrica em exercícios bilaterais.
 
 ---
 
-### 3.4 Tornozelo: Lunge Test (Dorsiflexão em Carga)
-- **Como Executar**: Paciente realiza avanço contra a parede. Mede-se o ângulo da tíbia com o solo no momento em que o joelho toca a parede sem tirar o calcanhar do chão.
-- **Valores Normais**: $35^\circ \text{ a } 45^\circ$ (ou $> 10\text{ cm}$ da parede).
-- ⚠️ **Alerta de Déficit de Dorsiflexão (< 35°)**:
-  - *Mecanismo de Lesão*: A falta de dorsiflexão bloqueia o avanço da tíbia, forçando o pé a pronar excessivamente e o joelho a colapsar medialmente. É o principal causador de tendinopatia patelar (joelho do saltador), tendinite de Aquiles e fascite plantar.
+### 2.5 💡 Oportunidades de Novos Alertas e Referências a Adicionar
+1. **Alerta de Risco Coronariano e Metabólico por RCQ**:
+   - *Homens*: $\text{RCQ} > 0.90$ (Risco Aumentado); $\text{RCQ} > 1.00$ (Risco Muito Alto).
+   - *Mulheres*: $\text{RCQ} > 0.80$ (Risco Aumentado); $\text{RCQ} > 0.85$ (Risco Muito Alto).
+2. **Alerta de Risco Cardiometabólico Universal (RCEst)**:
+   - *Gatilho*: $\text{RCEst} > 0.50$ (A circunferência da cintura não deve ultrapassar a metade da estatura).
+3. **Razão Coxa / Cintura (Índice Protetor Metabólico)**:
+   - *Gatilho*: $\frac{\text{Coxa}}{\text{Cintura}} < 0.65$ (Baixo volume muscular periférico associado a resistência à insulina).
 
 ---
 
-### 3.5 Ombro: Rotação Glenoumeral e Alerta GIRD (> 20°)
-- **Conceito**: GIRD (*Glenohumeral Internal Rotation Deficit*).
-- **Como Medir**: Em decúbito dorsal com o braço abduzido a 90° e cotovelo a 90°, mede-se a rotação interna estabilizando o processo coracoide.
-- **Fórmula**:
-  $$\Delta\text{GIRD} = |\text{RI Dominante} - \text{RI Não-Dominante}|$$
-- 🔴 **Alerta GIRD Glenoumeral (> 20°)**:
-  - *Risco*: Retração severa da cápsula posterior do ombro, forçando a cabeça umeral a migrar superior e anteriormente. Altíssimo risco de Síndrome do Impacto Subacromial, lesão de manguito rotador (supraespinal) e lesões labrais tipo SLAP.
+# MÓDULO 3: Goniometria Articular & Cinemática de Movimento
+
+### 3.1 Inputs do Sistema
+Objeto `asGonio` contendo valores em graus angulares ($^\circ$) nos regimes **Sem Força (Ativo)** e **Com Força (Passivo)**:
+- **Quadril**: `quadrilFlexao1D/E` (joelho estendido), `quadrilFlexao2D/E` (joelho fletido), `quadrilExtensaoD/E`, `quadrilAducaoD/E`, `quadrilAbducaoD/E`, `quadrilRotIntD/E`, `quadrilRotExtD/E`.
+- **Joelho / Fíbula**: `joelhoFlexaoD/E`, `joelhoExtensaoD/E`, `kfboD/E` (distância cabeça da fíbula em $cm$).
+- **Tornozelo**: `tornozeloDorsi1D/E` (Lunge test), `tornozeloDorsi2D/E` (joelho estendido), `tornozeloFlexaoPlantarD/E`.
+- **Ombro**: `ombroRotIntD/E`, `ombroRotExtD/E`, `ombroFlexaoD/E`, `ombroExtensaoD/E`, `ombroAbducaoD/E`.
+- **Cinemática**: `cinematicaAducaoQuadrilD/E` (graus de adução na corrida).
 
 ---
 
-### 3.6 Cinemática da Marcha/Corrida (Adução de Quadril)
-- **Parâmetro**: Ângulo de adução do fêmur em relação à pelve no momento de apoio médio unipodal.
-- 🔴 **Alerta de Pico de Adução Excessivo (> 15°)**:
-  - *Risco*: O fêmur aduzindo $>15^\circ$ aumenta a tensão mecânica sobre o trato iliotibial ao cruzar o epicôndilo femoral lateral. É o principal preditor biomecânico de Síndrome do Trato Iliotibial (STIT) em corredores.
-
----
-
-# MÓDULO 4: Testes Clínicos Especiais Ortopédicos
-
----
-
-### 4.1 Teste de Thomas (Iliopsoas e Retofemoral)
-
-#### Procedimento:
-1. Paciente sentado na borda final da maca.
-2. O paciente abraça um dos joelhos contra o tórax e deita-se para trás.
-3. O membro avaliado permanece pendente fora da maca.
-
-#### Critérios e Alertas do Sistema:
-1. **Iliopsoas**:
-   - *Normal*: A coxa toca o plano horizontal da maca ($0^\circ$).
-   - 🔴 **Positivo / Elevação da Coxa (> 5°)**: Encurtamento de iliopsoas.
-   - *Consequência*: Puxa a pelve em anteversão, gerando hiperlordose lombar, compressão facetária e inibição recíproca dos glúteos.
-2. **Retofemoral**:
-   - *Normal*: O joelho atinge $\ge 90^\circ$ de flexão pendente por gravidade.
-   - ⚠️ **Positivo / Joelho < 80°**: Encurtamento de reto femoral.
-   - *Consequência*: Sobrecarga no tendão patelar e aumento da pressão de contato femoropatelar.
-
----
-
-### 4.2 Teste de Ober (Trato Iliotibial e TFL)
-
-#### Procedimento:
-1. Paciente em decúbito lateral com o membro inferior de apoio fletido para estabilizar a coluna lombar.
-2. O avaliador abduz e estende levemente o quadril superior com o joelho fletido a 90°, estabilizando a crista ilíaca.
-3. Permite-se que a perna desça por gravidade em direção à maca.
-
-#### Critérios e Alertas:
-- **Negativo (Normal)**: A coxa desce livremente abaixo da horizontal da maca.
-- 🔴 **Positivo (Alerta Crítico)**: A coxa permanece abduzida / horizontal sem conseguir aduzir.
-  - *Risco*: Retração severa do tensor da fáscia lata e trato iliotibial. Causa atrito repetitivo contra o côndilo lateral do fêmur durante corrida e pedalada.
-
----
-
-### 4.3 Y-Balance Test (Y-Test)
-
-O Y-Test avalia o controle neuromuscular, estabilidade do core e mobilidade de tornozelo em cadeia cinética fechada durante apoio unipodal.
-
-#### Protocolo de Execução:
-1. Medir o **comprimento real do membro inferior** (da Espinha Ilíaca Ântero-Superior - EIAS até o maléolo medial) em centímetros.
-2. O aluno fica em apoio unipodal no centro da estrela/plataforma.
-3. Com o pé livre, empurra o cursor ou toca o solo o mais distante possível em 3 direções:
-   - **Anterior (ANT)**
-   - **Póstero-Medial (PM)**
-   - **Póstero-Lateral (PL)**
-4. Registra-se a melhor marca em cada direção para ambos os membros.
-
-#### Fórmulas de Cálculo:
-1. **Escore Composto (% do Membro)**:
-   $$\text{Composite Score (\%)} = \frac{\text{ANT} + \text{PM} + \text{PL}}{3 \times \text{Comprimento do Membro}} \times 100$$
-2. **Assimetrias Absolutas ($cm$)**:
-   $$\Delta\text{ANT} = |\text{ANT}_D - \text{ANT}_E|, \quad \Delta\text{PM} = |\text{PM}_D - \text{PM}_E|, \quad \Delta\text{PL} = |\text{PL}_D - \text{PL}_E|$$
-
-#### Matriz de Alertas Clínicos:
-- 🔴 **Assimetria Anterior Crítica ($\ge 4.0\text{ cm}$)**:
-  - *Evidência*: Alunos com diferença anterior $\ge 4\text{ cm}$ têm **2.5x a 3.8x maior probabilidade** de sofrer lesões ligamentares no joelho (especialmente lesão de LCA sem contato).
-- ⚠️ **Assimetria Posterior Relevante ($\ge 6.0\text{ cm}$ em PM ou PL)**: Déficit de rotação e estabilização de glúteos e core.
-- ⚠️ **Escore Composto Baixo (< 94%)**: Baixa capacidade de desaceleração e amortecimento global de impacto.
-
----
-
-### 4.4 Step Down Test (Controle Cinemático Excêntrico)
-
-Baseado nos critérios clínicos validados de Piva et al. (2006) e Herman et al. (2008). O teste avalia a descida de um degrau de 20 cm em apoio unipodal.
-
-#### Contagem de Erros (Escala de 0 a 4 Pontos):
-O sistema avalia 4 critérios objetivos de falha biomecânica:
-1. **Queda Pélvica (> 5°)**: A pelve do lado descarregado inclina para baixo (+1 ponto).
-2. **Adução do Quadril (> 10°)**: O fêmur se desloca em direção à linha média (+1 ponto).
-3. **Valgo Dinâmico do Joelho (> 10° em Homens / > 15° em Mulheres)**: O joelho colapsa medialmente em relação ao segundo dedo do pé (+1 ponto).
-4. **Amplitude Excêntrica Reduzida / PRPS (< 60°)**: O paciente compensa com o tronco ou bate o calcanhar no solo antes de atingir 60° de flexão (+1 ponto).
-
-#### Classificação e Alertas:
-- **0 a 1 Erro**: *Excelente / Bom* (Controle motor estável).
-- **2 Erros**: *Moderado* (Atenção a exercícios corretivos de glúteo médio).
-- 🔴 **$\ge 3$ Erros (Controle Cinemático Global Pobre)**:
-  - *Risco*: Colapso em cadeia. Alta sobrecarga na cartilagem patelar (SDPF), tensão no corno lateral do menisco e cisalhamento do LCA.
-
----
-
-### 4.5 Estrela de Maigne (Rosa dos Ventos de Dor e Mobilidade da Coluna)
-
-A Estrela de Maigne mapeia vetores de movimento da coluna (Cervical, Torácica ou Lombar) correlacionando amplitude angular ($^\circ$) e intensidade da dor pela Escala Visual Analógica (EVA: 0 a 10).
-
-#### Os 6 Eixos Cardeais:
-1. **Flexão Anterior**
-2. **Extensão**
-3. **Rotação Direita**
-4. **Rotação Esquerda**
-5. **Inclinação Lateral Direita**
-6. **Inclinação Lateral Esquerda**
-
-#### Regra Clínica de Maigne (Não-Doloroso e Movimento Contrário):
-- Movimentos com dor aguda ($\text{EVA} \ge 4$) indicam bloqueio facetário, estresse discal ou aprisionamento foraminal.
-- **Conduta Prescrita**: A mobilização e manipulação fisioterápica devem ser iniciadas nos **vetores livres de dor** opostos ao bloqueio para promover descompressão reflexa e neuro-inibição álgica.
-
----
-
-### 4.6 Discinesia Escapular (Classificação de Kibler)
-Avaliador observa o paciente realizando abdução e flexão bilateral dos braços com peso leve (1-2 kg):
-- **Tipo I (Inferomedial)**: Proeminência do ângulo inferior da escápula (fraqueza de trapézio inferior).
-- **Tipo II (Medial Total)**: Proeminência de toda a borda medial da escápula (fraqueza de serrátil anterior e romboides).
-- **Tipo III (Superior)**: Elevação e translação superior precoce da escápula com encurtamento de trapézio superior e elevador da escápula.
-- **Tipo IV (Normal / Simétrico)**: Movimento suave e fluido do ritmo escapuloumeral 2:1.
-
----
-
-### 4.7 Termografia Clínica Inflamatória
-- Permite a visualização em tempo real de padrões de hipertermia (processos inflamatórios agudos, tendinopatias ativas, fascite, sobrecarga de ponto-gatilho miofascial) ou hipotermia (radiculopatias, disfunções neurovegetativas, compressões neurais).
-- A imagem é registrada e anexada em alta resolução no prontuário do paciente.
-
----
-
-# MÓDULO 5: Dinamometria Isométrica e Atlas de Força (Strength Atlas)
-
-A dinamometria computadorizada mede a força pico isométrica (em Newtons $[N]$ ou $kgf$) de grupos musculares isolados.
-
----
-
-### 5.1 Protocolo de Testagem com Dinamômetro Digital
-1. **Fixação**: Utilizar cintas rígidas inelásticas ancoradas em pontos fixos (espaldar, maca clínica ou estrutura estável) para eliminar a interferência da força do examinador.
-2. **Execução**: Contração isométrica máxima sustentada por **5 segundos** (fórmula *"Make Test"* ou *"Break Test"*).
-3. **Tentativas**: Realizar 2 a 3 tentativas por movimento, com descanso de 30 segundos, registrando a força pico máxima.
-4. **Conversão**: $1\text{ kgf} = 9.80665\text{ N}$.
-
----
-
-### 5.2 Razão Adutor / Abdutor de Quadril
-
-$$\text{Razão Ad/Abd} = \frac{\text{Força Pico de Adutores (N)}}{\text{Força Pico de Abdutores (N)}}$$
-
-#### Matriz de Risco Ortopédico:
-- 🔴 **Razão Baixa (< 0.80)**:
-  - *Risco*: Fraqueza dos adutores em relação aos abdutores. Alto risco de instabilidade medial e estiramento muscular adutor em desacelerações laterais.
-- 🔴 **Razão Elevada (> 1.15)**:
-  - *Risco*: Adutores muito mais fortes que abdutores e parede abdominal. Forte tração na sínfise púbica com risco iminente de **Pubalgia Atlética / Osteíte Púbica**.
-- **Equilíbrio Ideal**: $0.80 \text{ a } 1.00$ (Ideal 1:1).
-
----
-
-### 5.3 Razão Isquiotibiais / Quadríceps (Razão I:Q)
-
-$$\text{Razão I:Q} = \frac{\text{Força Pico de Flexores de Joelho (Isquiotibiais)}}{\text{Força Pico de Extensores de Joelho (Quadríceps)}}$$
-
-#### Matriz de Risco:
-- 🔴 **Razão I:Q Crítica (< 60%)**:
-  - *Risco*: Quadríceps excessivamente dominante sobre os isquiotibiais. Os isquiotibiais não conseguem frear a translação anterior da tíbia na aterrissagem de saltos.
-  - *Severidade*: **Risco crítico de ruptura de LCA** e estiramento de isquiotibiais (risco até 8x maior em atletas com histórico de lesão).
-- **Faixa Segura**: $60\% \text{ a } 75\%$.
-
----
-
-### 5.4 Força Relativa por Peso Corporal (%PC)
-
-$$\%PC = \frac{\text{Força Pico (kgf)}}{\text{Peso Corporal (kg)}} \times 100$$
-
-| Articulação / Movimento | Homens (%PC Mínimo) | Mulheres (%PC Mínimo) | Alerta Disparado se Abaixo |
-| :--- | :--- | :--- | :--- |
-| **Quadríceps (Extensão Joelho)** | $\ge 70\%\text{PC}$ | $\ge 60\%\text{PC}$ | 🔴 Sobrecarga patelofemoral e déficit extensor |
-| **Glúteo Médio (Abdução Quadril)** | $\ge 25\%\text{PC}$ | $\ge 20\%\text{PC}$ | 🔴 Queda pélvica e valgo dinâmico |
-| **Extensores de Tronco (Paravertebrais)** | $\ge 100\%\text{PC}$ | $\ge 90\%\text{PC}$ | ⚠️ Fadiga postural e lombalgia mecânica |
-
----
-
-### 5.5 Razões de Tronco e Membro Superior
-
-1. **Flexores / Extensores de Tronco**:
-   - *Ref*: $0.70 \text{ a } 0.80$. Relação fora dessa faixa indica desequilíbrio na sustentação da coluna lombar e sobrecarga discal.
-2. **Rotação de Tronco (Assimetria Contralateral)**:
-   - *Ref*: $\le 10\%$ de diferença. Assimetria $>10\%$ aumenta forças de cisalhamento nos anéis fibrosos dos discos lombares.
-3. **Remada / Supino (Tração / Empurre Horizontal)**:
-   - *Ref*: $\ge 0.80 \text{ a } 1.00$. Se $<0.80$, há fraqueza dos retratores escapulares e dominância de peitorais (protração de ombros).
-4. **Puxada / Desenvolvimento (Tração / Empurre Vertical)**:
-   - *Ref*: $\ge 1.00 \text{ a } 1.10$.
-5. **Rotadores Externos / Internos de Ombro (RE/RI)**:
-   - *Ref*: $0.70 \text{ a } 0.85$. Se $<0.70$, há insuficiência de infraespinal e redondo menor em relação ao subescapular e peitoral maior, gerando impacto subacromial.
-6. **Panturrilha / Tibial Anterior (Flexão Plantar / Dorsiflexão)**:
-   - *Ref*: $3.4 : 1$. Desequilíbrios geram canelite (síndrome do estresse tibial medial) e fascite plantar.
-
----
-
-# MÓDULO 6: Motor de Inteligência Biomecânica e Prescrição de Conduta
-
----
-
-### 6.1 Como o Sistema Cruza Múltiplos Testes
-O motor do Clube Fitness Fisio não avalia testes de forma isolada. Ele realiza **análise cruzada** para identificar a causa raiz das disfunções:
+### 3.2 Equações e Regras de Disparo de Alertas
 
 ```
-                  ┌────────────────────────────────────────────────────────┐
-                  │              AVALIAÇÃO BIOMECÂNICA CRUZADA             │
-                  └───────────────────────────┬────────────────────────────┘
-                                              │
-                     ┌────────────────────────┴────────────────────────┐
-                     ▼                                                 ▼
-        【 DÉFICIT DE MOBILIDADE 】                       【 DÉFICIT DE FORÇA 】
-        - Dorsiflexão < 35°                                - Glúteo Médio < 20% PC
-        - RI de Quadril < 20°                              - Razão I:Q < 60%
-        - Thomas (+) / Iliopsoas                           - Razão Ad/Abd > 1.15
-                     │                                                 │
-                     └────────────────────────┬────────────────────────┘
-                                              ▼
-                             ┌──────────────────────────────────┐
-                             │       DISFUNÇÃO DINÂMICA         │
-                             │ - Step Down ≥ 3 Erros (Valgo)    │
-                             │ - Y-Test Assimetria Ant ≥ 4cm    │
-                             │ - Corrida: Adução > 15°          │
-                             └────────────────┬─────────────────┘
-                                              ▼
-                             ┌──────────────────────────────────┐
-                             │   PRESCRIÇÃO CLÍNICA DIRIGIDA    │
-                             │ 1. Terapia Manual & Mobilização  │
-                             │ 2. Ativação Neuromuscular        │
-                             │ 3. Exercícios Excêntricos        │
-                             │ 4. Reeducação do Movimento       │
-                             └──────────────────────────────────┘
+                                  GONIOMETRIA ARTICULAR
+                                            │
+        ┌───────────────────┬───────────────┴───────────────┬──────────────────┐
+        ▼                   ▼                               ▼                  ▼
+  [ QUADRIL ]          [ TORNOZELO ]                    [ OMBRO ]         [ CINEMÁTICA ]
+  - RI + RE < 85°      - Dorsiflexão < 35°             - GIRD > 20°       - Adução Corrida > 15°
+    ↳ Alerta SIF         ↳ Alerta Tendinopatia           ↳ Alerta SLAP      ↳ Alerta STIT
+  - RI < 20° (IFA)         Patelar / Fascite               / Manguito
+  - RE < 35° (Menisco)
+  - Flexão < 120°
+```
+
+#### Regras Matemáticas Exatas:
+1. **Arco Total de Rotação do Quadril**: $\text{Arco Total} = \text{RotInt} + \text{RotExt}$
+   - 🔴 **Alerta SIF**: Se $\text{Arco Total} < 85^\circ$.
+   - 🔴 **Alerta IFA Severo**: Se $\text{RotInt} < 20^\circ$.
+   - ⚠️ **Alerta Valgo Dinâmico**: Se $20^\circ \le \text{RotInt} < 30^\circ$.
+   - ⚠️ **Alerta Cisalhamento Menisco Medial**: Se $\text{RotExt} < 35^\circ$.
+2. **Flexão Profunda de Quadril com Joelho Fletido**:
+   - 🔴 **Alerta Restrição Flexão (< 120°)**: Disparado se $\text{Flexão} < 120^\circ$.
+3. **Assimetria no Teste KFBO (Cabeça da Fíbula)**:
+   - 🔴 **Alerta KFBO (> 15 cm)**: Se $|\text{KFBO}_D - \text{KFBO}_E| > 15\text{ cm}$.
+4. **Dorsiflexão de Tornozelo (Lunge Test)**:
+   - ⚠️ **Alerta Déficit de Dorsiflexão**: Se $\text{Dorsi1} < 35^\circ$.
+5. **Déficit de Rotação Interna Glenoumeral (GIRD)**:
+   - 🔴 **Alerta GIRD**: Se $|\text{OmbroRotInt}_D - \text{OmbroRotInt}_E| > 20^\circ$.
+6. **Cinemática de Apoio na Corrida**:
+   - 🔴 **Alerta Pico de Adução Excessivo**: Se $\text{AduçãoCorrida} > 15^\circ$.
+
+---
+
+### 3.3 💡 Oportunidades de Novos Alertas e Referências a Adicionar
+1. **Arco Total de Rotação Glenoumeral (TROM - Total Range of Motion do Ombro)**:
+   $$\text{TROM} = \text{RotInt} + \text{RotExt}$$
+   - *Novo Alerta*: Diferença de TROM entre os ombros $> 10^\circ$ (Fator preditivo número 1 de lesão ligamentar ulnar e labral em praticantes de musculação/crossfit/arremesso).
+2. **Razão de Dorsiflexão Sóleo vs Gastrocnêmio (Dorsi 1 / Dorsi 2)**:
+   - *Novo Alerta*: Se $\text{Dorsi 1} \ge 35^\circ$ mas $\text{Dorsi 2} < 15^\circ$, o encurtamento é puramente do **gastrocnêmio** (biarticular) e não do sóleo/cápsula articular.
+
+---
+
+# MÓDULO 4: Teste de Thomas (Flexores de Quadril & Retofemoral)
+
+### 4.1 Inputs do Sistema
+- `thomasIliopsoasDStatus` / `thomasIliopsoasEStatus`: String (`'Negativo'` | `'Positivo'`).
+- `thomasIliopsoasD` / `thomasIliopsoasE`: Número em graus ($^\circ$) de elevação da coxa acima da horizontal.
+- `thomasRetofemoralDStatus` / `thomasRetofemoralEStatus`: String (`'Negativo'` | `'Positivo'`).
+- `thomasRetofemoralD` / `thomasRetofemoralE`: Número em graus ($^\circ$) de flexão passiva do joelho.
+
+---
+
+### 4.2 Equações e Regras de Disparo
+
+| Estrutura Avaliada | Condição de Disparo no Código | Severidade | Diagnóstico / Alerta do Sistema |
+| :--- | :--- | :--- | :--- |
+| **Iliopsoas (D/E)** | `Status === 'Positivo'` OU `Graus > 5°` | 🔴 **Crítico** | **Encurtamento de Iliopsoas**: Coxa não toca o plano horizontal da maca. Risco de anteversão pélvica, hiperlordose lombar e inibição glútea recíproca. |
+| **Retofemoral (D/E)** | `Status === 'Positivo'` OU `Graus < 80°` | ⚠️ **Atenção** | **Encurtamento de Retofemoral**: Joelho não atinge 90° de flexão passiva pendente. Tensão femoropatelar e sobrecarga no tendão patelar. |
+
+---
+
+### 4.3 💡 Oportunidades de Novos Alertas a Adicionar
+1. **Alerta de Abdução em Thomas (Sinal de J-Sign / Tensor da Fáscia Lata Encurtado)**:
+   - Adicionar campo *Adução/Abdução da coxa no Thomas*. Se a coxa abduzir espontaneamente ao deitar, confirma encurtamento primário do TFL (*Sinal de Kendall*).
+
+---
+
+# MÓDULO 5: Teste de Ober (Trato Iliotibial & Tensor da Fáscia Lata)
+
+### 5.1 Inputs do Sistema
+- `tOberD` / `tOberE`: String (`'Negativo'` | `'Positivo'`).
+
+---
+
+### 5.2 Regras de Disparo
+- Se `tOberD === 'Positivo'` ou `tOberE === 'Positivo'`:
+  - 🔴 **Alerta Crítico**: **Teste de Ober Positivo (Retração de TFL / Trato Iliotibial)**.
+  - *Risco Clínico*: Síndrome do Trato Iliotibial (STIT), atrito no epicôndilo femoral lateral e vetor de valgo no joelho.
+
+---
+
+# MÓDULO 6: Y-Balance Test (Y-Test — Estabilidade Dinâmica Unipodal)
+
+### 6.1 Inputs do Sistema
+- `yLenD`, `yLenE`: Comprimento real do membro inferior ($cm$).
+- `yAntD`, `yAntE`: Alcance Anterior ($cm$).
+- `yPMD`, `yPME`: Alcance Póstero-Medial ($cm$).
+- `yPLD`, `yPLE`: Alcance Póstero-Lateral ($cm$).
+
+---
+
+### 6.2 Equações Matemáticas
+
+#### 1. Escore Composto (% do Membro):
+$$\text{Composite}_D = \frac{\text{Ant}_D + \text{PM}_D + \text{PL}_D}{3 \times \text{Len}_D} \times 100$$
+$$\text{Composite}_E = \frac{\text{Ant}_E + \text{PM}_E + \text{PL}_E}{3 \times \text{Len}_E} \times 100$$
+
+#### 2. Assimetrias Absolutas ($cm$):
+$$\Delta\text{Ant} = |\text{Ant}_D - \text{Ant}_E|, \quad \Delta\text{PM} = |\text{PM}_D - \text{PM}_E|, \quad \Delta\text{PL} = |\text{PL}_D - \text{PL}_E|$$
+$$\Delta\text{Composite} = |\text{Composite}_D - \text{Composite}_E|$$
+
+---
+
+### 6.3 Matriz de Alertas Atuais
+- 🔴 **Assimetria Anterior Crítica ($\Delta\text{Ant} \ge 4.0\text{ cm}$)**:
+  - *Evidência*: 2.5x a 3.8x maior chance de lesão ligamentar de membro inferior (LCA).
+- ⚠️ **Leve Assimetria Anterior ($3.0\text{ cm} \le \Delta\text{Ant} < 4.0\text{ cm}$)**: Atenção à desaceleração unipodal.
+- ⚠️ **Assimetria Posterior Relevante ($\Delta\text{PM} \ge 6.0\text{ cm}$ ou $\Delta\text{PL} \ge 6.0\text{ cm}$)**: Déficit rotacional e estabilidade posterolateral de quadril.
+- ⚠️ **Escore Composto Reduzido ($\text{Composite} < 94\%$)**: Baixa capacidade de absorção de impacto global.
+
+---
+
+# MÓDULO 7: Step Down Test (Controle Cinemático Excêntrico)
+
+### 7.1 Inputs do Sistema
+- `sdPelvicaD/E`: Graus de queda pélvica ($^\circ$).
+- `sdAducaoD/E`: Graus de adução do quadril ($^\circ$).
+- `sdValgoD/E`: Graus de valgo dinâmico do joelho ($^\circ$).
+- `sdPrpsD/E`: Ângulo excêntrico / PRPS ($^\circ$).
+- `sexo`: `'M'` | `'F'`.
+
+---
+
+### 7.2 Algoritmo de Contagem de Erros (0 a 4 Pontos)
+
+```typescript
+let score = 0;
+if (quedaPelvica > 5) score += 1;
+if (aducaoQuadril > 10) score += 1;
+if (valgoDinamico > (sexo === 'F' ? 15 : 10)) score += 1;
+if (prps > 0 && prps < 60) score += 1;
+```
+
+#### Classificação de Saída:
+- **0 a 1 Erro**: `Excelente / Bom (Baixo Risco)`
+- **2 Erros**: `Moderado (Risco Intermediário)`
+- **3 a 4 Erros**: `Pobre / Risco Elevado` 🔴
+
+---
+
+### 7.3 Alertas Disparados
+- 🔴 **Controle Cinemático Global Pobre ($\ge 3$ Erros)**: Disparado quando há colapso simultâneo em múltiplos planos.
+- Alertas individuais detalhados para cada falha $> 5^\circ$ de pelve, $> 10^\circ$ de adução e valgo dinâmico excessivo.
+
+---
+
+# MÓDULO 8: Estrela de Maigne (Rosa dos Ventos de Dor & Mobilidade da Coluna)
+
+### 8.1 Inputs do Sistema
+- **Amplitudes Angulares ($0^\circ \text{ a } 50^\circ$)**: `mFlex`, `mExt`, `mRotD`, `mRotE`, `mIncD`, `mIncE`.
+- **Intensidade da Dor (Escala EVA: 0 a 10)**: `mFlexEVA`, `mExtEVA`, `mRotDEVA`, `mRotEEVA`, `mIncDEVA`, `mIncEEVA`.
+
+---
+
+### 8.2 Processamento Gráfico & Vetorial
+- Renderização em SVG polar interativo (6 eixos cardeais a cada 60°).
+- Polígono de referência normativa ($40^\circ, 40^\circ, 30^\circ, 30^\circ, 30^\circ, 40^\circ$) sobreposto ao polígono real do paciente.
+- Identificação visual imediata do **vetor de bloqueio mecânico** vs **vetor livre para intervenção**.
+
+---
+
+# MÓDULO 9: Discinesia Escapular (Avaliação de Ritmo Escapuloumeral)
+
+### 9.1 Inputs do Sistema
+- `repDeTipo`: Seletor (`'Tipo IV: Normal'`, `'Tipo I: Ângulo Ínfero-Medial'`, `'Tipo II: Borda Medial Total'`, `'Tipo III: Borda Superior'`).
+- `repDeAbdBilateral`: Checkbox (`'sim'` | `'nao'`) — Projeção anterior de cabeça na abdução bilateral.
+- `repDeAbdUnilateral`: Checkbox (`'sim'` | `'nao'`) — Inclinação torácica contralateral e desvio de cabeça.
+- `repDeDorAbd`: Checkbox (`'sim'` | `'nao'`) — Dor ao final da abdução unilateral.
+
+---
+
+### 9.2 Classificação de Saída & Diagnóstico Clínico
+- **Tipo I**: Déficit de ativação do trapézio inferior e encurtamento do peitoral menor.
+- **Tipo II**: Inibição de serrátil anterior e romboides (escápula alada clássica).
+- **Tipo III**: Hiperativação de trapézio superior e elevador da escápula com pinçamento subacromial precoce.
+- **Tipo IV**: Movimento fisiológico normal.
+
+---
+
+# MÓDULO 10: Dinamometria Isométrica Computadorizada (Strength Atlas Engine)
+
+### 10.1 Inputs do Sistema
+Para cada movimento avaliado no `showStrengthModal`:
+- `articulacao`: Seletor (`'Tornozelo'`, `'Joelho'`, `'Quadril'`, `'Ombro'`, `'Cotovelo'`, `'Punho'`, `'Coluna / Tronco'`, `'Membro Superior'`).
+- `movimento`: Seletor (`'Flexão'`, `'Extensão'`, `'Abdução'`, `'Adução'`, `'Rotação Interna'`, `'Rotação Externa'`, `'Remada'`, `'Supino'`, etc.).
+- `lado`: `'Direito'` | `'Esquerdo'`.
+- `unidade`: `'kgf'` | `'N'`.
+- `valorObtido`: Número decimal (força pico máxima).
+- `pesoCorporal`: $kg$ do aluno.
+
+---
+
+### 10.2 Equações e Processamento Algorítmico
+
+#### 1. Padronização para Newtons ($N$):
+$$\text{Força (N)} = \begin{cases} \text{Valor} \times 9.80665, & \text{se unidade} = \text{'kgf'} \\ \text{Valor}, & \text{se unidade} = \text{'N'} \end{cases}$$
+
+#### 2. Força Relativa em Percentual do Peso Corporal (%PC):
+$$\%PC = \frac{\text{Força (N)} / 9.80665}{\text{Peso Corporal (kg)}} \times 100$$
+
+#### 3. Índice de Simetria e Déficit Bilateral Contralateral:
+$$\text{Simetria (\%)} = \frac{\min(\text{Força}_D, \text{Força}_E)}{\max(\text{Força}_D, \text{Força}_E)} \times 100$$
+$$\text{Déficit (\%)} = 100 - \text{Simetria (\%)}$$
+
+- **$\text{Déficit} \le 10\%$**: *Excelente / Aceitável* (Verde).
+- **$10\% < \text{Déficit} \le 15\%$**: *Atenção* (Amarelo).
+- **$\text{Déficit} > 15\%$**: *Risco Elevado / Crítico* (Vermelho).
+
+---
+
+### 10.3 Matriz de Razões Musculares & Alertas Ortopédicos
+
+| Razão Muscular | Fórmula Algorítmica | Faixa Ideal Normativa | Alerta Crítico Disparado | Risco Clínico Associado |
+| :--- | :--- | :--- | :--- | :--- |
+| **Adutor / Abdutor Quadril** | $\frac{\text{Adutores (N)}}{\text{Abdutores (N)}}$ | $0.80 - 1.15$ (Ideal 1:1) | 🔴 $< 0.80$ (Déficit Adutor)<br/>🔴 $> 1.15$ (Hiperativação Adutora) | Risco de dor inguinal e pubalgia atlética por estresse na sínfise púbica. |
+| **Razão I:Q (Joelho)** | $\frac{\text{Isquiotibiais (N)}}{\text{Quadríceps (N)}}$ | $60\% - 75\%$ | 🔴 $< 60\%$ (Razão I:Q Crítica) | Risco crítico de ruptura de LCA e estiramento de isquiotibiais (2x a 8x maior). |
+| **Quadríceps Relativo** | $\frac{\text{Extensão Joelho (kgf)}}{\text{Peso (kg)}} \times 100$ | $\text{M} \ge 70\%\text{PC}$<br/>$\text{F} \ge 60\%\text{PC}$ | 🔴 Abaixo do limiar por sexo | Sobrecarga femoropatelar e insuficiência extensora em desacelerações. |
+| **Glúteo Médio Relativo** | $\frac{\text{Abdução Quadril (kgf)}}{\text{Peso (kg)}} \times 100$ | $\text{M} \ge 25\%\text{PC}$<br/>$\text{F} \ge 20\%\text{PC}$ | 🔴 Abaixo do limiar por sexo | Forte correlação com SDPF, queda pélvica e valgo dinâmico. |
+| **RI / RE Quadril** | $\frac{\text{Rot. Interna (N)}}{\text{Rot. Externa (N)}}$ | $1.00$ ($1:1$) | 🔴 $> 1.20$ | Predisposição a Impacto Femoroacetabular e perda de controle rotacional. |
+| **Rotadores Ombro (RE/RI)** | $\frac{\text{Rot. Externa (N)}}{\text{Rot. Interna (N)}}$ | $0.70 - 0.85$ | 🔴 $< 0.70$ | Síndrome do Impacto Subacromial e tendinopatia do supraespinal. |
+| **Extensores de Tronco** | $\frac{\text{Extensão Coluna (kgf)}}{\text{Peso (kg)}} \times 100$ | $\ge 100\%\text{PC}$ | ⚠️ $< 100\%\text{PC}$ | Fadiga postural precoce e dor lombar crônica. |
+| **Flexão / Extensão Tronco** | $\frac{\text{Flexores Tronco (N)}}{\text{Extensores Tronco (N)}}$ | $0.70 - 0.80$ | ⚠️ Fora da faixa $0.70 - 0.85$ | Desequilíbrio de carga na coluna lombar e estresse discal. |
+| **Rotação de Tronco** | $\frac{|D - E|}{\max(D, E)} \times 100$ | $\le 10\%$ de diferença | ⚠️ $> 10\%$ assimetria | Sobrecarga assimétrica nos discos intervertebrais. |
+| **Remada / Supino** | $\frac{\text{Remada (N)}}{\text{Supino (N)}}$ | $\ge 0.80 - 1.00$ | ⚠️ $< 0.80$ | Protração escapular excessiva e instabilidade anterior do ombro. |
+| **Puxada / Desenvolvimento** | $\frac{\text{Puxada (N)}}{\text{Desenvolvimento (N)}}$ | $\ge 1.00 - 1.10$ | ⚠️ $< 1.00$ | Fraqueza de trapézio inferior e serrátil anterior. |
+| **Inversão / Eversão Tornozelo** | $\frac{|D - E|}{\max(D, E)} \times 100$ | $\le 10\%$ de diferença | ⚠️ $> 15\%$ assimetria | Risco de entorse de tornozelo por instabilidade lateral. |
+| **Panturrilha / Tibial Anterior** | $\frac{\text{Flexão Plantar (N)}}{\text{Dorsiflexão (N)}}$ | $3.4 : 1$ | ⚠️ Fora da faixa $2.5 - 4.5$ | Sobrecarga na tíbia (canelite) ou tendinopatia de Aquiles. |
+
+---
+
+# MÓDULO 11: Anamnese Estruturada, Escala de Dor EVA & Histórico Clínico
+
+### 11.1 Inputs do Sistema
+- **Queixas Múltiplas**: Array de objetos contendo:
+  - `dorOnde`: String (local anatômico).
+  - `quandoComecou`: String (tempo de evolução).
+  - `comoIniciou`: String (mecanismo de lesão / trauma).
+  - `dorEvolucao`: `'estavel'` | `'aumentando'` | `'diminuindo'`.
+  - `dorIntensidade`: Número de 0 a 10 (Escala Visual Analógica - EVA).
+  - `dorTodoMomento`: `'sim'` | `'nao'`.
+  - `desencadeiaPiora`: String (fatores de agravamento).
+  - `melhoraDesaparece`: String (fatores de alívio).
+  - `caracteristicaDor`: `'Queimação'` | `'Elétrica / Choque'` | `'Pontual / Aguda'` | `'Difusa / Surda'` | `'Latejante'`.
+  - `origens`: Array com seleção múltipla (`'Discal'`, `'Ligamentar'`, `'Muscular'`, `'Nervoso'`, `'Facetário'`, `'Visceral'`).
+- **Histórico & Estilo de Vida**:
+  - `traumas`, `cirurgiasRealizou`, `cirurgiasList` (data e local), `doencasPregressas`.
+  - `traumasEmocionaisStress`, `medicacao`, `drogasRecreativas`.
+  - `sonoHoras` (número), `sonoTipo` (`'continuo'` | `'acorda'`), `sonoQualidade` (`'Excelente'`, `'Bom'`, `'Regular'`, `'Ruim'`).
+
+---
+
+# MÓDULO 12: Painel Consolidado de Ideias para Novos Alertas e Índices Preditivos
+
+Com base na arquitetura do sistema, aqui estão as principais **oportunidades de evolução clínica e biométrica** que podemos implementar:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                    💡 OPORTUNIDADES DE NOVOS ÍNDICES E ALERTAS INTELIGENTES                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 1. SCORE GLOBAL DE RISCO DE LESÃO (0 a 100)                                                      │
+│    Algoritmo ponderado que combina:                                                              │
+│    - Assimetria no Y-Test (+25 pts se ≥ 4cm)                                                     │
+│    - Razão I:Q de Joelho (+30 pts se < 60%)                                                      │
+│    - Erros no Step Down (+20 pts se ≥ 3 erros)                                                   │
+│    - Déficit de Dorsiflexão (+15 pts se < 35°)                                                   │
+│    - Assimetria de Força (+10 pts se > 15%)                                                      │
+│    Saída: Classificação em Baixo Risco (0-29), Moderado (30-59) e Alto Risco de Lesão (≥60).    │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 2. ÍNDICE DE CAPACIDADE DE ABSORÇÃO DE IMPACTO (ICAI)                                            │
+│    Cruza a força de Quadríceps (%PC) com a Dorsiflexão de Tornozelo.                             │
+│    - Se Quadríceps < 60% e Dorsiflexão < 35° ➔ Alerta: "Incapacidade de Amortecimento Excêntrico;   │
+│      Proibir pliometria de alto impacto e saltos até restauração do arco".                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 3. ÍNDICE DE ESTABILIDADE LOMBOPÉLVICA (CORE COMPLEX)                                            │
+│    Cruza Força de Extensores de Tronco (%PC) + Razão Flex/Ext + Teste de Thomas.                 │
+│    - Se Thomas (+) com Extensores < 100% ➔ Alerta: "Síndrome Cruzada Pélvica de Janda            │
+│      (Hiperlordose com inibição glútea e sobrecarga em L5-S1)".                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 4. ÍNDICE DE SAÚDE ESCAPULOTORÁCICA (ISE)                                                        │
+│    Cruza Discinesia Escapular (Kibler) + GIRD de Ombro + Razão Remada/Supino.                    │
+│    - Se Discinesia Tipo I/II + Remada/Supino < 0.80 ➔ Alerta: "Risco Crítico de Tendinopatia     │
+│      do Manguito e Bursite Subacromial em Exercícios de Empurre".                                │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 5. RECOMENDAÇÃO AUTOMÁTICA DE CARGA MÁXIMA SUGERIDA (1RM ESTIMADO)                              │
+│    A partir da força pico isométrica (N) nos testes, estimar o 1RM para Leg Press, Agachamento,  │
+│    Supino e Remada, orientando o treinador na sala de musculação.                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 6.2 Matriz de Alertas Críticos vs Alertas de Atenção
-
-- 🔴 **ALERTA CRÍTICO (Vermelho)**:
-  - *Critério*: Presença de risco iminente de lesão estrutural tecidual (ruptura ligamentar, lesão labral, pubalgia, estiramento muscular de alto grau).
-  - *Ação no Sistema*: O formulário destaca o teste com texto vermelho, borda vermelha e inclui o alerta com destaque no topo do laudo PDF.
-- ⚠️ **ALERTA DE ATENÇÃO (Amarelo)**:
-  - *Critério*: Disfunção funcional leve a moderada que pode evoluir para dor crônica ou sobrecarga compensatória.
-
----
-
-### 6.3 Árvore de Decisão para Exercícios Corretivos e Terapia Manual
-
-| Achado no Sistema | Causa Primária | Terapia Manual / Mobilização | Prescrição de Exercícios Corretivos |
-| :--- | :--- | :--- | :--- |
-| **Valgo Dinâmico no Step Down + Glúteo Médio Fraco** | Insuficiência de abdutores e rotadores externos de quadril | Liberação miofascial de TFL e adutores | - Clamshell com miniband<br/>- Prancha lateral com abdução<br/>- Agachamento búlgaro com foco no joelho neutro |
-| **SIF / RI de Quadril < 20°** | Retração da cápsula posterior do quadril | Mobilização articular com cinto de tração (MWM) | - Mobilização 90/90 de quadril<br/>- Rotação interna ativa com apoio<br/>- Fortalecimento de rotadores profundos |
-| **Razão I:Q < 60%** | Quadríceps dominante / Isquiotibiais inibidos | Liberação miofascial de reto femoral | - Flexão nórdica (*Nordic Hamstring*) excêntrica<br/>- Stiff unipodal com kettlebell<br/>- Ponte de glúteos unilateral com calcanhar estendido |
-| **Déficit de Dorsiflexão (< 35°)** | Bloqueio anterior do tálus / Sóleo retraído | Deslizamento posterior do tálus com fita rígida | - Lunge mobilizer no espaldar<br/>- Alongamento de sóleo em degrau com carga excêntrica |
-| **Razão Adutor/Abdutor > 1.15** | Hiperativação adutora e estresse na sínfise | Desativação de pontos-gatilho em adutor longo/magno | - Exercício de Copenhagen adaptado (nível 1 a 3)<br/>- Ativação de oblíquos e transverso do abdômen |
-| **GIRD Glenoumeral > 20°** | Retração capsular póstero-inferior do ombro | Mobilização glenoumeral póstero-inferior | - *Sleeper stretch* controlado<br/>- Rotação externa em decúbito lateral (0° e 90°)<br/>- Retração escapular com elástico |
-| **Encurtamento de Iliopsoas (Thomas +)** | Retração de flexores de quadril por postura sentada | Liberação miofascial profunda do psoas maior e ilíaco | - Alongamento em posição de cavaleiro com retroversão pélvica<br/>- Ponte pélvica isométrica com ativação glútea |
-
----
-
-> **Documento Oficial de Treinamento e Referência Técnica**  
-> *Clube Fitness Fisio — Inteligência Aplicada ao Movimento Humano.*
+> **Documento de Especificação Técnica e Engenharia Biomecânica**  
+> *Clube Fitness Fisio — Inteligência Algorítmica e Prevenção de Lesões.*
