@@ -37,16 +37,28 @@ flowchart TD
 
 ---
 
-### 📅 1. Consultar Agenda & Marcar Presença
-1. Acesse a aba **"Minha Agenda"** ou **"Agenda Geral"**.
-2. Visualize os alunos do dia por horário e setor (Academia / Consultório).
-3. No card do agendamento, clique em:
-   - 🟢 **Confirmar Presença** (dá baixa e registra o atendimento).
-   - 🔴 **Falta / Cancelar** (registra a ausência para controle de frequência).
+### 📅 1. Menu "Resumo do Dia" & Confirmação de Presença
+O **Resumo do Dia** é o painel principal de trabalho diário do profissional:
+
+1. **⭐ Atendimentos no Horário Atual (Janela Ativa):**
+   - Mostra em destaque os alunos que estão no horário de atendimento **agora**.
+   - **🟢 Presença:** Abre o rápido **Questionário Wellness do Dia** (3 perguntas: Sono, Fadiga e Dor de 1 a 10). O sistema calcula o score na hora (ex: *Treino de Alta Carga Liberado* ou *Alerta de Recuperação*), registra a presença e computa a frequência.
+   - **🔴 Falta / Cancelar:** Registra a ausência do aluno para histórico e controle de frequência.
+   - **📋 Abrir Ficha de Treino:** Botão de atalho direto para visualizar e executar a ficha de treino do aluno naquele horário sem precisar buscá-lo manualmente.
+
+2. **🗓️ Todos os Atendimentos de Hoje:**
+   - Visualização em lista de toda a grade do dia dividida por horários (ex: 06:00, 07:00, 11:00...).
+   - Acompanhamento em tempo real de quem já treinou (Presença), quem faltou (Falta) e quem ainda está como Agendado.
 
 ---
 
-### 🔍 2. Consultar Aluno & Ficha Clínica
+### 📆 2. Menu "Agenda Completa" & "Agendar Aluno"
+- **Agenda Completa:** Visão geral semanal e mensal de todos os profissionais e horários da academia/consultório.
+- **Agendar Aluno:** Permite agendar ou remanejar horários de clientes (*lembre-se: fechar a vaga no Admin Fit antes de agendar por aqui*).
+
+---
+
+### 🔍 3. Consultar Aluno & Ficha Clínica
 1. Utilize o campo de **Busca Inteligente** no topo da tela (digite nome, CPF ou e-mail).
 2. Clique no nome do aluno para abrir a **Ficha Completa**:
    - Histórico de treinos e frequência semanal.
@@ -55,14 +67,14 @@ flowchart TD
 
 ---
 
-### 🩺 3. Realizar e Consultar Avaliações
+### 🩺 4. Realizar e Consultar Avaliações
 1. Na ficha do aluno, acesse a aba **"Avaliações"**:
    - **Avaliação Fisioterápica / Relatório:** Clique em **"Nova Avaliação Fisioterápica"** ➔ Preencha a anamnese, goniometria e testes especiais ➔ Clique em **Salvar** ➔ O PDF com os alertas clínicos e assinatura do responsável técnico sai automaticamente.
    - **Avaliação Física / Cinesiológica:** Clique em **"Nova Avaliação Física"** ➔ Registre circunferências, composição e conduta ➔ Salve e gere o PDF com gráficos de evolução.
 
 ---
 
-### 📊 4. Teste de Força Muscular (Dinamometria)
+### 📊 5. Teste de Força Muscular (Dinamometria)
 1. Acesse a aba **"Teste de Força"** no perfil do aluno.
 2. Clique em **"Novo Teste de Força"** e selecione as articulações avaliadas.
 3. Preencha as cargas obtidas em Newtons ($N$) ou $kgf$:
@@ -71,7 +83,7 @@ flowchart TD
 
 ---
 
-### 📝 5. Prontuários e Evolução Diária
+### 📝 6. Prontuários e Evolução Diária
 1. Na aba **"Prontuário"** do aluno:
    - Clique em **"Nova Evolução / Anotação"**.
    - Escreva a conduta realizada na sessão ou observações clínicas relevantes.
@@ -80,7 +92,7 @@ flowchart TD
 
 ---
 
-### 🏋️‍♂️ 6. Fichas de Treino
+### 🏋️‍♂️ 7. Fichas de Treino
 1. Acesse a aba **"Fichas de Treino"**.
 2. Clique em **"Criar / Editar Treino"**.
 3. Selecione os exercícios na biblioteca integrada (com gifs demonstrativos, séries, repetições e métodos).
