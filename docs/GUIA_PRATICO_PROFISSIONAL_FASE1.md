@@ -59,15 +59,15 @@ O **Resumo do Dia** é o painel principal de trabalho diário do profissional:
 ---
 
 ### 🩺 3. Realizar e Consultar Avaliações
-1. Na ficha do aluno, acesse a aba **"Avaliações"**:
+1. No menu do profissional, acesse a aba **"Avaliações"**:
    - **Avaliação Fisioterápica / Relatório:** Clique em **"Nova Avaliação Fisioterápica"** ➔ Preencha a anamnese, goniometria e testes especiais ➔ Clique em **Salvar** ➔ O PDF com os alertas clínicos e assinatura do responsável técnico sai automaticamente.
    - **Avaliação Física / Cinesiológica:** Clique em **"Nova Avaliação Física"** ➔ Registre circunferências, composição e conduta ➔ Salve e gere o PDF com gráficos de evolução.
 
 ---
 
 ### 📊 4. Teste de Força Muscular (Dinamometria)
-1. Acesse a aba **"Teste de Força"** no perfil do aluno.
-2. Clique em **"Novo Teste de Força"** e selecione as articulações avaliadas.
+1. No menu do profissional, acesse a aba **"Teste de Força"**.
+2. Clique em **"Novo Teste de Força"**, selecione o aluno e as articulações avaliadas.
 3. Preencha as cargas obtidas em Newtons ($N$) ou $kgf$:
    - O sistema calcula na hora a simetria lateral, as razões agonista/antagonista e os alertas inteligentes (**ICAI**, **CORE COMPLEX** e **ISE**).
 4. Clique em **"Gerar Laudo PDF"** para obter o documento quantitativo completo de 2 páginas.
@@ -75,8 +75,8 @@ O **Resumo do Dia** é o painel principal de trabalho diário do profissional:
 ---
 
 ### 📝 5. Prontuários e Evolução Diária
-1. Na aba **"Prontuário"** do aluno:
-   - Clique em **"Nova Evolução / Anotação"**.
+1. No menu do profissional, acesse a aba **"Prontuários"** (ou **"Dados Clínicos"**):
+   - Clique em **"Nova Evolução / Anotação"** e selecione o aluno.
    - Escreva a conduta realizada na sessão ou observações clínicas relevantes.
    - Salve. O histórico fica cronologicamente seguro e disponível para consulta de toda a equipe.
    - Se necessário, clique em **"Exportar Prontuário em PDF"**.
@@ -84,7 +84,7 @@ O **Resumo do Dia** é o painel principal de trabalho diário do profissional:
 ---
 
 ### 🏋️‍♂️ 6. Fichas de Treino
-1. Acesse a aba **"Fichas de Treino"**.
+1. No menu do profissional, acesse a aba **"Fichas de Treino"**.
 2. Clique em **"Criar / Editar Treino"**.
 3. Selecione os exercícios na biblioteca integrada (com gifs demonstrativos, séries, repetições e métodos).
 4. Salve para disponibilizar na tela de execução do treino monitorado.
