@@ -19,6 +19,76 @@ function safeRemoveWrapper(pdfWrapper: HTMLElement) {
   }
 }
 
+export function renderProfessionalSignatureHtml(profInput: any): string {
+  if (!profInput) {
+    return `
+      <div style="text-align: center; margin-top: 24px; margin-bottom: 8px;">
+        <div style="display: inline-block; text-align: center; min-width: 250px;">
+          <div style="border-top: 1.5px solid #334155; padding-top: 6px;">
+            <div style="font-family: 'Outfit', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+              CLUBE FITNESS FISIO
+            </div>
+            <div style="font-size: 9px; color: #475569; font-weight: 600; margin-top: 2px;">
+              Responsável Técnico: Dr. Albert Nunes
+            </div>
+            <div style="font-size: 8.5px; color: #64748b; font-weight: 500;">
+              CREFITO: 4/350430-F
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const nome = typeof profInput === 'string' ? profInput : (profInput.nome || '');
+  const nomeLower = nome.toLowerCase().trim();
+  const isEstagiario = Boolean(profInput.isEstagiario) || nomeLower.includes('estagi');
+  const isTerminal = nomeLower.includes('computador coletivo') || nomeLower.includes('terminal') || !nomeLower || nomeLower === 'profissional do clube';
+
+  if (isEstagiario || isTerminal) {
+    return `
+      <div style="text-align: center; margin-top: 24px; margin-bottom: 8px;">
+        <div style="display: inline-block; text-align: center; min-width: 250px;">
+          <div style="border-top: 1.5px solid #334155; padding-top: 6px;">
+            <div style="font-family: 'Outfit', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+              CLUBE FITNESS FISIO
+            </div>
+            <div style="font-size: 9px; color: #475569; font-weight: 600; margin-top: 2px;">
+              Responsável Técnico: Dr. Albert Nunes
+            </div>
+            <div style="font-size: 8.5px; color: #64748b; font-weight: 500;">
+              CREFITO: 4/350430-F
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Profissional Formado
+  const profNome = profInput.nome || nome || 'Profissional';
+  const profRegistro = profInput.registro && profInput.registro !== '-' ? profInput.registro : 'CREFITO / CREF';
+  const profEsp = profInput.especialidade && profInput.especialidade !== '-' ? profInput.especialidade : 'Fisioterapeuta / Avaliador';
+
+  return `
+    <div style="text-align: center; margin-top: 24px; margin-bottom: 8px;">
+      <div style="display: inline-block; text-align: center; min-width: 250px;">
+        <div style="border-top: 1.5px solid #334155; padding-top: 6px;">
+          <div style="font-family: 'Outfit', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 800; color: #0f172a;">
+            ${profNome}
+          </div>
+          <div style="font-size: 9px; color: #475569; font-weight: 600; margin-top: 2px;">
+            ${profEsp}
+          </div>
+          <div style="font-size: 8.5px; color: #64748b; font-weight: 500;">
+            Registro: ${profRegistro}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 async function getLogoBase64(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   try {
@@ -534,13 +604,8 @@ export async function downloadReportPDF(report: any) {
           </div>
         </div>
 
-        <!-- Assinatura Profissional -->
-        <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #475569;">
-          <div style="width: 250px; margin: 0 auto; border-top: 1px solid #cbd5e1; padding-top: 6px;">
-            <strong>${prof.nome}</strong><br>
-            <span>${prof.registro}</span>
-          </div>
-        </div>
+        <!-- Assinatura Profissional / Responsável Técnico -->
+        ${renderProfessionalSignatureHtml(prof)}
 
         <!-- Footer Empresa -->
         <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
@@ -1269,13 +1334,8 @@ export async function downloadReportPDF(report: any) {
         </div>
         ` : ''}
 
-        <!-- Assinatura Profissional -->
-        <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #475569;">
-          <div style="width: 250px; margin: 0 auto; border-top: 1px solid #cbd5e1; padding-top: 6px;">
-            <strong>${prof.nome}</strong><br>
-            <span>${prof.registro}</span>
-          </div>
-        </div>
+        <!-- Assinatura Profissional / Responsável Técnico -->
+        ${renderProfessionalSignatureHtml(prof)}
 
         <!-- Footer Empresa -->
         <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
@@ -2749,12 +2809,8 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         </p>
       </div>
 
-      <!-- Empresa -->
-      <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
-        <div style="font-size: 14px; font-weight: 800; color: #0d9488; font-family: 'Outfit', sans-serif;">
-          Clube Fitness Fisio
-        </div>
-      </div>
+      <!-- Assinatura Profissional / Responsável Técnico -->
+      ${renderProfessionalSignatureHtml(prof)}
 
       <!-- Footer Decorado Página 2 -->
       <div style="position: absolute; bottom: 30px; left: 45px; right: 45px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:6px; font-size:7px; color:#64748b;">
@@ -3038,6 +3094,12 @@ export function downloadProntuarioPDF(prontuario: any, client: any, profNome = '
   const email = client?.dadosPessoais?.email || '-';
   const dataDoc = fmtDate(prontuario.data || prontuario.createdAt?.split('T')[0] || '');
 
+  const profObj = typeof profNome === 'object' && profNome !== null
+    ? profNome
+    : (prontuario.profissionalId && typeof prontuario.profissionalId === 'object'
+        ? prontuario.profissionalId
+        : { nome: profNome, registro: profRegistro });
+
   pdfContainer.innerHTML = `
     <style>
       p, li, tr, h2, h3, h4, table {
@@ -3055,7 +3117,7 @@ export function downloadProntuarioPDF(prontuario: any, client: any, profNome = '
       <tr style="background:#f8fafc;"><td style="padding:10px;font-weight:bold;border:1px solid #e2e8f0;">Telefone:</td><td style="padding:10px;border:1px solid #e2e8f0;">${tel}</td><td style="padding:10px;font-weight:bold;border:1px solid #e2e8f0;">E-mail:</td><td style="padding:10px;border:1px solid #e2e8f0;">${email}</td></tr>
     </table>
     <div style="font-size:14px;line-height:1.6;margin-bottom:40px;border:1px solid #e2e8f0;border-radius:6px;padding:20px;background:#fafafa;min-height:400px;white-space:pre-wrap;">${obs}</div>
-    <div style="margin-top:60px;font-size:12px;text-align:center;"><div style="width:50%;margin:0 auto;"><div style="border-top:1px solid #333;padding-top:6px;">${profNome}<br><small>${profRegistro}</small></div></div></div>
+    ${renderProfessionalSignatureHtml(profObj)}
   `;
 
   const options = { margin: 10, filename: `Prontuario_${nome.replace(/\s+/g,'_')}_${dataDoc.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
@@ -3090,6 +3152,10 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
+  const profObj = typeof profNome === 'object' && profNome !== null
+    ? profNome
+    : { nome: profNome, registro: profRegistro };
+
   pdfContainer.innerHTML = `<style>p, li, tr, h2, h3, h4, table { page-break-inside: avoid !important; break-inside: avoid !important; }</style>` + sorted.map((p, idx) => {
     const obs = p.conteudo || p.observacoes || '';
     const data = fmtDate(p.data || p.createdAt?.split('T')[0] || '');
@@ -3099,7 +3165,7 @@ export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, p
         <div style="text-align:right;"><span style="font-weight:bold;color:#0f172a;font-size:13px;">PRONTUÁRIO ${idx + 1}/${sorted.length}</span><br><small style="color:#777;font-size:11px;">Paciente: ${nome} | Data: ${data}</small></div>
       </div>
       <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;border:1px solid #e2e8f0;padding:16px;border-radius:6px;background:#fafafa;min-height:700px;">${obs}</div>
-      <div style="margin-top:40px;font-size:11px;text-align:center;"><div style="width:50%;margin:0 auto;border-top:1px solid #333;padding-top:6px;">${profNome}<br><small>${profRegistro}</small></div></div>
+      ${renderProfessionalSignatureHtml(profObj)}
     </div>`;
   }).join('');
 
@@ -4001,6 +4067,9 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
           <!-- 9. Observações Clínicas -->
           ${observationHtml}
+
+          <!-- 10. Assinatura Profissional / Responsável Técnico -->
+          ${renderProfessionalSignatureHtml(prof)}
         </div>
 
         <!-- Footer Página 2 -->
