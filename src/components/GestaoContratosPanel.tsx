@@ -1331,7 +1331,7 @@ export default function GestaoContratosPanel({
   // 1. Dados Comerciais
   const [msPlano, setMsPlano] = useState('');
   const [msValorUnitario, setMsValorUnitario] = useState<number>(0);
-  const [msDuracao, setMsDuracao] = useState<'mensal' | 'anual' | 'semana'>('mensal');
+  const [msDuracao, setMsDuracao] = useState<'mensal' | 'anual' | 'semestral' | 'semana'>('mensal');
   const [msVigenciaQtd, setMsVigenciaQtd] = useState<number>(1);
   const [msDataInicio, setMsDataInicio] = useState('');
   const [msCriarRecorrencia, setMsCriarRecorrencia] = useState(false);
@@ -1420,21 +1420,23 @@ export default function GestaoContratosPanel({
     setMsEstado(dp.estado || 'MG');
 
     // 2. Dados Comerciais
-    const defaultPlanId = com.planoId || (plans.length > 0 ? plans[0]._id : '');
+    const defaultPlanId = com.planoId?._id || com.planoId || (plans.length > 0 ? plans[0]._id : '');
     const plan = plans.find(p => p._id === defaultPlanId);
+    const isAnual = plan?.tipo === 'Anual';
     setMsPlano(defaultPlanId);
     setMsValorUnitario(Number(com.valorUnitario) || plan?.preco || 0);
-    setMsDuracao((com.duracao as any) || (plan?.tipo === 'Anual' ? 'anual' : 'mensal'));
-    setMsVigenciaQtd(Number(com.vigenciaQtd) || 1);
+    setMsDuracao((com.duracao as any) || (isAnual ? 'anual' : 'mensal'));
+    setMsVigenciaQtd(1);
     setMsDataInicio(new Date().toISOString().split('T')[0]);
     setMsCriarRecorrencia(Boolean(com.criarRecorrenciaMensal));
     setMsRecorrenciaMeses(12);
     setMsDescontoTipo('percentual');
     setMsDescontoValor(0);
-    setMsFrequencia(Number(com.frequencia) || 3);
-    setMsCreditosMensais(Number(com.creditosMensaisTotal) || 13);
-    setMsCreditosMassagem(0);
-    setMsCreditosEmergencia(0);
+    const freq = Number(com.frequencia) || plan?.frequencia || 3;
+    setMsFrequencia(freq);
+    setMsCreditosMensais(freq === 1 ? 4 : freq === 2 ? 9 : freq === 3 ? 13 : freq === 4 ? 17 : freq === 5 ? 22 : 13);
+    setMsCreditosMassagem(isAnual ? 1 : 0);
+    setMsCreditosEmergencia(isAnual ? 1 : 0);
 
     // 3. Pagamento
     setMsFormaPagamento('boleto');
@@ -1469,36 +1471,27 @@ export default function GestaoContratosPanel({
     setMsSubmitting(true);
     try {
       const plan = plans.find(p => p._id === msPlano);
-      const grossPrice = Number(msValorUnitario) * Number(msVigenciaQtd);
+      const isAnual = msDuracao === 'anual';
+      const grossPrice = Number(msValorUnitario || 0) * (msDuracao === 'mensal' ? Number(msVigenciaQtd || 1) : 1);
       let discountDeduction = 0;
       if (msDescontoTipo === 'percentual') {
         discountDeduction = (grossPrice * (Number(msDescontoValor) || 0)) / 100;
       } else {
         discountDeduction = Number(msDescontoValor) || 0;
       }
+      discountDeduction = Math.min(discountDeduction, grossPrice);
       const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
 
       const numParcelas = Number(msParcelas) || 1;
       const cardRate = msFormaPagamento === 'cartao' ? getCardRateForInstallment(numParcelas) : 0;
       const finalPrice = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + cardRate)).toFixed(2)) : calculatedValorLiquido;
 
-      const isAnual = msDuracao === 'anual' || Number(msVigenciaQtd) >= 12;
-      const vigenciaMeses = isAnual ? 12 : (Number(msVigenciaQtd) || 1);
-
-      const startD = new Date((msDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
-      const endD = new Date(startD);
-      if (msDuracao === 'semana') {
-        endD.setDate(endD.getDate() + (vigenciaMeses * 7));
-      } else if (isAnual) {
-        endD.setFullYear(endD.getFullYear() + (vigenciaMeses >= 12 ? 1 : vigenciaMeses));
-      } else {
-        endD.setMonth(endD.getMonth() + vigenciaMeses);
-      }
-      const dataFimCalculada = endD.toISOString().split('T')[0];
+      const dataFimCalculada = calculateContractEndDate(msDataInicio, msDuracao, msVigenciaQtd, undefined, msCriarRecorrencia);
+      const vigenciaMeses = isAnual ? 12 : (msDuracao === 'semestral' ? 6 : (Number(msVigenciaQtd) || 1));
 
       // 1. Atualizar dados cadastrais e comerciais do cliente
       const clientUpdatePayload = {
-        _id: manualSaleClient._id,
+        id: manualSaleClient._id,
         dadosPessoais: {
           ...manualSaleClient.dadosPessoais,
           nome: msNome,
@@ -1519,6 +1512,27 @@ export default function GestaoContratosPanel({
             email: msRespEmail,
             telefone: msRespTelefone
           } : undefined
+        },
+        dadosComerciais: {
+          ...(manualSaleClient.dadosComerciais || {}),
+          planoId: msPlano,
+          status: actionType === 'presencial' ? 'ativo' : 'pendente',
+          duracao: msDuracao,
+          duracaoQtd: msVigenciaQtd,
+          vigenciaQtd: msVigenciaQtd,
+          dataInicio: msDataInicio,
+          vencimento: dataFimCalculada,
+          dataPrimeiroVencimento: msDataPrimeiroVencimento || msDataInicio,
+          formaPagamento: msFormaPagamento,
+          valorUnitario: msValorUnitario,
+          parcelas: numParcelas,
+          descontoTipo: msDescontoTipo,
+          descontoValor: msDescontoValor,
+          frequencia: msFrequencia,
+          creditosTotal: msCreditosMensais,
+          creditosMassagemTotal: msCreditosMassagem,
+          creditosEmergenciaTotal: msCreditosEmergencia,
+          criarRecorrenciaMensal: msCriarRecorrencia
         },
         bloqueioCadastral: {
           bloqueado: actionType === 'clicksign',
@@ -6692,10 +6706,14 @@ export default function GestaoContratosPanel({
                           const p = plans.find(x => x._id === pId);
                           if (p) {
                             setMsValorUnitario(p.preco || 0);
-                            setMsDuracao((p.tipo === 'Anual' ? 'anual' : 'mensal'));
-                            setMsVigenciaQtd(p.tipo === 'Anual' ? 12 : 1);
-                            setMsCreditosMensais(p.creditos || 13);
-                            setMsFrequencia(p.frequencia || 3);
+                            const isAn = p.tipo === 'Anual';
+                            setMsDuracao(isAn ? 'anual' : 'mensal');
+                            setMsVigenciaQtd(1);
+                            const f = p.frequencia || 3;
+                            setMsFrequencia(f);
+                            setMsCreditosMensais(f === 1 ? 4 : f === 2 ? 9 : f === 3 ? 13 : f === 4 ? 17 : f === 5 ? 22 : 13);
+                            setMsCreditosMassagem(isAn ? 1 : 0);
+                            setMsCreditosEmergencia(isAn ? 1 : 0);
                           }
                         }}
                       >
@@ -6717,20 +6735,23 @@ export default function GestaoContratosPanel({
                         onChange={e => {
                           const val = e.target.value as any;
                           setMsDuracao(val);
-                          if (val === 'anual') setMsVigenciaQtd(12);
-                          else if (val === 'semana') setMsVigenciaQtd(1);
-                          else setMsVigenciaQtd(1);
+                          setMsVigenciaQtd(1);
+                          if (val === 'anual') {
+                            setMsCreditosMassagem(1);
+                            setMsCreditosEmergencia(1);
+                          }
                         }}
                       >
-                        <option value="mensal">Mensal (Meses)</option>
-                        <option value="anual">Anual (12 Meses)</option>
-                        <option value="semana">Semanal (Semanas)</option>
+                        <option value="anual">Anual (1 Ano)</option>
+                        <option value="semestral">Semestral (6 Meses)</option>
+                        <option value="mensal">Mensal (1 Mês)</option>
+                        <option value="semana">Semanal (1 Semana)</option>
                       </select>
                     </div>
 
                     <div className="form-group">
                       <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                        Qtd. de Vigência ({msDuracao === 'anual' ? 'Meses (ex: 12)' : msDuracao === 'semana' ? 'Semanas' : 'Meses'})
+                        Qtd. de Vigência ({msDuracao === 'anual' ? 'Anos' : msDuracao === 'semestral' ? 'Semestres' : msDuracao === 'semana' ? 'Semanas' : 'Meses'})
                       </label>
                       <input
                         type="number"
@@ -6755,7 +6776,7 @@ export default function GestaoContratosPanel({
                   </div>
 
                   {/* Frequência, Créditos e Valores */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                     <div className="form-group">
                       <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Frequência Semanal</label>
                       <select
@@ -6793,7 +6814,34 @@ export default function GestaoContratosPanel({
                     </div>
 
                     <div className="form-group">
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor da Parcela / Mês *</label>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos Massagem</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msCreditosMassagem}
+                        onChange={e => setMsCreditosMassagem(parseInt(e.target.value, 10) || 0)}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Créditos Emergência</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="form-control"
+                        style={{ padding: '9px 10px' }}
+                        value={msCreditosEmergencia}
+                        onChange={e => setMsCreditosEmergencia(parseInt(e.target.value, 10) || 0)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Valores e Desconto */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor do Plano / Período (R$) *</label>
                       <MoneyInput
                         style={{ padding: '9px 10px', fontWeight: 750, color: 'var(--color-primary)' }}
                         value={msValorUnitario}
@@ -7276,7 +7324,18 @@ export default function GestaoContratosPanel({
                 </div>
               </div>
 
-              {/* MODAL SOBREPOSTO: PRÉ-VISUALIZAÇÃO DA MINUTA DO CONTRATO */}
+              {/* Overlay de Processamento com Bloqueio de Duplo Clique */}
+              {msSubmitting && (
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1000, borderRadius: '18px', gap: '16px', padding: '20px', textAlign: 'center' }}>
+                  <i className="fa-solid fa-spinner fa-spin fa-3x" style={{ color: '#10b981' }}></i>
+                  <div style={{ fontWeight: 800, color: '#fff', fontSize: '1.15rem' }}>
+                    Processando e ativando contrato...
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '380px', lineHeight: '1.4' }}>
+                    Aguarde a formalização, gravação das parcelas e liberação dos créditos.
+                  </div>
+                </div>
+              )}
               {showMsContractPreview && (() => {
                 const planSel = plans.find(p => p._id === msPlano);
                 const isAnualPlan = msDuracao === 'anual' || Number(msVigenciaQtd) >= 12;
