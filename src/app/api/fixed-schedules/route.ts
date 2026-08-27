@@ -58,22 +58,40 @@ async function generateAppointmentsForFixedSchedules(schedules: any[]) {
     if (scheduleDatePairs.length === 0) return;
 
     // Buscar agendamentos existentes de uma só vez em lote
-    const clientIds = Array.from(new Set(schedules.map(s => s.clienteId)));
+    const rawClientIds = Array.from(new Set(schedules.map(s => s.clienteId)));
+    const idStrings = rawClientIds.map(id => String(id?._id || id));
+    const idObjects: any[] = [];
+    const mongoose = require('mongoose');
+    idStrings.forEach(id => {
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        idObjects.push(new mongoose.Types.ObjectId(id));
+      }
+    });
+
     const dateStrings = Array.from(new Set(scheduleDatePairs.map(p => p.dateStr)));
 
     const existingAppointments = await Appointment.find({
-      clienteId: { $in: clientIds },
+      $or: [
+        { clienteId: { $in: [...idStrings, ...idObjects] } },
+        { clientId: { $in: [...idStrings, ...idObjects] } }
+      ],
       data: { $in: dateStrings },
       status: { $ne: 'cancelado' }
-    }).select('clienteId data horario').lean();
+    }).select('clienteId clientId data horario').lean();
 
     const existingSet = new Set(
-      existingAppointments.map((a: any) => `${a.clienteId}_${a.data}_${a.horario}`)
+      existingAppointments.map((a: any) => {
+        const raw = a.clienteId || a.clientId;
+        const cIdStr = String(raw?._id || raw);
+        return `${cIdStr}_${a.data}_${a.horario}`;
+      })
     );
 
     for (const pair of scheduleDatePairs) {
-      const key = `${pair.schedule.clienteId}_${pair.dateStr}_${pair.schedule.horario}`;
+      const cIdStr = String(pair.schedule.clienteId?._id || pair.schedule.clienteId);
+      const key = `${cIdStr}_${pair.dateStr}_${pair.schedule.horario}`;
       if (!existingSet.has(key)) {
+        existingSet.add(key); // evitar duplicatas dentro do mesmo lote
         const profId = pair.schedule.profissionalId || defaultProfId;
         if (profId) {
           const serv = (pair.schedule.servico || '').toLowerCase();
@@ -92,7 +110,6 @@ async function generateAppointmentsForFixedSchedules(schedules: any[]) {
             origemHorarioFixo: true,
             fixedScheduleId: pair.schedule._id
           });
-          existingSet.add(key); // evitar duplicatas dentro do mesmo lote
         }
       }
     }
