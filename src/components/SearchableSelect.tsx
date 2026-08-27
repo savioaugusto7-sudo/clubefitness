@@ -19,7 +19,7 @@ export default function SearchableSelect({
   options,
   value,
   onChange,
-  placeholder = 'Selecione...',
+  placeholder = 'Buscar / Selecionar Aluno...',
   required = false
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,13 +46,6 @@ export default function SearchableSelect({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Sync state if value is invalid/not in options (select first by default if required)
-  useEffect(() => {
-    if (required && !value && options.length > 0) {
-      onChange(options[0].value);
-    }
-  }, [value, options, required, onChange]);
 
   const toggleDropdown = () => {
     setIsOpen(!isOpen);

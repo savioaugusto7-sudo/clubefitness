@@ -7947,7 +7947,13 @@ goniometria: {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label style={{ fontWeight: 600 }}>Buscar / Selecionar Aluno</label>
-                      <SearchableSelect options={clientOptions} value={asClient} onChange={setAsClient} required />
+                      <SearchableSelect
+                        options={clientOptions}
+                        value={asClient}
+                        onChange={setAsClient}
+                        placeholder="Buscar / Selecionar Aluno..."
+                        required
+                      />
                     </div>
                     <div className="resp-grid-1-1" style={{ marginTop: '4px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
@@ -9560,6 +9566,7 @@ goniometria: {
                           options={clientOptions}
                           value={repClient}
                           onChange={setRepClient}
+                          placeholder="Buscar / Selecionar Cliente..."
                           required
                         />
                       </div>
@@ -11212,6 +11219,7 @@ goniometria: {
                       options={clientOptions}
                       value={stClient}
                       onChange={setStClient}
+                      placeholder="Buscar / Selecionar Aluno..."
                       required
                     />
                   </div>
