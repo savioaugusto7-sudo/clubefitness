@@ -3840,136 +3840,173 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
     pdfContainer.innerHTML = `
       ${pdfStyles}
-      <div class="pdf-page">
-        <!-- 1. Header Clínico Principal -->
-        <div class="grid-header">
-          <div class="logo-box">
-            ${logoBase64 
-              ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
-              : `<div style="width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 16px; font-family: 'Outfit', sans-serif; flex-shrink: 0;">CFF</div>`
-            }
-            <div>
-              <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
-              <p class="logo-subtitle">Laudo Clínico de Avaliação de Força & Simetria Biomecânica</p>
-            </div>
-          </div>
-          <div class="date-box">
-            <span>Data da Avaliação</span>
-            <strong>${data}</strong>
-          </div>
-        </div>
-
-        <!-- 2. Ficha do Aluno -->
-        <div class="client-bar">
-          <div class="client-bar-item">
-            <span>Aluno / Paciente</span>
-            <strong>${nome}</strong>
-          </div>
-          <div class="client-bar-item">
-            <span>CPF</span>
-            <strong>${cpf}</strong>
-          </div>
-          <div class="client-bar-item">
-            <span>Peso Corporal</span>
-            <strong>${peso} kg</strong>
-          </div>
-          <div class="client-bar-item">
-            <span>Sexo</span>
-            <strong>${sex === 'F' ? 'Feminino' : 'Masculino'}</strong>
-          </div>
-        </div>
-
-        <!-- 3. Mapeamento Anatômico Integrado Dual-Body (Compacto para permitir subida da tabela) -->
-        <div class="pdf-section-wrapper avoid-break" style="margin-top: 6px; margin-bottom: 10px;">
-          <div class="section-card" style="margin-bottom: 0;">
-            <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
-              <span>Mapeamento Anatômico de Recrutamento & Articulações Avaliadas</span>
-              <span style="font-size: 7.5px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px;">
-                ${testedJoints.size === 0 || testedJoints.size === 6 ? 'Bateria Completa (6 Articulações)' : `${testedJoints.size} de 6 Articulações Avaliadas`}
-              </span>
-            </div>
-            <div class="section-card-content" style="padding: 10px 14px; background: #ffffff; text-align: center;">
-              <!-- Imagem Dual-Body Compacta e Nítida -->
-              <div style="width: 100%; max-width: 440px; margin: 0 auto 6px auto; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
-                <img src="${splitAtlasBase64}" style="width: 100%; height: auto; max-height: 230px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Dual Body" />
+      <!-- ================= PÁGINA 1: SÍNTESE, ATLAS ANATÔMICO & TESTES ================= -->
+      <div class="pdf-page" style="page-break-after: always; min-height: 1120px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <!-- 1. Header Clínico Principal -->
+          <div class="grid-header">
+            <div class="logo-box">
+              ${logoBase64 
+                ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+                : `<div style="width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #0d9488 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 16px; font-family: 'Outfit', sans-serif; flex-shrink: 0;">CFF</div>`
+              }
+              <div>
+                <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+                <p class="logo-subtitle">Laudo Clínico de Avaliação de Força & Simetria Biomecânica</p>
               </div>
-
-              <!-- Grid de Rodapé Dinâmico das Articulações -->
-              ${renderStrengthAtlasFooterHtml(testedJoints)}
+            </div>
+            <div class="date-box">
+              <span>Data da Avaliação</span>
+              <strong>${data}</strong>
             </div>
           </div>
-        </div>
 
-        <!-- 4. Tabela de Testes Individuais (Começa logo abaixo na Página 1 de forma contínua) -->
-        <div class="pdf-section-wrapper" style="margin-bottom: 12px;">
-          <div class="section-card" style="margin-bottom: 0;">
-            <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
-            <div class="section-card-content" style="padding:0;">
-              <table class="table-data">
-                <thead>
-                  <tr>
-                    <th>Articulação</th>
-                    <th>Movimento</th>
-                    <th style="text-align:center;">Lado</th>
-                    <th style="text-align:right;">Valor</th>
-                    <th style="text-align:right;">Força (N)</th>
-                    <th style="text-align:right;">%PC</th>
-                    <th style="text-align:center;">Ref. Média</th>
-                    <th style="text-align:right;">% Ref.</th>
-                    <th style="text-align:center;">Classificação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${testsHtml}
-                </tbody>
-              </table>
+          <!-- 2. Ficha do Aluno -->
+          <div class="client-bar">
+            <div class="client-bar-item">
+              <span>Aluno / Paciente</span>
+              <strong>${nome}</strong>
+            </div>
+            <div class="client-bar-item">
+              <span>CPF</span>
+              <strong>${cpf}</strong>
+            </div>
+            <div class="client-bar-item">
+              <span>Peso Corporal</span>
+              <strong>${peso} kg</strong>
+            </div>
+            <div class="client-bar-item">
+              <span>Sexo</span>
+              <strong>${sex === 'F' ? 'Feminino' : 'Masculino'}</strong>
             </div>
           </div>
-        </div>
 
-        <!-- 5. Tabela de Comparação Bilateral -->
-        ${st.comparativos && st.comparativos.length > 0 ? `
-          <div class="pdf-section-wrapper avoid-break" style="margin-bottom: 12px;">
+          <!-- 3. Mapeamento Anatômico Integrado Dual-Body -->
+          <div class="pdf-section-wrapper" style="margin-top: 4px; margin-bottom: 8px;">
             <div class="section-card" style="margin-bottom: 0;">
-              <div class="section-card-title">Análise de Simetria e Déficit Lateral (Agonista / Antagonista)</div>
+              <div class="section-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Mapeamento Anatômico de Recrutamento & Articulações Avaliadas</span>
+                <span style="font-size: 7.5px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px;">
+                  ${testedJoints.size === 0 || testedJoints.size === 6 ? 'Bateria Completa (6 Articulações)' : `${testedJoints.size} de 6 Articulações Avaliadas`}
+                </span>
+              </div>
+              <div class="section-card-content" style="padding: 8px 12px; background: #ffffff; text-align: center;">
+                <!-- Imagem Dual-Body Compacta e Nítida -->
+                <div style="width: 100%; max-width: 440px; margin: 0 auto 4px auto; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
+                  <img src="${splitAtlasBase64}" style="width: 100%; height: auto; max-height: 220px; object-fit: contain; display: block; margin: 0 auto;" alt="Atlas Anatômico Dual Body" />
+                </div>
+
+                <!-- Grid de Rodapé Dinâmico das Articulações -->
+                ${renderStrengthAtlasFooterHtml(testedJoints)}
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Tabela de Testes Individuais -->
+          <div class="pdf-section-wrapper" style="margin-bottom: 0;">
+            <div class="section-card" style="margin-bottom: 0;">
+              <div class="section-card-title">Testes Individuais por Articulação e Movimento</div>
               <div class="section-card-content" style="padding:0;">
                 <table class="table-data">
                   <thead>
                     <tr>
                       <th>Articulação</th>
                       <th>Movimento</th>
-                      <th style="text-align:right;">Dir (N)</th>
-                      <th style="text-align:right;">Esq (N)</th>
-                      <th style="text-align:right;">Déficit (%)</th>
-                      <th style="text-align:right; width: 110px;">Simetria (%)</th>
-                      <th style="text-align:center;">Status</th>
+                      <th style="text-align:center;">Lado</th>
+                      <th style="text-align:right;">Valor</th>
+                      <th style="text-align:right;">Força (N)</th>
+                      <th style="text-align:right;">%PC</th>
+                      <th style="text-align:center;">Ref. Média</th>
+                      <th style="text-align:right;">% Ref.</th>
+                      <th style="text-align:center;">Classificação</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${compsHtml}
+                    ${testsHtml}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
-        ` : ''}
+        </div>
 
-        <!-- 6. Banner de Riscos Ortopédicos (Estilo Imagem 2) -->
-        ${riscosPanelHtml}
-
-        <!-- 7. Cards de Razões Biomecânicas e Equilíbrio Muscular -->
-        ${ratiosCardsHtml}
-
-        <!-- 8. Interpretação Clínica dos Resultados (4 Quadrantes da Imagem 2) -->
-        ${interpretacaoClinicaHtml}
-
-        <!-- 9. Observações Clínicas -->
-        ${observationHtml}
-
-        <!-- Footer Geral Institucional -->
-        <div class="avoid-break" style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+        <!-- Footer Página 1 -->
+        <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
           <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
-          <strong>Laudo de Avaliação Biomecânica Computadorizada</strong>
+          <strong>Página 1 de 2</strong>
+        </div>
+      </div>
+
+      <!-- ================= PÁGINA 2: SIMETRIA, RISCOS, RAZÕES & INTERPRETAÇÃO ================= -->
+      <div class="pdf-page" style="min-height: 1120px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <!-- Mini Header Clínico de Continuação -->
+          <div class="grid-header" style="padding-bottom: 8px; margin-bottom: 12px;">
+            <div class="logo-box">
+              ${logoBase64 
+                ? `<img src="${logoBase64}" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;" alt="Logo CFF">`
+                : `<div style="width: 32px; height: 32px; border-radius: 6px; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 12px;">CFF</div>`
+              }
+              <div>
+                <strong style="font-size: 13px; color: #0f172a; font-family: 'Outfit', sans-serif;">CLUBE FITNESS FISIO &nbsp;•&nbsp; LAUDO QUANTITATIVO</strong>
+                <p style="font-size: 8px; color: #64748b; margin: 0;">Paciente: <strong>${nome}</strong> &nbsp;|&nbsp; Data: <strong>${data}</strong></p>
+              </div>
+            </div>
+            <div style="font-size: 8px; color: #475569; font-weight: 700; text-transform: uppercase;">
+              Bateria de Força & Simetria
+            </div>
+          </div>
+
+          <!-- 5. Tabela de Comparação Bilateral -->
+          ${st.comparativos && st.comparativos.length > 0 ? `
+            <div class="pdf-section-wrapper avoid-break" style="margin-bottom: 10px;">
+              <div class="section-card" style="margin-bottom: 0;">
+                <div class="section-card-title">Análise de Simetria e Déficit Lateral (Agonista / Antagonista)</div>
+                <div class="section-card-content" style="padding:0;">
+                  <table class="table-data">
+                    <thead>
+                      <tr>
+                        <th>Articulação</th>
+                        <th>Movimento</th>
+                        <th style="text-align:right;">Dir (N)</th>
+                        <th style="text-align:right;">Esq (N)</th>
+                        <th style="text-align:right;">Déficit (%)</th>
+                        <th style="text-align:right; width: 110px;">Simetria (%)</th>
+                        <th style="text-align:center;">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${compsHtml}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- 6. Banner de Riscos Ortopédicos (Estilo Imagem 2) -->
+          <div style="margin-bottom: 10px;">
+            ${riscosPanelHtml}
+          </div>
+
+          <!-- 7. Cards de Razões Biomecânicas e Equilíbrio Muscular -->
+          <div style="margin-bottom: 10px;">
+            ${ratiosCardsHtml}
+          </div>
+
+          <!-- 8. Interpretação Clínica dos Resultados (4 Quadrantes da Imagem 2) -->
+          <div style="margin-bottom: 10px;">
+            ${interpretacaoClinicaHtml}
+          </div>
+
+          <!-- 9. Observações Clínicas -->
+          ${observationHtml}
+        </div>
+
+        <!-- Footer Página 2 -->
+        <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 8px; color: #64748b;">
+          <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia, Quiropraxia e Fortalecimento</span>
+          <strong>Página 2 de 2</strong>
         </div>
       </div>
     `;
@@ -4104,12 +4141,12 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
   const filename = `Analise_Forca_${nome.replace(/\s+/g, '_')}_${data.replace(/\//g, '-')}.pdf`;
   const options = {
-    margin: [8, 8, 10, 8],
+    margin: 0,
     filename: filename,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794 },
+    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'], avoid: ['.pdf-section-wrapper', '.section-card', '.avoid-break', 'tr'] }
+    pagebreak: { mode: ['css', 'legacy'] }
   };
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
