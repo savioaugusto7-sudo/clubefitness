@@ -3154,7 +3154,7 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
         color: #1e293b;
         font-family: 'Inter', sans-serif;
         width: 794px;
-        padding: 24px 32px;
+        padding: 20px 30px;
         box-sizing: border-box;
       }
       .grid-header {
@@ -3375,10 +3375,10 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
   `;
 
   const options = {
-    margin: [6, 6, 6, 6],
+    margin: [10, 0, 10, 0],
     filename: `Prontuario_${nome.replace(/\s+/g, '_')}_${dataSessao.replace(/\//g, '-')}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794 },
+    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
@@ -3461,7 +3461,7 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
         color: #1e293b;
         font-family: 'Inter', sans-serif;
         width: 794px;
-        padding: 24px 32px;
+        padding: 20px 30px;
         box-sizing: border-box;
       }
       .grid-header {
@@ -3645,10 +3645,10 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
   `;
 
   const options = {
-    margin: [6, 6, 6, 6],
+    margin: [10, 0, 10, 0],
     filename: `Prontuarios_${nome.replace(/\s+/g, '_')}_Historico_Completo.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794 },
+    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
