@@ -1183,8 +1183,11 @@ export default function TreinamentoProfissionalPage() {
                             <button
                               type="button"
                               onClick={() => {
-                                setSimPresencas(prev => ({ ...prev, 'mpb-8': 'presenca' }));
-                                triggerToast('🚨 Atendimento de Emergência iniciado! O status agora é "Finalizar atendimento".');
+                                setActiveWellnessStudent(bethania);
+                                setWellnessSono(4);
+                                setWellnessFadiga(3);
+                                setWellnessDor(3);
+                                setShowWellnessModal(true);
                               }}
                               style={{
                                 flex: 1,

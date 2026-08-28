@@ -2714,27 +2714,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const targetClientId = apt?.clienteId?._id || apt?.clienteId || null;
     const clientName = apt?.clienteId?.dadosPessoais?.nome || apt?.clienteId?.nome || '';
 
-    // If confirming presence
+    // If confirming presence -> Open Wellness Questionnaire for all services
     if (status === 'presenca') {
-      if (apt?.servico === 'Emergência') {
-        // Confirma presença e inicia o atendimento (fica pendente de finalização)
-        executeAction('Iniciou Atendimento de Emergência', targetClientId, async (executorProfId) => {
-          try {
-            const res = await fetch('/api/appointments', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id, status: 'presenca', profissionalId: executorProfId })
-            });
-            const data = await res.json();
-            if (data.success) fetchData();
-          } catch (err) {
-            console.error(err);
-          }
-        }, `${clientName} - Atendimento de Emergência Iniciado`);
-        return;
-      }
-
-      // Mandatory Daily Wellness Questionnaire for all other services
       setWellnessApt(apt);
       setShowWellnessModal(true);
       return;

@@ -615,6 +615,9 @@ export async function PUT(request: Request) {
     }
 
     appointment.status = status;
+    if (body.finalizado !== undefined) {
+      appointment.finalizado = Boolean(body.finalizado);
+    }
     await appointment.save();
 
     return NextResponse.json({ success: true, data: appointment, wellness: appointment.wellness });
