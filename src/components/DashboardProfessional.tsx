@@ -255,6 +255,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientFilterScope, setClientFilterScope] = useState<'todos' | 'meus'>('todos');
+  const [frequenciaFilterScope, setFrequenciaFilterScope] = useState<'todos' | 'meus'>('todos');
+  const [frequenciaRiskFilter, setFrequenciaRiskFilter] = useState<'todos' | 'baixo' | 'medio' | 'alto'>('todos');
+  const [frequenciaViewMode, setFrequenciaViewMode] = useState<'cards' | 'tabela'>('cards');
 
   // Pagination & UX states
   const [pages, setPages] = useState<Record<string, number>>({});
@@ -7289,7 +7292,7 @@ goniometria: {
         );
       })()}
 
-      {/* Frequência dos Alunos */}
+      {/* Frequência & Assiduidade dos Alunos */}
       {activeTab === 'frequencia_alunos' && (() => {
         const today = new Date();
         const listKey = 'frequencia_alunos';
@@ -7327,16 +7330,74 @@ goniometria: {
           }).length;
         };
 
-        const getRisk = (days: number) => {
-          if (days <= 7) return { level: 'Baixo', key: 'baixo', color: 'var(--color-primary)' };
-          if (days <= 20) return { level: 'Médio', key: 'medio', color: 'var(--color-warning)' };
-          return { level: 'Alto', key: 'alto', color: 'var(--color-danger)' };
+        const getWeekSessions = (clientId: string) => {
+          const startOfWeek = new Date();
+          const day = startOfWeek.getDay() || 7;
+          startOfWeek.setDate(startOfWeek.getDate() - (day - 1));
+          startOfWeek.setHours(0, 0, 0, 0);
+
+          return appointments.filter((a: any) => {
+            const aptClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : (a.clienteId || a.clientId?._id || a.clientId);
+            const d = a.data ? new Date(String(a.data).split('T')[0] + 'T12:00:00') : new Date(a.date || a.createdAt);
+            return (
+              String(aptClientId) === String(clientId) &&
+              (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca') &&
+              d >= startOfWeek
+            );
+          }).length;
         };
 
+        const daysInCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+        // 1. Mapear todos os alunos com cálculo de assiduidade em percentual (%)
         const allClientsWithFreq = clients.map((c: any) => {
           const days = getDaysSince(c._id);
-          const risk = getRisk(days);
           const sessions = getMonthSessions(c._id);
+          const weekSessions = getWeekSessions(c._id);
+
+          // Frequência semanal contratada
+          const planoNome = c.dadosComerciais?.planoId?.nome || '';
+          let freqSemanal = 3;
+          if (c.dadosClinicos?.frequenciaSemanal) {
+            freqSemanal = parseInt(c.dadosClinicos.frequenciaSemanal) || 3;
+          } else if (c.dadosComerciais?.frequenciaSemanal) {
+            freqSemanal = parseInt(c.dadosComerciais.frequenciaSemanal) || 3;
+          } else if (/1x|1 vez/i.test(planoNome)) {
+            freqSemanal = 1;
+          } else if (/2x|2 vezes/i.test(planoNome)) {
+            freqSemanal = 2;
+          } else if (/3x|3 vezes/i.test(planoNome)) {
+            freqSemanal = 3;
+          } else if (/4x|4 vezes/i.test(planoNome)) {
+            freqSemanal = 4;
+          } else if (/5x|5 vezes/i.test(planoNome)) {
+            freqSemanal = 5;
+          }
+
+          const metaMensal = Math.max(1, Math.round(freqSemanal * (daysInCurrentMonth / 7)));
+          const percentualAssiduidade = Math.min(100, Math.round((sessions / metaMensal) * 100));
+
+          // Classificação de risco e consistência
+          let riskKey: 'baixo' | 'medio' | 'alto' = 'baixo';
+          let riskLabel = 'Consistente';
+          let riskColor = '#10b981';
+          let riskBg = 'rgba(16, 185, 129, 0.15)';
+          let riskBorder = 'rgba(16, 185, 129, 0.3)';
+
+          if (days > 20 || percentualAssiduidade < 40) {
+            riskKey = 'alto';
+            riskLabel = days > 20 ? 'Risco Alto (Evasão)' : 'Assiduidade Baixa';
+            riskColor = '#ef4444';
+            riskBg = 'rgba(239, 68, 68, 0.15)';
+            riskBorder = 'rgba(239, 68, 68, 0.3)';
+          } else if (days > 7 || percentualAssiduidade < 75) {
+            riskKey = 'medio';
+            riskLabel = 'Atenção';
+            riskColor = '#f59e0b';
+            riskBg = 'rgba(245, 158, 11, 0.15)';
+            riskBorder = 'rgba(245, 158, 11, 0.3)';
+          }
+
           const clientApts = appointments.filter((a: any) => {
             const aptClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : (a.clienteId || a.clientId?._id || a.clientId);
             return (
@@ -7344,7 +7405,9 @@ goniometria: {
               (a.status === 'confirmado' || a.status === 'concluido' || a.status === 'presenca')
             );
           });
+
           let lastDate = 'Sem histórico';
+          let relativeTime = '';
           if (clientApts.length > 0) {
             const timestamps = clientApts.map((a: any) => {
               if (a.data) return new Date(String(a.data).split('T')[0] + 'T12:00:00').getTime();
@@ -7352,33 +7415,68 @@ goniometria: {
             });
             const maxTs = Math.max(...timestamps);
             lastDate = new Date(maxTs).toLocaleDateString('pt-BR');
+            if (days === 0) relativeTime = 'Hoje';
+            else if (days === 1) relativeTime = 'Ontem';
+            else relativeTime = `Há ${days} dias`;
           }
+
+          const isAssigned = (() => {
+            const profId = c.profissionalId?._id || c.profissionalId || c.dadosClinicos?.profissionalResponsavelId;
+            return String(profId) === String(professionalId);
+          })();
 
           return {
             ...c,
             daysSince: days,
-            risk,
+            relativeTime,
+            riskKey,
+            riskLabel,
+            riskColor,
+            riskBg,
+            riskBorder,
             sessions,
-            lastDate
+            weekSessions,
+            freqSemanal,
+            metaMensal,
+            percentualAssiduidade,
+            lastDate,
+            isAssigned
           };
         });
 
-        allClientsWithFreq.sort((a, b) => b.daysSince - a.daysSince);
+        // 2. Filtro de Escopo (Carteira: Todos vs Meus Alunos)
+        const scopedClients = allClientsWithFreq.filter(c => {
+          if (frequenciaFilterScope === 'meus') {
+            return c.isAssigned;
+          }
+          return true;
+        });
 
-        const highRisk = allClientsWithFreq.filter(c => c.daysSince > 20).length;
-        const medRisk = allClientsWithFreq.filter(c => c.daysSince > 7 && c.daysSince <= 20).length;
-        const lowRisk = allClientsWithFreq.filter(c => c.daysSince <= 7).length;
+        // Estatísticas do escopo selecionado
+        const totalScoped = scopedClients.length;
+        const lowRiskCount = scopedClients.filter(c => c.riskKey === 'baixo').length;
+        const medRiskCount = scopedClients.filter(c => c.riskKey === 'medio').length;
+        const highRiskCount = scopedClients.filter(c => c.riskKey === 'alto').length;
+        const avgAssiduidade = totalScoped > 0
+          ? Math.round(scopedClients.reduce((acc, c) => acc + c.percentualAssiduidade, 0) / totalScoped)
+          : 0;
 
-        const filtered = allClientsWithFreq.filter(c => {
-          const matchesSearch = smartSearchMatch([
+        // 3. Filtro por Nível de Risco + Busca Inteligente
+        const filtered = scopedClients.filter(c => {
+          if (frequenciaRiskFilter !== 'todos' && c.riskKey !== frequenciaRiskFilter) {
+            return false;
+          }
+          return smartSearchMatch([
             c.dadosPessoais?.nome,
             c.dadosPessoais?.telefone,
             c.dadosPessoais?.email,
-            c.dadosPessoais?.cpf
+            c.dadosPessoais?.cpf,
+            c.dadosComerciais?.planoId?.nome
           ], q);
-          if (!matchesSearch) return false;
-          return true;
         });
+
+        // Ordenação padrão: maior risco / mais tempo sem vir no topo
+        filtered.sort((a, b) => b.daysSince - a.daysSince);
 
         const activeP = getPage(listKey);
         const size = getPageSize(listKey);
@@ -7388,43 +7486,257 @@ goniometria: {
 
         return (
           <>
-            <div className="view-header">
+            {/* Header com Título e Subtítulo */}
+            <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
               <div className="view-title-group">
-                <h1>Frequência dos Alunos</h1>
-                <p>Monitore a assiduidade e identifique riscos de evasão.</p>
+                <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-chart-line" style={{ color: 'var(--color-primary)' }}></i>
+                  Frequência & Assiduidade dos Alunos
+                </h1>
+                <p>Monitore o percentual de frequência, metas atingidas e previna a evasão de forma proativa.</p>
+              </div>
+
+              {/* Seletor de Carteira: Todos os Alunos vs Meus Alunos Vinculados */}
+              <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFrequenciaFilterScope('todos');
+                    setPage(listKey, 1);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 750,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    background: frequenciaFilterScope === 'todos' ? 'var(--color-primary)' : 'transparent',
+                    color: frequenciaFilterScope === 'todos' ? '#0f172a' : 'var(--text-dim)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <i className="fa-solid fa-users"></i>
+                  Todos os Alunos ({allClientsWithFreq.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFrequenciaFilterScope('meus');
+                    setPage(listKey, 1);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 750,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    background: frequenciaFilterScope === 'meus' ? 'var(--color-primary)' : 'transparent',
+                    color: frequenciaFilterScope === 'meus' ? '#0f172a' : 'var(--text-dim)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <i className="fa-solid fa-user-check"></i>
+                  Meus Alunos ({allClientsWithFreq.filter(c => c.isAssigned).length})
+                </button>
               </div>
             </div>
 
-            {/* Stat Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-              {[
-                { label: 'Risco Baixo (≤7 dias)', value: lowRisk, color: 'var(--color-primary)', icon: 'fa-check' },
-                { label: 'Risco Médio (8–20 dias)', value: medRisk, color: 'var(--color-warning)', icon: 'fa-triangle-exclamation' },
-                { label: 'Risco Alto (>20 dias)', value: highRisk, color: 'var(--color-danger)', icon: 'fa-circle-exclamation' },
-              ].map(s => (
-                <div key={s.label} className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
-                  <div style={{ width: 42, height: 42, borderRadius: '10px', background: s.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <i className={`fa-solid ${s.icon}`} style={{ color: s.color, fontSize: '18px' }} />
+            {/* Cards de Métricas Interativos (com filtro ao clicar) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+              {/* Card 1: Geral */}
+              <div
+                onClick={() => setFrequenciaRiskFilter('todos')}
+                className="stat-card"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  border: frequenciaRiskFilter === 'todos' ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)',
+                  background: frequenciaRiskFilter === 'todos' ? 'rgba(0, 242, 254, 0.04)' : 'var(--bg-card)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(0, 242, 254, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-users" style={{ color: 'var(--color-primary)', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1 }}>{totalScoped}</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Total no Escopo</div>
+                </div>
+              </div>
+
+              {/* Card 2: Consistentes */}
+              <div
+                onClick={() => setFrequenciaRiskFilter(frequenciaRiskFilter === 'baixo' ? 'todos' : 'baixo')}
+                className="stat-card"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  border: frequenciaRiskFilter === 'baixo' ? '1.5px solid #10b981' : '1px solid var(--border-color)',
+                  background: frequenciaRiskFilter === 'baixo' ? 'rgba(16, 185, 129, 0.06)' : 'var(--bg-card)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-circle-check" style={{ color: '#10b981', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1, color: '#10b981' }}>{lowRiskCount}</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Consistentes (≤7d)</div>
+                </div>
+              </div>
+
+              {/* Card 3: Atenção */}
+              <div
+                onClick={() => setFrequenciaRiskFilter(frequenciaRiskFilter === 'medio' ? 'todos' : 'medio')}
+                className="stat-card"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  border: frequenciaRiskFilter === 'medio' ? '1.5px solid #f59e0b' : '1px solid var(--border-color)',
+                  background: frequenciaRiskFilter === 'medio' ? 'rgba(245, 158, 11, 0.06)' : 'var(--bg-card)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-triangle-exclamation" style={{ color: '#f59e0b', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1, color: '#f59e0b' }}>{medRiskCount}</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Atenção (8–20d)</div>
+                </div>
+              </div>
+
+              {/* Card 4: Risco Alto / Evasão */}
+              <div
+                onClick={() => setFrequenciaRiskFilter(frequenciaRiskFilter === 'alto' ? 'todos' : 'alto')}
+                className="stat-card"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  border: frequenciaRiskFilter === 'alto' ? '1.5px solid #ef4444' : '1px solid var(--border-color)',
+                  background: frequenciaRiskFilter === 'alto' ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-card)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1, color: '#ef4444' }}>{highRiskCount}</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Risco Evasão (&gt;20d)</div>
+                </div>
+              </div>
+
+              {/* Card 5: Taxa Média de Assiduidade */}
+              <div
+                className="stat-card"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-card)'
+                }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-percent" style={{ color: '#a855f7', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1, color: avgAssiduidade >= 75 ? '#10b981' : avgAssiduidade >= 50 ? '#f59e0b' : '#ef4444' }}>
+                    {avgAssiduidade}%
                   </div>
-                  <div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1 }}>{s.value}</div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>{s.label}</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>Média de Assiduidade</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Painel Principal com Barra de Ações */}
+            <div className="content-panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '14px', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '260px' }}>
+                  <SmartSearchInput
+                    value={q}
+                    onChange={val => setSearchQueryForKey('frequencia_alunos', val)}
+                    placeholder="Buscar por nome, telefone, CPF ou plano..."
+                    resultCount={filtered.length}
+                    totalCount={scopedClients.length}
+                  />
+                </div>
+
+                {/* Controles de Visualização: Cards vs Tabela */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {frequenciaRiskFilter !== 'todos' && (
+                    <button
+                      type="button"
+                      onClick={() => setFrequenciaRiskFilter('todos')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <i className="fa-solid fa-xmark"></i> Limpar Filtro ({frequenciaRiskFilter})
+                    </button>
+                  )}
+
+                  <div style={{ display: 'flex', background: 'var(--bg-darker)', padding: '3px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setFrequenciaViewMode('cards')}
+                      title="Visualização em Cards"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: frequenciaViewMode === 'cards' ? 'var(--color-primary)' : 'transparent',
+                        color: frequenciaViewMode === 'cards' ? '#0f172a' : 'var(--text-dim)',
+                        fontSize: '0.82rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      <i className="fa-solid fa-grip"></i> Cards
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFrequenciaViewMode('tabela')}
+                      title="Visualização em Tabela Analítica"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: frequenciaViewMode === 'tabela' ? 'var(--color-primary)' : 'transparent',
+                        color: frequenciaViewMode === 'tabela' ? '#0f172a' : 'var(--text-dim)',
+                        fontSize: '0.82rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      <i className="fa-solid fa-table-list"></i> Tabela
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <div className="content-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
-                <SmartSearchInput
-                  value={q}
-                  onChange={val => setSearchQueryForKey('frequencia_alunos', val)}
-                  placeholder="Buscar aluno por nome, telefone ou CPF..."
-                  resultCount={filtered.length}
-                  totalCount={allClientsWithFreq.length}
-                />
               </div>
 
+              {/* Lista de Alunos */}
               <div>
                 {filtered.length === 0 ? (
                   <div style={{
@@ -7436,129 +7748,306 @@ goniometria: {
                   }}>
                     <i className="fa-solid fa-users-slash" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
                     <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum aluno encontrado</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há registros com os termos pesquisados.</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há registros com os filtros e termos pesquisados.</p>
                   </div>
-                ) : (
+                ) : frequenciaViewMode === 'cards' ? (
+                  /* MODO CARDS */
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
                       {paginated.map(c => {
-                        const isFemale = c.dadosPessoais?.sexo?.trim().toUpperCase().startsWith('F');
-                        const rawTel = (c.dadosPessoais?.telefone || '').replace(/\D/g, '');
-                        const firstName = (c.dadosPessoais?.nome || '').split(' ')[0];
-                        const waMsg = encodeURIComponent(`Olá ${firstName}, sentimos sua falta nos treinos aqui no Clube Fitness! Como você está? Podemos agendar sua próxima sessão?`);
-                        const waLink = rawTel ? `https://wa.me/55${rawTel}?text=${waMsg}` : null;
+                        const initials = (c.dadosPessoais?.nome || 'A')
+                          .split(' ')
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((n: string) => n[0])
+                          .join('')
+                          .toUpperCase();
 
                         return (
                           <div
                             key={c._id}
                             style={{
                               background: 'var(--bg-card)',
-                              border: '1px solid var(--border-color)',
+                              border: `1px solid ${c.riskBorder}`,
                               borderRadius: '16px',
                               padding: '18px',
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
                               gap: '14px',
-                              boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
                               transition: 'transform 0.15s ease, border-color 0.15s ease'
                             }}
                           >
                             <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
-                                <div style={{ flex: '1 1 55%', minWidth: 0 }}>
-                                  <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff', wordBreak: 'break-word' }}>
-                                    {c.dadosPessoais?.nome}
-                                  </h3>
-                                  <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', marginTop: '2px', wordBreak: 'break-word' }}>
-                                    {c.dadosPessoais?.telefone || c.dadosPessoais?.email || 'Sem contato'}
+                              {/* Cabeçalho do Card */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                  <div style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: '10px',
+                                    background: 'linear-gradient(135deg, rgba(0,242,254,0.15), rgba(79,172,254,0.15))',
+                                    border: '1px solid rgba(0,242,254,0.3)',
+                                    color: 'var(--color-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 800,
+                                    fontSize: '0.9rem',
+                                    flexShrink: 0
+                                  }}>
+                                    {initials}
+                                  </div>
+                                  <div style={{ minWidth: 0 }}>
+                                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {c.dadosPessoais?.nome}
+                                    </h3>
+                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span>{c.dadosPessoais?.telefone || 'Sem telefone'}</span>
+                                      <span>•</span>
+                                      <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{c.freqSemanal}x/sem</span>
+                                    </div>
                                   </div>
                                 </div>
 
                                 <span style={{
-                                  background: c.risk.color + '22',
-                                  color: c.risk.color,
-                                  border: `1px solid ${c.risk.color}55`,
-                                  padding: '3px 10px',
-                                  borderRadius: '10px',
-                                  fontSize: '0.75rem',
+                                  background: c.riskBg,
+                                  color: c.riskColor,
+                                  border: `1px solid ${c.riskBorder}`,
+                                  padding: '3px 9px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.72rem',
                                   fontWeight: 800,
-                                  whiteSpace: 'nowrap'
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0
                                 }}>
-                                  Risco {c.risk.level}
+                                  {c.riskLabel}
                                 </span>
                               </div>
 
-                              {/* Metrics Grid */}
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '14px' }}>
+                              {/* Barra de Progresso de Assiduidade em Percentual */}
+                              <div style={{ marginTop: '14px', background: 'var(--bg-darker)', padding: '10px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                    Assiduidade no Mês
+                                  </span>
+                                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: c.riskColor }}>
+                                    {c.percentualAssiduidade}% ({c.sessions}/{c.metaMensal} treinos)
+                                  </span>
+                                </div>
+                                <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div
+                                    style={{
+                                      width: `${c.percentualAssiduidade}%`,
+                                      height: '100%',
+                                      background: `linear-gradient(90deg, ${c.riskColor}99, ${c.riskColor})`,
+                                      borderRadius: '4px',
+                                      transition: 'width 0.4s ease'
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Grid de Métricas de Apoio */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '10px' }}>
                                 <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                                  <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Sessões (Mês)</div>
-                                  <div style={{ fontSize: '1rem', fontWeight: 800, color: c.sessions > 0 ? 'var(--color-primary)' : 'var(--text-dim)', marginTop: '2px' }}>
-                                    {c.sessions}
+                                  <div style={{ fontSize: '0.64rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Semana</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: c.weekSessions >= c.freqSemanal ? '#10b981' : 'var(--text-main)', marginTop: '2px' }}>
+                                    {c.weekSessions}/{c.freqSemanal}x
                                   </div>
                                 </div>
+
                                 <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                                  <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Último Treino</div>
-                                  <div style={{ fontSize: '0.78rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '4px' }}>
-                                    {c.lastDate}
+                                  <div style={{ fontSize: '0.64rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Último Treino</div>
+                                  <div style={{ fontSize: '0.76rem', fontWeight: 750, color: 'var(--text-main)', marginTop: '3px' }}>
+                                    {c.lastDate !== 'Sem histórico' ? c.lastDate : '—'}
                                   </div>
+                                  {c.relativeTime && (
+                                    <div style={{ fontSize: '0.62rem', color: 'var(--text-dim)' }}>{c.relativeTime}</div>
+                                  )}
                                 </div>
+
                                 <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                                  <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Sem Vir</div>
-                                  <div style={{ fontSize: '1rem', fontWeight: 800, color: c.daysSince > 20 ? 'var(--color-danger)' : c.daysSince > 7 ? 'var(--color-warning)' : 'var(--color-primary)', marginTop: '2px' }}>
+                                  <div style={{ fontSize: '0.64rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Sem Treinar</div>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: c.riskColor, marginTop: '2px' }}>
                                     {c.daysSince === 999 ? '—' : `${c.daysSince}d`}
                                   </div>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Action WhatsApp Button */}
-                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                              {waLink ? (
-                                <a 
-                                  href={waLink} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="btn btn-secondary btn-sm"
+                            {/* Rodapé de Ações do Card */}
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px', fontWeight: 750, borderRadius: '10px', fontSize: '0.8rem' }}
+                                onClick={() => {
+                                  setDetailClient(c);
+                                  setClientDetailTab('agendamentos');
+                                  setShowClientDetailModal(true);
+                                  logReadActivity('Visualizou Histórico de Frequência', c._id, c.dadosPessoais?.nome || '');
+                                }}
+                              >
+                                <i className="fa-solid fa-address-card"></i> Prontuário
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px 12px', fontWeight: 750, borderRadius: '10px', fontSize: '0.8rem' }}
+                                onClick={() => handleOpenWorkoutEditor(c)}
+                                title="Ficha de Treino"
+                              >
+                                <i className="fa-solid fa-dumbbell"></i> Treino
+                              </button>
+
+                              {c.riskKey !== 'baixo' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
                                   style={{
-                                    width: '100%',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '8px',
-                                    padding: '10px',
-                                    borderRadius: '10px',
+                                    gap: '6px',
+                                    padding: '8px 10px',
                                     fontWeight: 750,
-                                    color: '#25d366',
-                                    borderColor: 'rgba(37, 211, 102, 0.4)',
-                                    background: 'rgba(37, 211, 102, 0.08)',
-                                    textDecoration: 'none'
+                                    borderRadius: '10px',
+                                    fontSize: '0.8rem',
+                                    color: c.riskColor,
+                                    borderColor: c.riskBorder
                                   }}
+                                  onClick={() => {
+                                    setTratativaModalClient(c);
+                                    setTratativaMotivo('agendou');
+                                    setTratativaObs('');
+                                  }}
+                                  title="Registrar Tratativa de Retenção"
                                 >
-                                  <i className="fa-brands fa-whatsapp" style={{ fontSize: '16px' }}></i> Contatar Aluno no WhatsApp
-                                </a>
-                              ) : (
-                                <div style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-dim)', padding: '6px 0' }}>
-                                  Sem telefone para WhatsApp
-                                </div>
+                                  <i className="fa-solid fa-pen-to-square"></i> Tratar
+                                </button>
                               )}
                             </div>
                           </div>
                         );
                       })}
                     </div>
-
-                    {filtered.length > 0 && (
-                      <div style={{ marginTop: '16px' }}>
-                        <Pagination
-                          currentPage={curP}
-                          totalItems={filtered.length}
-                          itemsPerPage={size}
-                          onPageChange={page => setPage('frequencia_alunos', page)}
-                        />
-                      </div>
-                    )}
                   </>
+                ) : (
+                  /* MODO TABELA ANALÍTICA */
+                  <div style={{ overflowX: 'auto', background: 'var(--bg-card)', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg-darker)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-dim)', textAlign: 'left', fontSize: '0.74rem', textTransform: 'uppercase' }}>
+                          <th style={{ padding: '12px 16px' }}>Aluno</th>
+                          <th style={{ padding: '12px 14px' }}>Meta Semanal</th>
+                          <th style={{ padding: '12px 14px' }}>Treinos no Mês</th>
+                          <th style={{ padding: '12px 14px', minWidth: '160px' }}>Assiduidade (%)</th>
+                          <th style={{ padding: '12px 14px' }}>Semana Atual</th>
+                          <th style={{ padding: '12px 14px' }}>Último Treino</th>
+                          <th style={{ padding: '12px 14px' }}>Sem Vir</th>
+                          <th style={{ padding: '12px 14px' }}>Status</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginated.map(c => (
+                          <tr key={c._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.15s ease' }}>
+                            <td style={{ padding: '12px 16px' }}>
+                              <strong style={{ color: '#fff', display: 'block', fontSize: '0.88rem' }}>{c.dadosPessoais?.nome}</strong>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>{c.dadosPessoais?.telefone || c.dadosPessoais?.email || '—'}</span>
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span style={{ fontWeight: 750, color: 'var(--color-primary)' }}>{c.freqSemanal}x/sem</span>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>{c.dadosComerciais?.planoId?.nome || 'Plano Padrão'}</div>
+                            </td>
+                            <td style={{ padding: '12px 14px', fontWeight: 750 }}>
+                              {c.sessions} de {c.metaMensal}
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 800, color: c.riskColor, minWidth: '38px' }}>{c.percentualAssiduidade}%</span>
+                                <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${c.percentualAssiduidade}%`, height: '100%', background: c.riskColor, borderRadius: '3px' }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px 14px', fontWeight: 700, color: c.weekSessions >= c.freqSemanal ? '#10b981' : 'var(--text-main)' }}>
+                              {c.weekSessions} de {c.freqSemanal}x
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <div>{c.lastDate}</div>
+                              {c.relativeTime && <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>{c.relativeTime}</span>}
+                            </td>
+                            <td style={{ padding: '12px 14px', fontWeight: 800, color: c.riskColor }}>
+                              {c.daysSince === 999 ? '—' : `${c.daysSince}d`}
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span style={{ background: c.riskBg, color: c.riskColor, border: `1px solid ${c.riskBorder}`, padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                {c.riskLabel}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                                  onClick={() => {
+                                    setDetailClient(c);
+                                    setClientDetailTab('agendamentos');
+                                    setShowClientDetailModal(true);
+                                    logReadActivity('Visualizou Histórico de Frequência', c._id, c.dadosPessoais?.nome || '');
+                                  }}
+                                  title="Abrir Prontuário / Histórico"
+                                >
+                                  <i className="fa-solid fa-address-card"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                                  onClick={() => handleOpenWorkoutEditor(c)}
+                                  title="Abrir Ficha de Treino"
+                                >
+                                  <i className="fa-solid fa-dumbbell"></i>
+                                </button>
+                                {c.riskKey !== 'baixo' && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.74rem', color: c.riskColor }}
+                                    onClick={() => {
+                                      setTratativaModalClient(c);
+                                      setTratativaMotivo('agendou');
+                                      setTratativaObs('');
+                                    }}
+                                    title="Registrar Tratativa"
+                                  >
+                                    <i className="fa-solid fa-pen-to-square"></i>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Paginação */}
+                {filtered.length > 0 && (
+                  <div style={{ marginTop: '16px' }}>
+                    <Pagination
+                      currentPage={curP}
+                      totalItems={filtered.length}
+                      itemsPerPage={size}
+                      onPageChange={page => setPage('frequencia_alunos', page)}
+                    />
+                  </div>
                 )}
               </div>
             </div>
