@@ -768,7 +768,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
             <div style={{ marginTop: '12px', lineHeight: '1.6' }}>
               <p>Plano Contratado: <strong>{client.dadosComerciais?.planoId?.nome === 'Captação' ? 'Aguardando Ativação' : (client.dadosComerciais?.planoId?.nome || 'Plano Personalizado')}</strong></p>
               <p>Frequência Contratada: <strong>{client.dadosComerciais?.frequencia} vezes por semana</strong></p>
-              <p>Vencimento do Plano: <strong>{formatDateBR(client.dadosComerciais?.vencimento)}</strong></p>
+              <p>Término da Vigência: <strong>{formatDateBR(client.dadosComerciais?.vencimento)}</strong></p>
             </div>
           </div>
             </>

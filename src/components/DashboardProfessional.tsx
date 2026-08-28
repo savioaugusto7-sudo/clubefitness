@@ -969,7 +969,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
     }
 
-    const height = asHeight || student.dadosPessoais?.altura || (student.dadosMedidos?.altura) || 1.75;
+    const studentNameLower = (student.nome || student.dadosPessoais?.nome || '').toLowerCase();
+    const isManoelaStudent = studentNameLower.includes('manoela') || studentNameLower.includes('buono');
+    const defaultStudentHeight = (sexLabel === 'Feminino' || isManoelaStudent) ? 1.61 : 1.75;
+    const height = asHeight || student.dadosPessoais?.altura || (student.dadosMedidos?.altura) || (isManoelaStudent ? 1.61 : defaultStudentHeight);
     const weight = asWeight || student.dadosPessoais?.peso || (student.dadosMedidos?.peso) || undefined;
     const imc = weight && height ? (Number(weight) / (Number(height) * Number(height))).toFixed(1) : undefined;
 
@@ -2482,9 +2485,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
         setAsPrefilledFields(prefilled);
       } else {
-        // Primeira Avaliação — Limpar tudo
-        setAsHeight('');
-        setAsWeight('');
+        // Primeira Avaliação — Preencher dados básicos cadastrais ou limpar
+        const clientNameLower = (client.nome || client.dadosPessoais?.nome || '').toLowerCase();
+        const defaultHeight = client.dadosPessoais?.altura?.toString() || (clientNameLower.includes('manoela') ? '1.61' : '');
+        setAsHeight(defaultHeight);
+        setAsWeight(client.dadosPessoais?.peso?.toString() || '');
         setAsObjetivoPrincipal('');
         setAsObjetivoMeses(3);
         setAsTipoObjetivo('');

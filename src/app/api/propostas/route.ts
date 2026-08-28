@@ -5,6 +5,8 @@ import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { isMinorFromBirthDate } from '@/utils/dateUtils';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: Request) {
   try {
@@ -81,6 +83,8 @@ export async function POST(request: Request) {
       planoId,
       valorAcordado,
       creditosMensais,
+      creditosMassagem,
+      creditosEmergencia,
       frequencia,
       duracao,
       valorUnitario,
@@ -109,6 +113,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Plano não encontrado.' }, { status: 404 });
     }
 
+    const isAnual = duracao === 'anual' || plan?.tipo === 'Anual' || (vigenciaQtd && Number(vigenciaQtd) >= 12);
+    const massagemVal = creditosMassagem !== undefined ? Number(creditosMassagem) : 0;
+    const emergenciaVal = creditosEmergencia !== undefined ? Number(creditosEmergencia) : (isAnual ? 1 : 0);
+
     const clientBirthDate = client.dadosPessoais?.dataNascimento || (client.dadosPessoais as any)?.nascimento;
     const isMinorCalculated = isMinor !== undefined ? Boolean(isMinor) : isMinorFromBirthDate(clientBirthDate);
 
@@ -126,6 +134,8 @@ export async function POST(request: Request) {
       planoTipo: plan.tipo,
       valorAcordado,
       creditosMensais,
+      creditosMassagem: massagemVal,
+      creditosEmergencia: emergenciaVal,
       frequencia,
       duracao,
       valorUnitario,
@@ -214,16 +224,13 @@ export async function PUT(request: Request) {
     const numVigenciaQtd = isAnualPlan ? 1 : (Number(proposal.vigenciaQtd) || 1);
     const duracaoTipo = proposal.duracao || (isAnualPlan ? 'anual' : 'mensal');
 
-    const startDCalc = new Date((proposal.dataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
-    const endDCalc = new Date(startDCalc);
-    if (duracaoTipo === 'semana') {
-      endDCalc.setDate(endDCalc.getDate() + (numVigenciaQtd * 7));
-    } else if (duracaoTipo === 'anual' || isAnualPlan) {
-      endDCalc.setFullYear(endDCalc.getFullYear() + (numVigenciaQtd >= 12 ? 1 : numVigenciaQtd));
-    } else {
-      endDCalc.setMonth(endDCalc.getMonth() + numVigenciaQtd);
-    }
-    const dataFimCalculadaComercial = endDCalc.toISOString().split('T')[0];
+    const dataFimCalculadaComercial = calculateContractEndDate(
+      proposal.dataInicio || new Date().toISOString().split('T')[0],
+      duracaoTipo,
+      numVigenciaQtd,
+      undefined,
+      Boolean(proposal.criarRecorrenciaMensal)
+    );
 
     const comCurrent = client.dadosComerciais || {};
     client.dadosComerciais = {
@@ -242,6 +249,8 @@ export async function PUT(request: Request) {
       vencimento: dataFimCalculadaComercial,
       frequencia: proposal.frequencia || planObj?.frequencia || comCurrent.frequencia || 3,
       creditosTotal: proposal.creditosMensais || comCurrent.creditosTotal || 0,
+      creditosMassagemTotal: proposal.creditosMassagem !== undefined ? Number(proposal.creditosMassagem) : (comCurrent.creditosMassagemTotal || 0),
+      creditosEmergenciaTotal: proposal.creditosEmergencia !== undefined ? Number(proposal.creditosEmergencia) : (comCurrent.creditosEmergenciaTotal || (isAnualPlan ? 1 : 0)),
       unidadeContratada: proposal.unidadeContratada || comCurrent.unidadeContratada || 'Clube Fitness',
       observacoesContratuais: proposal.observacoesContratuais || comCurrent.observacoesContratuais || '',
       descontoTipo: proposal.descontoTipo || 'percentual',
@@ -277,16 +286,13 @@ export async function PUT(request: Request) {
       const numParcelas = Number(parcelasEscolhidas) || 1;
       const vigenciaMeses = isAnual ? 12 : (Number(proposal.vigenciaQtd) || 1);
 
-      const startD = new Date((proposal.dataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
-      const endD = new Date(startD);
-      if (proposal.duracao === 'semana') {
-        endD.setDate(endD.getDate() + (vigenciaMeses * 7));
-      } else if (isAnual) {
-        endD.setFullYear(endD.getFullYear() + (vigenciaMeses >= 12 ? 1 : vigenciaMeses));
-      } else {
-        endD.setMonth(endD.getMonth() + vigenciaMeses);
-      }
-      const dataFim = endD.toISOString().split('T')[0];
+      const dataFim = calculateContractEndDate(
+        proposal.dataInicio || new Date().toISOString().split('T')[0],
+        isAnual ? 'anual' : (proposal.duracao || 'mensal'),
+        isAnual ? 1 : vigenciaMeses,
+        undefined,
+        Boolean(proposal.criarRecorrenciaMensal)
+      );
 
       const count = await Contract.countDocuments({ clientId: client._id });
       const versao = count + 1;
@@ -318,7 +324,9 @@ export async function PUT(request: Request) {
         observacoesContratuais: proposal.observacoesContratuais || '',
         versao,
         frequencia: proposal.frequencia || 3,
-        creditosTotal: proposal.creditosMensais || (proposal.frequencia * 4 + 1)
+        creditosTotal: proposal.creditosMensais || (proposal.frequencia * 4 + 1),
+        creditosMassagemPorPlano: proposal.creditosMassagem !== undefined ? Number(proposal.creditosMassagem) : 0,
+        creditosEmergenciaPorPlano: proposal.creditosEmergencia !== undefined ? Number(proposal.creditosEmergencia) : (isAnual ? 1 : 0)
       });
 
       const fileName = `Contrato_${(client.dadosPessoais.nome || 'Aluno').replace(/\s+/g, '_')}_V${versao}.pdf`;

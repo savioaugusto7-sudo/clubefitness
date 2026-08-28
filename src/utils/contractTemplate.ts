@@ -1,3 +1,5 @@
+import { calculateContractEndDate } from './contractValidity';
+
 function valorExtenso(valor: number): string {
   const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
   const dezenas = ['', 'dez', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
@@ -121,6 +123,8 @@ export interface ContractData {
   observacoesContratuais?: string;
   unidadeContratada?: string;
   creditosMensais?: number;
+  creditosMassagem?: number;
+  creditosEmergencia?: number;
   duracao?: string;
   vigenciaQtd?: number;
   criarRecorrenciaMensal?: boolean;
@@ -238,20 +242,13 @@ export function generateContractTemplate(data: ContractData): string {
   // Dates
   const todayStr = new Date().toISOString().split('T')[0];
   const dateInicio = data.dataInicio || todayStr;
-  const startD = new Date(dateInicio + 'T00:00:00');
-  
-  if (isRecorrente && isMensalSemVinculo) {
-    startD.setMonth(startD.getMonth() + 1);
-  } else if (isRecorrente) {
-    startD.setMonth(startD.getMonth() + recorrenciaMeses);
-  } else if (customDuracao === 'semana') {
-    startD.setDate(startD.getDate() + (customVigenciaQtd * 7));
-  } else if (customDuracao === 'anual') {
-    startD.setMonth(startD.getMonth() + (customVigenciaQtd * 12));
-  } else {
-    startD.setMonth(startD.getMonth() + customVigenciaQtd);
-  }
-  const dateFim = startD.toISOString().split('T')[0];
+  const dateFim = calculateContractEndDate(
+    dateInicio,
+    isAnual ? 'anual' : (customDuracao || 'mensal'),
+    isAnual ? 1 : (isRecorrente ? recorrenciaMeses : customVigenciaQtd),
+    undefined,
+    isRecorrente && isMensalSemVinculo
+  );
 
   const dateVenc = data.dataVencimento || todayStr;
   const diaVenc = dateVenc.split('-')[2] ? parseInt(dateVenc.split('-')[2], 10) : 5;
@@ -388,6 +385,9 @@ export function generateContractTemplate(data: ContractData): string {
       </p>
       <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
         1.3. Livre Negociação. As Partes declaram que negociaram o presente Contrato conjuntamente e que o celebram em mútuo e comum acordo, de modo que a interpretação deste Contrato não será em favor de uma ou de outra Parte, mas sim em consonância com o quanto estabelecido em suas cláusulas e na forma da Lei aplicável.
+      </p>
+      <p style="font-size: 9.5pt; line-height: 1.4; text-align: justify; margin-bottom: 8px;">
+        1.4. Franquia Mensal de Utilização: O plano contratado confere ao(à) CONTRATANTE a franquia mensal de <strong>${Number(data.creditosMensais) || 13} (${creditosExtenso(Number(data.creditosMensais) || 13)}) créditos de treinos personalizados/monitorados por mês</strong>${(Number(data.creditosMassagem) || 0) > 0 ? `, <strong>${Number(data.creditosMassagem)} (${creditosExtenso(Number(data.creditosMassagem))}) crédito(s) de massagem por mês</strong>` : ''}${(Number(data.creditosEmergencia) || (isAnual ? 1 : 0)) > 0 ? ` e <strong>${Number(data.creditosEmergencia) || (isAnual ? 1 : 0)} (${creditosExtenso(Number(data.creditosEmergencia) || (isAnual ? 1 : 0))}) crédito(s) de atendimento de emergência por mês</strong>` : ''}, renováveis a cada ciclo mensal de 30 (trinta) dias durante toda a vigência deste instrumento.
       </p>
 
       <h3 style="font-size: 10pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 3px;">CLÁUSULA SEGUNDA - DAS OBRIGAÇÕES DA CONTRATADA</h3>

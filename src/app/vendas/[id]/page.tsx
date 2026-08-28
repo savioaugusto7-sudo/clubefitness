@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { generateContractTemplate } from '@/utils/contractTemplate';
 import { getCardRateForInstallment } from '@/utils/paymentRates';
 import { isMinorFromBirthDate } from '@/utils/dateUtils';
+import { calculateContractEndDate } from '@/utils/contractValidity';
 
 export default function VendaPage({ params }: { params: any }) {
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function VendaPage({ params }: { params: any }) {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/propostas?id=${id}`)
+    fetch(`/api/propostas?id=${id}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
@@ -185,11 +186,13 @@ export default function VendaPage({ params }: { params: any }) {
     );
   }
 
+  const todayStr = new Date().toISOString().split('T')[0];
   const basePrice = proposal.valorAcordado || 0;
 
   const isAnual = proposal.duracao === 'anual' || (proposal.planoTipo && proposal.planoTipo.toLowerCase().includes('anual')) || (proposal.vigenciaQtd || 1) >= 12;
   const isSemanal = proposal.duracao === 'semana';
   const isRecorrente = Boolean(proposal.criarRecorrenciaMensal);
+  const isRecorrenteMensalSemVinculo = isRecorrente && proposal.duracao === 'mensal' && Number(proposal.vigenciaQtd || 1) === 1;
 
   // Equivalência de meses para cálculo
   const vigenciaMesesEquivalentes = (() => {
@@ -199,6 +202,24 @@ export default function VendaPage({ params }: { params: any }) {
     }
     return Math.max(1, proposal.vigenciaQtd || 1);
   })();
+
+  const rawDataInicio = proposal.dataInicio || new Date().toISOString().split('T')[0];
+  const dataFimCalculadaRaw = calculateContractEndDate(
+    rawDataInicio,
+    isAnual ? 'anual' : (proposal.duracao || 'mensal'),
+    isAnual ? 1 : vigenciaMesesEquivalentes,
+    undefined,
+    isRecorrenteMensalSemVinculo
+  );
+
+  const formatPtBr = (str: string) => {
+    if (!str) return '-';
+    const parts = str.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return str;
+  };
+  const dataInicioFormatada = formatPtBr(rawDataInicio);
+  const dataFimCalculada = formatPtBr(dataFimCalculadaRaw);
 
   // Máximo de parcelas para Boleto / Pix
   const maxInstallmentsBoleto = (() => {
@@ -315,8 +336,9 @@ export default function VendaPage({ params }: { params: any }) {
       dataInicio: proposal.dataInicio || todayStr,
       dataVencimento: dataVencimento,
       observacoesContratuais: proposal.observacoesContratuais,
-      unidadeContratada: proposal.unidadeContratada || 'Clube Fitness',
       creditosMensais: proposal.creditosMensais || (proposal.frequencia * 4 + 1),
+      creditosMassagem: proposal.creditosMassagem !== undefined ? Number(proposal.creditosMassagem) : 0,
+      creditosEmergencia: proposal.creditosEmergencia !== undefined ? Number(proposal.creditosEmergencia) : (isAnual ? 1 : 0),
       duracao: proposal.duracao,
       vigenciaQtd: proposal.vigenciaQtd,
       criarRecorrenciaMensal: proposal.criarRecorrenciaMensal,
@@ -399,29 +421,9 @@ export default function VendaPage({ params }: { params: any }) {
     }
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
   const maxDateObj = new Date();
   maxDateObj.setDate(maxDateObj.getDate() + 31);
   const maxDateStr = maxDateObj.toISOString().split('T')[0];
-
-  const isRecorrenteMensalSemVinculo = proposal.criarRecorrenciaMensal && proposal.duracao === 'mensal' && proposal.vigenciaQtd === 1;
-
-  const dataInicioFormatada = proposal.dataInicio 
-    ? new Date(proposal.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') 
-    : new Date(todayStr + 'T00:00:00').toLocaleDateString('pt-BR');
-
-  let dataFimCalculada = '';
-  if (!isRecorrenteMensalSemVinculo) {
-    const startD = new Date((proposal.dataInicio || todayStr) + 'T00:00:00');
-    if (proposal.duracao === 'anual') {
-      startD.setMonth(startD.getMonth() + ((proposal.vigenciaQtd || 1) * 12));
-    } else if (proposal.duracao === 'semana') {
-      startD.setDate(startD.getDate() + ((proposal.vigenciaQtd || 1) * 7));
-    } else {
-      startD.setMonth(startD.getMonth() + (proposal.vigenciaQtd || 1));
-    }
-    dataFimCalculada = startD.toLocaleDateString('pt-BR');
-  }
 
   // ==========================================
   // ETAPA 3: SUCESSO (DISPARADO NO CLICKSIGN)
@@ -649,6 +651,26 @@ export default function VendaPage({ params }: { params: any }) {
               <div>
                 <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Valor Base Negociado</span>
                 <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: '5px 0 0 0', color: 'var(--color-primary)' }}>R$ {basePrice.toFixed(2).replace('.', ',')}</p>
+                {valorMensalEquivalenteAnual !== null && (
+                  <small style={{ color: '#fde047', fontSize: '0.74rem', display: 'block', marginTop: '2px' }}>
+                    (R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês no usufruto)
+                  </small>
+                )}
+              </div>
+
+              <div>
+                <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Franquia Mensal</span>
+                <p style={{ fontSize: '0.95rem', fontWeight: 700, margin: '5px 0 0 0', color: '#38bdf8' }}>
+                  {proposal.creditosMensais} treinos/mês
+                </p>
+                {((proposal.creditosMassagem || 0) > 0 || (proposal.creditosEmergencia || (isAnual ? 1 : 0)) > 0) && (
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem', display: 'block', marginTop: '2px' }}>
+                    {[
+                      (proposal.creditosMassagem || 0) > 0 ? `${proposal.creditosMassagem} massagem/mês` : '',
+                      (proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)) > 0 ? `${proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)} emergência/mês` : ''
+                    ].filter(Boolean).join(' • ')}
+                  </small>
+                )}
               </div>
             </div>
           </div>

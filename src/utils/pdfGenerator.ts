@@ -1955,11 +1955,13 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const currentAge = Number(assessment.dadosMedidos?.idade) || Number(client.dadosPessoais?.idade) || 30;
   const currentPeso = Number(assessment.dadosMedidos?.peso) || 70;
   
-  let rawAltura = Number(assessment.dadosMedidos?.altura) || 1.75;
+  const clientNameLower = (client.nome || client.dadosPessoais?.nome || '').toLowerCase();
+  const defaultFallbackHeight = (currentSex === 'F' || clientNameLower.includes('manoela')) ? 1.61 : 1.75;
+  let rawAltura = Number(assessment.dadosMedidos?.altura) || Number(client.dadosPessoais?.altura) || defaultFallbackHeight;
   if (rawAltura > 3) {
-    rawAltura = rawAltura / 100; // Normaliza altura digitada em cm (ex: 154 -> 1.54)
+    rawAltura = rawAltura / 100; // Normaliza altura digitada em cm (ex: 161 -> 1.61)
   }
-  const currentAltura = rawAltura > 0 ? Number(rawAltura.toFixed(2)) : 1.75;
+  const currentAltura = rawAltura > 0 ? Number(rawAltura.toFixed(2)) : defaultFallbackHeight;
 
   // 3. Percentual de gordura (salvo ou recalculado por Pollock 7 Dobras)
   let pctGordura = Number(assessment.resultadosCalculados?.percentualGordura) || 0;

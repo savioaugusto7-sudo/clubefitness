@@ -1291,23 +1291,29 @@ export default function GestaoContratosPanel({
   const [swCreditosEmergencia, setSwCreditosEmergencia] = useState(0);
   const [swCriarRecorrenciaMensal, setSwCriarRecorrenciaMensal] = useState(false);
   const [swRecorrenciaMeses, setSwRecorrenciaMeses] = useState(12);
+  const [swShowCalculator, setSwShowCalculator] = useState(false);
+  const [swDesiredInstallment, setSwDesiredInstallment] = useState(0);
+  const [swDesiredInstallmentCount, setSwDesiredInstallmentCount] = useState(10);
   const [swSubmitting, setSwSubmitting] = useState(false);
 
   const handleOpenSalesWizard = (client: any) => {
     setSalesWizardClient(client);
     setSwPlano('');
-    setSwDuracao('mensal');
+    setSwDuracao('anual');
     setSwVigenciaQtd(1);
     setSwDataInicio(new Date().toISOString().split('T')[0]);
     setSwValorUnitario(0);
     setSwDescontoTipo('percentual');
     setSwDescontoValor(0);
     setSwFrequencia(3);
-    setSwCreditosMensais(12);
+    setSwCreditosMensais(13);
     setSwCreditosMassagem(0);
-    setSwCreditosEmergencia(0);
+    setSwCreditosEmergencia(1);
     setSwCriarRecorrenciaMensal(false);
     setSwRecorrenciaMeses(12);
+    setSwShowCalculator(false);
+    setSwDesiredInstallment(0);
+    setSwDesiredInstallmentCount(10);
   };
 
   const handleConfirmSalesWizard = async () => {
@@ -6647,26 +6653,126 @@ export default function GestaoContratosPanel({
                   </div>
                 </div>
 
-                {/* Resumo Financeiro em Tempo Real */}
-                <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Valor Bruto ({swVigenciaQtd}x)</div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                      R$ {gross.toFixed(2).replace('.', ',')}
-                    </div>
-                  </div>
-                  {discountVal > 0 && (
-                    <div>
-                      <div style={{ fontSize: '0.74rem', color: '#ef4444' }}>Desconto Aplicado</div>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ef4444' }}>
-                        - R$ {discountVal.toFixed(2).replace('.', ',')} {swDescontoTipo === 'percentual' ? `(${swDescontoValor}%)` : ''}
+                {/* Alternância da Calculadora Bidirecional */}
+                <div style={{ marginTop: '4px', marginBottom: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSwShowCalculator(!swShowCalculator)}
+                    style={{
+                      background: 'rgba(139, 92, 246, 0.1)',
+                      border: '1px dashed #8b5cf6',
+                      color: '#a78bfa',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      width: '100%',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <i className={`fa-solid ${swShowCalculator ? 'fa-chevron-up' : 'fa-calculator'}`}></i>
+                    {swShowCalculator ? 'Fechar Calculadora de Parcelas' : '💡 Calculadora Comercial: Definir Anuidade a partir de Parcela Desejada'}
+                  </button>
+
+                  {swShowCalculator && (
+                    <div style={{ background: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.25)', borderRadius: '10px', padding: '12px', marginTop: '8px' }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#c4b5fd', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <i className="fa-solid fa-wand-magic-sparkles"></i> Simulação Reversa (Definir Parcela $\rightarrow$ Valor Total)
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr auto', gap: '8px', alignItems: 'flex-end' }}>
+                        <div>
+                          <label style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Qtd Parcelas</label>
+                          <select
+                            className="select-custom"
+                            style={{ padding: '7px 8px', fontSize: '0.82rem', width: '100%' }}
+                            value={swDesiredInstallmentCount}
+                            onChange={e => setSwDesiredInstallmentCount(parseInt(e.target.value, 10) || 10)}
+                          >
+                            <option value={1}>1x (À vista)</option>
+                            <option value={2}>2x</option>
+                            <option value={3}>3x</option>
+                            <option value={4}>4x</option>
+                            <option value={5}>5x</option>
+                            <option value={6}>6x</option>
+                            <option value={10}>10x (Padrão Boleto)</option>
+                            <option value={12}>12x (Padrão Cartão)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Valor da Parcela Desejada</label>
+                          <MoneyInput
+                            style={{ padding: '7px 8px', fontSize: '0.82rem' }}
+                            value={swDesiredInstallment}
+                            onChange={setSwDesiredInstallment}
+                            placeholder="R$ 125,00"
+                          />
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            disabled={!swDesiredInstallment || swDesiredInstallment <= 0}
+                            onClick={() => {
+                              const calcTotal = Number((swDesiredInstallment * swDesiredInstallmentCount).toFixed(2));
+                              setSwValorUnitario(calcTotal);
+                              setSwDescontoValor(0);
+                            }}
+                            style={{ padding: '8px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                          >
+                            Aplicar Total R$ {(swDesiredInstallment * swDesiredInstallmentCount).toFixed(2).replace('.', ',')}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
-                  <div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Valor Líquido da Proposta</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)' }}>
-                      R$ {netVal.toFixed(2).replace('.', ',')}
+                </div>
+
+                {/* Resumo Executivo das 4 Dimensões em Tempo Real */}
+                <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-layer-group"></i> Resumo Executivo da Proposta
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Vigência: <strong>{swDuracao === 'anual' ? '12 meses' : `${swVigenciaQtd} ${swDuracao === 'semana' ? 'semanas' : 'meses'}`}</strong>
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Valor Total Líquido</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                        R$ {netVal.toFixed(2).replace('.', ',')}
+                      </div>
+                      {discountVal > 0 && (
+                        <div style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: '1px' }}>
+                          (- R$ {discountVal.toFixed(2).replace('.', ',')})
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Boleto / Pix (Até 10x)</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8' }}>
+                        10x de R$ {(netVal / 10).toFixed(2).replace('.', ',')}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#fde047', marginTop: '1px' }}>
+                        (Equiv. R$ {(netVal / 12).toFixed(2).replace('.', ',')}/mês)
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Franquia Mensal</div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#4ade80' }}>
+                        {swCreditosMensais} treinos/mês
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '1px' }}>
+                        {swCreditosMassagem > 0 ? `${swCreditosMassagem} massag.` : '0 massag.'} • {swCreditosEmergencia > 0 ? `${swCreditosEmergencia} emerg.` : '0 emerg.'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -8648,121 +8754,133 @@ export default function GestaoContratosPanel({
                   </label>
                 </div>
 
-                {/* Duração & Datas do Período Oficial */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.8fr 1.1fr 1.1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo Vigência</label>
-                    <select
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
-                      value={ecDuracao}
-                      onChange={e => {
-                        const dur = e.target.value as any;
-                        setEcDuracao(dur);
-                        const qty = dur === 'anual' ? 12 : (dur === 'semestral' ? 6 : 1);
-                        setEcVigenciaQtd(qty);
-                        const end = calculateContractEndDate(ecDataInicio, dur, qty, undefined, ecCriarRecorrenciaMensal);
-                        setEcVencimento(end);
-                      }}
-                    >
-                      <option value="anual">Anual</option>
-                      <option value="semestral">Semestral</option>
-                      <option value="mensal">Mensal</option>
-                      <option value="semana">Semanal</option>
-                    </select>
+                {/* Bloco 1: Duração & Vigência Oficial de Acesso */}
+                <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-calendar-days"></i> 1. Vigência do Plano (Período de Acesso ao Clube)
                   </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.8fr 1.1fr 1.1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo Vigência</label>
+                      <select
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={ecDuracao}
+                        onChange={e => {
+                          const dur = e.target.value as any;
+                          setEcDuracao(dur);
+                          const qty = dur === 'anual' ? 12 : (dur === 'semestral' ? 6 : 1);
+                          setEcVigenciaQtd(qty);
+                          const end = calculateContractEndDate(ecDataInicio, dur, qty, undefined, ecCriarRecorrenciaMensal);
+                          setEcVencimento(end);
+                        }}
+                      >
+                        <option value="anual">Anual</option>
+                        <option value="semestral">Semestral</option>
+                        <option value="mensal">Mensal</option>
+                        <option value="semana">Semanal</option>
+                      </select>
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Qtd Vigência</label>
-                    <input
-                      type="number"
-                      min={1}
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
-                      value={ecVigenciaQtd}
-                      onChange={e => {
-                        const q = Math.max(1, parseInt(e.target.value, 10) || 1);
-                        setEcVigenciaQtd(q);
-                        const end = calculateContractEndDate(ecDataInicio, ecDuracao, q, undefined, ecCriarRecorrenciaMensal);
-                        setEcVencimento(end);
-                      }}
-                    />
-                  </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Qtd Vigência</label>
+                      <input
+                        type="number"
+                        min={1}
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={ecVigenciaQtd}
+                        onChange={e => {
+                          const q = Math.max(1, parseInt(e.target.value, 10) || 1);
+                          setEcVigenciaQtd(q);
+                          const end = calculateContractEndDate(ecDataInicio, ecDuracao, q, undefined, ecCriarRecorrenciaMensal);
+                          setEcVencimento(end);
+                        }}
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data de Início</label>
-                    <input
-                      type="date"
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
-                      value={ecDataInicio}
-                      onChange={e => {
-                        const d = e.target.value;
-                        setEcDataInicio(d);
-                        const end = calculateContractEndDate(d, ecDuracao, ecVigenciaQtd, undefined, ecCriarRecorrenciaMensal);
-                        setEcVencimento(end);
-                      }}
-                    />
-                  </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Início da Vigência</label>
+                      <input
+                        type="date"
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={ecDataInicio}
+                        onChange={e => {
+                          const d = e.target.value;
+                          setEcDataInicio(d);
+                          const end = calculateContractEndDate(d, ecDuracao, ecVigenciaQtd, undefined, ecCriarRecorrenciaMensal);
+                          setEcVencimento(end);
+                        }}
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Data Fim (Vencimento)</label>
-                    <input
-                      type="date"
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: '#34d399', fontWeight: 700, borderRadius: '8px' }}
-                      value={ecVencimento}
-                      onChange={e => setEcVencimento(e.target.value)}
-                    />
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#34d399', marginBottom: '4px' }}>
+                        <i className="fa-solid fa-calendar-check" style={{ marginRight: '4px' }}></i> Término da Vigência
+                      </label>
+                      <input
+                        type="date"
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#34d399', fontWeight: 700, borderRadius: '8px' }}
+                        value={ecVencimento}
+                        onChange={e => setEcVencimento(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* 1º Vencimento da Parcela & Condição Financeira */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.8fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      <i className="fa-regular fa-calendar-check" style={{ marginRight: '4px' }}></i> 1º Vencimento Parcela
-                    </label>
-                    <input
-                      type="date"
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', fontWeight: 700, borderRadius: '8px' }}
-                      value={ecDataPrimeiroVencimento}
-                      onChange={e => setEcDataPrimeiroVencimento(e.target.value)}
-                    />
+                {/* Bloco 2: 1º Vencimento da Parcela & Condição Financeira */}
+                <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-credit-card"></i> 2. Condições de Pagamento (Faturamento & Parcelamento)
                   </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.8fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#38bdf8', marginBottom: '4px' }}>
+                        <i className="fa-regular fa-calendar-check" style={{ marginRight: '4px' }}></i> 1º Vencimento da Parcela
+                      </label>
+                      <input
+                        type="date"
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', fontWeight: 700, borderRadius: '8px' }}
+                        value={ecDataPrimeiroVencimento}
+                        onChange={e => setEcDataPrimeiroVencimento(e.target.value)}
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Forma Pagamento</label>
-                    <select
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
-                      value={ecFormaPagamento}
-                      onChange={e => setEcFormaPagamento(e.target.value)}
-                    >
-                      <option value="pix">PIX</option>
-                      <option value="boleto">Boleto Bancário</option>
-                      <option value="cartao">Cartão de Crédito</option>
-                      <option value="dinheiro">Dinheiro</option>
-                    </select>
-                  </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Forma Pagamento</label>
+                      <select
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={ecFormaPagamento}
+                        onChange={e => setEcFormaPagamento(e.target.value)}
+                      >
+                        <option value="pix">PIX</option>
+                        <option value="boleto">Boleto Bancário</option>
+                        <option value="cartao">Cartão de Crédito</option>
+                        <option value="dinheiro">Dinheiro</option>
+                      </select>
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário (R$)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--color-primary)', fontWeight: 700, borderRadius: '8px' }}
-                      value={ecValorUnitario || ''}
-                      onChange={e => setEcValorUnitario(parseFloat(e.target.value) || 0)}
-                      placeholder="R$ 0,00"
-                    />
-                  </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Valor Unitário (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--color-primary)', fontWeight: 700, borderRadius: '8px' }}
+                        value={ecValorUnitario || ''}
+                        onChange={e => setEcValorUnitario(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Parcelas</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={12}
-                      style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
-                      value={ecParcelas}
-                      onChange={e => setEcParcelas(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    />
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Parcelas</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={12}
+                        style={{ width: '100%', padding: '9px 10px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px' }}
+                        value={ecParcelas}
+                        onChange={e => setEcParcelas(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      />
+                    </div>
                   </div>
                 </div>
 
