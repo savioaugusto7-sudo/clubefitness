@@ -3070,112 +3070,594 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 }
 
 // ==========================================================
-// PDF — PRONTUÁRIO CLÍNICO INDIVIDUAL
+// PDF — PRONTUÁRIO CLÍNICO INDIVIDUAL (REDESIGN PREMIUM)
 // ==========================================================
-export function downloadProntuarioPDF(prontuario: any, client: any, profNome = 'Profissional do Clube', profRegistro = '') {
+export async function downloadProntuarioPDF(prontuario: any, client: any, profNome: any = 'Profissional do Clube', profRegistro = '') {
+  if (typeof window === 'undefined') return;
   const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
+  if (!html2pdf) {
+    alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
+    return;
+  }
+  if (!prontuario) {
+    console.error('downloadProntuarioPDF foi chamado com prontuário nulo');
+    return;
+  }
 
-  const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
+  const logoBase64 = await getLogoBase64();
+  const fmtDate = (d: string) => {
+    if (!d) return '-';
+    const p = d.split('T')[0].split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+  };
 
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:720px;opacity:0;z-index:99999;pointer-events:none;`;
+  pdfWrapper.style.position = 'absolute';
+  pdfWrapper.style.left = '0px';
+  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
+  pdfWrapper.style.width = '794px';
+  pdfWrapper.style.opacity = '0';
+  pdfWrapper.style.zIndex = '99999';
+  pdfWrapper.style.pointerEvents = 'none';
+  pdfWrapper.style.display = 'block';
+
   const pdfContainer = document.createElement('div');
-  pdfContainer.style.cssText = 'background:#fff;color:#333;padding:30px;font-family:Arial,sans-serif;width:720px;box-sizing:border-box;';
+  pdfContainer.style.background = '#ffffff';
+  pdfContainer.style.color = '#1e293b';
+  pdfContainer.style.padding = '0';
+  pdfContainer.style.margin = '0';
+  pdfContainer.style.width = '794px';
+  pdfContainer.style.boxSizing = 'border-box';
+
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
-  const obs = prontuario.conteudo || prontuario.observacoes || '';
-  const nome = client?.dadosPessoais?.nome || 'Paciente';
-  const nascimento = fmtDate(client?.dadosPessoais?.dataNascimento || '');
+  const obs = prontuario.conteudo || prontuario.observacoes || prontuario.texto || 'Nenhuma evolução registrada.';
+  const nome = client?.dadosPessoais?.nome || client?.nome || 'Paciente';
+  const rawNasc = client?.dadosPessoais?.dataNascimento || '';
+  const nascimento = fmtDate(rawNasc);
   const cpf = client?.dadosPessoais?.cpf || '-';
   const sexo = (client?.dadosPessoais?.sexo || 'M') === 'F' ? 'Feminino' : 'Masculino';
   const tel = client?.dadosPessoais?.telefone || '-';
   const email = client?.dadosPessoais?.email || '-';
-  const dataDoc = fmtDate(prontuario.data || prontuario.createdAt?.split('T')[0] || '');
+  const dataSessao = fmtDate(prontuario.data || prontuario.createdAt || '');
+  const dataEmissao = fmtDate(new Date().toISOString());
+
+  let ageText = '-';
+  if (rawNasc) {
+    const birthDate = new Date(rawNasc);
+    if (!isNaN(birthDate.getTime())) {
+      const refDate = prontuario.data ? new Date(prontuario.data) : new Date();
+      let age = refDate.getFullYear() - birthDate.getFullYear();
+      const m = refDate.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && refDate.getDate() < birthDate.getDate())) age--;
+      ageText = `${age} anos`;
+    }
+  }
 
   const profObj = typeof profNome === 'object' && profNome !== null
     ? profNome
     : (prontuario.profissionalId && typeof prontuario.profissionalId === 'object'
         ? prontuario.profissionalId
-        : { nome: profNome, registro: profRegistro });
+        : { nome: profNome || 'Profissional', registro: profRegistro || 'CREFITO' });
 
   pdfContainer.innerHTML = `
     <style>
-      p, li, tr, h2, h3, h4, table {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .prontuario-page {
+        background: #ffffff;
+        color: #1e293b;
+        font-family: 'Inter', sans-serif;
+        width: 794px;
+        padding: 24px 32px;
+        box-sizing: border-box;
+      }
+      .grid-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #00f2fe;
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+      }
+      .logo-box {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .logo-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        object-fit: cover;
+      }
+      .logo-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 20px;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0;
+        letter-spacing: -0.5px;
+      }
+      .logo-subtitle {
+        font-size: 8.5px;
+        color: #64748b;
+        margin: 2px 0 0 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+      }
+      .doc-type-box {
+        text-align: right;
+      }
+      .doc-type-badge {
+        background: #0f172a;
+        color: #00f2fe;
+        font-family: 'Outfit', sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 5px 12px;
+        border-radius: 6px;
+        display: inline-block;
+        letter-spacing: 0.5px;
+      }
+      .doc-date-sub {
+        font-size: 9px;
+        color: #64748b;
+        margin-top: 4px;
+        font-weight: 500;
+      }
+      .client-bar {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 1.4fr 0.8fr 0.8fr 1fr;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        gap: 10px;
+      }
+      .client-item {
+        border-right: 1px solid #e2e8f0;
+        padding-right: 10px;
+      }
+      .client-item:last-child {
+        border-right: none;
+        padding-right: 0;
+      }
+      .client-item span {
+        color: #64748b;
+        font-weight: 600;
+        display: block;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+      .client-item strong {
+        font-family: 'Outfit', sans-serif;
+        font-size: 11px;
+        color: #0f172a;
+        font-weight: 700;
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .client-item small {
+        font-size: 9px;
+        color: #475569;
+      }
+      .clinical-card {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-left: 4px solid #0284c7;
+        border-radius: 8px;
+        padding: 18px 20px;
+        margin-bottom: 20px;
+        min-height: 480px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      }
+      .clinical-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 10px;
+        margin-bottom: 14px;
+      }
+      .clinical-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: #0284c7;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .session-tag {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        font-size: 9.5px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 5px;
+      }
+      .clinical-body {
+        font-size: 13px;
+        line-height: 1.75;
+        color: #1e293b;
+        text-align: justify;
+        text-justify: inter-word;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: 'Inter', sans-serif;
+      }
+      .footer-notes {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 8px;
+        margin-top: 14px;
+        font-size: 8.5px;
+        color: #94a3b8;
       }
     </style>
-    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0f172a;padding-bottom:20px;margin-bottom:30px;">
-      <div><h1 style="color:#0f172a;margin:0;font-size:28px;">CLUBE FITNESS FISIO</h1><p style="color:#666;margin:4px 0 0 0;font-size:12px;">Fisioterapia, Quiropraxia e Fortalecimento</p></div>
-      <div style="text-align:right;"><span style="font-weight:bold;color:#0f172a;font-size:16px;">PRONTUÁRIO CLÍNICO DE ACOMPANHAMENTO</span><br><small style="color:#777">Data de Emissão: ${dataDoc}</small></div>
+
+    <div class="prontuario-page">
+      <!-- HEADER -->
+      <div class="grid-header">
+        <div class="logo-box">
+          ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" alt="Logo" />` : ''}
+          <div>
+            <h1 class="logo-title">CLUBE FITNESS FISIO</h1>
+            <p class="logo-subtitle">Fisioterapia Especializada • Quiropraxia • Fortalecimento</p>
+          </div>
+        </div>
+        <div class="doc-type-box">
+          <div class="doc-type-badge">PRONTUÁRIO CLÍNICO</div>
+          <div class="doc-date-sub">Emissão: ${dataEmissao}</div>
+        </div>
+      </div>
+
+      <!-- PACIENTE INFO -->
+      <div class="client-bar">
+        <div class="client-item">
+          <span>Paciente</span>
+          <strong>${nome}</strong>
+          <small>Sexo: ${sexo}</small>
+        </div>
+        <div class="client-item">
+          <span>Nascimento / Idade</span>
+          <strong>${nascimento}</strong>
+          <small>${ageText}</small>
+        </div>
+        <div class="client-item">
+          <span>Documento (CPF)</span>
+          <strong>${cpf}</strong>
+          <small>Tel: ${tel}</small>
+        </div>
+        <div class="client-item">
+          <span>Contato</span>
+          <strong>${email !== '-' ? email : tel}</strong>
+          <small>Data Atend.: ${dataSessao}</small>
+        </div>
+      </div>
+
+      <!-- EVOLUÇÃO CLÍNICA COM TEXTO JUSTIFICADO -->
+      <div class="clinical-card">
+        <div class="clinical-card-header">
+          <h2 class="clinical-title">🩺 Evolução Fisioterapêutica & Conduta Clínica</h2>
+          <span class="session-tag">Sessão Realizada em ${dataSessao}</span>
+        </div>
+        <div class="clinical-body">${obs}</div>
+      </div>
+
+      <!-- ASSINATURA -->
+      <div style="margin-top: 16px;">
+        ${renderProfessionalSignatureHtml(profObj)}
+      </div>
+
+      <!-- FOOTER -->
+      <div class="footer-notes">
+        <span>Clube Fitness Fisio — Registro e Acompanhamento Clínico Individual</span>
+        <span>Documento emitido eletronicamente via Sistema Clube Fitness</span>
+      </div>
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:30px;font-size:13px;">
-      <tr style="background:#f8fafc;"><td style="padding:10px;font-weight:bold;width:15%;border:1px solid #e2e8f0;">Paciente:</td><td style="padding:10px;width:45%;border:1px solid #e2e8f0;">${nome}</td><td style="padding:10px;font-weight:bold;width:15%;border:1px solid #e2e8f0;">Data Nasc.:</td><td style="padding:10px;width:25%;border:1px solid #e2e8f0;">${nascimento}</td></tr>
-      <tr><td style="padding:10px;font-weight:bold;border:1px solid #e2e8f0;">CPF:</td><td style="padding:10px;border:1px solid #e2e8f0;">${cpf}</td><td style="padding:10px;font-weight:bold;border:1px solid #e2e8f0;">Sexo:</td><td style="padding:10px;border:1px solid #e2e8f0;">${sexo}</td></tr>
-      <tr style="background:#f8fafc;"><td style="padding:10px;font-weight:bold;border:1px solid #e2e8f0;">Telefone:</td><td style="padding:10px;border:1px solid #e2e8f0;">${tel}</td><td style="padding:10px;font-weight:bold;border:1px solid #e2e8f0;">E-mail:</td><td style="padding:10px;border:1px solid #e2e8f0;">${email}</td></tr>
-    </table>
-    <div style="font-size:14px;line-height:1.6;margin-bottom:40px;border:1px solid #e2e8f0;border-radius:6px;padding:20px;background:#fafafa;min-height:400px;white-space:pre-wrap;">${obs}</div>
-    ${renderProfessionalSignatureHtml(profObj)}
   `;
 
-  const options = { margin: 10, filename: `Prontuario_${nome.replace(/\s+/g,'_')}_${dataDoc.replace(/\//g,'-')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
-  
-
+  const options = {
+    margin: [6, 6, 6, 6],
+    filename: `Prontuario_${nome.replace(/\s+/g, '_')}_${dataSessao.replace(/\//g, '-')}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
     safeRemoveWrapper(pdfWrapper);
   }).catch((err: any) => {
-    console.error('Erro PDF prontuário:', err);
+    console.error('Erro ao gerar PDF do prontuário:', err);
     safeRemoveWrapper(pdfWrapper);
   });
 }
 
 // ==========================================================
-// PDF — PRONTUÁRIOS CONSOLIDADOS (todos de um aluno)
+// PDF — PRONTUÁRIOS CONSOLIDADOS (HISTÓRICO COMPLETO REDESIGN)
 // ==========================================================
-export function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, profNome = 'Profissional do Clube', profRegistro = '') {
+export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: any, profNome: any = 'Profissional do Clube', profRegistro = '') {
+  if (typeof window === 'undefined') return;
   const html2pdf = (window as any).html2pdf;
-  if (!html2pdf) { alert('html2pdf.js não está carregado.'); return; }
-  if (!prontuarios || prontuarios.length === 0) { alert('Nenhum prontuário registrado para este aluno.'); return; }
+  if (!html2pdf) {
+    alert('O gerador de PDF ainda está sendo carregado. Por favor, aguarde alguns segundos.');
+    return;
+  }
+  if (!prontuarios || prontuarios.length === 0) {
+    alert('Nenhum prontuário registrado para este aluno.');
+    return;
+  }
 
-  const sorted = [...prontuarios].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
-  const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
-  const nome = client?.dadosPessoais?.nome || 'Paciente';
+  const logoBase64 = await getLogoBase64();
+  const sorted = [...prontuarios].sort((a, b) => (b.data || b.createdAt || '').localeCompare(a.data || a.createdAt || ''));
+  const fmtDate = (d: string) => {
+    if (!d) return '-';
+    const p = d.split('T')[0].split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+  };
+
+  const nome = client?.dadosPessoais?.nome || client?.nome || 'Paciente';
+  const rawNasc = client?.dadosPessoais?.dataNascimento || '';
+  const nascimento = fmtDate(rawNasc);
+  const cpf = client?.dadosPessoais?.cpf || '-';
+  const sexo = (client?.dadosPessoais?.sexo || 'M') === 'F' ? 'Feminino' : 'Masculino';
+  const tel = client?.dadosPessoais?.telefone || '-';
+  const dataEmissao = fmtDate(new Date().toISOString());
 
   const pdfWrapper = document.createElement('div');
-  pdfWrapper.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:720px;opacity:0;z-index:99999;pointer-events:none;`;
+  pdfWrapper.style.position = 'absolute';
+  pdfWrapper.style.left = '0px';
+  pdfWrapper.style.top = `${typeof window !== 'undefined' ? window.scrollY : 0}px`;
+  pdfWrapper.style.width = '794px';
+  pdfWrapper.style.opacity = '0';
+  pdfWrapper.style.zIndex = '99999';
+  pdfWrapper.style.pointerEvents = 'none';
+  pdfWrapper.style.display = 'block';
+
   const pdfContainer = document.createElement('div');
-  pdfContainer.style.cssText = 'background:#fff;color:#333;font-family:Arial,sans-serif;width:720px;box-sizing:border-box;';
+  pdfContainer.style.background = '#ffffff';
+  pdfContainer.style.color = '#1e293b';
+  pdfContainer.style.padding = '0';
+  pdfContainer.style.margin = '0';
+  pdfContainer.style.width = '794px';
+  pdfContainer.style.boxSizing = 'border-box';
+
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
   const profObj = typeof profNome === 'object' && profNome !== null
     ? profNome
-    : { nome: profNome, registro: profRegistro };
+    : { nome: profNome || 'Profissional', registro: profRegistro || 'CREFITO' };
 
-  pdfContainer.innerHTML = `<style>p, li, tr, h2, h3, h4, table { page-break-inside: avoid !important; break-inside: avoid !important; }</style>` + sorted.map((p, idx) => {
-    const obs = p.conteudo || p.observacoes || '';
-    const data = fmtDate(p.data || p.createdAt?.split('T')[0] || '');
-    return `<div style="background:#fff;padding:30px;min-height:1100px;${idx > 0 ? 'border-top:4px solid #6366f1;margin-top:20px;' : ''}">
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0f172a;padding-bottom:16px;margin-bottom:24px;">
-        <div><h2 style="color:#0f172a;margin:0;font-size:20px;">CLUBE FITNESS FISIO</h2><p style="color:#666;margin:2px 0 0 0;font-size:10px;">Fisioterapia, Quiropraxia e Fortalecimento</p></div>
-        <div style="text-align:right;"><span style="font-weight:bold;color:#0f172a;font-size:13px;">PRONTUÁRIO ${idx + 1}/${sorted.length}</span><br><small style="color:#777;font-size:11px;">Paciente: ${nome} | Data: ${data}</small></div>
+  pdfContainer.innerHTML = `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .prontuarios-page {
+        background: #ffffff;
+        color: #1e293b;
+        font-family: 'Inter', sans-serif;
+        width: 794px;
+        padding: 24px 32px;
+        box-sizing: border-box;
+      }
+      .grid-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #00f2fe;
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+      }
+      .logo-box {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .logo-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        object-fit: cover;
+      }
+      .logo-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 20px;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0;
+        letter-spacing: -0.5px;
+      }
+      .logo-subtitle {
+        font-size: 8.5px;
+        color: #64748b;
+        margin: 2px 0 0 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+      }
+      .doc-type-badge {
+        background: #0f172a;
+        color: #00f2fe;
+        font-family: 'Outfit', sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 5px 12px;
+        border-radius: 6px;
+        display: inline-block;
+        letter-spacing: 0.5px;
+      }
+      .client-bar {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr;
+        padding: 10px 14px;
+        margin-bottom: 18px;
+        gap: 10px;
+      }
+      .client-item {
+        border-right: 1px solid #e2e8f0;
+        padding-right: 10px;
+      }
+      .client-item:last-child {
+        border-right: none;
+        padding-right: 0;
+      }
+      .client-item span {
+        color: #64748b;
+        font-weight: 600;
+        display: block;
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+      .client-item strong {
+        font-family: 'Outfit', sans-serif;
+        font-size: 11px;
+        color: #0f172a;
+        font-weight: 700;
+        display: block;
+      }
+      .item-card {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-left: 4px solid #0284c7;
+        border-radius: 8px;
+        padding: 16px 18px;
+        margin-bottom: 16px;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 8px;
+        margin-bottom: 10px;
+      }
+      .item-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0284c7;
+        margin: 0;
+      }
+      .item-date {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        font-size: 9px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+      }
+      .item-body {
+        font-size: 12.5px;
+        line-height: 1.7;
+        color: #1e293b;
+        text-align: justify;
+        text-justify: inter-word;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+
+    <div class="prontuarios-page">
+      <!-- HEADER -->
+      <div class="grid-header">
+        <div class="logo-box">
+          ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" alt="Logo" />` : ''}
+          <div>
+            <h1 class="logo-title">CLUBE FITNESS FISIO</h1>
+            <p class="logo-subtitle">Fisioterapia Especializada • Quiropraxia • Fortalecimento</p>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div class="doc-type-badge">HISTÓRICO DE PRONTUÁRIOS</div>
+          <div style="font-size: 9px; color: #64748b; margin-top: 4px;">Total de ${sorted.length} evolução(ões) • Emissão: ${dataEmissao}</div>
+        </div>
       </div>
-      <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;border:1px solid #e2e8f0;padding:16px;border-radius:6px;background:#fafafa;min-height:700px;">${obs}</div>
-      ${renderProfessionalSignatureHtml(profObj)}
-    </div>`;
-  }).join('');
 
-  const options = { margin: 5, filename: `Prontuarios_${nome.replace(/\s+/g,'_')}_completo.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.8, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 720, width: 720, x: 0, y: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
+      <!-- CLIENTE INFO -->
+      <div class="client-bar">
+        <div class="client-item">
+          <span>Paciente</span>
+          <strong>${nome}</strong>
+        </div>
+        <div class="client-item">
+          <span>Nascimento / Sexo</span>
+          <strong>${nascimento} • ${sexo}</strong>
+        </div>
+        <div class="client-item">
+          <span>Documento / Telefone</span>
+          <strong>CPF: ${cpf} • Tel: ${tel}</strong>
+        </div>
+      </div>
+
+      <!-- LISTA DE EVOLUÇÕES -->
+      ${sorted.map((p, idx) => {
+        const obsItem = p.conteudo || p.observacoes || p.texto || 'Nenhuma observação registrada.';
+        const dataItem = fmtDate(p.data || p.createdAt || '');
+        const pProf = p.profissionalId && typeof p.profissionalId === 'object' ? p.profissionalId.nome : '';
+        return `
+          <div class="item-card">
+            <div class="item-header">
+              <h3 class="item-title">🩺 Evolução #${sorted.length - idx} ${pProf ? `• Fisioterapeuta: ${pProf}` : ''}</h3>
+              <span class="item-date">Data: ${dataItem}</span>
+            </div>
+            <div class="item-body">${obsItem}</div>
+          </div>
+        `;
+      }).join('')}
+
+      <!-- ASSINATURA CONSOLIDADA -->
+      <div style="margin-top: 24px; page-break-inside: avoid !important; break-inside: avoid !important;">
+        ${renderProfessionalSignatureHtml(profObj)}
+      </div>
+    </div>
+  `;
+
+  const options = {
+    margin: [6, 6, 6, 6],
+    filename: `Prontuarios_${nome.replace(/\s+/g, '_')}_Historico_Completo.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2.0, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
 
   html2pdf().set(options).from(pdfContainer).output('blob').then((blob: Blob) => {
     triggerDirectDownload(blob, options.filename);
     safeRemoveWrapper(pdfWrapper);
   }).catch((err: any) => {
-    console.error('Erro PDF prontuários:', err);
+    console.error('Erro ao gerar histórico de prontuários:', err);
     safeRemoveWrapper(pdfWrapper);
   });
 }
