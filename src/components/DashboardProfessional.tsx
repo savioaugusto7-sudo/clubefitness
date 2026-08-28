@@ -4450,11 +4450,165 @@ goniometria: {
                 <div className="view-header">
                   <div className="view-title-group">
                     <h1>Cockpit Operacional & Frequência Diária</h1>
-                    <p>Visão executiva, termômetro de turnos e central de retenção ativa de hoje, {formatLocalDate(hojeISO)}.</p>
+                    <p>Visão executiva, sinalização em tempo real e central de retenção ativa de hoje, {formatLocalDate(hojeISO)}.</p>
                   </div>
                 </div>
 
-                {/* TERMÔMETRO OPERACIONAL DA CLÍNICA (HOJE) */}
+                {/* 1. TOPO ABSOLUTO: Alertas quando o card não é respondido (Horários Passados Sem Sinalização) */}
+                {urgentes.length > 0 && (
+                  <div className="content-panel" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', borderLeft: '5px solid var(--color-danger)', padding: '16px', borderRadius: '8px' }}>
+                    <div className="panel-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: '10px' }}>
+                      <h2 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ animation: 'pulse 1.5s infinite' }}></i> 
+                        🚨 ATENÇÃO: Horários Passados Sem Sinalização ({urgentes.length})
+                      </h2>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados em horários que já passaram, mas cuja presença não foi marcada. Sinalize abaixo para concluir a agenda.</p>
+                    </div>
+                    <div className="table-responsive" style={{ marginTop: '12px' }}>
+                      <table className="data-table" style={{ width: '100%' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar Frequência</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {urgentes.map(a => {
+                            const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                            return (
+                              <tr key={a._id} style={{ background: 'rgba(239, 68, 68, 0.02)' }}>
+                                <td data-label="Horário" style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
+                                <td data-label="Aluno" style={{ padding: '12px 16px' }}>
+                                  <strong>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</strong><br />
+                                  <small style={{ color: 'var(--text-dim)' }}>
+                                    {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
+                                  </small>
+                                </td>
+                                <td data-label="Serviço" style={{ padding: '12px 16px' }}><span className="badge badge-info">{a.servico || a.tipo}</span></td>
+                                <td data-label="Sinalizar Frequência" style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
+                                  <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
+                                    <i className="fa-solid fa-check"></i> Presença
+                                  </button>
+                                  <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
+                                    <i className="fa-solid fa-xmark"></i> Falta
+                                  </button>
+                                  <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                    Cancelar
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. DESTAQUE DO HORÁRIO ATUAL (Janela Ativa) */}
+                <div className="content-panel" style={{ border: '2px solid var(--color-primary)', boxShadow: '0 0 15px rgba(99, 102, 241, 0.12)', marginBottom: '24px', background: 'rgba(99, 102, 241, 0.02)' }}>
+                  <div className="panel-header" style={{ borderBottom: '1px solid rgba(99, 102, 241, 0.1)', paddingBottom: '10px' }}>
+                    <h2 style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                      <i className="fa-solid fa-circle-play" style={{ color: 'var(--color-primary)' }}></i>
+                      ⭐ ATENDIMENTOS NO HORÁRIO ATUAL (Janela Ativa)
+                    </h2>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados na janela de tempo atual. Sinalize a presença assim que o aluno comparecer.</p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginTop: '16px', paddingBottom: '8px' }}>
+                    {atuais.length === 0 ? (
+                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                        Nenhum aluno agendado para o horário de hoje na janela atual ({realTime || '--:--'}).
+                      </div>
+                    ) : (
+                      atuais.map(a => {
+                        const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                        const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : 'badge-warning';
+                        const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : 'Agendado';
+                        return (
+                          <div key={a._id} className="metric-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', margin: 0, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
+                              <div>
+                                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>{a.horario}</span>
+                                <h3 style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</h3>
+                                <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>{a.servico || a.tipo}</span>
+                              </div>
+                              <div>
+                                <span className={`badge ${statusClass}`}>{statusText}</span>
+                              </div>
+                            </div>
+
+                            {/* Badge Wellness do Dia se preenchido */}
+                            {a.wellness?.realizado && (
+                              <div style={{
+                                background: a.wellness.status === 'otimo' ? 'rgba(16,185,129,0.12)' : a.wellness.status === 'moderado' ? 'rgba(234,179,8,0.12)' : a.wellness.status === 'ruim' ? 'rgba(249,115,22,0.12)' : 'rgba(239,68,68,0.12)',
+                                border: `1px solid ${a.wellness.statusColor || '#10b981'}`,
+                                borderRadius: '8px',
+                                padding: '8px 10px',
+                                fontSize: '0.76rem',
+                                marginTop: '4px',
+                                marginBottom: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '6px'
+                              }}>
+                                <div>
+                                  <div style={{ fontWeight: 800, color: a.wellness.statusColor || '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span>🧘</span> Wellness: {a.wellness.score}/30 • {a.wellness.statusLabel}
+                                  </div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-main, #fff)', marginTop: '2px' }}>
+                                    👉 {a.wellness.conduta}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWellnessApt(a);
+                                    setShowWellnessModal(true);
+                                  }}
+                                  title="Ver detalhes do Wellness"
+                                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+                                >
+                                  Ver
+                                </button>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', width: '100%' }}>
+                              <button className="btn btn-sm" style={{ flex: 1, background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
+                                <i className="fa-solid fa-check"></i> Presença
+                              </button>
+                              <button className="btn btn-danger btn-sm" style={{ flex: 1, padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
+                                <i className="fa-solid fa-xmark"></i> Falta
+                              </button>
+                              <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                Cancelar
+                              </button>
+                            </div>
+                            <div style={{ marginTop: '8px', width: '100%' }}>
+                              {client._id && (
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 700 }}
+                                  onClick={() => {
+                                    setBuilderClient(client);
+                                    setShowWorkoutBuilder(true);
+                                  }}
+                                >
+                                  <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. TERMÔMETRO OPERACIONAL DA CLÍNICA (HOJE) & CENTRAL DE RETENÇÃO */}
                 {(() => {
                   const sortAptsByTime = (list: any[]) => {
                     return [...list].sort((a, b) => {
@@ -4852,160 +5006,6 @@ goniometria: {
                     </div>
                   );
                 })()}
-
-                {/* Bloco de Atenção: Urgentes */}
-                {urgentes.length > 0 && (
-                  <div className="content-panel" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', borderLeft: '5px solid var(--color-danger)', padding: '16px', borderRadius: '8px' }}>
-                    <div className="panel-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: '10px' }}>
-                      <h2 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-                        <i className="fa-solid fa-triangle-exclamation" style={{ animation: 'pulse 1.5s infinite' }}></i> 
-                        🚨 ATENÇÃO: Horários Passados Sem Sinalização ({urgentes.length})
-                      </h2>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados em horários que já passaram, mas cuja presença não foi marcada. Sinalize abaixo para concluir a agenda.</p>
-                    </div>
-                    <div className="table-responsive" style={{ marginTop: '12px' }}>
-                      <table className="data-table" style={{ width: '100%' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.1)' }}>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar Frequência</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {urgentes.map(a => {
-                            const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
-                            return (
-                              <tr key={a._id} style={{ background: 'rgba(239, 68, 68, 0.02)' }}>
-                                <td data-label="Horário" style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
-                                <td data-label="Aluno" style={{ padding: '12px 16px' }}>
-                                  <strong>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</strong><br />
-                                  <small style={{ color: 'var(--text-dim)' }}>
-                                    {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
-                                  </small>
-                                </td>
-                                <td data-label="Serviço" style={{ padding: '12px 16px' }}><span className="badge badge-info">{a.servico || a.tipo}</span></td>
-                                <td data-label="Sinalizar Frequência" style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
-                                  <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                                    <i className="fa-solid fa-check"></i> Presença
-                                  </button>
-                                  <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
-                                    <i className="fa-solid fa-xmark"></i> Falta
-                                  </button>
-                                  <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
-                                    Cancelar
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Destaque do Horário Atual: Janela Ativa */}
-                <div className="content-panel" style={{ border: '2px solid var(--color-primary)', boxShadow: '0 0 15px rgba(99, 102, 241, 0.12)', marginBottom: '24px', background: 'rgba(99, 102, 241, 0.02)' }}>
-                  <div className="panel-header" style={{ borderBottom: '1px solid rgba(99, 102, 241, 0.1)', paddingBottom: '10px' }}>
-                    <h2 style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-                      <i className="fa-solid fa-circle-play" style={{ color: 'var(--color-primary)' }}></i>
-                      ⭐ ATENDIMENTOS NO HORÁRIO ATUAL (Janela Ativa)
-                    </h2>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados na janela de tempo atual. Sinalize a presença assim que o aluno comparecer.</p>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginTop: '16px', paddingBottom: '8px' }}>
-                    {atuais.length === 0 ? (
-                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
-                        Nenhum aluno agendado para o horário de hoje na janela atual ({realTime || '--:--'}).
-                      </div>
-                    ) : (
-                      atuais.map(a => {
-                        const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
-                        const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : 'badge-warning';
-                        const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : 'Agendado';
-                        return (
-                          <div key={a._id} className="metric-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', margin: 0, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
-                              <div>
-                                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>{a.horario}</span>
-                                <h3 style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</h3>
-                                <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>{a.servico || a.tipo}</span>
-                              </div>
-                              <div>
-                                <span className={`badge ${statusClass}`}>{statusText}</span>
-                              </div>
-                            </div>
-
-                            {/* Badge Wellness do Dia se preenchido */}
-                            {a.wellness?.realizado && (
-                              <div style={{
-                                background: a.wellness.status === 'otimo' ? 'rgba(16,185,129,0.12)' : a.wellness.status === 'moderado' ? 'rgba(234,179,8,0.12)' : a.wellness.status === 'ruim' ? 'rgba(249,115,22,0.12)' : 'rgba(239,68,68,0.12)',
-                                border: `1px solid ${a.wellness.statusColor || '#10b981'}`,
-                                borderRadius: '8px',
-                                padding: '8px 10px',
-                                fontSize: '0.76rem',
-                                marginTop: '4px',
-                                marginBottom: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '6px'
-                              }}>
-                                <div>
-                                  <div style={{ fontWeight: 800, color: a.wellness.statusColor || '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <span>🧘</span> Wellness: {a.wellness.score}/30 • {a.wellness.statusLabel}
-                                  </div>
-                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-main, #fff)', marginTop: '2px' }}>
-                                    👉 {a.wellness.conduta}
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setWellnessApt(a);
-                                    setShowWellnessModal(true);
-                                  }}
-                                  title="Ver detalhes do Wellness"
-                                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
-                                >
-                                  Ver
-                                </button>
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', width: '100%' }}>
-                              <button className="btn btn-sm" style={{ flex: 1, background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                                <i className="fa-solid fa-check"></i> Presença
-                              </button>
-                              <button className="btn btn-danger btn-sm" style={{ flex: 1, padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
-                                <i className="fa-solid fa-xmark"></i> Falta
-                              </button>
-                              <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
-                                Cancelar
-                              </button>
-                            </div>
-                            <div style={{ marginTop: '8px', width: '100%' }}>
-                              {client._id && (
-                                <button
-                                  type="button"
-                                  className="btn btn-primary btn-sm"
-                                  style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 700 }}
-                                  onClick={() => {
-                                    setBuilderClient(client);
-                                    setShowWorkoutBuilder(true);
-                                  }}
-                                >
-                                  <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
 
                 {/* Demais Atendimentos: Todos os Atendimentos de Hoje */}
                 <div className="content-panel">
