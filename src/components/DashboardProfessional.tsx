@@ -7377,25 +7377,31 @@ goniometria: {
           const metaMensal = Math.max(1, Math.round(freqSemanal * (daysInCurrentMonth / 7)));
           const percentualAssiduidade = Math.min(100, Math.round((sessions / metaMensal) * 100));
 
-          // Classificação de risco e consistência
+          // Classificação de risco estrita por ausência / dias sem vir:
           let riskKey: 'baixo' | 'medio' | 'alto' = 'baixo';
           let riskLabel = 'Consistente';
           let riskColor = '#10b981';
           let riskBg = 'rgba(16, 185, 129, 0.15)';
           let riskBorder = 'rgba(16, 185, 129, 0.3)';
 
-          if (days > 20 || percentualAssiduidade < 40) {
+          if (days > 20) {
             riskKey = 'alto';
-            riskLabel = days > 20 ? 'Risco Alto (Evasão)' : 'Assiduidade Baixa';
+            riskLabel = 'Risco Alto (Evasão)';
             riskColor = '#ef4444';
             riskBg = 'rgba(239, 68, 68, 0.15)';
             riskBorder = 'rgba(239, 68, 68, 0.3)';
-          } else if (days > 7 || percentualAssiduidade < 75) {
+          } else if (days > 7) {
             riskKey = 'medio';
             riskLabel = 'Atenção';
             riskColor = '#f59e0b';
             riskBg = 'rgba(245, 158, 11, 0.15)';
             riskBorder = 'rgba(245, 158, 11, 0.3)';
+          } else {
+            riskKey = 'baixo';
+            riskLabel = 'Consistente';
+            riskColor = '#10b981';
+            riskBg = 'rgba(16, 185, 129, 0.15)';
+            riskBorder = 'rgba(16, 185, 129, 0.3)';
           }
 
           const clientApts = appointments.filter((a: any) => {
@@ -7425,6 +7431,8 @@ goniometria: {
             return String(profId) === String(professionalId);
           })();
 
+          const tratativa = tratativas[c._id];
+
           return {
             ...c,
             daysSince: days,
@@ -7440,7 +7448,8 @@ goniometria: {
             metaMensal,
             percentualAssiduidade,
             lastDate,
-            isAssigned
+            isAssigned,
+            tratativa
           };
         });
 
@@ -7763,6 +7772,8 @@ goniometria: {
                           .join('')
                           .toUpperCase();
 
+                        const daysColor = c.daysSince > 20 ? '#ef4444' : c.daysSince > 7 ? '#f59e0b' : '#10b981';
+
                         return (
                           <div
                             key={c._id}
@@ -7811,19 +7822,36 @@ goniometria: {
                                   </div>
                                 </div>
 
-                                <span style={{
-                                  background: c.riskBg,
-                                  color: c.riskColor,
-                                  border: `1px solid ${c.riskBorder}`,
-                                  padding: '3px 9px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 800,
-                                  whiteSpace: 'nowrap',
-                                  flexShrink: 0
-                                }}>
-                                  {c.riskLabel}
-                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                  <span style={{
+                                    background: c.riskBg,
+                                    color: c.riskColor,
+                                    border: `1px solid ${c.riskBorder}`,
+                                    padding: '3px 9px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 800,
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                  }}>
+                                    {c.riskLabel}
+                                  </span>
+
+                                  {c.tratativa && (
+                                    <span style={{
+                                      background: 'rgba(56, 189, 248, 0.12)',
+                                      color: '#38bdf8',
+                                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                                      padding: '2px 7px',
+                                      borderRadius: '6px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      ✓ Tratado
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Barra de Progresso de Assiduidade em Percentual */}
@@ -7870,7 +7898,7 @@ goniometria: {
 
                                 <div style={{ background: 'var(--bg-darker)', padding: '8px 10px', borderRadius: '10px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
                                   <div style={{ fontSize: '0.64rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>Sem Treinar</div>
-                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: c.riskColor, marginTop: '2px' }}>
+                                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: daysColor, marginTop: '2px' }}>
                                     {c.daysSince === 999 ? '—' : `${c.daysSince}d`}
                                   </div>
                                 </div>
@@ -7916,17 +7944,19 @@ goniometria: {
                                     fontWeight: 750,
                                     borderRadius: '10px',
                                     fontSize: '0.8rem',
-                                    color: c.riskColor,
-                                    borderColor: c.riskBorder
+                                    color: c.tratativa ? '#38bdf8' : c.riskColor,
+                                    borderColor: c.tratativa ? 'rgba(56, 189, 248, 0.4)' : c.riskBorder,
+                                    background: c.tratativa ? 'rgba(56, 189, 248, 0.08)' : 'transparent'
                                   }}
                                   onClick={() => {
                                     setTratativaModalClient(c);
-                                    setTratativaMotivo('agendou');
-                                    setTratativaObs('');
+                                    setTratativaMotivo(c.tratativa?.motivo || 'agendou');
+                                    setTratativaObs(c.tratativa?.obs || '');
                                   }}
-                                  title="Registrar Tratativa de Retenção"
+                                  title={c.tratativa ? `Tratado: ${c.tratativa.motivo}` : 'Registrar Tratativa de Retenção'}
                                 >
-                                  <i className="fa-solid fa-pen-to-square"></i> Tratar
+                                  <i className={c.tratativa ? 'fa-solid fa-circle-check' : 'fa-solid fa-pen-to-square'}></i>
+                                  {c.tratativa ? 'Tratado' : 'Tratar'}
                                 </button>
                               )}
                             </div>
@@ -7953,86 +7983,102 @@ goniometria: {
                         </tr>
                       </thead>
                       <tbody>
-                        {paginated.map(c => (
-                          <tr key={c._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.15s ease' }}>
-                            <td style={{ padding: '12px 16px' }}>
-                              <strong style={{ color: '#fff', display: 'block', fontSize: '0.88rem' }}>{c.dadosPessoais?.nome}</strong>
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>{c.dadosPessoais?.telefone || c.dadosPessoais?.email || '—'}</span>
-                            </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <span style={{ fontWeight: 750, color: 'var(--color-primary)' }}>{c.freqSemanal}x/sem</span>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>{c.dadosComerciais?.planoId?.nome || 'Plano Padrão'}</div>
-                            </td>
-                            <td style={{ padding: '12px 14px', fontWeight: 750 }}>
-                              {c.sessions} de {c.metaMensal}
-                            </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontWeight: 800, color: c.riskColor, minWidth: '38px' }}>{c.percentualAssiduidade}%</span>
-                                <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                  <div style={{ width: `${c.percentualAssiduidade}%`, height: '100%', background: c.riskColor, borderRadius: '3px' }} />
+                        {paginated.map(c => {
+                          const daysColor = c.daysSince > 20 ? '#ef4444' : c.daysSince > 7 ? '#f59e0b' : '#10b981';
+                          return (
+                            <tr key={c._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.15s ease' }}>
+                              <td style={{ padding: '12px 16px' }}>
+                                <strong style={{ color: '#fff', display: 'block', fontSize: '0.88rem' }}>{c.dadosPessoais?.nome}</strong>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>{c.dadosPessoais?.telefone || c.dadosPessoais?.email || '—'}</span>
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <span style={{ fontWeight: 750, color: 'var(--color-primary)' }}>{c.freqSemanal}x/sem</span>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>{c.dadosComerciais?.planoId?.nome || 'Plano Padrão'}</div>
+                              </td>
+                              <td style={{ padding: '12px 14px', fontWeight: 750 }}>
+                                {c.sessions} de {c.metaMensal}
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontWeight: 800, color: c.riskColor, minWidth: '38px' }}>{c.percentualAssiduidade}%</span>
+                                  <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${c.percentualAssiduidade}%`, height: '100%', background: c.riskColor, borderRadius: '3px' }} />
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '12px 14px', fontWeight: 700, color: c.weekSessions >= c.freqSemanal ? '#10b981' : 'var(--text-main)' }}>
-                              {c.weekSessions} de {c.freqSemanal}x
-                            </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <div>{c.lastDate}</div>
-                              {c.relativeTime && <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>{c.relativeTime}</span>}
-                            </td>
-                            <td style={{ padding: '12px 14px', fontWeight: 800, color: c.riskColor }}>
-                              {c.daysSince === 999 ? '—' : `${c.daysSince}d`}
-                            </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <span style={{ background: c.riskBg, color: c.riskColor, border: `1px solid ${c.riskBorder}`, padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                                {c.riskLabel}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ padding: '4px 8px', fontSize: '0.74rem' }}
-                                  onClick={() => {
-                                    setDetailClient(c);
-                                    setClientDetailTab('agendamentos');
-                                    setShowClientDetailModal(true);
-                                    logReadActivity('Visualizou Histórico de Frequência', c._id, c.dadosPessoais?.nome || '');
-                                  }}
-                                  title="Abrir Prontuário / Histórico"
-                                >
-                                  <i className="fa-solid fa-address-card"></i>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ padding: '4px 8px', fontSize: '0.74rem' }}
-                                  onClick={() => handleOpenWorkoutEditor(c)}
-                                  title="Abrir Ficha de Treino"
-                                >
-                                  <i className="fa-solid fa-dumbbell"></i>
-                                </button>
-                                {c.riskKey !== 'baixo' && (
+                              </td>
+                              <td style={{ padding: '12px 14px', fontWeight: 700, color: c.weekSessions >= c.freqSemanal ? '#10b981' : 'var(--text-main)' }}>
+                                {c.weekSessions} de {c.freqSemanal}x
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <div>{c.lastDate}</div>
+                                {c.relativeTime && <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>{c.relativeTime}</span>}
+                              </td>
+                              <td style={{ padding: '12px 14px', fontWeight: 800, color: daysColor }}>
+                                {c.daysSince === 999 ? '—' : `${c.daysSince}d`}
+                              </td>
+                              <td style={{ padding: '12px 14px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  <span style={{ background: c.riskBg, color: c.riskColor, border: `1px solid ${c.riskBorder}`, padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                    {c.riskLabel}
+                                  </span>
+                                  {c.tratativa && (
+                                    <span style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.66rem', fontWeight: 700 }}>
+                                      ✓ Tratado
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                                   <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"
-                                    style={{ padding: '4px 8px', fontSize: '0.74rem', color: c.riskColor }}
+                                    style={{ padding: '4px 8px', fontSize: '0.74rem' }}
                                     onClick={() => {
-                                      setTratativaModalClient(c);
-                                      setTratativaMotivo('agendou');
-                                      setTratativaObs('');
+                                      setDetailClient(c);
+                                      setClientDetailTab('agendamentos');
+                                      setShowClientDetailModal(true);
+                                      logReadActivity('Visualizou Histórico de Frequência', c._id, c.dadosPessoais?.nome || '');
                                     }}
-                                    title="Registrar Tratativa"
+                                    title="Abrir Prontuário / Histórico"
                                   >
-                                    <i className="fa-solid fa-pen-to-square"></i>
+                                    <i className="fa-solid fa-address-card"></i>
                                   </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                                    onClick={() => handleOpenWorkoutEditor(c)}
+                                    title="Abrir Ficha de Treino"
+                                  >
+                                    <i className="fa-solid fa-dumbbell"></i>
+                                  </button>
+                                  {c.riskKey !== 'baixo' && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      style={{
+                                        padding: '4px 8px',
+                                        fontSize: '0.74rem',
+                                        color: c.tratativa ? '#38bdf8' : c.riskColor,
+                                        borderColor: c.tratativa ? 'rgba(56, 189, 248, 0.4)' : c.riskBorder,
+                                        background: c.tratativa ? 'rgba(56, 189, 248, 0.08)' : 'transparent'
+                                      }}
+                                      onClick={() => {
+                                        setTratativaModalClient(c);
+                                        setTratativaMotivo(c.tratativa?.motivo || 'agendou');
+                                        setTratativaObs(c.tratativa?.obs || '');
+                                      }}
+                                      title={c.tratativa ? `Tratado: ${c.tratativa.motivo}` : 'Registrar Tratativa'}
+                                    >
+                                      <i className={c.tratativa ? 'fa-solid fa-circle-check' : 'fa-solid fa-pen-to-square'}></i>
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
