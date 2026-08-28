@@ -62,49 +62,22 @@ interface ServiceOption {
 
 const SERVICOS_DISPONIVEIS: ServiceOption[] = [
   {
-    id: 'consulta',
-    nome: 'Consulta',
+    id: 'treino_monitorado',
+    nome: 'Treino Monitorado',
     vagasNecessarias: 1,
-    icone: 'fa-stethoscope',
-    cor: '#38bdf8',
-    descricao: 'Consulta clínica individual',
+    icone: 'fa-dumbbell',
+    cor: '#22c55e',
+    descricao: 'Treinamento guiado',
     tipoCredito: 'academia'
   },
   {
-    id: 'quiropraxia',
-    nome: 'Quiropraxia',
-    vagasNecessarias: 1,
-    icone: 'fa-bone',
-    cor: '#f59e0b',
-    descricao: 'Ajuste articular e coluna',
-    tipoCredito: 'academia'
-  },
-  {
-    id: 'avaliacao_fisica',
-    nome: 'Avaliação Física',
-    vagasNecessarias: 3,
-    icone: 'fa-heart-pulse',
-    cor: '#38bdf8',
-    descricao: 'Antropometria e bioimpedância',
-    tipoCredito: 'academia'
-  },
-  {
-    id: 'teste_forca',
-    nome: 'Teste de Força',
-    vagasNecessarias: 3,
-    icone: 'fa-bolt-lightning',
-    cor: '#f59e0b',
-    descricao: 'Dinamometria e potência',
-    tipoCredito: 'academia'
-  },
-  {
-    id: 'avaliacao_fisioterapica',
-    nome: 'Avaliação Fisioterápica',
-    vagasNecessarias: 3,
-    icone: 'fa-user-doctor',
-    cor: '#10b981',
-    descricao: 'Diagnóstico cinesiológico',
-    tipoCredito: 'academia'
+    id: 'treino_livre',
+    nome: 'Treino Livre',
+    vagasNecessarias: 0,
+    icone: 'fa-person-running',
+    cor: '#818cf8',
+    descricao: 'Treino autônomo',
+    tipoCredito: 'nenhum'
   },
   {
     id: 'emergencia',
@@ -134,22 +107,49 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     tipoCredito: 'nenhum'
   },
   {
-    id: 'treino_monitorado',
-    nome: 'Treino Monitorado',
-    vagasNecessarias: 1,
-    icone: 'fa-dumbbell',
-    cor: '#22c55e',
-    descricao: 'Treinamento guiado',
+    id: 'avaliacao_fisica',
+    nome: 'Avaliação Física',
+    vagasNecessarias: 3,
+    icone: 'fa-heart-pulse',
+    cor: '#38bdf8',
+    descricao: 'Antropometria e bioimpedância',
     tipoCredito: 'academia'
   },
   {
-    id: 'treino_livre',
-    nome: 'Treino Livre',
-    vagasNecessarias: 0,
-    icone: 'fa-person-running',
-    cor: '#818cf8',
-    descricao: 'Treino autônomo',
-    tipoCredito: 'nenhum'
+    id: 'avaliacao_fisioterapica',
+    nome: 'Avaliação Fisioterápica',
+    vagasNecessarias: 3,
+    icone: 'fa-user-doctor',
+    cor: '#10b981',
+    descricao: 'Diagnóstico cinesiológico',
+    tipoCredito: 'academia'
+  },
+  {
+    id: 'teste_forca',
+    nome: 'Teste de Força',
+    vagasNecessarias: 3,
+    icone: 'fa-bolt-lightning',
+    cor: '#f59e0b',
+    descricao: 'Dinamometria e potência',
+    tipoCredito: 'academia'
+  },
+  {
+    id: 'consulta',
+    nome: 'Consulta',
+    vagasNecessarias: 1,
+    icone: 'fa-stethoscope',
+    cor: '#38bdf8',
+    descricao: 'Consulta clínica individual',
+    tipoCredito: 'academia'
+  },
+  {
+    id: 'quiropraxia',
+    nome: 'Quiropraxia',
+    vagasNecessarias: 1,
+    icone: 'fa-bone',
+    cor: '#f59e0b',
+    descricao: 'Ajuste articular e coluna',
+    tipoCredito: 'academia'
   }
 ];
 
