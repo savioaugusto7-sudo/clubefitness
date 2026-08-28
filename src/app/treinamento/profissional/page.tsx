@@ -195,6 +195,52 @@ const MPB_STUDENTS: MPBStudent[] = [
     wellnessStatus: 'otimo',
     wellnessConduta: 'Alongamento de cadeia anterior e descompressão cervical',
     queixa: 'Tensão no trapézio superior esquerdo'
+  },
+  {
+    id: 'mpb-8',
+    nome: 'Maria Bethânia',
+    telefone: '(71) 92222-1100',
+    email: 'maria.bethania@mpb.com.br',
+    cpf: '888.999.000-11',
+    plano: 'Plano Monitorado 3x',
+    freqSemanal: 3,
+    sexo: 'F',
+    objetivo: 'Condicionamento cardiorrespiratório e potência vocal',
+    restricoes: 'Nenhuma restrição clínica',
+    avaliador: 'Dr. Guilherme',
+    profResponsavel: 'Prof. Gabriel',
+    diasSemVir: 1,
+    ultimaAvaliacao: '01/08/2026',
+    ultimoTesteForca: '03/08/2026',
+    fimPlano: '01/02/2027',
+    status: 'ativo',
+    wellnessScore: 27,
+    wellnessStatus: 'otimo',
+    wellnessConduta: 'Treino liberado em intensidade moderada/alta',
+    queixa: 'Nenhuma queixa álgica'
+  },
+  {
+    id: 'mpb-9',
+    nome: 'Tom Jobim',
+    telefone: '(21) 91111-0099',
+    email: 'tom.jobim@mpb.com.br',
+    cpf: '999.000.111-22',
+    plano: 'Plano Monitorado 3x',
+    freqSemanal: 3,
+    sexo: 'M',
+    objetivo: 'Fortalecimento postural e respiração diafragmática',
+    restricoes: 'Leve desconforto escapular',
+    avaliador: 'Dr. Albert',
+    profResponsavel: 'Prof. Gabriel',
+    diasSemVir: 2,
+    ultimaAvaliacao: '12/07/2026',
+    ultimoTesteForca: '14/07/2026',
+    fimPlano: '12/01/2027',
+    status: 'ativo',
+    wellnessScore: 25,
+    wellnessStatus: 'otimo',
+    wellnessConduta: 'Foco em cadeia posterior e mobilidade de ombros',
+    queixa: 'Rigidez leve entre as escápulas'
   }
 ];
 
@@ -364,6 +410,7 @@ export default function TreinamentoProfissionalPage() {
   // Modais do Simulador
   const [inspectModalApt, setInspectModalApt] = useState<any | null>(null);
   const [inspectObsInput, setInspectObsInput] = useState('');
+  const [isEditingObs, setIsEditingObs] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
   const [activeWellnessStudent, setActiveWellnessStudent] = useState<MPBStudent | null>(null);
   const [wellnessSono, setWellnessSono] = useState<number>(4);
@@ -1282,8 +1329,7 @@ export default function TreinamentoProfissionalPage() {
                   </h3>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    
-                    {/* Slot 06:00 (Raquel Freitas) */}
+                    {/* Slot 06:00 (Gal Costa) */}
                     <div style={{
                       background: '#0f172a',
                       border: '1px solid rgba(255,255,255,0.08)',
@@ -1312,8 +1358,10 @@ export default function TreinamentoProfissionalPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setInspectModalApt({ id: 'sim-raquel', nome: 'Raquel Freitas', plano: 'Plano Saúde 3x', telefone: '(11) 98765-1122' });
-                            setInspectObsInput(simObservacoes['sim-raquel'] || '');
+                            const gal = MPB_STUDENTS[6];
+                            setInspectModalApt({ ...gal, horario: '06:00', servico: 'Treino Monitorado' });
+                            setInspectObsInput(simObservacoes[gal.id] || '');
+                            setIsEditingObs(false);
                           }}
                           style={{
                             display: 'inline-flex',
@@ -1326,7 +1374,7 @@ export default function TreinamentoProfissionalPage() {
                             cursor: 'pointer'
                           }}
                         >
-                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>Raquel Freitas</span>
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>Gal Costa</span>
                           <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
                             MONITORADO
                           </span>
@@ -1358,7 +1406,7 @@ export default function TreinamentoProfissionalPage() {
                       </div>
                     </div>
 
-                    {/* Slot 07:00 (Aluísio Mourão, Renato Brandão, Zaime Romeu) */}
+                    {/* Slot 07:00 (Maria Bethânia, Tom Jobim, Gilberto Gil) */}
                     <div style={{
                       background: '#0f172a',
                       border: '1px solid rgba(255,255,255,0.08)',
@@ -1384,13 +1432,14 @@ export default function TreinamentoProfissionalPage() {
                       </div>
 
                       <div style={{ flexGrow: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {['Aluísio Mourão', 'Renato Brandão', 'Zaime Romeu'].map((nome, idx) => (
+                        {[MPB_STUDENTS[7], MPB_STUDENTS[8], MPB_STUDENTS[3]].map((student) => (
                           <button
-                            key={idx}
+                            key={student.id}
                             type="button"
                             onClick={() => {
-                              setInspectModalApt({ id: `sim-${idx}`, nome, plano: 'Plano Monitorado 3x', telefone: '(11) 97777-1234' });
-                              setInspectObsInput(simObservacoes[`sim-${idx}`] || '');
+                              setInspectModalApt({ ...student, horario: '07:00', servico: 'Treino Monitorado' });
+                              setInspectObsInput(simObservacoes[student.id] || '');
+                              setIsEditingObs(false);
                             }}
                             style={{
                               display: 'inline-flex',
@@ -1403,7 +1452,7 @@ export default function TreinamentoProfissionalPage() {
                               cursor: 'pointer'
                             }}
                           >
-                            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>{nome}</span>
+                            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>{student.nome}</span>
                             <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
                               MONITORADO
                             </span>
@@ -1466,8 +1515,9 @@ export default function TreinamentoProfissionalPage() {
                           type="button"
                           onClick={() => {
                             const chico = MPB_STUDENTS[0];
-                            setInspectModalApt(chico);
+                            setInspectModalApt({ ...chico, horario: '08:00', servico: 'Treino Monitorado' });
                             setInspectObsInput(simObservacoes['mpb-1'] || '');
+                            setIsEditingObs(false);
                           }}
                           style={{
                             display: 'inline-flex',
@@ -1531,7 +1581,7 @@ export default function TreinamentoProfissionalPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '130px' }}>
                         <strong style={{ fontSize: '1.05rem', color: '#00f2fe' }}>10:00</strong>
                         <div>
-                          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }}>
+                          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#38bdf8', fontWeight: 800 }}>
                             ACADEMIA
                           </span>
                           <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>1 / 4 vagas</div>
@@ -1543,10 +1593,11 @@ export default function TreinamentoProfissionalPage() {
                           type="button"
                           onClick={() => {
                             const caetano = MPB_STUDENTS[2];
-                            setInspectModalApt(caetano);
+                            setInspectModalApt({ ...caetano, horario: '10:00', servico: 'Fisioterapia' });
                             setInspectObsInput(simObservacoes['mpb-3'] || '');
+                            setIsEditingObs(false);
                           }}
-                          title="Clique para abrir e editar a observação clínica"
+                          title="Clique para abrir os detalhes e observações do atendimento"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -1562,34 +1613,32 @@ export default function TreinamentoProfissionalPage() {
                           <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' }}>
                             FISIOTERAPIA
                           </span>
-                          <span style={{
-                            background: 'rgba(245, 158, 11, 0.2)',
-                            color: '#f59e0b',
-                            border: '1px solid rgba(245, 158, 11, 0.4)',
-                            fontSize: '0.68rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            padding: '1px 6px',
-                            borderRadius: '8px',
-                            fontWeight: 800
-                          }}>
-                            <i className="fa-solid fa-note-sticky"></i> Obs
-                          </span>
+                          {simObservacoes['mpb-3'] && (
+                            <span style={{
+                              background: 'rgba(245, 158, 11, 0.2)',
+                              color: '#f59e0b',
+                              border: '1px solid rgba(245, 158, 11, 0.4)',
+                              fontSize: '0.68rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '1px 6px',
+                              borderRadius: '8px',
+                              fontWeight: 800
+                            }}>
+                              <i className="fa-solid fa-note-sticky"></i> Obs
+                            </span>
+                          )}
                         </button>
                       </div>
 
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           type="button"
-                          onClick={() => {
-                            const caetano = MPB_STUDENTS[2];
-                            setInspectModalApt(caetano);
-                            setInspectObsInput(simObservacoes['mpb-3'] || '');
-                          }}
-                          style={{ background: 'linear-gradient(135deg, #00f2fe, #4facfe)', color: '#0f172a', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => triggerToast('👤 Gestão de agendamentos do horário 10:00')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
-                          <i className="fa-solid fa-pen-to-square"></i> Abrir & Editar Obs
+                          <i className="fa-solid fa-user-edit" style={{ color: '#00f2fe' }}></i> Gerenciar
                         </button>
                         <button
                           type="button"
@@ -1597,6 +1646,13 @@ export default function TreinamentoProfissionalPage() {
                           style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
                           <i className="fa-solid fa-sliders"></i> Vagas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('🗑️ Opção de exclusão / suspensão de horário')}
+                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '6px 8px', borderRadius: '6px', fontSize: '0.74rem', cursor: 'pointer' }}
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
                         </button>
                       </div>
                     </div>
@@ -1631,8 +1687,9 @@ export default function TreinamentoProfissionalPage() {
                           type="button"
                           onClick={() => {
                             const elis = MPB_STUDENTS[1];
-                            setInspectModalApt(elis);
+                            setInspectModalApt({ ...elis, horario: '14:00', servico: 'Avaliação Física' });
                             setInspectObsInput(simObservacoes['mpb-2'] || '');
+                            setIsEditingObs(false);
                           }}
                           style={{
                             display: 'inline-flex',
@@ -1928,104 +1985,294 @@ export default function TreinamentoProfissionalPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* MODAL SIMULADO 1: INSPEÇÃO DE AGENDAMENTO & OBSERVAÇÃO CLÍNICA            */}
+      {/* MODAL SIMULADO 1: MODAL EXECUTIVO DE INSPEÇÃO & OBSERVAÇÃO CLÍNICA (SCREENSHOT 3) */}
       {/* ========================================================================= */}
       {inspectModalApt && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.75)',
+          background: 'rgba(0,0,0,0.8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 9000,
-          backdropFilter: 'blur(6px)',
+          backdropFilter: 'blur(8px)',
           padding: '16px'
         }}>
           <div style={{
-            background: '#1e293b',
-            border: '1px solid rgba(0, 242, 254, 0.3)',
+            background: '#111827',
+            border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: '16px',
             maxWidth: '520px',
             width: '100%',
-            padding: '24px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
+            padding: '22px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
+            position: 'relative'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-address-card"></i> Detalhes do Atendimento
-              </h3>
+            {/* Topo do Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  color: '#38bdf8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem'
+                }}>
+                  <i className="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>
+                    {inspectModalApt.nome}
+                  </h3>
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                    📅 28/08/2026 (Sexta-feira) às <strong style={{ color: '#10b981' }}>{inspectModalApt.horario || '10:00'}</strong>
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={() => setInspectModalApt(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}
+                onClick={() => { setInspectModalApt(null); setIsEditingObs(false); }}
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#cbd5e1',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.1rem',
+                  cursor: 'pointer'
+                }}
               >
                 &times;
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '12px', borderRadius: '10px' }}>
-                <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#fff' }}>{inspectModalApt.nome}</div>
-                <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '2px' }}>
-                  {inspectModalApt.telefone} • {inspectModalApt.plano}
+              {/* Card 1: CPF, Telefone e Badge de Serviço */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                  CPF: <strong style={{ color: '#fff' }}>{inspectModalApt.cpf || '015.820.526.03'}</strong> • Tel: <strong style={{ color: '#fff' }}>{inspectModalApt.telefone || '(11) 98420-4409'}</strong>
                 </div>
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  padding: '4px 12px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  {inspectModalApt.servico || 'Treino Monitorado'}
+                </span>
               </div>
 
-              {/* Bloco de Gestão de Observações Clínicas */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#f59e0b', marginBottom: '6px' }}>
-                  <i className="fa-solid fa-note-sticky"></i> Observação Clínica do Atendimento:
-                </label>
-                <textarea
-                  value={inspectObsInput}
-                  onChange={(e) => setInspectObsInput(e.target.value)}
-                  placeholder="Digite as anotações sobre o estado do aluno, condutas e feedback..."
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid rgba(245, 158, 11, 0.4)',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontSize: '0.85rem',
-                    resize: 'vertical'
-                  }}
-                />
-                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px' }}>
-                  🕒 Será gravado com timestamp automático e assinatura do profissional.
+              {/* Card 2: Observação Clínica (Borda Âmbar / Laranja) */}
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.04)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '14px',
+                padding: '16px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontWeight: 800, fontSize: '0.88rem' }}>
+                    <i className="fa-solid fa-note-sticky"></i> Observação Clínica
+                  </div>
+                  {!isEditingObs && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingObs(true)}
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        color: '#f59e0b',
+                        borderRadius: '8px',
+                        padding: '4px 12px',
+                        fontSize: '0.76rem',
+                        fontWeight: 750,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className="fa-solid fa-pen-to-square"></i> {simObservacoes[inspectModalApt.id] || inspectObsInput ? 'Editar' : 'Adicionar'}
+                    </button>
+                  )}
                 </div>
+
+                {isEditingObs ? (
+                  <div>
+                    <textarea
+                      rows={3}
+                      placeholder="Digite orientações clínicas, foco do treino, dores ou restrições..."
+                      value={inspectObsInput}
+                      onChange={(e) => setInspectObsInput(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: '#0a0f1d',
+                        color: '#fff',
+                        border: '1px solid rgba(245, 158, 11, 0.5)',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        fontSize: '0.85rem',
+                        resize: 'vertical',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingObs(false);
+                          setInspectObsInput(simObservacoes[inspectModalApt.id] || '');
+                        }}
+                        style={{
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          color: '#cbd5e1',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSimObservacoes(prev => ({ ...prev, [inspectModalApt.id]: inspectObsInput }));
+                          setIsEditingObs(false);
+                          triggerToast(`✅ Observação clínica de ${inspectModalApt.nome} gravada com sucesso!`);
+                        }}
+                        style={{
+                          background: '#10b981',
+                          border: 'none',
+                          color: '#fff',
+                          padding: '6px 16px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <i className="fa-solid fa-check"></i> Salvar Observação
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {simObservacoes[inspectModalApt.id] || inspectObsInput ? (
+                      <div>
+                        <div style={{ fontSize: '0.88rem', color: '#fff', lineHeight: '1.45', fontWeight: 500 }}>
+                          "{simObservacoes[inspectModalApt.id] || inspectObsInput}"
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <i className="fa-regular fa-clock"></i> Lançada em 28/08/2026 às {inspectModalApt.horario || '10:00'} por Prof. Gabriel
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.82rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                        Nenhuma observação clínica registrada para este agendamento.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+              {/* Card 3: Ações Rápidas (Presença / Falta) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setInspectModalApt(null)}
-                  style={{ background: 'rgba(255,255,255,0.06)', color: '#cbd5e1', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                  onClick={() => {
+                    setSimPresencas(prev => ({ ...prev, [inspectModalApt.id]: 'presenca' }));
+                    setInspectModalApt(null);
+                    triggerToast(`✅ Presença confirmada para ${inspectModalApt.nome}!`);
+                  }}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    color: '#10b981',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
                 >
-                  Fechar
+                  <i className="fa-solid fa-check"></i> Marcar Presença
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setSimObservacoes(prev => ({ ...prev, [inspectModalApt.id]: inspectObsInput }));
+                    setSimPresencas(prev => ({ ...prev, [inspectModalApt.id]: 'falta' }));
                     setInspectModalApt(null);
-                    triggerToast(`✅ Observação clínica de ${inspectModalApt.nome} gravada com sucesso!`);
+                    triggerToast(`⚠️ Falta registrada para ${inspectModalApt.nome}!`);
                   }}
                   style={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#ef4444',
+                    padding: '12px',
+                    borderRadius: '10px',
                     fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className="fa-solid fa-xmark"></i> Marcar Falta
+                </button>
+              </div>
+
+              {/* Rodapé: Fechar */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setInspectModalApt(null); setIsEditingObs(false); }}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    color: '#cbd5e1',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
                     fontSize: '0.82rem',
                     cursor: 'pointer'
                   }}
                 >
-                  <i className="fa-solid fa-floppy-disk"></i> Salvar Observação
+                  Fechar
                 </button>
               </div>
             </div>
