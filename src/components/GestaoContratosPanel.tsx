@@ -3651,44 +3651,64 @@ export default function GestaoContratosPanel({
 
                     const isBoleto = (latestContract?.formaPagamento || com.formaPagamento) === 'boleto';
                     const hasAsaasBoleto = Boolean(latestContract?.asaasBoletoPdf || latestContract?.asaasInvoiceUrl);
+                    const isCardProposalMode = stage.stageKey === 'proposta';
 
                     return (
                       <div
                         key={c._id}
                         style={{
-                          background: '#111827',
-                          border: '1px solid #1f2937',
-                          borderRadius: '14px',
+                          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                          border: isCardProposalMode ? '1px solid rgba(139, 92, 246, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '16px',
                           padding: '18px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
                           gap: '14px',
-                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+                          backdropFilter: 'blur(12px)',
                           transition: 'all 0.2s ease'
                         }}
                       >
                         <div>
                           {/* =========================================================
-                              BLOCO 1: IDENTIFICAÇÃO DO ALUNO & ORIGEM
+                              BLOCO 1: IDENTIFICAÇÃO DO ALUNO (SEM AVATAR, PURO NOME)
                               ========================================================= */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px', wordBreak: 'break-word' }}>
+                              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px', wordBreak: 'break-word', fontFamily: 'var(--font-title)' }}>
                                 {c.dadosPessoais?.nome || 'Sem Nome'}
                               </h3>
-                              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px', lineHeight: 1.4 }}>
-                                <span>CPF: </span>
-                                <strong style={{ color: hasCpf ? '#ffffff' : '#64748b' }}>
-                                  {hasCpf ? c.dadosPessoais.cpf : '(Não informado)'}
-                                </strong>
-                                <span> • Tel: </span>
-                                <strong style={{ color: hasPhone ? '#ffffff' : '#64748b' }}>
-                                  {hasPhone ? c.dadosPessoais.telefone : '(Não informado)'}
-                                </strong>
+                              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', lineHeight: 1.4, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span>
+                                  CPF: <strong style={{ color: hasCpf ? '#cbd5e1' : '#64748b' }}>{hasCpf ? c.dadosPessoais.cpf : '(Não informado)'}</strong>
+                                </span>
+                                {hasPhone && (
+                                  <a
+                                    href={waLink || `https://wa.me/55${String(c.dadosPessoais.telefone).replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      background: 'rgba(16, 185, 129, 0.12)',
+                                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      color: '#34d399',
+                                      fontWeight: 700,
+                                      fontSize: '0.76rem',
+                                      textDecoration: 'none',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                    title="Conversar no WhatsApp"
+                                  >
+                                    <i className="fa-brands fa-whatsapp"></i> {c.dadosPessoais.telefone}
+                                  </a>
+                                )}
                               </div>
-                              <div style={{ fontSize: '0.75rem', color: hasEndereco ? '#94a3b8' : '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
-                                <i className="fa-solid fa-location-dot" style={{ marginRight: '4px', color: hasEndereco ? 'var(--color-primary)' : '#475569' }}></i>
+                              <div style={{ fontSize: '0.75rem', color: hasEndereco ? '#94a3b8' : '#64748b', marginTop: '4px', lineHeight: 1.3 }}>
+                                <i className="fa-solid fa-location-dot" style={{ marginRight: '4px', color: hasEndereco ? '#38bdf8' : '#475569' }}></i>
                                 {enderecoFormatted || '(Endereço não informado)'}
                               </div>
                               {stage.isMissingData && stage.stageKey !== 'dynamus' && (
@@ -3713,11 +3733,6 @@ export default function GestaoContratosPanel({
                                       ⚠️ Falta Endereço
                                     </span>
                                   )}
-                                  {c.dadosPessoais?.email && c.dadosPessoais.email.toLowerCase().endsWith('@clube.com') && (
-                                    <span style={{ fontSize: '0.68rem', background: 'rgba(245,158,11,0.15)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.3)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                                      ⚠️ E-mail Fictício (@clube.com)
-                                    </span>
-                                  )}
                                 </div>
                               )}
                             </div>
@@ -3726,12 +3741,12 @@ export default function GestaoContratosPanel({
                             <span style={{
                               background: stage.badgeBg,
                               color: stage.badgeColor,
-                              border: stage.badgeBorder,
+                              border: stage.badgeBorder || 'none',
                               padding: '4px 10px',
                               borderRadius: '6px',
                               fontSize: '0.72rem',
-                              fontWeight: 750,
-                              letterSpacing: '0.4px',
+                              fontWeight: 800,
+                              letterSpacing: '0.3px',
                               textTransform: 'uppercase',
                               whiteSpace: 'nowrap',
                               flexShrink: 0
@@ -3741,181 +3756,417 @@ export default function GestaoContratosPanel({
                           </div>
 
                           {/* =========================================================
-                              BLOCO 2: ESTÁGIO, VIGÊNCIA & CHECKLIST DE DADOS
+                              BLOCO 2: INFORMAÇÕES DA PROPOSTA OU CONTRATO
                               ========================================================= */}
-                          <div style={{
-                            background: '#090d16',
-                            border: '1px solid #1e293b',
-                            borderRadius: '10px',
-                            padding: '12px 14px',
-                            marginTop: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px'
-                          }}>
-                            {/* Plano & Valor */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
-                              <span style={{ color: '#94a3b8', fontWeight: 500 }}>Plano:</span>
-                              <strong style={{ color: '#ffffff', fontWeight: 700, textAlign: 'right' }}>
-                                {latestContract?.planoNome || latestProposal?.planoNome || com.planoNome || plan?.nome || (!isFunnelTerm(c.plano) ? c.plano : null) || 'A definir'}
-                              </strong>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
-                              <span style={{ color: '#94a3b8', fontWeight: 500 }}>
-                                {info.isLead || info.isUncontracted ? 'Cadastro:' : (stage.isRecorrente ? 'Vigência (Acesso):' : 'Vigência:')}
-                              </span>
-                              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                <strong style={{ color: '#f1f5f9', fontWeight: 600 }}>
-                                  {info.isLead || info.isUncontracted
-                                    ? (c.createdAt ? `Cadastrado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}` : 'Recente')
-                                    : `${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
+                          {isCardProposalMode && latestProposal ? (
+                            /* CARD INFORMATIVO DA PROPOSTA COMERCIAL */
+                            <div style={{
+                              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                              borderRadius: '12px',
+                              padding: '12px 14px',
+                              marginTop: '12px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <i className="fa-solid fa-file-invoice-dollar" style={{ color: '#fbbf24' }}></i> Plano Proposto:
+                                </span>
+                                <strong style={{ color: '#ffffff', fontWeight: 800, textAlign: 'right' }}>
+                                  {latestProposal.planoNome || 'Plano Personalizado'}
                                 </strong>
-                                {info.daysLeftText && (
-                                  <span style={{
-                                    background: info.isLead || info.isUncontracted ? 'rgba(168, 85, 247, 0.15)' : (info.isExpired ? '#7f1d1d' : info.isExpiringSoon ? '#78350f' : '#064e3b'),
-                                    color: info.isLead || info.isUncontracted ? '#c084fc' : '#ffffff',
-                                    border: info.isLead || info.isUncontracted ? '1px solid rgba(168, 85, 247, 0.3)' : 'none',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 750,
-                                    padding: '2px 6px',
-                                    borderRadius: '4px'
-                                  }}>
-                                    {info.daysLeftText}
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Duração & Franquia:</span>
+                                <strong style={{ color: '#fbbf24', fontWeight: 700 }}>
+                                  {latestProposal.duracao === 'semana' ? 'Semana' : 'Mensal'} • {latestProposal.vigenciaQtd || 1} {latestProposal.duracao === 'semana' ? 'sem' : 'mês(es)'} {latestProposal.frequencia ? `(${latestProposal.frequencia}x/sem)` : ''}
+                                </strong>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', background: 'rgba(0,0,0,0.25)', padding: '5px 8px', borderRadius: '6px' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Previsão de Vigência:</span>
+                                <strong style={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.78rem' }}>
+                                  📅 A partir da ativação
+                                </strong>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', borderTop: '1px solid rgba(245, 158, 11, 0.15)', paddingTop: '6px' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Valor Proposto:</span>
+                                <strong style={{ color: '#38bdf8', fontWeight: 900, fontSize: '0.95rem' }}>
+                                  R$ {Number(latestProposal.valorFinalRecalculado || latestProposal.valorAcordado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </strong>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>1º Vencimento:</span>
+                                {latestProposal.dataVencimentoEscolhida ? (
+                                  <strong style={{ color: '#34d399', fontWeight: 700 }}>
+                                    📅 {new Date(latestProposal.dataVencimentoEscolhida + (latestProposal.dataVencimentoEscolhida.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}
+                                  </strong>
+                                ) : (
+                                  <span style={{ color: '#fbbf24', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <i className="fa-solid fa-hourglass-half"></i> Aguardando escolha no link
                                   </span>
                                 )}
                               </div>
-                            </div>
 
-                            {Boolean(stage.isRecorrente) && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: 'rgba(59, 130, 246, 0.08)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                <span style={{ color: '#93c5fd', fontWeight: 600 }}>
-                                  <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Contrato Anual (12 Meses):
+                              {/* Checklist de Dados */}
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                                <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)', fontWeight: 700 }}>
+                                  {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
                                 </span>
-                                <strong style={{ color: '#ffffff' }}>
-                                  Término em {info.dataFimRecorrenciaFormatted}
+                                <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)', fontWeight: 700 }}>
+                                  {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            /* CARD DE CONTRATO ATIVO / PENDENTE / OUTROS */
+                            <div style={{
+                              background: '#090d16',
+                              border: '1px solid #1e293b',
+                              borderRadius: '10px',
+                              padding: '12px 14px',
+                              marginTop: '12px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Plano:</span>
+                                <strong style={{ color: '#ffffff', fontWeight: 700, textAlign: 'right' }}>
+                                  {latestContract?.planoNome || com.planoNome || plan?.nome || (!isFunnelTerm(c.plano) ? c.plano : null) || 'A definir'}
                                 </strong>
                               </div>
-                            )}
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
-                              <span style={{ color: '#94a3b8', fontWeight: 500 }}>Condição:</span>
-                              <strong style={{ color: '#38bdf8', fontWeight: 700 }}>
-                                {stage.stageKey === 'dynamus'
-                                  ? 'Convênio Corporativo Dynamus'
-                                  : (latestContract?.valorLiquido || latestContract?.valorTotal || latestProposal?.valorFinalRecalculado || latestProposal?.valorAcordado || com.valorTotal || com.valorUnitario)
-                                    ? `R$ ${Number(latestContract?.valorLiquido || latestContract?.valorTotal || latestProposal?.valorFinalRecalculado || latestProposal?.valorAcordado || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')} (${(latestContract?.formaPagamento || latestProposal?.formaPagamentoEscolhida || com.formaPagamento || 'pix').toUpperCase()}${(latestContract?.parcelas || latestProposal?.parcelasEscolhidas || com.parcelas || 1) > 1 ? ` ${(latestContract?.parcelas || latestProposal?.parcelasEscolhidas || com.parcelas)}x` : ''})`
-                                    : 'A definir'}
-                              </strong>
-                            </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>
+                                  {info.isLead || info.isUncontracted ? 'Cadastro:' : (stage.isRecorrente ? 'Vigência (Acesso):' : 'Vigência:')}
+                                </span>
+                                <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                  <strong style={{ color: '#f1f5f9', fontWeight: 600 }}>
+                                    {info.isLead || info.isUncontracted
+                                      ? (c.createdAt ? `Cadastrado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}` : 'Recente')
+                                      : `${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
+                                  </strong>
+                                  {info.daysLeftText && (
+                                    <span style={{
+                                      background: info.isLead || info.isUncontracted ? 'rgba(168, 85, 247, 0.15)' : (info.isExpired ? '#7f1d1d' : info.isExpiringSoon ? '#78350f' : '#064e3b'),
+                                      color: info.isLead || info.isUncontracted ? '#c084fc' : '#ffffff',
+                                      border: info.isLead || info.isUncontracted ? '1px solid rgba(168, 85, 247, 0.3)' : 'none',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 750,
+                                      padding: '2px 6px',
+                                      borderRadius: '4px'
+                                    }}>
+                                      {info.daysLeftText}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
 
-                            {/* Checklist de Dados */}
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
-                              {stage.stageKey === 'dynamus' ? (
-                                <>
-                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.35)', fontWeight: 700 }}>
-                                    ✅ Cadastro Dynamus Completo
+                              {Boolean(stage.isRecorrente) && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: 'rgba(59, 130, 246, 0.08)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                  <span style={{ color: '#93c5fd', fontWeight: 600 }}>
+                                    <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Contrato Anual (12 Meses):
                                   </span>
-                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', fontWeight: 700 }}>
-                                    ✅ Convênio Corporativo
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
-                                    {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
-                                  </span>
-                                  <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
-                                    {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
-                                  </span>
-                                </>
+                                  <strong style={{ color: '#ffffff' }}>
+                                    Término em {info.dataFimRecorrenciaFormatted}
+                                  </strong>
+                                </div>
                               )}
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Condição:</span>
+                                <strong style={{ color: '#38bdf8', fontWeight: 700 }}>
+                                  {stage.stageKey === 'dynamus'
+                                    ? 'Convênio Corporativo Dynamus'
+                                    : (latestContract?.valorLiquido || latestContract?.valorTotal || com.valorTotal || com.valorUnitario)
+                                      ? `R$ ${Number(latestContract?.valorLiquido || latestContract?.valorTotal || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')} (${(latestContract?.formaPagamento || com.formaPagamento || 'pix').toUpperCase()}${(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` ${(latestContract?.parcelas || com.parcelas)}x` : ''})`
+                                      : 'A definir'}
+                                </strong>
+                              </div>
+
+                              {/* Checklist de Dados */}
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
+                                {stage.stageKey === 'dynamus' ? (
+                                  <>
+                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.35)', fontWeight: 700 }}>
+                                      ✅ Cadastro Dynamus Completo
+                                    </span>
+                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', fontWeight: 700 }}>
+                                      ✅ Convênio Corporativo
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                      {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
+                                    </span>
+                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                      {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
 
                         {/* =========================================================
-                            BLOCO 3: CALL-TO-ACTION PRIMÁRIO & AÇÕES SECUNDÁRIAS
+                            BLOCO 3: BOTÕES DE AÇÃO OTIMIZADOS E SEM REDUNDÂNCIAS
                             ========================================================= */}
-                        <div style={{ borderTop: '1px solid #1e293b', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {/* BOTÃO DE AÇÃO PRIMÁRIA EM DESTAQUE */}
-                          {stage.stageKey === 'dynamus' ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (onNavigateTab) {
-                                  onNavigateTab('dynamus', c.dadosPessoais?.nome || '');
-                                } else {
-                                  window.dispatchEvent(new CustomEvent('navigate_tab', { detail: { tab: 'dynamus', searchQuery: c.dadosPessoais?.nome || '' } }));
-                                }
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid rgba(6, 182, 212, 0.4)',
-                                background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
-                                color: '#ffffff',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
-                              }}
-                            >
-                              <i className="fa-solid fa-bolt"></i> Gerenciar Créditos Dynamus
-                            </button>
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          
+                          {/* CASO A: PROPOSTA ENVIADA */}
+                          {isCardProposalMode && latestProposal ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                              {/* 1. Botão Hero: Link de Venda */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = window.location.origin + '/vendas/' + latestProposal._id;
+                                  setGeneratedProposalUrl(url);
+                                  setActiveProposal(latestProposal);
+                                  setShowProposalModal(true);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '11px 14px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                                  color: '#ffffff',
+                                  fontWeight: 800,
+                                  fontSize: '0.86rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                <i className="fa-solid fa-share-nodes"></i> Copiar / Reenviar Link
+                              </button>
+
+                              {/* 2. Linha de Ações Secundárias Simétricas (3 botões) */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleManualActivateClient(c, latestProposal)}
+                                  style={{
+                                    padding: '8px 6px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                                    background: 'rgba(16, 185, 129, 0.15)',
+                                    color: '#34d399',
+                                    fontWeight: 700,
+                                    fontSize: '0.74rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Validar fechamento manual e ativar o aluno como Contrato Vigente"
+                                >
+                                  <i className="fa-solid fa-circle-check"></i> Fechar Manual
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectClient(c)}
+                                  style={{
+                                    padding: '8px 6px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    color: '#f1f5f9',
+                                    fontWeight: 700,
+                                    fontSize: '0.74rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Abrir o workspace completo do aluno"
+                                >
+                                  <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i> Workspace
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelProposal(c, latestProposal)}
+                                  style={{
+                                    padding: '8px 6px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                                    background: 'rgba(239, 68, 68, 0.12)',
+                                    color: '#f87171',
+                                    fontWeight: 700,
+                                    fontSize: '0.74rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Descartar esta proposta pendente"
+                                >
+                                  <i className="fa-solid fa-trash-can"></i> Descartar
+                                </button>
+                              </div>
+                            </div>
                           ) : stage.stageKey === 'ativo' ? (
-                            <button
-                              type="button"
-                              onClick={() => setConsultingClient(c)}
-                              style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                                color: '#ffffff',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              <i className="fa-solid fa-eye" style={{ color: 'var(--color-primary)' }}></i> Consultar Resumo
-                            </button>
-                          ) : stage.stageKey === 'finalizado' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDirectContractWizard(c)}
-                              style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                color: '#ffffff',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
-                              }}
-                            >
-                              <i className="fa-solid fa-arrows-rotate"></i> Reativar / Nova Renovação
-                            </button>
+                            /* CASO B: CONTRATO ATIVO */
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectClient(c)}
+                                style={{
+                                  width: '100%',
+                                  padding: '11px 14px',
+                                  borderRadius: '10px',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                                  color: '#ffffff',
+                                  fontWeight: 800,
+                                  fontSize: '0.86rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <i className="fa-solid fa-folder-open" style={{ color: '#10b981' }}></i> Abrir Workspace do Contrato
+                              </button>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: isBoleto ? '1fr 1fr' : '1fr 1fr', gap: '6px' }}>
+                                {isBoleto ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenAsaasModal(c)}
+                                    style={{
+                                      background: 'rgba(2, 132, 199, 0.15)',
+                                      border: '1px solid rgba(2, 132, 199, 0.4)',
+                                      color: '#38bdf8',
+                                      padding: '8px 10px',
+                                      borderRadius: '8px',
+                                      fontSize: '0.76rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '5px'
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-receipt"></i> Boletos Asaas
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenClientFinancial(c)}
+                                    style={{
+                                      background: 'rgba(16, 185, 129, 0.12)',
+                                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                                      color: '#34d399',
+                                      padding: '8px 10px',
+                                      borderRadius: '8px',
+                                      fontSize: '0.76rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '5px'
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-wallet"></i> Financeiro
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryModalClient(c)}
+                                  style={{
+                                    background: (c.historicoContratos?.length > 0) ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255,255,255,0.06)',
+                                    border: (c.historicoContratos?.length > 0) ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid rgba(255,255,255,0.1)',
+                                    color: (c.historicoContratos?.length > 0) ? '#22d3ee' : '#94a3b8',
+                                    padding: '8px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.76rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-clock-rotate-left"></i> Histórico
+                                </button>
+                              </div>
+                            </div>
+                          ) : stage.stageKey === 'pendente' ? (
+                            /* CASO C: PENDENTE CLICKSIGN */
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleSyncClicksignForClient(c)}
+                                disabled={syncingClicksignClientId === c._id}
+                                style={{
+                                  width: '100%',
+                                  padding: '11px 14px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: '#f59e0b',
+                                  color: '#000000',
+                                  fontWeight: 800,
+                                  fontSize: '0.86rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)'
+                                }}
+                              >
+                                {syncingClicksignClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
+                                Sincronizar Clicksign
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectClient(c)}
+                                style={{
+                                  padding: '8px 10px',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  color: '#f1f5f9',
+                                  fontWeight: 700,
+                                  fontSize: '0.76rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i> Abrir Workspace
+                              </button>
+                            </div>
                           ) : (stage.stageKey === 'vencido' || stage.stageKey === 'renovacao') ? (
+                            /* CASO D: VENCIDO / RENOVAÇÃO */
                             <div style={{ display: 'flex', gap: '8px' }}>
                               <button
                                 type="button"
@@ -3923,7 +4174,7 @@ export default function GestaoContratosPanel({
                                 disabled={Boolean(generatingRenewalClientId)}
                                 style={{
                                   flex: '1 1 auto',
-                                  padding: '10px 14px',
+                                  padding: '11px 14px',
                                   borderRadius: '10px',
                                   border: 'none',
                                   background: '#fbbf24',
@@ -3946,7 +4197,7 @@ export default function GestaoContratosPanel({
                                 onClick={() => handleOpenFinalizeModal(c)}
                                 title="Marcar contrato como Finalizado (Não Renovou)"
                                 style={{
-                                  padding: '10px 12px',
+                                  padding: '11px 12px',
                                   borderRadius: '10px',
                                   border: '1px solid rgba(107, 114, 128, 0.4)',
                                   background: 'rgba(107, 114, 128, 0.18)',
@@ -3957,126 +4208,26 @@ export default function GestaoContratosPanel({
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  gap: '5px',
-                                  whiteSpace: 'nowrap'
+                                  gap: '5px'
                                 }}
                               >
                                 <i className="fa-solid fa-flag-checkered"></i> Não Renovou
                               </button>
                             </div>
-                          ) : stage.stageKey === 'pendente' ? (
+                          ) : stage.stageKey === 'finalizado' ? (
+                            /* CASO E: FINALIZADO */
                             <button
                               type="button"
-                              onClick={() => handleSyncClicksignForClient(c)}
-                              disabled={syncingClicksignClientId === c._id}
+                              onClick={() => handleOpenDirectContractWizard(c)}
                               style={{
                                 width: '100%',
-                                padding: '10px 14px',
+                                padding: '11px 14px',
                                 borderRadius: '10px',
                                 border: 'none',
-                                background: '#f59e0b',
-                                color: '#000000',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)'
-                              }}
-                            >
-                              {syncingClicksignClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
-                              Sincronizar Status Clicksign
-                            </button>
-                          ) : stage.stageKey === 'proposta' ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const url = window.location.origin + '/vendas/' + latestProposal._id;
-                                  setGeneratedProposalUrl(url);
-                                  setActiveProposal(latestProposal);
-                                  setShowProposalModal(true);
-                                }}
-                                style={{
-                                  width: '100%',
-                                  padding: '9px 12px',
-                                  borderRadius: '10px',
-                                  border: 'none',
-                                  background: '#8b5cf6',
-                                  color: '#ffffff',
-                                  fontWeight: 800,
-                                  fontSize: '0.82rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)'
-                                }}
-                              >
-                                <i className="fa-solid fa-share-nodes"></i> Copiar / Reenviar Link
-                              </button>
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleManualActivateClient(c, latestProposal)}
-                                  style={{
-                                    flex: '1 1 auto',
-                                    padding: '7px 8px',
-                                    borderRadius: '8px',
-                                    border: '1px solid rgba(16, 185, 129, 0.4)',
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#34d399',
-                                    fontWeight: 700,
-                                    fontSize: '0.75rem',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '5px'
-                                  }}
-                                  title="Validar fechamento manual e ativar o aluno como Contrato Vigente"
-                                >
-                                  <i className="fa-solid fa-circle-check"></i> Fechar Manual
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCancelProposal(c, latestProposal)}
-                                  style={{
-                                    padding: '7px 10px',
-                                    borderRadius: '8px',
-                                    border: '1px solid rgba(239, 68, 68, 0.4)',
-                                    background: 'rgba(239, 68, 68, 0.12)',
-                                    color: '#f87171',
-                                    fontWeight: 700,
-                                    fontSize: '0.75rem',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '4px'
-                                  }}
-                                  title="Descartar esta proposta pendente"
-                                >
-                                  <i className="fa-solid fa-trash-can"></i> Descartar
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenSalesWizard(c)}
-                              style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: 'var(--color-primary)',
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                                 color: '#ffffff',
                                 fontWeight: 800,
-                                fontSize: '0.85rem',
+                                fontSize: '0.86rem',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -4085,195 +4236,55 @@ export default function GestaoContratosPanel({
                                 boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
                               }}
                             >
-                              <i className="fa-solid fa-bolt"></i> Gerar Link de Venda
+                              <i className="fa-solid fa-arrows-rotate"></i> Reativar / Nova Renovação
                             </button>
-                          )}
-
-                          {/* AÇÕES SECUNDÁRIAS ORGANIZADAS */}
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                            {/* Botão 1: Se for contrato ativo ➔ Asaas (se boleto) OU Financeiro (outras formas); Se outros estágios ➔ Resumo */}
-                            {stage.stageKey === 'ativo' ? (
-                              isBoleto ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenAsaasModal(c)}
-                                  style={{
-                                    background: 'rgba(2, 132, 199, 0.15)',
-                                    border: '1px solid rgba(2, 132, 199, 0.4)',
-                                    color: '#38bdf8',
-                                    padding: '6px 8px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.74rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '4px'
-                                  }}
-                                  title="Gerenciar cobranças e boletos no Asaas"
-                                >
-                                  <i className="fa-solid fa-receipt"></i> Asaas
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenClientFinancial(c)}
-                                  style={{
-                                    background: 'rgba(16, 185, 129, 0.12)',
-                                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                                    color: '#34d399',
-                                    padding: '6px 8px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.74rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '4px'
-                                  }}
-                                  title="Consultar histórico e lançamentos financeiros do aluno"
-                                >
-                                  <i className="fa-solid fa-wallet"></i> Financeiro
-                                </button>
-                              )
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setConsultingClient(c)}
-                                style={{
-                                  background: '#1e293b',
-                                  border: '1px solid #334155',
-                                  color: '#f1f5f9',
-                                  padding: '6px 8px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.74rem',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '4px'
-                                }}
-                                title="Consultar resumo completo do contrato em modo de leitura"
-                              >
-                                <i className="fa-solid fa-eye" style={{ color: '#94a3b8' }}></i> Resumo
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() => setHistoryModalClient(c)}
-                                style={{
-                                  background: (c.historicoContratos?.length > 0) ? 'rgba(6, 182, 212, 0.15)' : '#1e293b',
-                                  border: (c.historicoContratos?.length > 0) ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid #334155',
-                                  color: (c.historicoContratos?.length > 0) ? '#22d3ee' : '#94a3b8',
-                                  padding: '6px 8px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.74rem',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '4px'
-                                }}
-                                title="Consultar linha do tempo e histórico de serviços contratados"
-                              >
-                                <i className="fa-solid fa-clock-rotate-left" style={{ color: (c.historicoContratos?.length > 0) ? '#22d3ee' : '#94a3b8' }}></i>
-                                {c.historicoContratos?.length > 0 ? `Histórico (${c.historicoContratos.length})` : 'Histórico'}
-                              </button>
-
+                          ) : (
+                            /* CASO F: LEAD / PADRÃO */
+                            <div style={{ display: 'flex', gap: '8px' }}>
                               <button
                                 type="button"
                                 onClick={() => handleOpenSalesWizard(c)}
                                 style={{
-                                  background: 'rgba(234, 179, 8, 0.12)',
-                                  border: '1px solid rgba(234, 179, 8, 0.4)',
-                                  color: '#fbbf24',
-                                  padding: '6px 8px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.74rem',
+                                  flex: '1 1 auto',
+                                  padding: '11px 14px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                                  color: '#ffffff',
+                                  fontWeight: 800,
+                                  fontSize: '0.86rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)'
+                                }}
+                              >
+                                <i className="fa-solid fa-bolt"></i> Gerar Link de Venda
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectClient(c)}
+                                style={{
+                                  padding: '11px 12px',
+                                  borderRadius: '10px',
+                                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  color: '#f1f5f9',
                                   fontWeight: 700,
+                                  fontSize: '0.78rem',
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   gap: '4px'
                                 }}
-                                title="Gerar Link de Venda / Proposta Comercial"
+                                title="Abrir Workspace"
                               >
-                                <i className="fa-solid fa-bolt" style={{ color: '#fbbf24' }}></i> Link
+                                <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i>
                               </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleOpenDirectContractWizard(c)}
-                              style={{
-                                background: '#1e293b',
-                                border: '1px solid #334155',
-                                color: '#f1f5f9',
-                                padding: '6px 8px',
-                                borderRadius: '8px',
-                                fontSize: '0.74rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                              }}
-                              title="Emitir contrato direto ou presencial"
-                            >
-                              <i className="fa-solid fa-file-signature" style={{ color: '#34d399' }}></i> Emitir
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleSelectClient(c)}
-                              style={{
-                                background: '#1e293b',
-                                border: '1px solid #334155',
-                                color: '#f1f5f9',
-                                padding: '6px 8px',
-                                borderRadius: '8px',
-                                fontSize: '0.74rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                              }}
-                              title="Gerenciar cadastro completo"
-                            >
-                              <i className="fa-solid fa-sliders" style={{ color: 'var(--color-primary)' }}></i> Gerenciar
-                            </button>
-                          </div>
-
-                          {waLink && (
-                            <a
-                              href={waLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                background: 'rgba(37, 211, 102, 0.08)',
-                                border: '1px solid rgba(37, 211, 102, 0.3)',
-                                color: '#25d366',
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.74rem',
-                                fontWeight: 600,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                textDecoration: 'none'
-                              }}
-                            >
-                              <i className="fa-brands fa-whatsapp"></i> Conversar no WhatsApp
-                            </a>
+                            </div>
                           )}
                         </div>
                       </div>
