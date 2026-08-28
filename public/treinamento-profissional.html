@@ -302,6 +302,118 @@
     </div>
   </div>
 
+  <!-- MODAL SIMULADO: FINALIZAÇÃO DE EMERGÊNCIA & AGENDAMENTO INTELIGENTE -->
+  <div id="modal-emergency-sim" class="modal-overlay" style="display: none;">
+    <div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; max-width: 640px; width: 100%; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);">
+      <!-- ETAPA 1: PRONTUÁRIO -->
+      <div id="emergency-step-prontuario">
+        <div style="background: linear-gradient(135deg, #ef4444, #dc2626); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; fontSize: 1rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-notes-medical"></i> Prontuário Clínico — Atendimento de Emergência
+          </h3>
+          <button onclick="closeModal('modal-emergency-sim')" style="background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 12px;">
+            <strong style="color: #fff; font-size: 0.95rem;">Maria Bethânia</strong>
+            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 2px;">Atendimento: Emergência às 09:00 de 28/08/2026</div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.82rem; font-weight: 750; color: #fff; margin-bottom: 6px;">
+              Evolução Clínica / Relato do Prontuário:
+            </label>
+            <textarea 
+              id="emergency-sim-report"
+              rows="5"
+              style="width: 100%; background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff; font-size: 0.82rem; resize: vertical;"
+              placeholder="Descreva a queixa aguda, procedimentos realizados e conduta..."
+            >Paciente compareceu com queixa aguda em região lombar após esforço. Realizada liberação miofascial e analgesia com redução da dor de 8/10 para 3/10.</textarea>
+          </div>
+
+          <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+            <p style="margin: 0 0 10px 0; font-size: 0.84rem; font-weight: 750; color: #fff;">
+              Como deseja concluir este atendimento?
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button
+                type="button"
+                onclick="saveEmergencyAltaSim()"
+                style="flex: 1; min-width: 220px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 12px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
+              >
+                <i class="fa-solid fa-circle-check"></i> Finalizar prontuario e resgistrar alta
+              </button>
+
+              <button
+                type="button"
+                onclick="stepEmergencyAgendamentoSim()"
+                style="flex: 1; min-width: 220px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border: none; padding: 12px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;"
+              >
+                <i class="fa-solid fa-calendar-plus"></i> Agendar proxima emergência
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ETAPA 2: MOTOR DE AGENDAMENTO INTELIGENTE -->
+      <div id="emergency-step-agendamento" style="display: none;">
+        <div style="background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 1rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-calendar-check"></i> Motor de Agendamento Inteligente — Próxima Emergência
+          </h3>
+          <button onclick="closeModal('modal-emergency-sim')" style="background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; padding: 12px;">
+            <strong style="color: #fff; font-size: 0.95rem;">Maria Bethânia</strong>
+            <span style="font-size: 0.7rem; background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 800;">ALUNO FIXO</span>
+            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 2px;">Serviço: Atendimento de Emergência</div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.82rem; font-weight: 750; color: #fff; margin-bottom: 6px;">Data do Novo Atendimento:</label>
+            <input 
+              type="date" 
+              id="emergency-sim-date"
+              value="2026-08-29"
+              style="width: 100%; background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff; font-size: 0.84rem;"
+            />
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.82rem; font-weight: 750; color: #fff; margin-bottom: 8px;">
+              Horários com Vagas Reais Disponíveis:
+            </label>
+            <div id="emergency-slots-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+            <button
+              type="button"
+              onclick="stepEmergencyProntuarioSim()"
+              style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.15); padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;"
+            >
+              <i class="fa-solid fa-arrow-left"></i> Voltar
+            </button>
+
+            <button
+              type="button"
+              onclick="confirmEmergencyAgendamentoSim()"
+              style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;"
+            >
+              <i class="fa-solid fa-check"></i> Confirmar Agendamento
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DE CERTIFICADO -->
   <div id="modal-certificate" class="modal-overlay" style="display: none;">
     <div style="background: linear-gradient(145deg, #0f172a, #1e293b); border: 2px solid var(--neon-cyan); border-radius: 20px; max-width: 600px; width: 100%; padding: 32px; text-align: center; box-shadow: 0 0 40px rgba(0, 242, 254, 0.3);">
@@ -570,6 +682,44 @@
               </div>
             </div>
           </div>
+
+          <!-- Card de Emergência 09:00 (Maria Bethânia) -->
+          ${(() => {
+            const bethania = MPB_STUDENTS[7];
+            const bethaniaStatus = simPresencas['mpb-8'] || 'agendado';
+            const isEmAtendimento = bethaniaStatus === 'presenca';
+            return `
+              <div style="background: #0f172a; border: ${isEmAtendimento ? '1.5px solid #ef4444' : '1px solid rgba(255,255,255,0.08)'}; border-radius: 12px; padding: 16px; margin-bottom: 24px; box-shadow: ${isEmAtendimento ? '0 0 16px rgba(239, 68, 68, 0.15)' : 'none'};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                  <div>
+                    <span style="font-size: 1.1rem; font-weight: 800; color: #10b981;">09:00</span>
+                    <h4 style="margin: 2px 0; font-size: 1rem; font-weight: 800; color: #fff;">${bethania.nome}</h4>
+                    <span class="badge-tag" style="background: rgba(59, 130, 246, 0.15); color: #38bdf8; font-weight: 800;">EMERGÊNCIA</span>
+                  </div>
+                  <span class="badge-tag" style="background: ${isEmAtendimento ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'}; color: ${isEmAtendimento ? '#ef4444' : '#f59e0b'}; font-weight: 800;">
+                    ${isEmAtendimento ? 'FINALIZAR ATENDIMENTO' : 'AGENDADO'}
+                  </span>
+                </div>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  ${isEmAtendimento ? `
+                    <button onclick="openEmergencySim()" style="flex: 1; background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(239,68,68,0.3);">
+                      <i class="fa-solid fa-flag-checkered"></i> Finalizar atendimento
+                    </button>
+                  ` : `
+                    <button onclick="iniciarEmergenciaSim()" style="flex: 1; background: #10b981; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                      <i class="fa-solid fa-check"></i> Presença
+                    </button>
+                    <button onclick="setPresenca('mpb-8', 'falta')" style="flex: 1; background: #ef4444; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer;"><i class="fa-solid fa-xmark"></i> Falta</button>
+                    <button onclick="showToast('ℹ️ Horário cancelado.')" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 8px; font-weight: 700; cursor: pointer;">Cancelar</button>
+                  `}
+                  <button onclick="showToast('🏋️ Abrindo ficha de treino de Maria Bethânia...')" style="width: 100%; background: #10b981; color: #fff; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; cursor: pointer; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
+                  </button>
+                </div>
+              </div>
+            `;
+          })()}
 
           <!-- Central de Retenção -->
           <div style="background: #111827; border: 1px solid var(--border-color); border-radius: 16px; padding: 20px;">
@@ -943,6 +1093,72 @@
 
     function confirmAgendamento() {
       showToast('✅ Agendamento direto confirmado com sucesso!');
+    }
+
+    let emergencySimSelectedHour = '10:00';
+
+    function iniciarEmergenciaSim() {
+      simPresencas['mpb-8'] = 'presenca';
+      showToast('🚨 Atendimento de Emergência iniciado! O status agora é "Finalizar atendimento".');
+      renderSimContent();
+    }
+
+    function openEmergencySim() {
+      stepEmergencyProntuarioSim();
+      document.getElementById('modal-emergency-sim').style.display = 'flex';
+    }
+
+    function stepEmergencyProntuarioSim() {
+      document.getElementById('emergency-step-prontuario').style.display = 'block';
+      document.getElementById('emergency-step-agendamento').style.display = 'none';
+    }
+
+    function stepEmergencyAgendamentoSim() {
+      document.getElementById('emergency-step-prontuario').style.display = 'none';
+      document.getElementById('emergency-step-agendamento').style.display = 'block';
+      renderEmergencySlotsSim();
+    }
+
+    function renderEmergencySlotsSim() {
+      const slots = [
+        { hora: '10:00', vagas: '3 vagas' },
+        { hora: '11:00', vagas: '2 vagas' },
+        { hora: '15:00', vagas: '4 vagas' },
+        { hora: '16:00', vagas: '1 vaga' }
+      ];
+      const grid = document.getElementById('emergency-slots-grid');
+      if (!grid) return;
+      grid.innerHTML = slots.map(s => {
+        const isSel = emergencySimSelectedHour === s.hora;
+        return `
+          <button
+            type="button"
+            onclick="selectEmergencySlotSim('${s.hora}')"
+            style="background: ${isSel ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : '#1e293b'}; border: ${isSel ? '1.5px solid #60a5fa' : '1px solid rgba(255,255,255,0.1)'}; color: #fff; border-radius: 8px; padding: 10px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;"
+          >
+            <strong style="font-size: 0.95rem;">${s.hora}</strong>
+            <span style="font-size: 0.65rem; color: ${isSel ? '#bfdbfe' : '#10b981'}; font-weight: 700;">${s.vagas}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectEmergencySlotSim(hora) {
+      emergencySimSelectedHour = hora;
+      renderEmergencySlotsSim();
+    }
+
+    function saveEmergencyAltaSim() {
+      closeModal('modal-emergency-sim');
+      showToast('✅ Atendimento de Emergência finalizado e Alta registrada com sucesso!');
+      renderSimContent();
+    }
+
+    function confirmEmergencyAgendamentoSim() {
+      const dateVal = document.getElementById('emergency-sim-date').value || '2026-08-29';
+      closeModal('modal-emergency-sim');
+      showToast(`✅ Próxima Emergência agendada com sucesso para Maria Bethânia em ${dateVal} às ${emergencySimSelectedHour}!`);
+      renderSimContent();
     }
 
     function closeModal(id) {

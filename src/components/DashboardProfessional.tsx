@@ -419,10 +419,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [emergencyAptId, setEmergencyAptId] = useState('');
   const [emergencyApt, setEmergencyApt] = useState<any>(null);
+  const [emergencyStep, setEmergencyStep] = useState<'prontuario' | 'agendamento'>('prontuario');
   const [emergencyConduct, setEmergencyConduct] = useState<'alta' | 'remarcacao'>('alta');
   const [emergencyReport, setEmergencyReport] = useState('');
   const [emergencyReschedDate, setEmergencyReschedDate] = useState('');
   const [emergencyReschedHour, setEmergencyReschedHour] = useState('08:00');
+  const [emergencyAvailableSlots, setEmergencyAvailableSlots] = useState<any[]>([]);
+  const [loadingEmergencySlots, setLoadingEmergencySlots] = useState(false);
 
   // New Appointment form inputs
   const [selectedClient, setSelectedClient] = useState('');
@@ -2667,20 +2670,67 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
+  const fetchEmergencySlots = async (dateStr: string) => {
+    setLoadingEmergencySlots(true);
+    try {
+      const res = await fetch(`/api/appointments/slots?date=${dateStr}&tipo=academia`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.slots)) {
+        const available = data.slots.filter((s: any) => s.vagasRestantes > 0 && s.disponivel !== false);
+        setEmergencyAvailableSlots(available);
+        if (available.length > 0) {
+          setEmergencyReschedHour(available[0].horario);
+        } else {
+          setEmergencyReschedHour('');
+        }
+      } else {
+        setEmergencyAvailableSlots([]);
+        setEmergencyReschedHour('');
+      }
+    } catch (err) {
+      console.error(err);
+      setEmergencyAvailableSlots([]);
+    } finally {
+      setLoadingEmergencySlots(false);
+    }
+  };
+
+  const handleOpenEmergencyFinalization = (apt: any) => {
+    setEmergencyAptId(apt._id);
+    setEmergencyApt(apt);
+    setEmergencyReport('');
+    setEmergencyConduct('alta');
+    setEmergencyStep('prontuario');
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dStr = tomorrow.toISOString().split('T')[0];
+    setEmergencyReschedDate(dStr);
+    fetchEmergencySlots(dStr);
+    setShowEmergencyModal(true);
+  };
+
   const handleUpdateAptStatus = async (id: string, status: string) => {
-    // If confirming presence, open the corresponding interactive check-in flow
+    const apt = appointments.find((a: any) => a._id === id);
+    const targetClientId = apt?.clienteId?._id || apt?.clienteId || null;
+    const clientName = apt?.clienteId?.dadosPessoais?.nome || apt?.clienteId?.nome || '';
+
+    // If confirming presence
     if (status === 'presenca') {
-      const apt = appointments.find((a: any) => a._id === id);
       if (apt?.servico === 'Emergência') {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        setEmergencyAptId(id);
-        setEmergencyApt(apt);
-        setEmergencyConduct('alta');
-        setEmergencyReport('');
-        setEmergencyReschedDate(tomorrow.toISOString().split('T')[0]);
-        setEmergencyReschedHour('08:00');
-        setShowEmergencyModal(true);
+        // Confirma presença e inicia o atendimento (fica pendente de finalização)
+        executeAction('Iniciou Atendimento de Emergência', targetClientId, async (executorProfId) => {
+          try {
+            const res = await fetch('/api/appointments', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, status: 'presenca', profissionalId: executorProfId })
+            });
+            const data = await res.json();
+            if (data.success) fetchData();
+          } catch (err) {
+            console.error(err);
+          }
+        }, `${clientName} - Atendimento de Emergência Iniciado`);
         return;
       }
 
@@ -2690,9 +2740,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       return;
     }
 
-    const apt = appointments.find((a: any) => a._id === id);
-    const targetClientId = apt?.clienteId?._id || apt?.clienteId || null;
-    const clientName = apt?.clienteId?.dadosPessoais?.nome || apt?.clienteId?.nome || '';
     const details = `Horário: ${apt?.horário || apt?.horario || ''}, Serviço: ${apt?.servico || ''}, Status: ${status}`;
 
     executeAction(`Alterou Status de Agendamento para ${status}`, targetClientId, async (executorProfId, isCollective) => {
@@ -2742,32 +2789,108 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     });
   };
 
-  const handleSaveEmergencyResolution = async () => {
-    if (!emergencyReport.trim()) { alert('Por favor, preencha o relatório para o Prontuário Clínico.'); return; }
-    if (emergencyConduct === 'remarcacao' && (!emergencyReschedDate || !emergencyReschedHour)) { alert('Preencha a data e o horário para a remarcação.'); return; }
-
+  const handleSaveEmergencyAlta = async () => {
+    if (!emergencyReport.trim()) {
+      alert('Por favor, preencha o relatório do Prontuário Clínico antes de finalizar.');
+      return;
+    }
     const targetClientId = emergencyApt?.clienteId?._id || emergencyApt?.clienteId || null;
-    const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || '';
-    const condutaText = emergencyConduct === 'alta' ? 'Alta do Paciente' : `Remarcado para ${emergencyReschedDate} às ${emergencyReschedHour}`;
+    const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente';
 
-    executeAction('Resolveu Atendimento de Emergência', targetClientId, async (executorProfId, isCollective) => {
+    executeAction('Finalizou Atendimento de Emergência e Registrou Alta', targetClientId, async (executorProfId) => {
       try {
-        // 1. Mark original appointment as present
-        await fetch('/api/appointments', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: emergencyAptId, status: 'presenca', profissionalId: executorProfId }) });
-        // 2. Create prontuário from emergency report
-        const prontuarioObs = `[Atendimento de Emergência - Finalização]\nConduta: ${condutaText}\n\nRelato Clínico:\n${emergencyReport}`;
-        await fetch('/api/prontuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: targetClientId, profissionalId: executorProfId, data: emergencyApt?.data, conteudo: prontuarioObs }) });
-        // 3. If rescheduling, create new appointment
-        if (emergencyConduct === 'remarcacao') {
-          await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: emergencyReschedDate, horario: emergencyReschedHour, servico: 'Emergência', clienteId: targetClientId, profissionalId: executorProfId, status: 'agendado' }) });
-        }
+        // 1. Mark original appointment as finalized
+        await fetch('/api/appointments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: emergencyAptId, status: 'presenca', finalizado: true, profissionalId: executorProfId })
+        });
+        // 2. Create prontuário
+        const prontuarioObs = `[Atendimento de Emergência - Alta Registrada]\nData: ${emergencyApt?.data} às ${emergencyApt?.horario}\nConduta: Alta Clínica\n\nRelato Clínico:\n${emergencyReport}`;
+        await fetch('/api/prontuarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clienteId: targetClientId, profissionalId: executorProfId, data: emergencyApt?.data, conteudo: prontuarioObs })
+        });
         setShowEmergencyModal(false);
-        alert('Atendimento de emergência finalizado e prontuário gerado!');
+        alert(`✅ Atendimento de Emergência finalizado e Alta registrada para ${clientName}!`);
         fetchData();
       } catch (err: any) {
-        alert('Erro ao salvar resolução: ' + err.message);
+        alert('Erro ao salvar alta: ' + err.message);
       }
-    }, `${clientName} - Conduta: ${condutaText}`);
+    }, `${clientName} - Alta Registrada`);
+  };
+
+  const handleEmergencyStartReschedule = async () => {
+    if (!emergencyReport.trim()) {
+      alert('Por favor, preencha o relatório do Prontuário Clínico antes de prosseguir.');
+      return;
+    }
+    const targetClientId = emergencyApt?.clienteId?._id || emergencyApt?.clienteId || null;
+    const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente';
+
+    executeAction('Salvou Prontuário de Emergência para Agendamento', targetClientId, async (executorProfId) => {
+      try {
+        // 1. Mark appointment as present
+        await fetch('/api/appointments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: emergencyAptId, status: 'presenca', finalizado: true, profissionalId: executorProfId })
+        });
+        // 2. Create prontuário
+        const prontuarioObs = `[Atendimento de Emergência - Continuidade Indicada]\nData: ${emergencyApt?.data} às ${emergencyApt?.horario}\nConduta: Agendamento de Próxima Emergência\n\nRelato Clínico:\n${emergencyReport}`;
+        await fetch('/api/prontuarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clienteId: targetClientId, profissionalId: executorProfId, data: emergencyApt?.data, conteudo: prontuarioObs })
+        });
+        setEmergencyConduct('remarcacao');
+        setEmergencyStep('agendamento');
+      } catch (err: any) {
+        alert('Erro ao salvar evolução: ' + err.message);
+      }
+    }, `${clientName} - Prontuário salvo`);
+  };
+
+  const handleConfirmEmergencyReschedule = async () => {
+    if (!emergencyReschedDate) {
+      alert('Por favor, selecione a data do agendamento.');
+      return;
+    }
+    if (!emergencyReschedHour) {
+      alert('Por favor, selecione um horário disponível.');
+      return;
+    }
+    const targetClientId = emergencyApt?.clienteId?._id || emergencyApt?.clienteId || null;
+    const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente';
+
+    executeAction('Agendou Próxima Emergência', targetClientId, async (executorProfId) => {
+      try {
+        const res = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: emergencyReschedDate,
+            horario: emergencyReschedHour,
+            servico: 'Emergência',
+            tipo: 'academia',
+            clienteId: targetClientId,
+            profissionalId: executorProfId,
+            status: 'agendado'
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setShowEmergencyModal(false);
+          alert(`✅ Próxima Emergência agendada com sucesso para ${clientName} em ${emergencyReschedDate} às ${emergencyReschedHour}!`);
+          fetchData();
+        } else {
+          alert('Erro ao criar agendamento: ' + (data.error || 'Horário indisponível'));
+        }
+      } catch (err: any) {
+        alert('Erro ao agendar: ' + err.message);
+      }
+    }, `${clientName} - ${emergencyReschedDate} às ${emergencyReschedHour}`);
   };
 
   const handleCreateFixedSchedule = async (e: React.FormEvent) => {
@@ -5082,8 +5205,10 @@ goniometria: {
                               }}>
                                 {apts.map(a => {
                                   const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
-                                  const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-warning' : 'badge-info';
-                                  const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado';
+                                  const isEmergencia = a.servico === 'Emergência';
+                                  const isEmAtendimentoEmergencia = isEmergencia && a.status === 'presenca' && !a.finalizado;
+                                  const statusClass = isEmAtendimentoEmergencia ? 'badge-danger' : a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : a.status === 'cancelado' ? 'badge-warning' : 'badge-info';
+                                  const statusText = isEmAtendimentoEmergencia ? 'Finalizar atendimento' : a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : a.status === 'cancelado' ? 'Cancelado' : 'Agendado';
                                   
                                   // Cores do Serviço
                                   const sColors = getServiceColor(a.servico || a.tipo);
@@ -5113,6 +5238,25 @@ goniometria: {
                                         title="Cancelar Horário"
                                       >
                                         <i className="fa-solid fa-ban"></i>
+                                      </button>
+                                    </div>
+                                  ) : isEmAtendimentoEmergencia ? (
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                      <button 
+                                        className="btn btn-sm" 
+                                        style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)' }} 
+                                        onClick={() => handleOpenEmergencyFinalization(a)}
+                                        title="Finalizar atendimento de emergência e preencher prontuário"
+                                      >
+                                        <i className="fa-solid fa-flag-checkered"></i> Finalizar atendimento
+                                      </button>
+                                      <button 
+                                        className="btn btn-secondary btn-sm" 
+                                        style={{ padding: '4px 8px', fontSize: '0.72rem' }} 
+                                        onClick={() => handleUpdateAptStatus(a._id, 'agendado')}
+                                        title="Reverter status para agendado"
+                                      >
+                                        <i className="fa-solid fa-rotate-left"></i>
                                       </button>
                                     </div>
                                   ) : (
@@ -13223,71 +13367,151 @@ goniometria: {
         </div>
       )}
 
-      {/* Emergency Appointment Modal */}
+      {/* Emergency Appointment Modal (Prontuário & Agendamento Inteligente) */}
       {showEmergencyModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowEmergencyModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '95%' }}>
-            <div className="modal-header" style={{ background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff' }}>
-              <h3><i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>Finalizar Atendimento de Emergência</h3>
-              <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowEmergencyModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px', fontSize: '0.9rem' }}>
-                <p style={{ margin: '0 0 4px 0' }}><strong>Paciente:</strong> {emergencyApt?.clienteId?.dadosPessoais?.nome || 'Paciente'}</p>
-                <p style={{ margin: 0 }}><strong>Atendimento:</strong> Emergência às {emergencyApt?.horario} de {emergencyApt?.data}</p>
-              </div>
-
-              <div className="form-group">
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px' }}>Conduta Clínica / Resolução:</label>
-                <div style={{ display: 'flex', gap: '24px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: emergencyConduct === 'alta' ? 600 : 400 }}>
-                    <input type="radio" name="emgConduct" value="alta" checked={emergencyConduct === 'alta'} onChange={() => setEmergencyConduct('alta')} />
-                    <span>Dar Alta ao Aluno</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: emergencyConduct === 'remarcacao' ? 600 : 400 }}>
-                    <input type="radio" name="emgConduct" value="remarcacao" checked={emergencyConduct === 'remarcacao'} onChange={() => setEmergencyConduct('remarcacao')} />
-                    <span>Remarcar Novo Atendimento</span>
-                  </label>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px', width: '95%' }}>
+            
+            {emergencyStep === 'prontuario' ? (
+              <>
+                <div className="modal-header" style={{ background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff' }}>
+                  <h3><i className="fa-solid fa-notes-medical" style={{ marginRight: '8px' }}></i>Prontuário Clínico — Atendimento de Emergência</h3>
+                  <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowEmergencyModal(false)}>&times;</button>
                 </div>
-              </div>
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px', fontSize: '0.9rem' }}>
+                    <p style={{ margin: '0 0 4px 0' }}><strong>Paciente:</strong> {emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente'}</p>
+                    <p style={{ margin: 0 }}><strong>Atendimento:</strong> Emergência às {emergencyApt?.horario} de {emergencyApt?.data}</p>
+                  </div>
 
-              {emergencyConduct === 'remarcacao' && (
-                <div style={{ background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', padding: '14px', borderRadius: '8px' }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--color-primary)' }}><i className="fa-solid fa-calendar-plus"></i> Dados do Novo Agendamento (Emergência)</h4>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label style={{ fontSize: '0.8rem' }}>Data da Remarcação</label>
-                      <input type="date" className="form-control" value={emergencyReschedDate} onChange={e => setEmergencyReschedDate(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label style={{ fontSize: '0.8rem' }}>Horário</label>
-                      <select className="select-custom" value={emergencyReschedHour} onChange={e => setEmergencyReschedHour(e.target.value)}>
-                        {['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'].map(h => <option key={h} value={h}>{h}</option>)}
-                      </select>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 700, display: 'block', marginBottom: '6px', fontSize: '0.9rem' }}>
+                      Evolução Clínica / Relato do Prontuário <span style={{ color: 'var(--color-danger)' }}>*</span>
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows={6}
+                      required
+                      style={{ resize: 'vertical' }}
+                      placeholder="Descreva a queixa aguda do paciente, procedimentos/técnicas realizadas, alívio de dor e orientações pós-atendimento..."
+                      value={emergencyReport}
+                      onChange={e => setEmergencyReport(e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                      Como deseja concluir este atendimento?
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={handleSaveEmergencyAlta}
+                        style={{ flex: 1, minWidth: '220px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', padding: '12px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <i className="fa-solid fa-circle-check"></i> Finalizar prontuario e resgistrar alta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleEmergencyStartReschedule}
+                        style={{ flex: 1, minWidth: '220px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', border: 'none', padding: '12px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <i className="fa-solid fa-calendar-plus"></i> Agendar proxima emergência
+                      </button>
                     </div>
                   </div>
                 </div>
-              )}
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={() => setShowEmergencyModal(false)}>Cancelar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="modal-header" style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff' }}>
+                  <h3><i className="fa-solid fa-calendar-check" style={{ marginRight: '8px' }}></i>Motor de Agendamento Inteligente — Próxima Emergência</h3>
+                  <button className="modal-close" style={{ color: '#fff' }} onClick={() => setShowEmergencyModal(false)}>&times;</button>
+                </div>
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '8px', padding: '12px', fontSize: '0.9rem' }}>
+                    <p style={{ margin: '0 0 4px 0' }}><strong>Paciente:</strong> {emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente'} <span style={{ fontSize: '0.72rem', background: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 700 }}>FIXO</span></p>
+                    <p style={{ margin: 0 }}><strong>Serviço:</strong> Atendimento de Emergência</p>
+                  </div>
 
-              <div className="form-group">
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Relatório para Prontuário Clínico <span style={{ color: 'var(--color-danger)' }}>*</span></label>
-                <textarea
-                  className="form-control"
-                  rows={5}
-                  required
-                  style={{ resize: 'vertical' }}
-                  placeholder="Descreva a queixa do aluno, procedures realizados e avaliação do estado clínico..."
-                  value={emergencyReport}
-                  onChange={e => setEmergencyReport(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowEmergencyModal(false)}>Cancelar</button>
-              <button className="btn btn-danger" onClick={handleSaveEmergencyResolution}>
-                <i className="fa-solid fa-clipboard-check"></i> Confirmar e Finalizar
-              </button>
-            </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Data do Novo Atendimento:</label>
+                    <input 
+                      type="date" 
+                      className="form-control" 
+                      value={emergencyReschedDate} 
+                      onChange={e => {
+                        setEmergencyReschedDate(e.target.value);
+                        fetchEmergencySlots(e.target.value);
+                      }} 
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '8px', display: 'block' }}>
+                      Horários Disponíveis com Vagas Reais:
+                    </label>
+                    {loadingEmergencySlots ? (
+                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        <i className="fa-solid fa-spinner fa-spin"></i> Consultando vagas em tempo real...
+                      </div>
+                    ) : emergencyAvailableSlots.length === 0 ? (
+                      <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '14px', color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', fontWeight: 600 }}>
+                        ⚠️ Nenhum horário disponível nesta data. Por favor, escolha outra data acima.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
+                        {emergencyAvailableSlots.map((slot: any) => {
+                          const isSelected = emergencyReschedHour === slot.horario;
+                          return (
+                            <button
+                              key={slot.horario}
+                              type="button"
+                              onClick={() => setEmergencyReschedHour(slot.horario)}
+                              style={{
+                                background: isSelected ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 'rgba(255,255,255,0.04)',
+                                border: isSelected ? '1.5px solid #60a5fa' : '1px solid var(--border-color)',
+                                color: isSelected ? '#fff' : 'var(--text-main)',
+                                borderRadius: '8px',
+                                padding: '8px 10px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '2px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <strong style={{ fontSize: '0.95rem' }}>{slot.horario}</strong>
+                              <span style={{ fontSize: '0.65rem', color: isSelected ? '#bfdbfe' : '#10b981', fontWeight: 700 }}>
+                                {slot.vagasRestantes} {slot.vagasRestantes === 1 ? 'vaga' : 'vagas'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <button className="btn btn-secondary" onClick={() => setEmergencyStep('prontuario')}>
+                    <i className="fa-solid fa-arrow-left"></i> Voltar ao Prontuário
+                  </button>
+                  <button 
+                    className="btn btn-primary" 
+                    disabled={!emergencyReschedHour || emergencyAvailableSlots.length === 0}
+                    onClick={handleConfirmEmergencyReschedule}
+                    style={{ fontWeight: 800 }}
+                  >
+                    <i className="fa-solid fa-check"></i> Confirmar Agendamento ({emergencyReschedHour || 'Selecione'})
+                  </button>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}

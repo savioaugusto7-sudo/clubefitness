@@ -428,6 +428,13 @@ export default function TreinamentoProfissionalPage() {
   const [agendamentoHorario, setAgendamentoHorario] = useState('14:00');
   const [agendamentoObs, setAgendamentoObs] = useState('');
 
+  // Estados de Emergência no Simulador
+  const [showEmergencySimModal, setShowEmergencySimModal] = useState(false);
+  const [emergencySimStep, setEmergencySimStep] = useState<'prontuario' | 'agendamento'>('prontuario');
+  const [emergencySimReport, setEmergencySimReport] = useState('');
+  const [emergencySimDate, setEmergencySimDate] = useState('2026-08-29');
+  const [emergencySimHour, setEmergencySimHour] = useState('10:00');
+
   // Estados do Calendário da Agenda Completa (2 Colunas)
   const [simSelectedDate, setSimSelectedDate] = useState('2026-08-28');
   const [simSelectedMonth, setSimSelectedMonth] = useState(new Date(2026, 7, 1)); // Agosto de 2026
@@ -1085,6 +1092,179 @@ export default function TreinamentoProfissionalPage() {
                             fontWeight: 800,
                             fontSize: '0.8rem',
                             cursor: 'pointer'
+                          }}
+                        >
+                          <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Atendimento das 09:00 - Emergência (Maria Bethânia) */}
+                {(() => {
+                  const bethania = MPB_STUDENTS[7]; // Maria Bethânia
+                  const bethaniaStatus = simPresencas['mpb-8'] || 'agendado';
+                  const isEmAtendimento = bethaniaStatus === 'presenca';
+
+                  return (
+                    <div style={{
+                      background: '#0f172a',
+                      border: isEmAtendimento ? '1.5px solid #ef4444' : '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      marginBottom: '16px',
+                      boxShadow: isEmAtendimento ? '0 0 16px rgba(239, 68, 68, 0.15)' : 'none'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div>
+                          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>09:00</span>
+                          <h4 style={{ margin: '4px 0 2px', fontSize: '1rem', fontWeight: 800, color: '#fff' }}>
+                            {bethania.nome}
+                          </h4>
+                          <span style={{
+                            display: 'inline-block',
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            color: '#38bdf8',
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}>
+                            EMERGÊNCIA
+                          </span>
+                        </div>
+                        <span style={{
+                          background: isEmAtendimento ? 'rgba(239,68,68,0.2)' : 'rgba(245, 158, 11, 0.15)',
+                          color: isEmAtendimento ? '#ef4444' : '#f59e0b',
+                          border: isEmAtendimento ? '1px solid rgba(239,68,68,0.4)' : 'none',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '3px 8px',
+                          borderRadius: '6px'
+                        }}>
+                          {isEmAtendimento ? 'FINALIZAR ATENDIMENTO' : 'AGENDADO'}
+                        </span>
+                      </div>
+
+                      {/* Botões de Ação */}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {isEmAtendimento ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEmergencySimStep('prontuario');
+                              setEmergencySimReport('Paciente compareceu com queixa aguda em região lombar após esforço. Realizada liberação miofascial e analgesia com redução da dor de 8/10 para 3/10.');
+                              setShowEmergencySimModal(true);
+                            }}
+                            style={{
+                              flex: 1,
+                              background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              fontWeight: 800,
+                              fontSize: '0.82rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              boxShadow: '0 4px 12px rgba(239,68,68,0.3)'
+                            }}
+                          >
+                            <i className="fa-solid fa-flag-checkered"></i> Finalizar atendimento
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSimPresencas(prev => ({ ...prev, 'mpb-8': 'presenca' }));
+                                triggerToast('🚨 Atendimento de Emergência iniciado! O status agora é "Finalizar atendimento".');
+                              }}
+                              style={{
+                                flex: 1,
+                                background: '#10b981',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '8px',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <i className="fa-solid fa-check"></i> Presença
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSimPresencas(prev => ({ ...prev, 'mpb-8': 'falta' }));
+                                triggerToast('⚠️ Falta registrada para Maria Bethânia.', 'warning');
+                              }}
+                              style={{
+                                flex: 1,
+                                background: '#ef4444',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '8px',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                fontSize: '0.8rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <i className="fa-solid fa-xmark"></i> Falta
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                triggerToast('ℹ️ Horário cancelado.');
+                              }}
+                              style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                color: '#cbd5e1',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                fontWeight: 700,
+                                fontSize: '0.78rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setShowWorkoutModal(bethania)}
+                          style={{
+                            width: '100%',
+                            background: '#10b981',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            marginTop: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
                           }}
                         >
                           <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
@@ -2642,6 +2822,245 @@ export default function TreinamentoProfissionalPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL SIMULADO 5.5: FINALIZAÇÃO DE EMERGÊNCIA & AGENDAMENTO INTELIGENTE     */}
+      {/* ========================================================================= */}
+      {showEmergencySimModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px'
+          }}
+          onClick={() => setShowEmergencySimModal(false)}
+        >
+          <div 
+            style={{
+              background: '#0f172a',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '16px',
+              maxWidth: '640px',
+              width: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {emergencySimStep === 'prontuario' ? (
+              <div>
+                <div style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-notes-medical"></i> Prontuário Clínico — Atendimento de Emergência
+                  </h3>
+                  <button onClick={() => setShowEmergencySimModal(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>&times;</button>
+                </div>
+
+                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', padding: '12px' }}>
+                    <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Maria Bethânia</strong>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>Atendimento: Emergência às 09:00 de 28/08/2026</div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 750, color: '#fff', marginBottom: '6px' }}>
+                      Evolução Clínica / Relato do Prontuário:
+                    </label>
+                    <textarea 
+                      rows={5}
+                      value={emergencySimReport}
+                      onChange={e => setEmergencySimReport(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: '#1e293b',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        borderRadius: '8px',
+                        padding: '10px',
+                        color: '#fff',
+                        fontSize: '0.82rem',
+                        resize: 'vertical'
+                      }}
+                      placeholder="Descreva a queixa aguda, procedimentos realizados e conduta..."
+                    />
+                  </div>
+
+                  <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '14px' }}>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '0.84rem', fontWeight: 750, color: '#fff' }}>
+                      Como deseja concluir este atendimento?
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEmergencySimModal(false);
+                          triggerToast('✅ Atendimento finalizado e Alta registrada com sucesso!');
+                        }}
+                        style={{
+                          flex: 1,
+                          minWidth: '220px',
+                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          fontWeight: 800,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <i className="fa-solid fa-circle-check"></i> Finalizar prontuario e resgistrar alta
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setEmergencySimStep('agendamento')}
+                        style={{
+                          flex: 1,
+                          minWidth: '220px',
+                          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          fontWeight: 800,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <i className="fa-solid fa-calendar-plus"></i> Agendar proxima emergência
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-calendar-check"></i> Motor de Agendamento Inteligente — Próxima Emergência
+                  </h3>
+                  <button onClick={() => setShowEmergencySimModal(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>&times;</button>
+                </div>
+
+                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '10px', padding: '12px' }}>
+                    <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Maria Bethânia</strong>
+                    <span style={{ fontSize: '0.7rem', background: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', fontWeight: 800 }}>ALUNO FIXO</span>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>Serviço: Atendimento de Emergência</div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 750, color: '#fff', marginBottom: '6px' }}>Data do Novo Atendimento:</label>
+                    <input 
+                      type="date" 
+                      value={emergencySimDate}
+                      onChange={e => setEmergencySimDate(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: '#1e293b',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        borderRadius: '8px',
+                        padding: '10px',
+                        color: '#fff',
+                        fontSize: '0.84rem'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 750, color: '#fff', marginBottom: '8px' }}>
+                      Horários com Vagas Reais Disponíveis:
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                      {[
+                        { hora: '10:00', vagas: '3 vagas' },
+                        { hora: '11:00', vagas: '2 vagas' },
+                        { hora: '15:00', vagas: '4 vagas' },
+                        { hora: '16:00', vagas: '1 vaga' }
+                      ].map(s => {
+                        const isSelected = emergencySimHour === s.hora;
+                        return (
+                          <button
+                            key={s.hora}
+                            type="button"
+                            onClick={() => setEmergencySimHour(s.hora)}
+                            style={{
+                              background: isSelected ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : '#1e293b',
+                              border: isSelected ? '1.5px solid #60a5fa' : '1px solid rgba(255,255,255,0.1)',
+                              color: '#fff',
+                              borderRadius: '8px',
+                              padding: '10px 8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '2px'
+                            }}
+                          >
+                            <strong style={{ fontSize: '0.95rem' }}>{s.hora}</strong>
+                            <span style={{ fontSize: '0.65rem', color: isSelected ? '#bfdbfe' : '#10b981', fontWeight: 700 }}>{s.vagas}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setEmergencySimStep('prontuario')}
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        color: '#cbd5e1',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="fa-solid fa-arrow-left"></i> Voltar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEmergencySimModal(false);
+                        triggerToast(`✅ Próxima Emergência agendada com sucesso para Maria Bethânia em ${emergencySimDate} às ${emergencySimHour}!`);
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        fontWeight: 800,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="fa-solid fa-check"></i> Confirmar Agendamento ({emergencySimHour})
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
