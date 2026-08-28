@@ -33,6 +33,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       tabs: [
         { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
         { id: 'agenda_completa', label: 'Agenda Geral', icon: 'fa-calendar-alt' },
+        { id: 'treinamento_prof', label: '🎓 Treinamento Profissional', icon: 'fa-graduation-cap' },
         { id: 'log_atividades', label: 'Log de Atividades', icon: 'fa-history' }
       ]
     },
@@ -229,6 +230,10 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
   };
 
   const handleTabClick = (tabId: string) => {
+    if (tabId === 'treinamento_prof') {
+      window.location.href = '/treinamento/profissional';
+      return;
+    }
     setActiveTab(tabId);
     setMobileOpen(false);
   };

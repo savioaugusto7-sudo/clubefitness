@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Treinamento & Simulador 360° do Profissional — Clube Fitness</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #090d16;
+      --bg-card: #111827;
+      --bg-card-alt: #1e293b;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --neon-cyan: #00f2fe;
+      --neon-blue: #38bdf8;
+      --neon-green: #10b981;
+      --neon-amber: #f59e0b;
+      --neon-red: #ef4444;
+      --neon-purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; }
+    body { background: var(--bg-main); color: #f8fafc; min-height: 100vh; overflow-x: hidden; }
+    header { background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid var(--border-color); padding: 14px 24px; position: sticky; top: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
+    .split-layout { display: grid; grid-template-columns: minmax(360px, 440px) 1fr; min-height: calc(100vh - 70px); }
+    .sidebar-guide { background: rgba(15, 23, 42, 0.7); border-right: 1px solid var(--border-color); padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; max-height: calc(100vh - 70px); }
+    .sim-panel { padding: 24px; overflow-y: auto; max-height: calc(100vh - 70px); }
+    .badge-tag { font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; }
+    .btn-tab { background: transparent; color: #94a3b8; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 750; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.15s; }
+    .btn-tab.active { background: var(--neon-cyan); color: #0f172a; }
+    .sim-card { background: var(--bg-card); border: 1px solid var(--border-color); borderRadius: 14px; padding: 16px; margin-bottom: 12px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 9000; backdrop-filter: blur(6px); padding: 16px; }
+    .modal-content { background: var(--bg-card-alt); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 16px; max-width: 520px; width: 100%; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #065f46; color: #fff; border: 1px solid #10b981; border-radius: 12px; padding: 14px 20px; z-index: 9999; font-weight: 700; font-size: 0.88rem; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    @media (max-width: 900px) {
+      .split-layout { grid-template-columns: 1fr; }
+      .sidebar-guide { max-height: none; }
+      .sim-panel { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="badge-tag" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #0f172a;">Ambiente de Treinamento</span>
+          <span class="badge-tag" style="background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3);">🔒 Modo Sandbox Isolado (MPB)</span>
+        </div>
+        <h1 style="margin: 4px 0 0; font-size: 1.15rem; font-weight: 800; color: #fff;">
+          🎓 Guia Prático & Simulador 360° do Profissional — Clube Fitness
+        </h1>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 20px;">
+      <div style="min-width: 200px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 800; margin-bottom: 4px;">
+          <span style="color: #94a3b8;">Progresso do Treinamento</span>
+          <span id="progress-txt" style="color: var(--neon-cyan);">0% Concluído</span>
+        </div>
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
+          <div id="progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #00f2fe, #4facfe); transition: width 0.4s ease;"></div>
+        </div>
+      </div>
+
+      <button id="btn-cert" onclick="openCertificate()" style="display: none; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; cursor: pointer;">
+        <i class="fa-solid fa-award"></i> Ver Certificado
+      </button>
+    </div>
+  </header>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast" style="display: none;">
+    <i class="fa-solid fa-circle-check" style="font-size: 1.2rem;"></i>
+    <span id="toast-msg">Mensagem de feedback</span>
+  </div>
+
+  <!-- SPLIT SCREEN -->
+  <div class="split-layout">
+    
+    <!-- COLUNA ESQUERDA: TUTOR & MISSÕES -->
+    <div class="sidebar-guide">
+      <!-- Busca Inteligente -->
+      <div>
+        <label style="display: block; font-size: 0.78rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">
+          🔍 O que você precisa fazer no sistema?
+        </label>
+        <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="Ex: presença, observação, wellness, ficha..." style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 10px 14px; color: #fff; font-size: 0.84rem;">
+      </div>
+
+      <!-- Grade de Módulos -->
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px;">
+          <span>Módulos de Treinamento</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;" id="modules-list">
+          <!-- Renderizado via JS -->
+        </div>
+      </div>
+
+      <!-- Card da Missão Atual -->
+      <div id="mission-card" style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 16px; padding: 20px;">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <!-- O Que Fazer Se Eu Errar -->
+      <div id="faq-card" style="background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 14px; padding: 16px;">
+        <!-- Preenchido via JS -->
+      </div>
+    </div>
+
+    <!-- COLUNA DIREITA: SIMULADOR SANDBOX -->
+    <div class="sim-panel">
+      <div style="background: rgba(0, 242, 254, 0.05); border: 1px dashed rgba(0, 242, 254, 0.3); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-flask" style="color: var(--neon-cyan); font-size: 1.2rem;"></i>
+          <div>
+            <strong style="font-size: 0.85rem; color: #fff;">Simulador Sandbox do Sistema Real</strong>
+            <div style="font-size: 0.74rem; color: #94a3b8;">
+              Alunos fictícios com nomes da <strong>MPB</strong>. Interaja, teste botões e lance notas clínicas livremente!
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; background: rgba(0,0,0,0.4); padding: 3px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+          <button class="btn-tab active" id="tab-resumo" onclick="switchSimTab('resumo_dia')"><i class="fa-solid fa-clipboard-list"></i> Resumo do Dia</button>
+          <button class="btn-tab" id="tab-agenda" onclick="switchSimTab('dashboard')"><i class="fa-solid fa-calendar-alt"></i> Agenda Completa</button>
+          <button class="btn-tab" id="tab-agendar" onclick="switchSimTab('agendamento_prof')"><i class="fa-solid fa-calendar-plus"></i> Agendar Aluno</button>
+          <button class="btn-tab" id="tab-clientes" onclick="switchSimTab('clientes')"><i class="fa-solid fa-user-friends"></i> Clientes</button>
+          <button class="btn-tab" id="tab-treinos" onclick="switchSimTab('treinos_prof')"><i class="fa-solid fa-dumbbell"></i> Treinos</button>
+        </div>
+      </div>
+
+      <!-- CONTEÚDO DA ABA SELECIONADA -->
+      <div id="sim-content">
+        <!-- Renderizado dinamicamente pelo script -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL DE INSPEÇÃO & OBSERVAÇÃO CLÍNICA -->
+  <div id="modal-inspect" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--neon-blue);"><i class="fa-solid fa-address-card"></i> Detalhes do Atendimento</h3>
+        <button onclick="closeModal('modal-inspect')" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">&times;</button>
+      </div>
+      <div id="inspect-student-details" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 10px; margin-bottom: 14px;"></div>
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--neon-amber); margin-bottom: 6px;">
+          <i class="fa-solid fa-note-sticky"></i> Observação Clínica do Atendimento:
+        </label>
+        <textarea id="inspect-obs-input" rows="4" placeholder="Digite as condutas, queixas e observações clínicas..." style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; color: #fff; font-size: 0.85rem;"></textarea>
+        <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px;">🕒 Será registrado com data, hora e assinatura do profissional.</div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button onclick="closeModal('modal-inspect')" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; cursor: pointer;">Fechar</button>
+        <button onclick="saveInspectionObs()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer;"><i class="fa-solid fa-floppy-disk"></i> Salvar Observação</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CERTIFICADO -->
+  <div id="modal-certificate" class="modal-overlay" style="display: none;">
+    <div style="background: linear-gradient(145deg, #0f172a, #1e293b); border: 2px solid var(--neon-cyan); border-radius: 20px; max-width: 600px; width: 100%; padding: 32px; text-align: center; box-shadow: 0 0 40px rgba(0, 242, 254, 0.3);">
+      <div style="font-size: 3rem; margin-bottom: 12px;">🏆</div>
+      <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 4px 12px; border-radius: 20px;">Certificação Concluída</span>
+      <h2 style="margin: 12px 0 6px; font-size: 1.4rem; font-weight: 900; color: #fff;">Certificado de Capacitação Operacional</h2>
+      <p style="margin: 0 0 20px; font-size: 0.88rem; color: #94a3b8; line-height: 1.5;">
+        Certificamos que o profissional concluiu com 100% de aproveitamento todos os módulos práticos do <strong>Simulador 360° do Clube Fitness</strong>.
+      </p>
+      <button onclick="closeModal('modal-certificate')" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #0f172a; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 0.9rem; cursor: pointer;">Concluir & Voltar</button>
+    </div>
+  </div>
+
+  <!-- SCRIPT DINÂMICO DO SIMULADOR -->
+  <script>
+    const MPB_STUDENTS = [
+      { id: 'mpb-1', nome: 'Chico Buarque', telefone: '(11) 98765-4321', plano: 'Plano Físico Total 3x', freqSemanal: 3, diasSemVir: 0, ultimaAvaliacao: '15/07/2026', ultimoTesteForca: '20/07/2026', wellnessScore: 18, wellnessStatus: 'moderado', wellnessConduta: 'Reduzir carga de ombro direito em 20%', objetivo: 'Fortalecimento muscular e melhora postural' },
+      { id: 'mpb-2', nome: 'Elis Regina', telefone: '(11) 99888-7766', plano: 'Plano Performance 4x', freqSemanal: 4, diasSemVir: 1, ultimaAvaliacao: '10/08/2026', ultimoTesteForca: '12/08/2026', wellnessScore: 28, wellnessStatus: 'otimo', wellnessConduta: 'Prontidão excelente. Treino normal', objetivo: 'Capacidade cardiorrespiratória e estabilidade' },
+      { id: 'mpb-3', nome: 'Caetano Veloso', telefone: '(21) 97777-8899', plano: 'Plano Fisioterapia & Longevidade 2x', freqSemanal: 2, diasSemVir: 2, ultimaAvaliacao: '02/06/2026', ultimoTesteForca: '05/06/2026', wellnessScore: 22, wellnessStatus: 'moderado', wellnessConduta: 'Evitar sobrecarga axial em lombar', objetivo: 'Mobilidade torácica e fortalecimento' },
+      { id: 'mpb-4', nome: 'Gilberto Gil', telefone: '(71) 96666-5544', plano: 'Plano Personal & Fisio 3x', freqSemanal: 3, diasSemVir: 3, ultimaAvaliacao: '20/07/2026', ultimoTesteForca: '22/07/2026', wellnessScore: 26, wellnessStatus: 'otimo', wellnessConduta: 'Aquecimento específico de joelhos', objetivo: 'Condicionamento global' },
+      { id: 'mpb-5', nome: 'Milton Nascimento', telefone: '(31) 95555-4433', plano: 'Plano Saúde Ativa 2x', freqSemanal: 2, diasSemVir: 15, ultimaAvaliacao: '12/05/2026', ultimoTesteForca: '15/05/2026', wellnessScore: 20, wellnessStatus: 'moderado', wellnessConduta: 'Retorno gradual após ausência', objetivo: 'Mobilidade articular e prevenção' },
+      { id: 'mpb-6', nome: 'Rita Lee', telefone: '(11) 94444-3322', plano: 'Plano Musculação Livre 3x', freqSemanal: 3, diasSemVir: 1, ultimaAvaliacao: '05/08/2026', ultimoTesteForca: '08/08/2026', wellnessScore: 29, wellnessStatus: 'otimo', wellnessConduta: 'Prontidão máxima para hipertrofia', objetivo: 'Hipertrofia e densidade óssea' }
+    ];
+
+    const MODULES = [
+      {
+        id: 1, title: 'Cockpit do Resumo do Dia & Janela Ativa', badge: 'Módulo 1', icon: 'fa-clipboard-list',
+        summary: 'Aprenda a operar o painel inicial de hoje, identificar a Janela Ativa de horário e marcar presença.',
+        objectives: [
+          'Identificar a Janela Ativa das 08:00 com o aluno Chico Buarque.',
+          'Verificar a conduta do Wellness.',
+          'Marcar a Presença do aluno.',
+          'Testar o botão Reverter caso clique em falta por engano.'
+        ],
+        faq: { q: 'Marquei presença errada. O que faço?', a: 'Clique em [Reverter] no card para voltar a "Agendado".' }
+      },
+      {
+        id: 2, title: 'Agenda Completa & Observações Clínicas', badge: 'Módulo 2', icon: 'fa-calendar-alt',
+        summary: 'Domine a grade de horários, vagas da academia e lançamento de observações clínicas com timestamp.',
+        objectives: [
+          'Acessar a Agenda Completa.',
+          'Clicar no card das 10:00 de Caetano Veloso.',
+          'Digitar uma observação clínica e clicar em Salvar Observação.'
+        ],
+        faq: { q: 'Esqueci de salvar a observação. Como lançar depois?', a: 'Basta abrir o agendamento a qualquer momento e clicar em Salvar Observação.' }
+      },
+      {
+        id: 3, title: 'Agendamento Direto pelo Profissional', badge: 'Módulo 3', icon: 'fa-calendar-plus',
+        summary: 'Aprenda a agendar um horário direto para um aluno verificando vagas livres.',
+        objectives: [
+          'Acessar a aba Agendar Aluno.',
+          'Selecionar Gilberto Gil, serviço Fisioterapia e horário 14:00.',
+          'Confirmar o agendamento.'
+        ],
+        faq: { q: 'Horário sem vagas?', a: 'O sistema bloqueia superlotação para preservar a qualidade.' }
+      },
+      {
+        id: 4, title: 'Clientes Vinculados & Prontuário 360°', badge: 'Módulo 4', icon: 'fa-user-friends',
+        summary: 'Monitore alertas de saúde (Avaliação Vencida, Teste de Força) e abra o Prontuário.',
+        objectives: [
+          'Acessar Clientes Vinculados.',
+          'Abrir o Prontuário de Elis Regina.'
+        ],
+        faq: { q: 'Avaliação Vencida em vermelho?', a: 'Dispara quando o aluno passa de 60 dias sem reavaliação física.' }
+      },
+      {
+        id: 5, title: 'Fichas de Treino & Workout Builder', badge: 'Módulo 5', icon: 'fa-dumbbell',
+        summary: 'Prescreva treinos personalizados e atualize séries e cargas.',
+        objectives: [
+          'Acessar Fichas de Treino.',
+          'Abrir o Workout Builder de Rita Lee e salvar o Treino A.'
+        ],
+        faq: { q: 'Exercício não encontrado?', a: 'Filtre pelo grupo muscular principal no banco de exercícios.' }
+      },
+      {
+        id: 6, title: 'Central de Retenção & Tratativas', badge: 'Módulo 6', icon: 'fa-heart-circle-check',
+        summary: 'Previna o abandono de treinos identificando alunos ausentes.',
+        objectives: [
+          'No Resumo do Dia, localizar Milton Nascimento (15d sem vir).',
+          'Registrar tratativa: "Em viagem a Minas Gerais".'
+        ],
+        faq: { q: 'Por que registrar tratativa?', a: 'Mantém toda a equipe alinhada evitando mensagens duplicadas.' }
+      }
+    ];
+
+    let currentModuleId = 1;
+    let completedModules = [];
+    let simActiveTab = 'resumo_dia';
+    let simPresencas = {};
+    let simObservacoes = { 'mpb-3': 'Aluno em repouso pós-show. Foco em lombar.' };
+    let simTratativas = {};
+    let activeInspectStudent = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      toast.style.display = 'flex';
+      setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    }
+
+    function renderModulesList() {
+      const list = document.getElementById('modules-list');
+      list.innerHTML = MODULES.map(m => {
+        const isCurrent = m.id === currentModuleId;
+        const isDone = completedModules.includes(m.id);
+        return `
+          <button onclick="selectModule(${m.id})" style="background: ${isCurrent ? 'rgba(0, 242, 254, 0.12)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${isCurrent ? '#00f2fe' : isDone ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.06)'}; border-radius: 8px; padding: 8px 10px; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid ${m.icon}" style="color: ${isDone ? '#10b981' : isCurrent ? '#00f2fe' : '#64748b'}; font-size: 0.85rem;"></i>
+            <div style="font-size: 0.72rem; font-weight: 800; color: ${isCurrent ? '#fff' : '#cbd5e1'}; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${m.title}
+            </div>
+            ${isDone ? '<i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 0.75rem;"></i>' : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderCurrentModule() {
+      const m = MODULES.find(mod => mod.id === currentModuleId) || MODULES[0];
+      const isDone = completedModules.includes(m.id);
+
+      document.getElementById('mission-card').innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span class="badge-tag" style="background: rgba(0, 242, 254, 0.15); color: #00f2fe;">${m.badge}</span>
+          <span class="badge-tag" style="background: ${isDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; color: ${isDone ? '#10b981' : '#f59e0b'};">
+            ${isDone ? '✓ Concluído' : '▶ Em Andamento'}
+          </span>
+        </div>
+        <h2 style="margin: 0 0 8px; font-size: 1.05rem; font-weight: 800; color: #fff;">${m.title}</h2>
+        <p style="margin: 0 0 16px; font-size: 0.82rem; color: #94a3b8; line-height: 1.45;">${m.summary}</p>
+        <div style="background: rgba(0,0,0,0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.06);">
+          <strong style="display: block; font-size: 0.76rem; color: #38bdf8; text-transform: uppercase; margin-bottom: 8px;">🎯 Passo a Passo do Treinamento:</strong>
+          <ul style="margin: 0; padding-left: 18px; font-size: 0.8rem; color: #cbd5e1; line-height: 1.5;">
+            ${m.objectives.map(o => `<li>${o}</li>`).join('')}
+          </ul>
+        </div>
+        <button onclick="completeCurrentModule()" style="width: 100%; background: ${isDone ? 'rgba(16, 185, 129, 0.15)' : 'linear-gradient(135deg, #00f2fe, #4facfe)'}; color: ${isDone ? '#10b981' : '#0f172a'}; border: ${isDone ? '1px solid #10b981' : 'none'}; padding: 10px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+          <i class="fa-solid ${isDone ? 'fa-check-double' : 'fa-flag-checkered'}"></i> ${isDone ? 'Módulo Concluído (Avançar)' : 'Praticar no Simulador & Concluir'}
+        </button>
+      `;
+
+      document.getElementById('faq-card').innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; color: #f59e0b; font-weight: 800; font-size: 0.84rem; margin-bottom: 8px;">
+          <i class="fa-solid fa-life-ring"></i> O que fazer se eu errar nesta etapa?
+        </div>
+        <strong style="display: block; font-size: 0.8rem; color: #fff; margin-bottom: 4px;">❓ ${m.faq.q}</strong>
+        <p style="margin: 0; font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">👉 ${m.faq.a}</p>
+      `;
+    }
+
+    function selectModule(id) {
+      currentModuleId = id;
+      if (id === 1 || id === 6) switchSimTab('resumo_dia');
+      else if (id === 2) switchSimTab('dashboard');
+      else if (id === 3) switchSimTab('agendamento_prof');
+      else if (id === 4) switchSimTab('clientes');
+      else if (id === 5) switchSimTab('treinos_prof');
+      renderModulesList();
+      renderCurrentModule();
+    }
+
+    function completeCurrentModule() {
+      if (!completedModules.includes(currentModuleId)) {
+        completedModules.push(currentModuleId);
+        showToast('🎉 Parabéns! Módulo concluído com sucesso!');
+      }
+      updateProgress();
+      if (currentModuleId < MODULES.length) {
+        selectModule(currentModuleId + 1);
+      } else {
+        openCertificate();
+      }
+    }
+
+    function updateProgress() {
+      const pct = Math.round((completedModules.length / MODULES.length) * 100);
+      document.getElementById('progress-txt').innerText = `${pct}% Concluído`;
+      document.getElementById('progress-bar').style.width = `${pct}%`;
+      if (pct === 100) {
+        document.getElementById('btn-cert').style.display = 'block';
+      }
+      renderModulesList();
+      renderCurrentModule();
+    }
+
+    function switchSimTab(tab) {
+      simActiveTab = tab;
+      document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+      if (tab === 'resumo_dia') document.getElementById('tab-resumo').classList.add('active');
+      else if (tab === 'dashboard') document.getElementById('tab-agenda').classList.add('active');
+      else if (tab === 'agendamento_prof') document.getElementById('tab-agendar').classList.add('active');
+      else if (tab === 'clientes') document.getElementById('tab-clientes').classList.add('active');
+      else if (tab === 'treinos_prof') document.getElementById('tab-treinos').classList.add('active');
+      renderSimContent();
+    }
+
+    function renderSimContent() {
+      const container = document.getElementById('sim-content');
+      if (simActiveTab === 'resumo_dia') {
+        const chico = MPB_STUDENTS[0];
+        const chicoStatus = simPresencas['mpb-1'] || 'agendado';
+        const milton = MPB_STUDENTS[4];
+        const isTratado = Boolean(simTratativas['mpb-5']);
+
+        container.innerHTML = `
+          <!-- Janela Ativa -->
+          <div style="background: rgba(99, 102, 241, 0.04); border: 2px solid #6366f1; border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+            <h3 style="margin: 0 0 12px; font-size: 1.05rem; font-weight: 800; color: #818cf8;">
+              <i class="fa-solid fa-circle-play"></i> ⭐ ATENDIMENTOS NO HORÁRIO ATUAL (08:00)
+            </h3>
+            <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <div>
+                  <span style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">08:00</span>
+                  <h4 style="margin: 2px 0; font-size: 1rem; font-weight: 800; color: #fff;">${chico.nome}</h4>
+                  <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">${chico.plano}</span>
+                </div>
+                <span class="badge-tag" style="background: ${chicoStatus === 'presenca' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}; color: ${chicoStatus === 'presenca' ? '#10b981' : '#f59e0b'};">
+                  ${chicoStatus === 'presenca' ? 'Presença Confirmada' : 'Aguardando Aluno'}
+                </span>
+              </div>
+              <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
+                <div style="font-size: 0.76rem; font-weight: 800; color: #f59e0b;">🧘 Wellness: ${chico.wellnessScore}/30 • ${chico.wellnessStatus.toUpperCase()}</div>
+                <div style="font-size: 0.74rem; color: #cbd5e1; margin-top: 2px;">👉 ${chico.wellnessConduta}</div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button onclick="setPresenca('mpb-1', 'presenca')" style="flex: 1; background: #10b981; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer;"><i class="fa-solid fa-check"></i> Presença</button>
+                <button onclick="setPresenca('mpb-1', 'falta')" style="flex: 1; background: #ef4444; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer;"><i class="fa-solid fa-xmark"></i> Falta</button>
+                ${chicoStatus !== 'agendado' ? `<button onclick="setPresenca('mpb-1', 'agendado')" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 8px; font-weight: 700; cursor: pointer;"><i class="fa-solid fa-rotate-left"></i> Reverter</button>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Central de Retenção -->
+          <div style="background: #111827; border: 1px solid var(--border-color); border-radius: 16px; padding: 20px;">
+            <h3 style="margin: 0 0 12px; font-size: 1rem; font-weight: 800; color: #f59e0b;"><i class="fa-solid fa-heart-circle-check"></i> Central de Retenção & Alunos Ausentes</h3>
+            <div style="background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="color: #fff; font-size: 0.95rem;">${milton.nome}</strong>
+                <span class="badge-tag" style="background: ${isTratado ? 'rgba(56, 189, 248, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${isTratado ? '#38bdf8' : '#ef4444'}; margin-left: 8px;">
+                  ${isTratado ? '✓ Tratado (Em viagem)' : 'Pendente (15 dias sem vir)'}
+                </span>
+                <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 2px;">Contratou 2x/sem • Fez 0 • Restam 2 pendentes</div>
+              </div>
+              <button onclick="tratarMilton()" style="background: ${isTratado ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.06)'}; color: ${isTratado ? '#38bdf8' : '#fff'}; border: 1px solid ${isTratado ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.15)'}; padding: 6px 14px; border-radius: 8px; font-weight: 750; cursor: pointer;">
+                ${isTratado ? 'Editar Tratativa' : 'Registrar Tratativa'}
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (simActiveTab === 'dashboard') {
+        const caetano = MPB_STUDENTS[2];
+        container.innerHTML = `
+          <div style="background: #111827; border: 1px solid var(--border-color); border-radius: 14px; padding: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: #fff; font-size: 0.88rem;">📅 28/08/2026 (Sexta-feira)</strong>
+            <span class="badge-tag" style="background: #00f2fe; color: #0f172a;">Academia</span>
+          </div>
+
+          <div style="background: #111827; border: 1.5px solid #00f2fe; border-radius: 12px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <strong style="color: #00f2fe; font-size: 0.9rem;">⏰ 10:00 (Objetivo da Missão)</strong>
+              <span style="font-size: 0.72rem; color: #94a3b8;">Vagas: 1/4 Ocupadas</span>
+            </div>
+            <div onclick="openInspection('mpb-3')" style="background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="color: #fff; font-size: 0.95rem;">${caetano.nome}</strong>
+                <span class="badge-tag" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; margin-left: 6px;">Fisioterapia</span>
+                <div style="font-size: 0.74rem; color: #f59e0b; margin-top: 4px;"><i class="fa-solid fa-note-sticky"></i> ${simObservacoes['mpb-3'] ? `Obs: ${simObservacoes['mpb-3']}` : 'Sem observação'}</div>
+              </div>
+              <button style="background: #00f2fe; color: #0f172a; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 800; font-size: 0.76rem; cursor: pointer;">
+                <i class="fa-solid fa-pen-to-square"></i> Abrir & Editar Obs
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (simActiveTab === 'agendamento_prof') {
+        container.innerHTML = `
+          <div style="background: #111827; border: 1px solid var(--border-color); border-radius: 16px; padding: 24px;">
+            <h3 style="margin: 0 0 16px; font-size: 1.05rem; font-weight: 800; color: #fff;"><i class="fa-solid fa-calendar-plus" style="color: #00f2fe;"></i> Novo Agendamento Direto</h3>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div>
+                <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #94a3b8; margin-bottom: 4px;">Aluno:</label>
+                <select id="ag-aluno" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff;">
+                  ${MPB_STUDENTS.map(s => `<option value="${s.id}">${s.nome} — ${s.plano}</option>`).join('')}
+                </select>
+              </div>
+              <button onclick="confirmAgendamento()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 800; cursor: pointer;">
+                <i class="fa-solid fa-calendar-check"></i> Confirmar Agendamento
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (simActiveTab === 'clientes') {
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;">
+            ${MPB_STUDENTS.map(s => `
+              <div class="sim-card">
+                <div style="display: flex; justify-content: space-between;">
+                  <strong style="color: #fff; font-size: 0.95rem;">${s.nome}</strong>
+                  <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Ativo</span>
+                </div>
+                <div style="font-size: 0.74rem; color: #94a3b8; margin: 4px 0 10px;">${s.plano}</div>
+                <button onclick="showToast('📋 Prontuário de ${s.nome} aberto com sucesso!')" style="width: 100%; background: rgba(0, 242, 254, 0.12); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.3); padding: 8px; border-radius: 8px; font-weight: 750; cursor: pointer;">
+                  <i class="fa-solid fa-address-card"></i> Abrir Prontuário
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (simActiveTab === 'treinos_prof') {
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;">
+            ${MPB_STUDENTS.map(s => `
+              <div class="sim-card">
+                <strong style="color: #fff; font-size: 0.95rem;">${s.nome}</strong>
+                <p style="font-size: 0.76rem; color: #cbd5e1; margin: 6px 0 12px;"><strong>Objetivo:</strong> ${s.objetivo}</p>
+                <button onclick="showToast('🏋️ Workout Builder de ${s.nome} salvo com sucesso!')" style="width: 100%; background: linear-gradient(135deg, #00f2fe, #4facfe); color: #0f172a; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer;">
+                  <i class="fa-solid fa-dumbbell"></i> Abrir Workout Builder
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    function setPresenca(studentId, status) {
+      simPresencas[studentId] = status;
+      showToast(status === 'presenca' ? '✅ Presença registrada com sucesso!' : '🔄 Status atualizado.');
+      renderSimContent();
+    }
+
+    function tratarMilton() {
+      simTratativas['mpb-5'] = { motivo: 'Em viagem' };
+      showToast('✅ Tratativa de Milton Nascimento registrada!');
+      renderSimContent();
+    }
+
+    function openInspection(studentId) {
+      activeInspectStudent = MPB_STUDENTS.find(s => s.id === studentId);
+      document.getElementById('inspect-student-details').innerHTML = `
+        <strong style="color: #fff; font-size: 0.98rem;">${activeInspectStudent.nome}</strong>
+        <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 2px;">${activeInspectStudent.plano} • ${activeInspectStudent.telefone}</div>
+      `;
+      document.getElementById('inspect-obs-input').value = simObservacoes[studentId] || '';
+      document.getElementById('modal-inspect').style.display = 'flex';
+    }
+
+    function saveInspectionObs() {
+      if (activeInspectStudent) {
+        simObservacoes[activeInspectStudent.id] = document.getElementById('inspect-obs-input').value;
+        showToast('✅ Observação clínica salva com sucesso!');
+        closeModal('modal-inspect');
+        renderSimContent();
+      }
+    }
+
+    function confirmAgendamento() {
+      showToast('✅ Agendamento direto confirmado com sucesso!');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    function openCertificate() {
+      document.getElementById('modal-certificate').style.display = 'flex';
+    }
+
+    // Inicialização
+    selectModule(1);
+    updateProgress();
+  </script>
+</body>
+</html>
