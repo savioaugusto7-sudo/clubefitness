@@ -4768,8 +4768,8 @@ goniometria: {
                             </small>
                           </div>
 
-                          {/* Botões de Ação Global */}
-                          {pendentesRetencao.length > 0 && (
+                          {/* Botões de Ação Global (Oculto temporariamente) */}
+                          {/* {pendentesRetencao.length > 0 && (
                             <button
                               type="button"
                               className="btn btn-primary btn-sm"
@@ -4778,7 +4778,7 @@ goniometria: {
                             >
                               <i className="fa-brands fa-whatsapp"></i> Engajar Todos os Pendentes ({pendentesRetencao.length})
                             </button>
-                          )}
+                          )} */}
                         </div>
 
                         {/* Abas de Navegação da Retenção */}
@@ -4856,14 +4856,7 @@ goniometria: {
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm"
-                                        onClick={() => handleEngageWhatsAppWithTratativa(client, metrics)}
-                                        style={{ background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px' }}
-                                      >
-                                        <i className="fa-brands fa-whatsapp"></i> Engajar WhatsApp
-                                      </button>
+                                      {/* WhatsApp engajamento oculto temporariamente */}
                                       <button
                                         type="button"
                                         className="btn btn-secondary btn-sm"
@@ -4872,7 +4865,7 @@ goniometria: {
                                           setTratativaMotivo('agendou');
                                           setTratativaObs('');
                                         }}
-                                        style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                                        style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontWeight: 600 }}
                                       >
                                         <i className="fa-solid fa-pen-to-square"></i> Registrar Tratativa
                                       </button>
@@ -4890,7 +4883,7 @@ goniometria: {
                               <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)' }}>
                                 <i className="fa-solid fa-inbox" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
                                 <h4 style={{ margin: '0 0 4px', fontWeight: 700 }}>Nenhuma tratativa registrada ainda</h4>
-                                <p style={{ margin: 0, fontSize: '0.85rem' }}>Ao engajar ou registrar desfechos na aba de pendentes, os alunos tratados aparecerão aqui.</p>
+                                <p style={{ margin: 0, fontSize: '0.85rem' }}>Ao registrar justificativas na aba de pendentes, os alunos tratados aparecerão aqui.</p>
                               </div>
                             ) : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -4989,14 +4982,20 @@ goniometria: {
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    onClick={() => handleEngageWhatsAppWithTratativa(client, metrics)}
-                                    style={{ background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px' }}
-                                  >
-                                    <i className="fa-brands fa-whatsapp"></i> WhatsApp
-                                  </button>
+                                  {!isTreated && metrics.status !== 'ok' && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      onClick={() => {
+                                        setTratativaModalClient(client);
+                                        setTratativaMotivo('agendou');
+                                        setTratativaObs('');
+                                      }}
+                                      style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                                    >
+                                      <i className="fa-solid fa-pen-to-square"></i> Tratar
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))}
