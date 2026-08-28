@@ -99,9 +99,6 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'agendamento_prof', label: 'Agendar Aluno', icon: 'fa-calendar-plus' },
         { id: 'clientes', label: 'Clientes Vinculados', icon: 'fa-user-friends' },
         { id: 'dados_clinicos', label: 'Dados Clínicos', icon: 'fa-notes-medical' }
-        /* Ocultado a pedido
-        , { id: 'frequencia_alunos', label: 'Frequência dos Alunos', icon: 'fa-chart-bar' }
-        */
       ]
     },
     {
