@@ -2367,9 +2367,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const agendadosHoje = todayAppointments.filter(a => a.status === 'agendado').length;
   const faltasHoje = todayAppointments.filter(a => a.status === 'falta').length;
 
-  const manhaApts = todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h < 12; });
-  const tardeApts = todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h >= 12 && h < 18; });
-  const noiteApts = todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h >= 18; });
+  const sortAptsByTime = (list: any[]) => [...list].sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
+
+  const manhaApts = sortAptsByTime(todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h < 12; }));
+  const tardeApts = sortAptsByTime(todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h >= 12 && h < 18; }));
+  const noiteApts = sortAptsByTime(todayAppointments.filter(a => { const h = parseInt(a.horario?.split(':')[0] || '0', 10); return h >= 18; }));
 
   // Métricas de Retenção e Frequência Semanal
   const retentionList = cfClients
