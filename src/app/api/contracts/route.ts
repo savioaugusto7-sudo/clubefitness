@@ -643,7 +643,7 @@ export async function POST(request: Request) {
     // await Payment.insertMany(paymentRecords);
 
     // 5. Arquivar contrato anterior no historicoContratos se existente (Anti-Sobrescrita)
-    if (client.dadosComerciais && client.dadosComerciais.status === 'ativo' && client.dadosComerciais.dataInicio && client.dadosComerciais.vencimento) {
+    if (client.dadosComerciais && client.dadosComerciais.dataInicio && client.dadosComerciais.vencimento) {
       const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
       const prevSnapshot = buildContractSnapshot(
         client.dadosComerciais, 

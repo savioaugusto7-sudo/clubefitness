@@ -638,28 +638,44 @@ export default function GestaoContratosPanel({
     const com = client.dadosComerciais || {};
     const latestC = allContractsMap[client._id];
     const latestP = allProposalsMap[client._id];
+    const info = getContractValidityInfo(client);
     
     // Resolver plano
     const resolvedPlanoId = com.planoId?._id || com.planoId || latestC?.planoId?._id || latestC?.planoId || latestP?.planoId?._id || latestP?.planoId || '';
     setEcPlanoId(resolvedPlanoId);
 
     // Status
-    setEcStatus(com.status || client.status || 'ativo');
+    setEcStatus(info.isExpired ? 'ativo' : (com.status || client.status || 'ativo'));
 
     // Duração & Vigência
     const rawDur = (com.duracao || latestC?.duracao || (com.planoId?.tipo === 'Anual' ? 'anual' : 'mensal')).toLowerCase();
     const dur: any = ['anual', 'semestral', 'semana', 'mensal'].includes(rawDur) ? rawDur : 'mensal';
     setEcDuracao(dur);
-    setEcVigenciaQtd(Number(com.duracaoQtd || com.vigenciaQtd || latestC?.vigenciaQtd || (dur === 'anual' ? 12 : 1)) || 1);
+    const vigQtd = Number(com.duracaoQtd || com.vigenciaQtd || latestC?.vigenciaQtd || (dur === 'anual' ? 12 : 1)) || 1;
+    setEcVigenciaQtd(vigQtd);
 
-    // Datas
-    const dInicio = com.dataInicio || latestC?.dataInicio || new Date().toISOString().split('T')[0];
+    // Datas: Se o contrato anterior estiver vencido/expirado, sugerir data de início como HOJE para novo ciclo
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isPastDate = (dateStr?: string) => {
+      if (!dateStr) return true;
+      const d = new Date(dateStr + 'T23:59:59');
+      return isNaN(d.getTime()) || d < new Date();
+    };
+
+    let dInicio = com.dataInicio || latestC?.dataInicio || todayStr;
+    let dVenc = com.vencimento || latestC?.vencimento || '';
+
+    // Se estiver vencido ou vencimento no passado, iniciar novo ciclo a partir de hoje
+    if (info.isExpired || isPastDate(dVenc)) {
+      dInicio = todayStr;
+      dVenc = calculateContractEndDate(todayStr, dur, vigQtd, undefined, Boolean(com.criarRecorrenciaMensal));
+    }
+
     setEcDataInicio(dInicio);
-    const dVenc = com.vencimento || latestC?.vencimento || '';
     setEcVencimento(dVenc);
 
     // 1º Vencimento
-    const dPrimeiroVenc = com.dataPrimeiroVencimento || latestC?.dataPrimeiroVencimento || latestP?.dataPrimeiroVencimento || '';
+    const dPrimeiroVenc = (info.isExpired || isPastDate(com.dataPrimeiroVencimento)) ? todayStr : (com.dataPrimeiroVencimento || latestC?.dataPrimeiroVencimento || latestP?.dataPrimeiroVencimento || todayStr);
     setEcDataPrimeiroVencimento(dPrimeiroVenc);
 
     // Forma de Pagamento & Parcelas
@@ -692,23 +708,76 @@ export default function GestaoContratosPanel({
     setEcError('');
 
     try {
-      const finalStatus = activateAsVigente ? 'ativo' : ecStatus;
       const finalEndDate = ecVencimento || calculateContractEndDate(ecDataInicio, ecDuracao, ecVigenciaQtd, undefined, ecCriarRecorrenciaMensal);
 
-      const payload: any = {
+      const plan = plans.find(p => p._id === ecPlanoId);
+      const isAnual = ecDuracao === 'anual' || plan?.tipo === 'Anual';
+      const grossPrice = Number(ecValorUnitario || 0) * (isAnual ? 1 : Number(ecVigenciaQtd || 1));
+      let discountDeduction = 0;
+      if (ecDescontoTipo === 'percentual') {
+        discountDeduction = (grossPrice * (Number(ecDescontoValor) || 0)) / 100;
+      } else {
+        discountDeduction = Number(ecDescontoValor) || 0;
+      }
+      discountDeduction = Math.min(discountDeduction, grossPrice);
+      const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
+
+      // 1. Criar novo Contrato Oficial (Versão #N) no backend
+      // Isso arquiva automaticamente o contrato anterior em historicoContratos e atualiza os dadosComerciais do cliente
+      const contractPayload: any = {
+        clientId: editContractClient._id,
+        planoId: ecPlanoId,
+        planoNome: plan?.nome || 'Plano Clube Fitness',
+        planoTipo: isAnual ? 'Anual' : 'Mensal',
+        valorBruto: grossPrice,
+        descontoTipo: ecDescontoTipo,
+        descontoValor: ecDescontoValor,
+        valorLiquido: calculatedValorLiquido,
+        parcelas: Number(ecParcelas) || 1,
+        formaPagamento: ecFormaPagamento || 'pix',
+        diaVencimento: ecDataPrimeiroVencimento ? parseInt(ecDataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate(),
+        dataPrimeiroVencimento: ecDataPrimeiroVencimento || ecDataInicio,
+        dataInicio: ecDataInicio,
+        dataFim: finalEndDate,
+        vigenciaMeses: isAnual ? 12 : (ecDuracao === 'semestral' ? 6 : (Number(ecVigenciaQtd) || 1)),
+        status: 'assinado',
+        usuarioEmissor: userCargo || 'Administrador',
+        unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
+        frequencia: ecFrequencia,
+        creditosTotal: ecCreditosTotal,
+        creditosMassagemPorPlano: ecCreditosMassagemTotal,
+        creditosEmergenciaPorPlano: ecCreditosEmergenciaTotal,
+        enviarClicksign: false,
+        enviarAsaas: false
+      };
+
+      const contractRes = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contractPayload)
+      });
+
+      const contractData = await contractRes.json();
+      if (!contractRes.ok || !contractData.success) {
+        throw new Error(contractData.error || 'Erro ao registrar nova versão do contrato.');
+      }
+
+      // 2. Garantir atualização cadastral/comercial do cliente
+      const clientUpdatePayload: any = {
         id: editContractClient._id,
         dadosComerciais: {
           ...(editContractClient.dadosComerciais || {}),
           planoId: ecPlanoId || null,
-          status: finalStatus,
+          status: 'ativo',
           duracao: ecDuracao,
           duracaoQtd: ecVigenciaQtd,
+          vigenciaQtd: ecVigenciaQtd,
           dataInicio: ecDataInicio,
           vencimento: finalEndDate,
-          dataPrimeiroVencimento: ecDataPrimeiroVencimento,
+          dataPrimeiroVencimento: ecDataPrimeiroVencimento || ecDataInicio,
           formaPagamento: ecFormaPagamento,
           valorUnitario: ecValorUnitario,
-          parcelas: ecParcelas,
+          parcelas: Number(ecParcelas) || 1,
           descontoTipo: ecDescontoTipo,
           descontoValor: ecDescontoValor,
           frequencia: ecFrequencia,
@@ -722,7 +791,7 @@ export default function GestaoContratosPanel({
       const res = await fetch('/api/clients', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(clientUpdatePayload)
       });
 
       const data = await res.json();
@@ -741,8 +810,12 @@ export default function GestaoContratosPanel({
         setSelectedClient(data.data);
       }
 
+      alert('✅ Contrato renovado e ativado com sucesso! O contrato anterior foi arquivado no histórico.');
       fetchData();
       loadContractsAndProposalsOverview();
+      if (editContractClient._id) {
+        loadContracts(editContractClient._id, true);
+      }
       setEditContractClient(null);
     } catch (err: any) {
       setEcError(err.message || 'Erro ao salvar.');
