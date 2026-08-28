@@ -5209,20 +5209,20 @@ export default function GestaoContratosPanel({
                 disabled={generatingProposal || issuingContract}
                 style={{
                   width: '100%',
-                  minHeight: '44px',
-                  padding: '10px',
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%)',
-                  borderColor: 'rgba(16, 185, 129, 0.5)',
+                  minHeight: '42px',
+                  padding: '8px 12px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
+                  borderColor: 'rgba(16, 185, 129, 0.4)',
                   color: '#34d399',
-                  fontWeight: 800,
-                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
                   display: 'flex',
                   gap: '8px',
                   justifyContent: 'center',
                   alignItems: 'center',
                   cursor: 'pointer',
                   borderRadius: '8px',
-                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.15)',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.12)',
                   transition: 'all 0.2s ease'
                 }}
                 onClick={() => handleOpenManualSale(selectedClient)}
@@ -5230,21 +5230,12 @@ export default function GestaoContratosPanel({
                 <i className="fa-solid fa-file-pen"></i> Cadastrar Venda Manual (Admin)
               </button>
             )}
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setHistoryModalClient(selectedClient)}
-              style={{ minHeight: '38px', padding: '8px', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.4)', fontWeight: 700, fontSize: '0.8rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
-            >
-              <i className="fa-solid fa-clock-rotate-left"></i> Histórico de Contratos
-            </button>
           </div>
 
-          {/* Painel 2: Documentos & Assinatura */}
+          {/* Painel 2: Documentos & Suporte Operacional */}
           <div className="content-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '14px' }}>
             <h3 style={{ margin: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span><i className="fa-solid fa-file-signature" style={{ marginRight: '8px' }}></i> Documentos & Clicksign</span>
+              <span><i className="fa-solid fa-file-lines" style={{ marginRight: '8px' }}></i> Documentos & Operações</span>
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -5274,35 +5265,13 @@ export default function GestaoContratosPanel({
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={issuingContract}
-                style={{ minHeight: '42px', background: '#10b981', borderColor: '#10b981', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
-                onClick={() => handleOpenSignatureModal()}
-              >
-                <i className="fa-solid fa-hand-pointer"></i> Assinar na Tela
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={issuingContract}
-                style={{ minHeight: '42px', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)', background: 'rgba(34,197,94,0.08)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}
-                onClick={() => handleIssueContract('clicksign')}
-              >
-                <i className="fa-brands fa-whatsapp"></i> WhatsApp Clicksign
-              </button>
-            </div>
-
             {/* Lançamento Manual no Financeiro (Para pagamentos presenciais/balcão fora do Asaas) */}
             <button
               type="button"
               className="btn btn-secondary"
               disabled={generatingPayments}
               onClick={handleGeneratePaymentsExplicitly}
-              style={{ width: '100%', minHeight: '38px', color: '#34d399', borderColor: 'rgba(16,185,129,0.35)', background: 'rgba(16,185,129,0.06)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+              style={{ width: '100%', minHeight: '38px', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.06)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
               title="Lança as parcelas diretamente no Controle Financeiro (Dinheiro, Maquininha Balcão ou Transferência)"
             >
               <i className="fa-solid fa-file-invoice-dollar"></i> Lançar Parcelas no Financeiro (Manual)
