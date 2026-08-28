@@ -112,9 +112,10 @@ function applyStatusTransition(
   newStatus: string,
   diffHoras: number,
   janelaHoras: number,
-  servico: string
+  servico: string,
+  isEmergenciaExtra?: boolean
 ) {
-  if (tipo === 'nenhum') return;
+  if (tipo === 'nenhum' || isEmergenciaExtra) return;
 
   const isDynamus = client.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || false;
   const cfg = getServiceCreditConfig(servico, isDynamus);
@@ -368,6 +369,8 @@ export async function POST(request: Request) {
       }
     }
 
+    let isEmergenciaExtra = false;
+
     // --- Validar créditos conforme tipoCredito ---
     if (tipoCredito !== 'nenhum' && !bypassRestrictions) {
       const com = client.dadosComerciais;
@@ -399,7 +402,16 @@ export async function POST(request: Request) {
         const reservados = await getReservadosCredits(clienteId, tipoCredito);
         const disponiveis = Math.max(0, total - usados - reservados);
         if (disponiveis < cost) {
-          return NextResponse.json({ success: false, error: `Créditos de emergência insuficientes! O agendamento requer ${cost} crédito(s) e o aluno possui apenas ${disponiveis} crédito(s) disponível(is).` }, { status: 400 });
+          const isClientBooking = session && session.user && (session.user as any).role === 'client';
+          if (isClientBooking) {
+            return NextResponse.json({ 
+              success: false, 
+              error: `Créditos de emergência insuficientes! O aluno possui apenas ${disponiveis} crédito(s) disponível(is). Entre em contato com a equipe.` 
+            }, { status: 400 });
+          } else {
+            // Profissional ou Administrador agendando sem crédito: Permitir e registrar como Emergência Extra
+            isEmergenciaExtra = true;
+          }
         }
       }
     }
@@ -471,13 +483,16 @@ export async function POST(request: Request) {
       } else if (tipoCredito === 'massagem') {
         com.creditosMassagemReservados = (com.creditosMassagemReservados || 0) + cost;
       } else if (tipoCredito === 'emergencia') {
-        com.creditosEmergenciaReservados = (com.creditosEmergenciaReservados || 0) + cost;
+        if (!isEmergenciaExtra) {
+          com.creditosEmergenciaReservados = (com.creditosEmergenciaReservados || 0) + cost;
+        }
       }
       client.markModified('dadosComerciais');
       await client.save();
     }
 
     const observacoesText = body.observacoes?.trim() || '';
+    const mesReferencia = data.slice(0, 7); // "YYYY-MM"
     const appointment = await Appointment.create({
       data,
       horario,
@@ -485,6 +500,8 @@ export async function POST(request: Request) {
       servico,
       consumeCredito: tipoCredito === 'academia',
       tipoCredito,
+      isEmergenciaExtra,
+      mesReferencia,
       profissionalId: finalProfId,
       clienteId,
       status: 'agendado',
@@ -609,7 +626,7 @@ export async function PUT(request: Request) {
       const diffHoras = (dataHora.getTime() - agora.getTime()) / (1000 * 60 * 60);
       const janelaHoras = CANCELAMENTO_JANELAS[appointment.tipo as 'academia' | 'consultorio'] || 6;
 
-      applyStatusTransition(client, tipoCredito, oldStatus, status, diffHoras, janelaHoras, appointment.servico);
+      applyStatusTransition(client, tipoCredito, oldStatus, status, diffHoras, janelaHoras, appointment.servico, appointment.isEmergenciaExtra);
       client.markModified('dadosComerciais');
       await client.save();
     }
@@ -658,7 +675,7 @@ export async function DELETE(request: Request) {
       } else if (tipoCredito === 'massagem') {
         if (appointment.status === 'agendado') com.creditosMassagemReservados = Math.max(0, (com.creditosMassagemReservados || 0) - cost);
         else if (appointment.status === 'presenca' || appointment.status === 'falta') com.creditosMassagemUsados = Math.max(0, (com.creditosMassagemUsados || 0) - cost);
-      } else if (tipoCredito === 'emergencia') {
+      } else if (tipoCredito === 'emergencia' && !appointment.isEmergenciaExtra) {
         if (appointment.status === 'agendado') com.creditosEmergenciaReservados = Math.max(0, (com.creditosEmergenciaReservados || 0) - cost);
         else if (appointment.status === 'presenca' || appointment.status === 'falta') com.creditosEmergenciaUsados = Math.max(0, (com.creditosEmergenciaUsados || 0) - cost);
       }

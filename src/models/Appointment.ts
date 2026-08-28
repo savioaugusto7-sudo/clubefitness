@@ -30,6 +30,9 @@ const AppointmentSchema = new Schema({
   fixedScheduleId: { type: Schema.Types.ObjectId, ref: 'FixedSchedule', default: null },
   observacoes: { type: String, default: '' },
   observacaoDataHora: { type: Date, default: null },
+  finalizado: { type: Boolean, default: false },
+  isEmergenciaExtra: { type: Boolean, default: false },
+  mesReferencia: { type: String, default: '' }, // formato YYYY-MM
   wellness: { type: WellnessSchema, default: null }
 }, { timestamps: true });
 

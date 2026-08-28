@@ -2966,7 +2966,10 @@ export default function TreinamentoProfissionalPage() {
                   <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '10px', padding: '12px' }}>
                     <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Maria Bethânia</strong>
                     <span style={{ fontSize: '0.7rem', background: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', fontWeight: 800 }}>ALUNO FIXO</span>
-                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>Serviço: Atendimento de Emergência</div>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>Serviço: Atendimento de Emergência (3 vagas)</div>
+                    <div style={{ marginTop: '6px', fontSize: '0.74rem', color: '#93c5fd', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-circle-info"></i> Aluno sem créditos no mês? O profissional agenda normalmente e o sistema registra como <strong>Emergência Extra</strong> para o ADM.
+                    </div>
                   </div>
 
                   <div>

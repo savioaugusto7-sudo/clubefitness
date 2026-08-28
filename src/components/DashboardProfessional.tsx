@@ -5297,8 +5297,13 @@ goniometria: {
                                           <div style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: sColors.text, fontWeight: 900, letterSpacing: '0.5px' }}>
                                             Modalidade / Serviço
                                           </div>
-                                          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: sColors.text }}>
+                                          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: sColors.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             {a.servico || a.tipo}
+                                            {a.isEmergenciaExtra && (
+                                              <span style={{ fontSize: '0.65rem', background: '#ef4444', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase' }}>
+                                                EXTRA
+                                              </span>
+                                            )}
                                           </div>
                                         </div>
                                       </div>
@@ -13415,7 +13420,10 @@ goniometria: {
                 <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '8px', padding: '12px', fontSize: '0.9rem' }}>
                     <p style={{ margin: '0 0 4px 0' }}><strong>Paciente:</strong> {emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente'} <span style={{ fontSize: '0.72rem', background: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 700 }}>FIXO</span></p>
-                    <p style={{ margin: 0 }}><strong>Serviço:</strong> Atendimento de Emergência</p>
+                    <p style={{ margin: '0 0 4px 0' }}><strong>Serviço:</strong> Atendimento de Emergência (Ocupa 3 vagas)</p>
+                    <div style={{ marginTop: '6px', fontSize: '0.76rem', color: '#93c5fd', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-circle-info"></i> Caso o aluno não possua saldo de créditos no mês, o sistema registrará como <strong>Emergência Extra</strong> para controle interno da administração.
+                    </div>
                   </div>
 
                   <div className="form-group">
