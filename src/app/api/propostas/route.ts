@@ -5,6 +5,7 @@ import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import { checkSessionPermission } from '@/utils/authHelper';
 import { isMinorFromBirthDate } from '@/utils/dateUtils';
+import { calculateContractEndDate } from '@/utils/contractValidity';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 

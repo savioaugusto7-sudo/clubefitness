@@ -4552,40 +4552,95 @@ export default function GestaoContratosPanel({
               }
             }
 
+            const telClean = String(selectedClient.dadosPessoais?.telefone || dcTelefone || '').replace(/\D/g, '');
+            const fullAddr = [
+              selectedClient.dadosPessoais?.endereco || dcEndereco ? `${selectedClient.dadosPessoais?.endereco || dcEndereco}${selectedClient.dadosPessoais?.numero || dcNumero ? `, ${selectedClient.dadosPessoais?.numero || dcNumero}` : ''}` : '',
+              selectedClient.dadosPessoais?.complemento || dcComplemento,
+              selectedClient.dadosPessoais?.bairro || dcBairro,
+              selectedClient.dadosPessoais?.cidade || dcCidade ? `${selectedClient.dadosPessoais?.cidade || dcCidade}${selectedClient.dadosPessoais?.estado || dcEstado ? ` - ${selectedClient.dadosPessoais?.estado || dcEstado}` : ''}` : '',
+              selectedClient.dadosPessoais?.cep || dcCep ? `CEP: ${selectedClient.dadosPessoais?.cep || dcCep}` : ''
+            ].filter(Boolean).join(' • ');
+
+            const latestContractTop = (contracts && contracts.length > 0 ? contracts[0] : null) || allContractsMap[selectedClient._id] || null;
+            const currentProposalTop = activeProposal || allProposalsMap[selectedClient._id] || null;
+            const planIdStrTop = latestContractTop?.planoId?._id || latestContractTop?.planoId || currentProposalTop?.planoId || selectedClient.dadosComerciais?.planoId?._id || (typeof selectedClient.dadosComerciais?.planoId === 'string' ? selectedClient.dadosComerciais?.planoId : dcPlano);
+            const selectedPlanTop = plans.find(p => p._id === planIdStrTop || p.nome === latestContractTop?.planoNome || p.nome === currentProposalTop?.planoNome || p.nome === selectedClient.dadosComerciais?.planoNome);
+            const clientPyTop = allPaymentsMap[selectedClient._id] || [];
+            const stage = resolveClientContractStage(selectedClient, selectedPlanTop, latestContractTop, currentProposalTop, clientPyTop);
+
             const isClientLocked = selectedClient.bloqueioCadastral?.bloqueado !== false;
             const lockMotivo = selectedClient.bloqueioCadastral?.motivo || (selectedClient.dadosPessoais?.cpf ? 'Informação fornecida pelo contratante' : 'Dado consolidado no cadastro');
 
             return (
               <div style={{
-                background: '#111827',
-                border: '1px solid #1f2937',
-                borderRadius: '10px',
-                padding: '16px',
+                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '14px',
+                padding: '18px 20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '12px'
+                gap: '14px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
               }}>
-                <div>
+                <div style={{ flex: '1 1 320px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.2px' }}>
-                      {selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Sem Nome'}
+                      {selectedClient.dadosPessoais?.nome || selectedClient.nome || dcNome || 'Aluno'}
                     </h3>
                     {isClientLocked && (
                       <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <i className="fa-solid fa-shield-halved"></i> {lockMotivo} (Blindado)
                       </span>
                     )}
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      background: stage.badgeBg,
+                      color: stage.badgeColor,
+                      border: stage.badgeBorder || 'none',
+                      textTransform: 'uppercase',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {stage.stageLabel}
+                    </span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', fontWeight: 500 }}>
-                    {selectedClient.dadosPessoais?.cpf ? `CPF: ${selectedClient.dadosPessoais.cpf}` : 'Sem CPF'}
-                    {selectedClient.dadosPessoais?.telefone && ` • Tel: ${selectedClient.dadosPessoais.telefone}`}
-                    {birthDateFormatted && ` • Nascimento: ${birthDateFormatted}`}
+                  <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8', marginTop: '6px', fontWeight: 500 }}>
+                    <span><strong style={{ color: '#cbd5e1' }}>CPF:</strong> {selectedClient.dadosPessoais?.cpf || dcCpf || 'Não informado'}</span>
+                    <span><strong style={{ color: '#cbd5e1' }}>E-mail:</strong> {selectedClient.dadosPessoais?.email || dcEmail || 'Não informado'}</span>
+                    {(selectedClient.dadosPessoais?.telefone || dcTelefone) && (
+                      <a
+                        href={telClean ? `https://wa.me/55${telClean}` : '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#34d399', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <i className="fa-brands fa-whatsapp"></i> {selectedClient.dadosPessoais?.telefone || dcTelefone}
+                      </a>
+                    )}
+                    {birthDateFormatted && <span><strong style={{ color: '#cbd5e1' }}>Nascimento:</strong> {birthDateFormatted}</span>}
                   </div>
+                  {fullAddr && (
+                    <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '4px' }}>
+                      <i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }}></i> {fullAddr}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowEditClientModal(true)}
+                    style={{ fontSize: '0.76rem', padding: '6px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.12)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                  >
+                    <i className="fa-solid fa-pen-to-square"></i> Editar Cadastro
+                  </button>
                   {isClientLocked && (
                     <button
                       type="button"
@@ -4611,9 +4666,9 @@ export default function GestaoContratosPanel({
                     style={{
                       fontSize: '0.75rem',
                       padding: '6px 12px',
-                      background: 'rgba(107, 114, 128, 0.2)',
-                      color: '#d1d5db',
-                      borderColor: 'rgba(107, 114, 128, 0.4)',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      color: '#f87171',
+                      borderColor: 'rgba(239, 68, 68, 0.3)',
                       fontWeight: 700,
                       cursor: 'pointer'
                     }}
@@ -4679,15 +4734,6 @@ export default function GestaoContratosPanel({
               return Number(dcVigenciaQtd || selectedClient.dadosComerciais?.duracaoQtd || 1);
             })();
 
-            const telClean = String(dcTelefone || selectedClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
-            const fullAddr = [
-              dcEndereco || selectedClient.dadosPessoais?.endereco ? `${dcEndereco || selectedClient.dadosPessoais?.endereco}${dcNumero || selectedClient.dadosPessoais?.numero ? `, ${dcNumero || selectedClient.dadosPessoais?.numero}` : ''}` : '',
-              dcComplemento || selectedClient.dadosPessoais?.complemento,
-              dcBairro || selectedClient.dadosPessoais?.bairro,
-              dcCidade || selectedClient.dadosPessoais?.cidade ? `${dcCidade || selectedClient.dadosPessoais?.cidade}${dcEstado || selectedClient.dadosPessoais?.estado ? ` - ${dcEstado || selectedClient.dadosPessoais?.estado}` : ''}` : '',
-              dcCep || selectedClient.dadosPessoais?.cep ? `CEP: ${dcCep || selectedClient.dadosPessoais?.cep}` : ''
-            ].filter(Boolean).join(' • ');
-
             const isRecorrenteResolved = Boolean(
               latestContract?.criarRecorrenciaMensal || 
               selectedClient.dadosComerciais?.criarRecorrenciaMensal || 
@@ -4719,32 +4765,16 @@ export default function GestaoContratosPanel({
               return `${startFmt} até ${endFmt}`;
             })();
 
-            // 1º Vencimento
+            // 1º Vencimento da Parcela Financeira (Fallback sempre seguro para a data de início)
             const firstVencDate = 
               latestContract?.dataPrimeiroVencimento || 
               latestContract?.dataVencimento || 
-              latestContract?.vencimento ||
               currentProposal?.dataVencimentoEscolhida || 
               currentProposal?.dataVencimento ||
               selectedClient.dadosComerciais?.dataPrimeiroVencimento || 
-              selectedClient.dadosComerciais?.vencimento || 
               dcVencimento || 
-              selectedClient.dadosComerciais?.dataInicio ||
-              latestContract?.dataInicio ||
+              dtInicioStr ||
               '';
-
-            const firstVencSource = (() => {
-              if (latestContract?.dataPrimeiroVencimento || latestContract?.dataVencimento || latestContract?.vencimento) {
-                return latestContract.clicksignDocKey ? 'Contrato Clicksign' : 'Contrato Emitido';
-              }
-              if (currentProposal?.dataVencimentoEscolhida) return 'Link de Venda (Cliente)';
-              if (currentProposal?.dataVencimento) return 'Proposta Comercial';
-              if (selectedClient.dadosComerciais?.dataPrimeiroVencimento) return 'Painel Admin';
-              if (selectedClient.dadosComerciais?.vencimento) return 'Vencimento Cadastrado';
-              if (dcVencimento) return 'Configurado no Workspace';
-              if (selectedClient.dadosComerciais?.dataInicio || latestContract?.dataInicio) return 'Data de Início';
-              return '';
-            })();
 
             // Condição Financeira
             const numParcelas = Number(
@@ -4811,74 +4841,8 @@ export default function GestaoContratosPanel({
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* 1. CARD PERFIL EXECUTIVO DO ALUNO (SEM INPUTS SOLTOS) */}
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '14px',
-                  padding: '18px 20px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '16px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
-                }}>
-                  <div style={{ flex: '1 1 300px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
-                        {dcNome || 'Aluno sem nome'}
-                      </h3>
-                      <span style={{
-                        padding: '3px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.74rem',
-                        fontWeight: 800,
-                        background: stage.badgeBg,
-                        color: stage.badgeColor,
-                        border: stage.badgeBorder || 'none',
-                        textTransform: 'uppercase',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px'
-                      }}>
-                        {stage.stageLabel}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
-                      <span><strong style={{ color: '#cbd5e1' }}>CPF:</strong> {dcCpf || 'Não informado'}</span>
-                      <span><strong style={{ color: '#cbd5e1' }}>E-mail:</strong> {dcEmail || 'Não informado'}</span>
-                      {dcTelefone && (
-                        <a
-                          href={telClean ? `https://wa.me/55${telClean}` : '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: '#34d399', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                        >
-                          <i className="fa-brands fa-whatsapp"></i> {dcTelefone}
-                        </a>
-                      )}
-                    </div>
-                    {fullAddr && (
-                      <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '3px' }}>
-                        <i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }}></i> {fullAddr}
-                      </div>
-                    )}
-                  </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setShowEditClientModal(true)}
-                      style={{ fontSize: '0.76rem', padding: '6px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.12)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <i className="fa-solid fa-pen-to-square"></i> Editar Cadastro
-                    </button>
-                  </div>
-                </div>
-
-                {/* 1.1 CARD DE DESTAQUE: CONTRATO CLICKSIGN & ASSINATURA */}
+                {/* 1.1 ALERTA: CONTRATO CLICKSIGN & ASSINATURA */}
                 {latestContract && (
                   <div style={{
                     background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado')
@@ -4886,29 +4850,29 @@ export default function GestaoContratosPanel({
                       : 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)',
                     border: `1px solid ${(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.45)'}`,
                     borderRadius: '14px',
-                    padding: '18px 20px',
+                    padding: '16px 20px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '14px',
+                    gap: '12px',
                     boxShadow: '0 8px 24px rgba(0,0,0,0.25)'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{
-                          width: '40px',
-                          height: '40px',
+                          width: '38px',
+                          height: '38px',
                           borderRadius: '10px',
                           background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
                           color: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#34d399' : '#fbbf24',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1.3rem'
+                          fontSize: '1.2rem'
                         }}>
                           <i className={latestContract.clicksignDocKey ? 'fa-solid fa-file-signature' : 'fa-solid fa-file-contract'}></i>
                         </div>
                         <div>
-                          <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             {latestContract.clicksignDocKey ? 'Contrato Eletrônico Clicksign' : 'Contrato Emitido'}
                             <span style={{
                               fontSize: '0.72rem',
@@ -4920,298 +4884,177 @@ export default function GestaoContratosPanel({
                               border: `1px solid ${(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#10b981' : '#f59e0b'}`
                             }}>
                               {(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado')
-                                ? '✅ ASSINADO'
+                                ? '✅ ASSINADO DIGITALMENTE'
                                 : '⏳ AGUARDANDO ASSINATURA'}
                             </span>
                           </h4>
-                          <span style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '3px', display: 'block' }}>
-                            Plano: <strong style={{ color: '#cbd5e1' }}>{latestContract.planoNome}</strong> • Emissão: {new Date(latestContract.dataEmissao).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} • Versão #{latestContract.versao || 1} • Emissor: <strong style={{ color: '#cbd5e1' }}>{latestContract.usuarioEmissor || 'Painel Admin'}</strong>
+                          <span style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '2px', display: 'block' }}>
+                            Plano: <strong style={{ color: '#cbd5e1' }}>{latestContract.planoNome}</strong> • Emissão: {new Date(latestContract.dataEmissao).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                           </span>
                         </div>
                       </div>
 
-                      {latestContract.clicksignDocKey && (
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', fontFamily: 'monospace' }}>
-                          <i className="fa-solid fa-key" style={{ marginRight: '5px', color: '#38bdf8' }}></i>
-                          Doc Key: {latestContract.clicksignDocKey.substring(0, 16)}...
-                        </div>
-                      )}
-                    </div>
+                      {/* Barra de Ações do Clicksign */}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                          <a
+                            href={latestContract.clicksignUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '6px 12px', fontSize: '0.78rem', fontWeight: 800, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderColor: '#4f46e5', color: '#fff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <i className="fa-solid fa-arrow-up-right-from-square"></i> Abrir Clicksign
+                          </a>
+                        )}
 
-                    {/* Barra de Ações Rápidas do Contrato */}
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      {latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
-                        <a
-                          href={latestContract.clicksignUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-primary"
-                          style={{ padding: '7px 14px', fontSize: '0.8rem', fontWeight: 800, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderColor: '#4f46e5', color: '#fff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                        >
-                          <i className="fa-solid fa-arrow-up-right-from-square"></i> Abrir Link Clicksign
-                        </a>
-                      )}
-
-                      {latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          style={{ padding: '7px 12px', fontSize: '0.8rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)', background: 'rgba(56, 189, 248, 0.1)', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                          onClick={() => {
-                            navigator.clipboard.writeText(latestContract.clicksignUrl);
-                            alert('Link do Clicksign copiado com sucesso!');
-                          }}
-                        >
-                          <i className="fa-regular fa-copy"></i> Copiar Link
-                        </button>
-                      )}
-
-                      {dcTelefone && latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
-                        <a
-                          href={`https://wa.me/55${telClean}?text=${encodeURIComponent(`Olá, ${dcNome || 'Aluno'}! Segue o link para assinatura do seu contrato no Clube Fitness via Clicksign: ${latestContract.clicksignUrl}`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-secondary"
-                          style={{ padding: '7px 12px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                        >
-                          <i className="fa-brands fa-whatsapp"></i> Reenviar WhatsApp
-                        </a>
-                      )}
-
-                      {latestContract.clicksignDocKey && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          style={{ padding: '7px 12px', fontSize: '0.8rem', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)', background: 'rgba(251, 191, 36, 0.1)', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                          onClick={() => handleSyncClicksign(latestContract._id)}
-                        >
-                          <i className="fa-solid fa-rotate"></i> Sincronizar Clicksign
-                        </button>
-                      )}
-
-                      {(latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
-                        <button
-                          type="button"
-                          className="btn btn-success"
-                          style={{ padding: '7px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                          onClick={() => handleConfirmSignContract(latestContract._id)}
-                        >
-                          <i className="fa-solid fa-file-circle-check"></i> Marcar Assinado
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: '7px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                        onClick={() => {
-                          const plan = plans.find(p => p._id === (latestContract.planoId?._id || latestContract.planoId));
-                          if (plan) downloadContractPDF(selectedClient, plan, latestContract.contratoTexto, latestContract);
-                        }}
-                      >
-                        <i className="fa-solid fa-file-pdf"></i> Baixar PDF
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 1.2 ALERTA: DADOS MANUAIS CADASTRADOS (SEM CONTRATO EMITIDO) */}
-                {!latestContract && (dcPlano || dcValorUnitario > 0) && (
-                  <div style={{
-                    background: 'rgba(56, 189, 248, 0.08)',
-                    border: '1px dashed rgba(56, 189, 248, 0.35)',
-                    borderRadius: '12px',
-                    padding: '14px 18px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '10px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <i className="fa-solid fa-file-pen" style={{ color: '#38bdf8', fontSize: '1.2rem' }}></i>
-                      <div>
-                        <strong style={{ color: '#f8fafc', fontSize: '0.88rem' }}>Dados Comerciais Cadastrados Manualmente</strong>
-                        <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8' }}>
-                          O plano e valores estão configurados no sistema. Para formalizar, envie o contrato para o Clicksign ou assine na tela.
-                        </span>
+                        {latestContract.clicksignDocKey && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '6px 10px', fontSize: '0.76rem', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)', background: 'rgba(251, 191, 36, 0.1)', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                            onClick={() => handleSyncClicksign(latestContract._id)}
+                          >
+                            <i className="fa-solid fa-rotate"></i> Sincronizar
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        style={{ background: '#22c55e', borderColor: '#22c55e', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                        onClick={() => handleIssueContract('clicksign')}
-                      >
-                        <i className="fa-brands fa-whatsapp"></i> Emitir no Clicksign
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        style={{ fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                        onClick={() => handleOpenSignatureModal()}
-                      >
-                        <i className="fa-solid fa-hand-pointer"></i> Assinar na Tela
-                      </button>
-                    </div>
                   </div>
                 )}
 
-                {/* 2. GRID DE AUDITORIA DO CONTRATO ATUAL (CARDS EXECUTIVOS DE LEITURA) */}
+                {/* 2. GRID DE AUDITORIA COMERCIAL DIVIDIDA EM 2 PILARES CLAROS */}
                 <div style={{
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  background: 'rgba(15, 23, 42, 0.75)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: '14px',
                   padding: '20px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '14px',
+                  gap: '16px',
                   boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <i className="fa-solid fa-file-contract" style={{ color: '#34d399', fontSize: '1.1rem' }}></i>
-                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.3px' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.3px' }}>
                         Auditoria & Condições Comerciais do Contrato
                       </h4>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        style={{
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '5px 12px',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)'
-                        }}
-                        onClick={() => handleOpenEditContractModal(selectedClient)}
-                        title="Editar condições comerciais, datas e ativar facilmente como vigente"
-                      >
-                        <i className="fa-solid fa-pen-to-square"></i>
-                        Editar Condições & Ativar
-                      </button>
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                        <i className="fa-solid fa-shield-halved" style={{ marginRight: '4px' }}></i> Single Source of Truth (Blindado)
-                      </span>
-                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      style={{
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '6px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)'
+                      }}
+                      onClick={() => handleOpenEditContractModal(selectedClient)}
+                      title="Editar vigência, parcelas ou condições financeiras"
+                    >
+                      <i className="fa-solid fa-pen-to-square"></i>
+                      Editar Condições do Contrato
+                    </button>
                   </div>
 
-                  {/* Grid de Blocos de Leitura Executiva com 1º Vencimento Visual */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-                    {/* Bloco 1: Plano */}
-                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Plano Contratado</span>
-                      <strong style={{ fontSize: '0.92rem', color: '#ffffff', marginTop: '2px', display: 'block' }}>
-                        {planNameResolved}
-                      </strong>
+                  {/* Os 2 Pilares Lado a Lado */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                    
+                    {/* Pilar 1: Vigência & Acesso ao Clube (Verde) */}
+                    <div style={{
+                      background: 'rgba(16, 185, 129, 0.04)',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: '1px solid rgba(16, 185, 129, 0.15)', paddingBottom: '6px' }}>
+                        <i className="fa-solid fa-calendar-days"></i> 1. Vigência & Acesso ao Clube
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Plano Contratado</span>
+                          <strong style={{ fontSize: '0.92rem', color: '#ffffff', marginTop: '2px', display: 'block' }}>
+                            {planNameResolved}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo / Duração</span>
+                          <strong style={{ fontSize: '0.92rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
+                            {tipoLabel} • {qtdVal} {tipoLabel === 'Semana' ? 'semana(s)' : tipoLabel === 'Anual' ? 'ano' : 'meses'}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial de Acesso</span>
+                        <strong style={{ fontSize: '0.88rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
+                          📅 {periodoOficialDisplay}
+                        </strong>
+                        <div style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: '4px' }}>
+                          Franquia: <strong>{freqSemanal > 0 ? `${freqSemanal}x por semana` : 'Conforme Plano'}</strong>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Bloco 2: Vigência */}
-                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo / Qtd Vigência</span>
-                      <strong style={{ fontSize: '0.92rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
-                        {tipoLabel} • {qtdVal}
-                      </strong>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px', display: 'block' }}>
-                        ({tipoLabel === 'Semana' ? `${qtdVal} semana${qtdVal > 1 ? 's' : ''} fechada${qtdVal > 1 ? 's' : ''}` : tipoLabel === 'Anual' ? `${qtdVal} ano${qtdVal > 1 ? 's' : ''} fechado${qtdVal > 1 ? 's' : ''}` : `${qtdVal} ${qtdVal === 1 ? 'mês' : 'meses'} fechado${qtdVal > 1 ? 's' : ''}`})
-                      </span>
-                    </div>
-
-                    {/* Bloco 3: Período Oficial */}
-                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '12px' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial</span>
-                      <strong style={{ fontSize: '0.85rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
-                        {periodoOficialDisplay}
-                      </strong>
-                      {isRecorrenteResolved && (
-                        <span style={{ fontSize: '0.68rem', color: '#34d399', marginTop: '3px', display: 'block', fontWeight: 600 }}>
-                          <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '3px' }}></i>
-                          {info.daysLeftText || 'Ciclo ativo'}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bloco 4: 1º Vencimento (Estilo Neutro + Origem) */}
-                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '12px' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-regular fa-calendar-check"></i> 1º Vencimento
-                      </span>
-                      <strong style={{ fontSize: '0.88rem', color: firstVencDate ? '#f8fafc' : '#64748b', marginTop: '2px', display: 'block' }}>
-                        {firstVencDate ? (
-                          <>
-                            {new Date(firstVencDate + (firstVencDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}
-                            <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginLeft: '4px', fontWeight: 600 }}>
-                              (Dia {new Date(firstVencDate + (firstVencDate.includes('T') ? '' : 'T12:00:00')).getDate().toString().padStart(2, '0')})
-                            </span>
-                          </>
-                        ) : (
-                          'Não informado'
-                        )}
-                      </strong>
-                      {firstVencSource && (
-                        <span style={{ fontSize: '0.68rem', color: '#38bdf8', marginTop: '3px', display: 'block' }}>
-                          <i className="fa-solid fa-circle-info" style={{ marginRight: '3px' }}></i>
-                          Origem: {firstVencSource}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bloco 5: Condição Financeira Expandida */}
-                    <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.68rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800 }}>Condição Financeira</span>
-                        <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {/* Pilar 2: Condições Financeiras & Faturamento (Azul) */}
+                    <div style={{
+                      background: 'rgba(56, 189, 248, 0.04)',
+                      border: '1px solid rgba(56, 189, 248, 0.2)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(56, 189, 248, 0.15)', paddingBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-credit-card"></i> 2. Condições de Pagamento
+                        </div>
+                        <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase' }}>
                           {formaPagamentoFinal}
                         </span>
                       </div>
-                      <strong style={{ fontSize: '0.95rem', color: '#ffffff', marginTop: '1px', display: 'block' }}>
-                        R$ {valorTotalContrato.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </strong>
-                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '1px' }}>
-                        <span>
-                          <strong style={{ color: '#cbd5e1' }}>Parcelas:</strong> {numParcelas}x de R$ {valorParcelaIndividual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                        {qtdVal > 1 && valorUnitarioBase > 0 && (
-                          <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>
-                            Valor base: R$ {valorUnitarioBase.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / {tipoLabel.toLowerCase()}
-                          </span>
-                        )}
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Valor Total do Contrato</span>
+                          <strong style={{ fontSize: '1.05rem', color: '#38bdf8', marginTop: '2px', display: 'block' }}>
+                            R$ {valorTotalContrato.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>1º Vencimento da Parcela</span>
+                          <strong style={{ fontSize: '0.92rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
+                            {firstVencDate ? new Date(firstVencDate + (firstVencDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : 'Data de Início'}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px', marginTop: '2px', fontSize: '0.76rem', color: '#94a3b8' }}>
+                        <div>
+                          <strong style={{ color: '#cbd5e1' }}>Condição:</strong> {numParcelas}x de R$ {valorParcelaIndividual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </div>
                         {hasDesconto && (
-                          <span style={{ color: '#34d399', fontWeight: 600 }}>
+                          <div style={{ color: '#34d399', fontWeight: 600, marginTop: '2px' }}>
                             <i className="fa-solid fa-tag" style={{ marginRight: '4px' }}></i>
                             Desconto: {descTipo === 'percentual' ? `${descValor}% OFF` : `R$ ${descValor.toFixed(2)} OFF`}
-                          </span>
+                          </div>
                         )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Segunda Linha: Frequência, Recorrência & Asaas */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
-                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Frequência Semanal:</span>
-                      <strong>{freqSemanal > 0 ? `${freqSemanal}x por semana` : 'Conforme Plano'}</strong>
-                    </div>
-                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Recorrência Mensal:</span>
-                      <strong style={{ color: isRecorrenteResolved ? '#10b981' : '#64748b' }}>
-                        {isRecorrenteResolved ? '🟢 Ativa' : '⚪ Desativada'}
-                      </strong>
-                    </div>
-                    <div style={{ background: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                      <span style={{ color: '#94a3b8', fontSize: '0.68rem', display: 'block' }}>Vínculo Asaas:</span>
-                      <strong style={{ color: dcAsaasCustomerId ? '#34d399' : '#64748b' }}>{dcAsaasCustomerId || 'Via CPF / E-mail'}</strong>
-                    </div>
                   </div>
                 </div>
 
@@ -5221,10 +5064,10 @@ export default function GestaoContratosPanel({
                     background: 'rgba(15, 23, 42, 0.7)',
                     border: '1px solid rgba(255,255,255,0.08)',
                     borderRadius: '14px',
-                    padding: '18px 20px',
+                    padding: '16px 20px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px'
+                    gap: '10px'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -5253,7 +5096,7 @@ export default function GestaoContratosPanel({
                             background: 'rgba(30, 41, 59, 0.6)',
                             border: '1px solid rgba(255,255,255,0.06)',
                             borderRadius: '10px',
-                            padding: '12px 14px',
+                            padding: '10px 14px',
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
@@ -5261,17 +5104,17 @@ export default function GestaoContratosPanel({
                             gap: '10px'
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {selectedClient.historicoContratos.length - idx}
                               </span>
                               <div>
-                                <strong style={{ color: '#ffffff', fontSize: '0.88rem' }}>{hc.planoNome}</strong>
-                                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block' }}>
+                                <strong style={{ color: '#ffffff', fontSize: '0.86rem' }}>{hc.planoNome}</strong>
+                                <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>
                                   {hc.dataInicio} até {hc.dataFim} • Status: <span style={{ color: '#34d399', textTransform: 'uppercase', fontWeight: 700 }}>{hc.statusCiclo}</span>
                                 </span>
                               </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.8rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.78rem' }}>
                               <span style={{ color: '#34d399', fontWeight: 700 }}>{tipoH} • {qtdH}</span>
                               <span style={{ color: '#38bdf8', fontWeight: 700 }}>R$ {Number(hc.valorContratado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                             </div>
@@ -5287,16 +5130,17 @@ export default function GestaoContratosPanel({
         </form>
       </div>
 
-        {/* Right Column: Issuance & Central de Ações Rápidas (35% no Desktop / 100% Touch no Mobile) */}
+        {/* Right Column: Central de Ações Comerciais e Documentos */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          {/* Painel 1: Ações Comerciais */}
+          {/* Painel 1: Ações Comerciais Primárias */}
           <div className="content-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '14px' }}>
             <h3 style={{ margin: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span><i className="fa-solid fa-bolt" style={{ marginRight: '8px' }}></i> Ações Comerciais & Vendas</span>
-              <span style={{ fontSize: '0.72rem', background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>1 Toque</span>
+              <span style={{ fontSize: '0.72rem', background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Oficial</span>
             </h3>
 
+            {/* Ação 1: Enviar Link de Venda Online */}
             <button
               type="button"
               className="btn btn-primary"
@@ -5304,10 +5148,10 @@ export default function GestaoContratosPanel({
               style={{ width: '100%', minHeight: '48px', padding: '12px', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', borderColor: '#7c3aed', color: '#fff', fontWeight: 800, fontSize: '0.92rem', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)', cursor: 'pointer' }}
               onClick={() => handleOpenSalesWizard(selectedClient)}
             >
-              <i className="fa-solid fa-bolt"></i> Gerar Link de Venda (Proposta / Adicional)
+              <i className="fa-solid fa-bolt"></i> Gerar Link de Venda Online (WhatsApp)
             </button>
 
-            {/* Botão Venda Manual / Balcão (Exclusivo Administrador) */}
+            {/* Ação 2: Fechar Venda Manual / Balcão Presencial */}
             {(userCargo === 'Administrador' || userCargo === 'admin' || userCargo?.toLowerCase().includes('admin')) && (
               <button
                 type="button"
@@ -5337,26 +5181,14 @@ export default function GestaoContratosPanel({
               </button>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={Boolean(generatingRenewalClientId)}
-                onClick={() => handleGenerateRenewalLink(selectedClient)}
-                style={{ minHeight: '42px', padding: '8px', background: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
-              >
-                <i className="fa-solid fa-arrows-rotate"></i> Renovação (+5%)
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setHistoryModalClient(selectedClient)}
-                style={{ minHeight: '42px', padding: '8px', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.4)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
-              >
-                <i className="fa-solid fa-clock-rotate-left"></i> Histórico
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setHistoryModalClient(selectedClient)}
+              style={{ minHeight: '38px', padding: '8px', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.4)', fontWeight: 700, fontSize: '0.8rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+            >
+              <i className="fa-solid fa-clock-rotate-left"></i> Histórico de Contratos
+            </button>
           </div>
 
           {/* Painel 2: Documentos & Assinatura */}
@@ -5414,52 +5246,16 @@ export default function GestaoContratosPanel({
               </button>
             </div>
 
+            {/* Lançamento Manual no Financeiro (Para pagamentos presenciais/balcão fora do Asaas) */}
             <button
               type="button"
               className="btn btn-secondary"
-              disabled={issuingContract}
-              style={{ width: '100%', minHeight: '38px', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', fontSize: '0.78rem' }}
-              onClick={() => setShowImportSignedModal(true)}
+              disabled={generatingPayments}
+              onClick={handleGeneratePaymentsExplicitly}
+              style={{ width: '100%', minHeight: '38px', color: '#34d399', borderColor: 'rgba(16,185,129,0.35)', background: 'rgba(16,185,129,0.06)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
+              title="Lança as parcelas diretamente no Controle Financeiro (Dinheiro, Maquininha Balcão ou Transferência)"
             >
-              <i className="fa-solid fa-file-circle-check"></i> Anexar Já Assinado (PDF)
-            </button>
-          </div>
-
-          {/* Painel 3: Gestão Operacional */}
-          <div className="content-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '14px' }}>
-            <h3 style={{ margin: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span><i className="fa-solid fa-sliders" style={{ marginRight: '8px' }}></i> Gestão Operacional</span>
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={generatingPayments}
-                onClick={handleGeneratePaymentsExplicitly}
-                style={{ minHeight: '40px', color: '#34d399', borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
-              >
-                <i className="fa-solid fa-file-invoice-dollar"></i> Lançar Parcelas
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={renewingValidity}
-                onClick={() => handleRenewContractValidity(selectedClient)}
-                style={{ minHeight: '40px', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.08)', fontWeight: 700, fontSize: '0.78rem', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
-              >
-                <i className="fa-solid fa-arrows-rotate"></i> +1 Ciclo
-              </button>
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => handleOpenFinalizeModal(selectedClient)}
-              style={{ width: '100%', minHeight: '40px', background: 'rgba(239, 68, 68, 0.12)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.35)', fontWeight: 700, fontSize: '0.82rem', marginTop: '2px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}
-            >
-              <i className="fa-solid fa-flag-checkered"></i> Finalizar Aluno (Não Renovou)
+              <i className="fa-solid fa-file-invoice-dollar"></i> Lançar Parcelas no Financeiro (Manual)
             </button>
           </div>
 
