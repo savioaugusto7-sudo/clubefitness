@@ -8120,8 +8120,15 @@ goniometria: {
                               onClick={() => {
                                 const pId = typeof pr.profissionalId === 'object' ? pr.profissionalId?._id : pr.profissionalId;
                                 const profDetails = professionals.find(p => p._id === pId) || pr.profissionalId || { nome: 'Profissional', registro: 'CREFITO' };
-                                logPdfDownload('Prontuário Clínico', pr.clienteId?._id || pr.clienteId, pr.clienteId?.dadosPessoais?.nome || 'Aluno', pr.data);
-                                downloadProntuarioPDF(pr, pr.clienteId, profDetails.nome, profDetails.registro);
+                                const rawClient = pr.clienteId;
+                                const rawClientId = typeof rawClient === 'object' && rawClient !== null ? (rawClient._id || rawClient.id) : rawClient;
+                                const foundClient = clients.find(c => String(c._id) === String(rawClientId));
+                                const clientObj = (typeof rawClient === 'object' && rawClient?.dadosPessoais)
+                                  ? rawClient
+                                  : (foundClient || (typeof rawClient === 'object' ? rawClient : { _id: rawClientId, dadosPessoais: { nome: 'Aluno' } }));
+                                const clientName = clientObj.dadosPessoais?.nome || clientObj.nome || (typeof rawClient === 'object' ? rawClient.nome : 'Aluno');
+                                logPdfDownload('Prontuário Clínico', rawClientId, clientName, pr.data);
+                                downloadProntuarioPDF(pr, clientObj, profDetails.nome, profDetails.registro);
                               }}
                             >
                               <i className="fa-solid fa-file-pdf"></i> Prontuário em PDF

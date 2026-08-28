@@ -3072,6 +3072,9 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 // ==========================================================
 // PDF — PRONTUÁRIO CLÍNICO INDIVIDUAL (REDESIGN PREMIUM)
 // ==========================================================
+// ==========================================================
+// PDF — PRONTUÁRIO CLÍNICO INDIVIDUAL (PADRÃO OFICIAL DO SISTEMA)
+// ==========================================================
 export async function downloadProntuarioPDF(prontuario: any, client: any, profNome: any = 'Profissional do Clube', profRegistro = '') {
   if (typeof window === 'undefined') return;
   const html2pdf = (window as any).html2pdf;
@@ -3112,16 +3115,27 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
   pdfWrapper.appendChild(pdfContainer);
   document.body.appendChild(pdfWrapper);
 
-  const obs = prontuario.conteudo || prontuario.observacoes || prontuario.texto || 'Nenhuma evolução registrada.';
-  const nome = client?.dadosPessoais?.nome || client?.nome || 'Paciente';
-  const rawNasc = client?.dadosPessoais?.dataNascimento || '';
-  const nascimento = fmtDate(rawNasc);
-  const cpf = client?.dadosPessoais?.cpf || '-';
-  const sexo = (client?.dadosPessoais?.sexo || 'M') === 'F' ? 'Feminino' : 'Masculino';
-  const tel = client?.dadosPessoais?.telefone || '-';
-  const email = client?.dadosPessoais?.email || '-';
+  // Resolução profunda e segura dos dados do cliente
+  let resolvedClient = client;
+  if (typeof resolvedClient === 'string') {
+    resolvedClient = (prontuario?.clienteId && typeof prontuario.clienteId === 'object') ? prontuario.clienteId : { _id: resolvedClient };
+  }
+  if (!resolvedClient) {
+    resolvedClient = (prontuario?.clienteId && typeof prontuario.clienteId === 'object') ? prontuario.clienteId : {};
+  }
+  const dp = resolvedClient?.dadosPessoais || {};
+  const prClientDp = (typeof prontuario?.clienteId === 'object' && prontuario?.clienteId?.dadosPessoais) ? prontuario.clienteId.dadosPessoais : {};
+
+  const nome = dp.nome || resolvedClient?.nome || prClientDp.nome || (typeof prontuario?.clienteId === 'object' ? prontuario.clienteId?.nome : '') || 'Aluno';
+  const rawNasc = dp.dataNascimento || resolvedClient?.dataNascimento || prClientDp.dataNascimento || '';
+  const cpf = dp.cpf || resolvedClient?.cpf || prClientDp.cpf || '-';
+  const sexoRaw = dp.sexo || resolvedClient?.sexo || prClientDp.sexo || 'M';
+  const sexo = (sexoRaw === 'F' || sexoRaw === 'Feminino') ? 'Feminino' : 'Masculino';
+  const tel = dp.telefone || resolvedClient?.telefone || dp.whatsapp || resolvedClient?.whatsapp || prClientDp.telefone || prClientDp.whatsapp || '-';
+
   const dataSessao = fmtDate(prontuario.data || prontuario.createdAt || '');
   const dataEmissao = fmtDate(new Date().toISOString());
+  const obs = prontuario.conteudo || prontuario.observacoes || prontuario.texto || 'Nenhuma evolução registrada.';
 
   let ageText = '-';
   if (rawNasc) {
@@ -3143,32 +3157,35 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
 
   pdfContainer.innerHTML = `
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-      * {
-        box-sizing: border-box;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff;
       }
-      .prontuario-page {
+      .pdf-page {
         background: #ffffff;
         color: #1e293b;
         font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
         width: 794px;
         padding: 20px 30px;
-        box-sizing: border-box;
+      }
+      .font-outfit {
+        font-family: 'Outfit', sans-serif;
       }
       .grid-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid #00f2fe;
-        padding-bottom: 12px;
-        margin-bottom: 14px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
       }
       .logo-box {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
       }
       .logo-img {
         width: 48px;
@@ -3177,10 +3194,9 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
         object-fit: cover;
       }
       .logo-title {
-        font-family: 'Outfit', sans-serif;
         font-size: 20px;
         font-weight: 800;
-        color: #0f172a;
+        color: #0e131f;
         margin: 0;
         letter-spacing: -0.5px;
       }
@@ -3192,183 +3208,161 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
         letter-spacing: 0.5px;
         font-weight: 600;
       }
-      .doc-type-box {
-        text-align: right;
-      }
-      .doc-type-badge {
-        background: #0f172a;
-        color: #00f2fe;
-        font-family: 'Outfit', sans-serif;
-        font-size: 11px;
-        font-weight: 700;
-        padding: 5px 12px;
+      .date-box {
+        background: #f1f5f9;
         border-radius: 6px;
-        display: inline-block;
-        letter-spacing: 0.5px;
+        padding: 6px 12px;
+        text-align: center;
+        border: 1px solid #cbd5e1;
       }
-      .doc-date-sub {
-        font-size: 9px;
+      .date-box span {
+        font-size: 8px;
         color: #64748b;
-        margin-top: 4px;
-        font-weight: 500;
+        font-weight: 600;
+        display: block;
+        text-transform: uppercase;
+      }
+      .date-box strong {
+        font-size: 13px;
+        color: #0f172a;
+        font-family: 'Outfit', sans-serif;
       }
       .client-bar {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.4fr 0.8fr 0.8fr 1fr;
-        padding: 10px 14px;
-        margin-bottom: 16px;
-        gap: 10px;
+        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.4fr;
+        padding: 8px 12px;
+        margin-bottom: 14px;
+        font-size: 9px;
       }
-      .client-item {
+      .client-bar-item {
         border-right: 1px solid #e2e8f0;
-        padding-right: 10px;
+        padding: 0 8px;
       }
-      .client-item:last-child {
+      .client-bar-item:last-child {
         border-right: none;
         padding-right: 0;
       }
-      .client-item span {
+      .client-bar-item span {
         color: #64748b;
-        font-weight: 600;
+        font-weight: 500;
         display: block;
         font-size: 8px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
         margin-bottom: 2px;
       }
-      .client-item strong {
-        font-family: 'Outfit', sans-serif;
-        font-size: 11px;
+      .client-bar-item strong {
         color: #0f172a;
+        font-size: 10.5px;
         font-weight: 700;
-        display: block;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        display: block;
       }
-      .client-item small {
-        font-size: 9px;
-        color: #475569;
-      }
-      .clinical-card {
+      .section-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 16px;
         background: #ffffff;
-        border: 1.5px solid #e2e8f0;
-        border-left: 4px solid #0284c7;
-        border-radius: 8px;
-        padding: 18px 20px;
-        margin-bottom: 20px;
-        min-height: 480px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
       }
-      .clinical-card-header {
+      .section-card-title {
+        background: #0f172a;
+        color: #ffffff;
+        padding: 6px 12px;
+        font-family: 'Outfit', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #f1f5f9;
-        padding-bottom: 10px;
-        margin-bottom: 14px;
       }
-      .clinical-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 13px;
-        font-weight: 700;
-        color: #0284c7;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .session-tag {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
-        font-size: 9.5px;
-        font-weight: 700;
-        padding: 3px 8px;
-        border-radius: 5px;
-      }
-      .clinical-body {
-        font-size: 13px;
-        line-height: 1.75;
+      .section-card-content {
+        padding: 18px 20px;
+        background: #ffffff;
+        font-size: 11.5px;
+        line-height: 1.8;
         color: #1e293b;
         text-align: justify;
         text-justify: inter-word;
         white-space: pre-wrap;
         word-break: break-word;
         font-family: 'Inter', sans-serif;
+        min-height: 460px;
       }
       .footer-notes {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid #e2e8f0;
         padding-top: 8px;
         margin-top: 14px;
-        font-size: 8.5px;
-        color: #94a3b8;
+        font-size: 8px;
+        color: #64748b;
       }
     </style>
 
-    <div class="prontuario-page">
-      <!-- HEADER -->
+    <div class="pdf-page">
+      <!-- HEADER OFICIAL DO SISTEMA (IMAGEM 2) -->
       <div class="grid-header">
         <div class="logo-box">
-          ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" alt="Logo" />` : ''}
+          ${logoBase64 
+            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif;">CFF</div>`
+          }
           <div>
-            <h1 class="logo-title">CLUBE FITNESS FISIO</h1>
-            <p class="logo-subtitle">Fisioterapia Especializada • Quiropraxia • Fortalecimento</p>
+            <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+            <p class="logo-subtitle">PRONTUÁRIO CLÍNICO DE ACOMPANHAMENTO</p>
           </div>
         </div>
-        <div class="doc-type-box">
-          <div class="doc-type-badge">PRONTUÁRIO CLÍNICO</div>
-          <div class="doc-date-sub">Emissão: ${dataEmissao}</div>
+        <div class="date-box">
+          <span>Data do Atendimento</span>
+          <strong>${dataSessao}</strong>
         </div>
       </div>
 
-      <!-- PACIENTE INFO -->
+      <!-- BARRA DO ALUNO OFICIAL (IMAGEM 2) -->
       <div class="client-bar">
-        <div class="client-item">
-          <span>Paciente</span>
-          <strong>${nome}</strong>
-          <small>Sexo: ${sexo}</small>
+        <div class="client-bar-item">
+          <span>Nome do Aluno</span>
+          <strong class="font-outfit">${nome}</strong>
         </div>
-        <div class="client-item">
-          <span>Nascimento / Idade</span>
-          <strong>${nascimento}</strong>
-          <small>${ageText}</small>
+        <div class="client-bar-item">
+          <span>Idade</span>
+          <strong>${ageText}</strong>
         </div>
-        <div class="client-item">
-          <span>Documento (CPF)</span>
-          <strong>${cpf}</strong>
-          <small>Tel: ${tel}</small>
+        <div class="client-bar-item">
+          <span>Sexo</span>
+          <strong>${sexo}</strong>
         </div>
-        <div class="client-item">
-          <span>Contato</span>
-          <strong>${email !== '-' ? email : tel}</strong>
-          <small>Data Atend.: ${dataSessao}</small>
+        <div class="client-bar-item">
+          <span>Documento / Contato</span>
+          <strong>${cpf !== '-' ? `CPF: ${cpf}` : ''} ${tel !== '-' ? `• Tel: ${tel}` : ''}</strong>
         </div>
       </div>
 
-      <!-- EVOLUÇÃO CLÍNICA COM TEXTO JUSTIFICADO -->
-      <div class="clinical-card">
-        <div class="clinical-card-header">
-          <h2 class="clinical-title">🩺 Evolução Fisioterapêutica & Conduta Clínica</h2>
-          <span class="session-tag">Sessão Realizada em ${dataSessao}</span>
+      <!-- SEÇÃO CLÍNICA COM HEADER ESCURO (IMAGEM 3) E TEXTO JUSTIFICADO -->
+      <div class="section-card">
+        <div class="section-card-title">
+          <span>Evolução Fisioterapêutica & Conduta Clínica</span>
+          <span style="font-size: 8px; color: #94a3b8; font-weight: normal; text-transform: none;">Emissão: ${dataEmissao}</span>
         </div>
-        <div class="clinical-body">${obs}</div>
+        <div class="section-card-content">${obs}</div>
       </div>
 
-      <!-- ASSINATURA -->
-      <div style="margin-top: 16px;">
+      <!-- ASSINATURA PADRÃO -->
+      <div style="margin-top: 18px;">
         ${renderProfessionalSignatureHtml(profObj)}
       </div>
 
       <!-- FOOTER -->
       <div class="footer-notes">
-        <span>Clube Fitness Fisio — Registro e Acompanhamento Clínico Individual</span>
+        <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia Especializada • Quiropraxia • Fortalecimento</span>
         <span>Documento emitido eletronicamente via Sistema Clube Fitness</span>
       </div>
     </div>
@@ -3415,13 +3409,36 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
     return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
   };
 
-  const nome = client?.dadosPessoais?.nome || client?.nome || 'Paciente';
-  const rawNasc = client?.dadosPessoais?.dataNascimento || '';
-  const nascimento = fmtDate(rawNasc);
-  const cpf = client?.dadosPessoais?.cpf || '-';
-  const sexo = (client?.dadosPessoais?.sexo || 'M') === 'F' ? 'Feminino' : 'Masculino';
-  const tel = client?.dadosPessoais?.telefone || '-';
+  // Resolução profunda e segura dos dados do cliente
+  let resolvedClient = client;
+  if (typeof resolvedClient === 'string') {
+    resolvedClient = (prontuarios[0]?.clienteId && typeof prontuarios[0].clienteId === 'object') ? prontuarios[0].clienteId : { _id: resolvedClient };
+  }
+  if (!resolvedClient) {
+    resolvedClient = (prontuarios[0]?.clienteId && typeof prontuarios[0].clienteId === 'object') ? prontuarios[0].clienteId : {};
+  }
+  const dp = resolvedClient?.dadosPessoais || {};
+  const prClientDp = (typeof prontuarios[0]?.clienteId === 'object' && prontuarios[0]?.clienteId?.dadosPessoais) ? prontuarios[0].clienteId.dadosPessoais : {};
+
+  const nome = dp.nome || resolvedClient?.nome || prClientDp.nome || (typeof prontuarios[0]?.clienteId === 'object' ? prontuarios[0].clienteId?.nome : '') || 'Aluno';
+  const rawNasc = dp.dataNascimento || resolvedClient?.dataNascimento || prClientDp.dataNascimento || '';
+  const cpf = dp.cpf || resolvedClient?.cpf || prClientDp.cpf || '-';
+  const sexoRaw = dp.sexo || resolvedClient?.sexo || prClientDp.sexo || 'M';
+  const sexo = (sexoRaw === 'F' || sexoRaw === 'Feminino') ? 'Feminino' : 'Masculino';
+  const tel = dp.telefone || resolvedClient?.telefone || dp.whatsapp || resolvedClient?.whatsapp || prClientDp.telefone || prClientDp.whatsapp || '-';
   const dataEmissao = fmtDate(new Date().toISOString());
+
+  let ageText = '-';
+  if (rawNasc) {
+    const birthDate = new Date(rawNasc);
+    if (!isNaN(birthDate.getTime())) {
+      const refDate = new Date();
+      let age = refDate.getFullYear() - birthDate.getFullYear();
+      const m = refDate.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && refDate.getDate() < birthDate.getDate())) age--;
+      ageText = `${age} anos`;
+    }
+  }
 
   const pdfWrapper = document.createElement('div');
   pdfWrapper.style.position = 'absolute';
@@ -3450,32 +3467,35 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
 
   pdfContainer.innerHTML = `
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-      * {
-        box-sizing: border-box;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff;
       }
-      .prontuarios-page {
+      .pdf-page {
         background: #ffffff;
         color: #1e293b;
         font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
         width: 794px;
         padding: 20px 30px;
-        box-sizing: border-box;
+      }
+      .font-outfit {
+        font-family: 'Outfit', sans-serif;
       }
       .grid-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid #00f2fe;
-        padding-bottom: 12px;
-        margin-bottom: 14px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
       }
       .logo-box {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
       }
       .logo-img {
         width: 48px;
@@ -3484,10 +3504,9 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
         object-fit: cover;
       }
       .logo-title {
-        font-family: 'Outfit', sans-serif;
         font-size: 20px;
         font-weight: 800;
-        color: #0f172a;
+        color: #0e131f;
         margin: 0;
         letter-spacing: -0.5px;
       }
@@ -3499,140 +3518,157 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
         letter-spacing: 0.5px;
         font-weight: 600;
       }
-      .doc-type-badge {
-        background: #0f172a;
-        color: #00f2fe;
-        font-family: 'Outfit', sans-serif;
-        font-size: 11px;
-        font-weight: 700;
-        padding: 5px 12px;
+      .date-box {
+        background: #f1f5f9;
         border-radius: 6px;
-        display: inline-block;
-        letter-spacing: 0.5px;
+        padding: 6px 12px;
+        text-align: center;
+        border: 1px solid #cbd5e1;
+      }
+      .date-box span {
+        font-size: 8px;
+        color: #64748b;
+        font-weight: 600;
+        display: block;
+        text-transform: uppercase;
+      }
+      .date-box strong {
+        font-size: 13px;
+        color: #0f172a;
+        font-family: 'Outfit', sans-serif;
       }
       .client-bar {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.5fr 1fr 1fr;
-        padding: 10px 14px;
-        margin-bottom: 18px;
-        gap: 10px;
+        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.4fr;
+        padding: 8px 12px;
+        margin-bottom: 14px;
+        font-size: 9px;
       }
-      .client-item {
+      .client-bar-item {
         border-right: 1px solid #e2e8f0;
-        padding-right: 10px;
+        padding: 0 8px;
       }
-      .client-item:last-child {
+      .client-bar-item:last-child {
         border-right: none;
         padding-right: 0;
       }
-      .client-item span {
+      .client-bar-item span {
         color: #64748b;
-        font-weight: 600;
+        font-weight: 500;
         display: block;
         font-size: 8px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
         margin-bottom: 2px;
       }
-      .client-item strong {
-        font-family: 'Outfit', sans-serif;
-        font-size: 11px;
+      .client-bar-item strong {
         color: #0f172a;
+        font-size: 10.5px;
         font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         display: block;
       }
-      .item-card {
-        background: #ffffff;
-        border: 1.5px solid #e2e8f0;
-        border-left: 4px solid #0284c7;
-        border-radius: 8px;
-        padding: 16px 18px;
+      .section-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        overflow: hidden;
         margin-bottom: 16px;
+        background: #ffffff;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
-      .item-header {
+      .section-card-title {
+        background: #0f172a;
+        color: #ffffff;
+        padding: 6px 12px;
+        font-family: 'Outfit', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #f1f5f9;
-        padding-bottom: 8px;
-        margin-bottom: 10px;
       }
-      .item-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 12px;
-        font-weight: 700;
-        color: #0284c7;
-        margin: 0;
-      }
-      .item-date {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
-        font-size: 9px;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 4px;
-      }
-      .item-body {
-        font-size: 12.5px;
-        line-height: 1.7;
+      .section-card-content {
+        padding: 16px 18px;
+        background: #ffffff;
+        font-size: 11px;
+        line-height: 1.75;
         color: #1e293b;
         text-align: justify;
         text-justify: inter-word;
         white-space: pre-wrap;
         word-break: break-word;
+        font-family: 'Inter', sans-serif;
+      }
+      .footer-notes {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 8px;
+        margin-top: 14px;
+        font-size: 8px;
+        color: #64748b;
       }
     </style>
 
-    <div class="prontuarios-page">
-      <!-- HEADER -->
+    <div class="pdf-page">
+      <!-- HEADER OFICIAL DO SISTEMA -->
       <div class="grid-header">
         <div class="logo-box">
-          ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" alt="Logo" />` : ''}
+          ${logoBase64 
+            ? `<img src="${logoBase64}" class="logo-img" alt="Logo Clube Fitness Fisio">`
+            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; font-family: 'Outfit', sans-serif;">CFF</div>`
+          }
           <div>
-            <h1 class="logo-title">CLUBE FITNESS FISIO</h1>
-            <p class="logo-subtitle">Fisioterapia Especializada • Quiropraxia • Fortalecimento</p>
+            <h1 class="logo-title font-outfit">CLUBE FITNESS FISIO</h1>
+            <p class="logo-subtitle">HISTÓRICO CONSOLIDADO DE PRONTUÁRIOS</p>
           </div>
         </div>
-        <div style="text-align: right;">
-          <div class="doc-type-badge">HISTÓRICO DE PRONTUÁRIOS</div>
-          <div style="font-size: 9px; color: #64748b; margin-top: 4px;">Total de ${sorted.length} evolução(ões) • Emissão: ${dataEmissao}</div>
+        <div class="date-box">
+          <span>Emissão</span>
+          <strong>${dataEmissao}</strong>
         </div>
       </div>
 
-      <!-- CLIENTE INFO -->
+      <!-- BARRA DO ALUNO OFICIAL -->
       <div class="client-bar">
-        <div class="client-item">
-          <span>Paciente</span>
-          <strong>${nome}</strong>
+        <div class="client-bar-item">
+          <span>Nome do Aluno</span>
+          <strong class="font-outfit">${nome}</strong>
         </div>
-        <div class="client-item">
-          <span>Nascimento / Sexo</span>
-          <strong>${nascimento} • ${sexo}</strong>
+        <div class="client-bar-item">
+          <span>Idade</span>
+          <strong>${ageText}</strong>
         </div>
-        <div class="client-item">
-          <span>Documento / Telefone</span>
-          <strong>CPF: ${cpf} • Tel: ${tel}</strong>
+        <div class="client-bar-item">
+          <span>Sexo</span>
+          <strong>${sexo}</strong>
+        </div>
+        <div class="client-bar-item">
+          <span>Documento / Contato</span>
+          <strong>${cpf !== '-' ? `CPF: ${cpf}` : ''} ${tel !== '-' ? `• Tel: ${tel}` : ''}</strong>
         </div>
       </div>
 
-      <!-- LISTA DE EVOLUÇÕES -->
+      <!-- LISTA DE EVOLUÇÕES EM CARDS PADRONIZADOS -->
       ${sorted.map((p, idx) => {
         const obsItem = p.conteudo || p.observacoes || p.texto || 'Nenhuma observação registrada.';
         const dataItem = fmtDate(p.data || p.createdAt || '');
         const pProf = p.profissionalId && typeof p.profissionalId === 'object' ? p.profissionalId.nome : '';
         return `
-          <div class="item-card">
-            <div class="item-header">
-              <h3 class="item-title">🩺 Evolução #${sorted.length - idx} ${pProf ? `• Fisioterapeuta: ${pProf}` : ''}</h3>
-              <span class="item-date">Data: ${dataItem}</span>
+          <div class="section-card">
+            <div class="section-card-title">
+              <span>🩺 Evolução #${sorted.length - idx} ${pProf ? `• Fisioterapeuta: ${pProf}` : ''}</span>
+              <span style="font-size: 8px; color: #94a3b8; font-weight: normal; text-transform: none;">Sessão: ${dataItem}</span>
             </div>
-            <div class="item-body">${obsItem}</div>
+            <div class="section-card-content">${obsItem}</div>
           </div>
         `;
       }).join('')}
@@ -3640,6 +3676,12 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
       <!-- ASSINATURA CONSOLIDADA -->
       <div style="margin-top: 24px; page-break-inside: avoid !important; break-inside: avoid !important;">
         ${renderProfessionalSignatureHtml(profObj)}
+      </div>
+
+      <!-- FOOTER -->
+      <div class="footer-notes">
+        <span>Clube Fitness Fisio &nbsp;|&nbsp; Fisioterapia Especializada • Quiropraxia • Fortalecimento</span>
+        <span>Documento emitido eletronicamente via Sistema Clube Fitness</span>
       </div>
     </div>
   `;
