@@ -4839,6 +4839,8 @@ export default function GestaoContratosPanel({
               0
             );
 
+            const isProposalMode = Boolean(currentProposal && (!latestContract || (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado')));
+
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -4926,7 +4928,7 @@ export default function GestaoContratosPanel({
                 {/* 2. GRID DE AUDITORIA COMERCIAL DIVIDIDA EM 2 PILARES CLAROS */}
                 <div style={{
                   background: 'rgba(15, 23, 42, 0.75)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  border: isProposalMode ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: '14px',
                   padding: '20px',
                   display: 'flex',
@@ -4936,9 +4938,14 @@ export default function GestaoContratosPanel({
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <i className="fa-solid fa-file-contract" style={{ color: '#34d399', fontSize: '1.1rem' }}></i>
-                      <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.3px' }}>
-                        Auditoria & Condições Comerciais do Contrato
+                      <i className={isProposalMode ? "fa-solid fa-file-invoice-dollar" : "fa-solid fa-file-contract"} style={{ color: isProposalMode ? '#fbbf24' : '#34d399', fontSize: '1.1rem' }}></i>
+                      <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {isProposalMode ? 'Condições da Proposta Comercial Enviada' : 'Auditoria & Condições Comerciais do Contrato'}
+                        {isProposalMode && (
+                          <span style={{ fontSize: '0.68rem', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.35)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                            Aguardando Aceite / Assinatura
+                          </span>
+                        )}
                       </h4>
                     </div>
                     <button
@@ -4962,53 +4969,70 @@ export default function GestaoContratosPanel({
                       title="Editar vigência, parcelas ou condições financeiras"
                     >
                       <i className="fa-solid fa-pen-to-square"></i>
-                      Editar Condições do Contrato
+                      Editar Condições
                     </button>
                   </div>
 
                   {/* Os 2 Pilares Lado a Lado */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
                     
-                    {/* Pilar 1: Vigência & Acesso ao Clube (Verde) */}
+                    {/* Pilar 1: Vigência & Acesso ao Clube (ou Previsão da Proposta) */}
                     <div style={{
-                      background: 'rgba(16, 185, 129, 0.04)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      background: isProposalMode ? 'rgba(245, 158, 11, 0.04)' : 'rgba(16, 185, 129, 0.04)',
+                      border: isProposalMode ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(16, 185, 129, 0.2)',
                       borderRadius: '12px',
                       padding: '16px',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '10px'
                     }}>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: '1px solid rgba(16, 185, 129, 0.15)', paddingBottom: '6px' }}>
-                        <i className="fa-solid fa-calendar-days"></i> 1. Vigência & Acesso ao Clube
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: isProposalMode ? '#fbbf24' : '#34d399', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: isProposalMode ? '1px solid rgba(245, 158, 11, 0.15)' : '1px solid rgba(16, 185, 129, 0.15)', paddingBottom: '6px' }}>
+                        <i className="fa-solid fa-calendar-days"></i> {isProposalMode ? '1. Vigência & Franquia Proposta' : '1. Vigência & Acesso ao Clube'}
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         <div>
-                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Plano Contratado</span>
+                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>
+                            {isProposalMode ? 'Plano Proposto' : 'Plano Contratado'}
+                          </span>
                           <strong style={{ fontSize: '0.92rem', color: '#ffffff', marginTop: '2px', display: 'block' }}>
                             {planNameResolved}
                           </strong>
                         </div>
                         <div>
                           <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Tipo / Duração</span>
-                          <strong style={{ fontSize: '0.92rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
+                          <strong style={{ fontSize: '0.92rem', color: isProposalMode ? '#fbbf24' : '#34d399', marginTop: '2px', display: 'block' }}>
                             {tipoLabel} • {qtdVal} {tipoLabel === 'Semana' ? 'semana(s)' : tipoLabel === 'Anual' ? 'ano' : 'meses'}
                           </strong>
                         </div>
                       </div>
 
                       <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px', marginTop: '2px' }}>
-                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Período Oficial de Acesso</span>
-                        <strong style={{ fontSize: '0.88rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
-                          📅 {periodoOficialDisplay}
-                        </strong>
-                        <div style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: '4px' }}>
-                          Franquia: <strong>{freqSemanal > 0 ? `${freqSemanal}x por semana` : 'Conforme Plano'}</strong>
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>
+                          {isProposalMode ? 'Previsão de Vigência' : 'Período Oficial de Acesso'}
+                        </span>
+                        {isProposalMode ? (
+                          <div style={{ marginTop: '3px' }}>
+                            <strong style={{ fontSize: '0.86rem', color: '#f8fafc', display: 'block' }}>
+                              📅 {qtdVal} {tipoLabel === 'Semana' ? 'semana(s)' : tipoLabel === 'Anual' ? 'ano' : 'meses'} a partir da ativação / aceite
+                            </strong>
+                            {currentProposal?.dataInicio && (
+                              <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
+                                Previsão informada: {new Date(currentProposal.dataInicio + (currentProposal.dataInicio.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <strong style={{ fontSize: '0.88rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
+                            📅 {periodoOficialDisplay}
+                          </strong>
+                        )}
+                        <div style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: '5px' }}>
+                          Franquia: <strong>{currentProposal?.creditosMensais ? `${currentProposal.creditosMensais} treinos/mês ` : ''}{freqSemanal > 0 ? `(${freqSemanal}x por semana)` : 'Conforme Plano'}</strong>
                         </div>
                       </div>
                     </div>
 
-                    {/* Pilar 2: Condições Financeiras & Faturamento (Azul) */}
+                    {/* Pilar 2: Condições Financeiras & Faturamento */}
                     <div style={{
                       background: 'rgba(56, 189, 248, 0.04)',
                       border: '1px solid rgba(56, 189, 248, 0.2)',
@@ -5020,34 +5044,60 @@ export default function GestaoContratosPanel({
                     }}>
                       <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(56, 189, 248, 0.15)', paddingBottom: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <i className="fa-solid fa-credit-card"></i> 2. Condições de Pagamento
+                          <i className="fa-solid fa-credit-card"></i> {isProposalMode ? '2. Condições Comerciais da Proposta' : '2. Condições de Pagamento'}
                         </div>
-                        <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase' }}>
-                          {formaPagamentoFinal}
+                        <span style={{ fontSize: '0.68rem', background: isProposalMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.15)', color: isProposalMode ? '#fbbf24' : '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase' }}>
+                          {isProposalMode ? 'Link de Venda Aberto' : formaPagamentoFinal}
                         </span>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         <div>
-                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Valor Total do Contrato</span>
+                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>
+                            {isProposalMode ? 'Valor Total da Proposta' : 'Valor Total do Contrato'}
+                          </span>
                           <strong style={{ fontSize: '1.05rem', color: '#38bdf8', marginTop: '2px', display: 'block' }}>
                             R$ {valorTotalContrato.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </strong>
                         </div>
                         <div>
                           <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>1º Vencimento da Parcela</span>
-                          <strong style={{ fontSize: '0.92rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
-                            {firstVencDate ? new Date(firstVencDate + (firstVencDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : 'Data de Início'}
-                          </strong>
+                          {isProposalMode ? (
+                            currentProposal?.dataVencimentoEscolhida ? (
+                              <strong style={{ fontSize: '0.92rem', color: '#34d399', marginTop: '2px', display: 'block' }}>
+                                📅 {new Date(currentProposal.dataVencimentoEscolhida + (currentProposal.dataVencimentoEscolhida.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}
+                              </strong>
+                            ) : (
+                              <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: 700, marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <i className="fa-solid fa-hourglass-half"></i> Aguardando escolha no link
+                              </span>
+                            )
+                          ) : (
+                            <strong style={{ fontSize: '0.92rem', color: '#f8fafc', marginTop: '2px', display: 'block' }}>
+                              {firstVencDate ? new Date(firstVencDate + (firstVencDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : 'Data de Início'}
+                            </strong>
+                          )}
                         </div>
                       </div>
 
                       <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px', marginTop: '2px', fontSize: '0.76rem', color: '#94a3b8' }}>
-                        <div>
-                          <strong style={{ color: '#cbd5e1' }}>Condição:</strong> {numParcelas}x de R$ {valorParcelaIndividual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </div>
+                        {isProposalMode ? (
+                          <div>
+                            <strong style={{ color: '#cbd5e1' }}>Opções no link:</strong> PIX (à vista) ou Boleto / Cartão de Crédito {isAnual ? 'em até 12x' : qtdVal > 1 ? `em até ${qtdVal}x` : ''}
+                            {currentProposal?.formaPagamentoEscolhida && (
+                              <div style={{ marginTop: '3px', color: '#34d399', fontWeight: 600 }}>
+                                <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>
+                                Seleção do aluno: {currentProposal.parcelasEscolhidas}x no {currentProposal.formaPagamentoEscolhida.toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            <strong style={{ color: '#cbd5e1' }}>Condição:</strong> {numParcelas}x de R$ {valorParcelaIndividual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </div>
+                        )}
                         {hasDesconto && (
-                          <div style={{ color: '#34d399', fontWeight: 600, marginTop: '2px' }}>
+                          <div style={{ color: '#34d399', fontWeight: 600, marginTop: '3px' }}>
                             <i className="fa-solid fa-tag" style={{ marginRight: '4px' }}></i>
                             Desconto: {descTipo === 'percentual' ? `${descValor}% OFF` : `R$ ${descValor.toFixed(2)} OFF`}
                           </div>
