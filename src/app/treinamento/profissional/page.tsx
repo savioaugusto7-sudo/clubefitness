@@ -288,22 +288,22 @@ const MODULES: TrainingModule[] = [
   },
   {
     id: 2,
-    title: 'Agenda Completa & Gestão de Observações Clínicas',
+    title: 'Agenda Completa & Observação Clínica',
     badge: 'Módulo 2',
     icon: 'fa-calendar-alt',
-    summary: 'Domine a navegação na grade de horários, vagas da academia, consulta de histórico e lançamento de observações clínicas com timestamp.',
+    summary: 'Você precisa informar algo sobre o treino de Caetano, clique em seu nome e adicione sua observação para outro profissional.',
     objectives: [
-      'Navegar até o menu [Agenda Completa] na barra lateral.',
+      'Acessar a aba [Agenda Completa] no simulador.',
       'Localizar o atendimento das 10:00 do aluno Caetano Veloso.',
-      'Clicar no card do horário para abrir o Modal de Inspeção.',
-      'Adicionar uma Observação Clínica sobre a conduta pós-sessão e clicar em [Salvar Observação].'
+      'Clicar diretamente sobre o nome de Caetano Veloso para abrir os detalhes.',
+      'Clicar no botão [📝 Adicionar], digitar a orientação para a equipe e clicar em [Salvar Observação].'
     ],
     spotlightTarget: 'slot-caetano',
     requiredAction: 'adicionar_obs_caetano',
     faqError: {
-      question: 'Esqueci de salvar a observação clínica durante o atendimento. Como lançar depois?',
-      solution: 'Abra a Agenda Completa, selecione a data do atendimento e clique no card do aluno. O bloco de observações permite digitar e salvar a qualquer momento, registrando automaticamente a data, hora e seu nome.',
-      actionTip: 'As observações ficam salvas de forma perpétua no prontuário do aluno.'
+      question: 'Como outros profissionais visualizam a observação que lancei?',
+      solution: 'Ao salvar, a cápsula do aluno na grade exibe a tag [Obs] em âmbar. Qualquer profissional da equipe que clicar no nome do aluno verá a conduta registrada com timestamp e seu nome.',
+      actionTip: 'Use as observações para relatar queixas, restrições ou condutas para a próxima sessão.'
     }
   },
   {
@@ -402,9 +402,7 @@ export default function TreinamentoProfissionalPage() {
   // Estados do Simulador Sandbox (100% Isolado em memória)
   const [simActiveTab, setSimActiveTab] = useState<'resumo_dia' | 'dashboard' | 'agendamento_prof' | 'clientes' | 'treinos_prof'>('resumo_dia');
   const [simPresencas, setSimPresencas] = useState<Record<string, 'presenca' | 'falta' | 'agendado'>>({});
-  const [simObservacoes, setSimObservacoes] = useState<Record<string, string>>({
-    'mpb-3': 'Aluno relatou que viajará no fim de semana. Foco em alívio lombar.'
-  });
+  const [simObservacoes, setSimObservacoes] = useState<Record<string, string>>({});
   const [simTratativas, setSimTratativas] = useState<Record<string, { motivo: string; obs: string }>>({});
   
   // Modais do Simulador

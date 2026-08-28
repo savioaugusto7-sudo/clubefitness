@@ -342,14 +342,15 @@
         faq: { q: 'Por que o Wellness abre ao clicar em Presença?', a: 'O questionário de 1 minuto garante a segurança biológica do aluno antes do esforço.' }
       },
       {
-        id: 2, title: 'Agenda Completa & Observações Clínicas', badge: 'Módulo 2', icon: 'fa-calendar-alt',
-        summary: 'Domine a grade de horários, vagas da academia e lançamento de observações clínicas com timestamp.',
+        id: 2, title: 'Agenda Completa & Observação Clínica', badge: 'Módulo 2', icon: 'fa-calendar-alt',
+        summary: 'Você precisa informar algo sobre o treino de Caetano, clique em seu nome e adicione sua observação para outro profissional.',
         objectives: [
-          'Acessar a Agenda Completa.',
-          'Clicar no card das 10:00 de Caetano Veloso.',
-          'Digitar uma observação clínica e clicar em Salvar Observação.'
+          'Acessar a aba Agenda Completa.',
+          'Localizar o atendimento das 10:00 de Caetano Veloso.',
+          'Clicar diretamente sobre o nome de Caetano Veloso.',
+          'Clicar em [📝 Adicionar], digitar a observação técnica e clicar em [Salvar Observação].'
         ],
-        faq: { q: 'Esqueci de salvar a observação. Como lançar depois?', a: 'Basta abrir o agendamento a qualquer momento e clicar em Salvar Observação.' }
+        faq: { q: 'Como outros profissionais visualizam a observação?', a: 'O badge [Obs] é ativado na grade e qualquer profissional pode ler a anotação clicando no aluno.' }
       },
       {
         id: 3, title: 'Agendamento Direto pelo Profissional', badge: 'Módulo 3', icon: 'fa-calendar-plus',
@@ -394,7 +395,7 @@
     let completedModules = [];
     let simActiveTab = 'resumo_dia';
     let simPresencas = {};
-    let simObservacoes = { 'mpb-3': 'Aluno em repouso pós-show. Foco em lombar.' };
+    let simObservacoes = {};
     let simTratativas = {};
     let activeInspectStudent = null;
 
