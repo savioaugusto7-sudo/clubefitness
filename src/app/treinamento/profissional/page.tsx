@@ -383,6 +383,18 @@ export default function TreinamentoProfissionalPage() {
   const [agendamentoHorario, setAgendamentoHorario] = useState('14:00');
   const [agendamentoObs, setAgendamentoObs] = useState('');
 
+  // Estados do Calendário da Agenda Completa (2 Colunas)
+  const [simSelectedDate, setSimSelectedDate] = useState('2026-08-28');
+  const [simSelectedMonth, setSimSelectedMonth] = useState(new Date(2026, 7, 1)); // Agosto de 2026
+  const [simAgendaActiveTab, setSimAgendaActiveTab] = useState<'academia' | 'consultorio'>('academia');
+
+  const handleSimPrevMonth = () => {
+    setSimSelectedMonth(new Date(simSelectedMonth.getFullYear(), simSelectedMonth.getMonth() - 1, 1));
+  };
+  const handleSimNextMonth = () => {
+    setSimSelectedMonth(new Date(simSelectedMonth.getFullYear(), simSelectedMonth.getMonth() + 1, 1));
+  };
+
   // Proteção de Acesso: apenas admin na Fase 1
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -1112,162 +1124,562 @@ export default function TreinamentoProfissionalPage() {
           {/* ===================================================================== */}
           {simActiveTab === 'dashboard' && (
             <div>
-              {/* Barra de Data e Abas de Local */}
-              <div style={{
-                background: '#111827',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '14px',
-                padding: '14px',
-                marginBottom: '16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '12px'
-              }}>
+              {/* Cabeçalho da Agenda */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button type="button" style={{ background: '#00f2fe', color: '#0f172a', border: 'none', padding: '6px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.78rem' }}>
-                    Academia
+                  <button
+                    type="button"
+                    style={{
+                      background: '#10b981',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontWeight: 800,
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'default'
+                    }}
+                  >
+                    <i className="fa-solid fa-dumbbell"></i> Academia
                   </button>
-                  <button type="button" style={{ background: 'rgba(255,255,255,0.04)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '0.78rem' }}>
-                    Consultório
+                  <button
+                    type="button"
+                    onClick={() => triggerToast('Google Calendar sincronizado para Sávio Augusto Oliveira!')}
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      color: '#cbd5e1',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      fontWeight: 700,
+                      fontSize: '0.78rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span style={{ color: '#ea4335', fontWeight: 900 }}>G</span> Google: Sávio Augusto Oliveira
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#fff' }}>
-                    📅 28/08/2026 (Sexta-feira)
-                  </span>
-                  <button type="button" style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 700 }}>
-                    Hoje
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => triggerToast('➕ Modal de Horário Extra acionado com sucesso!')}
+                  style={{
+                    background: '#10b981',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <i className="fa-solid fa-plus"></i> Horário Extra
+                </button>
               </div>
 
-              {/* Grade de Horários Simulada */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* Slot 08:00 - Chico Buarque */}
-                <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
-                    <strong style={{ fontSize: '0.9rem', color: '#00f2fe' }}>⏰ 08:00</strong>
-                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Vagas: 1/4 Ocupadas</span>
-                  </div>
-                  <div
-                    onClick={() => {
-                      const chico = MPB_STUDENTS[0];
-                      setInspectModalApt(chico);
-                      setInspectObsInput(simObservacoes['mpb-1'] || '');
-                    }}
-                    style={{
-                      background: 'rgba(16, 185, 129, 0.04)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <strong style={{ fontSize: '0.88rem', color: '#fff' }}>Chico Buarque</strong>
-                      <span style={{ marginLeft: '8px', fontSize: '0.7rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                        Treino Monitorado
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                      <i className="fa-solid fa-eye"></i> Inspecionar
-                    </span>
-                  </div>
-                </div>
+              {/* Título e Subtítulo */}
+              <div style={{ marginBottom: '18px' }}>
+                <h3 style={{ margin: '0 0 4px', fontSize: '1.15rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  🗓️ Agenda Academia
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
+                  Visualize os atendimentos por horário, suspenda horários ou ajuste vagas e regras semanais.
+                </p>
+              </div>
 
-                {/* Slot 10:00 - Caetano Veloso */}
-                <div style={{ background: '#111827', border: '1.5px solid #00f2fe', borderRadius: '12px', padding: '14px', boxShadow: '0 0 15px rgba(0,242,254,0.1)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
-                    <strong style={{ fontSize: '0.9rem', color: '#00f2fe' }}>⏰ 10:00 (Objetivo da Missão)</strong>
-                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Vagas: 1/4 Ocupadas</span>
-                  </div>
-                  <div
-                    onClick={() => {
-                      const caetano = MPB_STUDENTS[2];
-                      setInspectModalApt(caetano);
-                      setInspectObsInput(simObservacoes['mpb-3'] || '');
-                    }}
-                    style={{
-                      background: 'rgba(56, 189, 248, 0.06)',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      borderRadius: '8px',
-                      padding: '12px 14px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <strong style={{ fontSize: '0.95rem', color: '#fff' }}>Caetano Veloso</strong>
-                        <span style={{ fontSize: '0.7rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                          Fisioterapia
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#f59e0b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <i className="fa-solid fa-note-sticky"></i>
-                        <span>{simObservacoes['mpb-3'] ? `Obs: ${simObservacoes['mpb-3']}` : 'Sem observação'}</span>
-                      </div>
-                    </div>
+              {/* Grid 2 Colunas: Calendário do Mês à Esquerda + Grade de Horários à Direita */}
+              <div style={{ display: 'grid', gridTemplateColumns: '310px 1fr', gap: '20px', alignItems: 'start' }}>
+                
+                {/* Coluna 1: Widget Calendário Mensal */}
+                <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                     <button
                       type="button"
-                      style={{
-                        background: '#00f2fe',
-                        color: '#0f172a',
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        fontWeight: 800,
-                        fontSize: '0.76rem',
-                        cursor: 'pointer'
-                      }}
+                      onClick={handleSimPrevMonth}
+                      style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}
                     >
-                      <i className="fa-solid fa-pen-to-square"></i> Abrir & Editar Obs
+                      <i className="fa-solid fa-chevron-left"></i>
                     </button>
+                    <strong style={{ fontSize: '0.9rem', color: '#fff' }}>
+                      {simSelectedMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={handleSimNextMonth}
+                      style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      <i className="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
+
+                  {/* Dias da semana */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '8px' }}>
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                      <span key={d} style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700 }}>{d}</span>
+                    ))}
+                  </div>
+
+                  {/* Grid de Dias (Agosto 2026: dia 1 inicia no Sábado) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                    {/* Dias vazios antes do sábado */}
+                    {[26, 27, 28, 29, 30, 31].map(n => (
+                      <div key={`prev-${n}`} style={{ opacity: 0.25, padding: '7px 0', textAlign: 'center', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                        {n}
+                      </div>
+                    ))}
+
+                    {/* Dias de 1 a 31 */}
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
+                      const isSelected = day === 28;
+                      return (
+                        <div
+                          key={day}
+                          onClick={() => {
+                            setSimSelectedDate(`2026-08-${String(day).padStart(2, '0')}`);
+                            triggerToast(`📅 Data selecionada: ${day}/08/2026`);
+                          }}
+                          style={{
+                            padding: '7px 0',
+                            textAlign: 'center',
+                            fontSize: '0.8rem',
+                            fontWeight: isSelected ? 800 : 500,
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            background: isSelected ? '#10b981' : 'transparent',
+                            color: isSelected ? '#fff' : '#cbd5e1',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {day}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px' }}>
+                    <small style={{ color: '#94a3b8', display: 'block', fontSize: '0.72rem' }}>Data selecionada:</small>
+                    <strong style={{ color: '#10b981', fontSize: '0.9rem' }}>
+                      28/08/2026 (Sexta-feira)
+                    </strong>
                   </div>
                 </div>
 
-                {/* Slot 14:00 - Elis Regina */}
-                <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
-                    <strong style={{ fontSize: '0.9rem', color: '#00f2fe' }}>⏰ 14:00</strong>
-                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Vagas: 1/4 Ocupadas</span>
-                  </div>
-                  <div
-                    onClick={() => {
-                      const elis = MPB_STUDENTS[1];
-                      setInspectModalApt(elis);
-                      setInspectObsInput(simObservacoes['mpb-2'] || '');
-                    }}
-                    style={{
-                      background: 'rgba(168, 85, 247, 0.04)',
-                      border: '1px solid rgba(168, 85, 247, 0.2)',
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                      cursor: 'pointer',
+                {/* Coluna 2: Grade de Horários do Dia */}
+                <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '20px' }}>
+                  <h3 style={{ fontSize: '0.98rem', fontWeight: 750, color: '#fff', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-clock" style={{ color: '#94a3b8' }}></i>
+                    Grade de Horários para 28/08/2026 (Sexta-feira)
+                  </h3>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    
+                    {/* Slot 06:00 (Raquel Freitas) */}
+                    <div style={{
+                      background: '#0f172a',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
                       display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <strong style={{ fontSize: '0.88rem', color: '#fff' }}>Elis Regina</strong>
-                      <span style={{ marginLeft: '8px', fontSize: '0.7rem', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                        Avaliação Física
-                      </span>
+                      gap: '14px',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', width: '33%', background: '#10b981' }}></div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '130px' }}>
+                        <strong style={{ fontSize: '1.05rem', color: '#fff' }}>06:00</strong>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#38bdf8', fontWeight: 800 }}>
+                            ACADEMIA
+                          </span>
+                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>1 / 3 vagas</div>
+                        </div>
+                      </div>
+
+                      <div style={{ flexGrow: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInspectModalApt({ id: 'sim-raquel', nome: 'Raquel Freitas', plano: 'Plano Saúde 3x', telefone: '(11) 98765-1122' });
+                            setInspectObsInput(simObservacoes['sim-raquel'] || '');
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            background: '#1e293b',
+                            border: '1.5px solid #10b981',
+                            borderRadius: '16px',
+                            padding: '3px 10px',
+                            gap: '6px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>Raquel Freitas</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
+                            MONITORADO
+                          </span>
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('👤 Gestão de agendamentos do horário 06:00')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-user-edit" style={{ color: '#00f2fe' }}></i> Gerenciar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('📶 Ajuste de vagas para o horário 06:00 (Capacidade: 3)')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-sliders"></i> Vagas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('🗑️ Opção de exclusão / suspensão de horário')}
+                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '6px 8px', borderRadius: '6px', fontSize: '0.74rem', cursor: 'pointer' }}
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
                     </div>
-                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                      <i className="fa-solid fa-eye"></i> Inspecionar
-                    </span>
+
+                    {/* Slot 07:00 (Aluísio Mourão, Renato Brandão, Zaime Romeu) */}
+                    <div style={{
+                      background: '#0f172a',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '14px',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', width: '50%', background: '#10b981' }}></div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '130px' }}>
+                        <strong style={{ fontSize: '1.05rem', color: '#fff' }}>07:00</strong>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#38bdf8', fontWeight: 800 }}>
+                            ACADEMIA
+                          </span>
+                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>3 / 6 vagas</div>
+                        </div>
+                      </div>
+
+                      <div style={{ flexGrow: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {['Aluísio Mourão', 'Renato Brandão', 'Zaime Romeu'].map((nome, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setInspectModalApt({ id: `sim-${idx}`, nome, plano: 'Plano Monitorado 3x', telefone: '(11) 97777-1234' });
+                              setInspectObsInput(simObservacoes[`sim-${idx}`] || '');
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              background: '#1e293b',
+                              border: '1.5px solid #10b981',
+                              borderRadius: '16px',
+                              padding: '3px 10px',
+                              gap: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>{nome}</span>
+                            <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
+                              MONITORADO
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('👤 Gestão de agendamentos do horário 07:00')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-user-edit" style={{ color: '#00f2fe' }}></i> Gerenciar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('📶 Ajuste de vagas para o horário 07:00 (Capacidade: 6)')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-sliders"></i> Vagas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('🗑️ Opção de exclusão / suspensão de horário')}
+                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '6px 8px', borderRadius: '6px', fontSize: '0.74rem', cursor: 'pointer' }}
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Slot 08:00 (Chico Buarque) */}
+                    <div style={{
+                      background: '#0f172a',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '14px',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', width: '25%', background: '#10b981' }}></div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '130px' }}>
+                        <strong style={{ fontSize: '1.05rem', color: '#fff' }}>08:00</strong>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#38bdf8', fontWeight: 800 }}>
+                            ACADEMIA
+                          </span>
+                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>1 / 4 vagas</div>
+                        </div>
+                      </div>
+
+                      <div style={{ flexGrow: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const chico = MPB_STUDENTS[0];
+                            setInspectModalApt(chico);
+                            setInspectObsInput(simObservacoes['mpb-1'] || '');
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            background: '#1e293b',
+                            border: '1.5px solid #10b981',
+                            borderRadius: '16px',
+                            padding: '3px 10px',
+                            gap: '6px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>Chico Buarque</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
+                            MONITORADO
+                          </span>
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('👤 Gestão de agendamentos do horário 08:00')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-user-edit" style={{ color: '#00f2fe' }}></i> Gerenciar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('📶 Ajuste de vagas para o horário 08:00 (Capacidade: 4)')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-sliders"></i> Vagas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('🗑️ Opção de exclusão / suspensão de horário')}
+                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '6px 8px', borderRadius: '6px', fontSize: '0.74rem', cursor: 'pointer' }}
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Slot 10:00 (Caetano Veloso - OBJETIVO DO MÓDULO 2) */}
+                    <div style={{
+                      background: '#0f172a',
+                      border: '1.5px solid #00f2fe',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '14px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      boxShadow: '0 0 16px rgba(0, 242, 254, 0.15)'
+                    }}>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', width: '25%', background: '#00f2fe' }}></div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '130px' }}>
+                        <strong style={{ fontSize: '1.05rem', color: '#00f2fe' }}>10:00</strong>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }}>
+                            ACADEMIA
+                          </span>
+                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>1 / 4 vagas</div>
+                        </div>
+                      </div>
+
+                      <div style={{ flexGrow: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const caetano = MPB_STUDENTS[2];
+                            setInspectModalApt(caetano);
+                            setInspectObsInput(simObservacoes['mpb-3'] || '');
+                          }}
+                          title="Clique para abrir e editar a observação clínica"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            background: '#1e293b',
+                            border: '1.5px solid #38bdf8',
+                            borderRadius: '16px',
+                            padding: '3px 10px',
+                            gap: '6px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>Caetano Veloso</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' }}>
+                            FISIOTERAPIA
+                          </span>
+                          <span style={{
+                            background: 'rgba(245, 158, 11, 0.2)',
+                            color: '#f59e0b',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                            fontSize: '0.68rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            padding: '1px 6px',
+                            borderRadius: '8px',
+                            fontWeight: 800
+                          }}>
+                            <i className="fa-solid fa-note-sticky"></i> Obs
+                          </span>
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const caetano = MPB_STUDENTS[2];
+                            setInspectModalApt(caetano);
+                            setInspectObsInput(simObservacoes['mpb-3'] || '');
+                          }}
+                          style={{ background: 'linear-gradient(135deg, #00f2fe, #4facfe)', color: '#0f172a', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-pen-to-square"></i> Abrir & Editar Obs
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('📶 Ajuste de vagas para o horário 10:00 (Capacidade: 4)')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-sliders"></i> Vagas
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Slot 14:00 (Elis Regina) */}
+                    <div style={{
+                      background: '#0f172a',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '14px',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', width: '25%', background: '#10b981' }}></div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '130px' }}>
+                        <strong style={{ fontSize: '1.05rem', color: '#fff' }}>14:00</strong>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', padding: '2px 6px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#38bdf8', fontWeight: 800 }}>
+                            ACADEMIA
+                          </span>
+                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>1 / 4 vagas</div>
+                        </div>
+                      </div>
+
+                      <div style={{ flexGrow: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const elis = MPB_STUDENTS[1];
+                            setInspectModalApt(elis);
+                            setInspectObsInput(simObservacoes['mpb-2'] || '');
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            background: '#1e293b',
+                            border: '1.5px solid #a855f7',
+                            borderRadius: '16px',
+                            padding: '3px 10px',
+                            gap: '6px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff' }}>Elis Regina</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.2)', color: '#a855f7' }}>
+                            AVALIAÇÃO
+                          </span>
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('👤 Gestão de agendamentos do horário 14:00')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-user-edit" style={{ color: '#00f2fe' }}></i> Gerenciar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('📶 Ajuste de vagas para o horário 14:00 (Capacidade: 4)')}
+                          style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 750, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <i className="fa-solid fa-sliders"></i> Vagas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => triggerToast('🗑️ Opção de exclusão / suspensão de horário')}
+                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '6px 8px', borderRadius: '6px', fontSize: '0.74rem', cursor: 'pointer' }}
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
+
               </div>
             </div>
           )}
