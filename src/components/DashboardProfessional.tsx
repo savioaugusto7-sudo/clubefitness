@@ -23,6 +23,8 @@ import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
 import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
+import { getWeeklyFrequencyMetrics } from '@/utils/retentionEngine';
+import { getContractValidityInfo } from '@/utils/contractValidity';
 
 export { normalizeText, smartSearchMatch };
 
@@ -275,6 +277,100 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const setSearchQueryForKey = (key: string, query: string) => {
     setSearchQueries(prev => ({ ...prev, [key]: query }));
     setPage(key, 1);
+  };
+
+  // ==========================================
+  // ESTADOS: COCKPIT OPERACIONAL & RETENÇÃO
+  // ==========================================
+  const getWeekKey = (d: Date = new Date()) => {
+    const startOfWeek = new Date(d);
+    const day = startOfWeek.getDay() || 7;
+    if (day !== 1) startOfWeek.setHours(-24 * (day - 1));
+    return startOfWeek.toISOString().split('T')[0];
+  };
+
+  const currentWeekKey = getWeekKey();
+  const [tratativas, setTratativas] = useState<Record<string, { data: string; motivo: string; responsavel: string; tipo: 'whatsapp' | 'manual'; obs?: string }>>({});
+  const [activeRetentionTab, setActiveRetentionTab] = useState<'pendentes' | 'tratados' | 'todos'>('pendentes');
+  const [tratativaModalClient, setTratativaModalClient] = useState<any>(null);
+  const [tratativaMotivo, setTratativaMotivo] = useState<string>('agendou');
+  const [tratativaObs, setTratativaObs] = useState<string>('');
+
+  // Carregar tratativas salvas no localStorage
+  useEffect(() => {
+    try {
+      const savedRetention = localStorage.getItem(`cf_tratativas_retencao_${currentWeekKey}`);
+      if (savedRetention) setTratativas(JSON.parse(savedRetention));
+    } catch (e) {
+      console.error('Erro ao carregar tratativas do localStorage:', e);
+    }
+  }, [currentWeekKey]);
+
+  const saveRetentionTratativa = (clientId: string, data: { motivo: string; tipo: 'whatsapp' | 'manual'; obs?: string }) => {
+    const nowStr = new Date().toLocaleString('pt-BR');
+    const authorName = (session?.user as any)?.name || 'Profissional';
+    const updated = {
+      ...tratativas,
+      [clientId]: {
+        data: nowStr,
+        motivo: data.motivo,
+        tipo: data.tipo,
+        obs: data.obs || '',
+        responsavel: authorName
+      }
+    };
+    setTratativas(updated);
+    try {
+      localStorage.setItem(`cf_tratativas_retencao_${currentWeekKey}`, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const removeRetentionTratativa = (clientId: string) => {
+    const updated = { ...tratativas };
+    delete updated[clientId];
+    setTratativas(updated);
+    try {
+      localStorage.setItem(`cf_tratativas_retencao_${currentWeekKey}`, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const handleEngageWhatsAppWithTratativa = (client: any, metrics: any) => {
+    const tel = client.dadosPessoais?.telefone ? client.dadosPessoais.telefone.replace(/\D/g, '') : '';
+    if (!tel) {
+      alert('Aluno não possui telefone/WhatsApp cadastrado.');
+      return;
+    }
+    const nome = client.dadosPessoais?.nome?.split(' ')[0] || 'Aluno';
+    const diasNomes: Record<number, string> = { 4: '(terça a sexta)', 3: '(quarta a sexta)', 2: '(quinta e sexta)', 1: '(sexta-feira)' };
+    const diasTexto = diasNomes[metrics.diasRestantes] || '';
+    const msg = `Olá ${nome}! Aqui é do Clube Fitness Fisio. Notamos que você tem ${metrics.pendentes} treino(s) pendente(s) da sua meta semanal (${metrics.frequenciaSemanal}x/semana). Restam ${metrics.diasRestantes} dias úteis ${diasTexto} para agendar. Vamos agendar seu próximo horário? 💪`;
+    
+    saveRetentionTratativa(client._id, {
+      motivo: 'Mensagem de incentivo e lembrete enviada via WhatsApp',
+      tipo: 'whatsapp'
+    });
+
+    window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const handleEngageAllPending = (list: any[]) => {
+    if (list.length === 0) return;
+    if (!confirm(`Deseja abrir o WhatsApp para engajar ${list.length} aluno(s) pendente(s)? As tratativas serão registradas automaticamente.`)) return;
+
+    list.forEach(({ client, metrics }) => {
+      saveRetentionTratativa(client._id, {
+        motivo: 'Engajamento em lote enviado via WhatsApp',
+        tipo: 'whatsapp'
+      });
+    });
+
+    const first = list[0];
+    const tel = first.client.dadosPessoais?.telefone ? first.client.dadosPessoais.telefone.replace(/\D/g, '') : '';
+    if (tel) {
+      const nome = first.client.dadosPessoais?.nome?.split(' ')[0] || 'Aluno';
+      const msg = `Olá ${nome}! Aqui é do Clube Fitness Fisio. Notamos que você tem ${first.metrics.pendentes} treino(s) pendente(s) da sua meta semanal (${first.metrics.frequenciaSemanal}x/semana). Vamos agendar seu horário? 💪`;
+      window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
   };
 
   // Close modals on Escape key
@@ -4353,28 +4449,409 @@ goniometria: {
               <>
                 <div className="view-header">
                   <div className="view-title-group">
-                    <h1>Controle de Frequência Diária</h1>
-                    <p>Visão geral e sinalização rápida dos atendimentos de hoje, {formatLocalDate(hojeISO)}.</p>
+                    <h1>Cockpit Operacional & Frequência Diária</h1>
+                    <p>Visão executiva, termômetro de turnos e central de retenção ativa de hoje, {formatLocalDate(hojeISO)}.</p>
                   </div>
                 </div>
 
-                <div className="metrics-grid" style={{ marginBottom: '24px' }}>
-                  <div className="metric-card">
-                    <div className="metric-info">
-                      <h3>Total de Alunos Hoje</h3>
-                      <div className="value">{totalHoje}</div>
-                    </div>
-                    <div className="metric-icon"><i className="fa-solid fa-users"></i></div>
-                  </div>
-                  <div className="metric-card">
-                    <div className="metric-info">
-                      <h3>Academia</h3>
-                      <div className="value">{totalAcademia}</div>
-                    </div>
-                    <div className="metric-icon success"><i className="fa-solid fa-dumbbell"></i></div>
-                  </div>
+                {/* TERMÔMETRO OPERACIONAL DA CLÍNICA (HOJE) */}
+                {(() => {
+                  const sortAptsByTime = (list: any[]) => {
+                    return [...list].sort((a, b) => {
+                      const timeA = (a.horario || '').trim();
+                      const timeB = (b.horario || '').trim();
+                      return timeA.localeCompare(timeB, undefined, { numeric: true });
+                    });
+                  };
 
-                </div>
+                  const getAptClientName = (a: any) => {
+                    if (a.clienteNome && a.clienteNome !== 'Aluno') return a.clienteNome;
+                    if (a.clienteId && typeof a.clienteId === 'object' && a.clienteId.dadosPessoais?.nome) {
+                      return a.clienteId.dadosPessoais.nome;
+                    }
+                    const cId = typeof a.clienteId === 'string' ? a.clienteId : a.clienteId?._id?.toString();
+                    if (cId) {
+                      const found = clients.find(c => c._id?.toString() === cId);
+                      if (found?.dadosPessoais?.nome) return found.dadosPessoais.nome;
+                    }
+                    return a.clienteNome || 'Aluno';
+                  };
+
+                  const manhaApts = sortAptsByTime(todayApts.filter(a => {
+                    const h = parseInt((a.horario || '').split(':')[0] || '0', 10);
+                    return h >= 6 && h < 12 && a.status !== 'cancelado';
+                  }));
+                  const tardeApts = sortAptsByTime(todayApts.filter(a => {
+                    const h = parseInt((a.horario || '').split(':')[0] || '0', 10);
+                    return h >= 12 && h < 18 && a.status !== 'cancelado';
+                  }));
+                  const noiteApts = sortAptsByTime(todayApts.filter(a => {
+                    const h = parseInt((a.horario || '').split(':')[0] || '0', 10);
+                    return h >= 18 && h <= 22 && a.status !== 'cancelado';
+                  }));
+
+                  // Cálculo de Retenção Semanal dos Alunos
+                  const activeClients = clients.filter(c => {
+                    const status = c.dadosComerciais?.status || c.status;
+                    return status === 'ativo' || status === 'vigente' || !status;
+                  });
+
+                  const retentionList = activeClients.map(client => {
+                    const metrics = getWeeklyFrequencyMetrics(client, appointments);
+                    const tratativa = tratativas[client._id];
+                    return {
+                      client,
+                      metrics,
+                      isPending: metrics.status === 'at_risk' && !tratativa,
+                      isTreated: Boolean(tratativa),
+                      tratativa
+                    };
+                  }).filter(item => item.metrics.frequenciaSemanal > 0);
+
+                  const pendentesRetencao = retentionList.filter(item => item.isPending);
+                  const tratadosRetencao = retentionList.filter(item => item.isTreated);
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
+                      {/* MÓDULO 1: TERMÔMETRO OPERACIONAL DA CLÍNICA (HOJE) */}
+                      <div className="content-panel" style={{ background: 'var(--card-bg, #111827)', borderRadius: '16px', border: '1px solid var(--border-color, #1f2937)', padding: '20px' }}>
+                        <div className="panel-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <i className="fa-solid fa-clock"></i> Termômetro Operacional da Clínica (Hoje)
+                          </h2>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveTab('dashboard')} style={{ fontSize: '0.78rem' }}>
+                              <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i> Abrir Agenda Completa
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Cards de Turnos do Dia */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                          {/* Manhã */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fde047', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-sun"></i> Turno Manhã (06h - 12h)
+                              </span>
+                              <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{manhaApts.length} atendimentos</span>
+                            </div>
+                            <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                              {manhaApts.length > 0 ? (
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                  {manhaApts.slice(0, 6).map((a, idx) => (
+                                    <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                      <strong style={{ color: '#fde047' }}>{a.horario}</strong> • {getAptClientName(a)}
+                                    </span>
+                                  ))}
+                                  {manhaApts.length > 6 && <span style={{ color: '#38bdf8', fontSize: '0.74rem', fontWeight: 700, padding: '3px 6px' }}>+{manhaApts.length - 6} mais</span>}
+                                </div>
+                              ) : (
+                                <span>Nenhum atendimento agendado para a manhã.</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Tarde */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fb923c', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-cloud-sun"></i> Turno Tarde (12h - 18h)
+                              </span>
+                              <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{tardeApts.length} atendimentos</span>
+                            </div>
+                            <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                              {tardeApts.length > 0 ? (
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                  {tardeApts.slice(0, 6).map((a, idx) => (
+                                    <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                      <strong style={{ color: '#fb923c' }}>{a.horario}</strong> • {getAptClientName(a)}
+                                    </span>
+                                  ))}
+                                  {tardeApts.length > 6 && <span style={{ color: '#38bdf8', fontSize: '0.74rem', fontWeight: 700, padding: '3px 6px' }}>+{tardeApts.length - 6} mais</span>}
+                                </div>
+                              ) : (
+                                <span>Nenhum atendimento agendado para a tarde.</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Noite */}
+                          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-moon"></i> Turno Noite (18h - 22h)
+                              </span>
+                              <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem' }}>{noiteApts.length} atendimentos</span>
+                            </div>
+                            <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                              {noiteApts.length > 0 ? (
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                  {noiteApts.slice(0, 6).map((a, idx) => (
+                                    <span key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                      <strong style={{ color: '#818cf8' }}>{a.horario}</strong> • {getAptClientName(a)}
+                                    </span>
+                                  ))}
+                                  {noiteApts.length > 6 && <span style={{ color: '#38bdf8', fontSize: '0.74rem', fontWeight: 700, padding: '3px 6px' }}>+{noiteApts.length - 6} mais</span>}
+                                </div>
+                              ) : (
+                                <span>Nenhum atendimento agendado para a noite.</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* MÓDULO 2: CENTRAL DE RETENÇÃO & FILA DE TRATATIVAS (ANTI-CHURN) */}
+                      <div className="content-panel" style={{ background: 'var(--card-bg, #111827)', borderRadius: '16px', border: '1px solid var(--border-color, #1f2937)', padding: '20px' }}>
+                        <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                          <div>
+                            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <i className="fa-solid fa-shield-halved"></i> Central de Retenção & Fila de Tratativas (Anti-Churn)
+                            </h2>
+                            <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                              Acompanhamento preditivo de frequência semanal com tratativa ativa e resolução de pendências.
+                            </small>
+                          </div>
+
+                          {/* Botões de Ação Global */}
+                          {pendentesRetencao.length > 0 && (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleEngageAllPending(pendentesRetencao)}
+                              style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderColor: '#059669', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <i className="fa-brands fa-whatsapp"></i> Engajar Todos os Pendentes ({pendentesRetencao.length})
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Abas de Navegação da Retenção */}
+                        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${activeRetentionTab === 'pendentes' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setActiveRetentionTab('pendentes')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <i className="fa-solid fa-circle-exclamation" style={{ color: activeRetentionTab === 'pendentes' ? '#fff' : '#ef4444' }}></i>
+                            Pendentes de Tratativa ({pendentesRetencao.length})
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${activeRetentionTab === 'tratados' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setActiveRetentionTab('tratados')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <i className="fa-solid fa-circle-check" style={{ color: activeRetentionTab === 'tratados' ? '#fff' : '#10b981' }}></i>
+                            Tratados nesta Semana ({tratadosRetencao.length})
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${activeRetentionTab === 'todos' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setActiveRetentionTab('todos')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <i className="fa-solid fa-list"></i>
+                            Todos os Alunos com Meta ({retentionList.length})
+                          </button>
+                        </div>
+
+                        {/* Conteúdo das Abas de Retenção */}
+                        {activeRetentionTab === 'pendentes' && (
+                          <div>
+                            {pendentesRetencao.length === 0 ? (
+                              <div style={{ textAlign: 'center', padding: '30px', color: '#10b981', background: 'rgba(16,185,129,0.05)', borderRadius: '12px', border: '1px dashed rgba(16,185,129,0.2)' }}>
+                                <i className="fa-solid fa-circle-check" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
+                                <h4 style={{ margin: '0 0 4px', fontWeight: 700 }}>Parabéns! Fila de Retenção Zerada</h4>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Todos os alunos em risco nesta semana já foram tratados ou bateram suas metas.</p>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {pendentesRetencao.map(({ client, metrics }) => (
+                                  <div
+                                    key={client._id}
+                                    style={{
+                                      background: 'rgba(239, 68, 68, 0.03)',
+                                      border: '1px solid rgba(239, 68, 68, 0.15)',
+                                      borderRadius: '10px',
+                                      padding: '14px 16px',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      flexWrap: 'wrap',
+                                      gap: '12px'
+                                    }}
+                                  >
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                        <strong style={{ fontSize: '0.95rem', color: '#fff' }}>
+                                          {client.dadosPessoais?.nome || 'Aluno Sem Nome'}
+                                        </strong>
+                                        <span style={{ fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                                          Pendente de Tratativa
+                                        </span>
+                                      </div>
+                                      <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                                        Contratou <strong style={{ color: '#fde047' }}>{metrics.frequenciaSemanal}x/sem</strong> • 
+                                        Fez <strong style={{ color: '#10b981' }}>{metrics.realizados}</strong> • 
+                                        Agendou <strong style={{ color: '#38bdf8' }}>{metrics.agendados}</strong> • 
+                                        Restam <strong style={{ color: '#ef4444' }}>{metrics.pendentes} pendente(s)</strong> ({metrics.diasRestantes} dias úteis)
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        onClick={() => handleEngageWhatsAppWithTratativa(client, metrics)}
+                                        style={{ background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px' }}
+                                      >
+                                        <i className="fa-brands fa-whatsapp"></i> Engajar WhatsApp
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => {
+                                          setTratativaModalClient(client);
+                                          setTratativaMotivo('agendou');
+                                          setTratativaObs('');
+                                        }}
+                                        style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                                      >
+                                        <i className="fa-solid fa-pen-to-square"></i> Registrar Tratativa
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {activeRetentionTab === 'tratados' && (
+                          <div>
+                            {tratadosRetencao.length === 0 ? (
+                              <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                                <i className="fa-solid fa-inbox" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
+                                <h4 style={{ margin: '0 0 4px', fontWeight: 700 }}>Nenhuma tratativa registrada ainda</h4>
+                                <p style={{ margin: 0, fontSize: '0.85rem' }}>Ao engajar ou registrar desfechos na aba de pendentes, os alunos tratados aparecerão aqui.</p>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {tratadosRetencao.map(({ client, tratativa }) => (
+                                  <div
+                                    key={client._id}
+                                    style={{
+                                      background: 'rgba(16, 185, 129, 0.03)',
+                                      border: '1px solid rgba(16, 185, 129, 0.15)',
+                                      borderRadius: '10px',
+                                      padding: '14px 16px',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      flexWrap: 'wrap',
+                                      gap: '12px'
+                                    }}
+                                  >
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                        <strong style={{ fontSize: '0.95rem', color: '#fff' }}>
+                                          {client.dadosPessoais?.nome || 'Aluno Sem Nome'}
+                                        </strong>
+                                        <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                                          Tratado
+                                        </span>
+                                      </div>
+                                      <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                                        <strong>Motivo:</strong> {tratativa.motivo} {tratativa.obs ? `• ${tratativa.obs}` : ''}
+                                        <div style={{ marginTop: '2px', color: '#64748b', fontSize: '0.72rem' }}>
+                                          Por: <strong style={{ color: '#38bdf8' }}>{tratativa.responsavel}</strong> em {tratativa.data}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => removeRetentionTratativa(client._id)}
+                                        style={{ fontSize: '0.74rem', color: '#ef4444' }}
+                                        title="Remover tratativa e retornar para pendentes"
+                                      >
+                                        <i className="fa-solid fa-rotate-left"></i> Reabrir
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {activeRetentionTab === 'todos' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {retentionList.map(({ client, metrics, isTreated, tratativa }) => (
+                              <div
+                                key={client._id}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.02)',
+                                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                                  borderRadius: '10px',
+                                  padding: '14px 16px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '12px'
+                                }}
+                              >
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <strong style={{ fontSize: '0.95rem', color: '#fff' }}>
+                                      {client.dadosPessoais?.nome || 'Aluno Sem Nome'}
+                                    </strong>
+                                    {metrics.status === 'ok' ? (
+                                      <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                                        Meta Cumprida
+                                      </span>
+                                    ) : isTreated ? (
+                                      <span style={{ fontSize: '0.72rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                                        Tratado
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                                        Pendente
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                                    Meta: <strong style={{ color: '#fde047' }}>{metrics.frequenciaSemanal}x/sem</strong> • 
+                                    Fez: <strong style={{ color: '#10b981' }}>{metrics.realizados}</strong> • 
+                                    Agendado: <strong style={{ color: '#38bdf8' }}>{metrics.agendados}</strong>
+                                    {tratativa && <span style={{ marginLeft: '6px', color: '#38bdf8' }}>({tratativa.motivo})</span>}
+                                  </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    onClick={() => handleEngageWhatsAppWithTratativa(client, metrics)}
+                                    style={{ background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px' }}
+                                  >
+                                    <i className="fa-brands fa-whatsapp"></i> WhatsApp
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Bloco de Atenção: Urgentes */}
                 {urgentes.length > 0 && (
@@ -12588,6 +13065,84 @@ goniometria: {
           clientId={builderClient._id}
           clientName={builderClient.dadosPessoais?.nome || 'Aluno'}
         />
+      )}
+
+      {/* 11. Modal de Registro de Tratativa de Retenção */}
+      {tratativaModalClient && (
+        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '480px', width: '90%', background: 'var(--bg-card, #1e293b)', borderRadius: '16px', border: '1px solid var(--border-color, #334155)', padding: '24px' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-pen-to-square"></i> Registrar Tratativa de Retenção
+              </h3>
+              <button
+                type="button"
+                onClick={() => setTratativaModalClient(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                Aluno: <strong style={{ color: '#fff' }}>{tratativaModalClient.dadosPessoais?.nome}</strong>
+              </p>
+
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>
+                Motivo / Desfecho da Abordagem:
+              </label>
+              <select
+                value={tratativaMotivo}
+                onChange={(e) => setTratativaMotivo(e.target.value)}
+                style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff', fontSize: '0.85rem', marginBottom: '14px' }}
+              >
+                <option value="Agendou reposição de treino">Agendou reposição de treino</option>
+                <option value="Em viagem / Férias justificadas">Em viagem / Férias justificadas</option>
+                <option value="Atestado médico / Afastamento clínico">Atestado médico / Afastamento clínico</option>
+                <option value="Reagendará na próxima semana">Reagendará na próxima semana</option>
+                <option value="Sem resposta no WhatsApp / Contatado">Sem resposta no WhatsApp / Contatado</option>
+                <option value="Outro motivo">Outro motivo</option>
+              </select>
+
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>
+                Observações Clínicas / Detalhes (Opcional):
+              </label>
+              <textarea
+                value={tratativaObs}
+                onChange={(e) => setTratativaObs(e.target.value)}
+                placeholder="Ex: Aluno informou que viajou a trabalho e retorna na segunda-feira..."
+                rows={3}
+                style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff', fontSize: '0.85rem', resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setTratativaModalClient(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  saveRetentionTratativa(tratativaModalClient._id, {
+                    motivo: tratativaMotivo,
+                    tipo: 'manual',
+                    obs: tratativaObs
+                  });
+                  setTratativaModalClient(null);
+                }}
+                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderColor: '#059669', color: '#fff', fontWeight: 700 }}
+              >
+                Salvar Tratativa
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
