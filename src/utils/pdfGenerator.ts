@@ -318,6 +318,12 @@ export async function downloadReportPDF(report: any) {
   }
   const logoBase64 = await getLogoBase64();
   
+  if (typeof document !== 'undefined' && document.fonts) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {}
+  }
+  
   const pdfWrapper = document.createElement('div');
   pdfWrapper.style.position = 'absolute';
   pdfWrapper.style.left = '0px';
@@ -354,6 +360,14 @@ export async function downloadReportPDF(report: any) {
   const pdfStyles = `
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        text-rendering: optimizeLegibility !important;
+      }
       html, body {
         margin: 0 !important;
         padding: 0 !important;
@@ -1348,8 +1362,8 @@ export async function downloadReportPDF(report: any) {
   const options = {
     margin: [10, 0, 10, 0],
     filename: `Relatorio_Fisioterapia_${client.dadosPessoais.nome.replace(/\s+/g, '_')}_${formatDate(report.data).replace(/\//g, '-')}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    image: { type: 'jpeg', quality: 1.0 },
+    html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
@@ -1559,6 +1573,12 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
 
   const logoBase64 = await getLogoBase64();
   const avatarB64 = await getAvatarBase64(client.dadosPessoais?.sexo || 'M');
+
+  if (typeof document !== 'undefined' && document.fonts) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {}
+  }
 
   let prof = assessment.avaliadorId || { nome: 'Avaliador', registro: 'CREF/CREFITO' };
   if (typeof prof === 'string') {
@@ -2096,6 +2116,14 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   pdfContainer.innerHTML = `
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        text-rendering: optimizeLegibility !important;
+      }
       html, body {
         margin: 0 !important;
         padding: 0 !important;
@@ -2928,8 +2956,8 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
   const options = {
     margin: [0, 0, 0, 0], // Margem zerada para bater com as dimensões exatas em mm do layout
     filename: filename,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    image: { type: 'jpeg', quality: 1.0 },
+    html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
@@ -3087,6 +3115,15 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
     return;
   }
 
+  // Pre-load assíncrono de fontes para garantir renderização vetorial e sem blur
+  if (typeof document !== 'undefined' && document.fonts) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      // Fallback gracioso
+    }
+  }
+
   const logoBase64 = await getLogoBase64();
   const fmtDate = (d: string) => {
     if (!d) return '-';
@@ -3158,6 +3195,14 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
   pdfContainer.innerHTML = `
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        text-rendering: optimizeLegibility !important;
+      }
       html, body {
         margin: 0 !important;
         padding: 0 !important;
@@ -3371,8 +3416,8 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
   const options = {
     margin: [10, 0, 10, 0],
     filename: `Prontuario_${nome.replace(/\s+/g, '_')}_${dataSessao.replace(/\//g, '-')}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    image: { type: 'jpeg', quality: 1.0 },
+    html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
@@ -3399,6 +3444,15 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
   if (!prontuarios || prontuarios.length === 0) {
     alert('Nenhum prontuário registrado para este aluno.');
     return;
+  }
+
+  // Pre-load assíncrono de fontes para garantir renderização vetorial e sem blur
+  if (typeof document !== 'undefined' && document.fonts) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      // Fallback gracioso
+    }
   }
 
   const logoBase64 = await getLogoBase64();
@@ -3468,6 +3522,14 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
   pdfContainer.innerHTML = `
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        text-rendering: optimizeLegibility !important;
+      }
       html, body {
         margin: 0 !important;
         padding: 0 !important;
@@ -3689,8 +3751,8 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
   const options = {
     margin: [10, 0, 10, 0],
     filename: `Prontuarios_${nome.replace(/\s+/g, '_')}_Historico_Completo.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    image: { type: 'jpeg', quality: 1.0 },
+    html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
@@ -4776,8 +4838,8 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
   const options = {
     margin: 0,
     filename: filename,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
+    image: { type: 'jpeg', quality: 1.0 },
+    html2canvas: { scale: 3.0, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: 794, width: 794, x: 0, y: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
