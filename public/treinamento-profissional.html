@@ -164,6 +164,81 @@
     </div>
   </div>
 
+  <!-- MODAL DO QUESTIONÁRIO WELLNESS (INTERATIVO) -->
+  <div id="modal-wellness" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 540px; border: 1.5px solid var(--neon-cyan);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="fontSize: 1.4rem;">🧘</span>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #fff;">Questionário Wellness do Dia</h3>
+          </div>
+          <p style="margin: 4px 0 0; font-size: 0.78rem; color: #94a3b8;">
+            Obrigatório para registrar a presença de <strong id="wellness-student-name" style="color: var(--neon-blue);">Chico Buarque</strong>.
+          </p>
+        </div>
+        <button onclick="closeModal('modal-wellness')" style="background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;">&times;</button>
+      </div>
+
+      <!-- Pergunta 1: Sono -->
+      <div style="background: rgba(0,0,0,0.3); padding: 12px 14px; border-radius: 12px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="font-size: 0.82rem; font-weight: 750; color: #fff;">1. Qualidade do Sono:</label>
+          <span id="txt-sono" style="font-size: 0.9rem; font-weight: 800; color: #eab308;">4/10</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 6px;" id="scale-sono"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8; margin-top: 4px;">
+          <span>1 = Péssimo / Insônia</span>
+          <span>10 = Excelente / Reparador</span>
+        </div>
+      </div>
+
+      <!-- Pergunta 2: Fadiga -->
+      <div style="background: rgba(0,0,0,0.3); padding: 12px 14px; border-radius: 12px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="font-size: 0.82rem; font-weight: 750; color: #fff;">2. Nível de Fadiga / Cansaço:</label>
+          <span id="txt-fadiga" style="font-size: 0.9rem; font-weight: 800; color: #10b981;">3/10</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 6px;" id="scale-fadiga"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8; margin-top: 4px;">
+          <span>1 = Disposto / Cheio de Energia</span>
+          <span>10 = Exaustão Extrema</span>
+        </div>
+      </div>
+
+      <!-- Pergunta 3: Dor Muscular -->
+      <div style="background: rgba(0,0,0,0.3); padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="font-size: 0.82rem; font-weight: 750; color: #fff;">3. Dor Muscular / Articular:</label>
+          <span id="txt-dor" style="font-size: 0.9rem; font-weight: 800; color: #10b981;">3/10</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 6px;" id="scale-dor"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8; margin-top: 4px;">
+          <span>1 = Sem Dor / Normal</span>
+          <span>10 = Dor Severa / Incapacitante</span>
+        </div>
+      </div>
+
+      <!-- Prévia do Score -->
+      <div id="wellness-preview-box" style="background: rgba(245, 158, 11, 0.12); border: 1px solid #f59e0b; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.75rem; font-weight: 800; color: #94a3b8;">WELLNESS SCORE PREVISTO:</span>
+          <strong id="wellness-score-txt" style="font-size: 1.1rem; color: #f59e0b;">18/30 pts • Moderado</strong>
+        </div>
+        <div style="font-size: 0.78rem; color: #fff; margin-top: 6px; font-weight: 700;">
+          👉 Conduta Técnica: <span id="wellness-conduta-txt" style="color: #f59e0b;">Reduzir carga de ombro direito em 20%</span>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button onclick="closeModal('modal-wellness')" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 700; cursor: pointer;">Cancelar</button>
+        <button onclick="confirmWellnessAndPresence()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-circle-check"></i> Confirmar Presença & Salvar Wellness
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DE CERTIFICADO -->
   <div id="modal-certificate" class="modal-overlay" style="display: none;">
     <div style="background: linear-gradient(145deg, #0f172a, #1e293b); border: 2px solid var(--neon-cyan); border-radius: 20px; max-width: 600px; width: 100%; padding: 32px; text-align: center; box-shadow: 0 0 40px rgba(0, 242, 254, 0.3);">
@@ -190,15 +265,15 @@
 
     const MODULES = [
       {
-        id: 1, title: 'Cockpit do Resumo do Dia & Janela Ativa', badge: 'Módulo 1', icon: 'fa-clipboard-list',
-        summary: 'Aprenda a operar o painel inicial de hoje, identificar a Janela Ativa de horário e marcar presença.',
+        id: 1, title: 'Cockpit do Resumo do Dia & Questionário Wellness na Presença', badge: 'Módulo 1', icon: 'fa-clipboard-list',
+        summary: 'Aprenda a operar o painel de hoje. Ao clicar em [✓ Presença], o sistema abre obrigatoriamente o Questionário Wellness de 1 minuto.',
         objectives: [
           'Identificar a Janela Ativa das 08:00 com o aluno Chico Buarque.',
-          'Verificar a conduta do Wellness.',
-          'Marcar a Presença do aluno.',
-          'Testar o botão Reverter caso clique em falta por engano.'
+          'Clicar no botão [✓ Presença] para abrir o Questionário Wellness.',
+          'Preencher os 3 pilares (Sono, Fadiga e Dor Muscular) e clicar em [Confirmar Presença & Salvar Wellness].',
+          'Conferir o status atualizado em verde com a conduta técnica calculada.'
         ],
-        faq: { q: 'Marquei presença errada. O que faço?', a: 'Clique em [Reverter] no card para voltar a "Agendado".' }
+        faq: { q: 'Por que o Wellness abre ao clicar em Presença?', a: 'O questionário de 1 minuto garante a segurança biológica do aluno antes do esforço.' }
       },
       {
         id: 2, title: 'Agenda Completa & Observações Clínicas', badge: 'Módulo 2', icon: 'fa-calendar-alt',
@@ -360,6 +435,22 @@
       renderSimContent();
     }
 
+    let wellnessSono = 4;
+    let wellnessFadiga = 3;
+    let wellnessDor = 3;
+    let studentWellnessMap = {};
+    let activeWellnessStudent = null;
+
+    function calculateWellness(s, f, d) {
+      const score = s + f + d;
+      if (s >= 8 && f >= 7) return { score, label: 'Estado Crítico', color: '#ef4444', conduta: 'Recovery Obrigatório' };
+      if (f >= 7 && d >= 6) return { score, label: 'Estado Ruim', color: '#f97316', conduta: 'Treino Livre ou Repouso' };
+      if (d >= 7) return { score, label: 'Ajuste por Dor Elevada', color: '#eab308', conduta: 'Treino Técnico Leve (sem carga)' };
+      if (score <= 8) return { score, label: 'Estado Ótimo', color: '#10b981', conduta: 'Treino Liberado / Cargas Normais' };
+      if (score <= 14) return { score, label: 'Estado Moderado', color: '#eab308', conduta: 'Reduzir volume em 20% e manguito' };
+      return { score, label: 'Estado Ruim', color: '#f97316', conduta: 'Treino Regenerativo' };
+    }
+
     function renderSimContent() {
       const container = document.getElementById('sim-content');
       if (simActiveTab === 'resumo_dia') {
@@ -367,6 +458,7 @@
         const chicoStatus = simPresencas['mpb-1'] || 'agendado';
         const milton = MPB_STUDENTS[4];
         const isTratado = Boolean(simTratativas['mpb-5']);
+        const chicoWellness = studentWellnessMap['mpb-1'];
 
         container.innerHTML = `
           <!-- Janela Ativa -->
@@ -385,12 +477,27 @@
                   ${chicoStatus === 'presenca' ? 'Presença Confirmada' : 'Aguardando Aluno'}
                 </span>
               </div>
-              <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
-                <div style="font-size: 0.76rem; font-weight: 800; color: #f59e0b;">🧘 Wellness: ${chico.wellnessScore}/30 • ${chico.wellnessStatus.toUpperCase()}</div>
-                <div style="font-size: 0.74rem; color: #cbd5e1; margin-top: 2px;">👉 ${chico.wellnessConduta}</div>
-              </div>
+              
+              ${chicoStatus === 'presenca' ? `
+                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-size: 0.76rem; font-weight: 800; color: ${chicoWellness ? chicoWellness.color : '#f59e0b'};">
+                      🧘 Wellness Realizado: ${chicoWellness ? chicoWellness.score : '18'}/30 • ${(chicoWellness ? chicoWellness.label : 'MODERADO').toUpperCase()}
+                    </div>
+                    <div style="font-size: 0.74rem; color: #cbd5e1; margin-top: 2px;">👉 ${chicoWellness ? chicoWellness.conduta : chico.wellnessConduta}</div>
+                  </div>
+                  <button onclick="openWellnessModal('mpb-1')" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; cursor: pointer; font-weight: 700;">Reavaliar</button>
+                </div>
+              ` : `
+                <div style="background: rgba(56, 189, 248, 0.05); border: 1px dashed rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 0.75rem; color: #94a3b8;">
+                  <i class="fa-solid fa-info-circle" style="color: #38bdf8;"></i> Ao clicar em <strong>[✓ Presença]</strong>, o formulário de <strong>Wellness do Dia (1 minuto)</strong> será aberto para registrar a prontidão física do aluno.
+                </div>
+              `}
+
               <div style="display: flex; gap: 8px;">
-                <button onclick="setPresenca('mpb-1', 'presenca')" style="flex: 1; background: #10b981; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer;"><i class="fa-solid fa-check"></i> Presença</button>
+                <button onclick="openWellnessModal('mpb-1')" style="flex: 1; background: #10b981; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <i class="fa-solid fa-check"></i> ${chicoStatus === 'presenca' ? 'Presença Registrada ✓' : 'Confirmar Presença'}
+                </button>
                 <button onclick="setPresenca('mpb-1', 'falta')" style="flex: 1; background: #ef4444; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 800; cursor: pointer;"><i class="fa-solid fa-xmark"></i> Falta</button>
                 ${chicoStatus !== 'agendado' ? `<button onclick="setPresenca('mpb-1', 'agendado')" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 8px; font-weight: 700; cursor: pointer;"><i class="fa-solid fa-rotate-left"></i> Reverter</button>` : ''}
               </div>
@@ -490,9 +597,65 @@
       }
     }
 
+    function openWellnessModal(studentId) {
+      activeWellnessStudent = MPB_STUDENTS.find(s => s.id === studentId);
+      document.getElementById('wellness-student-name').innerText = activeWellnessStudent.nome;
+      wellnessSono = 4;
+      wellnessFadiga = 3;
+      wellnessDor = 3;
+      updateWellnessScalesUI();
+      document.getElementById('modal-wellness').style.display = 'flex';
+    }
+
+    function updateWellnessScalesUI() {
+      const renderBtns = (containerId, currentVal, setFnName) => {
+        const c = document.getElementById(containerId);
+        c.innerHTML = [1,2,3,4,5,6,7,8,9,10].map(n => `
+          <button onclick="${setFnName}(${n})" style="background: ${currentVal === n ? (n <= 3 ? '#10b981' : n <= 7 ? '#eab308' : '#ef4444') : 'rgba(255,255,255,0.06)'}; color: ${currentVal === n ? '#0f172a' : '#cbd5e1'}; border: 1px solid ${currentVal === n ? '#fff' : 'rgba(255,255,255,0.12)'}; border-radius: 6px; padding: 6px 0; font-size: 0.8rem; font-weight: 800; cursor: pointer;">
+            ${n}
+          </button>
+        `).join('');
+      };
+
+      renderBtns('scale-sono', wellnessSono, 'setWellnessSonoVal');
+      renderBtns('scale-fadiga', wellnessFadiga, 'setWellnessFadigaVal');
+      renderBtns('scale-dor', wellnessDor, 'setWellnessDorVal');
+
+      document.getElementById('txt-sono').innerText = `${wellnessSono}/10`;
+      document.getElementById('txt-fadiga').innerText = `${wellnessFadiga}/10`;
+      document.getElementById('txt-dor').innerText = `${wellnessDor}/10`;
+
+      const res = calculateWellness(wellnessSono, wellnessFadiga, wellnessDor);
+      document.getElementById('wellness-score-txt').innerText = `${res.score}/30 pts • ${res.label}`;
+      document.getElementById('wellness-score-txt').style.color = res.color;
+      document.getElementById('wellness-conduta-txt').innerText = res.conduta;
+      document.getElementById('wellness-conduta-txt').style.color = res.color;
+      document.getElementById('wellness-preview-box').style.borderColor = res.color;
+    }
+
+    function setWellnessSonoVal(v) { wellnessSono = v; updateWellnessScalesUI(); }
+    function setWellnessFadigaVal(v) { wellnessFadiga = v; updateWellnessScalesUI(); }
+    function setWellnessDorVal(v) { wellnessDor = v; updateWellnessScalesUI(); }
+
+    function confirmWellnessAndPresence() {
+      if (activeWellnessStudent) {
+        const res = calculateWellness(wellnessSono, wellnessFadiga, wellnessDor);
+        simPresencas[activeWellnessStudent.id] = 'presenca';
+        studentWellnessMap[activeWellnessStudent.id] = {
+          score: res.score,
+          label: res.label,
+          color: res.color,
+          conduta: res.conduta
+        };
+        closeModal('modal-wellness');
+        showToast(`✅ Presença de ${activeWellnessStudent.nome} confirmada e Wellness (${res.score}/30) registrado!`);
+        renderSimContent();
+      }
+    }
+
     function setPresenca(studentId, status) {
       simPresencas[studentId] = status;
-      showToast(status === 'presenca' ? '✅ Presença registrada com sucesso!' : '🔄 Status atualizado.');
+      showToast(status === 'presenca' ? '✅ Presença registrada!' : '🔄 Status atualizado.');
       renderSimContent();
     }
 
@@ -539,3 +702,4 @@
   </script>
 </body>
 </html>
+

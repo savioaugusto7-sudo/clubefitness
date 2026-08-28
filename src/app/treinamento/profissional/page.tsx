@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { calculateWellness } from '@/utils/wellnessHelper';
 
 // =========================================================================
 // BANCO DE DADOS FICTÍCIO — ELENCO DA MÚSICA POPULAR BRASILEIRA (MPB)
@@ -220,22 +221,23 @@ interface TrainingModule {
 const MODULES: TrainingModule[] = [
   {
     id: 1,
-    title: 'Cockpit do Resumo do Dia & Janela Ativa',
+    title: 'Cockpit do Resumo do Dia & Questionário Wellness na Presença',
     badge: 'Módulo 1',
     icon: 'fa-clipboard-list',
-    summary: 'Aprenda a operar o painel inicial de atendimentos de hoje, identificar alunos na janela de tempo atual e ler o questionário diário de Wellness.',
+    summary: 'Aprenda a operar o painel inicial de atendimentos de hoje. Ao clicar em [✓ Presença], o sistema abre obrigatoriamente o Questionário Wellness de 1 minuto para avaliar prontidão antes do treino.',
     objectives: [
-      'Identificar o horário atual (Janela Ativa) e localizar o aluno que acabou de chegar.',
-      'Clicar em [Ver] no Badge de Wellness para entender a conduta recomendada.',
-      'Marcar a [Presença] do aluno Chico Buarque no horário das 08:00.',
-      'Aprender a reverter o status caso tenha clicado em Falta por engano.'
+      'Identificar o horário atual (Janela Ativa) das 08:00 com o aluno Chico Buarque.',
+      'Clicar no botão [✓ Presença].',
+      'Preencher os 3 pilares do Questionário Wellness (Sono, Fadiga e Dor Muscular de 1 a 10).',
+      'Visualizar a conduta técnica calculada em tempo real e clicar em [Confirmar Presença & Salvar Wellness].',
+      'Observar a presença confirmada em verde e o badge de conduta orientando a sessão.'
     ],
     spotlightTarget: 'btn-presenca-chico',
     requiredAction: 'marcar_presenca_chico',
     faqError: {
-      question: 'Marquei presença para o aluno errado ou cliquei em Falta sem querer. O que faço?',
-      solution: 'No bloco de atendimentos de hoje, localize o aluno e clique no botão [Reverter Status]. O agendamento voltará instantaneamente para "Agendado", permitindo marcar a opção correta.',
-      actionTip: 'No simulador, clique no botão "Reverter" para testar.'
+      question: 'Por que o Wellness abre automaticamente ao clicar em Presença?',
+      solution: 'O questionário rápido de 1 minuto garante a segurança biológica do aluno antes do esforço, calibrando cargas e prevenindo lesões musculares.',
+      actionTip: 'Se você clicar em Falta ou Cancelar, o questionário não é exigido.'
     }
   },
   {
@@ -362,7 +364,13 @@ export default function TreinamentoProfissionalPage() {
   // Modais do Simulador
   const [inspectModalApt, setInspectModalApt] = useState<any | null>(null);
   const [inspectObsInput, setInspectObsInput] = useState('');
-  const [showWellnessModal, setShowWellnessModal] = useState<MPBStudent | null>(null);
+  const [showWellnessModal, setShowWellnessModal] = useState(false);
+  const [activeWellnessStudent, setActiveWellnessStudent] = useState<MPBStudent | null>(null);
+  const [wellnessSono, setWellnessSono] = useState<number>(4);
+  const [wellnessFadiga, setWellnessFadiga] = useState<number>(3);
+  const [wellnessDor, setWellnessDor] = useState<number>(3);
+  const [studentWellnessMap, setStudentWellnessMap] = useState<Record<string, { score: number; status: string; statusColor: string; conduta: string }>>({});
+  
   const [showProntuarioModal, setShowProntuarioModal] = useState<MPBStudent | null>(null);
   const [showWorkoutModal, setShowWorkoutModal] = useState<MPBStudent | null>(null);
   const [showTratativaModal, setShowTratativaModal] = useState<MPBStudent | null>(null);
@@ -882,49 +890,69 @@ export default function TreinamentoProfissionalPage() {
                       </div>
 
                       {/* Badge Wellness do Dia */}
-                      <div style={{
-                        background: 'rgba(245, 158, 11, 0.08)',
-                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                        borderRadius: '8px',
-                        padding: '8px 12px',
-                        marginBottom: '12px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                        <div>
-                          <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#f59e0b' }}>
-                            🧘 Wellness do Dia: {chico.wellnessScore}/30 • {chico.wellnessStatus.toUpperCase()}
+                      {chicoStatus === 'presenca' ? (
+                        <div style={{
+                          background: 'rgba(245, 158, 11, 0.08)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                          marginBottom: '12px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '0.76rem', fontWeight: 800, color: studentWellnessMap['mpb-1']?.statusColor || '#f59e0b' }}>
+                              🧘 Wellness Realizado: {studentWellnessMap['mpb-1']?.score || 18}/30 • {(studentWellnessMap['mpb-1']?.status || 'MODERADO').toUpperCase()}
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '2px' }}>
+                              👉 {studentWellnessMap['mpb-1']?.conduta || 'Reduzir carga de ombro direito em 20% e focar em manguito'}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '0.74rem', color: '#cbd5e1', marginTop: '2px' }}>
-                            👉 {chico.wellnessConduta}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveWellnessStudent(chico);
+                              setShowWellnessModal(true);
+                            }}
+                            style={{
+                              background: 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.15)',
+                              color: '#fff',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              fontWeight: 700
+                            }}
+                          >
+                            Reavaliar
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowWellnessModal(chico)}
-                          style={{
-                            background: 'rgba(255,255,255,0.08)',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                            color: '#fff',
-                            borderRadius: '6px',
-                            padding: '4px 8px',
-                            fontSize: '0.72rem',
-                            cursor: 'pointer',
-                            fontWeight: 700
-                          }}
-                        >
-                          Ver Detalhes
-                        </button>
-                      </div>
+                      ) : (
+                        <div style={{
+                          background: 'rgba(56, 189, 248, 0.05)',
+                          border: '1px dashed rgba(56, 189, 248, 0.25)',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                          marginBottom: '12px',
+                          fontSize: '0.75rem',
+                          color: '#94a3b8'
+                        }}>
+                          <i className="fa-solid fa-info-circle" style={{ color: '#38bdf8' }}></i> Ao clicar em <strong>[✓ Presença]</strong>, o formulário de <strong>Wellness do Dia (1 minuto)</strong> será aberto para registrar a prontidão física do aluno.
+                        </div>
+                      )}
 
                       {/* Botões de Ação */}
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button
                           type="button"
                           onClick={() => {
-                            setSimPresencas(prev => ({ ...prev, 'mpb-1': 'presenca' }));
-                            triggerToast('✅ Presença de Chico Buarque registrada com sucesso!');
+                            setActiveWellnessStudent(chico);
+                            setWellnessSono(4);
+                            setWellnessFadiga(3);
+                            setWellnessDor(3);
+                            setShowWellnessModal(true);
                           }}
                           style={{
                             flex: 1,
@@ -935,10 +963,14 @@ export default function TreinamentoProfissionalPage() {
                             borderRadius: '8px',
                             fontWeight: 800,
                             fontSize: '0.8rem',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
                           }}
                         >
-                          <i className="fa-solid fa-check"></i> Presença
+                          <i className="fa-solid fa-check"></i> {chicoStatus === 'presenca' ? 'Presença Registrada ✓' : 'Confirmar Presença'}
                         </button>
 
                         <button
@@ -1590,49 +1622,175 @@ export default function TreinamentoProfissionalPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL SIMULADO 2: WELLNESS DIÁRIO                                         */}
+      {/* MODAL SIMULADO 2: QUESTIONÁRIO WELLNESS DO DIA (INTERATIVO)               */}
       {/* ========================================================================= */}
-      {showWellnessModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9000,
-          backdropFilter: 'blur(6px)',
-          padding: '16px'
-        }}>
-          <div style={{ background: '#1e293b', border: '1px solid #6366f1', borderRadius: '16px', maxWidth: '480px', width: '100%', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: '1.05rem', fontWeight: 800, color: '#818cf8' }}>
-              🧘 Questionário de Wellness — {showWellnessModal.nome}
-            </h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.82rem', color: '#cbd5e1' }}>
-              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px' }}>
-                <strong>Score de Prontidão:</strong> <span style={{ color: '#facc15' }}>{showWellnessModal.wellnessScore}/30</span>
-              </div>
-              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px' }}>
-                <strong>Queixa Reportada:</strong> <span>{showWellnessModal.queixa}</span>
-              </div>
-              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px' }}>
-                <strong>Conduta Técnica Recomendada:</strong> <span style={{ color: '#38bdf8' }}>{showWellnessModal.wellnessConduta}</span>
-              </div>
+      {showWellnessModal && activeWellnessStudent && (() => {
+        const currentResult = calculateWellness(wellnessSono, wellnessFadiga, wellnessDor);
+        const renderScale = (val: number, setVal: (v: number) => void, lowTxt: string, highTxt: string) => (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '4px', marginTop: '6px' }}>
+              {[1,2,3,4,5,6,7,8,9,10].map(num => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => setVal(num)}
+                  style={{
+                    background: val === num ? (num <= 3 ? '#10b981' : num <= 7 ? '#eab308' : '#ef4444') : 'rgba(255,255,255,0.06)',
+                    color: val === num ? '#0f172a' : '#cbd5e1',
+                    border: `1px solid ${val === num ? '#fff' : 'rgba(255,255,255,0.12)'}`,
+                    borderRadius: '6px',
+                    padding: '8px 0',
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {num}
+                </button>
+              ))}
             </div>
-
-            <div style={{ marginTop: '16px', textAlign: 'right' }}>
-              <button
-                type="button"
-                onClick={() => setShowWellnessModal(null)}
-                style={{ background: '#6366f1', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
-              >
-                Entendido
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px' }}>
+              <span>1 = {lowTxt}</span>
+              <span>10 = {highTxt}</span>
             </div>
           </div>
-        </div>
-      )}
+        );
+
+        return (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9000,
+            backdropFilter: 'blur(8px)',
+            padding: '16px'
+          }}>
+            <div style={{
+              background: '#1e293b',
+              border: `1.5px solid ${currentResult.statusColor}`,
+              borderRadius: '20px',
+              maxWidth: '540px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: `0 0 30px ${currentResult.statusColor}33`,
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.4rem' }}>🧘</span>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>
+                      Questionário Wellness do Dia
+                    </h3>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                    Obrigatório para registrar a presença de <strong style={{ color: '#38bdf8' }}>{activeWellnessStudent.nome}</strong>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowWellnessModal(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.4rem', cursor: 'pointer' }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Pergunta 1: Sono */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 14px', borderRadius: '12px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 750, color: '#fff' }}>1. Qualidade do Sono na Noite Anterior:</label>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: wellnessSono <= 3 ? '#10b981' : wellnessSono <= 7 ? '#eab308' : '#ef4444' }}>{wellnessSono}/10</span>
+                </div>
+                {renderScale(wellnessSono, setWellnessSono, 'Péssimo / Insônia', 'Excelente / Reparador')}
+              </div>
+
+              {/* Pergunta 2: Fadiga */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 14px', borderRadius: '12px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 750, color: '#fff' }}>2. Nível de Fadiga / Cansaço Atual:</label>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: wellnessFadiga <= 3 ? '#10b981' : wellnessFadiga <= 7 ? '#eab308' : '#ef4444' }}>{wellnessFadiga}/10</span>
+                </div>
+                {renderScale(wellnessFadiga, setWellnessFadiga, 'Disposto / Cheio de Energia', 'Exaustão Extrema')}
+              </div>
+
+              {/* Pergunta 3: Dor Muscular */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 14px', borderRadius: '12px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 750, color: '#fff' }}>3. Nível de Dor Muscular / Articular:</label>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: wellnessDor <= 3 ? '#10b981' : wellnessDor <= 7 ? '#eab308' : '#ef4444' }}>{wellnessDor}/10</span>
+                </div>
+                {renderScale(wellnessDor, setWellnessDor, 'Sem Dor / Normal', 'Dor Severa / Incapacitante')}
+              </div>
+
+              {/* Prévia do Score e Conduta */}
+              <div style={{
+                background: currentResult.statusBadgeBg,
+                border: `1px solid ${currentResult.statusColor}`,
+                borderRadius: '12px',
+                padding: '12px 14px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Wellness Score Calculado:</span>
+                  <strong style={{ fontSize: '1.1rem', color: currentResult.statusColor }}>{currentResult.score}/30 pts • {currentResult.statusLabel}</strong>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#fff', marginTop: '6px', fontWeight: 700 }}>
+                  👉 Conduta Técnica: <span style={{ color: currentResult.statusColor }}>{currentResult.conduta}</span>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowWellnessModal(false)}
+                  style={{ background: 'rgba(255,255,255,0.06)', color: '#cbd5e1', border: 'none', padding: '10px 16px', borderRadius: '10px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSimPresencas(prev => ({ ...prev, [activeWellnessStudent.id]: 'presenca' }));
+                    setStudentWellnessMap(prev => ({
+                      ...prev,
+                      [activeWellnessStudent.id]: {
+                        score: currentResult.score,
+                        status: currentResult.statusLabel,
+                        statusColor: currentResult.statusColor,
+                        conduta: currentResult.conduta
+                      }
+                    }));
+                    setShowWellnessModal(false);
+                    triggerToast(`✅ Presença de ${activeWellnessStudent.nome} confirmada e Wellness (${currentResult.score}/30) registrado com sucesso!`);
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '10px',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+                  }}
+                >
+                  <i className="fa-solid fa-circle-check"></i> Confirmar Presença & Salvar Wellness
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* MODAL SIMULADO 3: PRONTUÁRIO CLÍNICO 360°                                 */}
