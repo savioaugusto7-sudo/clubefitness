@@ -271,7 +271,10 @@ export async function PUT(request: Request) {
     await client.save();
 
     // 2. Update Proposal details and status to 'respondida'
+    const now = new Date();
     proposal.status = 'respondida';
+    proposal.abertoEm = now; // Atualiza a última visualização/interação no momento do aceite
+    proposal.visualizado = true;
     proposal.formaPagamentoEscolhida = formaPagamentoEscolhida;
     proposal.parcelasEscolhidas = parcelasEscolhidas;
     proposal.valorFinalRecalculado = valorFinalRecalculado;
