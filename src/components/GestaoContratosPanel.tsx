@@ -2224,8 +2224,12 @@ export default function GestaoContratosPanel({
     setCancelError('');
 
     try {
-      const contractId = contract?._id || allContractsMap[client._id]?._id || '';
-      const res = await fetch(`/api/contracts/cancel?clientId=${client._id}&contractId=${contractId}`);
+      const latestCt = contract || allContractsMap[client._id];
+      const contractId = latestCt?._id || '';
+      const dtInicio = latestCt?.dataInicio || client.dadosComerciais?.dataInicio || dcDataInicio || '';
+      const dtFim = latestCt?.dataFim || client.dadosComerciais?.dataFim || client.dadosComerciais?.vencimento || dcVencimento || '';
+
+      const res = await fetch(`/api/contracts/cancel?clientId=${client._id}&contractId=${contractId}&dataInicio=${encodeURIComponent(dtInicio)}&dataFim=${encodeURIComponent(dtFim)}`);
       const data = await res.json();
 
       if (data.success && data.data) {

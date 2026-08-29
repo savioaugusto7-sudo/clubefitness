@@ -66,29 +66,49 @@ export async function GET(req: Request) {
     // 3. Regra Oficial do Clube: Multa de 10% sobre o Valor Total do Contrato
     const multaPadrao10 = Number((valorTotalContrato * 0.10).toFixed(2));
 
-    // 4. Vigência de Acesso do Aluno
-    const vigenciaInicio = com.dataInicio || contract?.dataInicio || new Date().toISOString().split('T')[0];
-    const vigenciaFim = com.vencimento || contract?.vencimento || '';
+    const queryDataInicio = searchParams.get('dataInicio');
+    const queryDataFim = searchParams.get('dataFim');
+
+    // 4. Vigência de Acesso Oficial do Aluno
+    let vigenciaInicio = queryDataInicio || com.dataInicio || contract?.dataInicio || '';
+    if (vigenciaInicio && vigenciaInicio.startsWith('6202')) {
+      vigenciaInicio = vigenciaInicio.replace(/^6202/, '202');
+    }
+    if (!vigenciaInicio && com.contrato) {
+      const match = String(com.contrato).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (match) {
+        vigenciaInicio = `${match[3]}-${match[2]}-${match[1]}`;
+      }
+    }
+
+    let vigenciaFim = queryDataFim || com.dataFim || contract?.dataFim || com.vencimento || '';
+    if (vigenciaFim && vigenciaFim.startsWith('6202')) {
+      vigenciaFim = vigenciaFim.replace(/^6202/, '202');
+    }
 
     // 5. Sugestão Inteligente da Data de Encerramento do Ciclo Pago
-    // Procura o último pagamento quitado ou calcula o próximo ciclo mensal a partir do início
+    // Projeta o ciclo mensal corrente a partir do dia base oficial da data de início
     let dataSugeridaCiclo = new Date().toISOString().split('T')[0];
     if (paidPayments.length > 0) {
       const lastPaid = paidPayments[paidPayments.length - 1];
       if (lastPaid.vencimento) {
         const lastDue = new Date(lastPaid.vencimento + (lastPaid.vencimento.includes('T') ? '' : 'T12:00:00'));
-        // O período pago cobre até o vencimento seguinte (1 mês após o último vencimento quitado)
         lastDue.setMonth(lastDue.getMonth() + 1);
         dataSugeridaCiclo = lastDue.toISOString().split('T')[0];
       }
     } else if (vigenciaInicio) {
-      // Se não há parcelas registradas, sugere 30 dias a partir do início
       const startD = new Date(vigenciaInicio + (vigenciaInicio.includes('T') ? '' : 'T12:00:00'));
       const now = new Date();
+      // Avança de mês em mês a partir da data de início oficial mantendo o dia exato
       while (startD < now) {
         startD.setMonth(startD.getMonth() + 1);
       }
       dataSugeridaCiclo = startD.toISOString().split('T')[0];
+    }
+
+    // Se o término do ciclo ultrapassar a dataFim do contrato, limitar à dataFim
+    if (vigenciaFim && dataSugeridaCiclo > vigenciaFim) {
+      dataSugeridaCiclo = vigenciaFim;
     }
 
     // 6. Consulta de Itens Ativos no Asaas

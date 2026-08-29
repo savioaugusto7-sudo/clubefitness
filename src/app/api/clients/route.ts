@@ -244,9 +244,15 @@ export async function PUT(request: Request) {
         isRecorrente
       );
 
+      const firstVenc = dadosComerciais.dataPrimeiroVencimento || client.dadosComerciais?.dataPrimeiroVencimento || dadosComerciais.dataInicio || client.dadosComerciais?.dataInicio || '';
+      const diaVencNum = dadosComerciais.diaVencimento || client.dadosComerciais?.diaVencimento || (firstVenc ? parseInt(firstVenc.split('-')[2] || '5', 10) : 5);
+
       const merged = {
         ...dadosComerciais,
-        vencimento: calculatedEnd
+        dataFim: calculatedEnd,
+        vencimento: calculatedEnd,
+        dataPrimeiroVencimento: firstVenc,
+        diaVencimento: diaVencNum
       };
 
       if (merged.planoId && typeof merged.planoId === 'object' && (merged.planoId as any)._id) {
