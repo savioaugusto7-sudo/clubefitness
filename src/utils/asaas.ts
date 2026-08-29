@@ -321,3 +321,45 @@ export async function pauseAsaasSubscription(subscriptionId: string) {
   return handleError(res, 'Pausar Assinatura');
 }
 
+export async function deleteAsaasSubscription(subscriptionId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/subscriptions/${subscriptionId}`, {
+    method: 'DELETE',
+    headers,
+    signal: AbortSignal.timeout(8000)
+  });
+
+  return handleError(res, 'Cancelar Assinatura');
+}
+
+export async function listAsaasCustomerPayments(customerAsaasId: string, status?: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const query = status ? `customer=${customerAsaasId}&status=${status}` : `customer=${customerAsaasId}`;
+  const res = await fetch(`${baseUrl}/payments?${query}&limit=50`, {
+    method: 'GET',
+    headers,
+    signal: AbortSignal.timeout(8000)
+  });
+
+  const data = await handleError(res, 'Listar Cobranças do Cliente');
+  return data.data || [];
+}
+
+export async function getAsaasSubscription(subscriptionId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/subscriptions/${subscriptionId}`, {
+    method: 'GET',
+    headers,
+    signal: AbortSignal.timeout(8000)
+  });
+
+  return handleError(res, 'Consultar Assinatura');
+}
+
+

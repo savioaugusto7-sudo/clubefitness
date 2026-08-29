@@ -2197,8 +2197,111 @@ export default function GestaoContratosPanel({
     }
   };
 
-  // Cancel clicksign/manual contract
+  // ==========================================
+  // ESTADOS E HANDLERS: RESCISÃO & CANCELAMENTO INTELIGENTE
+  // ==========================================
+  const [showCancelContractModal, setShowCancelContractModal] = useState<boolean>(false);
+  const [cancelModalLoading, setCancelModalLoading] = useState<boolean>(false);
+  const [cancelModalClient, setCancelModalClient] = useState<any | null>(null);
+  const [cancelModalData, setCancelModalData] = useState<any | null>(null);
+  const [cancelDataEncerramento, setCancelDataEncerramento] = useState<string>('');
+  const [cancelAplicarMulta, setCancelAplicarMulta] = useState<boolean>(true);
+  const [cancelMultaValor, setCancelMultaValor] = useState<number>(0);
+  const [cancelMotivo, setCancelMotivo] = useState<string>('Acordo Amigável');
+  const [cancelObservacoes, setCancelObservacoes] = useState<string>('');
+  const [cancelAsaasSubscription, setCancelAsaasSubscription] = useState<boolean>(true);
+  const [cancelAsaasPayments, setCancelAsaasPayments] = useState<boolean>(true);
+  const [cancelInternalPayments, setCancelInternalPayments] = useState<boolean>(true);
+  const [cancelSubmitting, setCancelSubmitting] = useState<boolean>(false);
+  const [cancelError, setCancelError] = useState<string>('');
+  const [showAsaasChargesDetail, setShowAsaasChargesDetail] = useState<boolean>(false);
+
+  const handleOpenCancelContractModal = async (client: any, contract?: any) => {
+    if (!client) return;
+    setCancelModalClient(client);
+    setShowCancelContractModal(true);
+    setCancelModalLoading(true);
+    setCancelError('');
+
+    try {
+      const contractId = contract?._id || allContractsMap[client._id]?._id || '';
+      const res = await fetch(`/api/contracts/cancel?clientId=${client._id}&contractId=${contractId}`);
+      const data = await res.json();
+
+      if (data.success && data.data) {
+        setCancelModalData(data.data);
+        const fin = data.data.financeiro;
+        setCancelDataEncerramento(fin.dataSugeridaCiclo || new Date().toISOString().split('T')[0]);
+        setCancelAplicarMulta(true);
+        setCancelMultaValor(fin.multaPadrao10 || 0);
+        setCancelAsaasSubscription(Boolean(data.data.asaas?.subscription));
+        setCancelAsaasPayments(Boolean(data.data.asaas?.pendingCharges?.length > 0));
+        setCancelInternalPayments(true);
+      } else {
+        setCancelError(data.error || 'Erro ao carregar dados de rescisão.');
+      }
+    } catch (err: any) {
+      setCancelError(err.message || 'Erro de conexão.');
+    } finally {
+      setCancelModalLoading(false);
+    }
+  };
+
+  const handleConfirmCancelContract = async () => {
+    if (!cancelModalClient) return;
+    setCancelSubmitting(true);
+    setCancelError('');
+
+    try {
+      const contractId = cancelModalData?.contract?._id || allContractsMap[cancelModalClient._id]?._id || '';
+      const fineToApply = cancelAplicarMulta ? Number(cancelMultaValor || 0) : 0;
+
+      const payload = {
+        clientId: cancelModalClient._id,
+        contractId,
+        dataEncerramento: cancelDataEncerramento,
+        aplicarMulta: cancelAplicarMulta,
+        multaValor: fineToApply,
+        saldoAcerto: fineToApply,
+        motivo: cancelMotivo,
+        observacoes: cancelObservacoes,
+        cancelarAsaasSubscription: cancelAsaasSubscription,
+        cancelarAsaasPayments: cancelAsaasPayments,
+        cancelarInternalPayments: cancelInternalPayments
+      };
+
+      const res = await fetch('/api/contracts/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alert(`✅ Rescisão concluída com sucesso!\nAcesso do aluno válido até ${cancelDataEncerramento}.`);
+        setShowCancelContractModal(false);
+        setCancelModalClient(null);
+        setCancelModalData(null);
+        if (selectedClient?._id === cancelModalClient._id) {
+          loadContracts(selectedClient._id);
+        }
+        fetchData();
+      } else {
+        setCancelError(data.error || 'Erro ao executar rescisão.');
+      }
+    } catch (err: any) {
+      setCancelError(err.message || 'Erro de conexão.');
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
+
+  // Cancel clicksign/manual contract legado
   const handleCancelContract = async (contractId: string, clientNome: string) => {
+    if (selectedClient) {
+      handleOpenCancelContractModal(selectedClient);
+      return;
+    }
     if (!confirm(`Cancelar o contrato de ${clientNome}? Esta ação não pode ser desfeita.`)) return;
     try {
       const res = await fetch(`/api/clicksign?id=${contractId}`, { method: 'DELETE' });
@@ -5480,6 +5583,31 @@ export default function GestaoContratosPanel({
               title="Lança as parcelas diretamente no Controle Financeiro (Dinheiro, Maquininha Balcão ou Transferência)"
             >
               <i className="fa-solid fa-file-invoice-dollar"></i> Lançar Parcelas no Financeiro (Manual)
+            </button>
+
+            {/* Rescisão & Cancelamento de Contrato com Calculadora */}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => handleOpenCancelContractModal(selectedClient)}
+              style={{
+                width: '100%',
+                minHeight: '40px',
+                color: '#f87171',
+                borderColor: 'rgba(239, 68, 68, 0.4)',
+                background: 'rgba(239, 68, 68, 0.08)',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                display: 'flex',
+                gap: '8px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              title="Abrir Calculadora de Rescisão e Cancelamento de Contrato"
+            >
+              <i className="fa-solid fa-ban"></i> Rescindir / Cancelar Contrato
             </button>
           </div>
         </div>
@@ -8962,6 +9090,358 @@ export default function GestaoContratosPanel({
           </div>
         );
       })()}
+
+      {/* =========================================================================
+          MODAL EXECUTIVO: RESCISÃO & CANCELAMENTO DE CONTRATO COM CALCULADORA
+          ========================================================================= */}
+      {showCancelContractModal && cancelModalClient && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, padding: '20px' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '18px', width: '100%', maxWidth: '680px', maxHeight: '92vh', overflowY: 'auto', padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 50px rgba(0,0,0,0.7)' }}>
+            
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f87171', fontSize: '1.2rem' }}>
+                  <i className="fa-solid fa-ban"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc' }}>Rescisão & Cancelamento de Contrato</h3>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Aluno: <strong style={{ color: '#f8fafc' }}>{cancelModalClient.dadosPessoais?.nome || cancelModalClient.nome}</strong> • Plano: <span style={{ color: '#38bdf8' }}>{cancelModalData?.contract?.planoNome || 'Plano Atual'}</span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => !cancelSubmitting && setShowCancelContractModal(false)} 
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.4rem', cursor: 'pointer', padding: '4px' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {cancelModalLoading ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                <i className="fa-solid fa-circle-notch fa-spin fa-2x" style={{ color: '#38bdf8', marginBottom: '12px' }}></i>
+                <div style={{ fontSize: '0.9rem' }}>Carregando dados financeiros e integrados do Asaas...</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* BLOCO 1: DEFINIR DATA OFICIAL DE ENCERRAMENTO DO ACESSO */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-calendar-check"></i> 1. Vigência de Acesso & Data Oficial de Término
+                  </div>
+
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                    Escolha a data em que o acesso do aluno ao Clube será encerrado. Sugerimos a data de término do ciclo mensal já quitado para que o aluno usufrua do período pago:
+                  </div>
+
+                  {/* Atalhos Rápidos de Seleção */}
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {cancelModalData?.financeiro?.dataSugeridaCiclo && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelDataEncerramento(cancelModalData.financeiro.dataSugeridaCiclo)}
+                        style={{
+                          background: cancelDataEncerramento === cancelModalData.financeiro.dataSugeridaCiclo ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.04)',
+                          border: cancelDataEncerramento === cancelModalData.financeiro.dataSugeridaCiclo ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                          color: cancelDataEncerramento === cancelModalData.financeiro.dataSugeridaCiclo ? '#38bdf8' : '#cbd5e1',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🌟 Término do Ciclo Quitado ({new Date(cancelModalData.financeiro.dataSugeridaCiclo + 'T12:00:00').toLocaleDateString('pt-BR')})
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setCancelDataEncerramento(new Date().toISOString().split('T')[0])}
+                      style={{
+                        background: cancelDataEncerramento === new Date().toISOString().split('T')[0] ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.04)',
+                        border: cancelDataEncerramento === new Date().toISOString().split('T')[0] ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.08)',
+                        color: cancelDataEncerramento === new Date().toISOString().split('T')[0] ? '#f87171' : '#cbd5e1',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ⚡ Encerramento Imediato (Hoje)
+                    </button>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Data Limite de Acesso (Vigência Final)
+                    </label>
+                    <input
+                      type="date"
+                      value={cancelDataEncerramento}
+                      onChange={e => setCancelDataEncerramento(e.target.value)}
+                      style={{ padding: '9px 12px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', width: '100%', fontSize: '0.88rem', fontWeight: 700 }}
+                    />
+                  </div>
+                </div>
+
+                {/* BLOCO 2: CALCULADORA RESCISÓRIA OFICIAL (10% SOBRE O VALOR TOTAL) */}
+                <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f87171', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-calculator"></i> 2. Calculadora de Rescisão (10% sobre o Total do Contrato)
+                    </span>
+                    <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                      Regra Contratual
+                    </span>
+                  </div>
+
+                  {/* Cards Métricos */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Valor Total Contratado</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#f8fafc', marginTop: '2px' }}>
+                        R$ {Number(cancelModalData?.financeiro?.valorTotalContrato || 0).toFixed(2).replace('.', ',')}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Total Quitado</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#34d399', marginTop: '2px' }}>
+                        R$ {Number(cancelModalData?.financeiro?.valorPagoTotal || 0).toFixed(2).replace('.', ',')}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                        {cancelModalData?.financeiro?.parcelasPagasCount || 0} parcela(s) paga(s)
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Multa Rescisória (10%)</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 900, color: cancelAplicarMulta ? '#f87171' : '#94a3b8', marginTop: '2px' }}>
+                        {cancelAplicarMulta ? `R$ ${Number(cancelMultaValor || 0).toFixed(2).replace('.', ',')}` : 'R$ 0,00 (Isenta)'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Toggle de Isenção de Multa */}
+                  <div 
+                    style={{ 
+                      background: !cancelAplicarMulta ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.03)', 
+                      border: '1px solid',
+                      borderColor: !cancelAplicarMulta ? '#10b981' : 'rgba(255,255,255,0.08)', 
+                      borderRadius: '10px', 
+                      padding: '10px 14px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => setCancelAplicarMulta(!cancelAplicarMulta)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input
+                        type="checkbox"
+                        checked={!cancelAplicarMulta}
+                        onChange={() => setCancelAplicarMulta(!cancelAplicarMulta)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#10b981' }}
+                      />
+                      <div>
+                        <strong style={{ fontSize: '0.84rem', color: !cancelAplicarMulta ? '#34d399' : '#f8fafc', display: 'block' }}>
+                          ✨ Rescindir sem Aplicar Multa (Isenção / Acordo Amigável)
+                        </strong>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                          Zera a cobrança da multa de 10% em caso de atestado médico, mudança de cidade ou acordo.
+                        </span>
+                      </div>
+                    </div>
+                    {!cancelAplicarMulta && (
+                      <span style={{ fontSize: '0.72rem', background: '#10b981', color: '#000', fontWeight: 800, padding: '2px 8px', borderRadius: '4px' }}>
+                        Multa Isenta
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* BLOCO 3: GESTÃO & CONTROLE INTEGRADO ASAAS */}
+                <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-credit-card"></i> 3. Gestão Integrada Asaas (Controle do Administrador)
+                    </span>
+                    <span style={{ fontSize: '0.7rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                      Gateway Financeiro
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* Assinatura Asaas */}
+                    {cancelModalData?.asaas?.subscription ? (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)', cursor: 'pointer', margin: 0 }}>
+                        <input
+                          type="checkbox"
+                          checked={cancelAsaasSubscription}
+                          onChange={e => setCancelAsaasSubscription(e.target.checked)}
+                          style={{ width: '18px', height: '18px', accentColor: '#38bdf8', cursor: 'pointer' }}
+                        />
+                        <div>
+                          <strong style={{ fontSize: '0.82rem', color: '#f8fafc', display: 'block' }}>
+                            🔄 Cancelar Assinatura Recorrente no Asaas
+                          </strong>
+                          <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                            ID: <code>{cancelModalData.asaas.subscription.id}</code> • R$ {Number(cancelModalData.asaas.subscription.value || 0).toFixed(2).replace('.', ',')}/mês ({cancelModalData.asaas.subscription.status})
+                          </span>
+                        </div>
+                      </label>
+                    ) : (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', padding: '6px 0' }}>
+                        ℹ️ Nenhuma assinatura recorrente ativa vinculada no Asaas.
+                      </div>
+                    )}
+
+                    {/* Cobranças Pendentes Asaas */}
+                    {cancelModalData?.asaas?.pendingCharges && cancelModalData.asaas.pendingCharges.length > 0 ? (
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', margin: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={cancelAsaasPayments}
+                            onChange={e => setCancelAsaasPayments(e.target.checked)}
+                            style={{ width: '18px', height: '18px', accentColor: '#38bdf8', cursor: 'pointer' }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <strong style={{ fontSize: '0.82rem', color: '#f8fafc', display: 'block' }}>
+                              📄 Cancelar Cobranças / Boletos Pendentes no Asaas ({cancelModalData.asaas.pendingCharges.length} faturas)
+                            </strong>
+                            <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                              Cancela faturas com vencimento posterior à data de encerramento ({cancelDataEncerramento}).
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={e => { e.preventDefault(); setShowAsaasChargesDetail(!showAsaasChargesDetail); }}
+                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', padding: '3px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer' }}
+                          >
+                            {showAsaasChargesDetail ? 'Ocultar Detalhes' : 'Ver Faturas'}
+                          </button>
+                        </label>
+
+                        {showAsaasChargesDetail && (
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+                            {cancelModalData.asaas.pendingCharges.map((ch: any) => (
+                              <div key={ch.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: '#cbd5e1', padding: '2px 0' }}>
+                                <span>{ch.description || 'Parcela'} (ID: <code>{ch.id}</code>)</span>
+                                <span>Venc: <strong>{new Date(ch.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}</strong> • <strong>R$ {Number(ch.value).toFixed(2).replace('.', ',')}</strong></span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', padding: '6px 0' }}>
+                        ℹ️ Nenhuma cobrança/boleto pendente encontrada no Asaas para este aluno.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* BLOCO 4: MOTIVO & OBSERVAÇÕES */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Motivo da Rescisão <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <select
+                      value={cancelMotivo}
+                      onChange={e => setCancelMotivo(e.target.value)}
+                      style={{ padding: '9px 12px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', width: '100%', fontSize: '0.84rem' }}
+                    >
+                      <option value="Acordo Amigável">🤝 Acordo Amigável</option>
+                      <option value="Mudança de Cidade">✈️ Mudança de Cidade / Domicílio</option>
+                      <option value="Problema de Saúde / Atestado">🏥 Problema de Saúde / Atestado Médico</option>
+                      <option value="Dificuldades Financeiras">💵 Dificuldades Financeiras</option>
+                      <option value="Insatisfação / Motivos Pessoais">👤 Motivos Pessoais / Outros</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Observações da Rescisão
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Aluno apresentou atestado / Isenção acordada"
+                      value={cancelObservacoes}
+                      onChange={e => setCancelObservacoes(e.target.value)}
+                      style={{ padding: '9px 12px', background: 'var(--bg-darker)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '8px', width: '100%', fontSize: '0.84rem' }}
+                    />
+                  </div>
+                </div>
+
+                {/* RESUMO EXECUTIVO DO ACERTO */}
+                <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Balanço Final do Acerto</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 900, color: cancelAplicarMulta ? '#f87171' : '#34d399' }}>
+                      {cancelAplicarMulta ? `💰 Cobrar Multa: R$ ${Number(cancelMultaValor || 0).toFixed(2).replace('.', ',')}` : '✅ Quitado / Sem Multa'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', textAlign: 'right' }}>
+                    Término de Acesso: <strong style={{ color: '#38bdf8' }}>{new Date(cancelDataEncerramento + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>
+                  </div>
+                </div>
+
+                {cancelError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.82rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    ⚠️ {cancelError}
+                  </div>
+                )}
+
+                {/* Footer de Confirmação */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowCancelContractModal(false)}
+                    disabled={cancelSubmitting}
+                    style={{ padding: '9px 18px', borderRadius: '8px' }}
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleConfirmCancelContract}
+                    disabled={cancelSubmitting || !cancelDataEncerramento}
+                    style={{
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      border: 'none',
+                      color: '#fff',
+                      fontWeight: 800,
+                      padding: '9px 22px',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: cancelSubmitting ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)'
+                    }}
+                  >
+                    {cancelSubmitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-ban"></i>}
+                    Confirmar Rescisão Contratual
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
