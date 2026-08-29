@@ -249,32 +249,63 @@ export async function createClicksignDocument(
   await handleError(reqAuthRes, 'Criar Requisito de Autenticação via WhatsApp');
 
   // ──────────────────────────────────────────────────────────
-  // PASSO 4c — Adicionar Signatário da Clínica (Albert Nunes Queiroz dos Santos - E-mail)
+  // PASSO 4c — Adicionar Signatário da Clínica (Auto-Assinatura no Envio)
   // ──────────────────────────────────────────────────────────
   const adminName = process.env.CLICKSIGN_ADMIN_NAME || 'Albert Nunes Queiroz dos Santos';
   const adminEmail = process.env.CLICKSIGN_ADMIN_EMAIL || 'clubefitnessbh@gmail.com';
+  const adminCpf = process.env.CLICKSIGN_ADMIN_CPF || '';
+  const adminBirthday = process.env.CLICKSIGN_ADMIN_BIRTHDAY || '';
 
-  const adminSignerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      data: {
-        type: 'signers',
-        attributes: {
-          name: adminName,
-          email: adminEmail,
-          communicate_events: {
-            signature_request: 'email',
-            signature_reminder: 'none',
-            document_signed: 'email'
+  const adminSignerAttributes: any = {
+    name: adminName,
+    email: adminEmail,
+    communicate_events: {
+      signature_request: 'none',
+      signature_reminder: 'none',
+      document_signed: 'email'
+    }
+  };
+  if (adminCpf) adminSignerAttributes.documentation = adminCpf;
+  if (adminBirthday) adminSignerAttributes.birthday = adminBirthday;
+  if (adminCpf && adminBirthday) adminSignerAttributes.auth = 'auto_signature';
+
+  let adminSignerId = '';
+  try {
+    const adminSignerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          type: 'signers',
+          attributes: adminSignerAttributes
+        }
+      })
+    });
+    const adminSignerData = await handleError(adminSignerRes, 'Adicionar Signatário da Clínica');
+    adminSignerId = adminSignerData.data?.id;
+  } catch (autoSignerErr: any) {
+    console.warn('Clicksign: Tentativa com auto_signature falhou no signer, tentando formato padrão:', autoSignerErr.message);
+    const fallbackSignerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          type: 'signers',
+          attributes: {
+            name: adminName,
+            email: adminEmail,
+            communicate_events: {
+              signature_request: 'email',
+              signature_reminder: 'none',
+              document_signed: 'email'
+            }
           }
         }
-      }
-    })
-  });
-
-  const adminSignerData = await handleError(adminSignerRes, 'Adicionar Signatário da Clínica');
-  const adminSignerId = adminSignerData.data?.id;
+      })
+    });
+    const fallbackData = await handleError(fallbackSignerRes, 'Adicionar Signatário da Clínica (Fallback)');
+    adminSignerId = fallbackData.data?.id;
+  }
 
   if (adminSignerId) {
     // Qualificação da Clínica (Contratada)
@@ -297,25 +328,60 @@ export async function createClicksignDocument(
     });
     await handleError(clinicQualRes, 'Criar Requisito de Qualificação da Clínica');
 
-    // Autenticação da Clínica via E-mail
-    const clinicAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        data: {
-          type: 'requirements',
-          attributes: {
-            action: 'provide_evidence',
-            auth: 'email'
-          },
-          relationships: {
-            document: { data: { type: 'documents', id: documentId } },
-            signer: { data: { type: 'signers', id: adminSignerId } }
-          }
+    // Tentativa Primária: Requisito de Auto-Assinatura da Clínica (Zero Cliques)
+    let autoSignReqSuccess = false;
+    if (adminCpf && adminBirthday) {
+      try {
+        const clinicAutoReqRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            data: {
+              type: 'requirements',
+              attributes: {
+                action: 'provide_evidence',
+                auth: 'auto_signature'
+              },
+              relationships: {
+                document: { data: { type: 'documents', id: documentId } },
+                signer: { data: { type: 'signers', id: adminSignerId } }
+              }
+            }
+          })
+        });
+        if (clinicAutoReqRes.ok) {
+          autoSignReqSuccess = true;
+          console.log('Clicksign: Requisito de Auto-Assinatura da Clínica criado com sucesso!');
+        } else {
+          const errJson = await clinicAutoReqRes.json().catch(() => ({}));
+          console.warn('Clicksign: Auto-assinatura não autorizada na conta, aplicando fallback para e-mail:', JSON.stringify(errJson));
         }
-      })
-    });
-    await handleError(clinicAuthRes, 'Criar Requisito de Autenticação da Clínica');
+      } catch (reqErr: any) {
+        console.warn('Clicksign: Erro ao registrar auto_signature requirement:', reqErr.message);
+      }
+    }
+
+    if (!autoSignReqSuccess) {
+      // Fallback seguro: Autenticação da Clínica via E-mail
+      const clinicAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: 'requirements',
+            attributes: {
+              action: 'provide_evidence',
+              auth: 'email'
+            },
+            relationships: {
+              document: { data: { type: 'documents', id: documentId } },
+              signer: { data: { type: 'signers', id: adminSignerId } }
+            }
+          }
+        })
+      });
+      await handleError(clinicAuthRes, 'Criar Requisito de Autenticação da Clínica (Fallback Email)');
+    }
   }
 
   // ──────────────────────────────────────────────────────────

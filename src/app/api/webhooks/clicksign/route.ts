@@ -36,11 +36,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    const isSignEvent = ['envelope.finished', 'signatory.signed', 'sign', 'close']
-      .some(e => eventType.includes(e));
+    const isSignEvent = ['envelope.finished', 'envelope.closed', 'signatory.signed', 'signer.signed', 'document.signed', 'sign', 'close']
+      .some(e => eventType.toLowerCase().includes(e));
 
-    const isCancelEvent = ['envelope.canceled', 'cancel']
-      .some(e => eventType.includes(e));
+    const isCancelEvent = ['envelope.canceled', 'cancel', 'closed_canceled']
+      .some(e => eventType.toLowerCase().includes(e));
 
     if (isSignEvent) {
       // ── EVENTO DE ASSINATURA / CONCLUSÃO ──────────────────
