@@ -197,7 +197,7 @@ export async function POST(request: Request) {
     const _pr = Professional;
     const _a = Appointment;
     const body = await request.json();
-    const { data, horario, servico, profissionalId: requestedProfId, clienteId, bypassRestrictions } = body;
+    const { data, horario, servico, profissionalId: requestedProfId, clienteId, bypassRestrictions, remanejarDeAptId } = body;
 
     const servicoConfig = SERVICOS_CONFIG[servico];
     if (!servicoConfig) {
@@ -206,6 +206,16 @@ export async function POST(request: Request) {
 
     let tipoCredito = servicoConfig.tipoCredito;
     const tipo = body.tipo || servicoConfig.tipo || 'academia';
+
+    // Suporte a Troca de Horário Inteligente (Remanejamento)
+    let isRemanejamento = false;
+    let prevApt: any = null;
+    if (remanejarDeAptId) {
+      prevApt = await Appointment.findById(remanejarDeAptId);
+      if (prevApt && prevApt.status === 'agendado') {
+        isRemanejamento = true;
+      }
+    }
 
     // Restrição da regra de liberação de agenda para alunos (sexta 18h)
     const session = await getServerSession(authOptions);
@@ -372,8 +382,8 @@ export async function POST(request: Request) {
     let isEmergenciaExtra = false;
 
     // --- Validar créditos conforme tipoCredito ---
-    if (tipoCredito !== 'nenhum' && !bypassRestrictions) {
-      const com = client.dadosComerciais;
+    if (tipoCredito !== 'nenhum' && !bypassRestrictions && !isRemanejamento) {
+      const com = client.dadosComerciais || {};
 
       if (tipoCredito === 'academia') {
         let total = com.creditosTotal || 0;
@@ -475,9 +485,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // --- Incrementar reservas no modelo Client ---
-    if (tipoCredito !== 'nenhum') {
-      const com = client.dadosComerciais;
+    // --- Se for remanejamento, cancelar o agendamento anterior atomicamente ---
+    if (isRemanejamento && prevApt) {
+      prevApt.status = 'cancelado';
+      const obsRemanejo = `[Troca de Horário] Remanejado para ${data} às ${horario}`;
+      prevApt.observacoes = prevApt.observacoes ? `${prevApt.observacoes} | ${obsRemanejo}` : obsRemanejo;
+      prevApt.observacaoDataHora = new Date();
+      await prevApt.save();
+    }
+
+    // --- Incrementar reservas no modelo Client apenas se NÃO for remanejamento (remanejamento reaproveita a reserva) ---
+    if (tipoCredito !== 'nenhum' && !isRemanejamento) {
+      const com = client.dadosComerciais || {};
       if (tipoCredito === 'academia') {
         com.creditosReservados = (com.creditosReservados || 0) + cost;
       } else if (tipoCredito === 'massagem') {

@@ -602,7 +602,7 @@ export default function AgendaCompletaPanel({
     }
   };
 
-  const handleManualBook = async () => {
+  const handleManualBook = async (remanejarDeAptId?: string) => {
     setBookingError('');
     let targetClientId = manualClientId;
     
@@ -638,7 +638,7 @@ export default function AgendaCompletaPanel({
       defaultProfId = professionals[0]?._id || '6668ab030303030303030302';
     }
 
-    const payload = {
+    const payload: any = {
       data: selectedDate,
       horario: selectedSlot?.horario,
       tipo: selectedSlot?.tipo || activeTab,
@@ -648,6 +648,10 @@ export default function AgendaCompletaPanel({
       bypassRestrictions: true
     };
 
+    if (remanejarDeAptId) {
+      payload.remanejarDeAptId = remanejarDeAptId;
+    }
+
     try {
       const res = await fetch('/api/appointments', {
         method: 'POST',
@@ -656,7 +660,7 @@ export default function AgendaCompletaPanel({
       });
       const data = await res.json();
       if (data.success) {
-        showFeedback('Cliente agendado com sucesso!', 'success');
+        showFeedback(remanejarDeAptId ? 'Horário remanejado com sucesso!' : 'Cliente agendado com sucesso!', 'success');
         setManualClientId('');
         setClientSearchText('');
         setBookingError('');
@@ -1561,6 +1565,54 @@ export default function AgendaCompletaPanel({
                       </select>
                     </div>
 
+                    {/* Detecção de Agendamento no mesmo dia para Troca de Horário */}
+                    {(() => {
+                      const existingSameDayApt = manualClientId && selectedDate && selectedSlot
+                        ? slots.flatMap(s => s.appointments || []).find(a => ((a.clienteId?._id || a.clienteId) === manualClientId) && a.status === 'agendado' && a.horario !== selectedSlot.horario)
+                        : null;
+
+                      if (!existingSameDayApt) return null;
+
+                      return (
+                        <div style={{
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          flexWrap: 'wrap'
+                        }}>
+                          <div style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600 }}>
+                            <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '6px' }}></i>
+                            Aluno já possui horário às <strong>{existingSameDayApt.horario}</strong> ({existingSameDayApt.servico}).
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleManualBook(existingSameDayApt._id)}
+                            disabled={isBookingManual}
+                            style={{
+                              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                              color: '#000',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '8px 14px',
+                              fontWeight: 800,
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <i className="fa-solid fa-arrow-right-arrow-left"></i> Trocar para {selectedSlot?.horario}
+                          </button>
+                        </div>
+                      );
+                    })()}
+
                     {bookingError && (
                       <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(239,68,68,0.1)', padding: '8px 12px', borderRadius: '8px' }}>
                         <i className="fa-solid fa-triangle-exclamation"></i> {bookingError}
@@ -1570,7 +1622,7 @@ export default function AgendaCompletaPanel({
                     <button
                       type="button"
                       className="btn btn-primary"
-                      onClick={handleManualBook}
+                      onClick={() => handleManualBook()}
                       disabled={isBookingManual}
                       style={{
                         alignSelf: 'flex-end',
@@ -1591,7 +1643,7 @@ export default function AgendaCompletaPanel({
                         </>
                       ) : (
                         <>
-                          <i className="fa-solid fa-calendar-check"></i> Confirmar Agendamento
+                          <i className="fa-solid fa-calendar-check"></i> Confirmar Encaixe / Agendamento
                         </>
                       )}
                     </button>

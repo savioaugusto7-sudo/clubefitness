@@ -196,11 +196,43 @@ export default function AgendamentoProfissionalPanel({
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'danger' } | null>(null);
 
+  // Detecção de Agendamentos Existentes no mesmo dia para Troca de Horário Inteligente
+  const [existingDayAppointments, setExistingDayAppointments] = useState<any[]>([]);
+  const [loadingDayAppointments, setLoadingDayAppointments] = useState(false);
+
   useEffect(() => {
     if (currentProfessionalId && !selectedProfId) {
       setSelectedProfId(currentProfessionalId);
     }
   }, [currentProfessionalId, selectedProfId]);
+
+  // Buscar agendamentos que o aluno já possui na data selecionada
+  useEffect(() => {
+    if (!selectedClient?._id || !selectedDate) {
+      setExistingDayAppointments([]);
+      return;
+    }
+    let isMounted = true;
+    const fetchExisting = async () => {
+      setLoadingDayAppointments(true);
+      try {
+        const res = await fetch(`/api/appointments?clientId=${selectedClient._id}&date=${selectedDate}`);
+        const json = await res.json();
+        if (isMounted && json.success) {
+          const active = (json.data || []).filter((a: any) => a.status === 'agendado');
+          setExistingDayAppointments(active);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar agendamentos do dia:', err);
+      } finally {
+        if (isMounted) setLoadingDayAppointments(false);
+      }
+    };
+    fetchExisting();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedClient, selectedDate]);
 
   // Alunos filtrados pela busca multi-termos
   const filteredStudents = useMemo(() => {
@@ -280,8 +312,8 @@ export default function AgendamentoProfissionalPanel({
     setSearchStudent('');
   };
 
-  const handleSubmitAppointment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitAppointment = async (e?: React.FormEvent, remanejarDeAptId?: string) => {
+    if (e) e.preventDefault();
     if (!selectedClient) {
       setFeedback({ text: 'Por favor, selecione o aluno primeiro.', type: 'danger' });
       return;
@@ -299,7 +331,7 @@ export default function AgendamentoProfissionalPanel({
     setFeedback(null);
 
     try {
-      const payload = {
+      const payload: any = {
         clienteId: selectedClient._id,
         profissionalId: selectedProfId || professionals[0]?._id || '',
         servico: selectedService.nome,
@@ -307,8 +339,13 @@ export default function AgendamentoProfissionalPanel({
         horario: selectedHour,
         tipo: agendaTipo,
         observacoes: observacoes.trim() || undefined,
-        status: 'agendado'
+        status: 'agendado',
+        bypassRestrictions: true // Profissional autenticado tem autorização de encaixe
       };
+
+      if (remanejarDeAptId) {
+        payload.remanejarDeAptId = remanejarDeAptId;
+      }
 
       const res = await fetch('/api/appointments', {
         method: 'POST',
@@ -318,13 +355,26 @@ export default function AgendamentoProfissionalPanel({
 
       const data = await res.json();
       if (data.success) {
+        const successMsg = remanejarDeAptId
+          ? `🔄 Horário remanejado com sucesso para ${selectedClient.dadosPessoais?.nome || selectedClient.nome} em ${formatDateDisplay(selectedDate)} às ${selectedHour}!`
+          : `✅ Agendamento de ${selectedService.nome} para ${selectedClient.dadosPessoais?.nome || selectedClient.nome} em ${formatDateDisplay(selectedDate)} às ${selectedHour} realizado com sucesso!`;
+
         setFeedback({
-          text: `Agendamento de ${selectedService.nome} para ${selectedClient.dadosPessoais?.nome || selectedClient.nome} em ${formatDateDisplay(selectedDate)} às ${selectedHour} realizado com sucesso!`,
+          text: successMsg,
           type: 'success'
         });
         setSelectedHour('');
         setObservacoes('');
         if (onSuccess) onSuccess();
+        
+        // Atualizar lista de agendamentos do dia
+        if (selectedClient?._id && selectedDate) {
+          const resDay = await fetch(`/api/appointments?clientId=${selectedClient._id}&date=${selectedDate}`);
+          const jsonDay = await resDay.json();
+          if (jsonDay.success) {
+            setExistingDayAppointments((jsonDay.data || []).filter((a: any) => a.status === 'agendado'));
+          }
+        }
       } else {
         setFeedback({ text: data.error || 'Erro ao realizar agendamento.', type: 'danger' });
       }
@@ -904,6 +954,72 @@ export default function AgendamentoProfissionalPanel({
               }}
             />
           </div>
+
+          {/* Banner de Troca de Horário Inteligente (Remanejamento) */}
+          {selectedClient && selectedHour && existingDayAppointments.length > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.18) 100%)',
+              border: '1.5px solid rgba(245, 158, 11, 0.45)',
+              borderRadius: '14px',
+              padding: '16px 20px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 24px rgba(245, 158, 11, 0.12)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+                <div style={{ flex: '1 1 320px' }}>
+                  <div style={{ color: '#f59e0b', fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-clock-rotate-left" style={{ fontSize: '1.1rem' }}></i>
+                    <span>Aluno já possui horário marcado neste dia:</span>
+                  </div>
+                  <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {existingDayAppointments.map(apt => (
+                      <div key={apt._id} style={{ fontSize: '0.86rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24', padding: '2px 8px', borderRadius: '6px', fontWeight: 800 }}>
+                          ⏰ {apt.horario}
+                        </span>
+                        <span>{apt.servico} {apt.origemHorarioFixo ? '• Horário Fixo Semanal' : '• Agendado'}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '6px' }}>
+                    💡 <strong>Ação Recomendada:</strong> Troque o horário para liberar a vaga anterior e reaproveitar o crédito sem bloqueios.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {existingDayAppointments.filter(a => a.horario !== selectedHour).map(apt => (
+                    <button
+                      key={apt._id}
+                      type="button"
+                      onClick={() => handleSubmitAppointment(undefined, apt._id)}
+                      disabled={submitting}
+                      style={{
+                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                        color: '#000000',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '12px 20px',
+                        fontWeight: 800,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 16px rgba(245, 158, 11, 0.4)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {submitting ? (
+                        <><i className="fa-solid fa-spinner fa-spin"></i> Trocando...</>
+                      ) : (
+                        <><i className="fa-solid fa-arrow-right-arrow-left"></i> Trocar das {apt.horario} para as {selectedHour}</>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Resumo & Botão de Confirmação */}
           <div style={{
