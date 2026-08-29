@@ -2365,12 +2365,30 @@ export default function GestaoContratosPanel({
       if (data.success) {
         alert(`✅ Rescisão concluída com sucesso!\nAcesso do aluno válido até ${cancelDataEncerramento}.`);
         setShowCancelContractModal(false);
+        
+        const targetClientId = cancelModalClient._id;
         setCancelModalClient(null);
         setCancelModalData(null);
-        if (selectedClient?._id === cancelModalClient._id) {
-          loadContracts(selectedClient._id);
+
+        // Atualizar selectedClient reativamente no Workspace
+        if (selectedClient && (selectedClient._id === targetClientId || selectedClient._id === data.data?.client?._id)) {
+          if (data.data?.client) {
+            setSelectedClient(data.data.client);
+          } else {
+            setSelectedClient((prev: any) => ({
+              ...prev,
+              dadosComerciais: {
+                ...(prev?.dadosComerciais || {}),
+                status: (new Date(cancelDataEncerramento + 'T23:59:59') >= new Date()) ? 'cancelado_agendado' : 'finalizado',
+                dataFim: cancelDataEncerramento,
+                vencimento: cancelDataEncerramento
+              }
+            }));
+          }
+          loadContracts(targetClientId, true);
         }
         fetchData();
+        loadContractsAndProposalsOverview();
       } else {
         setCancelError(data.error || 'Erro ao executar rescisão.');
       }

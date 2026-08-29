@@ -32,11 +32,15 @@ export async function GET(req: Request) {
     let contract: any = null;
     if (contractId) {
       contract = await Contract.findById(contractId).lean();
-    } else {
+    }
+    if (!contract) {
       contract = await Contract.findOne({ 
         clientId, 
         status: { $in: ['assinado', 'ativo', 'pendente'] } 
       }).sort({ createdAt: -1 }).lean();
+    }
+    if (!contract) {
+      contract = await Contract.findOne({ clientId }).sort({ createdAt: -1 }).lean();
     }
 
     const com = client.dadosComerciais || {};
@@ -54,12 +58,16 @@ export async function GET(req: Request) {
     const valorPagoTotal = paidPayments.reduce((sum: number, p: any) => sum + (Number(p.valor) || 0), 0);
 
     // 2. Valores do Contrato
+    const valorUnit = Number(contract?.valorUnitario || com.valorUnitario || 0);
+    const durQtd = Number(contract?.vigenciaMeses || com.duracaoQtd || com.vigenciaQtd || 1) || 1;
+    const fallbackCalculatedTotal = valorUnit > 0 ? (valorUnit * durQtd) : 0;
+
     const valorTotalContrato = Number(
       contract?.valorTotal || 
-      contract?.valorContratado || 
       contract?.valorLiquido || 
+      contract?.valorBruto || 
       com.valorTotal || 
-      com.valorUnitario || 
+      fallbackCalculatedTotal ||
       0
     );
 
@@ -190,7 +198,7 @@ export async function GET(req: Request) {
             numeroParcela: p.numeroParcela,
             valor: p.valor,
             vencimento: p.vencimento,
-            dataPagamento: p.dataPagamento || p.updatedAt,
+            dataPagamento: p.dataPagamento,
             status: p.status
           })),
           pendingPayments: pendingPayments.map((p: any) => ({
@@ -260,40 +268,59 @@ export async function POST(req: Request) {
     };
 
     // 1. Atualizar o Contrato
+    let updatedContract: any = null;
     if (contractId) {
-      const contract: any = await Contract.findById(contractId);
-      if (contract) {
-        contract.status = 'cancelado';
-        contract.dataCancelamento = new Date();
-        contract.dataEncerramentoAcesso = finalTerminationDate;
-        contract.motivoCancelamento = motivo;
-        contract.multaAplicada = fineApplied;
-        contract.saldoAcerto = finalAcerto;
-        contract.observacoesCancelamento = observacoes;
-        await contract.save();
+      updatedContract = await Contract.findById(contractId);
+      if (updatedContract) {
+        updatedContract.status = 'cancelado';
+        updatedContract.dataFim = finalTerminationDate;
+        updatedContract.dataCancelamento = new Date();
+        updatedContract.dataEncerramentoAcesso = finalTerminationDate;
+        updatedContract.motivoCancelamento = motivo;
+        updatedContract.multaAplicada = fineApplied;
+        updatedContract.saldoAcerto = finalAcerto;
+        updatedContract.observacoesCancelamento = observacoes;
+        await updatedContract.save();
       }
-    } else {
-      await Contract.updateMany(
-        { clientId, status: { $in: ['assinado', 'ativo', 'pendente'] } },
-        { 
-          status: 'cancelado',
-          dataCancelamento: new Date(),
-          dataEncerramentoAcesso: finalTerminationDate,
-          motivoCancelamento: motivo,
-          multaAplicada: fineApplied,
-          saldoAcerto: finalAcerto
+    }
+    if (!updatedContract) {
+      const activeContract = await Contract.findOne({ clientId, status: { $in: ['assinado', 'ativo', 'pendente'] } }).sort({ createdAt: -1 });
+      if (activeContract) {
+        activeContract.status = 'cancelado';
+        activeContract.dataFim = finalTerminationDate;
+        activeContract.dataCancelamento = new Date();
+        activeContract.dataEncerramentoAcesso = finalTerminationDate;
+        activeContract.motivoCancelamento = motivo;
+        activeContract.multaAplicada = fineApplied;
+        activeContract.saldoAcerto = finalAcerto;
+        activeContract.observacoesCancelamento = observacoes;
+        await activeContract.save();
+        updatedContract = activeContract;
+      } else {
+        const anyContract = await Contract.findOne({ clientId }).sort({ createdAt: -1 });
+        if (anyContract) {
+          anyContract.status = 'cancelado';
+          anyContract.dataFim = finalTerminationDate;
+          anyContract.dataCancelamento = new Date();
+          anyContract.dataEncerramentoAcesso = finalTerminationDate;
+          anyContract.motivoCancelamento = motivo;
+          anyContract.multaAplicada = fineApplied;
+          anyContract.saldoAcerto = finalAcerto;
+          anyContract.observacoesCancelamento = observacoes;
+          await anyContract.save();
+          updatedContract = anyContract;
         }
-      );
+      }
     }
 
-    // 2. Atualizar o Cliente e a Vigência de Acesso
+    // 2. Atualizar o Cliente e a Vigência Oficial de Acesso (dataFim)
     if (!client.dadosComerciais) client.dadosComerciais = {};
     const com = client.dadosComerciais;
 
-    // Se o encerramento for no futuro, manter cancelado_agendado para liberar o acesso até a data combinada
-    const isFuture = new Date(finalTerminationDate + 'T23:59:59') > new Date();
+    const isFuture = new Date(finalTerminationDate + 'T23:59:59') >= new Date();
     com.status = isFuture ? 'cancelado_agendado' : 'finalizado';
-    com.vencimento = finalTerminationDate; // Ajusta a vigência de acesso para a data de encerramento
+    com.dataFim = finalTerminationDate; // Data Fim Oficial da Vigência
+    com.vencimento = finalTerminationDate; // Manter compatibilidade legada
 
     // Adicionar histórico no cadastro do aluno
     if (!client.historicoContratos) client.historicoContratos = [];
@@ -319,7 +346,7 @@ export async function POST(req: Request) {
 
     // 4. Cancelar Assinatura no Asaas (Se solicitado)
     let asaasSubCancelled = false;
-    const asaasSubscriptionId = com.asaasSubscriptionId || (contractId ? (await Contract.findById(contractId))?.asaasSubscriptionId : null);
+    const asaasSubscriptionId = com.asaasSubscriptionId || (updatedContract ? updatedContract.asaasSubscriptionId : null);
     if (cancelarAsaasSubscription && asaasSubscriptionId) {
       try {
         await deleteAsaasSubscription(asaasSubscriptionId);
@@ -357,6 +384,8 @@ export async function POST(req: Request) {
       success: true,
       message: 'Rescisão contratual concluída com sucesso.',
       data: {
+        client,
+        contract: updatedContract,
         finalTerminationDate,
         multaAplicada: fineApplied,
         saldoAcerto: finalAcerto,
