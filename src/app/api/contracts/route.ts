@@ -940,3 +940,51 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'ID do contrato não fornecido.' }, { status: 400 });
+    }
+
+    const contract = await Contract.findById(id);
+    if (!contract) {
+      return NextResponse.json({ success: false, error: 'Contrato não encontrado.' }, { status: 404 });
+    }
+
+    // Se for clicksign pendente e tiver docKey, tentar cancelar na Clicksign
+    if (contract.clicksignDocKey && contract.status !== 'assinado') {
+      const token = process.env.CLICKSIGN_ACCESS_TOKEN;
+      const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com').replace(/\/$/, '');
+      if (token) {
+        try {
+          await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/cancel`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/vnd.api+json',
+              'Accept': 'application/vnd.api+json',
+              'Authorization': token
+            }
+          });
+        } catch (csErr) {
+          console.warn('Falha ao cancelar envelope na Clicksign durante exclusão:', csErr);
+        }
+      }
+    }
+
+    // Remover pagamentos pendentes atrelados a este contrato se existirem
+    await Payment.deleteMany({ contractId: contract._id, status: 'Pendente' });
+
+    // Excluir documento do contrato
+    await Contract.findByIdAndDelete(id);
+
+    return NextResponse.json({ success: true, message: 'Contrato descartado com sucesso.' });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+

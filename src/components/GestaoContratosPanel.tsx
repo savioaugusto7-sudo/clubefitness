@@ -739,6 +739,26 @@ export default function GestaoContratosPanel({
     setEcError('');
   };
 
+  const handleDeleteContract = async (contractId: string, planName: string) => {
+    if (!confirm(`Deseja realmente descartar/excluir o contrato de "${planName}"? Esta ação removerá o registro do histórico.`)) return;
+    try {
+      const res = await fetch(`/api/contracts?id=${contractId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Contrato descartado com sucesso!');
+        if (selectedClient?._id) {
+          loadContracts(selectedClient._id, true);
+        }
+        fetchData();
+        loadContractsAndProposalsOverview();
+      } else {
+        alert('Erro ao excluir contrato: ' + (data.error || 'Falha na requisição'));
+      }
+    } catch (err: any) {
+      alert('Erro: ' + err.message);
+    }
+  };
+
   const handleSaveContractConditions = async (activateAsVigente: boolean) => {
     if (!editContractClient) return;
     setEcSaving(true);
@@ -758,62 +778,74 @@ export default function GestaoContratosPanel({
       }
       discountDeduction = Math.min(discountDeduction, grossPrice);
       const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
+      const dueDay = ecDataPrimeiroVencimento ? parseInt(ecDataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate();
 
-      // 1. Criar novo Contrato Oficial (Versão #N) no backend
-      // Isso arquiva automaticamente o contrato anterior em historicoContratos e atualiza os dadosComerciais do cliente
-      const contractPayload: any = {
-        clientId: editContractClient._id,
-        planoId: ecPlanoId,
-        planoNome: plan?.nome || 'Plano Clube Fitness',
-        planoTipo: isAnual ? 'Anual' : 'Mensal',
-        valorBruto: grossPrice,
-        descontoTipo: ecDescontoTipo,
-        descontoValor: ecDescontoValor,
-        valorLiquido: calculatedValorLiquido,
-        parcelas: Number(ecParcelas) || 1,
-        formaPagamento: ecFormaPagamento || 'pix',
-        diaVencimento: ecDataPrimeiroVencimento ? parseInt(ecDataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate(),
-        dataPrimeiroVencimento: ecDataPrimeiroVencimento || ecDataInicio,
-        dataInicio: ecDataInicio,
-        dataFim: finalEndDate,
-        vigenciaMeses: isAnual ? 12 : (ecDuracao === 'semestral' ? 6 : (Number(ecVigenciaQtd) || 1)),
-        status: 'assinado',
-        usuarioEmissor: userCargo || 'Administrador',
-        unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
-        frequencia: ecFrequencia,
-        creditosTotal: ecCreditosTotal,
-        creditosMassagemPorPlano: ecCreditosMassagemTotal,
-        creditosEmergenciaPorPlano: ecCreditosEmergenciaTotal,
-        enviarClicksign: false,
-        enviarAsaas: false
-      };
+      // 1. SE FOR ATIVAÇÃO COMO VIGENTE: Emitir e formalizar o contrato oficial (POST /api/contracts)
+      if (activateAsVigente) {
+        const contractPayload: any = {
+          clientId: editContractClient._id,
+          planoId: ecPlanoId,
+          planoNome: plan?.nome || 'Plano Clube Fitness',
+          planoTipo: isAnual ? 'Anual' : 'Mensal',
+          valorBruto: grossPrice,
+          descontoTipo: ecDescontoTipo,
+          descontoValor: ecDescontoValor,
+          valorLiquido: calculatedValorLiquido,
+          valorTotal: calculatedValorLiquido,
+          parcelas: Number(ecParcelas) || 1,
+          formaPagamento: ecFormaPagamento || 'pix',
+          diaVencimento: dueDay,
+          dataPrimeiroVencimento: ecDataPrimeiroVencimento || ecDataInicio,
+          dataInicio: ecDataInicio,
+          dataFim: finalEndDate,
+          vigenciaMeses: isAnual ? 12 : (ecDuracao === 'semestral' ? 6 : (Number(ecVigenciaQtd) || 1)),
+          status: 'assinado',
+          usuarioEmissor: userCargo || 'Administrador',
+          unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
+          frequencia: ecFrequencia,
+          creditosTotal: ecCreditosTotal,
+          creditosMassagemPorPlano: ecCreditosMassagemTotal,
+          creditosEmergenciaPorPlano: ecCreditosEmergenciaTotal,
+          enviarClicksign: false,
+          enviarAsaas: false
+        };
 
-      const contractRes = await fetch('/api/contracts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(contractPayload)
-      });
+        const contractRes = await fetch('/api/contracts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(contractPayload)
+        });
 
-      const contractData = await contractRes.json();
-      if (!contractRes.ok || !contractData.success) {
-        throw new Error(contractData.error || 'Erro ao registrar nova versão do contrato.');
+        const contractData = await contractRes.json();
+        if (!contractRes.ok || !contractData.success) {
+          throw new Error(contractData.error || 'Erro ao registrar versão oficial do contrato.');
+        }
+
+        // Limpar proposta pendente se houver
+        const latestP = allProposalsMap[editContractClient._id];
+        if (latestP?._id) {
+          await fetch(`/api/propostas?id=${latestP._id}`, { method: 'DELETE' }).catch(() => {});
+        }
       }
 
-      // 2. Garantir atualização cadastral/comercial do cliente
+      // 2. Atualização Cadastral/Comercial do Cliente (PUT /api/clients)
       const clientUpdatePayload: any = {
         id: editContractClient._id,
         dadosComerciais: {
           ...(editContractClient.dadosComerciais || {}),
           planoId: ecPlanoId || null,
-          status: 'ativo',
+          status: activateAsVigente ? 'ativo' : (editContractClient.dadosComerciais?.status || 'ativo'),
           duracao: ecDuracao,
           duracaoQtd: ecVigenciaQtd,
           vigenciaQtd: ecVigenciaQtd,
           dataInicio: ecDataInicio,
+          dataFim: finalEndDate,
           vencimento: finalEndDate,
           dataPrimeiroVencimento: ecDataPrimeiroVencimento || ecDataInicio,
+          diaVencimento: dueDay,
           formaPagamento: ecFormaPagamento,
           valorUnitario: ecValorUnitario,
+          valorTotal: calculatedValorLiquido,
           parcelas: Number(ecParcelas) || 1,
           descontoTipo: ecDescontoTipo,
           descontoValor: ecDescontoValor,
@@ -836,18 +868,16 @@ export default function GestaoContratosPanel({
         throw new Error(data.error || 'Erro ao salvar condições comerciais.');
       }
 
-      if (activateAsVigente) {
-        const latestP = allProposalsMap[editContractClient._id];
-        if (latestP?._id) {
-          await fetch(`/api/propostas?id=${latestP._id}`, { method: 'DELETE' }).catch(() => {});
-        }
-      }
-
       if (selectedClient && selectedClient._id === editContractClient._id) {
         setSelectedClient(data.data);
       }
 
-      alert('✅ Contrato renovado e ativado com sucesso! O contrato anterior foi arquivado no histórico.');
+      if (activateAsVigente) {
+        alert('✅ Contrato formalizado e ativado como Vigente!');
+      } else {
+        alert('✅ Condições comerciais salvas com sucesso no cadastro!');
+      }
+
       fetchData();
       loadContractsAndProposalsOverview();
       if (editContractClient._id) {
@@ -5653,18 +5683,42 @@ export default function GestaoContratosPanel({
                                   </span>
                                 </td>
                                 <td>
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary btn-sm"
-                                    style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '6px' }}
-                                    title="Baixar PDF do Contrato"
-                                    onClick={() => {
-                                      const plan = plans.find(p => p._id === (c.planoId?._id || c.planoId));
-                                      if (plan) downloadContractPDF(selectedClient, plan, c.contratoTexto, c);
-                                    }}
-                                  >
-                                    <i className="fa-solid fa-file-pdf"></i> PDF
-                                  </button>
+                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                      title="Baixar PDF do Contrato"
+                                      onClick={() => {
+                                        const plan = plans.find(p => p._id === (c.planoId?._id || c.planoId));
+                                        if (plan) downloadContractPDF(selectedClient, plan, c.contratoTexto, c);
+                                      }}
+                                    >
+                                      <i className="fa-solid fa-file-pdf"></i> PDF
+                                    </button>
+
+                                    {st !== 'assinado' && st !== 'cancelado' && (
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        style={{
+                                          padding: '4px 8px',
+                                          fontSize: '0.75rem',
+                                          borderRadius: '6px',
+                                          color: '#f87171',
+                                          borderColor: 'rgba(239, 68, 68, 0.35)',
+                                          background: 'rgba(239, 68, 68, 0.1)',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px'
+                                        }}
+                                        title="Descartar / Excluir Contrato Pendente"
+                                        onClick={() => handleDeleteContract(c._id, c.planoNome)}
+                                      >
+                                        <i className="fa-solid fa-trash-can"></i> Descartar
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );
