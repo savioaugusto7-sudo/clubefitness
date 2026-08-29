@@ -956,6 +956,14 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Contrato não encontrado.' }, { status: 404 });
     }
 
+    // Trava de segurança: Proibir exclusão de contratos formalizados ou rescindidos
+    if (contract.status === 'assinado' || contract.status === 'cancelado') {
+      return NextResponse.json({
+        success: false,
+        error: 'Não é permitido excluir contratos formalizados ou rescindidos. Eles pertencem ao histórico jurídico e financeiro do aluno.'
+      }, { status: 400 });
+    }
+
     // Se for clicksign pendente e tiver docKey, tentar cancelar na Clicksign
     if (contract.clicksignDocKey && contract.status !== 'assinado') {
       const token = process.env.CLICKSIGN_ACCESS_TOKEN;

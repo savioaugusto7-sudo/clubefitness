@@ -107,11 +107,11 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
 
   // 0.1. Rescisão Contratual / Cancelamento Agendado (Prioridade Imediata)
   if (com.status === 'cancelado_agendado' || com.status === 'cancelado' || latestContract?.status === 'cancelado') {
-    const termDate = com.dataFim || com.vencimento || latestContract?.dataEncerramentoAcesso || '';
+    const termDate = latestContract?.dataEncerramentoAcesso || com.dataFim || com.vencimento || '';
     const termDateFmt = termDate ? new Date(termDate + (termDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : '';
     const isTerminated = termDate ? new Date(termDate + 'T23:59:59') < new Date() : false;
 
-    if (isTerminated || com.status === 'cancelado') {
+    if (isTerminated) {
       return {
         stageKey: 'finalizado',
         stageLabel: '🚫 Rescisão / Contrato Encerrado',
@@ -5231,19 +5231,20 @@ export default function GestaoContratosPanel({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
                 {/* 1.1 ALERTA: CONTRATO CLICKSIGN, ASSINATURA OU RESCISÃO */}
-                {latestContract && (
+                {(latestContract || selectedClient.dadosComerciais?.status === 'cancelado_agendado' || selectedClient.dadosComerciais?.status === 'cancelado') && (
                   (() => {
                     const isContractCancelled = Boolean(
-                      latestContract.status === 'cancelado' ||
+                      latestContract?.status === 'cancelado' ||
                       selectedClient.dadosComerciais?.status === 'cancelado_agendado' ||
                       selectedClient.dadosComerciais?.status === 'cancelado'
                     );
 
                     if (isContractCancelled) {
-                      const termDate = latestContract.dataEncerramentoAcesso || selectedClient.dadosComerciais?.dataFim || selectedClient.dadosComerciais?.vencimento;
+                      const termDate = latestContract?.dataEncerramentoAcesso || selectedClient.dadosComerciais?.dataFim || selectedClient.dadosComerciais?.vencimento;
                       const termDateFmt = termDate ? new Date(termDate + (termDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : 'Hoje';
-                      const fineAmt = Number(latestContract.multaAplicada || 0);
-                      const acertoAmt = Number(latestContract.saldoAcerto || 0);
+                      const fineAmt = Number(latestContract?.multaAplicada || 0);
+                      const acertoAmt = Number(latestContract?.saldoAcerto || 0);
+                      const planName = latestContract?.planoNome || plans.find(p => p._id === (selectedClient.dadosComerciais?.planoId?._id || selectedClient.dadosComerciais?.planoId))?.nome || 'Plano Clube Fitness';
 
                       return (
                         <div style={{
@@ -5288,7 +5289,7 @@ export default function GestaoContratosPanel({
                                   </span>
                                 </h4>
                                 <span style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '3px', display: 'block' }}>
-                                  Plano: <strong style={{ color: '#f8fafc' }}>{latestContract.planoNome}</strong> • Término do Acesso: <strong style={{ color: '#fbbf24' }}>{termDateFmt}</strong> • Multa: <strong style={{ color: fineAmt > 0 ? '#f87171' : '#34d399' }}>{fineAmt > 0 ? `R$ ${fineAmt.toFixed(2).replace('.', ',')}` : 'Isenta (R$ 0,00)'}</strong> {acertoAmt > 0 ? `• Saldo: R$ ${acertoAmt.toFixed(2).replace('.', ',')}` : ''}
+                                  Plano: <strong style={{ color: '#f8fafc' }}>{planName}</strong> • Término do Acesso: <strong style={{ color: '#fbbf24' }}>{termDateFmt}</strong> • Multa: <strong style={{ color: fineAmt > 0 ? '#f87171' : '#34d399' }}>{fineAmt > 0 ? `R$ ${fineAmt.toFixed(2).replace('.', ',')}` : 'Isenta (R$ 0,00)'}</strong> {acertoAmt > 0 ? `• Saldo: R$ ${acertoAmt.toFixed(2).replace('.', ',')}` : ''}
                                 </span>
                               </div>
                             </div>
@@ -5697,7 +5698,7 @@ export default function GestaoContratosPanel({
                                       <i className="fa-solid fa-file-pdf"></i> PDF
                                     </button>
 
-                                    {st !== 'assinado' && st !== 'cancelado' && (
+                                    {st === 'pendente' && (
                                       <button
                                         type="button"
                                         className="btn btn-secondary btn-sm"
