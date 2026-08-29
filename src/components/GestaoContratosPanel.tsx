@@ -622,8 +622,9 @@ export default function GestaoContratosPanel({
       if (contractsRes.success && Array.isArray(contractsRes.data)) {
         const cMap: Record<string, any> = {};
         contractsRes.data.forEach((c: any) => {
-          const cId = c.clientId?._id || c.clientId;
-          if (cId && (!cMap[cId] || new Date(c.createdAt) > new Date(cMap[cId].createdAt))) {
+          const rawId = c.clientId?._id || c.clientId;
+          const cId = rawId ? String(rawId) : '';
+          if (cId && (!cMap[cId] || new Date(c.createdAt || c.dataEmissao) > new Date(cMap[cId].createdAt || cMap[cId].dataEmissao))) {
             cMap[cId] = c;
           }
         });
@@ -633,8 +634,9 @@ export default function GestaoContratosPanel({
       if (proposalsRes.success && Array.isArray(proposalsRes.data)) {
         const pMap: Record<string, any> = {};
         proposalsRes.data.forEach((p: any) => {
-          const cId = p.clientId?._id || p.clientId;
-          if (cId && (!pMap[cId] || new Date(p.createdAt) > new Date(pMap[cId].createdAt))) {
+          const rawId = p.clientId?._id || p.clientId;
+          const cId = rawId ? String(rawId) : '';
+          if (cId && (!pMap[cId] || new Date(p.createdAt || p.dataCriacao) > new Date(pMap[cId].createdAt || pMap[cId].dataCriacao))) {
             pMap[cId] = p;
           }
         });
@@ -644,7 +646,8 @@ export default function GestaoContratosPanel({
       if (paymentsRes.success && Array.isArray(paymentsRes.data)) {
         const pyMap: Record<string, any[]> = {};
         paymentsRes.data.forEach((p: any) => {
-          const cId = p.clientId?._id || p.clientId;
+          const rawId = p.clientId?._id || p.clientId;
+          const cId = rawId ? String(rawId) : '';
           if (cId) {
             if (!pyMap[cId]) pyMap[cId] = [];
             pyMap[cId].push(p);
@@ -2196,8 +2199,14 @@ export default function GestaoContratosPanel({
       if (!silent) setLoadingContracts(true);
       const res = await fetch(`/api/contracts?clientId=${clientId}`);
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setContracts(data.data);
+        if (data.data.length > 0) {
+          setAllContractsMap(prev => ({
+            ...prev,
+            [String(clientId)]: data.data[0]
+          }));
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar histórico de contratos:', err);

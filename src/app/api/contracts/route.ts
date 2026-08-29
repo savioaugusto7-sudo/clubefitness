@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/utils/dbConnect';
 import Contract from '@/models/Contract';
 import Payment from '@/models/Payment';
@@ -21,9 +22,17 @@ export async function GET(request: Request) {
 
     let query: any = {};
     if (id) {
-      query._id = id;
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        query.$or = [{ _id: id }, { _id: new mongoose.Types.ObjectId(id) }];
+      } else {
+        query._id = id;
+      }
     } else if (clientId) {
-      query.clientId = clientId;
+      if (mongoose.Types.ObjectId.isValid(clientId)) {
+        query.$or = [{ clientId: clientId }, { clientId: new mongoose.Types.ObjectId(clientId) }];
+      } else {
+        query.clientId = clientId;
+      }
     }
 
     // Excluir base64 pesados das listagens para economizar tráfego e acelerar resposta
