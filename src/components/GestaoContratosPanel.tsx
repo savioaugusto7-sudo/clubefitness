@@ -3824,90 +3824,170 @@ export default function GestaoContratosPanel({
                               </div>
                             </div>
                           ) : (
-                            /* CARD DE CONTRATO ATIVO / PENDENTE / OUTROS */
+                            /* CARD DE CONTRATO ATIVO / PENDENTE / OUTROS - SOFT GLASS */
                             <div style={{
-                              background: '#090d16',
-                              border: '1px solid #1e293b',
-                              borderRadius: '12px',
+                              background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%)',
+                              border: '1px solid rgba(255, 255, 255, 0.07)',
+                              borderRadius: '14px',
                               padding: '14px 16px',
                               marginTop: '12px',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: '10px'
+                              gap: '10px',
+                              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)'
                             }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.86rem' }}>
-                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Plano:</span>
-                                <strong style={{ color: '#ffffff', fontWeight: 750, textAlign: 'right' }}>
-                                  {latestContract?.planoNome || com.planoNome || plan?.nome || (!isFunnelTerm(c.plano) ? c.plano : null) || 'A definir'}
-                                </strong>
+                              {/* 1. Nome do Plano & Badge de Frequência */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 auto', minWidth: 0 }}>
+                                  <span style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '6px',
+                                    background: 'rgba(56, 189, 248, 0.12)',
+                                    color: '#38bdf8',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.72rem',
+                                    flexShrink: 0
+                                  }}>
+                                    <i className="fa-solid fa-dumbbell"></i>
+                                  </span>
+                                  <span style={{
+                                    fontWeight: 750,
+                                    fontSize: '0.92rem',
+                                    color: '#f8fafc',
+                                    letterSpacing: '-0.2px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {latestContract?.planoNome || com.planoNome || plan?.nome || (!isFunnelTerm(c.plano) ? c.plano : null) || 'A definir'}
+                                  </span>
+                                </div>
+
+                                {plan?.frequenciaSemanal && (
+                                  <span style={{
+                                    fontSize: '0.7rem',
+                                    fontWeight: 650,
+                                    color: 'var(--text-muted)',
+                                    background: 'rgba(255, 255, 255, 0.04)',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {plan.frequenciaSemanal}x/sem
+                                  </span>
+                                )}
                               </div>
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
-                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>
-                                  {info.isLead || info.isUncontracted ? 'Cadastro:' : (stage.isRecorrente ? 'Vigência (Acesso):' : 'Vigência:')}
-                                </span>
-                                <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                  <strong style={{ color: '#f1f5f9', fontWeight: 600 }}>
+                              {/* 2. Vigência Suave */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', gap: '6px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                                  <i className="fa-regular fa-calendar" style={{ fontSize: '0.76rem', color: 'rgba(255, 255, 255, 0.4)' }}></i>
+                                  <span>
                                     {info.isLead || info.isUncontracted
                                       ? (c.createdAt ? `Cadastrado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}` : 'Recente')
-                                      : `${info.dataInicioFormatted} até ${info.dataFimFormatted}`}
-                                  </strong>
-                                  {info.daysLeftText && (
-                                    <span style={{
-                                      background: info.isLead || info.isUncontracted ? 'rgba(168, 85, 247, 0.15)' : (info.isExpired ? '#7f1d1d' : info.isExpiringSoon ? '#78350f' : 'rgba(16, 185, 129, 0.2)'),
-                                      color: info.isLead || info.isUncontracted ? '#c084fc' : (info.isExpired ? '#fca5a5' : info.isExpiringSoon ? '#fde047' : '#34d399'),
-                                      border: info.isLead || info.isUncontracted ? '1px solid rgba(168, 85, 247, 0.3)' : (info.isExpired ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.4)'),
-                                      fontSize: '0.72rem',
-                                      fontWeight: 800,
-                                      padding: '2px 8px',
-                                      borderRadius: '6px'
-                                    }}>
-                                      {info.daysLeftText}
-                                    </span>
-                                  )}
+                                      : `${info.dataInicioFormatted} → ${info.dataFimFormatted}`}
+                                  </span>
                                 </div>
+
+                                {info.daysLeftText && (
+                                  <span style={{
+                                    background: info.isLead || info.isUncontracted
+                                      ? 'rgba(168, 85, 247, 0.12)'
+                                      : (info.isExpired ? 'rgba(239, 68, 68, 0.12)' : info.isExpiringSoon ? 'rgba(245, 158, 11, 0.14)' : 'rgba(16, 185, 129, 0.12)'),
+                                    color: info.isLead || info.isUncontracted
+                                      ? '#c084fc'
+                                      : (info.isExpired ? '#fca5a5' : info.isExpiringSoon ? '#fbbf24' : '#34d399'),
+                                    border: info.isLead || info.isUncontracted
+                                      ? '1px solid rgba(168, 85, 247, 0.25)'
+                                      : (info.isExpired ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(16, 185, 129, 0.25)'),
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: '20px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}>
+                                    {!info.isExpired && !info.isLead && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'currentColor' }}></span>}
+                                    {info.daysLeftText}
+                                  </span>
+                                )}
                               </div>
 
                               {Boolean(stage.isRecorrente) && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', background: 'rgba(59, 130, 246, 0.08)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                  <span style={{ color: '#93c5fd', fontWeight: 600 }}>
-                                    <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Contrato Anual (12 Meses):
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', background: 'rgba(59, 130, 246, 0.06)', padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                                  <span style={{ color: '#93c5fd', fontWeight: 550 }}>
+                                    <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Anual (12 Meses):
                                   </span>
-                                  <strong style={{ color: '#ffffff' }}>
+                                  <strong style={{ color: '#f8fafc' }}>
                                     Término em {info.dataFimRecorrenciaFormatted}
                                   </strong>
                                 </div>
                               )}
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.86rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
-                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Condição:</span>
-                                <strong style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.92rem' }}>
-                                  {stage.stageKey === 'dynamus'
-                                    ? 'Convênio Corporativo Dynamus'
-                                    : (latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario)
-                                      ? `R$ ${Number(latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')} (${(latestContract?.formaPagamento || com.formaPagamento || 'pix').toUpperCase()}${(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` ${(latestContract?.parcelas || com.parcelas)}x` : ''})`
-                                      : 'A definir'}
-                                </strong>
+                              {/* 3. Cápsula Financeira Suave (Investment Pill) */}
+                              <div style={{
+                                background: 'rgba(0, 0, 0, 0.22)',
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                borderRadius: '10px',
+                                padding: '8px 12px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 600 }}>
+                                    Investimento Total
+                                  </span>
+                                  <span style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.2px' }}>
+                                    {stage.stageKey === 'dynamus'
+                                      ? 'Convênio Dynamus'
+                                      : (latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario)
+                                        ? `R$ ${Number(latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')}`
+                                        : 'A definir'}
+                                  </span>
+                                </div>
+
+                                {stage.stageKey !== 'dynamus' && (latestContract?.formaPagamento || com.formaPagamento) && (
+                                  <span style={{
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    color: 'rgba(255, 255, 255, 0.85)',
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    padding: '4px 9px',
+                                    borderRadius: '6px',
+                                    letterSpacing: '0.2px'
+                                  }}>
+                                    {(latestContract?.formaPagamento || com.formaPagamento || 'PIX').toUpperCase()}
+                                    {(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` • ${(latestContract?.parcelas || com.parcelas)}x` : ''}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Checklist de Dados exibido apenas em Leads/Cadastros incompletos (oculto em contratos vigentes) */}
                               {(info.isLead || info.isUncontracted || stage.stageKey === 'dynamus') && (
-                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px' }}>
                                   {stage.stageKey === 'dynamus' ? (
                                     <>
-                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.35)', fontWeight: 700 }}>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.25)', fontWeight: 700 }}>
                                         ✅ Cadastro Dynamus Completo
                                       </span>
-                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', fontWeight: 700 }}>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.2)', fontWeight: 700 }}>
                                         ✅ Convênio Corporativo
                                       </span>
                                     </>
                                   ) : (
                                     <>
-                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)' }}>
                                         {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
                                       </span>
-                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)' }}>
                                         {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
                                       </span>
                                     </>
