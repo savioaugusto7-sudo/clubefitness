@@ -58,12 +58,26 @@ export async function GET(request: Request) {
       clients.forEach((c: any) => {
         if (c && c.dadosComerciais) {
           try {
-            const info = getContractValidityInfo(c, c.dadosComerciais.planoId);
-            if (info && info.dataFim) {
-              c.dadosComerciais.vencimento = info.dataFim;
-            }
-            if (c.dadosComerciais.status !== 'congelado' && c.dadosComerciais.status !== 'inativo' && c.dadosComerciais.status !== 'finalizado') {
-              c.dadosComerciais.status = info?.statusKey === 'vencido' ? 'vencido' : (c.dadosComerciais.status === 'lead' ? 'lead' : 'ativo');
+            const currentStatus = String(c.dadosComerciais.status || '').toLowerCase();
+            const preservedStatuses = [
+              'cancelado_agendado',
+              'cancelado',
+              'finalizado',
+              'congelado',
+              'inativo',
+              'lead',
+              'dynamus',
+              'aguardando_assinatura'
+            ];
+
+            if (!preservedStatuses.includes(currentStatus)) {
+              const info = getContractValidityInfo(c, c.dadosComerciais.planoId);
+              if (info && info.dataFim && !c.dadosComerciais.dataFim) {
+                c.dadosComerciais.dataFim = info.dataFim;
+              }
+              if (info?.statusKey === 'vencido') {
+                c.dadosComerciais.status = 'vencido';
+              }
             }
           } catch (itemErr: any) {
             console.warn('[clients GET] Error calculating validity for client:', c._id, itemErr?.message);
