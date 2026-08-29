@@ -25,8 +25,12 @@ const RenewalProposalSchema = new Schema({
   formaPagamento: { type: String, default: '' },
   parcelas: { type: Number, default: 1 },
   
-  // Status
+  // Status e Visualização
   status: { type: String, default: 'pendente' },
+  abertoEm: { type: Date, default: null }, // Sempre armazena a ÚLTIMA visualização
+  primeiraAberturaEm: { type: Date, default: null },
+  visualizacoesCount: { type: Number, default: 0 },
+  visualizado: { type: Boolean, default: false },
   
   // Clicksign
   clicksignDocKey: { type: String, default: '' },

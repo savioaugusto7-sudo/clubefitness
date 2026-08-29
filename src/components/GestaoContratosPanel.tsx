@@ -3813,6 +3813,21 @@ export default function GestaoContratosPanel({
                                 )}
                               </div>
 
+                              {/* Status de Visualização do Link */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '6px' }}>
+                                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Última Visualização:</span>
+                                {latestProposal.abertoEm ? (
+                                  <span style={{ color: '#38bdf8', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <i className="fa-solid fa-eye"></i> Aberto em {new Date(latestProposal.abertoEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às {new Date(latestProposal.abertoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
+                                    {latestProposal.visualizacoesCount && latestProposal.visualizacoesCount > 1 ? ` (${latestProposal.visualizacoesCount}x)` : ''}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <i className="fa-regular fa-eye-slash"></i> Ainda não aberto
+                                  </span>
+                                )}
+                              </div>
+
                               {/* Checklist de Dados */}
                               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
                                 <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)', fontWeight: 700 }}>
@@ -5646,7 +5661,8 @@ export default function GestaoContratosPanel({
                   </span>
                   {activeProposal.abertoEm ? (
                     <span style={{ color: '#38bdf8', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <i className="fa-solid fa-eye"></i> Aberto {new Date(activeProposal.abertoEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às {new Date(activeProposal.abertoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
+                      <i className="fa-solid fa-eye"></i> Última abertura: {new Date(activeProposal.abertoEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às {new Date(activeProposal.abertoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
+                      {activeProposal.visualizacoesCount && activeProposal.visualizacoesCount > 1 ? ` (${activeProposal.visualizacoesCount}x)` : ''}
                     </span>
                   ) : (
                     <span style={{ color: '#94a3b8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>

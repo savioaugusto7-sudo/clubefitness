@@ -37,12 +37,12 @@ export async function GET(request: Request) {
         await proposal.save();
       }
 
-      // 2. Registrar visualização / abertura do link
-      if (!proposal.abertoEm) {
-        proposal.abertoEm = now;
-        proposal.visualizado = true;
-        await proposal.save();
-      }
+      // 2. Registrar visualização / abertura do link (grava sempre a ÚLTIMA visualização em tempo real)
+      proposal.primeiraAberturaEm = proposal.primeiraAberturaEm || proposal.abertoEm || now;
+      proposal.abertoEm = now; // Sempre armazena a ÚLTIMA visualização
+      proposal.visualizado = true;
+      proposal.visualizacoesCount = (proposal.visualizacoesCount || 0) + 1;
+      await proposal.save();
 
       return NextResponse.json({ success: true, data: proposal });
     }

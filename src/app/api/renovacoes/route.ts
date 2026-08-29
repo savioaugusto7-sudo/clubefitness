@@ -38,6 +38,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Link de renovação não encontrado ou expirado.' }, { status: 404 });
     }
 
+    // Registrar visualização / abertura do link em tempo real
+    const now = new Date();
+    renewal.primeiraAberturaEm = renewal.primeiraAberturaEm || renewal.abertoEm || now;
+    renewal.abertoEm = now; // Sempre grava a ÚLTIMA visualização
+    renewal.visualizado = true;
+    renewal.visualizacoesCount = (renewal.visualizacoesCount || 0) + 1;
+    await renewal.save();
+
     return NextResponse.json({ success: true, data: renewal });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

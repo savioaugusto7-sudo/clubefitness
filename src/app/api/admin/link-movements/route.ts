@@ -158,9 +158,10 @@ export async function GET() {
       
       if (p.abertoEm) {
         const dAb = new Date(p.abertoEm);
+        const countText = p.visualizacoesCount && p.visualizacoesCount > 1 ? ` (${p.visualizacoesCount}x)` : '';
         infoList.push({ 
-          label: '👁️ Visualização', 
-          value: `Aberto em ${dAb.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${dAb.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}` 
+          label: '👁️ Última Visualização', 
+          value: `Aberto em ${dAb.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${dAb.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}${countText}` 
         });
       } else {
         infoList.push({ label: '👁️ Visualização', value: 'Ainda não aberto' });
@@ -208,6 +209,17 @@ export async function GET() {
         infoList.push({ label: 'Status Renovação', value: r.status.toUpperCase() });
       }
 
+      if (r.abertoEm) {
+        const dAb = new Date(r.abertoEm);
+        const countText = r.visualizacoesCount && r.visualizacoesCount > 1 ? ` (${r.visualizacoesCount}x)` : '';
+        infoList.push({ 
+          label: '👁️ Última Visualização', 
+          value: `Aberto em ${dAb.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${dAb.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}${countText}` 
+        });
+      } else {
+        infoList.push({ label: '👁️ Visualização', value: 'Ainda não aberto' });
+      }
+
       movements.push({
         _id: `ren_${r._id}`,
         createdAt: r.updatedAt || r.createdAt || new Date().toISOString(),
@@ -216,6 +228,8 @@ export async function GET() {
         badgeColor: '#10b981',
         linkNome: 'Link de Renovação',
         linkUrl: `/renovacao/${r._id}`,
+        abertoEm: r.abertoEm || null,
+        visualizado: Boolean(r.visualizado || r.abertoEm),
         cliente: {
           _id: cli._id || r.clientId,
           nome: cli.dadosPessoais?.nome || 'Aluno',

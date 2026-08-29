@@ -5074,7 +5074,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                   {m.linkUrl}
                                 </div>
 
-                                {m.tipo === 'venda' && (
+                                {(m.tipo === 'venda' || m.tipo === 'renovacao') && (
                                   <div style={{ marginTop: '6px' }}>
                                     {m.abertoEm ? (
                                       <span 
@@ -5090,9 +5090,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                                           color: '#38bdf8', 
                                           border: '1px solid rgba(56, 189, 248, 0.35)' 
                                         }}
-                                        title={`Link aberto em ${new Date(m.abertoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`}
+                                        title={`Link aberto pela última vez em ${new Date(m.abertoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`}
                                       >
-                                        <i className="fa-solid fa-eye"></i> Aberto {new Date(m.abertoEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} {new Date(m.abertoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
+                                        <i className="fa-solid fa-eye"></i> Aberto {new Date(m.abertoEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às {new Date(m.abertoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
                                       </span>
                                     ) : (
                                       <span 
