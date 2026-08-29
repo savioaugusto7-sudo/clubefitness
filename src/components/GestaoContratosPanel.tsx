@@ -3828,21 +3828,21 @@ export default function GestaoContratosPanel({
                             <div style={{
                               background: '#090d16',
                               border: '1px solid #1e293b',
-                              borderRadius: '10px',
-                              padding: '12px 14px',
+                              borderRadius: '12px',
+                              padding: '14px 16px',
                               marginTop: '12px',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: '8px'
+                              gap: '10px'
                             }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.86rem' }}>
                                 <span style={{ color: '#94a3b8', fontWeight: 500 }}>Plano:</span>
-                                <strong style={{ color: '#ffffff', fontWeight: 700, textAlign: 'right' }}>
+                                <strong style={{ color: '#ffffff', fontWeight: 750, textAlign: 'right' }}>
                                   {latestContract?.planoNome || com.planoNome || plan?.nome || (!isFunnelTerm(c.plano) ? c.plano : null) || 'A definir'}
                                 </strong>
                               </div>
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
                                 <span style={{ color: '#94a3b8', fontWeight: 500 }}>
                                   {info.isLead || info.isUncontracted ? 'Cadastro:' : (stage.isRecorrente ? 'Vigência (Acesso):' : 'Vigência:')}
                                 </span>
@@ -3854,13 +3854,13 @@ export default function GestaoContratosPanel({
                                   </strong>
                                   {info.daysLeftText && (
                                     <span style={{
-                                      background: info.isLead || info.isUncontracted ? 'rgba(168, 85, 247, 0.15)' : (info.isExpired ? '#7f1d1d' : info.isExpiringSoon ? '#78350f' : '#064e3b'),
-                                      color: info.isLead || info.isUncontracted ? '#c084fc' : '#ffffff',
-                                      border: info.isLead || info.isUncontracted ? '1px solid rgba(168, 85, 247, 0.3)' : 'none',
-                                      fontSize: '0.7rem',
-                                      fontWeight: 750,
-                                      padding: '2px 6px',
-                                      borderRadius: '4px'
+                                      background: info.isLead || info.isUncontracted ? 'rgba(168, 85, 247, 0.15)' : (info.isExpired ? '#7f1d1d' : info.isExpiringSoon ? '#78350f' : 'rgba(16, 185, 129, 0.2)'),
+                                      color: info.isLead || info.isUncontracted ? '#c084fc' : (info.isExpired ? '#fca5a5' : info.isExpiringSoon ? '#fde047' : '#34d399'),
+                                      border: info.isLead || info.isUncontracted ? '1px solid rgba(168, 85, 247, 0.3)' : (info.isExpired ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.4)'),
+                                      fontSize: '0.72rem',
+                                      fontWeight: 800,
+                                      padding: '2px 8px',
+                                      borderRadius: '6px'
                                     }}>
                                       {info.daysLeftText}
                                     </span>
@@ -3869,7 +3869,7 @@ export default function GestaoContratosPanel({
                               </div>
 
                               {Boolean(stage.isRecorrente) && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: 'rgba(59, 130, 246, 0.08)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', background: 'rgba(59, 130, 246, 0.08)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                                   <span style={{ color: '#93c5fd', fontWeight: 600 }}>
                                     <i className="fa-solid fa-arrows-rotate" style={{ marginRight: '4px' }}></i> Contrato Anual (12 Meses):
                                   </span>
@@ -3879,39 +3879,41 @@ export default function GestaoContratosPanel({
                                 </div>
                               )}
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.86rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
                                 <span style={{ color: '#94a3b8', fontWeight: 500 }}>Condição:</span>
-                                <strong style={{ color: '#38bdf8', fontWeight: 700 }}>
+                                <strong style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.92rem' }}>
                                   {stage.stageKey === 'dynamus'
                                     ? 'Convênio Corporativo Dynamus'
-                                    : (latestContract?.valorLiquido || latestContract?.valorTotal || com.valorTotal || com.valorUnitario)
-                                      ? `R$ ${Number(latestContract?.valorLiquido || latestContract?.valorTotal || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')} (${(latestContract?.formaPagamento || com.formaPagamento || 'pix').toUpperCase()}${(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` ${(latestContract?.parcelas || com.parcelas)}x` : ''})`
+                                    : (latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario)
+                                      ? `R$ ${Number(latestContract?.valorTotal || latestContract?.valorLiquido || com.valorTotal || com.valorUnitario || 0).toFixed(2).replace('.', ',')} (${(latestContract?.formaPagamento || com.formaPagamento || 'pix').toUpperCase()}${(latestContract?.parcelas || com.parcelas || 1) > 1 ? ` ${(latestContract?.parcelas || com.parcelas)}x` : ''})`
                                       : 'A definir'}
                                 </strong>
                               </div>
 
-                              {/* Checklist de Dados */}
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
-                                {stage.stageKey === 'dynamus' ? (
-                                  <>
-                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.35)', fontWeight: 700 }}>
-                                      ✅ Cadastro Dynamus Completo
-                                    </span>
-                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', fontWeight: 700 }}>
-                                      ✅ Convênio Corporativo
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
-                                      {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
-                                    </span>
-                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
-                                      {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
+                              {/* Checklist de Dados exibido apenas em Leads/Cadastros incompletos (oculto em contratos vigentes) */}
+                              {(info.isLead || info.isUncontracted || stage.stageKey === 'dynamus') && (
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                                  {stage.stageKey === 'dynamus' ? (
+                                    <>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.35)', fontWeight: 700 }}>
+                                        ✅ Cadastro Dynamus Completo
+                                      </span>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.25)', fontWeight: 700 }}>
+                                        ✅ Convênio Corporativo
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                        {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
+                                      </span>
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)' }}>
+                                        {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
