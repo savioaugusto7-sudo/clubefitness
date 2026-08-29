@@ -4024,99 +4024,40 @@ export default function GestaoContratosPanel({
                               </div>
                             </div>
                           ) : stage.stageKey === 'ativo' ? (
-                            /* CASO B: CONTRATO ATIVO */
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectClient(c)}
-                                style={{
-                                  width: '100%',
-                                  padding: '11px 14px',
-                                  borderRadius: '10px',
-                                  border: '1px solid rgba(255,255,255,0.1)',
-                                  background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                                  color: '#ffffff',
-                                  fontWeight: 800,
-                                  fontSize: '0.86rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                <i className="fa-solid fa-folder-open" style={{ color: '#10b981' }}></i> Abrir Workspace do Contrato
-                              </button>
-
-                              <div style={{ display: 'grid', gridTemplateColumns: isBoleto ? '1fr 1fr' : '1fr 1fr', gap: '6px' }}>
-                                {isBoleto ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenAsaasModal(c)}
-                                    style={{
-                                      background: 'rgba(2, 132, 199, 0.15)',
-                                      border: '1px solid rgba(2, 132, 199, 0.4)',
-                                      color: '#38bdf8',
-                                      padding: '8px 10px',
-                                      borderRadius: '8px',
-                                      fontSize: '0.76rem',
-                                      fontWeight: 700,
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '5px'
-                                    }}
-                                  >
-                                    <i className="fa-solid fa-receipt"></i> Boletos Asaas
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenClientFinancial(c)}
-                                    style={{
-                                      background: 'rgba(16, 185, 129, 0.12)',
-                                      border: '1px solid rgba(16, 185, 129, 0.35)',
-                                      color: '#34d399',
-                                      padding: '8px 10px',
-                                      borderRadius: '8px',
-                                      fontSize: '0.76rem',
-                                      fontWeight: 700,
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '5px'
-                                    }}
-                                  >
-                                    <i className="fa-solid fa-wallet"></i> Financeiro
-                                  </button>
-                                )}
-
-                                <button
-                                  type="button"
-                                  onClick={() => setHistoryModalClient(c)}
-                                  style={{
-                                    background: (c.historicoContratos?.length > 0) ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255,255,255,0.06)',
-                                    border: (c.historicoContratos?.length > 0) ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid rgba(255,255,255,0.1)',
-                                    color: (c.historicoContratos?.length > 0) ? '#22d3ee' : '#94a3b8',
-                                    padding: '8px 10px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.76rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '5px'
-                                  }}
-                                >
-                                  <i className="fa-solid fa-clock-rotate-left"></i> Histórico
-                                </button>
-                              </div>
-                            </div>
+                            /* CASO A: CONTRATO VIGENTE / ATIVO */
+                            <button
+                              type="button"
+                              onClick={() => handleSelectClient(c)}
+                              style={{
+                                width: '100%',
+                                padding: '13px 18px',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.88rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '10px',
+                                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.2)';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+                                e.currentTarget.style.transform = 'none';
+                                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+                              }}
+                            >
+                              <i className="fa-solid fa-folder-open" style={{ color: '#10b981', fontSize: '1rem' }}></i> Abrir Workspace do Contrato
+                            </button>
                           ) : stage.stageKey === 'pendente' ? (
                             /* CASO C: PENDENTE CLICKSIGN */
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
