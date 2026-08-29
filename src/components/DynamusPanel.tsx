@@ -1227,7 +1227,7 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
             </form>
           </div>
         </div>
-      )}
+)}
 
       {/* =========================================================================
           MODAL OFICIAL: GERAR LINK DE VENDA (SALES WIZARD - IMAGEM 2)
@@ -1235,7 +1235,7 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
       {salesWizardClient && (() => {
         const com = salesWizardClient.dadosComerciais || {};
         const activePlans = plans.filter((p: any) => p.ativo !== false && !p.nome?.toLowerCase().includes('dynamus'));
-        const gross = Number(swValorUnitario || 0) * (swCriarRecorrenciaMensal ? 1 : Number(swVigenciaQtd || 1));
+        const gross = (swDuracao === 'anual' || swCriarRecorrenciaMensal) ? Number(swValorUnitario || 0) : (Number(swValorUnitario || 0) * Number(swVigenciaQtd || 1));
         let discountVal = 0;
         if (swDescontoTipo === 'percentual') {
           discountVal = (gross * (Number(swDescontoValor) || 0)) / 100;
@@ -1258,11 +1258,17 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Gerar Link de Venda</h3>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      Aluno: <strong>{salesWizardClient.dadosPessoais?.nome || salesWizardClient.nome}</strong>
+                      Aluno: <strong style={{ color: 'var(--text-main)' }}>{salesWizardClient.dadosPessoais?.nome || 'Aluno'}</strong>
                     </div>
                   </div>
                 </div>
-                <button onClick={() => setSalesWizardClient(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.3rem', cursor: 'pointer' }}>&times;</button>
+                <button
+                  type="button"
+                  onClick={() => !swSubmitting && setSalesWizardClient(null)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.4rem', cursor: 'pointer', padding: '4px' }}
+                >
+                  &times;
+                </button>
               </div>
 
               {/* Banner Status Atual do Convênio Dynamus */}
@@ -1283,18 +1289,12 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                 </div>
               </div>
 
-              {/* Banner Informativo */}
-              <div style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.25)', borderRadius: '10px', padding: '12px', fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
-                💡 <strong>Como funciona:</strong> Informe os dados comerciais acordados. O aluno receberá o link exclusivo para escolher as parcelas (até 12x), a forma de pagamento (Pix/Cartão/Boleto) e o 1º vencimento no próprio smartphone!
-              </div>
-
+              {/* Form Content */}
               {!swGeneratedProposalUrl ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {/* Plano / Modalidade Acordada */}
+                  {/* Select Plano */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Plano / Modalidade Acordada <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Plano / Modalidade Acordada <span style={{ color: 'var(--color-danger)' }}>*</span></label>
                     <select
                       value={swPlano}
                       onChange={e => {
@@ -1305,7 +1305,7 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                           if (pObj.preco) setSwValorUnitario(pObj.preco);
                           if (pObj.tipo === 'Anual') {
                             setSwDuracao('anual');
-                            setSwVigenciaQtd(12);
+                            setSwVigenciaQtd(1);
                             setSwCreditosMassagem(1);
                             setSwCreditosEmergencia(1);
                           } else {
@@ -1369,22 +1369,26 @@ export default function DynamusPanel({ clients, plans, userCargo, fetchData }: D
                           const dur = e.target.value as any;
                           setSwDuracao(dur);
                           if (dur === 'anual') {
-                            setSwVigenciaQtd(12);
+                            setSwVigenciaQtd(1);
                             setSwCreditosMassagem(1);
                             setSwCreditosEmergencia(1);
                           } else {
                             setSwVigenciaQtd(1);
+                            setSwCreditosMassagem(0);
+                            setSwCreditosEmergencia(0);
                           }
                         }}
                       >
-                        <option value="anual">Anual</option>
+                        <option value="anual">Anual (12 meses)</option>
                         <option value="mensal">Mensal</option>
                         <option value="semana">Semanal</option>
                       </select>
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Qtd Vigência</label>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        {swDuracao === 'anual' ? 'Qtd (Anos)' : (swDuracao === 'semana' ? 'Qtd (Semanas)' : 'Qtd (Meses)')}
+                      </label>
                       <input
                         type="number"
                         min={1}

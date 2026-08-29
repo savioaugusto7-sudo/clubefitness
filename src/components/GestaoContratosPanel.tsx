@@ -1328,7 +1328,8 @@ export default function GestaoContratosPanel({
     setSwSubmitting(true);
     try {
       const plan = plans.find(p => p._id === swPlano);
-      const grossPrice = swValorUnitario * swVigenciaQtd;
+      const isAnual = swDuracao === 'anual';
+      const grossPrice = isAnual ? swValorUnitario : (swValorUnitario * (swVigenciaQtd || 1));
       let discountDeduction = 0;
       if (swDescontoTipo === 'percentual') {
         discountDeduction = (grossPrice * (Number(swDescontoValor) || 0)) / 100;
@@ -1337,15 +1338,15 @@ export default function GestaoContratosPanel({
       }
       const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
 
-      const isAnual = swDuracao === 'anual';
       const startD = new Date((swDataInicio || new Date().toISOString().split('T')[0]) + 'T00:00:00');
       const endD = new Date(startD);
       if (swDuracao === 'semana') {
         endD.setDate(endD.getDate() + (swVigenciaQtd * 7));
       } else if (isAnual) {
-        endD.setMonth(endD.getMonth() + (swVigenciaQtd * 12));
+        const anos = swVigenciaQtd >= 12 ? 1 : (swVigenciaQtd || 1);
+        endD.setFullYear(endD.getFullYear() + anos);
       } else {
-        endD.setMonth(endD.getMonth() + swVigenciaQtd);
+        endD.setMonth(endD.getMonth() + (swVigenciaQtd || 1));
       }
       const dataFimCalculada = endD.toISOString().split('T')[0];
 
@@ -6170,7 +6171,7 @@ export default function GestaoContratosPanel({
           ========================================================================= */}
       {salesWizardClient && (() => {
         const activePlans = plans.filter((p: any) => p.ativo !== false);
-        const gross = swValorUnitario * (swVigenciaQtd || 1);
+        const gross = swDuracao === 'anual' ? swValorUnitario : (swValorUnitario * (swVigenciaQtd || 1));
         const discountVal = swDescontoTipo === 'percentual' ? (gross * (Number(swDescontoValor) || 0)) / 100 : (Number(swDescontoValor) || 0);
         const netVal = Math.max(0, gross - discountVal);
 
@@ -6273,10 +6274,14 @@ export default function GestaoContratosPanel({
                         if (pObj.preco) setSwValorUnitario(pObj.preco);
                         if (pObj.tipo === 'Anual') {
                           setSwDuracao('anual');
-                          setSwVigenciaQtd(12);
+                          setSwVigenciaQtd(1);
+                          setSwCreditosMassagem(1);
+                          setSwCreditosEmergencia(1);
                         } else {
                           setSwDuracao('mensal');
                           setSwVigenciaQtd(1);
+                          setSwCreditosMassagem(0);
+                          setSwCreditosEmergencia(0);
                         }
                         if (pObj.frequencia) setSwFrequencia(pObj.frequencia);
                         if (pObj.creditosTotal) setSwCreditosMensais(pObj.creditosTotal);
@@ -6363,22 +6368,26 @@ export default function GestaoContratosPanel({
                         const dur = e.target.value as any;
                         setSwDuracao(dur);
                         if (dur === 'anual') {
-                          setSwVigenciaQtd(12);
+                          setSwVigenciaQtd(1);
                           setSwCreditosMassagem(1);
                           setSwCreditosEmergencia(1);
                         } else {
                           setSwVigenciaQtd(1);
+                          setSwCreditosMassagem(0);
+                          setSwCreditosEmergencia(0);
                         }
                       }}
                     >
-                      <option value="anual">Anual</option>
+                      <option value="anual">Anual (12 meses)</option>
                       <option value="mensal">Mensal</option>
                       <option value="semana">Semanal</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Qtd Vigência</label>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      {swDuracao === 'anual' ? 'Qtd (Anos)' : (swDuracao === 'semana' ? 'Qtd (Semanas)' : 'Qtd (Meses)')}
+                    </label>
                     <input
                       type="number"
                       min={1}
