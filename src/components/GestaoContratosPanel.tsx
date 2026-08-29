@@ -645,37 +645,26 @@ export default function GestaoContratosPanel({
     setEcPlanoId(resolvedPlanoId);
 
     // Status
-    setEcStatus(info.isExpired ? 'ativo' : (com.status || client.status || 'ativo'));
+    setEcStatus(com.status || client.status || 'ativo');
 
     // Duração & Vigência
     const rawDur = (com.duracao || latestC?.duracao || (com.planoId?.tipo === 'Anual' ? 'anual' : 'mensal')).toLowerCase();
     const dur: any = ['anual', 'semestral', 'semana', 'mensal'].includes(rawDur) ? rawDur : 'mensal';
     setEcDuracao(dur);
-    const vigQtd = Number(com.duracaoQtd || com.vigenciaQtd || latestC?.vigenciaQtd || (dur === 'anual' ? 12 : 1)) || 1;
+    let vigQtd = Number(com.duracaoQtd || com.vigenciaQtd || latestC?.vigenciaQtd || 1) || 1;
+    if (dur === 'anual' && vigQtd >= 12) {
+      vigQtd = 1;
+    }
     setEcVigenciaQtd(vigQtd);
 
-    // Datas: Se o contrato anterior estiver vencido/expirado, sugerir data de início como HOJE para novo ciclo
+    // Datas Reais do Contrato / Cadastro do Aluno
     const todayStr = new Date().toISOString().split('T')[0];
-    const isPastDate = (dateStr?: string) => {
-      if (!dateStr) return true;
-      const d = new Date(dateStr + 'T23:59:59');
-      return isNaN(d.getTime()) || d < new Date();
-    };
-
-    let dInicio = com.dataInicio || latestC?.dataInicio || todayStr;
-    let dVenc = com.vencimento || latestC?.vencimento || '';
-
-    // Se estiver vencido ou vencimento no passado, iniciar novo ciclo a partir de hoje
-    if (info.isExpired || isPastDate(dVenc)) {
-      dInicio = todayStr;
-      dVenc = calculateContractEndDate(todayStr, dur, vigQtd, undefined, Boolean(com.criarRecorrenciaMensal));
-    }
+    const dInicio = com.dataInicio || latestC?.dataInicio || todayStr;
+    const dVenc = com.vencimento || latestC?.vencimento || calculateContractEndDate(dInicio, dur, vigQtd, undefined, Boolean(com.criarRecorrenciaMensal));
+    const dPrimeiroVenc = com.dataPrimeiroVencimento || latestC?.dataPrimeiroVencimento || dInicio;
 
     setEcDataInicio(dInicio);
     setEcVencimento(dVenc);
-
-    // 1º Vencimento
-    const dPrimeiroVenc = (info.isExpired || isPastDate(com.dataPrimeiroVencimento)) ? todayStr : (com.dataPrimeiroVencimento || latestC?.dataPrimeiroVencimento || latestP?.dataPrimeiroVencimento || todayStr);
     setEcDataPrimeiroVencimento(dPrimeiroVenc);
 
     // Forma de Pagamento & Parcelas
@@ -684,7 +673,7 @@ export default function GestaoContratosPanel({
     setEcParcelas(Number(com.parcelas || latestC?.parcelas || latestP?.parcelas || 1) || 1);
 
     // Valor & Desconto
-    const val = Number(com.valorUnitario || latestC?.valorContratado || latestC?.valorUnitario || latestP?.valorUnitario || 0);
+    const val = Number(com.valorTotal || com.valorUnitario || latestC?.valorTotal || latestC?.valorContratado || latestC?.valorUnitario || latestP?.valorAcordado || latestP?.valorUnitario || 0);
     setEcValorUnitario(val);
     setEcDescontoTipo(com.descontoTipo || 'percentual');
     setEcDescontoValor(Number(com.descontoValor || 0));
@@ -692,8 +681,8 @@ export default function GestaoContratosPanel({
     // Frequência & Créditos
     setEcFrequencia(Number(com.frequencia || 3));
     setEcCreditosTotal(Number(com.creditosTotal !== undefined ? com.creditosTotal : 13));
-    setEcCreditosMassagemTotal(Number(com.creditosMassagemTotal || 0));
-    setEcCreditosEmergenciaTotal(Number(com.creditosEmergenciaTotal || 0));
+    setEcCreditosMassagemTotal(Number(com.creditosMassagemTotal || (dur === 'anual' ? 1 : 0)));
+    setEcCreditosEmergenciaTotal(Number(com.creditosEmergenciaTotal || (dur === 'anual' ? 1 : 0)));
 
     // Recorrência
     setEcCriarRecorrenciaMensal(Boolean(com.criarRecorrenciaMensal));
@@ -4206,77 +4195,125 @@ export default function GestaoContratosPanel({
                             </div>
                           ) : (stage.stageKey === 'vencido' || stage.stageKey === 'renovacao') ? (
                             /* CASO D: VENCIDO / RENOVAÇÃO */
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateRenewalLink(c)}
+                                  disabled={Boolean(generatingRenewalClientId)}
+                                  style={{
+                                    flex: '1 1 auto',
+                                    padding: '11px 14px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    background: '#fbbf24',
+                                    color: '#000000',
+                                    fontWeight: 800,
+                                    fontSize: '0.84rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)'
+                                  }}
+                                >
+                                  {generatingRenewalClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
+                                  Renovação (+5%)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenFinalizeModal(c)}
+                                  title="Marcar contrato como Finalizado (Não Renovou)"
+                                  style={{
+                                    padding: '11px 12px',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(107, 114, 128, 0.4)',
+                                    background: 'rgba(107, 114, 128, 0.18)',
+                                    color: '#d1d5db',
+                                    fontWeight: 700,
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-flag-checkered"></i> Não Renovou
+                                </button>
+                              </div>
                               <button
                                 type="button"
-                                onClick={() => handleGenerateRenewalLink(c)}
-                                disabled={Boolean(generatingRenewalClientId)}
+                                onClick={() => handleSelectClient(c)}
+                                style={{
+                                  width: '100%',
+                                  padding: '8px 10px',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  color: '#f1f5f9',
+                                  fontWeight: 700,
+                                  fontSize: '0.78rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                title="Abrir Workspace do Contrato"
+                              >
+                                <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i> Abrir Workspace do Contrato
+                              </button>
+                            </div>
+                          ) : stage.stageKey === 'finalizado' ? (
+                            /* CASO E: FINALIZADO */
+                            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDirectContractWizard(c)}
                                 style={{
                                   flex: '1 1 auto',
                                   padding: '11px 14px',
                                   borderRadius: '10px',
                                   border: 'none',
-                                  background: '#fbbf24',
-                                  color: '#000000',
+                                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                  color: '#ffffff',
                                   fontWeight: 800,
                                   fontSize: '0.84rem',
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  gap: '6px',
-                                  boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)'
+                                  gap: '8px',
+                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
                                 }}
                               >
-                                {generatingRenewalClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
-                                Renovação (+5%)
+                                <i className="fa-solid fa-arrows-rotate"></i> Reativar / Nova Renovação
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleOpenFinalizeModal(c)}
-                                title="Marcar contrato como Finalizado (Não Renovou)"
+                                onClick={() => handleSelectClient(c)}
                                 style={{
                                   padding: '11px 12px',
                                   borderRadius: '10px',
-                                  border: '1px solid rgba(107, 114, 128, 0.4)',
-                                  background: 'rgba(107, 114, 128, 0.18)',
-                                  color: '#d1d5db',
+                                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  color: '#f1f5f9',
                                   fontWeight: 700,
-                                  fontSize: '0.8rem',
+                                  fontSize: '0.78rem',
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  gap: '5px'
+                                  gap: '4px'
                                 }}
+                                title="Abrir Workspace do Aluno"
                               >
-                                <i className="fa-solid fa-flag-checkered"></i> Não Renovou
+                                <i className="fa-solid fa-folder-open" style={{ color: '#38bdf8' }}></i>
                               </button>
                             </div>
-                          ) : stage.stageKey === 'finalizado' ? (
-                            /* CASO E: FINALIZADO */
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDirectContractWizard(c)}
-                              style={{
-                                width: '100%',
-                                padding: '11px 14px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                color: '#ffffff',
-                                fontWeight: 800,
-                                fontSize: '0.86rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
-                              }}
-                            >
-                              <i className="fa-solid fa-arrows-rotate"></i> Reativar / Nova Renovação
-                            </button>
                           ) : (
                             /* CASO F: LEAD / PADRÃO */
                             <div style={{ display: 'flex', gap: '8px' }}>
