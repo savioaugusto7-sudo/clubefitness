@@ -6141,7 +6141,7 @@ goniometria: {
                           <option value="PERNAS">Pernas</option>
                           <option value="OMBROS">Ombros</option>
                           <option value="BÍCEPS">Bíceps</option>
-                          <option value="TRÍCEPS">Tríceps</option>
+                          <option value="BRAÇO">Braço</option>
                           <option value="CORE">Core</option>
                         </select>
                         <button className="btn btn-primary" onClick={() => setShowNewExModal(true)}>
@@ -13052,7 +13052,7 @@ goniometria: {
                       <option value="PERNAS">Pernas</option>
                       <option value="OMBROS">Ombros</option>
                       <option value="BÍCEPS">Bíceps</option>
-                      <option value="TRÍCEPS">Tríceps</option>
+                      <option value="BRAÇO">Braço</option>
                       <option value="CORE">Core</option>
                     </select>
                   </div>
@@ -13223,7 +13223,7 @@ goniometria: {
                       <option value="PERNAS">Pernas</option>
                       <option value="OMBROS">Ombros</option>
                       <option value="BÍCEPS">Bíceps</option>
-                      <option value="TRÍCEPS">Tríceps</option>
+                      <option value="BRAÇO">Braço</option>
                       <option value="CORE">Core</option>
                     </select>
                   </div>

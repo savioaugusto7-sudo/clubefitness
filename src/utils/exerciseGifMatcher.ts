@@ -2,7 +2,7 @@ export interface GifCatalogItem {
   id: string;
   name: string;
   namePt: string;
-  group: 'PEITO' | 'COSTAS' | 'PERNAS' | 'OMBROS' | 'BÍCEPS' | 'TRÍCEPS' | 'CORE' | 'MOBILIDADE';
+  group: 'PEITO' | 'COSTAS' | 'PERNAS' | 'OMBROS' | 'BÍCEPS' | 'TRÍCEPS' | 'BRAÇO' | 'CORE' | 'MOBILIDADE';
   equipment: 'BARRA' | 'HALTER' | 'POLIA' | 'MÁQUINA' | 'PESO CORPORAL' | 'ELÁSTICO';
   angle?: 'INCLINADO' | 'DECLINADO' | 'RETO' | 'UNILATERAL' | 'GERAL';
   gifUrl: string;
@@ -506,62 +506,62 @@ export const EXERCISE_GIF_CATALOG: GifCatalogItem[] = [
   },
 
   // ==========================================
-  // TRÍCEPS / TRICEPS (Animações 3D)
+  // BRAÇO / TRÍCEPS (Animações 3D)
   // ==========================================
   {
     id: 'triceps_pulley_barra',
     name: 'Tricep Cable Pushdown',
     namePt: 'Tríceps Pulley na Polia Alta',
-    group: 'TRÍCEPS',
+    group: 'BRAÇO',
     equipment: 'POLIA',
     angle: 'GERAL',
     gifUrl: 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Pushdown.gif',
     synonyms: ['triceps pulley', 'triceps polia', 'triceps pushdown', 'triceps barra reta polia'],
-    keywords: ['triceps', 'tríceps', 'pulley', 'polia', 'pushdown', 'barra', 'cabo']
+    keywords: ['triceps', 'tríceps', 'pulley', 'polia', 'pushdown', 'barra', 'cabo', 'braço']
   },
   {
     id: 'triceps_corda_polia',
     name: 'Tricep Rope Pushdown',
     namePt: 'Tríceps Corda na Polia Alta',
-    group: 'TRÍCEPS',
+    group: 'BRAÇO',
     equipment: 'POLIA',
     angle: 'GERAL',
     gifUrl: 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Rope-Pushdown.gif',
     synonyms: ['triceps corda', 'corda polia', 'rope pushdown', 'triceps corda pulley'],
-    keywords: ['triceps', 'tríceps', 'corda', 'polia', 'pushdown']
+    keywords: ['triceps', 'tríceps', 'corda', 'polia', 'pushdown', 'braço']
   },
   {
     id: 'triceps_testa_barra_w',
     name: 'Lying Triceps Extension (Skull Crusher)',
     namePt: 'Tríceps Testa com Barra W',
-    group: 'TRÍCEPS',
+    group: 'BRAÇO',
     equipment: 'BARRA',
     angle: 'RETO',
     gifUrl: 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Lying-Triceps-Extension.gif',
     synonyms: ['triceps testa', 'testa barra', 'skull crusher', 'extensao de triceps deitado'],
-    keywords: ['testa', 'triceps', 'tríceps', 'barra', 'skull', 'crusher', 'lying']
+    keywords: ['testa', 'triceps', 'tríceps', 'barra', 'skull', 'crusher', 'lying', 'braço']
   },
   {
     id: 'triceps_frances_halter',
     name: 'Overhead Dumbbell Triceps Extension',
     namePt: 'Tríceps Francês com Halter',
-    group: 'TRÍCEPS',
+    group: 'BRAÇO',
     equipment: 'HALTER',
     angle: 'GERAL',
     gifUrl: 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Dumbbell-Triceps-Extension.gif',
     synonyms: ['triceps frances', 'frances halter', 'overhead triceps', 'triceps sentado halter'],
-    keywords: ['frances', 'francês', 'overhead', 'halter', 'triceps', 'tríceps']
+    keywords: ['frances', 'francês', 'overhead', 'halter', 'triceps', 'tríceps', 'braço']
   },
   {
     id: 'triceps_mergulho_banco',
     name: 'Bench Dips',
     namePt: 'Mergulho no Banco (Tríceps Banco)',
-    group: 'TRÍCEPS',
+    group: 'BRAÇO',
     equipment: 'PESO CORPORAL',
     angle: 'GERAL',
     gifUrl: 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Bench-Dips.gif',
     synonyms: ['triceps banco', 'mergulho banco', 'bench dips', 'triceps no banco'],
-    keywords: ['mergulho', 'banco', 'dips', 'triceps', 'tríceps', 'corporal']
+    keywords: ['mergulho', 'banco', 'dips', 'triceps', 'tríceps', 'corporal', 'braço']
   },
 
   // ==========================================

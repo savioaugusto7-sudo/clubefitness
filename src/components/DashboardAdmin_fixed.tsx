@@ -2890,7 +2890,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                           <option value="PERNAS">Pernas</option>
                           <option value="OMBROS">Ombros</option>
                           <option value="BÍCEPS">Bíceps</option>
-                          <option value="TRÍCEPS">Tríceps</option>
+                          <option value="BRAÇO">Braço</option>
                           <option value="CORE">Core</option>
                         </select>
                       </div>

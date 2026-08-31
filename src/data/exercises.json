@@ -34,7 +34,7 @@
   {
     "id": "ex_triceps_pulley",
     "nome": "TRÍCEPS PULLEY",
-    "grupo": "TRÍCEPS",
+    "grupo": "BRAÇO",
     "equipamento": "POLIA",
     "instrucoes": "SEGURE A BARRA OU CORDA, MANTENHA OS COTOVELOS FIXOS AO LADO DO CORPO, EMPURRE A BARRA PARA BAIXO ESTENDENDO OS COTOVELOS COMPLETAMENTE.",
     "gifUrl": "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?q=80&w=300&auto=format&fit=crop"
@@ -682,7 +682,7 @@
   {
     "id": "ex_agachamento_arremesso_wallball",
     "nome": "AGACHAMENTO + ARREMESSO WALLBALL",
-    "grupo": "ABDUTORES, ADUTORES, BÍCEPS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, PEITORAL, QUADRÍCEPS, TRÍCEPS",
+    "grupo": "ABDUTORES, ADUTORES, BÍCEPS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, PEITORAL, QUADRÍCEPS, BRAÇO",
     "equipamento": "BOLA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -2154,7 +2154,7 @@
   {
     "id": "ex_apanhador_c_desenvolvimento_alt_kettlebell",
     "nome": "APANHADOR C/ DESENVOLVIMENTO ALT. KETTLEBELL",
-    "grupo": "BÍCEPS, COSTAS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, TRAPÉZIO, TRÍCEPS",
+    "grupo": "BÍCEPS, COSTAS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, TRAPÉZIO, BRAÇO",
     "equipamento": "KETTLEBELL",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -2298,7 +2298,7 @@
   {
     "id": "ex_arremesso_de_peito_wallball_c_corrida",
     "nome": "ARREMESSO DE PEITO WALLBALL C/ CORRIDA",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "BOLA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -2322,7 +2322,7 @@
   {
     "id": "ex_arremesso_wallball_uni",
     "nome": "ARREMESSO WALLBALL UNI.",
-    "grupo": "ANTEBRAÇO, OMBRO, PEITORAL, TRÍCEPS",
+    "grupo": "ANTEBRAÇO, OMBRO, PEITORAL, BRAÇO",
     "equipamento": "BOLA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -2548,7 +2548,7 @@
     "nome": "BARRA LIMPA E PRESSIONE",
     "grupo": "OUTROS",
     "equipamento": "BARRA",
-    "instrucoes": "CARREGUE UMA BARRA COM O PESO APROPRIADO E FIQUE EM FRENTE À BARRA COM OS PÉS AFASTADOS NA LARGURA DOS OMBROS. PARA LEVANTAR A BARRA, ABAIXE O CORPO ATÉ QUE SUAS COXAS ESTEJAM PARALELAS AO CHÃO E ENTÃO SEGURE A BARRA COM UMA PEGADA PRONADA. EXPLODA PARA CIMA E PUXE A BARRA ATÉ A ALTURA DO PEITO, PAUSE E, USANDO OS OMBROS, TRÍCEPS E TRAPÉZIOS, PRESSIONE O PESO EM LINHA RETA ATÉ O TETO. PAUSE, E ENTÃO ABAIXE A BARRA DE VOLTA AO CHÃO. SUA COLUNA DEVE PERMANECER RETA O TEMPO TODO.",
+    "instrucoes": "CARREGUE UMA BARRA COM O PESO APROPRIADO E FIQUE EM FRENTE À BARRA COM OS PÉS AFASTADOS NA LARGURA DOS OMBROS. PARA LEVANTAR A BARRA, ABAIXE O CORPO ATÉ QUE SUAS COXAS ESTEJAM PARALELAS AO CHÃO E ENTÃO SEGURE A BARRA COM UMA PEGADA PRONADA. EXPLODA PARA CIMA E PUXE A BARRA ATÉ A ALTURA DO PEITO, PAUSE E, USANDO OS OMBROS, BRAÇO E TRAPÉZIOS, PRESSIONE O PESO EM LINHA RETA ATÉ O TETO. PAUSE, E ENTÃO ABAIXE A BARRA DE VOLTA AO CHÃO. SUA COLUNA DEVE PERMANECER RETA O TEMPO TODO.",
     "gifUrl": ""
   },
   {
@@ -3450,7 +3450,7 @@
   {
     "id": "ex_corda_naval_alt",
     "nome": "CORDA NAVAL ALT.",
-    "grupo": "BÍCEPS, OMBRO, TRAPÉZIO, TRÍCEPS",
+    "grupo": "BÍCEPS, OMBRO, TRAPÉZIO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -4194,7 +4194,7 @@
   {
     "id": "ex_desenvol_sentado_halt",
     "nome": "DESENVOL. SENTADO HALT.",
-    "grupo": "OMBRO, TRÍCEPS",
+    "grupo": "OMBRO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -4202,7 +4202,7 @@
   {
     "id": "ex_desenvolv_halt",
     "nome": "DESENVOLV. HALT",
-    "grupo": "OMBRO, TRÍCEPS",
+    "grupo": "OMBRO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -4210,7 +4210,7 @@
   {
     "id": "ex_desenvolv_halt",
     "nome": "DESENVOLV. HALT.",
-    "grupo": "OMBRO, TRÍCEPS",
+    "grupo": "OMBRO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -4218,7 +4218,7 @@
   {
     "id": "ex_desenvolv_ombro_halt",
     "nome": "DESENVOLV. OMBRO HALT.",
-    "grupo": "OMBRO, TRÍCEPS",
+    "grupo": "OMBRO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -4330,7 +4330,7 @@
   {
     "id": "ex_desloc_x_lat",
     "nome": "DESLOC. \"X\" + LAT.",
-    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, ABDUTORES, ADUTORES, ANTEBRAÇO, BÍCEPS, COSTAS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, PANTURRILHA, PEITORAL, QUADRÍCEPS, TIBIAL ANTERIOR, TRAPÉZIO, TRÍCEPS",
+    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, ABDUTORES, ADUTORES, ANTEBRAÇO, BÍCEPS, COSTAS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, PANTURRILHA, PEITORAL, QUADRÍCEPS, TIBIAL ANTERIOR, TRAPÉZIO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -5428,7 +5428,7 @@
     "nome": "EXTENSÃO DE TRÍCEPS COM SUSPENSÃO",
     "grupo": "OUTROS",
     "equipamento": "NÃƒO ESPECIFICADO",
-    "instrucoes": "PARA ESTE EXERCÍCIO, MANTENHA O SEU NÚCLEO APERTADO E GLÚTEOS ATIVADOS PARA MANTER A COLUNA NEUTRA. VOCÊ ESTARÁ TRABALHANDO SEUS TRÍCEPS, ENTÃO ISOLE-OS MANTENDO OS COTOVELOS PRÓXIMOS AO CORPO. DEIXE-SE CAIR PARA TRÁS E PUXE-SE MANTENDO OS COTOVELOS PRÓXIMOS AO CORPO. EM SEGUIDA, VOLTE À POSIÇÃO INICIAL. PARA TORNAR ESTE EXERCÍCIO MAIS FÁCIL, AFASTE OS PÉS DAS ALÇAS. PARA TORNÁ-LO MAIS DESAFIADOR, APROXIME-OS.",
+    "instrucoes": "PARA ESTE EXERCÍCIO, MANTENHA O SEU NÚCLEO APERTADO E GLÚTEOS ATIVADOS PARA MANTER A COLUNA NEUTRA. VOCÊ ESTARÁ TRABALHANDO SEUS BRAÇO, ENTÃO ISOLE-OS MANTENDO OS COTOVELOS PRÓXIMOS AO CORPO. DEIXE-SE CAIR PARA TRÁS E PUXE-SE MANTENDO OS COTOVELOS PRÓXIMOS AO CORPO. EM SEGUIDA, VOLTE À POSIÇÃO INICIAL. PARA TORNAR ESTE EXERCÍCIO MAIS FÁCIL, AFASTE OS PÉS DAS ALÇAS. PARA TORNÁ-LO MAIS DESAFIADOR, APROXIME-OS.",
     "gifUrl": ""
   },
   {
@@ -5746,7 +5746,7 @@
   {
     "id": "ex_flex_bra_o_maos_no_step_2",
     "nome": "FLEX. BRAÇO MÃOS NO STEP(2)",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -5754,7 +5754,7 @@
   {
     "id": "ex_flex_bra_o_no_smith_alt_cad_cruzada",
     "nome": "FLEX. BRAÇO NO SMITH ALT. (CAD. CRUZADA)",
-    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, PEITORAL, TRÍCEPS",
+    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, PEITORAL, BRAÇO",
     "equipamento": "MÃQUINA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -5834,7 +5834,7 @@
   {
     "id": "ex_flexao_bra_o",
     "nome": "FLEXÃO BRAÇO",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -5874,7 +5874,7 @@
   {
     "id": "ex_flexao_de_bra_o_smith",
     "nome": "FLEXÃO DE BRAÇO (SMITH)",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "MÃQUINA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -5922,7 +5922,7 @@
   {
     "id": "ex_flexao_de_bra_os",
     "nome": "FLEXÃO DE BRAÇOS",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -9410,7 +9410,7 @@
   {
     "id": "ex_prancha_ventral_din_m_bolao",
     "nome": "PRANCHA VENTRAL DINÂM. BOLÃO",
-    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, COSTAS, TRÍCEPS",
+    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, COSTAS, BRAÇO",
     "equipamento": "PESO CORPORAL",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -10346,7 +10346,7 @@
   {
     "id": "ex_rem_serrote",
     "nome": "REM. SERROTE",
-    "grupo": "BÍCEPS, COSTAS, TRÍCEPS",
+    "grupo": "BÍCEPS, COSTAS, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -11242,7 +11242,7 @@
   {
     "id": "ex_rosca_desenvolv_franc_s_halt",
     "nome": "ROSCA + DESENVOLV. + FRANCÊS HALT.",
-    "grupo": "BÍCEPS, OMBRO, TRÍCEPS",
+    "grupo": "BÍCEPS, OMBRO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -11578,7 +11578,7 @@
   {
     "id": "ex_salto_lat_alt_sobre_pratinho_maos",
     "nome": "SALTO LAT. ALT. SOBRE PRATINHO (MAOS)",
-    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, ABDUTORES, ADUTORES, ANTEBRAÇO, BÍCEPS, COSTAS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, PANTURRILHA, PEITORAL, QUADRÍCEPS, TIBIAL ANTERIOR, TRAPÉZIO, TRÍCEPS",
+    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, ABDUTORES, ADUTORES, ANTEBRAÇO, BÍCEPS, COSTAS, GLÚTEO, ISQUIOTIBIAIS, LOMBAR, OMBRO, PANTURRILHA, PEITORAL, QUADRÍCEPS, TIBIAL ANTERIOR, TRAPÉZIO, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12146,7 +12146,7 @@
   {
     "id": "ex_supini_reto_barra_g",
     "nome": "SUPINI RETO BARRA G",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "BARRA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12154,7 +12154,7 @@
   {
     "id": "ex_supino_30u_uni_cad_cruz",
     "nome": "SUPINO 30º UNI. (CAD. CRUZ.)",
-    "grupo": "ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, OMBRO, PEITORAL, TRÍCEPS",
+    "grupo": "ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, OMBRO, PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12178,7 +12178,7 @@
   {
     "id": "ex_supino_barra_g",
     "nome": "SUPINO BARRA G",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "BARRA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12186,7 +12186,7 @@
   {
     "id": "ex_supino_barra_iso_along",
     "nome": "SUPINO BARRA ISO ALONG.",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "BARRA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12242,7 +12242,7 @@
   {
     "id": "ex_supino_declinado_cross",
     "nome": "SUPINO DECLINADO CROSS",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12266,7 +12266,7 @@
   {
     "id": "ex_supino_reto_barra",
     "nome": "SUPINO RETO BARRA",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "BARRA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12274,7 +12274,7 @@
   {
     "id": "ex_supino_reto_barra_g",
     "nome": "SUPINO RETO BARRA G",
-    "grupo": "OMBRO, PEITORAL, TRÍCEPS",
+    "grupo": "OMBRO, PEITORAL, BRAÇO",
     "equipamento": "BARRA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12290,7 +12290,7 @@
   {
     "id": "ex_supino_reto_barra_m",
     "nome": "SUPINO RETO BARRA M",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "BARRA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12306,7 +12306,7 @@
   {
     "id": "ex_supino_reto_g",
     "nome": "SUPINO RETO G",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12314,7 +12314,7 @@
   {
     "id": "ex_supino_reto_halt",
     "nome": "SUPINO RETO HALT.",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12322,7 +12322,7 @@
   {
     "id": "ex_supino_reto_m",
     "nome": "SUPINO RETO M",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12330,7 +12330,7 @@
   {
     "id": "ex_supino_reto_ponto_0_barra",
     "nome": "SUPINO RETO PONTO 0 BARRA",
-    "grupo": "PEITORAL, TRÍCEPS",
+    "grupo": "PEITORAL, BRAÇO",
     "equipamento": "BARRA",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12338,7 +12338,7 @@
   {
     "id": "ex_supino_reto_uni_cad_cruzada",
     "nome": "SUPINO RETO UNI. (CAD. CRUZADA)",
-    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, PEITORAL, TRÍCEPS",
+    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12346,7 +12346,7 @@
   {
     "id": "ex_supino_reto_uni_nfase_cadeia_cruzada",
     "nome": "SUPINO RETO UNI. (ÊNFASE CADEIA CRUZADA)",
-    "grupo": "ABDÔMEN - OBLIQUOS, PEITORAL, TRÍCEPS",
+    "grupo": "ABDÔMEN - OBLIQUOS, PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12354,7 +12354,7 @@
   {
     "id": "ex_supino_reto_uni_c_halt_nfase_cadeia_cruzada",
     "nome": "SUPINO RETO UNI. C/ HALT. (ÊNFASE CADEIA CRUZADA)",
-    "grupo": "ABDÔMEN - OBLIQUOS, PEITORAL, TRÍCEPS",
+    "grupo": "ABDÔMEN - OBLIQUOS, PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12362,7 +12362,7 @@
   {
     "id": "ex_supino_uni_halt_nfase_estabiliza_ao_cad_cruzad",
     "nome": "SUPINO UNI. HALT. (ÊNFASE ESTABILIZAÇÃO CAD. CRUZAD.)",
-    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, PEITORAL, TRÍCEPS",
+    "grupo": "ABDÔMEN - INFERIOR, ABDÔMEN - OBLIQUOS, ABDÔMEN - SUPERIOR, PEITORAL, BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12804,7 +12804,7 @@
     "nome": "TRÍCEPS COM PUXADA INVERTIDA DE BRAÇO ÚNICO",
     "grupo": "OUTROS",
     "equipamento": "NÃƒO ESPECIFICADO",
-    "instrucoes": "AO REALIZAR ESTE EXERCÍCIO, CERTIFIQUE-SE DE QUE OS ROLOS ESTÃO POSICIONADOS ACIMA DA SUA CABEÇA. ALÉM DISSO, NÃO DEIXE QUE OS PESOS TOQUEM O CHÃO ENTRE CADA REPETIÇÃO. MANTENHA OS JOELHOS LEVEMENTE FLEXIONADOS E OS QUADRIS RECUADOS. AO CONTRAIR OS TRÍCEPS, MOVA O ACESSÓRIO DE ALÇA ÚNICA PARA BAIXO ATÉ QUE O BRAÇO ESTEJA ESTENDIDO. QUANDO COMPLETAR UM LADO, COMPLETE TAMBÉM O OUTRO.",
+    "instrucoes": "AO REALIZAR ESTE EXERCÍCIO, CERTIFIQUE-SE DE QUE OS ROLOS ESTÃO POSICIONADOS ACIMA DA SUA CABEÇA. ALÉM DISSO, NÃO DEIXE QUE OS PESOS TOQUEM O CHÃO ENTRE CADA REPETIÇÃO. MANTENHA OS JOELHOS LEVEMENTE FLEXIONADOS E OS QUADRIS RECUADOS. AO CONTRAIR OS BRAÇO, MOVA O ACESSÓRIO DE ALÇA ÚNICA PARA BAIXO ATÉ QUE O BRAÇO ESTEJA ESTENDIDO. QUANDO COMPLETAR UM LADO, COMPLETE TAMBÉM O OUTRO.",
     "gifUrl": ""
   },
   {
@@ -12818,7 +12818,7 @@
   {
     "id": "ex_tr_ceps_cross",
     "nome": "TRÍCEPS CROSS",
-    "grupo": "TRÍCEPS",
+    "grupo": "BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12834,7 +12834,7 @@
   {
     "id": "ex_tr_ceps_franc_s",
     "nome": "TRÍCEPS FRANCÊS",
-    "grupo": "TRÍCEPS",
+    "grupo": "BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12850,7 +12850,7 @@
   {
     "id": "ex_tr_ceps_franc_s_uni_halt",
     "nome": "TRÍCEPS FRANCÊS UNI. HALT.",
-    "grupo": "TRÍCEPS",
+    "grupo": "BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
@@ -12882,7 +12882,7 @@
   {
     "id": "ex_tr_ceps_testa_halt",
     "nome": "TRÍCEPS TESTA HALT.",
-    "grupo": "TRÍCEPS",
+    "grupo": "BRAÇO",
     "equipamento": "NÃƒO ESPECIFICADO",
     "instrucoes": "SEM INSTRUÃ‡Ã•ES DISPONÃVEIS",
     "gifUrl": ""
