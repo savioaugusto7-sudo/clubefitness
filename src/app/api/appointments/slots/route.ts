@@ -126,7 +126,12 @@ export async function GET(request: Request) {
     const appointments = await Appointment.find({
       data: date,
       status: { $ne: 'cancelado' }
-    }).populate('clienteId').populate('profissionalId');
+    })
+      .populate({
+        path: 'clienteId',
+        populate: { path: 'dadosComerciais.planoId', select: 'nome tipo' }
+      })
+      .populate('profissionalId');
 
     const result = resolvedSlots.map(slot => {
       const slotsApts = appointments.filter(apt => apt.horario === slot.horario && apt.tipo === slot.tipo);

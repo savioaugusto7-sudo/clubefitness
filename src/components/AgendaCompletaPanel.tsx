@@ -48,6 +48,53 @@ const getServiceColor = (service: string) => {
   return { bg: 'rgba(236, 72, 153, 0.15)', text: '#ec4899' }; // Pink (Default)
 };
 
+const checkIsDynamusAppointment = (apt: any, clientsList?: any[]): boolean => {
+  if (!apt) return false;
+  const c = apt.clienteId;
+  const com = c?.dadosComerciais || {};
+  const dp = c?.dadosPessoais || {};
+  const planName = String(com.planoId?.nome || com.planoNome || c?.planoNome || apt.planoNome || '').toLowerCase();
+  const email = String(dp.email || c?.email || '').toLowerCase();
+  const codigo = String(c?.codigo || '').toUpperCase();
+  const obs = String(c?.dadosClinicos?.observacoes || '').toLowerCase();
+
+  if (
+    com.isConvenioDynamus === true ||
+    apt.isConvenioDynamus === true ||
+    planName.includes('dynamus') ||
+    email.includes('dynamus') ||
+    codigo.includes('DYN') ||
+    obs.includes('dynamus')
+  ) {
+    return true;
+  }
+
+  if (clientsList && clientsList.length > 0 && c) {
+    const rawId = typeof c === 'string' ? c : c._id;
+    if (rawId) {
+      const fullC = clientsList.find(cl => String(cl._id) === String(rawId));
+      if (fullC) {
+        const fCom = fullC.dadosComerciais || {};
+        const fDp = fullC.dadosPessoais || {};
+        const fPlan = String(fCom.planoId?.nome || fCom.planoNome || fullC.planoNome || '').toLowerCase();
+        const fEmail = String(fDp.email || fullC.email || '').toLowerCase();
+        const fCod = String(fullC.codigo || '').toUpperCase();
+        const fObs = String(fullC.dadosClinicos?.observacoes || '').toLowerCase();
+
+        return Boolean(
+          fCom.isConvenioDynamus === true ||
+          fPlan.includes('dynamus') ||
+          fEmail.includes('dynamus') ||
+          fCod.includes('DYN') ||
+          fObs.includes('dynamus')
+        );
+      }
+    }
+  }
+
+  return false;
+};
+
 
 interface ClientInfo {
   _id: string;
@@ -943,6 +990,7 @@ export default function AgendaCompletaPanel({
                                  ? apt.clienteId.dadosPessoais.nome.split(' ').slice(0, 2).join(' ') 
                                  : 'Aluno';
                                const hasObs = Boolean(apt.observacoes && apt.observacoes.trim());
+                               const isDynamus = checkIsDynamusAppointment(apt, clients);
 
                                return (
                                  <button 
@@ -955,16 +1003,20 @@ export default function AgendaCompletaPanel({
                                      setEditObsText(apt.observacoes || '');
                                      setIsEditingObs(false);
                                    }}
-                                   title={hasObs ? `Clique para ver: ${apt.observacoes}` : 'Clique para ver detalhes do agendamento'}
+                                   title={
+                                     isDynamus 
+                                       ? `⚡ Aluno Dynamus · ${hasObs ? `Obs: ${apt.observacoes}` : 'Clique para ver detalhes do agendamento'}` 
+                                       : (hasObs ? `Clique para ver: ${apt.observacoes}` : 'Clique para ver detalhes do agendamento')
+                                   }
                                    style={{ 
                                      display: 'inline-flex', 
                                      alignItems: 'center', 
-                                     background: 'var(--bg-secondary)', 
-                                     border: `1.5px solid ${sColors.text}`, 
+                                     background: isDynamus ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-secondary)', 
+                                     border: isDynamus ? '1.5px solid #22d3ee' : `1.5px solid ${sColors.text}`, 
                                      borderRadius: '16px', 
                                      padding: '3px 10px', 
                                      gap: '6px',
-                                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                     boxShadow: isDynamus ? '0 0 10px rgba(34, 211, 238, 0.25), 0 2px 4px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
                                      cursor: 'pointer',
                                      touchAction: 'manipulation',
                                      WebkitTapHighlightColor: 'transparent',
@@ -976,6 +1028,28 @@ export default function AgendaCompletaPanel({
                                    <span style={{ fontSize: '0.76rem', fontWeight: 700, color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--text-main)', pointerEvents: 'none' }}>
                                      {shortName}
                                    </span>
+                                   {isDynamus && (
+                                     <span 
+                                       style={{ 
+                                         fontSize: '0.62rem', 
+                                         fontWeight: 800, 
+                                         textTransform: 'uppercase', 
+                                         padding: '1px 6px', 
+                                         borderRadius: '8px', 
+                                         background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.28) 0%, rgba(14, 165, 233, 0.28) 100%)',
+                                         color: '#22d3ee',
+                                         border: '1px solid rgba(34, 211, 238, 0.5)',
+                                         letterSpacing: '0.4px',
+                                         display: 'inline-flex',
+                                         alignItems: 'center',
+                                         gap: '3px',
+                                         pointerEvents: 'none',
+                                         boxShadow: '0 1px 4px rgba(6, 182, 212, 0.2)'
+                                       }}
+                                     >
+                                       <i className="fa-solid fa-bolt" style={{ fontSize: '0.56rem' }}></i> DYNAMUS
+                                     </span>
+                                   )}
                                    <span 
                                      style={{ 
                                        fontSize: '0.64rem', 
@@ -1409,7 +1483,27 @@ export default function AgendaCompletaPanel({
                           }}
                         >
                           <div style={{ flex: '1 1 200px' }}>
-                            <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{apt.clienteId?.dadosPessoais?.nome}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{apt.clienteId?.dadosPessoais?.nome}</strong>
+                              {checkIsDynamusAppointment(apt, clients) && (
+                                <span style={{
+                                  fontSize: '0.65rem',
+                                  fontWeight: 800,
+                                  textTransform: 'uppercase',
+                                  padding: '2px 7px',
+                                  borderRadius: '6px',
+                                  background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(14, 165, 233, 0.25) 100%)',
+                                  color: '#22d3ee',
+                                  border: '1px solid rgba(34, 211, 238, 0.45)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  boxShadow: '0 1px 4px rgba(6, 182, 212, 0.2)'
+                                }}>
+                                  <i className="fa-solid fa-bolt" style={{ fontSize: '0.58rem' }}></i> DYNAMUS
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                               CPF: {apt.clienteId?.dadosPessoais?.cpf || '—'} · Tel: {apt.clienteId?.dadosPessoais?.telefone || '—'}
                             </div>
@@ -1745,9 +1839,29 @@ export default function AgendaCompletaPanel({
                     <i className="fa-solid fa-user-check"></i>
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
-                      {inspectApt.clienteId?.dadosPessoais?.nome || inspectApt.clienteNome || 'Aluno'}
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                        {inspectApt.clienteId?.dadosPessoais?.nome || inspectApt.clienteNome || 'Aluno'}
+                      </h3>
+                      {checkIsDynamusAppointment(inspectApt, clients) && (
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(14, 165, 233, 0.25) 100%)',
+                          color: '#22d3ee',
+                          border: '1px solid rgba(34, 211, 238, 0.5)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: '0 1px 4px rgba(6, 182, 212, 0.2)'
+                        }}>
+                          <i className="fa-solid fa-bolt" style={{ fontSize: '0.6rem' }}></i> DYNAMUS
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                       📅 {formatSelectedDateWithDayOfWeek(inspectApt.data || selectedDate)} às <strong style={{ color: '#10b981' }}>{inspectApt.horario}</strong>
                     </div>
