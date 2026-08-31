@@ -2680,8 +2680,20 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     try {
       const res = await fetch(`/api/appointments/slots?date=${dateStr}&tipo=academia`);
       const data = await res.json();
-      if (data.success && Array.isArray(data.slots)) {
-        const available = data.slots.filter((s: any) => s.vagasRestantes > 0 && s.disponivel !== false);
+      const rawSlots: any[] = Array.isArray(data.slots) ? data.slots : Array.isArray(data.data) ? data.data : [];
+      if (data.success && rawSlots.length > 0) {
+        const available = rawSlots
+          .map((s: any) => {
+            const ocupadas = s.vagasOcupadas ?? 0;
+            const cap = s.capacidade ?? 6;
+            const restantes = s.vagasRestantes !== undefined ? s.vagasRestantes : Math.max(0, cap - ocupadas);
+            return {
+              ...s,
+              vagasRestantes: restantes
+            };
+          })
+          .filter((s: any) => s.vagasRestantes > 0);
+
         setEmergencyAvailableSlots(available);
         if (available.length > 0) {
           setEmergencyReschedHour(available[0].horario);
@@ -2862,7 +2874,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             tipo: 'academia',
             clienteId: targetClientId,
             profissionalId: executorProfId,
-            status: 'agendado'
+            status: 'agendado',
+            bypassRestrictions: true
           })
         });
         const data = await res.json();

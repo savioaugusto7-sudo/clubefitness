@@ -148,14 +148,21 @@ export async function GET(request: Request) {
         }, 0);
       }
 
+      const vagasRestantes = Math.max(0, slot.capacidade - totalVagasOcupadas);
       return {
         ...slot,
         vagasOcupadas: totalVagasOcupadas,
+        vagasRestantes,
+        disponivel: vagasRestantes > 0,
         appointments: slotsApts
       };
     });
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json({ 
+      success: true, 
+      data: result,
+      slots: result 
+    });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
