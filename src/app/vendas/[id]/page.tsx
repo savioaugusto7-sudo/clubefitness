@@ -236,7 +236,18 @@ export default function VendaPage({ params }: { params: any }) {
   })();
 
   const maxInstallments = formaPagamento === 'cartao' ? maxInstallmentsCartao : maxInstallmentsBoleto;
-  const currentInstallments = Math.max(1, Math.min(parcelas, maxInstallments));
+
+  // Opções de parcelas permitidas (Regra Anual: estritamente 10x no boleto ou 12x no cartão)
+  const availableInstallments = (() => {
+    if (isAnual) {
+      return formaPagamento === 'cartao' ? [12] : [10];
+    }
+    return Array.from({ length: maxInstallments }, (_, i) => i + 1);
+  })();
+
+  const currentInstallments = isAnual
+    ? (formaPagamento === 'cartao' ? 12 : 10)
+    : Math.max(1, Math.min(parcelas, maxInstallments));
 
   const cardRate = formaPagamento === 'cartao' ? getCardRateForInstallment(currentInstallments) : 0;
   const finalPrice = formaPagamento === 'cartao' ? Number((basePrice * (1 + cardRate)).toFixed(2)) : basePrice;
@@ -252,7 +263,9 @@ export default function VendaPage({ params }: { params: any }) {
 
   const handlePaymentChange = (type: 'boleto' | 'cartao') => {
     setFormaPagamento(type);
-    if (type === 'boleto') {
+    if (isAnual) {
+      setParcelas(type === 'cartao' ? 12 : 10);
+    } else if (type === 'boleto') {
       setParcelas(maxInstallmentsBoleto);
     } else {
       setParcelas(maxInstallmentsCartao);
@@ -658,20 +671,22 @@ export default function VendaPage({ params }: { params: any }) {
                 )}
               </div>
 
-              <div>
-                <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Franquia Mensal</span>
-                <p style={{ fontSize: '0.95rem', fontWeight: 700, margin: '5px 0 0 0', color: '#38bdf8' }}>
-                  {proposal.creditosMensais} treinos/mês
-                </p>
-                {((proposal.creditosMassagem || 0) > 0 || (proposal.creditosEmergencia || (isAnual ? 1 : 0)) > 0) && (
-                  <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem', display: 'block', marginTop: '2px' }}>
-                    {[
-                      (proposal.creditosMassagem || 0) > 0 ? `${proposal.creditosMassagem} massagem/mês` : '',
-                      (proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)) > 0 ? `${proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)} emergência/mês` : ''
-                    ].filter(Boolean).join(' • ')}
-                  </small>
-                )}
-              </div>
+              {!proposal.isMinor && (
+                <div>
+                  <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Franquia Mensal</span>
+                  <p style={{ fontSize: '0.95rem', fontWeight: 700, margin: '5px 0 0 0', color: '#38bdf8' }}>
+                    {proposal.creditosMensais} treinos/mês
+                  </p>
+                  {((proposal.creditosMassagem || 0) > 0 || (proposal.creditosEmergencia || (isAnual ? 1 : 0)) > 0) && (
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem', display: 'block', marginTop: '2px' }}>
+                      {[
+                        (proposal.creditosMassagem || 0) > 0 ? `${proposal.creditosMassagem} massagem/mês` : '',
+                        (proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)) > 0 ? `${proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)} emergência/mês` : ''
+                      ].filter(Boolean).join(' • ')}
+                    </small>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -856,7 +871,7 @@ export default function VendaPage({ params }: { params: any }) {
                   {/* Valor da Parcela e Total */}
                   <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                      {maxInstallmentsBoleto > 1 ? `Até ${maxInstallmentsBoleto}x de` : 'À vista (1x) de'}
+                      {isAnual ? '10x de' : (maxInstallmentsBoleto > 1 ? `Até ${maxInstallmentsBoleto}x de` : 'À vista (1x) de')}
                     </div>
                     <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--color-primary)', margin: '2px 0' }}>
                       R$ {valorParcelaMaxBoleto.toFixed(2).replace('.', ',')}
@@ -915,7 +930,7 @@ export default function VendaPage({ params }: { params: any }) {
                   {/* Valor da Parcela e Total */}
                   <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                      {maxInstallmentsCartao > 1 ? `Até ${maxInstallmentsCartao}x de` : 'À vista (1x) de'}
+                      {isAnual ? '12x de' : (maxInstallmentsCartao > 1 ? `Até ${maxInstallmentsCartao}x de` : 'À vista (1x) de')}
                     </div>
                     <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#60a5fa', margin: '2px 0' }}>
                       R$ {valorParcelaMaxCartao.toFixed(2).replace('.', ',')}
@@ -939,10 +954,10 @@ export default function VendaPage({ params }: { params: any }) {
                   className="form-control" 
                   value={currentInstallments} 
                   onChange={(e) => setParcelas(Number(e.target.value))} 
-                  disabled={maxInstallments <= 1}
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '0.95rem' }}
+                  disabled={isAnual || availableInstallments.length <= 1}
+                  style={{ width: '100%', background: isAnual ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '0.95rem', cursor: isAnual ? 'default' : 'pointer' }}
                 >
-                  {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => {
+                  {availableInstallments.map((num) => {
                     const rate = formaPagamento === 'cartao' ? getCardRateForInstallment(num) : 0;
                     const total = formaPagamento === 'cartao' ? Number((basePrice * (1 + rate)).toFixed(2)) : basePrice;
                     const instVal = Number((total / num).toFixed(2));
@@ -953,6 +968,12 @@ export default function VendaPage({ params }: { params: any }) {
                     );
                   })}
                 </select>
+                {isAnual && (
+                  <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-circle-info"></i>
+                    <span>Condição exclusiva do plano anual: <strong>{formaPagamento === 'cartao' ? '12x no cartão de crédito' : '10x no boleto bancário / Pix'}</strong>.</span>
+                  </div>
+                )}
               </div>
 
               <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>

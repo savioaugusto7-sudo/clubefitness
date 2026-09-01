@@ -1380,8 +1380,10 @@ export default function GestaoContratosPanel({
     setSwDescontoValor(0);
     setSwFrequencia(3);
     setSwCreditosMensais(13);
+    const birthDate = client?.dadosPessoais?.dataNascimento || client?.dadosPessoais?.nascimento;
+    const isMinor = isMinorFromBirthDate(birthDate);
     setSwCreditosMassagem(0);
-    setSwCreditosEmergencia(1);
+    setSwCreditosEmergencia(isMinor ? 0 : 1);
     setSwCriarRecorrenciaMensal(false);
     setSwRecorrenciaMeses(12);
     setSwShowCalculator(false);
@@ -1433,8 +1435,8 @@ export default function GestaoContratosPanel({
         planoNome: plan?.nome || '',
         valorAcordado: calculatedValorLiquido,
         creditosMensais: swCreditosMensais,
-        creditosMassagem: swCreditosMassagem,
-        creditosEmergencia: swCreditosEmergencia,
+        creditosMassagem: isMinorDetected ? 0 : swCreditosMassagem,
+        creditosEmergencia: isMinorDetected ? 0 : swCreditosEmergencia,
         frequencia: swFrequencia,
         duracao: swDuracao,
         valorUnitario: swValorUnitario,
@@ -6661,6 +6663,7 @@ export default function GestaoContratosPanel({
           MODAL EXECUTIVO 2: WIZARD DE LINK DE VENDA / AUTO-CADASTRO
           ========================================================================= */}
       {salesWizardClient && (() => {
+        const isMinorDetected = isMinorFromBirthDate(salesWizardClient?.dadosPessoais?.dataNascimento || salesWizardClient?.dadosPessoais?.nascimento);
         const activePlans = plans.filter((p: any) => p.ativo !== false);
         const gross = swDuracao === 'anual' ? swValorUnitario : (swValorUnitario * (swVigenciaQtd || 1));
         const discountVal = swDescontoTipo === 'percentual' ? (gross * (Number(swDescontoValor) || 0)) / 100 : (Number(swDescontoValor) || 0);
@@ -6766,8 +6769,8 @@ export default function GestaoContratosPanel({
                         if (pObj.tipo === 'Anual') {
                           setSwDuracao('anual');
                           setSwVigenciaQtd(1);
-                          setSwCreditosMassagem(1);
-                          setSwCreditosEmergencia(1);
+                          setSwCreditosMassagem(isMinorDetected ? 0 : 1);
+                          setSwCreditosEmergencia(isMinorDetected ? 0 : 1);
                         } else {
                           setSwDuracao('mensal');
                           setSwVigenciaQtd(1);
