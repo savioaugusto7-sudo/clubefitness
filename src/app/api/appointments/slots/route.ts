@@ -138,11 +138,11 @@ export async function GET(request: Request) {
         if (apt.horario !== slot.horario) return false;
         if (slot.tipo === 'dr_albert') {
           const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-          return apt.tipo === 'dr_albert' || profNome.includes('albert');
+          return apt.tipo === 'dr_albert' || (apt.tipo !== 'academia' && profNome.includes('albert'));
         }
         if (slot.tipo === 'dr_guilherme') {
           const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-          return apt.tipo === 'dr_guilherme' || profNome.includes('guilherme');
+          return apt.tipo === 'dr_guilherme' || (apt.tipo !== 'academia' && profNome.includes('guilherme'));
         }
         return apt.tipo === slot.tipo;
       });
