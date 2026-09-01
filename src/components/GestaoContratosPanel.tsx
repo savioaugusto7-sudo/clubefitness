@@ -7130,16 +7130,6 @@ export default function GestaoContratosPanel({
                         (Equiv. R$ {(netVal / 12).toFixed(2).replace('.', ',')}/mês)
                       </div>
                     </div>
-
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Franquia Mensal</div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#4ade80' }}>
-                        {swCreditosMensais} treinos/mês
-                      </div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '1px' }}>
-                        {swCreditosMassagem > 0 ? `${swCreditosMassagem} massag.` : '0 massag.'} • {swCreditosEmergencia > 0 ? `${swCreditosEmergencia} emerg.` : '0 emerg.'}
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>

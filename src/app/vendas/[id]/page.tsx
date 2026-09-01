@@ -670,23 +670,6 @@ export default function VendaPage({ params }: { params: any }) {
                   </small>
                 )}
               </div>
-
-              {!proposal.isMinor && (
-                <div>
-                  <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Franquia Mensal</span>
-                  <p style={{ fontSize: '0.95rem', fontWeight: 700, margin: '5px 0 0 0', color: '#38bdf8' }}>
-                    {proposal.creditosMensais} treinos/mês
-                  </p>
-                  {((proposal.creditosMassagem || 0) > 0 || (proposal.creditosEmergencia || (isAnual ? 1 : 0)) > 0) && (
-                    <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem', display: 'block', marginTop: '2px' }}>
-                      {[
-                        (proposal.creditosMassagem || 0) > 0 ? `${proposal.creditosMassagem} massagem/mês` : '',
-                        (proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)) > 0 ? `${proposal.creditosEmergencia !== undefined ? proposal.creditosEmergencia : (isAnual ? 1 : 0)} emergência/mês` : ''
-                      ].filter(Boolean).join(' • ')}
-                    </small>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
