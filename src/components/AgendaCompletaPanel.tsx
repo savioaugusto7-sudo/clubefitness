@@ -1089,7 +1089,7 @@ export default function AgendaCompletaPanel({
                                        pointerEvents: 'none'
                                      }}
                                    >
-                                     {isFalta ? 'FALTA' : (apt.servico || slot.tipo || '')?.replace('Treino ', '')}
+                                     {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
                                    </span>
                                    {hasObs && (
                                       <span
