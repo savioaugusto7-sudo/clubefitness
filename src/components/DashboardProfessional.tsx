@@ -405,6 +405,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [showAptModal, setShowAptModal] = useState(false);
   const [showFixedSchedModal, setShowFixedSchedModal] = useState(false);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [assessmentTabMode, setAssessmentTabMode] = useState<'avaliados' | 'pendentes'>('avaliados');
   const [showReportModal, setShowReportModal] = useState(false);
   const [showStModal, setShowStModal] = useState(false);
   const [showProntuarioModal, setShowProntuarioModal] = useState(false);
@@ -7071,14 +7072,46 @@ goniometria: {
           };
         });
 
+        // Alunos sem avaliação física (expurgados quem já possui avaliação e contratos cancelados/inativos)
+        const evaluatedClientIds = new Set(Object.keys(grouped));
+        const allPendingRows = clients.filter(c => {
+          const cid = String(c._id);
+          if (evaluatedClientIds.has(cid)) return false;
+          const st = (c.dadosComerciais?.status || c.status || '').toLowerCase();
+          if (['lead', 'excluido_anonimizado', 'finalizado', 'cancelado', 'arquivado'].includes(st)) return false;
+          const nome = (c.dadosPessoais?.nome || c.nome || '').toLowerCase();
+          if (nome.includes('ian javoski') || nome.includes('ronei vital')) return false;
+          return true;
+        }).map(c => {
+          return {
+            clientId: String(c._id),
+            name: c.dadosPessoais?.nome || c.nome || 'Sem Nome',
+            cpf: c.dadosPessoais?.cpf || 'Não informado',
+            tel: c.dadosPessoais?.telefone || '',
+            email: c.dadosPessoais?.email || '',
+            plano: c.dadosComerciais?.planoId?.nome || 'Personalizado',
+            dataInicio: c.dadosComerciais?.dataInicio || '—',
+            vencimento: c.dadosComerciais?.vencimento || c.dadosComerciais?.dataFim || '—'
+          };
+        });
+
+        allPendingRows.sort((a, b) => a.name.localeCompare(b.name));
+
+        const pendingFilteredRows = allPendingRows.filter(row => {
+          return smartSearchMatch([row.name, row.cpf, row.tel, row.plano], q);
+        });
+
         allStudentRows.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
         const studentRows = allStudentRows.filter(row => {
           return smartSearchMatch([row.name, row.cpf, row.tel, row.latestDate], q);
         });
 
-        const totalPages = Math.ceil(studentRows.length / size);
+        const activeRows = assessmentTabMode === 'avaliados' ? studentRows : pendingFilteredRows;
+        const totalItems = assessmentTabMode === 'avaliados' ? allStudentRows.length : allPendingRows.length;
+        const totalPages = Math.ceil(activeRows.length / size);
         const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-        const paginated = studentRows.slice((curP - 1) * size, curP * size);
+        const paginatedAvaliados = studentRows.slice((curP - 1) * size, curP * size);
+        const paginatedPendentes = pendingFilteredRows.slice((curP - 1) * size, curP * size);
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
@@ -7120,13 +7153,73 @@ goniometria: {
                 </div>
               </div>
 
+              {/* Subtabs Avaliados vs Pendentes */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${assessmentTabMode === 'avaliados' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{
+                    borderRadius: '10px',
+                    padding: '8px 14px',
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onClick={() => { setAssessmentTabMode('avaliados'); setPage(listKey, 1); }}
+                >
+                  <i className="fa-solid fa-clipboard-check"></i>
+                  <span>Avaliados ({allStudentRows.length})</span>
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${assessmentTabMode === 'pendentes' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{
+                    borderRadius: '10px',
+                    padding: '8px 14px',
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: assessmentTabMode === 'pendentes' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'rgba(245, 158, 11, 0.12)',
+                    borderColor: assessmentTabMode === 'pendentes' ? '#f59e0b' : 'rgba(245, 158, 11, 0.3)',
+                    color: assessmentTabMode === 'pendentes' ? '#fff' : '#f59e0b'
+                  }}
+                  onClick={() => { setAssessmentTabMode('pendentes'); setPage(listKey, 1); }}
+                >
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                  <span>⚠️ Pendentes ({allPendingRows.length})</span>
+                </button>
+                <a
+                  href="/pendencias_avaliacao.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    borderRadius: '10px',
+                    padding: '8px 12px',
+                    fontSize: '0.84rem',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="Abrir relatório interativo completo com WhatsApp"
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                  <span>Relatório Interativo</span>
+                </a>
+              </div>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <SmartSearchInput
                   value={q}
                   onChange={val => setSearchQueryForKey('avaliacoes', val)}
-                  placeholder="Buscar por aluno, CPF ou data..."
-                  resultCount={studentRows.length}
-                  totalCount={allStudentRows.length}
+                  placeholder={assessmentTabMode === 'avaliados' ? "Buscar por aluno, CPF ou data..." : "Buscar aluno pendente por nome, CPF, plano..."}
+                  resultCount={activeRows.length}
+                  totalCount={totalItems}
                 />
                 <button 
                   type="button" 
@@ -7172,7 +7265,112 @@ goniometria: {
 
             {/* Cards Grid */}
             <div>
-              {studentRows.length === 0 ? (
+              {assessmentTabMode === 'pendentes' ? (
+                activeRows.length === 0 ? (
+                  <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1.5px dashed var(--border-color)',
+                    borderRadius: '16px',
+                    padding: '48px 20px',
+                    textAlign: 'center'
+                  }}>
+                    <i className="fa-solid fa-circle-check" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '12px' }}></i>
+                    <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 750 }}>Nenhum aluno pendente</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Não há alunos pendentes de avaliação com os filtros aplicados.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                      {paginatedPendentes.map((pRow: any) => {
+                        const cleanPhone = (pRow.tel || '').replace(/\D/g, '');
+                        const waMsg = encodeURIComponent(`Olá ${pRow.name}, tudo bem? Aqui é da equipe do Clube Fitness! Estamos entrando em contato para agendar sua Avaliação Física com o nosso fisioterapeuta/avaliador para alinharmos seus treinos e metas. Qual o melhor dia e horário para você esta semana?`);
+                        const waLink = cleanPhone.length >= 10 ? `https://wa.me/55${cleanPhone}?text=${waMsg}` : '';
+
+                        return (
+                          <div key={pRow.clientId} className="card-custom" style={{
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '16px',
+                            padding: '20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            gap: '14px',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)'
+                          }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#fff' }}>{pRow.name}</h3>
+                                <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', fontSize: '0.72rem' }}>
+                                  Sem Avaliação
+                                </span>
+                              </div>
+
+                              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                <div><strong style={{ color: 'var(--text-main)' }}>Plano:</strong> {pRow.plano}</div>
+                                <div><strong style={{ color: 'var(--text-main)' }}>Início:</strong> {pRow.dataInicio && pRow.dataInicio !== '—' ? pRow.dataInicio.split('-').reverse().join('/') : '—'}</div>
+                                <div><strong style={{ color: 'var(--text-main)' }}>Contato:</strong> {pRow.tel || 'Não informado'}</div>
+                                <div style={{ fontFamily: 'monospace', fontSize: '0.76rem', color: 'var(--text-dim)' }}>CPF: {pRow.cpf}</div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                style={{ flex: 1, fontSize: '0.8rem', fontWeight: 700, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                onClick={() => {
+                                  setAsClient(pRow.clientId);
+                                  setAsStep(1);
+                                  setAsDraftSavedAt(null);
+                                  setAsDate(new Date().toISOString().split('T')[0]);
+                                  setShowAssessmentModal(true);
+                                }}
+                              >
+                                <i className="fa-solid fa-plus"></i> Iniciar Avaliação
+                              </button>
+                              {waLink && (
+                                <a
+                                  href={waLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-sm"
+                                  style={{
+                                    background: 'rgba(37, 211, 102, 0.12)',
+                                    border: '1px solid rgba(37, 211, 102, 0.35)',
+                                    color: '#25d366',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.8rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    textDecoration: 'none'
+                                  }}
+                                  title="Convidar no WhatsApp"
+                                >
+                                  <i className="fa-brands fa-whatsapp"></i>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {activeRows.length > 0 && (
+                      <div style={{ marginTop: '16px' }}>
+                        <Pagination
+                          currentPage={curP}
+                          totalItems={activeRows.length}
+                          itemsPerPage={size}
+                          onPageChange={page => setPage('avaliacoes', page)}
+                        />
+                      </div>
+                    )}
+                  </>
+                )
+              ) : (
+                studentRows.length === 0 ? (
                 <div style={{
                   background: 'var(--bg-card)',
                   border: '1.5px dashed var(--border-color)',
@@ -7190,9 +7388,9 @@ goniometria: {
               ) : (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-                    {paginated.map(row => {
+                    {paginatedAvaliados.map((row: any) => {
                       const activeId = selectedAsId[row.clientId] || row.assessments[0]?._id;
-                      const as = row.assessments.find(a => a._id === activeId) || row.assessments[0];
+                      const as = row.assessments.find((a: any) => a._id === activeId) || row.assessments[0];
                       if (!as) return null;
 
                       const pesoVal = Number(as.dadosMedidos?.peso) || 0;
@@ -7258,7 +7456,7 @@ goniometria: {
                                       value={activeId}
                                       onChange={(e) => setSelectedAsId(prev => ({ ...prev, [row.clientId]: e.target.value }))}
                                     >
-                                      {row.assessments.map(item => (
+                                      {row.assessments.map((item: any) => (
                                         <option key={item._id} value={item._id}>{item.data}</option>
                                       ))}
                                     </select>
@@ -7397,7 +7595,8 @@ goniometria: {
                     </div>
                   )}
                 </>
-              )}
+              )
+            )}
             </div>
           </div>
         );

@@ -162,6 +162,55 @@ export async function GET(request: Request) {
       );
     }
 
+    const pendingOnly = searchParams.get('pendingOnly') === 'true';
+    if (pendingOnly) {
+      const Client = (await import('@/models/Client')).default;
+      const Contract = (await import('@/models/Contract')).default;
+
+      const completedAssessments = await PhysicalAssessment.find({ status: { $ne: 'rascunho' } }).select('clienteId').lean();
+      const evaluatedClientIds = new Set(completedAssessments.map(a => String(a.clienteId)));
+
+      const contracts = await Contract.find({}).lean();
+      const clientContractsMap = new Map<string, any[]>();
+      contracts.forEach(c => {
+        const cid = String(c.clientId);
+        if (!clientContractsMap.has(cid)) clientContractsMap.set(cid, []);
+        clientContractsMap.get(cid)!.push(c);
+      });
+
+      const allClients = await Client.find({
+        'dadosComerciais.status': { $nin: ['lead', 'excluido_anonimizado', 'finalizado', 'cancelado', 'arquivado'] }
+      }).populate('dadosComerciais.planoId').lean();
+
+      const pendingClients = allClients.filter(c => {
+        const cid = String(c._id);
+        if (evaluatedClientIds.has(cid)) return false;
+
+        const userContracts = clientContractsMap.get(cid) || [];
+        const hasCancelled = userContracts.some((k: any) => k.status === 'cancelado');
+        const hasActive = userContracts.some((k: any) => k.status === 'assinado' || k.status === 'vigente');
+        if (hasCancelled && !hasActive) return false;
+
+        return true;
+      }).map(c => ({
+        _id: c._id,
+        nome: c.dadosPessoais?.nome || c.nome || 'Sem Nome',
+        cpf: c.dadosPessoais?.cpf || '',
+        telefone: c.dadosPessoais?.telefone || '',
+        email: c.dadosPessoais?.email || '',
+        plano: (c.dadosComerciais?.planoId as any)?.nome || 'Personalizado',
+        dataInicio: c.dadosComerciais?.dataInicio || '',
+        vencimento: c.dadosComerciais?.vencimento || c.dadosComerciais?.dataFim || ''
+      }));
+
+      pendingClients.sort((a, b) => a.nome.localeCompare(b.nome));
+
+      return NextResponse.json(
+        { success: true, data: pendingClients, count: pendingClients.length },
+        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
+
     let query: any = {};
     if (paramClientId) {
       const objId = toValidObjectId(paramClientId);
