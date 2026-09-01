@@ -1,24 +1,83 @@
 {
+  "id": "/",
   "name": "Clube Fitness Fisio",
   "short_name": "Clube Fitness",
   "description": "Aplicativo Oficial Clube Fitness: Treinos, Avaliações Físicas, Agendamentos e Frequência.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070b14",
-  "theme_color": "#10b981",
+  "theme_color": "#070b14",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": [
+    "fitness",
+    "health",
+    "lifestyle"
+  ],
   "icons": [
     {
-      "src": "/logo.jpg",
+      "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/logo.jpg",
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cockpit & Frequência",
+      "short_name": "Frequência",
+      "description": "Acesse a frequência diária e agendamentos",
+      "url": "/dashboard?tab=resumo_dia",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Ficha de Treinos",
+      "short_name": "Treinos",
+      "description": "Consulte e monte rotinas de treino",
+      "url": "/dashboard?tab=treinos_prof",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Agenda Completa",
+      "short_name": "Agenda",
+      "description": "Veja a grade de horários da clínica",
+      "url": "/dashboard?tab=agenda",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

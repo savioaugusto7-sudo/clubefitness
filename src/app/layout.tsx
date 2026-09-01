@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { Providers } from '@/components/Providers';
+import { PwaRegister } from '@/components/PwaRegister';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -18,6 +19,17 @@ export const metadata: Metadata = {
   keywords: ['clube fitness fisio', 'academia', 'fisioterapia', 'agenda inteligente', 'avaliacao fisica', 'quiropraxista'],
   authors: [{ name: 'Clube Fitness Fisio' }],
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icons/icon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+    ]
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -33,6 +45,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        {/* Apple Touch Icons dedicados para iOS Safari */}
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+        <link rel="apple-touch-icon-precomposed" href="/icons/apple-touch-icon.png" />
+
         {/* FontAwesome Icons CDN */}
         <link 
           rel="stylesheet" 
@@ -43,6 +59,7 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
+        <PwaRegister />
         <Providers>
           {children}
         </Providers>
