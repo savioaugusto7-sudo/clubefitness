@@ -470,7 +470,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
-  const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises' | 'curation'>('clients');
+  const [workoutSubTab, setWorkoutSubTab] = useState<'clients' | 'exercises' | 'curation' | 'fila_pendente'>('clients');
   const [workoutStatusFilter, setWorkoutStatusFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
   const [workoutPlanFilter, setWorkoutPlanFilter] = useState<string>('all');
   const [isNewWorkoutSheet, setIsNewWorkoutSheet] = useState(false);
@@ -482,6 +482,43 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [exerciseGroup, setExerciseGroup] = useState('');
+  const [filaSearch, setFilaSearch] = useState('');
+
+  // Fila dinâmica de alunos pendentes de prescrição de treino
+  const filaPendentes = useMemo(() => {
+    return clients.filter(c => {
+      const nome = (c.dadosPessoais?.nome || c.nome || '').trim();
+      if (!nome) return false;
+
+      // Excluir convênio Dynamus e testes de painel
+      const isDynamus = c.dadosComerciais?.isConvenioDynamus || 
+        nome.toLowerCase().includes('dynamus') || 
+        (c.dadosComerciais?.planoId?.nome || '').toLowerCase().includes('dynamus');
+      if (isDynamus) return false;
+      if (nome.toLowerCase().includes('clubefitness')) return false;
+
+      // Apenas ativos ou leads
+      const status = c.dadosComerciais?.status;
+      if (status !== 'ativo' && status !== 'lead') return false;
+
+      // Verificar se possui ficha com exercícios cadastrados
+      const userWorkout = workouts.find((w: any) => {
+        const wCid = (w.clienteId?._id || w.clienteId || '').toString();
+        return wCid === c._id?.toString();
+      });
+
+      const hasExercises = userWorkout && (
+        (Array.isArray(userWorkout.fichasMonitorado) && userWorkout.fichasMonitorado.some((f: any) => Array.isArray(f.exercicios) && f.exercicios.length > 0)) ||
+        (Array.isArray(userWorkout.fichasLivre) && userWorkout.fichasLivre.some((f: any) => Array.isArray(f.exercicios) && f.exercicios.length > 0))
+      );
+
+      return !hasExercises;
+    }).sort((a, b) => {
+      const nomeA = (a.dadosPessoais?.nome || a.nome || '').trim();
+      const nomeB = (b.dadosPessoais?.nome || b.nome || '').trim();
+      return nomeA.localeCompare(nomeB, 'pt-BR');
+    });
+  }, [clients, workouts]);
 
   // Workout Builder
   const [showWorkoutBuilder, setShowWorkoutBuilder] = useState(false);
@@ -4579,6 +4616,52 @@ goniometria: {
                   </div>
                 </div>
 
+                {/* Alerta de Fila de Prescrição Pendente */}
+                {filaPendentes.length > 0 && (
+                  <div 
+                    className="content-panel" 
+                    style={{ 
+                      background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.05) 100%)', 
+                      border: '1px solid rgba(245, 158, 11, 0.3)', 
+                      borderLeft: '5px solid #f59e0b',
+                      marginBottom: '20px', 
+                      padding: '14px 20px', 
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', fontSize: '1.2rem' }}>
+                        <i className="fa-solid fa-fire"></i>
+                      </div>
+                      <div>
+                        <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>
+                          Fila de Prescrição: {filaPendentes.length} {filaPendentes.length === 1 ? 'aluno aguardando' : 'alunos aguardando'} ficha de treino
+                        </strong>
+                        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                          Clique no botão para abrir a fila e montar os treinos com 1 clique.
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600, padding: '6px 14px' }}
+                      onClick={() => {
+                        setActiveTab('treinos_prof');
+                        setWorkoutSubTab('fila_pendente');
+                      }}
+                    >
+                      <span>Abrir Fila de Prescrição</span>
+                      <i className="fa-solid fa-arrow-right"></i>
+                    </button>
+                  </div>
+                )}
+
                 {/* 1. TOPO ABSOLUTO: Alertas quando o card não é respondido (Horários Passados Sem Sinalização) */}
                 {urgentes.length > 0 && (
                   <div className="content-panel" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', borderLeft: '5px solid var(--color-danger)', padding: '16px', borderRadius: '8px' }}>
@@ -5856,6 +5939,26 @@ goniometria: {
                 >
                   <i className="fa-solid fa-wand-magic-sparkles" style={{ color: workoutSubTab === 'curation' ? '#ffffff' : '#38bdf8' }}></i> Curadoria de GIFs (IA)
                 </button>
+                <button 
+                  className={`btn ${workoutSubTab === 'fila_pendente' ? 'btn-primary' : 'btn-secondary'}`} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 750 }}
+                  onClick={() => setWorkoutSubTab('fila_pendente')}
+                >
+                  <i className="fa-solid fa-fire" style={{ color: workoutSubTab === 'fila_pendente' ? '#ffffff' : '#f59e0b' }}></i>
+                  <span>Fila de Prescrição</span>
+                  {filaPendentes.length > 0 && (
+                    <span style={{ 
+                      background: workoutSubTab === 'fila_pendente' ? '#ffffff' : '#ef4444', 
+                      color: workoutSubTab === 'fila_pendente' ? 'var(--color-primary)' : '#ffffff', 
+                      borderRadius: '12px', 
+                      padding: '1px 8px', 
+                      fontSize: '0.75rem',
+                      fontWeight: 800
+                    }}>
+                      {filaPendentes.length}
+                    </span>
+                  )}
+                </button>
               </div>
 
               {workoutSubTab === 'clients' && (() => {
@@ -6279,6 +6382,106 @@ goniometria: {
                   <ExerciseCurationPanel />
                 </div>
               )}
+
+              {workoutSubTab === 'fila_pendente' && (() => {
+                const filteredFila = filaPendentes.filter(c => {
+                  const nome = (c.dadosPessoais?.nome || c.nome || '').toLowerCase();
+                  return !filaSearch || nome.includes(filaSearch.toLowerCase().trim());
+                });
+
+                return (
+                  <div className="content-panel">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '16px', flexWrap: 'wrap' }}>
+                      <div>
+                        <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <i className="fa-solid fa-fire" style={{ color: '#f59e0b' }}></i>
+                          Fila de Prescrição Pendente
+                          <span style={{ 
+                            background: '#ef4444', 
+                            color: '#ffffff', 
+                            fontSize: '0.8rem', 
+                            borderRadius: '12px', 
+                            padding: '2px 10px', 
+                            fontWeight: 700 
+                          }}>
+                            {filteredFila.length} {filteredFila.length === 1 ? 'pendente' : 'pendentes'}
+                          </span>
+                        </h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                          Clique em <strong>Montar Ficha</strong> para prescrever. Ao salvar a ficha com exercícios, o aluno sai automaticamente da fila.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="input-group" style={{ width: '280px', margin: 0 }}>
+                          <i className="fa-solid fa-search input-icon"></i>
+                          <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="Buscar aluno por nome..." 
+                            value={filaSearch} 
+                            onChange={e => setFilaSearch(e.target.value)} 
+                          />
+                        </div>
+                        {filaSearch && (
+                          <button className="btn btn-secondary btn-sm" onClick={() => setFilaSearch('')} title="Limpar busca">
+                            <i className="fa-solid fa-times"></i>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {filteredFila.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                        <i className="fa-solid fa-circle-check" style={{ fontSize: '3.5rem', color: '#10b981', marginBottom: '16px' }}></i>
+                        <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--text-main)' }}>
+                          {filaSearch ? 'Nenhum aluno encontrado para essa busca' : 'Parabéns! Fila 100% Zerada'}
+                        </h3>
+                        <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+                          {filaSearch ? 'Tente buscar com outro termo ou limpe o campo de busca.' : 'Todos os alunos ativos e leads já possuem rotinas de treino cadastradas.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        <table className="table-custom" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: 'var(--bg-card)' }}>
+                              <th style={{ width: '70px', textAlign: 'center', padding: '12px 16px' }}>#</th>
+                              <th style={{ textAlign: 'left', padding: '12px 16px' }}>Nome do Aluno</th>
+                              <th style={{ width: '200px', textAlign: 'center', padding: '12px 16px' }}>Ação Imediata</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredFila.map((c, idx) => {
+                              const nome = (c.dadosPessoais?.nome || c.nome || 'Aluno Sem Nome').trim();
+                              return (
+                                <tr key={c._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                  <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, padding: '12px 16px' }}>
+                                    {idx + 1}
+                                  </td>
+                                  <td style={{ padding: '12px 16px' }}>
+                                    <strong style={{ fontSize: '0.98rem', color: 'var(--text-main)' }}>{nome}</strong>
+                                  </td>
+                                  <td style={{ textAlign: 'center', padding: '12px 16px' }}>
+                                    <button 
+                                      type="button"
+                                      className="btn btn-primary btn-sm" 
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600, padding: '6px 16px', borderRadius: '6px' }}
+                                      onClick={() => handleOpenWorkoutEditor(c)}
+                                    >
+                                      <i className="fa-solid fa-bolt" style={{ color: '#f59e0b' }}></i>
+                                      <span>Montar Ficha</span>
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </>
           ) : (
             // Full screen Workout Editor inside professional view
