@@ -2539,7 +2539,49 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                                     return (
                                       <tr key={p._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                         <td><strong>{p.parcelaNumero}/{p.parcelasTotal}</strong></td>
-                                        <td>{p.vencimento.split('-').reverse().join('/')}</td>
+                                        <td>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span>{p.vencimento ? p.vencimento.split('-').reverse().join('/') : '—'}</span>
+                                            {p.status !== 'Pago' && (
+                                              <button
+                                                className="btn btn-sm"
+                                                style={{
+                                                  background: 'transparent',
+                                                  border: 'none',
+                                                  color: 'var(--text-dim)',
+                                                  cursor: 'pointer',
+                                                  padding: '2px 4px',
+                                                  fontSize: '0.72rem'
+                                                }}
+                                                title="Alterar Data de Vencimento desta Parcela"
+                                                onClick={async (e) => {
+                                                  e.stopPropagation();
+                                                  const novaData = prompt(`Alterar vencimento da parcela ${p.parcelaNumero}/${p.parcelasTotal} (${p.clientNome}):\nInforme a data no formato AAAA-MM-DD:`, p.vencimento);
+                                                  if (novaData && /^\d{4}-\d{2}-\d{2}$/.test(novaData.trim())) {
+                                                    try {
+                                                      const res = await fetch('/api/admin/payments', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ action: 'update_due_date', paymentId: p._id, newDueDate: novaData.trim() })
+                                                      });
+                                                      const json = await res.json();
+                                                      if (json.success) {
+                                                        alert('Data de vencimento atualizada com sucesso!');
+                                                        fetchPayments();
+                                                      } else {
+                                                        alert('Erro: ' + (json.error || 'Falha ao atualizar data'));
+                                                      }
+                                                    } catch (err: any) {
+                                                      alert('Erro de conexão: ' + err.message);
+                                                    }
+                                                  }
+                                                }}
+                                              >
+                                                <i className="fa-solid fa-pen-to-square"></i>
+                                              </button>
+                                            )}
+                                          </div>
+                                        </td>
                                         <td>R$ {p.valor.toFixed(2).replace('.', ',')}</td>
                                         <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)' }}>{p.formaPagamento}</span></td>
                                         <td>

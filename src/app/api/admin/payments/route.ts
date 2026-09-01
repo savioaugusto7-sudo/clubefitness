@@ -250,6 +250,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: payment });
     }
 
+    // A1. UPDATE PAYMENT DUE DATE
+    if (action === 'update_due_date') {
+      const { paymentId, newDueDate } = body;
+      if (!paymentId || !newDueDate) {
+        return NextResponse.json({ success: false, error: 'paymentId e newDueDate são obrigatórios' }, { status: 400 });
+      }
+
+      const payment = await Payment.findById(paymentId);
+      if (!payment) {
+        return NextResponse.json({ success: false, error: 'Mensalidade não encontrada' }, { status: 404 });
+      }
+
+      payment.vencimento = newDueDate;
+      await payment.save();
+
+      return NextResponse.json({ success: true, data: payment });
+    }
+
     // A2. CONFIRM ALL CARD INSTALLMENTS (SET PAYMENT DATE TO DUE DATE)
     if (action === 'confirm_all_card') {
       const { clientId, formaPagamento } = body;
