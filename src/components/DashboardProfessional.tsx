@@ -2770,6 +2770,11 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
     // If confirming presence -> Open Wellness Questionnaire for all services
     if (status === 'presenca') {
+      const isEmergencia = apt?.servico === 'Emergência' || apt?.tipo === 'Emergência';
+      if (isEmergencia && apt?.wellness?.realizado && !apt?.finalizado) {
+        handleOpenEmergencyFinalization(apt);
+        return;
+      }
       setWellnessApt(apt);
       setShowWellnessModal(true);
       return;
@@ -2814,6 +2819,13 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           if (data.success) {
             fetchData();
             resolve();
+            // Se for atendimento de emergência, encadeia imediatamente a finalização de atendimento (prontuário + conduta)
+            const isEmergencia = wellnessApt.servico === 'Emergência' || wellnessApt.tipo === 'Emergência';
+            if (isEmergencia) {
+              setTimeout(() => {
+                handleOpenEmergencyFinalization(wellnessApt);
+              }, 250);
+            }
           } else {
             reject(new Error(data.error || 'Erro ao registrar presença com wellness.'));
           }
@@ -4597,8 +4609,13 @@ goniometria: {
 
             const urgentes: any[] = [];
             const atuais: any[] = [];
+            const emergenciasEmAndamento: any[] = [];
 
             todayApts.forEach(a => {
+              const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
+              if (isEm && a.status === 'presenca' && !a.finalizado) {
+                emergenciasEmAndamento.push(a);
+              }
               const timeState = getAptTimeState(a.horario, realTime || '00:00');
               if (timeState === 'past' && a.status === 'agendado') {
                 urgentes.push(a);
@@ -4615,6 +4632,89 @@ goniometria: {
                     <p>Visão executiva, sinalização em tempo real e central de retenção ativa de hoje, {formatLocalDate(hojeISO)}.</p>
                   </div>
                 </div>
+
+                {/* 0. DESTAQUE ABSOLUTO: Atendimentos de Emergência em Andamento */}
+                {emergenciasEmAndamento.length > 0 && (
+                  <div 
+                    className="content-panel" 
+                    style={{ 
+                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(185, 28, 28, 0.08))', 
+                      border: '1.5px solid #ef4444', 
+                      borderLeft: '6px solid #dc2626', 
+                      borderRadius: '10px', 
+                      padding: '16px 20px', 
+                      marginBottom: '20px', 
+                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)' 
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                      <h2 style={{ color: '#ef4444', margin: 0, fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <i className="fa-solid fa-notes-medical" style={{ animation: 'pulse 1.5s infinite' }}></i>
+                        🚨 ATENDIMENTO DE EMERGÊNCIA EM ANDAMENTO ({emergenciasEmAndamento.length})
+                      </h2>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Presença confirmada · Aguardando prontuário e conduta clínica</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {emergenciasEmAndamento.map(a => {
+                        const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                        const clientName = client.dadosPessoais?.nome || client.nome || 'Paciente';
+                        return (
+                          <div 
+                            key={a._id} 
+                            style={{ 
+                              background: 'var(--bg-card)', 
+                              border: '1px solid rgba(239, 68, 68, 0.3)', 
+                              borderRadius: '8px', 
+                              padding: '12px 16px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between', 
+                              flexWrap: 'wrap', 
+                              gap: '12px' 
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{clientName}</strong>
+                                <span className="badge badge-danger" style={{ fontWeight: 700 }}>Emergência às {a.horario}</span>
+                                {a.wellness?.realizado && (
+                                  <span className="badge" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', fontSize: '0.72rem' }}>
+                                    ✓ Wellness Preenchido ({a.wellness.score}/30)
+                                  </span>
+                                )}
+                              </div>
+                              <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                                Presença registrada. Clique ao lado para preencher a evolução clínica e definir Alta ou Agendamento de Retorno.
+                              </small>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              style={{
+                                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                color: 'white',
+                                border: 'none',
+                                padding: '8px 18px',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)'
+                              }}
+                              onClick={() => handleOpenEmergencyFinalization(a)}
+                            >
+                              <i className="fa-solid fa-flag-checkered"></i>
+                              <span>Finalizar Atendimento & Prontuário</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Alerta de Fila de Prescrição Pendente */}
                 {filaPendentes.length > 0 && (
@@ -4795,7 +4895,30 @@ goniometria: {
                               </button>
                             </div>
                             <div style={{ marginTop: '8px', width: '100%' }}>
-                              {client._id && (
+                              {(a.servico === 'Emergência' || a.tipo === 'Emergência') && a.status === 'presenca' && !a.finalizado ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  style={{
+                                    width: '100%',
+                                    padding: '7px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                    color: 'white',
+                                    border: 'none',
+                                    fontWeight: 800,
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)'
+                                  }}
+                                  onClick={() => handleOpenEmergencyFinalization(a)}
+                                >
+                                  <i className="fa-solid fa-flag-checkered"></i> Finalizar Atendimento de Emergência
+                                </button>
+                              ) : client._id && (
                                 <button
                                   type="button"
                                   className="btn btn-primary btn-sm"
@@ -5532,6 +5655,7 @@ goniometria: {
           userRole="professional"
           professionalId={professionalId}
           userName={currentProf?.nome || (session?.user as any)?.nome || session?.user?.name || ''}
+          onOpenEmergencyFinalization={handleOpenEmergencyFinalization}
         />
       )}
 

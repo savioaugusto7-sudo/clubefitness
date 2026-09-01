@@ -151,6 +151,7 @@ interface AgendaCompletaPanelProps {
   userRole?: 'admin' | 'receptionist' | 'professional' | 'client';
   professionalId?: string;
   userName?: string;
+  onOpenEmergencyFinalization?: (apt: any) => void;
 }
 
 export default function AgendaCompletaPanel({ 
@@ -158,7 +159,8 @@ export default function AgendaCompletaPanel({
   professionals,
   userRole,
   professionalId,
-  userName
+  userName,
+  onOpenEmergencyFinalization
 }: AgendaCompletaPanelProps) {
   // Aba selecionada: 'academia' | 'dr_albert' | 'dr_guilherme' | 'consultorio' | professionalId
   const [activeTab, setActiveTab] = useState<string>('academia');
@@ -2003,6 +2005,45 @@ export default function AgendaCompletaPanel({
                     </div>
                   )}
                 </div>
+
+                {/* Alerta & Ação Direta para Atendimento de Emergência em Andamento */}
+                {(inspectApt.servico === 'Emergência' || inspectApt.tipo === 'Emergência') && inspectApt.status === 'presenca' && !inspectApt.finalizado && onOpenEmergencyFinalization && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1.5px solid #ef4444', borderRadius: '12px', padding: '14px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                    <div>
+                      <strong style={{ color: '#ef4444', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <i className="fa-solid fa-notes-medical"></i> Emergência em Atendimento
+                      </strong>
+                      <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
+                        Presença confirmada. Clique para registrar a evolução clínica no prontuário e definir a conduta.
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '10px 18px',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
+                      }}
+                      onClick={() => {
+                        const target = inspectApt;
+                        setInspectApt(null);
+                        onOpenEmergencyFinalization(target);
+                      }}
+                    >
+                      <i className="fa-solid fa-flag-checkered"></i>
+                      <span>Finalizar Atendimento</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Ações de Frequência & Status */}
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '4px' }}>

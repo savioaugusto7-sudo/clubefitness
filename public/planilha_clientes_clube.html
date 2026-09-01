@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Clube Fitness — Central de Cadastro e Créditos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Segoe UI', Arial, sans-serif; 
+      background: #0f172a; 
+      color: #e2e8f0; 
+      min-height: 100vh; 
+      display: flex; 
+      flex-direction: column; 
+    }
+
+    /* Save indicator alert */
+    .save-alert {
+      background: #065f46;
+      color: #34d399;
+      padding: 6px 16px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      display: none;
+      width: 100%;
+      border-bottom: 1px solid rgba(52, 211, 153, 0.2);
+    }
+
+    /* Menu & Header strictly at the top */
+    .header {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      padding: 16px 32px;
+      display: flex; 
+      flex-direction: row;
+      align-items: center; 
+      justify-content: space-between;
+      width: 100%;
+    }
+    .header h1 { font-size: 1.3rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .header p  { font-size: 0.78rem; color: rgba(255,255,255,0.85); margin-top: 2px; }
+    .header-right { display: flex; gap: 10px; align-items: center; }
+    
+    /* Horizontal tab navigation at the top */
+    .tabs-nav {
+      background: #1e293b;
+      padding: 8px 32px 0 32px;
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+      border-bottom: 2px solid #334155;
+      width: 100%;
+    }
+    .tab-button {
+      padding: 10px 24px;
+      border-radius: 8px 8px 0 0;
+      border: none;
+      background: #0f172a;
+      color: #94a3b8;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      border-bottom: none;
+    }
+    .tab-button:hover {
+      color: #fff;
+      background: #334155;
+    }
+    .tab-button.active {
+      background: #059669;
+      color: #fff;
+      border-color: #059669;
+      box-shadow: 0 -2px 8px rgba(5, 150, 105, 0.25);
+    }
+
+    .btn {
+      padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 6px;
+      transition: background 0.15s;
+    }
+    .btn-white  { background: #fff; color: #059669; }
+    .btn-white:hover { background: #f3f4f6; }
+    .btn-clear { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .btn-clear:hover { background: rgba(239, 68, 68, 0.3); color: #fff; }
+    
+    .controls {
+      background: #1e293b; padding: 12px 32px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .controls input, .controls select {
+      background: #0f172a; border: 1px solid #334155; color: #e2e8f0;
+      padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;
+      outline: none;
+    }
+    .controls input { width: 240px; }
+    
+    .stat-chip {
+      background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25);
+      color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+      margin-left: auto;
+    }
+
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      flex-grow: 1;
+      width: 100%;
+    }
+    .tab-content.active {
+      display: flex;
+    }
+
+    .legend {
+      background: #1e293b; padding: 12px 32px;
+      display: flex; gap: 24px; flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .legend-group h4 { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .legend-group div { display: flex; flex-wrap: wrap; gap: 6px; }
+    .legend-badge { font-size: 0.68rem; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
+    .badge-pessoal { background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+    .badge-plano   { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+    .badge-fin     { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+    .badge-saude   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+    .badge-obs     { background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.2); }
+
+    .table-wrap { overflow-x: auto; padding: 16px 32px; flex-grow: 1; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: auto; }
+    .table-clube { min-width: 3000px; }
+    .table-dynamus { min-width: 900px; }
+    .table-massagem { min-width: 900px; }
+
+    thead th {
+      background: #1e293b; padding: 8px 10px; text-align: left;
+      font-weight: 700; font-size: 0.68rem; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.4px;
+      border-bottom: 2px solid #334155; white-space: nowrap;
+      position: sticky; top: 0; z-index: 10;
+    }
+    thead th.th-pessoal { border-top: 3px solid #3b82f6; color: #60a5fa; }
+    thead th.th-plano   { border-top: 3px solid #10b981; color: #34d399; }
+    thead th.th-fin     { border-top: 3px solid #f59e0b; color: #fbbf24; }
+    thead th.th-saude   { border-top: 3px solid #ef4444; color: #f87171; }
+    thead th.th-obs     { border-top: 3px solid #a855f7; color: #c084fc; }
+    thead th.th-action  { border-top: 3px solid #64748b; color: #94a3b8; text-align: center; }
+
+    /* Column-level filter inputs */
+    .col-filter-row th {
+      background: #1e293b;
+      padding: 4px 6px;
+      border-bottom: 2px solid #475569;
+    }
+    .col-filter-input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      outline: none;
+    }
+    .col-filter-input::placeholder { color: #475569; }
+    .col-filter-input:focus { border-color: #10b981; }
+
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(255,255,255,0.035); }
+    tbody td {
+      padding: 8px 10px; color: #cbd5e1; vertical-align: middle;
+      white-space: nowrap;
+    }
+    tbody td.editable {
+      border: 1px solid transparent; cursor: pointer;
+    }
+    tbody td.editable:focus {
+      outline: none; border: 1px solid #10b981;
+      background: rgba(16,185,129,0.05); border-radius: 4px; color: #fff;
+    }
+
+    .status-sel, .fin-sel, .contrato-sel {
+      background: #0f172a; border: 1px solid #334155; color: #e2e8f0;
+      padding: 4px 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+      outline: none; cursor: pointer;
+    }
+
+    .btn-action-green {
+      background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3);
+      padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.72rem; font-weight: bold;
+      transition: all 0.15s;
+    }
+    .btn-action-green:hover { background: rgba(16,185,129,0.3); color: #fff; }
+
+    .btn-delete {
+      background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3);
+      padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.72rem; font-weight: bold;
+      transition: all 0.15s;
+    }
+    .btn-delete:hover { background: rgba(239,68,68,0.3); color: #fff; }
+
+    .add-row-btn {
+      margin: 16px 32px 24px;
+      background: rgba(16,185,129,0.08); border: 2px dashed rgba(16,185,129,0.3);
+      color: #10b981; padding: 12px; border-radius: 10px; width: calc(100% - 64px);
+      cursor: pointer; font-size: 0.85rem; font-weight: 700; text-align: center;
+      transition: all 0.2s;
+    }
+    .add-row-btn:hover { background: rgba(16,185,129,0.15); }
+
+    .no-data-msg {
+      text-align: center; padding: 32px; color: #64748b; font-size: 0.88rem;
+    }
+
+    /* Modal styles */
+    .modal-backdrop {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+      z-index: 1000; visibility: hidden; opacity: 0; transition: all 0.2s;
+    }
+    .modal-backdrop.show { visibility: visible; opacity: 1; }
+    .modal {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      width: 450px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .modal-header h3 { font-size: 1.1rem; color: #fff; }
+    .modal-body { margin-bottom: 20px; }
+    .modal-body label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; }
+    .modal-body input, .modal-body select {
+      width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff;
+      padding: 10px; border-radius: 8px; font-size: 0.85rem; outline: none;
+    }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+    .consumption-history-container {
+      margin: 0 32px 24px 32px;
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 20px;
+    }
+    .consumption-history-container h3 { font-size: 0.95rem; color: #fff; margin-bottom: 12px; }
+
+    .footer {
+      background: #1e293b; padding: 16px 32px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.75rem; color: #64748b;
+    }
+    .footer strong { color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<!-- Indicador de salvamento em tempo real -->
+<div id="saveIndicator" class="save-alert">
+  ✓ Alterações salvas no seu navegador automaticamente!
+</div>
+
+<!-- Header (Sempre no Topo) -->
+<div class="header">
+  <div>
+    <h1>🏋️ Central de Cadastro e Gestão de Créditos</h1>
+    <p>Ferramenta offline de controle integrado de alunos e consumo de créditos</p>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-clear" style="margin-right:10px;" onclick="clearAllData()">⚠️ Limpar Tudo</button>
+    <button class="btn btn-white" onclick="exportCSVCurrentTab()">⬇ Exportar CSV Aba Atual</button>
+  </div>
+</div>
+
+<!-- Tabs de Navegação (Sempre no Topo, abaixo do Header) -->
+<div class="tabs-nav">
+  <button class="tab-button active" onclick="switchTab('clube')">Clientes Clube Fitness</button>
+  <button class="tab-button" onclick="switchTab('dynamus')">Clientes Dynamus</button>
+  <button class="tab-button" onclick="switchTab('massagem')">Consumo de Massagem</button>
+</div>
+
+<!-- ==================== ABA 1: CLIENTES CLUBE FITNESS ==================== -->
+<div id="tab-clube" class="tab-content active">
+  <div class="controls">
+    <input type="text" id="clubeSearch" placeholder="🔍  Busca global (qualquer campo)..." oninput="applyAllFilters()">
+    <select id="clubeFilterStatus" onchange="applyAllFilters()">
+      <option value="">Status do plano</option>
+      <option value="ativo">Ativo</option>
+      <option value="vencido">Vencido</option>
+      <option value="trancado">Trancado</option>
+      <option value="cancelado">Cancelado</option>
+    </select>
+    <span class="stat-chip" id="clubeRowCount">0 clientes</span>
+  </div>
+
+  <div class="legend">
+    <div class="legend-group">
+      <h4>Grupos de colunas</h4>
+      <div>
+        <span class="legend-badge badge-pessoal">🔵 Dados Pessoais</span>
+        <span class="legend-badge badge-plano">🟢 Plano &amp; Créditos</span>
+        <span class="legend-badge badge-fin">🟡 Financeiro</span>
+        <span class="legend-badge badge-saude">🔴 Saúde &amp; Clínico</span>
+        <span class="legend-badge badge-obs">🟣 Observações</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="clubeTable" class="table-clube">
+      <thead>
+        <!-- Títulos das Colunas -->
+        <tr>
+          <th class="th-pessoal">#</th>
+          <th class="th-pessoal">Nome Completo</th>
+          <th class="th-pessoal">Email</th>
+          <th class="th-pessoal">CPF</th>
+          <th class="th-pessoal">Telefone</th>
+          <th class="th-pessoal">Nascimento</th>
+          <th class="th-pessoal">Sexo</th>
+          <th class="th-pessoal">Endereço</th>
+          <th class="th-pessoal">Número</th>
+          <th class="th-pessoal">Complemento</th> 
+          <th class="th-pessoal">Bairro</th>
+          <th class="th-pessoal">Cidade</th>
+          <th class="th-pessoal">UF</th>
+          <th class="th-pessoal">CEP</th>
+
+          <th class="th-plano">Plano Contratado</th>
+          <th class="th-plano">Status</th>
+          <th class="th-plano">Contrato Ativo</th> <!-- Nova Coluna Sim/Não -->
+          <th class="th-plano">Data Início</th>
+          <th class="th-plano">Data Término</th>
+          <th class="th-plano">Duração</th>
+          <th class="th-plano">Frequência/Sem</th>
+          <th class="th-plano">Créd. Academia/Mês</th>
+          <th class="th-plano">Créd. Massagem/Mês</th>
+          <th class="th-plano">Créd. Emergência/Mês</th>
+
+          <th class="th-fin">Valor Bruto (R$)</th>
+          <th class="th-fin">Desconto (R$)</th>
+          <th class="th-fin">Valor Líquido (R$)</th>
+          <th class="th-fin">Nº Parcelas</th>
+          <th class="th-fin">Valor Parcela (R$)</th>
+          <th class="th-fin">Forma Pagamento</th>
+          <th class="th-fin">1º Vencimento</th>
+          <th class="th-fin">Dia Venc. Mensal</th>
+          <th class="th-fin">Última Parcela Nº</th>
+          <th class="th-fin">Data Última Parcela</th>
+          <th class="th-fin">Parcelas Pagas</th>
+          <th class="th-fin">Parcelas Pendentes</th>
+          <th class="th-fin">Situação Financeira</th>
+
+          <th class="th-saude">Lesões / Condições</th>
+          <th class="th-saude">Restrições de Exercício</th>
+          <th class="th-saude">Medicamentos</th>
+          <th class="th-saude">Histórico Clínico</th>
+
+          <th class="th-obs">Responsável Venda</th>
+          <th class="th-obs">Data Cadastro</th>
+          <th class="th-obs">Observações Gerais</th>
+          <th class="th-action">Ações</th>
+        </tr>
+        <!-- Linha de Filtros de Coluna -->
+        <tr class="col-filter-row">
+          <th></th> <!-- # -->
+          <th><input type="text" class="col-filter-input" data-col="1" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="2" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="3" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="4" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="5" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="6" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="7" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="8" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="9" placeholder="Filtrar..." oninput="applyAllFilters()"></th> 
+          <th><input type="text" class="col-filter-input" data-col="10" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="11" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="12" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="13" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="14" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th></th> <!-- Status -->
+          <th><input type="text" class="col-filter-input" data-col="16" placeholder="Filtrar..." oninput="applyAllFilters()"></th> <!-- Contrato Ativo Filtro -->
+          <th><input type="text" class="col-filter-input" data-col="17" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="18" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="19" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="20" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="21" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="22" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="23" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="24" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="25" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="26" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="27" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="28" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="29" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="30" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="31" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="32" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="33" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="34" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="35" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th></th> <!-- Finança Status -->
+          <th><input type="text" class="col-filter-input" data-col="37" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="38" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="39" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="40" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="41" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="42" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input" data-col="43" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th></th> <!-- Ações -->
+        </tr>
+      </thead>
+      <tbody id="clubeTbody"></tbody>
+    </table>
+    <div id="clubeNoData" class="no-data-msg">Nenhum cliente cadastrado. Clique no botão abaixo para adicionar.</div>
+  </div>
+  <button class="add-row-btn" onclick="addClubeRow()">➕ Adicionar novo cliente Clube Fitness</button>
+</div>
+
+<!-- ==================== ABA 2: CLIENTES DYNAMUS ==================== -->
+<div id="tab-dynamus" class="tab-content">
+  <div class="controls">
+    <input type="text" id="dynamusSearch" placeholder="🔍  Busca global..." oninput="applyAllFilters()">
+    <span class="stat-chip" id="dynamusRowCount">0 clientes</span>
+  </div>
+
+  <div class="table-wrap">
+    <table id="dynamusTable" class="table-dynamus">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th>Nome Completo</th>
+          <th>CPF</th>
+          <th>Plano</th>
+          <th>Créditos Contratados</th>
+          <th>Créditos Disponíveis</th>
+          <th class="th-action">Ações</th>
+        </tr>
+        <tr class="col-filter-row">
+          <th></th>
+          <th><input type="text" class="col-filter-input-dyn" data-col="1" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-dyn" data-col="2" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-dyn" data-col="3" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-dyn" data-col="4" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-dyn" data-col="5" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="dynamusTbody"></tbody>
+    </table>
+    <div id="dynamusNoData" class="no-data-msg">Nenhum cliente Dynamus cadastrado. Clique no botão abaixo para adicionar.</div>
+  </div>
+  <button class="add-row-btn" onclick="addDynamusRow()">➕ Adicionar novo cliente Dynamus</button>
+
+  <!-- Histórico Geral de Consumo da Dynamus -->
+  <div class="consumption-history-container">
+    <h3>Histórico de Consumo (Clientes Dynamus)</h3>
+    <table id="historyDynamusTable" style="min-width: 100%;">
+      <thead>
+        <tr>
+          <th>Data do Consumo</th>
+          <th>Cliente</th>
+          <th>CPF</th>
+          <th>Plano</th>
+          <th style="text-align:center;">Qtd</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="historyDynamusTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== ABA 3: CONSUMO DE MASSAGEM ==================== -->
+<div id="tab-massagem" class="tab-content">
+  <div class="controls">
+    <button class="btn btn-white" style="background:#059669;color:#fff;" onclick="openLaunchMassageModal()">➕ Registrar Consumo de Massagem</button>
+    <input type="text" id="massageSearch" placeholder="🔍  Filtrar massagens..." oninput="applyAllFilters()" style="margin-left: 10px;">
+    <span class="stat-chip" id="massagemRowCount">0 registros</span>
+  </div>
+
+  <div class="table-wrap">
+    <table id="massagemTable" class="table-massagem">
+      <thead>
+        <tr>
+          <th>Data do Atendimento</th>
+          <th>Origem do Cliente</th>
+          <th>Nome Completo</th>
+          <th>CPF</th>
+          <th>Créditos Massagem Iniciais</th>
+          <th>Saldo Atualizado</th>
+          <th class="th-action">Ações</th>
+        </tr>
+        <tr class="col-filter-row">
+          <th><input type="text" class="col-filter-input-msg" data-col="0" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-msg" data-col="1" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-msg" data-col="2" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-msg" data-col="3" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-msg" data-col="4" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th><input type="text" class="col-filter-input-msg" data-col="5" placeholder="Filtrar..." oninput="applyAllFilters()"></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="massagemTbody"></tbody>
+    </table>
+    <div id="noMassagemDataMsg" class="no-data-msg">Nenhum consumo de massagem registrado até o momento.</div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: LANÇAR CONSUMO DYNAMUS ==================== -->
+<div id="modalDynamus" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalDynamusTitle">Registrar Consumo de Crédito</h3>
+      <button onclick="closeModal('modalDynamus')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;">&times;</button>
+    </div>
+    <div class="modal-body">
+      <label for="dynamusConsDate">Data do Consumo</label>
+      <input type="date" id="dynamusConsDate" style="margin-bottom:14px;">
+      <label for="dynamusConsQty">Quantidade de Créditos a Consumir</label>
+      <input type="number" id="dynamusConsQty" value="1" min="1" placeholder="Ex: 1, 2, 3...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="border-color:#334155;color:#94a3b8;" onclick="closeModal('modalDynamus')">Cancelar</button>
+      <button class="btn btn-white" onclick="saveDynamusConsumption()">Confirmar Débito</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: REGISTRAR CONSUMO MASSAGEM ==================== -->
+<div id="modalMassage" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Registrar Consumo de Massagem</h3>
+      <button onclick="closeModal('modalMassage')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;">&times;</button>
+    </div>
+    <div class="modal-body">
+      <label for="massageClientSelect" style="margin-bottom: 4px;">Selecionar Aluno</label>
+      <select id="massageClientSelect" style="margin-bottom: 15px;"></select>
+
+      <label for="massageConsDate">Data do Atendimento</label>
+      <input type="date" id="massageConsDate">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="border-color:#334155;color:#94a3b8;" onclick="closeModal('modalMassage')">Cancelar</button>
+      <button class="btn btn-white" onclick="saveMassageConsumption()">Confirmar Consumo</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <span><strong>Clube Fitness</strong> — Controle Integrado</span>
+  <span>Última atualização: <strong id="lastUpdate"></strong></span>
+</div>
+
+<script>
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('pt-BR');
+
+  // In-memory data states
+  let clubeData = [];
+  let dynamusData = [];
+  let dynamusHistory = []; 
+  let massageHistory = [];  
+
+  let currentTab = 'clube';
+  let activeDynamusClientId = null;
+
+  // --- LOCALSTORAGE PERSISTENCE SYSTEM & MIGRATION ---
+  function loadFromStorage() {
+    try {
+      if (localStorage.getItem('clubeData')) clubeData = JSON.parse(localStorage.getItem('clubeData'));
+      if (localStorage.getItem('dynamusData')) dynamusData = JSON.parse(localStorage.getItem('dynamusData'));
+      if (localStorage.getItem('dynamusHistory')) dynamusHistory = JSON.parse(localStorage.getItem('dynamusHistory'));
+      if (localStorage.getItem('massageHistory')) massageHistory = JSON.parse(localStorage.getItem('massageHistory'));
+      
+      // MIGRATION SCRIPT (Previne perda de dados de colunas antigas)
+      let migrated = false;
+      clubeData.forEach(item => {
+        if (item.rawCells) {
+          // Caso 1: Veio da versão original (44 colunas)
+          if (item.rawCells.length === 44) {
+            item.rawCells.splice(9, 0, ''); // Insere Complemento
+            migrated = true;
+          }
+          // Caso 2: Já tem Complemento, mas não tem Contrato Ativo (45 colunas)
+          if (item.rawCells.length === 45) {
+            item.rawCells.splice(16, 0, 'Sim'); // Insere Contrato Ativo no índice 16
+            migrated = true;
+          }
+        }
+      });
+      
+      // Salva imediatamente se houve migração para evitar desalinhamento nas tabelas
+      if (migrated) {
+        saveToStorage();
+      }
+    } catch (e) {
+      console.warn("Storage loading failed (common in file:// sandbox restrictions):", e);
+    }
+  }
+
+  function saveToStorage() {
+    try {
+      localStorage.setItem('clubeData', JSON.stringify(clubeData));
+      localStorage.setItem('dynamusData', JSON.stringify(dynamusData));
+      localStorage.setItem('dynamusHistory', JSON.stringify(dynamusHistory));
+      localStorage.setItem('massageHistory', JSON.stringify(massageHistory));
+      
+      const alertDiv = document.getElementById('saveIndicator');
+      alertDiv.style.display = 'block';
+      setTimeout(() => { alertDiv.style.display = 'none'; }, 2500);
+    } catch (e) {
+      console.warn("localStorage write blocked:", e);
+    }
+  }
+
+  function clearAllData() {
+    if (confirm('ATENÇÃO: Isso irá apagar PERMANENTEMENTE todos os dados cadastrados no navegador. Certifique-se de ter exportado seus CSVs. Deseja prosseguir?')) {
+      try {
+        localStorage.clear();
+      } catch(e){}
+      clubeData = [];
+      dynamusData = [];
+      dynamusHistory = [];
+      massageHistory = [];
+      renderClubeTable();
+      renderDynamusTable();
+      rebuildMassageTable();
+      rebuildDynamusHistoryTable();
+    }
+  }
+
+  window.onload = function() {
+    loadFromStorage();
+    
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dynamusConsDate').value = today;
+    document.getElementById('massageConsDate').value = today;
+
+    renderClubeTable();
+    renderDynamusTable();
+    rebuildMassageTable();
+    rebuildDynamusHistoryTable();
+  }
+
+  function switchTab(tabName) {
+    currentTab = tabName;
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(cont => cont.classList.remove('active'));
+    
+    const btn = Array.from(document.querySelectorAll('.tab-button')).find(b => b.textContent.includes(
+      tabName === 'clube' ? 'Clube Fitness' : tabName === 'dynamus' ? 'Dynamus' : 'Massagem'
+    ));
+    if (btn) btn.classList.add('active');
+
+    document.getElementById('tab-' + tabName).classList.add('active');
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('show');
+  }
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  // ==================== RE-RENDERIZADORES & ORDENAÇÃO ALFABÉTICA ====================
+  
+  // Renderiza a Tabela do Clube Fitness (Ordenado Alfabeticamente)
+  function renderClubeTable() {
+    clubeData.sort((a, b) => {
+      const nameA = (a.rawCells[1] || '').trim().toLowerCase();
+      const nameB = (b.rawCells[1] || '').trim().toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    const tbody = document.getElementById('clubeTbody');
+    tbody.innerHTML = '';
+
+    clubeData.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      tr.id = item.id;
+
+      let trHtml = `<td class="row-num">${index + 1}</td>`;
+
+      item.rawCells.forEach((cellVal, cellIdx) => {
+        if (cellIdx === 0) return;
+
+        if (cellIdx === 15) { // Status (Select)
+          trHtml += `<td>
+            <select class="status-sel" onchange="updateStatusStyle(this); saveCellFromSelect('${item.id}', 15, this)">
+              <option ${cellVal === 'ativo' ? 'selected' : ''}>ativo</option>
+              <option ${cellVal === 'vencido' ? 'selected' : ''}>vencido</option>
+              <option ${cellVal === 'trancado' ? 'selected' : ''}>trancado</option>
+              <option ${cellVal === 'cancelado' ? 'selected' : ''}>cancelado</option>
+            </select>
+          </td>`;
+        } else if (cellIdx === 16) { // Contrato Ativo (Select)
+          trHtml += `<td>
+            <select class="contrato-sel" onchange="updateContratoStyle(this); saveCellFromSelect('${item.id}', 16, this)">
+              <option ${cellVal === 'Sim' ? 'selected' : ''}>Sim</option>
+              <option ${cellVal === 'Não' ? 'selected' : ''}>Não</option>
+              <option ${cellVal === 'Aguardando assinatura' ? 'selected' : ''}>Aguardando assinatura</option>
+            </select>
+          </td>`;
+        } else if (cellIdx === 37) { // Finanças (Select)
+          trHtml += `<td>
+            <select class="fin-sel" onchange="updateFinStyle(this); saveCellFromSelect('${item.id}', 37, this)">
+              <option ${cellVal === 'em dia' ? 'selected' : ''}>em dia</option>
+              <option ${cellVal === 'em atraso' ? 'selected' : ''}>em atraso</option>
+            </select>
+          </td>`;
+        } else if (cellIdx === 45) { // Ações
+          trHtml += `<td style="text-align: center;"><button class="btn-delete" onclick="deleteClubeRow('${item.id}')">Excluir</button></td>`;
+        } else {
+          trHtml += `<td class="editable" contenteditable="true" onblur="saveCellFromInput('${item.id}', ${cellIdx}, this)">${cellVal}</td>`;
+        }
+      });
+
+      tr.innerHTML = trHtml;
+      tbody.appendChild(tr);
+
+      const statusSelect = tr.querySelector('.status-sel');
+      if (statusSelect) updateStatusStyle(statusSelect);
+      const contratoSelect = tr.querySelector('.contrato-sel');
+      if (contratoSelect) updateContratoStyle(contratoSelect);
+      const finSelect = tr.querySelector('.fin-sel');
+      if (finSelect) updateFinStyle(finSelect);
+    });
+
+    updateClubeNoDataState();
+    applyAllFilters();
+  }
+
+  // Renderiza a Tabela da Dynamus (Ordenado Alfabeticamente)
+  function renderDynamusTable() {
+    dynamusData.sort((a, b) => {
+      const nameA = (a.name || '').trim().toLowerCase();
+      const nameB = (b.name || '').trim().toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    const tbody = document.getElementById('dynamusTbody');
+    tbody.innerHTML = '';
+
+    dynamusData.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      tr.id = item.id;
+      tr.innerHTML = `
+        <td class="dyn-row-num">${index + 1}</td>
+        <td class="editable" contenteditable="true" onblur="saveDynamusField('${item.id}', 'name', this)">${item.name}</td>
+        <td class="editable" contenteditable="true" onblur="saveDynamusField('${item.id}', 'cpf', this)">${item.cpf}</td>
+        <td class="editable" contenteditable="true" onblur="saveDynamusField('${item.id}', 'plano', this)">${item.plano}</td>
+        <td class="editable" contenteditable="true" onblur="saveDynamusField('${item.id}', 'totalCredits', this)" style="font-weight:bold;">${item.totalCredits}</td>
+        <td class="dyn-avail" style="font-weight:800;color:#10b981;">${item.availCredits}</td>
+        <td style="text-align: center;">
+          <button class="btn-action-green" onclick="openDynamusConsumptionModal('${item.id}')">➕ Lançar Consumo</button>
+          <button class="btn-delete" style="margin-left:5px;" onclick="deleteDynamusRow('${item.id}')">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    updateDynamusNoDataState();
+    applyAllFilters();
+  }
+
+  // --- CONTROLES DE SALVAR EM MEMÓRIA ---
+  function saveCellFromInput(rowId, cellIdx, cellEl) {
+    const val = cellEl.textContent.trim();
+    const item = clubeData.find(c => c.id === rowId);
+    if (item) {
+      item.rawCells[cellIdx] = val;
+      if (cellIdx === 1) item.name = val;
+      if (cellIdx === 3) item.cpf = val;
+      if (cellIdx === 14) item.plano = val; 
+      if (cellIdx === 21) item.massTotal = parseInt(val) || 0; 
+      saveToStorage();
+    }
+    renderClubeTable();
+  }
+
+  function saveCellFromSelect(rowId, cellIdx, selectEl) {
+    const val = selectEl.value;
+    const item = clubeData.find(c => c.id === rowId);
+    if (item) {
+      item.rawCells[cellIdx] = val;
+      if (cellIdx === 15) item.status = val; 
+      if (cellIdx === 16) item.contratoAtivo = val;
+      saveToStorage();
+    }
+  }
+
+  function saveDynamusField(rowId, field, cellEl) {
+    const val = cellEl.textContent.trim();
+    const item = dynamusData.find(d => d.id === rowId);
+    if (item) {
+      if (field === 'totalCredits') {
+        item.totalCredits = parseInt(val) || 0;
+      } else {
+        item[field] = val;
+      }
+      
+      const totalConsumed = dynamusHistory
+        .filter(h => h.clientId === rowId)
+        .reduce((sum, h) => sum + (h.qty || 1), 0);
+      item.availCredits = Math.max(0, item.totalCredits - totalConsumed);
+      saveToStorage();
+    }
+    renderDynamusTable();
+  }
+
+  // ==================== FILTRAGEM MULTI-COLUNA E GLOBAL ====================
+  function applyAllFilters() {
+    if (currentTab === 'clube') {
+      applyClubeFilters();
+    } else if (currentTab === 'dynamus') {
+      applyDynamusFilters();
+    } else if (currentTab === 'massagem') {
+      applyMassageFilters();
+    }
+  }
+
+  function applyClubeFilters() {
+    const searchGlobal = document.getElementById('clubeSearch').value.toLowerCase();
+    const filterStatus = document.getElementById('clubeFilterStatus').value;
+    
+    const colFilters = {};
+    document.querySelectorAll('#clubeTable .col-filter-input').forEach(input => {
+      const colIdx = input.getAttribute('data-col');
+      const val = input.value.toLowerCase().trim();
+      if (val) colFilters[colIdx] = val;
+    });
+
+    let count = 0;
+    clubeData.forEach((item) => {
+      const tr = document.getElementById(item.id);
+      if (!tr) return;
+
+      const textContent = item.rawCells.join(' ').toLowerCase();
+      const matchGlobal = !searchGlobal || textContent.includes(searchGlobal);
+      const matchStatus = !filterStatus || item.status === filterStatus;
+
+      let matchColumns = true;
+      for (const colIdx in colFilters) {
+        const filterVal = colFilters[colIdx];
+        const cellVal = (item.rawCells[colIdx] || '').toLowerCase();
+        if (!cellVal.includes(filterVal)) {
+          matchColumns = false;
+          break;
+        }
+      }
+
+      if (matchGlobal && matchStatus && matchColumns) {
+        tr.style.display = '';
+        count++;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+
+    document.getElementById('clubeRowCount').textContent = count + ' cliente' + (count !== 1 ? 's' : '');
+  }
+
+  function applyDynamusFilters() {
+    const searchGlobal = document.getElementById('dynamusSearch').value.toLowerCase();
+    
+    const colFilters = {};
+    document.querySelectorAll('#dynamusTable .col-filter-input-dyn').forEach(input => {
+      const colIdx = input.getAttribute('data-col');
+      const val = input.value.toLowerCase().trim();
+      if (val) colFilters[colIdx] = val;
+    });
+
+    let count = 0;
+    dynamusData.forEach((item) => {
+      const tr = document.getElementById(item.id);
+      if (!tr) return;
+
+      const itemText = `${item.name} ${item.cpf} ${item.plano}`.toLowerCase();
+      const matchGlobal = !searchGlobal || itemText.includes(searchGlobal);
+
+      let matchColumns = true;
+      const colMap = {
+        '1': item.name.toLowerCase(),
+        '2': item.cpf.toLowerCase(),
+        '3': item.plano.toLowerCase(),
+        '4': String(item.totalCredits),
+        '5': String(item.availCredits)
+      };
+
+      for (const colIdx in colFilters) {
+        const filterVal = colFilters[colIdx];
+        const cellVal = colMap[colIdx] || '';
+        if (!cellVal.includes(filterVal)) {
+          matchColumns = false;
+          break;
+        }
+      }
+
+      if (matchGlobal && matchColumns) {
+        tr.style.display = '';
+        count++;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+
+    document.getElementById('dynamusRowCount').textContent = count + ' cliente' + (count !== 1 ? 's' : '');
+  }
+
+  function applyMassageFilters() {
+    const searchGlobal = document.getElementById('massageSearch').value.toLowerCase();
+
+    const colFilters = {};
+    document.querySelectorAll('#massagemTable .col-filter-input-msg').forEach(input => {
+      const colIdx = input.getAttribute('data-col');
+      const val = input.value.toLowerCase().trim();
+      if (val) colFilters[colIdx] = val;
+    });
+
+    let count = 0;
+
+    const consumptionCounts = {};
+    massageHistory.forEach(h => {
+      consumptionCounts[h.clientId] = (consumptionCounts[h.clientId] || 0) + 1;
+    });
+
+    massageHistory.forEach((entry) => {
+      const tr = document.getElementById(entry.id);
+      if (!tr) return;
+
+      const consumidos = consumptionCounts[entry.clientId] || 0;
+      const saldo = Math.max(0, entry.startingCredits - consumidos);
+
+      const entryText = `${entry.date} ${entry.source} ${entry.clientName} ${entry.cpf}`.toLowerCase();
+      const matchGlobal = !searchGlobal || entryText.includes(searchGlobal);
+
+      const colMap = {
+        '0': entry.date.toLowerCase(),
+        '1': entry.source.toLowerCase(),
+        '2': entry.clientName.toLowerCase(),
+        '3': entry.cpf.toLowerCase(),
+        '4': String(entry.startingCredits),
+        '5': String(saldo)
+      };
+
+      let matchColumns = true;
+      for (const colIdx in colFilters) {
+        const filterVal = colFilters[colIdx];
+        const cellVal = colMap[colIdx] || '';
+        if (!cellVal.includes(filterVal)) {
+          matchColumns = false;
+          break;
+        }
+      }
+
+      if (matchGlobal && matchColumns) {
+        tr.style.display = '';
+        count++;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+
+    document.getElementById('massagemRowCount').textContent = count + ' registro' + (count !== 1 ? 's' : '');
+  }
+
+  // ==================== CRIAÇÃO DE LINHAS (NOVOS CLIENTES) ====================
+  
+  function addClubeRow() {
+    const rowId = 'clube_' + Date.now();
+    const rawCells = new Array(46).fill('');
+    rawCells[0] = ''; 
+    rawCells[15] = 'ativo'; 
+    rawCells[16] = 'Sim'; // Contrato Ativo default
+    rawCells[37] = 'em dia'; 
+    rawCells[43] = new Date().toLocaleDateString('pt-BR'); 
+
+    clubeData.push({
+      id: rowId,
+      name: '',
+      email: '',
+      cpf: '',
+      tel: '',
+      plano: '',
+      status: 'ativo',
+      contratoAtivo: 'Sim',
+      massTotal: 0,
+      rawCells: rawCells
+    });
+
+    saveToStorage();
+    renderClubeTable();
+    
+    setTimeout(() => {
+      const newTr = document.getElementById(rowId);
+      if (newTr) newTr.cells[1].focus();
+    }, 50);
+  }
+
+  function addDynamusRow() {
+    const rowId = 'dyn_' + Date.now();
+    dynamusData.push({
+      id: rowId,
+      name: '',
+      cpf: '',
+      plano: '',
+      totalCredits: 0,
+      availCredits: 0
+    });
+
+    saveToStorage();
+    renderDynamusTable();
+
+    setTimeout(() => {
+      const newTr = document.getElementById(rowId);
+      if (newTr) newTr.cells[1].focus();
+    }, 50);
+  }
+
+  function deleteClubeRow(rowId) {
+    if (confirm('Deseja realmente excluir este cliente do Clube Fitness?')) {
+      clubeData = clubeData.filter(c => c.id !== rowId);
+      massageHistory = massageHistory.filter(m => m.clientId !== rowId);
+      
+      saveToStorage();
+      renderClubeTable();
+      rebuildMassageTable();
+    }
+  }
+
+  function deleteDynamusRow(rowId) {
+    if (confirm('Deseja realmente remover este cliente Dynamus?')) {
+      dynamusData = dynamusData.filter(d => d.id !== rowId);
+      dynamusHistory = dynamusHistory.filter(h => h.clientId !== rowId);
+      massageHistory = massageHistory.filter(m => m.clientId !== rowId);
+
+      saveToStorage();
+      renderDynamusTable();
+      rebuildDynamusHistoryTable();
+      rebuildMassageTable();
+    }
+  }
+
+  function updateClubeNoDataState() {
+    document.getElementById('clubeNoData').style.display = clubeData.length === 0 ? 'block' : 'none';
+  }
+
+  function updateDynamusNoDataState() {
+    document.getElementById('dynamusNoData').style.display = dynamusData.length === 0 ? 'block' : 'none';
+  }
+
+  // ==================== CONTROLE DE CRÉDITOS DYNAMUS ====================
+  function openDynamusConsumptionModal(rowId) {
+    activeDynamusClientId = rowId;
+    const client = dynamusData.find(d => d.id === rowId);
+    if (!client || !client.name) {
+      alert('Por favor, preencha o nome do cliente Dynamus antes de debitar.');
+      return;
+    }
+    if (client.availCredits <= 0) {
+      alert('Este cliente não possui créditos disponíveis!');
+      return;
+    }
+    document.getElementById('modalDynamusTitle').textContent = `Lançar Consumo: ${client.name}`;
+    openModal('modalDynamus');
+  }
+
+  function saveDynamusConsumption() {
+    const dateInput = document.getElementById('dynamusConsDate').value;
+    const qty = parseInt(document.getElementById('dynamusConsQty').value) || 1;
+
+    if (!dateInput) {
+      alert('Selecione uma data para o consumo.');
+      return;
+    }
+    if (qty < 1) {
+      alert('A quantidade deve ser ao menos 1.');
+      return;
+    }
+
+    const formattedDate = dateInput.split('-').reverse().join('/');
+    const client = dynamusData.find(d => d.id === activeDynamusClientId);
+    
+    if (client) {
+      if (qty > client.availCredits) {
+        alert('Quantidade solicitada (' + qty + ') maior que os créditos disponíveis (' + client.availCredits + ').');
+        return;
+      }
+
+      const entryId = 'cons_dyn_' + Date.now();
+      dynamusHistory.push({
+        id: entryId,
+        clientId: activeDynamusClientId,
+        clientName: client.name,
+        cpf: client.cpf,
+        plano: client.plano,
+        date: formattedDate,
+        qty: qty
+      });
+
+      // Recalcular usando soma de qty (não contagem de entradas)
+      const totalConsumed = dynamusHistory
+        .filter(h => h.clientId === activeDynamusClientId)
+        .reduce((sum, h) => sum + (h.qty || 1), 0);
+      client.availCredits = Math.max(0, client.totalCredits - totalConsumed);
+
+      saveToStorage();
+      closeModal('modalDynamus');
+      renderDynamusTable();
+      rebuildDynamusHistoryTable();
+    }
+  }
+
+  function rebuildDynamusHistoryTable() {
+    const tbody = document.getElementById('historyDynamusTbody');
+    tbody.innerHTML = '';
+    dynamusHistory.forEach(entry => {
+      const tr = document.createElement('tr');
+      tr.id = entry.id;
+      tr.innerHTML = `
+        <td>${entry.date}</td>
+        <td>${entry.clientName}</td>
+        <td>${entry.cpf}</td>
+        <td>${entry.plano}</td>
+        <td style="text-align:center;font-weight:800;color:#10b981;">${entry.qty || 1}</td>
+        <td><button class="btn-delete" onclick="deleteDynamusHistoryRow('${entry.id}')">Excluir</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function deleteDynamusHistoryRow(entryId) {
+    if (confirm('Deseja estornar esse consumo de crédito?')) {
+      const entry = dynamusHistory.find(h => h.id === entryId);
+      if (entry) {
+        const clientId = entry.clientId;
+        dynamusHistory = dynamusHistory.filter(h => h.id !== entryId);
+        
+        const client = dynamusData.find(d => d.id === clientId);
+        if (client) {
+          const totalConsumed = dynamusHistory
+            .filter(h => h.clientId === clientId)
+            .reduce((sum, h) => sum + (h.qty || 1), 0);
+          client.availCredits = Math.max(0, client.totalCredits - totalConsumed);
+        }
+
+        saveToStorage();
+        renderDynamusTable();
+        rebuildDynamusHistoryTable();
+      }
+    }
+  }
+
+  // ==================== CONTROLE DE CRÉDITOS MASSAGEM ====================
+  function openLaunchMassageModal() {
+    const select = document.getElementById('massageClientSelect');
+    select.innerHTML = '';
+
+    let hasClients = false;
+
+    clubeData.forEach(c => {
+      if (c.name) {
+        const option = document.createElement('option');
+        option.value = 'clube_' + c.id;
+        option.textContent = `[Clube Fitness] ${c.name} (CPF: ${c.cpf || 'Não informado'})`;
+        select.appendChild(option);
+        hasClients = true;
+      }
+    });
+
+    dynamusData.forEach(d => {
+      if (d.name) {
+        const option = document.createElement('option');
+        option.value = 'dynamus_' + d.id;
+        option.textContent = `[Dynamus] ${d.name} (CPF: ${d.cpf || 'Não informado'})`;
+        select.appendChild(option);
+        hasClients = true;
+      }
+    });
+
+    if (!hasClients) {
+      alert('Cadastre pelo menos um aluno (na planilha principal ou Dynamus) antes de lançar o consumo de massagem.');
+      return;
+    }
+
+    openModal('modalMassage');
+  }
+
+  function saveMassageConsumption() {
+    const clientVal = document.getElementById('massageClientSelect').value;
+    const dateInput = document.getElementById('massageConsDate').value;
+
+    if (!dateInput) {
+      alert('Selecione uma data para o atendimento.');
+      return;
+    }
+
+    const formattedDate = dateInput.split('-').reverse().join('/');
+    const isClube = clientVal.startsWith('clube_');
+    const clientId = clientVal.replace('clube_', '').replace('dynamus_', '');
+
+    let clientName = '';
+    let cpf = '';
+    let startingCredits = 0;
+    let source = isClube ? 'Clube Fitness' : 'Dynamus';
+
+    if (isClube) {
+      const client = clubeData.find(c => c.id === clientId);
+      if (client) {
+        clientName = client.name;
+        cpf = client.cpf;
+        startingCredits = client.massTotal;
+      }
+    } else {
+      const client = dynamusData.find(d => d.id === clientId);
+      if (client) {
+        clientName = client.name;
+        cpf = client.cpf;
+        startingCredits = 1; 
+      }
+    }
+
+    const entryId = 'mass_log_' + Date.now();
+    massageHistory.push({
+      id: entryId,
+      clientId: clientId,
+      source: source,
+      clientName: clientName,
+      cpf: cpf,
+      startingCredits: startingCredits,
+      date: formattedDate
+    });
+
+    saveToStorage();
+    closeModal('modalMassage');
+    rebuildMassageTable();
+  }
+
+  function rebuildMassageTable() {
+    const tbody = document.getElementById('massagemTbody');
+    tbody.innerHTML = '';
+
+    const hasData = massageHistory.length > 0;
+    document.getElementById('noMassagemDataMsg').style.display = hasData ? 'none' : 'block';
+    document.getElementById('massagemRowCount').textContent = massageHistory.length + ' registro' + (massageHistory.length !== 1 ? 's' : '');
+
+    const consumptionCounts = {};
+    massageHistory.forEach(h => {
+      consumptionCounts[h.clientId] = (consumptionCounts[h.clientId] || 0) + 1;
+    });
+
+    massageHistory.forEach(entry => {
+      const consumidos = consumptionCounts[entry.clientId] || 0;
+      const saldo = Math.max(0, entry.startingCredits - consumidos);
+      const tr = document.createElement('tr');
+      tr.id = entry.id;
+      tr.innerHTML = `
+        <td>${entry.date}</td>
+        <td><span class="legend-badge" style="background:rgba(255,255,255,0.05);color:#fff;border:1px solid rgba(255,255,255,0.1);">${entry.source}</span></td>
+        <td>${entry.clientName}</td>
+        <td>${entry.cpf}</td>
+        <td>${entry.startingCredits}</td>
+        <td style="font-weight:800;color:${saldo > 0 ? '#10b981' : '#ef4444'}">${saldo}</td>
+        <td><button class="btn-delete" onclick="deleteMassageRow('${entry.id}')">Excluir</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    applyAllFilters();
+  }
+
+  function deleteMassageRow(entryId) {
+    if (confirm('Deseja estornar esse atendimento de massagem?')) {
+      massageHistory = massageHistory.filter(m => m.id !== entryId);
+      saveToStorage();
+      rebuildMassageTable();
+    }
+  }
+
+  // ==================== CSV EXPORT LOGIC ====================
+  function exportCSVCurrentTab() {
+    if (currentTab === 'clube') {
+      exportClubeFitnessCSV();
+    } else if (currentTab === 'dynamus') {
+      exportDynamusCSV();
+    } else if (currentTab === 'massagem') {
+      exportMassageCSV();
+    }
+  }
+
+  function exportClubeFitnessCSV() {
+    const headers = [];
+    const tableHeaders = document.querySelectorAll('#clubeTable thead th');
+    for (let i = 0; i < tableHeaders.length - 1; i++) {
+      headers.push('"' + tableHeaders[i].textContent.trim() + '"');
+    }
+    
+    const rows = [headers.join(',')];
+    clubeData.forEach(item => {
+      const cells = item.rawCells.slice(0, -1).map(val => '"' + String(val).replace(/"/g, '""') + '"');
+      rows.push(cells.join(','));
+    });
+
+    downloadFile(rows.join('\n'), 'clientes_clube_fitness.csv');
+  }
+
+  function exportDynamusCSV() {
+    const headers = ['"ID"', '"Nome Completo"', '"CPF"', '"Plano"', '"Creditos Contratados"', '"Creditos Disponiveis"'];
+    const rows = [headers.join(',')];
+    
+    dynamusData.forEach((item, index) => {
+      const cells = [
+        `"${index + 1}"`,
+        `"${item.name.replace(/"/g, '""')}"`,
+        `"${item.cpf.replace(/"/g, '""')}"`,
+        `"${item.plano.replace(/"/g, '""')}"`,
+        `"${item.totalCredits}"`,
+        `"${item.availCredits}"`
+      ];
+      rows.push(cells.join(','));
+    });
+
+    downloadFile(rows.join('\n'), 'clientes_dynamus.csv');
+  }
+
+  function exportMassageCSV() {
+    const headers = ['"Data do Atendimento"', '"Origem"', '"Nome Completo"', '"CPF"', '"Creditos Iniciais"', '"Saldo Atualizado"'];
+    const rows = [headers.join(',')];
+
+    const consumptionCounts = {};
+    massageHistory.forEach(h => {
+      consumptionCounts[h.clientId] = (consumptionCounts[h.clientId] || 0) + 1;
+    });
+
+    massageHistory.forEach(entry => {
+      const consumidos = consumptionCounts[entry.clientId] || 0;
+      const saldo = Math.max(0, entry.startingCredits - consumidos);
+      const cells = [
+        `"${entry.date}"`,
+        `"${entry.source}"`,
+        `"${entry.clientName.replace(/"/g, '""')}"`,
+        `"${entry.cpf.replace(/"/g, '""')}"`,
+        `"${entry.startingCredits}"`,
+        `"${saldo}"`
+      ];
+      rows.push(cells.join(','));
+    });
+
+    downloadFile(rows.join('\n'), 'consumos_massagem.csv');
+  }
+
+  function downloadFile(content, filename) {
+    const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+
+  // Key navigation handler
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Tab' && document.activeElement.contentEditable === 'true') {
+      e.preventDefault();
+      const cells = Array.from(document.querySelectorAll('.editable'));
+      const idx = cells.indexOf(document.activeElement);
+      if (idx >= 0 && idx < cells.length - 1) cells[idx + 1].focus();
+    }
+  });
+
+  function updateStatusStyle(sel) {
+    const val = sel.value;
+    sel.className = 'status-sel';
+    sel.style.background = val === 'ativo' ? 'rgba(16,185,129,0.15)' :
+                           val === 'vencido' ? 'rgba(239,68,68,0.15)' :
+                           val === 'trancado' ? 'rgba(245,158,11,0.15)' : 'rgba(100,116,139,0.15)';
+    sel.style.color = val === 'ativo' ? '#10b981' :
+                      val === 'vencido' ? '#ef4444' :
+                      val === 'trancado' ? '#f59e0b' : '#94a3b8';
+  }
+
+  function updateContratoStyle(sel) {
+    const val = sel.value;
+    sel.className = 'contrato-sel';
+    if (val === 'Sim') {
+      sel.style.background = 'rgba(16,185,129,0.15)';
+      sel.style.color = '#10b981';
+      sel.style.border = '1px solid rgba(16,185,129,0.3)';
+    } else if (val === 'Aguardando assinatura') {
+      sel.style.background = 'rgba(245,158,11,0.15)';
+      sel.style.color = '#f59e0b';
+      sel.style.border = '1px solid rgba(245,158,11,0.3)';
+    } else {
+      sel.style.background = 'rgba(239,68,68,0.15)';
+      sel.style.color = '#ef4444';
+      sel.style.border = '1px solid rgba(239,68,68,0.3)';
+    }
+  }
+
+  function updateFinStyle(sel) {
+    const val = sel.value;
+    sel.className = 'fin-sel';
+    sel.style.background = val === 'em dia' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+    sel.style.color = val === 'em dia' ? '#10b981' : '#ef4444';
+  }
+</script>
+</body>
+</html>
