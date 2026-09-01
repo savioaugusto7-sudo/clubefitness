@@ -134,7 +134,18 @@ export async function GET(request: Request) {
       .populate('profissionalId');
 
     const result = resolvedSlots.map(slot => {
-      const slotsApts = appointments.filter(apt => apt.horario === slot.horario && apt.tipo === slot.tipo);
+      const slotsApts = appointments.filter(apt => {
+        if (apt.horario !== slot.horario) return false;
+        if (slot.tipo === 'dr_albert') {
+          const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+          return apt.tipo === 'dr_albert' || profNome.includes('albert');
+        }
+        if (slot.tipo === 'dr_guilherme') {
+          const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+          return apt.tipo === 'dr_guilherme' || profNome.includes('guilherme');
+        }
+        return apt.tipo === slot.tipo;
+      });
       
       let totalVagasOcupadas = 0;
       if (slot.tipo === 'dr_albert' || slot.tipo === 'dr_guilherme' || slot.tipo === 'consultorio') {

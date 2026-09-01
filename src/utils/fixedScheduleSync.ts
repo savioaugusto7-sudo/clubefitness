@@ -82,6 +82,11 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
       })
     );
 
+    // Buscar profissionais para mapeamento de agendas dedicadas (Dr. Albert / Dr. Guilherme)
+    const allProfs = await Professional.find({}).lean();
+    const profMap = new Map<string, any>();
+    allProfs.forEach((p: any) => profMap.set(String(p._id), p));
+
     for (const pair of scheduleDatePairs) {
       const cIdStr = String(pair.schedule.clienteId?._id || pair.schedule.clienteId);
       const key = `${cIdStr}_${pair.dateStr}_${pair.schedule.horario}`;
@@ -89,16 +94,29 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
         existingSet.add(key); // Prevenir duplicação intra-lote
         const profId = pair.schedule.profissionalId || defaultProfId;
         if (profId) {
+          const profObj = profMap.get(String(profId?._id || profId));
+          const profName = (profObj?.nome || '').toLowerCase();
           const serv = (pair.schedule.servico || '').toLowerCase();
-          const isConsultorio = serv.includes('avalia') || serv.includes('fisioterap') || serv.includes('consulta') || serv.includes('quiroprax') || Boolean(pair.schedule.profissionalId);
+          const isDoctorAlbert = profName.includes('albert');
+          const isDoctorGuilherme = profName.includes('guilherme');
+          const isConsultorio = isDoctorAlbert || isDoctorGuilherme || serv.includes('avalia') || serv.includes('fisioterap') || serv.includes('consulta') || serv.includes('quiroprax') || serv.includes('individual') || Boolean(pair.schedule.profissionalId);
+
+          let resolvedTipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme' = 'academia';
+          if (isDoctorAlbert) {
+            resolvedTipo = 'dr_albert';
+          } else if (isDoctorGuilherme) {
+            resolvedTipo = 'dr_guilherme';
+          } else if (isConsultorio) {
+            resolvedTipo = 'consultorio';
+          }
 
           allAppointmentsToCreate.push({
             data: pair.dateStr,
             horario: pair.schedule.horario,
-            tipo: isConsultorio ? 'consultorio' : 'academia',
-            servico: pair.schedule.servico || (isConsultorio ? 'Avaliação Fisioterápica' : 'Treino Monitorado'),
+            tipo: resolvedTipo,
+            servico: pair.schedule.servico || (isConsultorio ? 'Atendimento Individual' : 'Treino Monitorado'),
             consumeCredito: true,
-            tipoCredito: isConsultorio ? 'consultorio' : 'academia',
+            tipoCredito: 'academia',
             profissionalId: profId,
             clienteId: pair.schedule.clienteId,
             status: 'agendado',
