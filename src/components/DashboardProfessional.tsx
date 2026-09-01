@@ -2819,13 +2819,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           if (data.success) {
             fetchData();
             resolve();
-            // Se for atendimento de emergência, encadeia imediatamente a finalização de atendimento (prontuário + conduta)
-            const isEmergencia = wellnessApt.servico === 'Emergência' || wellnessApt.tipo === 'Emergência';
-            if (isEmergencia) {
-              setTimeout(() => {
-                handleOpenEmergencyFinalization(wellnessApt);
-              }, 250);
-            }
           } else {
             reject(new Error(data.error || 'Erro ao registrar presença com wellness.'));
           }
@@ -4609,15 +4602,12 @@ goniometria: {
 
             const urgentes: any[] = [];
             const atuais: any[] = [];
-            const emergenciasEmAndamento: any[] = [];
 
             todayApts.forEach(a => {
               const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
-              if (isEm && a.status === 'presenca' && !a.finalizado) {
-                emergenciasEmAndamento.push(a);
-              }
+              const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
               const timeState = getAptTimeState(a.horario, realTime || '00:00');
-              if (timeState === 'past' && a.status === 'agendado') {
+              if ((timeState === 'past' && a.status === 'agendado') || (timeState === 'past' && isEmPendente)) {
                 urgentes.push(a);
               } else if (timeState === 'current' && a.status !== 'cancelado') {
                 atuais.push(a);
@@ -4632,89 +4622,6 @@ goniometria: {
                     <p>Visão executiva, sinalização em tempo real e central de retenção ativa de hoje, {formatLocalDate(hojeISO)}.</p>
                   </div>
                 </div>
-
-                {/* 0. DESTAQUE ABSOLUTO: Atendimentos de Emergência em Andamento */}
-                {emergenciasEmAndamento.length > 0 && (
-                  <div 
-                    className="content-panel" 
-                    style={{ 
-                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(185, 28, 28, 0.08))', 
-                      border: '1.5px solid #ef4444', 
-                      borderLeft: '6px solid #dc2626', 
-                      borderRadius: '10px', 
-                      padding: '16px 20px', 
-                      marginBottom: '20px', 
-                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)' 
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
-                      <h2 style={{ color: '#ef4444', margin: 0, fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className="fa-solid fa-notes-medical" style={{ animation: 'pulse 1.5s infinite' }}></i>
-                        🚨 ATENDIMENTO DE EMERGÊNCIA EM ANDAMENTO ({emergenciasEmAndamento.length})
-                      </h2>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Presença confirmada · Aguardando prontuário e conduta clínica</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {emergenciasEmAndamento.map(a => {
-                        const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
-                        const clientName = client.dadosPessoais?.nome || client.nome || 'Paciente';
-                        return (
-                          <div 
-                            key={a._id} 
-                            style={{ 
-                              background: 'var(--bg-card)', 
-                              border: '1px solid rgba(239, 68, 68, 0.3)', 
-                              borderRadius: '8px', 
-                              padding: '12px 16px', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'space-between', 
-                              flexWrap: 'wrap', 
-                              gap: '12px' 
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{clientName}</strong>
-                                <span className="badge badge-danger" style={{ fontWeight: 700 }}>Emergência às {a.horario}</span>
-                                {a.wellness?.realizado && (
-                                  <span className="badge" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', fontSize: '0.72rem' }}>
-                                    ✓ Wellness Preenchido ({a.wellness.score}/30)
-                                  </span>
-                                )}
-                              </div>
-                              <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                                Presença registrada. Clique ao lado para preencher a evolução clínica e definir Alta ou Agendamento de Retorno.
-                              </small>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn btn-sm"
-                              style={{
-                                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                                color: 'white',
-                                border: 'none',
-                                padding: '8px 18px',
-                                borderRadius: '8px',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)'
-                              }}
-                              onClick={() => handleOpenEmergencyFinalization(a)}
-                            >
-                              <i className="fa-solid fa-flag-checkered"></i>
-                              <span>Finalizar Atendimento & Prontuário</span>
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 {/* Alerta de Fila de Prescrição Pendente */}
                 {filaPendentes.length > 0 && (
@@ -4762,15 +4669,15 @@ goniometria: {
                   </div>
                 )}
 
-                {/* 1. TOPO ABSOLUTO: Alertas quando o card não é respondido (Horários Passados Sem Sinalização) */}
+                {/* 1. TOPO ABSOLUTO: Alertas quando o card não é respondido (Horários Passados Sem Sinalização ou Pendentes de Finalização) */}
                 {urgentes.length > 0 && (
                   <div className="content-panel" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', borderLeft: '5px solid var(--color-danger)', padding: '16px', borderRadius: '8px' }}>
                     <div className="panel-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: '10px' }}>
                       <h2 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
                         <i className="fa-solid fa-triangle-exclamation" style={{ animation: 'pulse 1.5s infinite' }}></i> 
-                        🚨 ATENÇÃO: Horários Passados Sem Sinalização ({urgentes.length})
+                        🚨 ATENÇÃO: Horários Passados Sem Sinalização ou Pendentes ({urgentes.length})
                       </h2>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados em horários que já passaram, mas cuja presença não foi marcada. Sinalize abaixo para concluir a agenda.</p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados em horários passados sem sinalização ou atendimentos de emergência aguardando finalização clínica.</p>
                     </div>
                     <div className="table-responsive" style={{ marginTop: '12px' }}>
                       <table className="data-table" style={{ width: '100%' }}>
@@ -4779,32 +4686,80 @@ goniometria: {
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno</th>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar Frequência</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar / Ação</th>
                           </tr>
                         </thead>
                         <tbody>
                           {urgentes.map(a => {
                             const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                            const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
+                            const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
                             return (
-                              <tr key={a._id} style={{ background: 'rgba(239, 68, 68, 0.02)' }}>
+                              <tr key={a._id} style={{ background: isEmPendente ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.02)' }}>
                                 <td data-label="Horário" style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
                                 <td data-label="Aluno" style={{ padding: '12px 16px' }}>
-                                  <strong>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</strong><br />
+                                  <strong>{client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido'}</strong><br />
                                   <small style={{ color: 'var(--text-dim)' }}>
                                     {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
                                   </small>
                                 </td>
-                                <td data-label="Serviço" style={{ padding: '12px 16px' }}><span className="badge badge-info">{a.servico || a.tipo}</span></td>
-                                <td data-label="Sinalizar Frequência" style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
-                                  <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                                    <i className="fa-solid fa-check"></i> Presença
-                                  </button>
-                                  <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
-                                    <i className="fa-solid fa-xmark"></i> Falta
-                                  </button>
-                                  <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
-                                    Cancelar
-                                  </button>
+                                <td data-label="Serviço" style={{ padding: '12px 16px' }}>
+                                  <span className={`badge ${isEm ? 'badge-danger' : 'badge-info'}`}>{a.servico || a.tipo}</span>
+                                  {isEmPendente && (
+                                    <div style={{ marginTop: '4px' }}>
+                                      <span className="badge" style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', fontSize: '0.72rem', fontWeight: 700 }}>
+                                        ⏳ Pendente de Finalização
+                                      </span>
+                                    </div>
+                                  )}
+                                </td>
+                                <td data-label="Sinalizar / Ação" style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
+                                  {isEmPendente ? (
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                      <button 
+                                        type="button"
+                                        className="btn btn-sm" 
+                                        style={{ 
+                                          background: 'linear-gradient(135deg, #ef4444, #dc2626)', 
+                                          color: 'white', 
+                                          border: 'none', 
+                                          padding: '6px 14px', 
+                                          borderRadius: '8px', 
+                                          fontWeight: 800, 
+                                          fontSize: '0.8rem', 
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          gap: '6px', 
+                                          cursor: 'pointer', 
+                                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)' 
+                                        }} 
+                                        onClick={() => handleOpenEmergencyFinalization(a)}
+                                      >
+                                        <i className="fa-solid fa-flag-checkered"></i> Finalizar atendimento
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        className="btn btn-secondary btn-sm" 
+                                        style={{ padding: '6px 10px', fontSize: '0.75rem' }} 
+                                        title="Reverter para Agendado"
+                                        onClick={() => handleUpdateAptStatus(a._id, 'agendado')}
+                                      >
+                                        <i className="fa-solid fa-rotate-left"></i>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
+                                        <i className="fa-solid fa-check"></i> Presença
+                                      </button>
+                                      <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
+                                        <i className="fa-solid fa-xmark"></i> Falta
+                                      </button>
+                                      <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                        Cancelar
+                                      </button>
+                                    </>
+                                  )}
                                 </td>
                               </tr>
                             );
