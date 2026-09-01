@@ -207,9 +207,9 @@ export default function VendaPage({ params }: { params: any }) {
   const dataFimCalculadaRaw = calculateContractEndDate(
     rawDataInicio,
     isAnual ? 'anual' : (proposal.duracao || 'mensal'),
-    isAnual ? 1 : vigenciaMesesEquivalentes,
+    isRecorrente ? 1 : (isAnual ? 1 : vigenciaMesesEquivalentes),
     undefined,
-    isRecorrenteMensalSemVinculo
+    isRecorrente
   );
 
   const formatPtBr = (str: string) => {
@@ -654,8 +654,8 @@ export default function VendaPage({ params }: { params: any }) {
                 <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Período de Vigência</span>
                 <p style={{ fontSize: '0.95rem', fontWeight: 700, margin: '5px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <i className="fa-solid fa-calendar-days" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}></i>
-                  {isRecorrenteMensalSemVinculo 
-                    ? `${dataInicioFormatada} (Renovação Automática)` 
+                  {isRecorrente 
+                    ? `${dataInicioFormatada} até ${dataFimCalculada} (Renovação Automática)` 
                     : `${dataInicioFormatada} até ${dataFimCalculada}`
                   }
                 </p>

@@ -80,6 +80,16 @@ const formatPtBr = (dStr: string) => {
   }
 };
 
+function addMonthsWithClamping(date: Date, months: number): Date {
+  const result = new Date(date);
+  const targetMonth = (result.getMonth() + months) % 12;
+  result.setMonth(result.getMonth() + months);
+  if (result.getMonth() !== targetMonth) {
+    result.setDate(0);
+  }
+  return result;
+}
+
 export function calculateContractEndDate(
   dataInicioStr?: any,
   duracao?: 'anual' | 'semestral' | 'mensal' | 'semana' | 'indeterminado' | string,
@@ -94,28 +104,31 @@ export function calculateContractEndDate(
 
     // Para planos de período fechado: cálculo contratual direto a partir da data de início
     if (!isRecorrente) {
-      const endD = new Date(startD);
       if (dur === 'anual') {
+        const endD = new Date(startD);
         const anos = qty >= 12 ? 1 : qty;
         endD.setFullYear(endD.getFullYear() + anos);
+        return safeFormatYYYYMMDD(endD);
       } else if (dur === 'semestral') {
         const meses = qty >= 6 ? qty : qty * 6;
-        endD.setMonth(endD.getMonth() + meses);
+        return safeFormatYYYYMMDD(addMonthsWithClamping(startD, meses));
       } else if (dur === 'semana') {
+        const endD = new Date(startD);
         endD.setDate(endD.getDate() + (qty * 7));
+        return safeFormatYYYYMMDD(endD);
       } else if (dur === 'indeterminado') {
+        const endD = new Date(startD);
         endD.setFullYear(endD.getFullYear() + 10);
+        return safeFormatYYYYMMDD(endD);
       } else {
         // mensal
-        endD.setMonth(endD.getMonth() + qty);
+        return safeFormatYYYYMMDD(addMonthsWithClamping(startD, qty));
       }
-      return safeFormatYYYYMMDD(endD);
     }
 
-    // Para planos recorrentes: a vigência mensal de acesso é computada estritamente a partir da data de início
-    const endD = new Date(startD);
-    endD.setMonth(endD.getMonth() + (qty > 0 ? qty : 1));
-    return safeFormatYYYYMMDD(endD);
+    // Para planos recorrentes: a vigência mensal de acesso é computada estritamente a partir da data de início (ciclo inicial)
+    const qtyMonths = qty > 0 ? qty : 1;
+    return safeFormatYYYYMMDD(addMonthsWithClamping(startD, qtyMonths));
   } catch (err) {
     console.error('[calculateContractEndDate] Error calculating date:', err);
     const now = new Date();
