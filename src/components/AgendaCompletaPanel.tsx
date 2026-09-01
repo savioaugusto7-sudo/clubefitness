@@ -993,6 +993,8 @@ export default function AgendaCompletaPanel({
                                  : 'Aluno';
                                const hasObs = Boolean(apt.observacoes && apt.observacoes.trim());
                                const isDynamus = checkIsDynamusAppointment(apt, clients);
+                               const isPresenca = apt.status === 'presenca';
+                               const isFalta = apt.status === 'falta';
 
                                return (
                                  <button 
@@ -1013,12 +1015,24 @@ export default function AgendaCompletaPanel({
                                    style={{ 
                                      display: 'inline-flex', 
                                      alignItems: 'center', 
-                                     background: isDynamus ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-secondary)', 
-                                     border: isDynamus ? '1.5px solid #22d3ee' : `1.5px solid ${sColors.text}`, 
+                                     background: isDynamus 
+                                       ? 'rgba(6, 182, 212, 0.08)' 
+                                       : isFalta 
+                                         ? 'rgba(239, 68, 68, 0.08)' 
+                                         : 'var(--bg-secondary)', 
+                                     border: isDynamus 
+                                       ? '1.5px solid #22d3ee' 
+                                       : isFalta 
+                                         ? '1.5px solid #ef4444' 
+                                         : `1.5px solid ${sColors.text}`, 
                                      borderRadius: '16px', 
                                      padding: '3px 10px', 
                                      gap: '6px',
-                                     boxShadow: isDynamus ? '0 0 10px rgba(34, 211, 238, 0.25), 0 2px 4px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
+                                     boxShadow: isDynamus 
+                                       ? '0 0 10px rgba(34, 211, 238, 0.25), 0 2px 4px rgba(0,0,0,0.2)' 
+                                       : isFalta 
+                                         ? '0 0 8px rgba(239, 68, 68, 0.25), 0 2px 4px rgba(0,0,0,0.1)' 
+                                         : '0 2px 4px rgba(0,0,0,0.1)',
                                      cursor: 'pointer',
                                      touchAction: 'manipulation',
                                      WebkitTapHighlightColor: 'transparent',
@@ -1027,7 +1041,16 @@ export default function AgendaCompletaPanel({
                                      textAlign: 'left'
                                    }}
                                  >
-                                   <span style={{ fontSize: '0.76rem', fontWeight: 700, color: apt.status === 'presenca' ? 'var(--color-success)' : 'var(--text-main)', pointerEvents: 'none' }}>
+                                   <span style={{ 
+                                     fontSize: '0.76rem', 
+                                     fontWeight: 700, 
+                                     color: isPresenca 
+                                       ? 'var(--color-success)' 
+                                       : isFalta 
+                                         ? 'var(--color-danger)' 
+                                         : 'var(--text-main)', 
+                                     pointerEvents: 'none' 
+                                   }}>
                                      {shortName}
                                    </span>
                                    {isDynamus && (
@@ -1059,13 +1082,14 @@ export default function AgendaCompletaPanel({
                                        textTransform: 'uppercase', 
                                        padding: '1px 6px', 
                                        borderRadius: '10px', 
-                                       background: sColors.bg,
-                                       color: sColors.text,
+                                       background: isFalta ? 'rgba(239, 68, 68, 0.2)' : sColors.bg,
+                                       color: isFalta ? '#ef4444' : sColors.text,
+                                       border: isFalta ? '1px solid rgba(239, 68, 68, 0.4)' : undefined,
                                        letterSpacing: '0.3px',
                                        pointerEvents: 'none'
                                      }}
                                    >
-                                     {(apt.servico || slot.tipo || '')?.replace('Treino ', '')}
+                                     {isFalta ? 'FALTA' : (apt.servico || slot.tipo || '')?.replace('Treino ', '')}
                                    </span>
                                    {hasObs && (
                                       <span
