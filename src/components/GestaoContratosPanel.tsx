@@ -6261,11 +6261,9 @@ export default function GestaoContratosPanel({
                 </span>
               </div>
               <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span>📄 Boleto até 10x de R$ {(activeRenewal.valorReajustado / 10).toFixed(2).replace('.', ',')}</span>
+                <span>📄 Boleto / Pix 10x de R$ {(activeRenewal.valorReajustado / 10).toFixed(2).replace('.', ',')}</span>
                 <span>•</span>
-                <span>💳 Cartão até 12x (+5%)</span>
-                <span>•</span>
-                <span>🟢 PIX à vista</span>
+                <span>💳 Cartão 12x de R$ {((activeRenewal.valorReajustado * 1.05) / 12).toFixed(2).replace('.', ',')} (+5%)</span>
               </div>
             </div>
 
@@ -6316,7 +6314,7 @@ export default function GestaoContratosPanel({
                     `📋 *Detalhes da sua Renovação:*\n` +
                     `• *Plano:* ${planoNome} (Anual)\n` +
                     `• *Vigência:* 12 meses (${dataInicioFormat} até ${dataFimCalcFormat})\n` +
-                    `• *Pagamento:* Boleto (até 10x), Cartão (até 12x) ou PIX à vista\n\n` +
+                    `• *Pagamento:* 10x no Boleto/Pix ou 12x no Cartão\n\n` +
                     `Clique no link abaixo para conferir as condições, revisar e assinar digitalmente pelo WhatsApp:\n` +
                     `👉 ${generatedRenewalUrl}\n\n` +
                     `_Qualquer dúvida, estamos à sua inteira disposição!_ 💚`;
@@ -6327,7 +6325,7 @@ export default function GestaoContratosPanel({
                     `📋 *Detalhes da sua Renovação:*\n` +
                     `• *Plano:* ${planoNome} (Anual)\n` +
                     `• *Novo Ciclo:* 12 meses (${dataInicioFormat} até ${dataFimCalcFormat})\n` +
-                    `• *Pagamento:* Boleto (até 10x), Cartão (até 12x) ou PIX à vista\n\n` +
+                    `• *Pagamento:* 10x no Boleto/Pix ou 12x no Cartão\n\n` +
                     `Clique no link abaixo para conferir as condições, revisar e assinar digitalmente pelo WhatsApp:\n` +
                     `👉 ${generatedRenewalUrl}\n\n` +
                     `_Qualquer dúvida, estamos à sua inteira disposição!_ 💚`;

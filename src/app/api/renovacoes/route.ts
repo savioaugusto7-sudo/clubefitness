@@ -210,7 +210,15 @@ export async function PUT(request: Request) {
       maxParc = 1;
     }
 
-    const numParcelas = Math.min(Math.max(1, Number(parcelas) || 1), maxParc);
+    const isAnualRenewal = renewal.planoTipo === 'Anual' ||
+                           (renewal.planoNome && renewal.planoNome.toLowerCase().includes('anual')) ||
+                           Number(renewal.vigenciaMeses) >= 12;
+
+    let numParcelas = Math.min(Math.max(1, Number(parcelas) || 1), maxParc);
+    if (isAnualRenewal) {
+      if (formaPagamento === 'cartao') numParcelas = 12;
+      else if (formaPagamento === 'boleto') numParcelas = 10;
+    }
     const valorParcela = Math.round((valorFinalTotal / numParcelas) * 100) / 100;
 
     // 3. Atualizar dados comerciais com o novo ciclo anual

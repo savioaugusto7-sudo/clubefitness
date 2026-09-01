@@ -47,6 +47,15 @@ export default function RenovacaoPage({ params }: { params: any }) {
             start.setDate(start.getDate() + 5);
             setDataPrimeiroVencimento(start.toISOString().split('T')[0]);
           }
+
+          const isAnualRen = ren.planoTipo === 'Anual' || 
+                            (ren.planoNome && ren.planoNome.toLowerCase().includes('anual')) ||
+                            Number(ren.vigenciaMeses) >= 12 ||
+                            Boolean(ren.duracao === 'anual');
+          if (isAnualRen) {
+            setFormaPagamento('boleto');
+            setParcelas(10);
+          }
         } else {
           setErrorMsg(json.error || 'Link de renovação não encontrado.');
         }
@@ -67,10 +76,11 @@ export default function RenovacaoPage({ params }: { params: any }) {
     return d.toISOString().split('T')[0];
   })() : '';
 
-  // Regras de pagamento:
-  // PIX: max 1x
-  // Boleto: max 10x
-  // Cartão: +5%, max 12x
+  const isAnual = renewal?.planoTipo === 'Anual' || 
+                  (renewal?.planoNome && renewal.planoNome.toLowerCase().includes('anual')) ||
+                  Number(renewal?.vigenciaMeses) >= 12 ||
+                  Boolean(renewal?.duracao === 'anual');
+
   const baseValue = renewal?.valorReajustado || 0;
   
   const currentTotal = (() => {
@@ -86,14 +96,29 @@ export default function RenovacaoPage({ params }: { params: any }) {
     return 1;
   })();
 
-  const currentInstallments = Math.min(parcelas, maxInstallments);
+  const availableInstallments = (() => {
+    if (isAnual) {
+      return formaPagamento === 'cartao' ? [12] : [10];
+    }
+    return Array.from({ length: maxInstallments }, (_, i) => i + 1);
+  })();
+
+  const currentInstallments = isAnual
+    ? (formaPagamento === 'cartao' ? 12 : 10)
+    : Math.min(parcelas, maxInstallments);
   const installmentValue = currentInstallments > 0 ? Math.round((currentTotal / currentInstallments) * 100) / 100 : 0;
 
   const handlePaymentChange = (type: 'pix' | 'boleto' | 'cartao') => {
     setFormaPagamento(type);
-    if (type === 'pix') setParcelas(1);
-    else if (type === 'boleto') setParcelas(Math.min(parcelas, 10));
-    else if (type === 'cartao') setParcelas(Math.min(parcelas, 12));
+    if (isAnual) {
+      setParcelas(type === 'cartao' ? 12 : 10);
+    } else if (type === 'pix') {
+      setParcelas(1);
+    } else if (type === 'boleto') {
+      setParcelas(Math.min(parcelas, 10));
+    } else if (type === 'cartao') {
+      setParcelas(Math.min(parcelas, 12));
+    }
   };
 
   const handleProceedToContractReview = (e: React.FormEvent) => {
@@ -378,12 +403,15 @@ export default function RenovacaoPage({ params }: { params: any }) {
                 Forma de Pagamento
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
-                {[
+              <div style={{ display: 'grid', gridTemplateColumns: isAnual ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
+                {(isAnual ? [
+                  { id: 'boleto', label: 'Boleto / Pix (10x)', icon: 'fa-barcode', desc: `10x de R$ ${(baseValue / 10).toFixed(2).replace('.', ',')}` },
+                  { id: 'cartao', label: 'Cartão de Crédito (12x)', icon: 'fa-credit-card', desc: `12x de R$ ${((baseValue * 1.05) / 12).toFixed(2).replace('.', ',')} (+5%)` }
+                ] : [
                   { id: 'pix', label: 'PIX (1x)', icon: 'fa-qrcode', desc: 'À vista' },
                   { id: 'boleto', label: 'Boleto (até 10x)', icon: 'fa-barcode', desc: 'Sem acréscimo' },
                   { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: '+5% taxa' }
-                ].map(item => (
+                ]).map(item => (
                   <button
                     key={item.id}
                     type="button"
@@ -410,18 +438,19 @@ export default function RenovacaoPage({ params }: { params: any }) {
               </div>
 
               {/* Opções de Parcelamento */}
-              {maxInstallments > 1 ? (
+              {maxInstallments > 1 || isAnual ? (
                 <div style={{ marginTop: '14px' }}>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                    {formaPagamento === 'cartao' ? 'Número de Parcelas no Cartão (Máx 12x):' : 'Número de Parcelas no Boleto (Máx 10x):'}
+                    {formaPagamento === 'cartao' ? 'Número de Parcelas no Cartão:' : 'Número de Parcelas no Boleto / Pix:'}
                   </label>
                   <select 
                     className="form-control" 
-                    value={parcelas} 
+                    value={currentInstallments} 
                     onChange={e => setParcelas(Number(e.target.value))}
-                    style={{ padding: '10px 12px', background: 'var(--bg-darker)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                    disabled={isAnual || availableInstallments.length <= 1}
+                    style={{ padding: '10px 12px', background: isAnual ? 'rgba(255,255,255,0.06)' : 'var(--bg-darker)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: isAnual ? 'default' : 'pointer' }}
                   >
-                    {Array.from({ length: maxInstallments }, (_, i) => i + 1).map(num => {
+                    {availableInstallments.map(num => {
                       const parcVal = (currentTotal / num).toFixed(2).replace('.', ',');
                       return (
                         <option key={num} value={num}>
@@ -432,6 +461,12 @@ export default function RenovacaoPage({ params }: { params: any }) {
                       );
                     })}
                   </select>
+                  {isAnual && (
+                    <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-circle-info"></i>
+                      <span>Condição exclusiva do plano anual: <strong>{formaPagamento === 'cartao' ? '12x no cartão de crédito' : '10x no boleto bancário / Pix'}</strong>.</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ padding: '10px 12px', background: 'var(--bg-darker)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
