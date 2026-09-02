@@ -527,6 +527,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [showWorkoutBuilder, setShowWorkoutBuilder] = useState(false);
   const [builderClient, setBuilderClient] = useState<any>(null);
 
+  // Workout Reader Modal states (Somente Leitura)
+  const [showWorkoutReaderModal, setShowWorkoutReaderModal] = useState(false);
+  const [readerClient, setReaderClient] = useState<any>(null);
+  const [readerWorkoutData, setReaderWorkoutData] = useState<any>(null);
+  const [readerCategory, setReaderCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
+  const [readerActiveSheetId, setReaderActiveSheetId] = useState<string>('A');
+  const [loadingWorkoutReader, setLoadingWorkoutReader] = useState(false);
+
   // Fixed Schedule form inputs
   const [fsClient, setFsClient] = useState('');
   const [fsDay, setFsDay] = useState(1); // Monday
@@ -1451,7 +1459,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   // Lock body scroll and prevent mobile keyboard viewport misalignment when clinical modals open
   useEffect(() => {
-    const isAnyModalOpen = showAssessmentModal || showReportModal || showStModal || showProntuarioModal;
+    const isAnyModalOpen = showAssessmentModal || showReportModal || showStModal || showProntuarioModal || showWorkoutReaderModal;
     if (isAnyModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -1460,7 +1468,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     return () => {
       document.body.style.overflow = '';
     };
-  }, [showAssessmentModal, showReportModal, showStModal, showProntuarioModal]);
+  }, [showAssessmentModal, showReportModal, showStModal, showProntuarioModal, showWorkoutReaderModal]);
 
   // LocalStorage Auto-save effects (without 1s timer re-triggering)
   useEffect(() => {
@@ -4205,6 +4213,43 @@ goniometria: {
     }
   };
 
+  // Workout Reader management (Apenas Leitura)
+  const handleOpenWorkoutReader = async (clientObj: any) => {
+    try {
+      setLoadingWorkoutReader(true);
+      setReaderClient(clientObj);
+      setShowWorkoutReaderModal(true);
+
+      const res = await fetch(`/api/workouts?clientId=${clientObj._id}`);
+      const data = await res.json();
+      if (data.success && data.data) {
+        setReaderWorkoutData(data.data);
+        const hasMonitorado = Array.isArray(data.data.fichasMonitorado) && data.data.fichasMonitorado.some((f: any) => f.exercicios && f.exercicios.length > 0);
+        const hasLivre = Array.isArray(data.data.fichasLivre) && data.data.fichasLivre.some((f: any) => f.exercicios && f.exercicios.length > 0);
+
+        let initialCat: 'fichasMonitorado' | 'fichasLivre' = 'fichasMonitorado';
+        if (!hasMonitorado && hasLivre) {
+          initialCat = 'fichasLivre';
+        }
+        setReaderCategory(initialCat);
+
+        const currentSheets = data.data[initialCat] || [];
+        if (currentSheets.length > 0) {
+          const firstWithEx = currentSheets.find((s: any) => s.exercicios && s.exercicios.length > 0);
+          setReaderActiveSheetId(firstWithEx ? firstWithEx.id : currentSheets[0].id);
+        } else {
+          setReaderActiveSheetId('A');
+        }
+      } else {
+        setReaderWorkoutData(null);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar ficha para leitura:', e);
+    } finally {
+      setLoadingWorkoutReader(false);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -6278,11 +6323,44 @@ goniometria: {
                                     </div>
                                   </div>
 
-                                  {/* Action button */}
-                                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                                  {/* Action buttons */}
+                                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {hasWorkout && (
+                                      <button 
+                                        type="button"
+                                        className="btn btn-secondary" 
+                                        style={{ 
+                                          width: '100%', 
+                                          display: 'flex', 
+                                          alignItems: 'center', 
+                                          justifyContent: 'center', 
+                                          gap: '8px', 
+                                          padding: '10px', 
+                                          fontWeight: 750, 
+                                          borderRadius: '10px',
+                                          background: 'rgba(59, 130, 246, 0.12)',
+                                          color: '#60a5fa',
+                                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                                          transition: 'all 0.2s ease',
+                                          fontSize: '0.86rem'
+                                        }}
+                                        onMouseEnter={e => {
+                                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.22)';
+                                          e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                                        }}
+                                        onMouseLeave={e => {
+                                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)';
+                                          e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                                        }}
+                                        onClick={() => handleOpenWorkoutReader(c)}
+                                        title="Abrir a ficha apenas para leitura (sem editar)"
+                                      >
+                                        <i className="fa-solid fa-book-open"></i> Abrir ficha de treino
+                                      </button>
+                                    )}
                                     <button 
                                       className="btn btn-primary" 
-                                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', fontWeight: 750, borderRadius: '10px' }}
+                                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', fontWeight: 750, borderRadius: '10px', fontSize: '0.86rem' }}
                                       onClick={() => handleOpenWorkoutEditor(c)}
                                     >
                                       <i className="fa-solid fa-dumbbell"></i> {hasWorkout ? 'Atualizar / Editar Ficha' : 'Criar Nova Ficha'}
@@ -14445,6 +14523,374 @@ goniometria: {
               >
                 Salvar Tratativa
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. Modal de Leitura da Ficha de Treino (Somente Leitura) */}
+      {showWorkoutReaderModal && readerClient && (
+        <div 
+          className="modal-overlay" 
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px' }}
+          onClick={() => setShowWorkoutReaderModal(false)}
+        >
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '960px', 
+              width: '100%', 
+              maxHeight: '92vh', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%)',
+              border: '1px solid rgba(59, 130, 246, 0.35)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(59, 130, 246, 0.15)',
+              borderRadius: '16px',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', padding: '18px 24px', background: 'rgba(0, 0, 0, 0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', fontSize: '1.3rem' }}>
+                  <i className="fa-solid fa-book-open"></i>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.22rem', fontWeight: 800, color: '#ffffff' }}>
+                      Ficha de Treino — {readerClient.dadosPessoais?.nome || readerClient.nome}
+                    </h3>
+                    <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-lock"></i> SOMENTE LEITURA
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0', color: 'var(--text-dim)', fontSize: '0.82rem' }}>
+                    Plano: <strong style={{ color: 'var(--text-main)' }}>{readerClient.dadosComerciais?.planoId?.nome || 'Personalizado'}</strong>
+                    {readerClient.dadosPessoais?.email && <> • {readerClient.dadosPessoais.email}</>}
+                  </p>
+                </div>
+              </div>
+              <button 
+                className="modal-close" 
+                onClick={() => setShowWorkoutReaderModal(false)}
+                style={{ color: '#94a3b8', fontSize: '1.5rem', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' }}
+                title="Fechar"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="modal-body" style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+              {loadingWorkoutReader ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+                  <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#60a5fa', marginBottom: '12px' }}></i>
+                  <p style={{ margin: 0, fontSize: '0.95rem' }}>Carregando ficha de treino do aluno...</p>
+                </div>
+              ) : !readerWorkoutData ? (
+                <div style={{ textAlign: 'center', padding: '48px 20px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
+                  <i className="fa-solid fa-dumbbell" style={{ fontSize: '2.5rem', color: 'var(--text-dim)', marginBottom: '12px' }}></i>
+                  <h4 style={{ margin: '0 0 6px', color: '#fff' }}>Nenhuma ficha de treino encontrada</h4>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Este aluno ainda não possui rotina prescrita.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Category Switcher */}
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(0,0,0,0.25)', padding: '6px', borderRadius: '10px', width: 'fit-content', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${readerCategory === 'fichasMonitorado' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        borderRadius: '7px',
+                        background: readerCategory === 'fichasMonitorado' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+                        border: 'none',
+                        color: readerCategory === 'fichasMonitorado' ? '#fff' : 'var(--text-muted)'
+                      }}
+                      onClick={() => {
+                        setReaderCategory('fichasMonitorado');
+                        const sheets = readerWorkoutData.fichasMonitorado || [];
+                        if (sheets.length > 0) setReaderActiveSheetId(sheets[0].id);
+                      }}
+                    >
+                      <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '6px' }}></i>
+                      Academia (Monitorado)
+                      <span style={{ marginLeft: '6px', fontSize: '0.7rem', opacity: 0.85, background: 'rgba(0,0,0,0.2)', padding: '1px 6px', borderRadius: '10px' }}>
+                        {(readerWorkoutData.fichasMonitorado || []).filter((s: any) => s.exercicios?.length > 0).length}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${readerCategory === 'fichasLivre' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        borderRadius: '7px',
+                        background: readerCategory === 'fichasLivre' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
+                        border: 'none',
+                        color: readerCategory === 'fichasLivre' ? '#fff' : 'var(--text-muted)'
+                      }}
+                      onClick={() => {
+                        setReaderCategory('fichasLivre');
+                        const sheets = readerWorkoutData.fichasLivre || [];
+                        if (sheets.length > 0) setReaderActiveSheetId(sheets[0].id);
+                      }}
+                    >
+                      <i className="fa-solid fa-person-running" style={{ marginRight: '6px' }}></i>
+                      Treino Livre
+                      <span style={{ marginLeft: '6px', fontSize: '0.7rem', opacity: 0.85, background: 'rgba(0,0,0,0.2)', padding: '1px 6px', borderRadius: '10px' }}>
+                        {(readerWorkoutData.fichasLivre || []).filter((s: any) => s.exercicios?.length > 0).length}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Sheets Content */}
+                  {(() => {
+                    const currentSheets = readerWorkoutData[readerCategory] || [];
+                    if (currentSheets.length === 0) {
+                      return (
+                        <div style={{ textAlign: 'center', padding: '36px 20px', background: 'rgba(0,0,0,0.15)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
+                            Nenhuma ficha cadastrada nesta categoria.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    const activeSheet = currentSheets.find((s: any) => s.id === readerActiveSheetId) || currentSheets[0];
+                    const exercisesList = activeSheet?.exercicios || [];
+
+                    const GROUP_COLORS = ['#10b981', '#f59e0b', '#a855f7', '#3b82f6', '#ec4899', '#06b6d4', '#f43f5e', '#84cc16', '#eab308', '#6366f1'];
+                    const getGroupColor = (gName: string) => {
+                      if (!gName) return '#10b981';
+                      const match = gName.match(/^G(\d+)$/i);
+                      if (match) {
+                        const idx = parseInt(match[1], 10) - 1;
+                        return GROUP_COLORS[idx % GROUP_COLORS.length];
+                      }
+                      return '#10b981';
+                    };
+
+                    return (
+                      <div>
+                        {/* Sheets Selector */}
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                          {currentSheets.map((s: any) => {
+                            const isSelected = (activeSheet?.id === s.id);
+                            const count = s.exercicios?.length || 0;
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => setReaderActiveSheetId(s.id)}
+                                style={{
+                                  padding: '8px 14px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.82rem',
+                                  fontWeight: 750,
+                                  cursor: 'pointer',
+                                  border: isSelected ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)',
+                                  background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
+                                  color: isSelected ? '#93c5fd' : 'var(--text-muted)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <span>{s.nome || `Ficha ${s.id}`}</span>
+                                <span style={{
+                                  background: isSelected ? '#3b82f6' : 'rgba(255,255,255,0.1)',
+                                  color: isSelected ? '#fff' : 'var(--text-dim)',
+                                  padding: '1px 6px',
+                                  borderRadius: '10px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 800
+                                }}>
+                                  {count} {count === 1 ? 'exercício' : 'exercícios'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Sheet Details Header */}
+                        <div style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 18px', marginBottom: '18px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                              {activeSheet.nome || `Ficha ${activeSheet.id}`}
+                            </h4>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              <i className="fa-solid fa-calendar-check" style={{ marginRight: '6px' }}></i>
+                              Última Atualização: <strong>{activeSheet.ultimaAtualizacao || '-'}</strong>
+                            </span>
+                          </div>
+
+                          {activeSheet.observacoesGerais && (
+                            <div style={{ marginTop: '10px', padding: '10px 14px', background: 'rgba(59, 130, 246, 0.08)', borderLeft: '3px solid #3b82f6', borderRadius: '4px 8px 8px 4px', fontSize: '0.84rem', color: '#cbd5e1' }}>
+                              <strong style={{ color: '#93c5fd' }}><i className="fa-solid fa-info-circle" style={{ marginRight: '6px' }}></i>Observações da Ficha:</strong> {activeSheet.observacoesGerais}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Exercises List (Read-Only) */}
+                        {exercisesList.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(0,0,0,0.1)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                            <i className="fa-solid fa-dumbbell" style={{ fontSize: '2rem', color: 'var(--text-dim)', marginBottom: '8px' }}></i>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Nenhum exercício cadastrado nesta ficha.</p>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                            {exercisesList.map((ex: any, idx: number) => {
+                              const details = exercises.find((e: any) => e.nome.toLowerCase() === (ex.exercicioId || '').toLowerCase()) || { nome: ex.exercicioId, grupo: 'Geral' };
+                              const groupColor = getGroupColor(ex.combinaGrupo);
+                              const groupStyle = ex.combinaGrupo ? { borderLeft: `4px solid ${groupColor}` } : {};
+
+                              return (
+                                <div 
+                                  key={idx}
+                                  style={{
+                                    background: 'rgba(22, 29, 45, 0.55)',
+                                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                                    borderRadius: '12px',
+                                    padding: '16px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                                    ...groupStyle
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                      <span style={{ fontSize: '0.65rem', color: 'var(--color-primary)', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, textTransform: 'uppercase' }}>
+                                        {details.grupo || 'Geral'}
+                                      </span>
+                                      {ex.combinaGrupo && (
+                                        <span style={{ fontSize: '0.65rem', color: '#fff', background: groupColor, padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                                          Conjugado {ex.combinaGrupo}
+                                        </span>
+                                      )}
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                                        #{idx + 1}
+                                      </span>
+                                    </div>
+
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>
+                                      {details.nome}
+                                    </h4>
+
+                                    {details.gifUrl && (
+                                      <div style={{
+                                        margin: '8px 0 12px',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        background: '#000',
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        border: '1px solid rgba(255, 255, 255, 0.08)'
+                                      }}>
+                                        {details.gifUrl.match(/\.(mp4|webm)($|\?)/i) ? (
+                                          <video
+                                            src={details.gifUrl}
+                                            autoPlay loop muted playsInline
+                                            style={{ width: '100%', maxHeight: '140px', objectFit: 'contain' }}
+                                          />
+                                        ) : (
+                                          <img
+                                            src={details.gifUrl?.startsWith('data:') ? details.gifUrl : `/api/image-proxy?url=${encodeURIComponent(details.gifUrl)}`}
+                                            alt={details.nome}
+                                            referrerPolicy="no-referrer"
+                                            loading="lazy"
+                                            style={{ width: '100%', maxHeight: '140px', objectFit: 'contain' }}
+                                          />
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Parameters Grid */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', marginBottom: '10px', background: 'rgba(0,0,0,0.22)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                      <div style={{ textAlign: 'center' }}>
+                                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Séries</span>
+                                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.series || '3'}</span>
+                                      </div>
+                                      <div style={{ textAlign: 'center' }}>
+                                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Repetições</span>
+                                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.repeticoes || '10'}</span>
+                                      </div>
+                                      <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
+                                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Carga</span>
+                                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--color-primary)' }}>{ex.carga || '-'}</span>
+                                      </div>
+                                      <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
+                                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Descanso</span>
+                                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
+                                      </div>
+                                      {(ex.ritmo || ex.metodo) && (
+                                        <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
+                                          <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Ritmo / Método</span>
+                                          <span style={{ fontSize: '0.84rem', fontWeight: 750, color: '#f59e0b' }}>{ex.ritmo || ex.metodo}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {ex.observacoes && (
+                                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '6px', borderLeft: '2px solid var(--color-primary)' }}>
+                                        <strong>Obs:</strong> {ex.observacoes}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255, 255, 255, 0.08)', padding: '14px 24px', background: 'rgba(0,0,0,0.2)' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-sm" 
+                onClick={() => window.print()}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
+              >
+                <i className="fa-solid fa-print"></i> Imprimir Ficha
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowWorkoutReaderModal(false)}
+                  style={{ fontSize: '0.84rem' }}
+                >
+                  Fechar
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    const cl = readerClient;
+                    setShowWorkoutReaderModal(false);
+                    handleOpenWorkoutEditor(cl);
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', fontWeight: 800 }}
+                >
+                  <i className="fa-solid fa-dumbbell"></i> Atualizar / Editar Ficha
+                </button>
+              </div>
             </div>
           </div>
         </div>
