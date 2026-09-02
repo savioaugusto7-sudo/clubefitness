@@ -82,6 +82,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
                   Boolean(renewal?.duracao === 'anual');
 
   const baseValue = renewal?.valorReajustado || 0;
+  const valorMensalEquivalenteAnual = isAnual ? Number((baseValue / 12).toFixed(2)) : null;
   
   const currentTotal = (() => {
     if (formaPagamento === 'cartao') {
@@ -360,6 +361,11 @@ export default function RenovacaoPage({ params }: { params: any }) {
                         ({currentInstallments}x de R$ {installmentValue.toFixed(2).replace('.', ',')})
                       </div>
                     )}
+                    {isAnual && formaPagamento === 'boleto' && valorMensalEquivalenteAnual !== null && (
+                      <div style={{ fontSize: '0.78rem', color: '#f59e0b', fontWeight: 700, marginTop: '2px' }}>
+                        Equivalente a R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -405,12 +411,24 @@ export default function RenovacaoPage({ params }: { params: any }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: isAnual ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
                 {(isAnual ? [
-                  { id: 'boleto', label: 'Boleto / Pix (10x)', icon: 'fa-barcode', desc: `10x de R$ ${(baseValue / 10).toFixed(2).replace('.', ',')}` },
-                  { id: 'cartao', label: 'Cartão de Crédito (12x)', icon: 'fa-credit-card', desc: `12x de R$ ${((baseValue * 1.05) / 12).toFixed(2).replace('.', ',')} (+5%)` }
+                  { 
+                    id: 'boleto', 
+                    label: 'Boleto / Pix (10x)', 
+                    icon: 'fa-barcode', 
+                    desc: `10x de R$ ${(baseValue / 10).toFixed(2).replace('.', ',')}`,
+                    equiv: valorMensalEquivalenteAnual ? `(equiv. a R$ ${valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês)` : null
+                  },
+                  { 
+                    id: 'cartao', 
+                    label: 'Cartão de Crédito (12x)', 
+                    icon: 'fa-credit-card', 
+                    desc: `12x de R$ ${((baseValue * 1.05) / 12).toFixed(2).replace('.', ',')} (+5%)`,
+                    equiv: null
+                  }
                 ] : [
-                  { id: 'pix', label: 'PIX (1x)', icon: 'fa-qrcode', desc: 'À vista' },
-                  { id: 'boleto', label: 'Boleto (até 10x)', icon: 'fa-barcode', desc: 'Sem acréscimo' },
-                  { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: '+5% taxa' }
+                  { id: 'pix', label: 'PIX (1x)', icon: 'fa-qrcode', desc: 'À vista', equiv: null },
+                  { id: 'boleto', label: 'Boleto (até 10x)', icon: 'fa-barcode', desc: 'Sem acréscimo', equiv: null },
+                  { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: '+5% taxa', equiv: null }
                 ]).map(item => (
                   <button
                     key={item.id}
@@ -433,6 +451,11 @@ export default function RenovacaoPage({ params }: { params: any }) {
                     <i className={`fa-solid ${item.icon}`} style={{ fontSize: '1.2rem' }}></i>
                     <span style={{ fontSize: '0.85rem' }}>{item.label}</span>
                     <span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted)' }}>{item.desc}</span>
+                    {item.equiv && (
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f59e0b', marginTop: '1px' }}>
+                        {item.equiv}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -465,6 +488,26 @@ export default function RenovacaoPage({ params }: { params: any }) {
                     <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <i className="fa-solid fa-circle-info"></i>
                       <span>Condição exclusiva do plano anual: <strong>{formaPagamento === 'cartao' ? '12x no cartão de crédito' : '10x no boleto bancário / Pix'}</strong>.</span>
+                    </div>
+                  )}
+                  {/* Destaque no plano anual: Valor referente ao mês de acesso (espelhado da página de vendas) */}
+                  {isAnual && formaPagamento === 'boleto' && valorMensalEquivalenteAnual !== null && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '10px 14px',
+                      background: 'rgba(234, 179, 8, 0.12)',
+                      border: '1px solid rgba(234, 179, 8, 0.35)',
+                      borderRadius: '8px',
+                      fontSize: '0.84rem',
+                      color: '#fde047',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <i className="fa-solid fa-fire" style={{ color: '#eab308' }}></i>
+                      <span>
+                        Equivalente a <strong style={{ color: '#fff' }}>R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês</strong> nos 12 meses de acesso
+                      </span>
                     </div>
                   )}
                 </div>
