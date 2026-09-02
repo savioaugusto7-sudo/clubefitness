@@ -141,26 +141,51 @@ export default function VendaPage({ params }: { params: any }) {
 
   // Se a proposta expirou (mais de 3 dias)
   if (proposal.status === 'expirada') {
+    const waText = encodeURIComponent(`Olá! Estava acessando minha proposta para o plano ${proposal.planoNome || ''} no Clube Fitness, mas o link expirou. Gostaria de receber um novo link atualizado para concluir minha contratação.`);
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-darker)', color: 'var(--text-main)', padding: '20px' }}>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)', padding: '40px 30px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', border: '2px solid #ef4444' }}>
-            <i className="fa-solid fa-clock-rotate-left fa-2x" style={{ color: '#ef4444' }}></i>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 'var(--radius-md)', padding: '40px 30px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', border: '2px solid #f59e0b' }}>
+            <i className="fa-solid fa-clock-rotate-left fa-2x" style={{ color: '#f59e0b' }}></i>
           </div>
-          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.5rem', marginBottom: '12px', color: '#fff' }}>Link de Venda Expirado</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '20px' }}>
-            Este link de proposta comercial possuía validade de <strong>3 dias</strong> e expirou por segurança.
+          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.5rem', marginBottom: '12px', color: '#fff' }}>Proposta Comercial Expirada</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '16px' }}>
+            Olá, <strong>{nome || 'aluno(a)'}</strong>! O prazo de <strong>72 horas</strong> para contratação desta proposta para o plano <strong>{proposal.planoNome}</strong> expirou por segurança.
           </p>
-          <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '25px' }}>
-            Entre em contato com a equipe da <strong>Clube Fitness Fisio</strong> para receber um novo link de contratação.
+          <p style={{ color: 'var(--text-dim)', fontSize: '0.88rem', marginBottom: '25px', lineHeight: '1.5' }}>
+            Não se preocupe: nossas condições comerciais podem ser revalidadas imediatamente pela nossa equipe.
           </p>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => router.push('/')}
-            style={{ width: '100%', padding: '12px' }}
-          >
-            Voltar ao Início
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <a 
+              href={`https://wa.me/?text=${waText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                padding: '13px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderColor: '#10b981',
+                color: '#fff',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                textDecoration: 'none',
+                borderRadius: '8px'
+              }}
+            >
+              <i className="fa-brands fa-whatsapp fa-lg"></i> Solicitar Novo Link no WhatsApp
+            </a>
+            <button 
+              className="btn" 
+              onClick={() => router.push('/')}
+              style={{ width: '100%', padding: '11px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+            >
+              Voltar ao Início
+            </button>
+          </div>
         </div>
       </div>
     );

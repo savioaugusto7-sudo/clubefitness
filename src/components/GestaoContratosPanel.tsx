@@ -48,8 +48,9 @@ export interface ClientContractStage {
   badgeBg: string;
   badgeColor: string;
   badgeBorder: string;
-  orientacaoKey: 'vigente' | 'gerar_renovacao' | 'sincronizar_clicksign' | 'gerar_asaas' | 'reenviar_link' | 'gerar_link' | 'baixar_pdf' | 'gerenciar_dynamus' | 'dados_faltantes' | 'ver_rescisao' | 'finalizado';
+  orientacaoKey: 'vigente' | 'gerar_renovacao' | 'sincronizar_clicksign' | 'gerar_asaas' | 'reenviar_link' | 'gerar_novo_link' | 'gerar_link' | 'baixar_pdf' | 'gerenciar_dynamus' | 'dados_faltantes' | 'ver_rescisao' | 'finalizado';
   orientacaoLabel: string;
+  isProposalExpired?: boolean;
   isRecorrente: boolean;
   isBoleto: boolean;
   hasAsaasBoleto: boolean;
@@ -186,21 +187,29 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 3. Proposta Comercial Enviada via Link (Pendente de Resposta do Aluno / Lead)
+  // 3. Proposta Comercial Enviada via Link (Pendente ou Expirada)
+  const isProposalExpired = Boolean(
+    latestProposal && (
+      latestProposal.status === 'expirada' ||
+      (latestProposal.createdAt && (new Date().getTime() - new Date(latestProposal.createdAt).getTime()) / (1000 * 60 * 60 * 24) > 3)
+    )
+  );
+
   const isPendingProposal = !isContractSigned && Boolean(
-    (latestProposal && latestProposal.status === 'pendente') ||
+    (latestProposal && (latestProposal.status === 'pendente' || latestProposal.status === 'expirada')) ||
     com.status === 'proposta_enviada' ||
     com.status === 'proposta'
   );
   if (isPendingProposal) {
     return {
       stageKey: 'proposta',
-      stageLabel: '⏳ Proposta Enviada (Link)',
-      badgeBg: 'rgba(139, 92, 246, 0.18)',
-      badgeColor: '#c084fc',
-      badgeBorder: '1px solid rgba(139, 92, 246, 0.4)',
-      orientacaoKey: 'reenviar_link',
-      orientacaoLabel: '📲 Reenviar Link de Venda',
+      stageLabel: isProposalExpired ? '⌛ Link Expirado (> 3D)' : '⏳ Proposta Enviada (Link)',
+      badgeBg: isProposalExpired ? 'rgba(245, 158, 11, 0.18)' : 'rgba(139, 92, 246, 0.18)',
+      badgeColor: isProposalExpired ? '#fbbf24' : '#c084fc',
+      badgeBorder: isProposalExpired ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(139, 92, 246, 0.4)',
+      orientacaoKey: isProposalExpired ? 'gerar_novo_link' : 'reenviar_link',
+      orientacaoLabel: isProposalExpired ? '🔄 Gerar Novo Link (Mesma Proposta)' : '📲 Reenviar Link de Venda',
+      isProposalExpired,
       isRecorrente,
       isBoleto,
       hasAsaasBoleto,
@@ -618,6 +627,58 @@ export default function GestaoContratosPanel({
       }
     } catch (e: any) {
       alert('Erro: ' + e.message);
+    }
+  };
+
+  const handleRenewProposal = async (client: any, proposal: any) => {
+    if (!client || !proposal) return;
+    setRenewingProposalId(proposal._id);
+    try {
+      const planId = proposal.planoId?._id || (typeof proposal.planoId === 'string' ? proposal.planoId : '');
+      const planObj = plans.find(p => (planId && p._id === planId) || (proposal.planoNome && p.nome === proposal.planoNome));
+      
+      const payload: any = {
+        clientId: client._id,
+        planoId: planObj?._id || planId,
+        valorAcordado: Number(proposal.valorAcordado || proposal.valorUnitario || 0),
+        creditosMensais: Number(proposal.creditosMensais || planObj?.creditosTotal || 12),
+        creditosMassagem: Number(proposal.creditosMassagem || 0),
+        creditosEmergencia: Number(proposal.creditosEmergencia || 0),
+        frequencia: Number(proposal.frequencia || 3),
+        duracao: proposal.duracao || 'mensal',
+        valorUnitario: Number(proposal.valorUnitario || proposal.valorAcordado || 0),
+        vigenciaQtd: Number(proposal.vigenciaQtd || 1),
+        dataInicio: new Date().toISOString().split('T')[0],
+        criarRecorrenciaMensal: Boolean(proposal.criarRecorrenciaMensal),
+        recorrenciaMeses: Number(proposal.recorrenciaMeses || 12),
+        descontoTipo: proposal.descontoTipo || 'percentual',
+        descontoValor: Number(proposal.descontoValor || 0),
+        observacoesContratuais: proposal.observacoesContratuais || '',
+        unidadeContratada: proposal.unidadeContratada || '',
+        isMinor: Boolean(proposal.isMinor)
+      };
+
+      const res = await fetch('/api/propostas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        const newUrl = `${window.location.origin}/vendas/${json.data._id}`;
+        setGeneratedProposalUrl(newUrl);
+        setActiveProposal(json.data);
+        setShowProposalModal(true);
+        fetchData(true);
+        loadContractsAndProposalsOverview();
+      } else {
+        alert('Erro ao renovar link de proposta: ' + (json.error || 'Falha ao processar.'));
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao gerar novo link: ' + err.message);
+    } finally {
+      setRenewingProposalId(null);
     }
   };
 
@@ -1283,6 +1344,7 @@ export default function GestaoContratosPanel({
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [generatedProposalUrl, setGeneratedProposalUrl] = useState('');
   const [generatingProposal, setGeneratingProposal] = useState(false);
+  const [renewingProposalId, setRenewingProposalId] = useState<string | null>(null);
   const [activeProposal, setActiveProposal] = useState<any>(null);
 
   // Renewal States
@@ -4077,15 +4139,32 @@ export default function GestaoContratosPanel({
                                 )}
                               </div>
 
-                              {/* Checklist de Dados */}
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
-                                <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)', fontWeight: 700 }}>
-                                  {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
-                                </span>
-                                <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)', fontWeight: 700 }}>
-                                  {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
-                                </span>
-                              </div>
+                              {Boolean(stage.isProposalExpired) && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '5px 8px', borderRadius: '6px', color: '#fbbf24', marginTop: '2px' }}>
+                                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <i className="fa-solid fa-triangle-exclamation"></i> Link Expirado:
+                                  </span>
+                                  <strong style={{ fontWeight: 700 }}>
+                                    {latestProposal.expiradoEm ? `Em ${new Date(latestProposal.expiradoEm).toLocaleDateString('pt-BR')}` : 'Mais de 72 horas'}
+                                  </strong>
+                                </div>
+                              )}
+
+                              {/* Checklist de Dados (Exibir apenas quando houver pendência real) */}
+                              {(!hasCpf || !hasPhone || !hasEndereco) && (
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                                  {(!hasCpf || !hasPhone) && (
+                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontWeight: 700 }}>
+                                      ⚠️ Contato/CPF Incompleto
+                                    </span>
+                                  )}
+                                  {!hasEndereco && (
+                                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontWeight: 700 }}>
+                                      ⚠️ Endereço Não Informado
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           ) : (
                             /* CARD DE CONTRATO ATIVO / PENDENTE / OUTROS - SOFT GLASS */
@@ -4274,35 +4353,71 @@ export default function GestaoContratosPanel({
                           {/* CASO A: PROPOSTA ENVIADA */}
                           {isCardProposalMode && latestProposal ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                              {/* 1. Botão Hero: Link de Venda */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const url = window.location.origin + '/vendas/' + latestProposal._id;
-                                  setGeneratedProposalUrl(url);
-                                  setActiveProposal(latestProposal);
-                                  setShowProposalModal(true);
-                                }}
-                                style={{
-                                  width: '100%',
-                                  padding: '11px 14px',
-                                  borderRadius: '10px',
-                                  border: 'none',
-                                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                                  color: '#ffffff',
-                                  fontWeight: 800,
-                                  fontSize: '0.86rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px',
-                                  boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
-                                  transition: 'all 0.2s ease'
-                                }}
-                              >
-                                <i className="fa-solid fa-share-nodes"></i> Copiar / Reenviar Link
-                              </button>
+                              {/* 1. Botão Hero: Link de Venda OU Gerar Novo Link com Mesma Proposta se expirado */}
+                              {Boolean(stage.isProposalExpired) ? (
+                                <button
+                                  type="button"
+                                  disabled={renewingProposalId === latestProposal._id}
+                                  onClick={() => handleRenewProposal(c, latestProposal)}
+                                  style={{
+                                    width: '100%',
+                                    padding: '11px 14px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 800,
+                                    fontSize: '0.86rem',
+                                    cursor: renewingProposalId === latestProposal._id ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  title="Clonar esta proposta e gerar um novo link válido por 3 dias"
+                                >
+                                  {renewingProposalId === latestProposal._id ? (
+                                    <>
+                                      <i className="fa-solid fa-circle-notch fa-spin"></i> Gerando Novo Link...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fa-solid fa-arrows-rotate"></i> Gerar Novo Link (Mesma Proposta)
+                                    </>
+                                  )}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = window.location.origin + '/vendas/' + latestProposal._id;
+                                    setGeneratedProposalUrl(url);
+                                    setActiveProposal(latestProposal);
+                                    setShowProposalModal(true);
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '11px 14px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 800,
+                                    fontSize: '0.86rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-share-nodes"></i> Copiar / Reenviar Link
+                                </button>
+                              )}
 
                               {/* 2. Linha de Ações Secundárias Simétricas (3 botões) */}
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
