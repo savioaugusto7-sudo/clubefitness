@@ -247,12 +247,22 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   }
 
   // 4. Contrato Assinado / Perfil Ativo com Vigência Válida ou Recorrência em Dia
+  const isCapitacao = (plan?.nome || com.planoNome || '').toLowerCase().includes('captação');
+  const valorTotalOrUnit = Number(com.valorTotal || com.valorUnitario || latestContract?.valorTotal || 0);
+  const hasManualContractData = Boolean(
+    !isCapitacao &&
+    (plan || com.planoId) &&
+    valorTotalOrUnit > 0 &&
+    (com.vencimento || com.dataFim || com.dataInicio)
+  );
+
   const hasActiveContract = Boolean(
     isContractSigned ||
     com.status === 'ativo' ||
+    hasManualContractData ||
     (isRecorrente && hasPaidInstallment && !info.isExpired) ||
-    (plan && !info.isExpired && (com.valorUnitario > 0 || hasPaidInstallment)) ||
-    (com.valorUnitario > 0 && (com.vencimento || com.dataInicio) && com.status !== 'lead')
+    (plan && !info.isExpired && (valorTotalOrUnit > 0 || hasPaidInstallment)) ||
+    (valorTotalOrUnit > 0 && (com.vencimento || com.dataInicio) && com.status !== 'lead')
   );
 
   const isExpired = Boolean(info.isExpired);
@@ -837,7 +847,7 @@ export default function GestaoContratosPanel({
         dadosComerciais: {
           ...(editContractClient.dadosComerciais || {}),
           planoId: ecPlanoId || null,
-          status: activateAsVigente ? 'ativo' : (editContractClient.dadosComerciais?.status || 'ativo'),
+          status: (activateAsVigente || (ecPlanoId && calculatedValorLiquido > 0 && ecDataInicio && !plan?.nome?.toLowerCase().includes('captação'))) ? 'ativo' : (editContractClient.dadosComerciais?.status || 'ativo'),
           duracao: ecDuracao,
           duracaoQtd: ecVigenciaQtd,
           vigenciaQtd: ecVigenciaQtd,
@@ -2527,11 +2537,16 @@ export default function GestaoContratosPanel({
       const dataFimCalculada = endD.toISOString().split('T')[0];
 
       const isLocked = selectedClient.bloqueioCadastral?.bloqueado !== false;
+      const planObj = plans.find(p => p._id === dcPlano);
+      const isPlanCapitacao = (planObj?.nome || '').toLowerCase().includes('captação');
+      const isContractComplete = Boolean(dcPlano && !isPlanCapitacao && Number(dcValorUnitario || 0) > 0 && dcDataInicio);
+      const targetStatus = isContractComplete ? 'ativo' : (dcStatus || 'ativo');
+
       const payload: any = {
         id: selectedClient._id,
         dadosComerciais: {
           planoId: dcPlano || null,
-          status: dcStatus || 'ativo',
+          status: targetStatus,
           formaPagamento: dcFormaPag,
           duracao: dcDuracao,
           duracaoQtd: dcVigenciaQtd,
@@ -4219,8 +4234,8 @@ export default function GestaoContratosPanel({
                                 )}
                               </div>
 
-                              {/* Checklist de Dados exibido apenas em Leads/Cadastros incompletos (oculto em contratos vigentes) */}
-                              {(info.isLead || info.isUncontracted || stage.stageKey === 'dynamus') && (
+                              {/* Checklist de Dados exibido apenas quando há pendências reais ou em Dynamus */}
+                              {((stage.stageKey === 'dynamus') || ((info.isLead || info.isUncontracted) && (!hasCpf || !hasPhone || !hasEndereco))) && (
                                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px' }}>
                                   {stage.stageKey === 'dynamus' ? (
                                     <>
@@ -4233,12 +4248,16 @@ export default function GestaoContratosPanel({
                                     </>
                                   ) : (
                                     <>
-                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasCpf && hasPhone ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasCpf && hasPhone ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasCpf && hasPhone ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)' }}>
-                                        {hasCpf && hasPhone ? '✅ Contato & CPF' : '⚠️ Contato/CPF Incompleto'}
-                                      </span>
-                                      <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: hasEndereco ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: hasEndereco ? '#34d399' : '#f87171', border: '1px solid', borderColor: hasEndereco ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)' }}>
-                                        {hasEndereco ? '✅ Endereço Completo' : '⚠️ Endereço Não Informado'}
-                                      </span>
+                                      {(!hasCpf || !hasPhone) && (
+                                        <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)', fontWeight: 700 }}>
+                                          ⚠️ Contato/CPF Incompleto
+                                        </span>
+                                      )}
+                                      {!hasEndereco && (
+                                        <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)', fontWeight: 700 }}>
+                                          ⚠️ Endereço Não Informado
+                                        </span>
+                                      )}
                                     </>
                                   )}
                                 </div>

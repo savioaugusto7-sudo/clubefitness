@@ -160,8 +160,20 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
     // Se for Lead ou não tiver data de início nem pagamentos nem contrato emitido, NÃO INVENTAR DATAS!
     const paymentsList = clientPayments || client?.payments || [];
     const hasPaidPayments = Array.isArray(paymentsList) && paymentsList.some((p: any) => p.status === 'Pago');
-    const isLeadStatus = statusSaved === 'lead';
-    const isUncontracted = !com.dataInicio && !com.vencimento && !hasPaidPayments && !isDynamus;
+    
+    // Alunos com plano real contratado, valor definido e vigência configurada NÃO são leads aguardando venda
+    const valorContrato = Number(com.valorTotal || com.valorUnitario || 0);
+    const hasRealContractDates = Boolean(com.dataInicio && (com.dataFim || com.vencimento));
+    const isCapitacao = (planObj?.nome || com.planoNome || '').toLowerCase().includes('captação');
+    const isManualContractActive = Boolean(
+      hasClubePlan && 
+      !isCapitacao && 
+      valorContrato > 0 && 
+      hasRealContractDates
+    );
+
+    const isLeadStatus = statusSaved === 'lead' && !isManualContractActive;
+    const isUncontracted = !com.dataInicio && !com.vencimento && !hasPaidPayments && !isDynamus && !isManualContractActive;
 
     if ((isDynamus && !hasClubePlan && !hasPaidPayments) || isLeadStatus || (isUncontracted && statusSaved !== 'ativo')) {
       return {
