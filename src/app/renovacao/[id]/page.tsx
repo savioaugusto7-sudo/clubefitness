@@ -349,7 +349,7 @@ export default function RenovacaoPage({ params }: { params: any }) {
                   <div>
                     <span style={{ fontSize: '0.95rem', fontWeight: 700, display: 'block' }}>Valor do Plano:</span>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      {formaPagamento === 'cartao' ? 'Valor Anual (+5% taxa de cartão)' : 'Valor Total Anual'}
+                      {formaPagamento === 'cartao' ? 'Valor Total no Cartão' : 'Valor Total Anual'}
                     </span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -422,13 +422,13 @@ export default function RenovacaoPage({ params }: { params: any }) {
                     id: 'cartao', 
                     label: 'Cartão de Crédito (12x)', 
                     icon: 'fa-credit-card', 
-                    desc: `12x de R$ ${((baseValue * 1.05) / 12).toFixed(2).replace('.', ',')} (+5%)`,
+                    desc: `12x de R$ ${((baseValue * 1.05) / 12).toFixed(2).replace('.', ',')}`,
                     equiv: null
                   }
                 ] : [
                   { id: 'pix', label: 'PIX (1x)', icon: 'fa-qrcode', desc: 'À vista', equiv: null },
                   { id: 'boleto', label: 'Boleto (até 10x)', icon: 'fa-barcode', desc: 'Sem acréscimo', equiv: null },
-                  { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: '+5% taxa', equiv: null }
+                  { id: 'cartao', label: 'Cartão (até 12x)', icon: 'fa-credit-card', desc: 'Parcelamento flexível', equiv: null }
                 ]).map(item => (
                   <button
                     key={item.id}

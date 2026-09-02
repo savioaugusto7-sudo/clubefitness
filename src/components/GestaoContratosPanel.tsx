@@ -4536,7 +4536,7 @@ export default function GestaoContratosPanel({
                                   }}
                                 >
                                   {generatingRenewalClientId === c._id ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-arrows-rotate"></i>}
-                                  Renovação (+5%)
+                                  Link de Renovação
                                 </button>
                                 <button
                                   type="button"
@@ -6263,7 +6263,7 @@ export default function GestaoContratosPanel({
               <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <span>📄 Boleto / Pix 10x de R$ {(activeRenewal.valorReajustado / 10).toFixed(2).replace('.', ',')}</span>
                 <span>•</span>
-                <span>💳 Cartão 12x de R$ {((activeRenewal.valorReajustado * 1.05) / 12).toFixed(2).replace('.', ',')} (+5%)</span>
+                <span>💳 Cartão 12x de R$ {((activeRenewal.valorReajustado * 1.05) / 12).toFixed(2).replace('.', ',')}</span>
               </div>
             </div>
 
