@@ -68,11 +68,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
+    const trimmedContent = (conteudo || '').trim();
+
+    // Trava de Idempotência: Se um prontuário com mesmo cliente, data e conteúdo idêntico
+    // já foi criado recentemente (últimos 15 minutos), reutilizar o existente para impedir duplicidades
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const existing = await Prontuario.findOne({
+      clienteId,
+      data,
+      conteudo: trimmedContent,
+      createdAt: { $gte: fifteenMinutesAgo }
+    }).lean();
+
+    if (existing) {
+      return NextResponse.json({ success: true, data: existing, note: 'duplicate_prevented' });
+    }
+
     const record = await Prontuario.create({
       clienteId,
       profissionalId,
       data,
-      conteudo
+      conteudo: trimmedContent
     });
 
     return NextResponse.json({ success: true, data: record });

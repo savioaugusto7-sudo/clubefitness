@@ -427,6 +427,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [emergencyReschedHour, setEmergencyReschedHour] = useState('08:00');
   const [emergencyAvailableSlots, setEmergencyAvailableSlots] = useState<any[]>([]);
   const [loadingEmergencySlots, setLoadingEmergencySlots] = useState(false);
+  const [submittingEmergency, setSubmittingEmergency] = useState(false);
+  const [createdEmergencyProntuarioId, setCreatedEmergencyProntuarioId] = useState<string | null>(null);
 
   // New Appointment form inputs
   const [selectedClient, setSelectedClient] = useState('');
@@ -2756,6 +2758,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setEmergencyReport('');
     setEmergencyConduct('alta');
     setEmergencyStep('prontuario');
+    setCreatedEmergencyProntuarioId(null);
+    setSubmittingEmergency(false);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dStr = tomorrow.toISOString().split('T')[0];
@@ -2831,6 +2835,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   };
 
   const handleSaveEmergencyAlta = async () => {
+    if (submittingEmergency) return;
     if (!emergencyReport.trim()) {
       alert('Por favor, preencha o relatório do Prontuário Clínico antes de finalizar.');
       return;
@@ -2838,6 +2843,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const targetClientId = emergencyApt?.clienteId?._id || emergencyApt?.clienteId || null;
     const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente';
 
+    setSubmittingEmergency(true);
     executeAction('Finalizou Atendimento de Emergência e Registrou Alta', targetClientId, async (executorProfId) => {
       try {
         // 1. Mark original appointment as finalized
@@ -2854,15 +2860,19 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           body: JSON.stringify({ clienteId: targetClientId, profissionalId: executorProfId, data: emergencyApt?.data, conteudo: prontuarioObs })
         });
         setShowEmergencyModal(false);
+        setCreatedEmergencyProntuarioId(null);
         alert(`✅ Atendimento de Emergência finalizado e Alta registrada para ${clientName}!`);
         fetchData();
       } catch (err: any) {
         alert('Erro ao salvar alta: ' + err.message);
+      } finally {
+        setSubmittingEmergency(false);
       }
     }, `${clientName} - Alta Registrada`);
   };
 
   const handleEmergencyStartReschedule = async () => {
+    if (submittingEmergency) return;
     if (!emergencyReport.trim()) {
       alert('Por favor, preencha o relatório do Prontuário Clínico antes de prosseguir.');
       return;
@@ -2870,6 +2880,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const targetClientId = emergencyApt?.clienteId?._id || emergencyApt?.clienteId || null;
     const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente';
 
+    setSubmittingEmergency(true);
     executeAction('Salvou Prontuário de Emergência para Agendamento', targetClientId, async (executorProfId) => {
       try {
         // 1. Mark appointment as present
@@ -2878,22 +2889,31 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: emergencyAptId, status: 'presenca', finalizado: true, profissionalId: executorProfId })
         });
-        // 2. Create prontuário
+        // 2. Create prontuário only if not already created in this session
         const prontuarioObs = `[Atendimento de Emergência - Continuidade Indicada]\nData: ${emergencyApt?.data} às ${emergencyApt?.horario}\nConduta: Agendamento de Próxima Emergência\n\nRelato Clínico:\n${emergencyReport}`;
-        await fetch('/api/prontuarios', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clienteId: targetClientId, profissionalId: executorProfId, data: emergencyApt?.data, conteudo: prontuarioObs })
-        });
+        if (!createdEmergencyProntuarioId) {
+          const res = await fetch('/api/prontuarios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clienteId: targetClientId, profissionalId: executorProfId, data: emergencyApt?.data, conteudo: prontuarioObs })
+          });
+          const json = await res.json();
+          if (json?.data?._id) {
+            setCreatedEmergencyProntuarioId(json.data._id);
+          }
+        }
         setEmergencyConduct('remarcacao');
         setEmergencyStep('agendamento');
       } catch (err: any) {
         alert('Erro ao salvar evolução: ' + err.message);
+      } finally {
+        setSubmittingEmergency(false);
       }
     }, `${clientName} - Prontuário salvo`);
   };
 
   const handleConfirmEmergencyReschedule = async () => {
+    if (submittingEmergency) return;
     if (!emergencyReschedDate) {
       alert('Por favor, selecione a data do agendamento.');
       return;
@@ -2905,6 +2925,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     const targetClientId = emergencyApt?.clienteId?._id || emergencyApt?.clienteId || null;
     const clientName = emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente';
 
+    setSubmittingEmergency(true);
     executeAction('Agendou Próxima Emergência', targetClientId, async (executorProfId) => {
       try {
         const res = await fetch('/api/appointments', {
@@ -2924,6 +2945,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         const data = await res.json();
         if (data.success) {
           setShowEmergencyModal(false);
+          setCreatedEmergencyProntuarioId(null);
           alert(`✅ Próxima Emergência agendada com sucesso para ${clientName} em ${emergencyReschedDate} às ${emergencyReschedHour}!`);
           fetchData();
         } else {
@@ -2931,6 +2953,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         }
       } catch (err: any) {
         alert('Erro ao agendar: ' + err.message);
+      } finally {
+        setSubmittingEmergency(false);
       }
     }, `${clientName} - ${emergencyReschedDate} às ${emergencyReschedHour}`);
   };
@@ -13891,17 +13915,41 @@ goniometria: {
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                       <button
                         type="button"
+                        disabled={submittingEmergency}
                         onClick={handleSaveEmergencyAlta}
-                        style={{ flex: 1, minWidth: '220px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', padding: '12px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        style={{
+                          flex: 1, minWidth: '220px',
+                          background: submittingEmergency ? 'rgba(16, 185, 129, 0.6)' : 'linear-gradient(135deg, #10b981, #059669)',
+                          color: '#fff', border: 'none', padding: '12px 14px', borderRadius: '8px',
+                          fontWeight: 800, fontSize: '0.82rem',
+                          cursor: submittingEmergency ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                        }}
                       >
-                        <i className="fa-solid fa-circle-check"></i> Finalizar prontuario e resgistrar alta
+                        {submittingEmergency ? (
+                          <><i className="fa-solid fa-spinner fa-spin"></i> Processando...</>
+                        ) : (
+                          <><i className="fa-solid fa-circle-check"></i> Finalizar prontuário e registrar alta</>
+                        )}
                       </button>
                       <button
                         type="button"
+                        disabled={submittingEmergency}
                         onClick={handleEmergencyStartReschedule}
-                        style={{ flex: 1, minWidth: '220px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', border: 'none', padding: '12px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        style={{
+                          flex: 1, minWidth: '220px',
+                          background: submittingEmergency ? 'rgba(59, 130, 246, 0.6)' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                          color: '#fff', border: 'none', padding: '12px 14px', borderRadius: '8px',
+                          fontWeight: 800, fontSize: '0.82rem',
+                          cursor: submittingEmergency ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                        }}
                       >
-                        <i className="fa-solid fa-calendar-plus"></i> Agendar proxima emergência
+                        {submittingEmergency ? (
+                          <><i className="fa-solid fa-spinner fa-spin"></i> Processando...</>
+                        ) : (
+                          <><i className="fa-solid fa-calendar-plus"></i> Agendar próxima emergência</>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -13990,11 +14038,15 @@ goniometria: {
                   </button>
                   <button 
                     className="btn btn-primary" 
-                    disabled={!emergencyReschedHour || emergencyAvailableSlots.length === 0}
+                    disabled={submittingEmergency || !emergencyReschedHour || emergencyAvailableSlots.length === 0}
                     onClick={handleConfirmEmergencyReschedule}
                     style={{ fontWeight: 800 }}
                   >
-                    <i className="fa-solid fa-check"></i> Confirmar Agendamento ({emergencyReschedHour || 'Selecione'})
+                    {submittingEmergency ? (
+                      <><i className="fa-solid fa-spinner fa-spin"></i> Agendando...</>
+                    ) : (
+                      <><i className="fa-solid fa-check"></i> Confirmar Agendamento ({emergencyReschedHour || 'Selecione'})</>
+                    )}
                   </button>
                 </div>
               </>
