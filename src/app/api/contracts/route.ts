@@ -5,7 +5,7 @@ import Contract from '@/models/Contract';
 import Payment from '@/models/Payment';
 import Client from '@/models/Client';
 import Plan from '@/models/Plan';
-import { createAsaasCustomer, createAsaasPayment, getAsaasPixQrCode } from '@/utils/asaas';
+import { createAsaasCustomer, updateAsaasCustomer, createAsaasPayment, createAsaasSubscription, getAsaasPixQrCode } from '@/utils/asaas';
 import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
 
 import { syncContractStatus } from '@/app/api/clicksign/route';
@@ -853,38 +853,73 @@ export async function PUT(request: Request) {
       });
       await client.save();
 
-      // Se formaPagamento for BOLETO e não possuir cobrança Asaas, gerar no Asaas
-      if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && process.env.ASAAS_API_KEY) {
+      // Se formaPagamento for BOLETO e não possuir cobrança/assinatura Asaas, gerar no Asaas
+      if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && !contract.asaasSubscriptionId && process.env.ASAAS_API_KEY) {
         try {
           let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
           if (!asaasCustomerId) {
             asaasCustomerId = await createAsaasCustomer(client);
             client.dadosComerciais.asaasCustomerId = asaasCustomerId;
             await client.save();
+          } else {
+            // Atualizar mobilePhone no Asaas para garantir envio de WhatsApp
+            await updateAsaasCustomer(asaasCustomerId, client).catch(() => {});
           }
+
+          const isRecorrente = Boolean(
+            client.dadosComerciais?.criarRecorrenciaMensal ||
+            contract.criarRecorrenciaMensal ||
+            (contract.parcelas === 1 && contract.vigenciaMeses && contract.vigenciaMeses > 1)
+          );
+
           const numParcelas = Number(contract.parcelas) || 1;
-          const totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+          let totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+          if (numParcelas > 1 && contract.valorBruto && totalLiquido < (contract.valorBruto * 0.75) && (!contract.descontoValor || contract.descontoValor === 0)) {
+            totalLiquido = Number(contract.valorBruto);
+          }
           const valorParcela = numParcelas > 1 ? Number((totalLiquido / numParcelas).toFixed(2)) : totalLiquido;
           const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0];
 
-          const asaasResult = await createAsaasPayment({
-            customerId: asaasCustomerId,
-            formaPagamento: 'boleto',
-            value: totalLiquido,
-            dueDate: dueDate,
-            description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
-            parcelas: numParcelas
-          });
+          if (isRecorrente) {
+            // CRIAÇÃO DE ASSINATURA RECORRENTE NO ASAAS
+            const asaasResult = await createAsaasSubscription({
+              customerId: asaasCustomerId,
+              formaPagamento: 'boleto',
+              value: valorParcela,
+              nextDueDate: dueDate,
+              cycle: 'MONTHLY',
+              description: `Contrato Recorrente ${plan?.nome || 'Plano'} - Clube Fitness`
+            });
 
-          if (asaasResult && asaasResult.paymentId) {
-            contract.asaasPaymentId = asaasResult.paymentId;
-            contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
-            contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
-            contract.asaasBillingStatus = 'gerada';
-            await contract.save();
+            if (asaasResult && asaasResult.subscriptionId) {
+              contract.asaasSubscriptionId = asaasResult.subscriptionId;
+              contract.asaasPaymentId = asaasResult.paymentId || '';
+              contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+              contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+              contract.asaasBillingStatus = 'gerada';
+              await contract.save();
+            }
+          } else {
+            // CRIAÇÃO DE COBRANÇA AVULSA / PARCELADA NO ASAAS
+            const asaasResult = await createAsaasPayment({
+              customerId: asaasCustomerId,
+              formaPagamento: 'boleto',
+              value: totalLiquido,
+              dueDate: dueDate,
+              description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
+              parcelas: numParcelas
+            });
+
+            if (asaasResult && asaasResult.paymentId) {
+              contract.asaasPaymentId = asaasResult.paymentId;
+              contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+              contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+              contract.asaasBillingStatus = 'gerada';
+              await contract.save();
+            }
           }
         } catch (asaasErr: any) {
-          console.warn('Erro ao criar cobrança Asaas na assinatura do contrato:', asaasErr.message);
+          console.warn('Erro ao criar cobrança/assinatura Asaas na assinatura do contrato:', asaasErr.message);
         }
       }
 

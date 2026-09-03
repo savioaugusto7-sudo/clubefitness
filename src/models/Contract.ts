@@ -51,12 +51,14 @@ const ContractSchema = new Schema({
     operadorNome: { type: String, default: '' },
     userAgent: { type: String, default: '' }
   },
+  asaasSubscriptionId: { type: String, default: '' },
   asaasPaymentId: { type: String, default: '' },
   asaasInvoiceUrl: { type: String, default: '' },
   asaasBoletoPdf: { type: String, default: '' },
   asaasPixCopyPaste: { type: String, default: '' },
   asaasPixQrCode: { type: String, default: '' },
   asaasBillingStatus: { type: String, default: 'pendente' },
+  criarRecorrenciaMensal: { type: Boolean, default: false },
   congelamento: { type: CongelamentoSchema, default: null }
 }, { timestamps: true });
 

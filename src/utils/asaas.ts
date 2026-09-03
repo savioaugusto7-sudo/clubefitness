@@ -48,13 +48,17 @@ export async function createAsaasCustomer(client: any) {
   const phone = (client.dadosPessoais?.telefone || '').replace(/\D/g, '');
   const cpf = (client.dadosPessoais?.cpf || '').replace(/\D/g, '');
 
-  const body = {
+  const body: any = {
     name: client.dadosPessoais?.nome || '',
     cpfCnpj: cpf,
     email: client.dadosPessoais?.email || '',
-    phone: phone,
     notificationDisabled: false
   };
+
+  if (phone) {
+    body.mobilePhone = phone;
+    body.phone = phone;
+  }
 
   const res = await fetch(`${baseUrl}/customers`, {
     method: 'POST',
@@ -64,6 +68,36 @@ export async function createAsaasCustomer(client: any) {
   });
 
   const data = await handleError(res, 'Criar Cliente');
+  return data.id;
+}
+
+export async function updateAsaasCustomer(customerId: string, client: any) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const phone = (client.dadosPessoais?.telefone || client.telefone || '').replace(/\D/g, '');
+  const cpf = (client.dadosPessoais?.cpf || client.cpf || '').replace(/\D/g, '');
+
+  const body: any = {
+    name: client.dadosPessoais?.nome || client.nome || '',
+    email: client.dadosPessoais?.email || client.email || '',
+    notificationDisabled: false
+  };
+
+  if (cpf) body.cpfCnpj = cpf;
+  if (phone) {
+    body.mobilePhone = phone;
+    body.phone = phone;
+  }
+
+  const res = await fetch(`${baseUrl}/customers/${customerId}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000)
+  });
+
+  const data = await handleError(res, 'Atualizar Cliente');
   return data.id;
 }
 
@@ -191,8 +225,36 @@ export async function createAsaasSubscription(params: {
   });
 
   const data = await handleError(res, 'Criar Assinatura');
+  
+  // Buscar os pagamentos gerados por esta assinatura para obter imediatamente o primeiro boleto
+  let firstPaymentId = '';
+  let invoiceUrl = '';
+  let bankSlipUrl = '';
+
+  try {
+    const resPayments = await fetch(`${baseUrl}/subscriptions/${data.id}/payments`, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(6000)
+    });
+    if (resPayments.ok) {
+      const dataPayments = await resPayments.json();
+      const firstPayment = Array.isArray(dataPayments.data) && dataPayments.data.length > 0 ? dataPayments.data[0] : null;
+      if (firstPayment) {
+        firstPaymentId = firstPayment.id;
+        invoiceUrl = firstPayment.invoiceUrl || '';
+        bankSlipUrl = firstPayment.bankSlipUrl || '';
+      }
+    }
+  } catch (errPayments: any) {
+    console.warn('Aviso: Falha ao obter pagamentos da assinatura recém-criada:', errPayments?.message);
+  }
+
   return {
     subscriptionId: data.id,
+    paymentId: firstPaymentId,
+    invoiceUrl,
+    bankSlipUrl,
     billingStatus: data.status,
     description: data.description,
     cycle: data.cycle

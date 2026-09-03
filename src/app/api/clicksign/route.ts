@@ -7,7 +7,7 @@ import Plan from '@/models/Plan';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-import { createAsaasCustomer, createAsaasPayment } from '@/utils/asaas';
+import { createAsaasCustomer, updateAsaasCustomer, createAsaasPayment, createAsaasSubscription } from '@/utils/asaas';
 
 export async function syncContractStatus(contract: any, token: string, baseUrl: string) {
   if (!contract?.clicksignDocKey) return;
@@ -28,17 +28,17 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
           'Content-Type': 'application/vnd.api+json',
           'Accept': 'application/vnd.api+json'
         },
-        cache: 'no-store'
+        signal: AbortSignal.timeout(10000)
       });
       console.log(`Sync status: Fetch clicksign v3 response status: ${res.status}`);
       if (res.ok) {
         const data = await res.json();
         const status = data.data?.attributes?.status;
         console.log(`Sync status: Envelope ${actualEnvelopeId} status: ${status}`);
-        if (status === 'finished' || status === 'closed') {
+        if (status === 'finished' || status === 'closed' || status === 'signed') {
           clicksignStatus = 'assinado';
           finishedAt = data.data?.attributes?.finished_at || new Date();
-        } else if (status === 'canceled') {
+        } else if (status === 'canceled' || status === 'cancelled') {
           clicksignStatus = 'cancelado';
         } else {
           // Checar também os signatários do envelope
@@ -109,28 +109,35 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
           const plan = await Plan.findById(contract.planoId);
           const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
 
-          Object.assign(client.dadosComerciais, {
-            planoId: contract.planoId,
-            vencimento: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,
+          let finalEndDate = contract.dataFim;
+          if (!finalEndDate) {
+            const startD = new Date(contract.dataInicio || new Date());
+            const endD = new Date(startD);
+            endD.setMonth(endD.getMonth() + (contract.vigenciaMeses || 1));
+            finalEndDate = endD.toISOString().split('T')[0];
+          }
+
+          client.dadosComerciais = {
+            ...client.dadosComerciais,
             status: 'ativo',
-            parcelas: contract.parcelas,
+            planoId: contract.planoId,
+            planoNome: plan?.nome || contract.planoNome,
+            dataInicio: contract.dataInicio || client.dadosComerciais?.dataInicio,
+            dataFim: finalEndDate,
+            vencimento: finalEndDate,
+            formaPagamento: contract.formaPagamento || client.dadosComerciais?.formaPagamento,
+            valorUnitario: contract.valorLiquido || contract.valorBruto || client.dadosComerciais?.valorUnitario,
+            parcelas: contract.parcelas || client.dadosComerciais?.parcelas,
             descontoValor: contract.descontoValor,
             descontoTipo: contract.descontoTipo,
-            duracao: isAnual ? 'anual' : 'mensal',
-            duracaoQtd: isAnual ? 1 : (contract.vigenciaMeses || 1),
-            formaPagamento: contract.formaPagamento,
-            dataInicio: contract.dataInicio,
-            responsavelVenda: contract.responsavelVenda || '',
-            unidadeContratada: contract.unidadeContratada || '',
-            observacoesContratuais: contract.observacoesContratuais || '',
-            frequencia: contract.frequencia !== undefined ? contract.frequencia : client.dadosComerciais.frequencia,
+            frequencia: contract.frequencia !== undefined ? contract.frequencia : client.dadosComerciais?.frequencia,
             creditosTotal: contract.creditosTotal || plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0),
             creditosUsados: 0,
             creditosReservados: 0,
             creditosMassagemTotal: isAnual ? 1 : 0,
             creditosMassagemUsados: 0,
             creditosMassagemReservados: 0
-          });
+          };
 
           client.bloqueioCadastral = {
             bloqueado: false,
@@ -142,15 +149,25 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
 
           await client.save();
 
-          // Se a forma de pagamento for BOLETO e ainda não possuir cobrança Asaas gerada, criar automaticamente
-          if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && process.env.ASAAS_API_KEY) {
+          // Se a forma de pagamento for BOLETO e ainda não possuir cobrança/assinatura Asaas gerada, criar automaticamente
+          if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && !contract.asaasSubscriptionId && process.env.ASAAS_API_KEY) {
             try {
               let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
               if (!asaasCustomerId) {
                 asaasCustomerId = await createAsaasCustomer(client);
                 client.dadosComerciais.asaasCustomerId = asaasCustomerId;
                 await client.save();
+              } else {
+                // Atualizar mobilePhone no Asaas para garantir envio de WhatsApp
+                await updateAsaasCustomer(asaasCustomerId, client).catch(() => {});
               }
+
+              const isRecorrente = Boolean(
+                client.dadosComerciais?.criarRecorrenciaMensal ||
+                contract.criarRecorrenciaMensal ||
+                (contract.parcelas === 1 && contract.vigenciaMeses && contract.vigenciaMeses > 1)
+              );
+
               const numParcelas = Number(contract.parcelas) || 1;
               let totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
               // Trava de segurança: se o contrato for parcelado e o valorLiquido for compatível com uma única parcela, usar valorBruto
@@ -160,23 +177,44 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
               const valorParcela = numParcelas > 1 ? Number((totalLiquido / numParcelas).toFixed(2)) : totalLiquido;
               const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0];
 
-              const asaasResult = await createAsaasPayment({
-                customerId: asaasCustomerId,
-                formaPagamento: 'boleto',
-                value: totalLiquido,
-                dueDate: dueDate,
-                description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
-                parcelas: numParcelas
-              });
+              if (isRecorrente) {
+                // CRIAÇÃO DE ASSINATURA RECORRENTE NO ASAAS
+                const asaasResult = await createAsaasSubscription({
+                  customerId: asaasCustomerId,
+                  formaPagamento: 'boleto',
+                  value: valorParcela,
+                  nextDueDate: dueDate,
+                  cycle: 'MONTHLY',
+                  description: `Contrato Recorrente ${plan?.nome || 'Plano'} - Clube Fitness`
+                });
 
-              if (asaasResult && asaasResult.paymentId) {
-                contract.asaasPaymentId = asaasResult.paymentId;
-                contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
-                contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
-                contract.asaasBillingStatus = 'gerada';
+                if (asaasResult && asaasResult.subscriptionId) {
+                  contract.asaasSubscriptionId = asaasResult.subscriptionId;
+                  contract.asaasPaymentId = asaasResult.paymentId || '';
+                  contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+                  contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+                  contract.asaasBillingStatus = 'gerada';
+                }
+              } else {
+                // CRIAÇÃO DE COBRANÇA AVULSA / PARCELADA NO ASAAS
+                const asaasResult = await createAsaasPayment({
+                  customerId: asaasCustomerId,
+                  formaPagamento: 'boleto',
+                  value: totalLiquido,
+                  dueDate: dueDate,
+                  description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
+                  parcelas: numParcelas
+                });
+
+                if (asaasResult && asaasResult.paymentId) {
+                  contract.asaasPaymentId = asaasResult.paymentId;
+                  contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+                  contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+                  contract.asaasBillingStatus = 'gerada';
+                }
               }
             } catch (asaasErr: any) {
-              console.warn('Erro ao criar cobrança Asaas no sync do Clicksign:', asaasErr.message);
+              console.warn('Erro ao criar cobrança/assinatura Asaas no sync do Clicksign:', asaasErr.message);
             }
           }
 

@@ -7,6 +7,7 @@ import {
   getAsaasPaymentDetails, 
   getAsaasPixQrCode, 
   createAsaasCustomer, 
+  updateAsaasCustomer,
   createAsaasPayment, 
   createAsaasSubscription, 
   getAsaasInstallmentPayments, 
@@ -243,6 +244,82 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: 'Assinatura de boletos pausada no Asaas com sucesso.' });
       }
 
+      if (action === 'normalize_anna_luiza') {
+        const anna = await Client.findOne({
+          $or: [
+            { 'dadosPessoais.cpf': { $regex: '09097935652' } },
+            { 'dadosPessoais.nome': { $regex: 'Anna Luiza Nogueira Coutinho', $options: 'i' } }
+          ]
+        });
+
+        if (!anna) {
+          return NextResponse.json({ success: false, error: 'Anna Luiza não encontrada no banco.' }, { status: 404 });
+        }
+
+        const contract = await Contract.findOne({ clientId: anna._id }).sort({ createdAt: -1 });
+        if (!contract) {
+          return NextResponse.json({ success: false, error: 'Contrato de Anna Luiza não encontrado.' }, { status: 404 });
+        }
+
+        let asaasCustomerId = anna.dadosComerciais?.asaasCustomerId || 'cus_000197978956';
+
+        // 1. Atualizar cadastro no Asaas com mobilePhone
+        try {
+          await updateAsaasCustomer(asaasCustomerId, anna);
+        } catch (e: any) {
+          console.warn('Aviso ao atualizar cliente Anna no Asaas:', e.message);
+        }
+
+        // 2. Cancelar a cobrança avulsa antiga caso exista
+        if (contract.asaasPaymentId && !contract.asaasSubscriptionId) {
+          try {
+            await deleteAsaasPayment(contract.asaasPaymentId);
+          } catch (e: any) {
+            console.warn('Aviso ao deletar cobrança avulsa antiga:', e.message);
+          }
+        }
+
+        // 3. Criar Assinatura Recorrente no Asaas
+        const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || '2026-09-15';
+        const subResult = await createAsaasSubscription({
+          customerId: asaasCustomerId,
+          formaPagamento: 'boleto',
+          value: Number(contract.valorLiquido) || Number(contract.valorBruto) || 500,
+          nextDueDate: dueDate,
+          cycle: 'MONTHLY',
+          description: `Contrato Clube Fitness - Monitorado (Mensalidade Recorrente)`
+        });
+
+        // 4. Atualizar o contrato de Anna no MongoDB
+        contract.asaasSubscriptionId = subResult.subscriptionId;
+        if (subResult.paymentId) {
+          contract.asaasPaymentId = subResult.paymentId;
+          contract.asaasInvoiceUrl = subResult.invoiceUrl || '';
+          contract.asaasBoletoPdf = subResult.bankSlipUrl || '';
+          contract.asaasBillingStatus = 'gerada';
+        }
+        contract.criarRecorrenciaMensal = true;
+        await contract.save();
+
+        if (anna.dadosComerciais) {
+          anna.dadosComerciais.asaasCustomerId = asaasCustomerId;
+          anna.dadosComerciais.criarRecorrenciaMensal = true;
+          await anna.save();
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: 'Cadastro e assinatura de Anna Luiza normalizados com sucesso no Asaas.',
+          data: {
+            customerId: asaasCustomerId,
+            subscriptionId: subResult.subscriptionId,
+            paymentId: subResult.paymentId,
+            invoiceUrl: subResult.invoiceUrl,
+            bankSlipUrl: subResult.bankSlipUrl
+          }
+        });
+      }
+
       if (!clientId || !valor) {
         return NextResponse.json({ success: false, error: 'clientId e valor são obrigatórios' }, { status: 400 });
       }
@@ -258,6 +335,8 @@ export async function POST(request: Request) {
         asaasCustomerId = await createAsaasCustomer(client);
         client.dadosComerciais.asaasCustomerId = asaasCustomerId;
         await client.save();
+      } else {
+        await updateAsaasCustomer(asaasCustomerId, client).catch(() => {});
       }
 
       if (action === 'create_avulsa') {
