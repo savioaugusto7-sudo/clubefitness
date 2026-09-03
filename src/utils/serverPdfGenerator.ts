@@ -13,8 +13,15 @@ function sanitizeTextForPdf(text: string): string {
     .replace(/[‘’]/g, "'")
     .replace(/[—–]/g, '-')
     .replace(/•/g, '-')
-    // keep printable ASCII and Latin-1 supplement (covers all Portuguese accented letters)
-    .replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
+    // Limpar fragmentos residuais de tags HTML e atributos CSS inline
+    .replace(/(?:div|span|small|p|h[1-6])\s+style="[^"]*">/gi, '')
+    .replace(/(?:div|span|small|p|h[1-6])\s+style='[^']*'>/gi, '')
+    .replace(/<\/?(?:div|span|small|p|h[1-6]|strong|b|em|i)[^>]*>/gi, '')
+    .replace(/<\/?(?:div|span|small|p|h[1-6]|strong|b|em|i)>/gi, '')
+    .replace(/\/?small>/gi, '')
+    .replace(/\/?div>/gi, '')
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, '')
+    .trim();
 }
 
 interface TextSpan {
@@ -37,16 +44,28 @@ export async function generateContractPDFBase64(contractHtmlOrText: string): Pro
 
   // Check if it's HTML
   if (/<[a-z][\s\S]*>/i.test(raw)) {
-    const cleanedHtml = raw
+    // 1. Remove styles, scripts and comments
+    let cleanedHtml = raw
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '');
+
+    // 2. Pre-process signature and witness containers to structured paragraphs
+    cleanedHtml = cleanedHtml.replace(/<div[^>]*border-top:[^>]*>([\s\S]*?)<\/div>/gi, (m, inner) => {
+      return `<p class="signature-line">${inner}</p>`;
+    });
+
+    // 3. Replace all remaining div tags with block breaks
+    cleanedHtml = cleanedHtml
+      .replace(/<\/?div[^>]*>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n');
 
     const parseSpans = (innerHtml: string): TextSpan[] => {
       const spans: TextSpan[] = [];
-      const normalized = innerHtml.replace(/<br\s*\/?>/gi, ' ');
-      const spanRegex = /<(strong|b)[^>]*>([\s\S]*?)<\/\1>|([^<]+)/gi;
+      const normalized = innerHtml.replace(/<br\s*\/?>/gi, '\n');
+      const tokenRegex = /<(strong|b)[^>]*>([\s\S]*?)<\/\1>|([^<]+)|<[^>]+>/gi;
       let sMatch: RegExpExecArray | null;
-      while ((sMatch = spanRegex.exec(normalized)) !== null) {
+      while ((sMatch = tokenRegex.exec(normalized)) !== null) {
         if (sMatch[1] && sMatch[2]) {
           const boldText = sanitizeTextForPdf(sMatch[2].replace(/<[^>]+>/g, '').trim());
           if (boldText) spans.push({ text: boldText, isBold: true });
@@ -58,12 +77,13 @@ export async function generateContractPDFBase64(contractHtmlOrText: string): Pro
       return spans;
     };
 
-    const tagRegex = /<(h[1-6]|p|li|div)[^>]*>([\s\S]*?)<\/\1>/gi;
+    const blockRegex = /<(h[1-6]|p|li)[^>]*>([\s\S]*?)<\/\1>|([^\n<][^\n<]+(?:\n[^\n<]+)*)/gi;
     let match: RegExpExecArray | null;
 
-    while ((match = tagRegex.exec(cleanedHtml)) !== null) {
-      const tagName = match[1].toLowerCase();
-      const content = match[2];
+    while ((match = blockRegex.exec(cleanedHtml)) !== null) {
+      const tagName = (match[1] || '').toLowerCase();
+      const content = match[2] !== undefined ? match[2] : match[3];
+      if (!content || !content.trim()) continue;
 
       if (tagName === 'h1' || tagName === 'h2') {
         const text = sanitizeTextForPdf(content.replace(/<[^>]+>/g, '').trim());
