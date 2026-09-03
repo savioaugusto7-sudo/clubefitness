@@ -212,6 +212,49 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
   const [fsDurationType, setFsDurationType] = useState<'contrato' | 'manual' | 'indeterminado'>('contrato');
   const [fsManualEndDate, setFsManualEndDate] = useState('');
   const [isSavingFixedSched, setIsSavingFixedSched] = useState(false);
+  const [fsSlotsData, setFsSlotsData] = useState<any[]>([]);
+  const [loadingFsSlots, setLoadingFsSlots] = useState(false);
+
+  useEffect(() => {
+    if (!showFixedSchedModal) return;
+    setLoadingFsSlots(true);
+
+    let agendaTipo = 'academia';
+    if (fsProfessional) {
+      const pObj = professionals.find(p => p._id === fsProfessional);
+      const pName = (pObj?.nome || '').toLowerCase();
+      if (pName.includes('guilherme')) agendaTipo = 'dr_guilherme';
+      else if (pName.includes('albert')) agendaTipo = 'dr_albert';
+      else agendaTipo = 'consultorio';
+    }
+
+    const dateToQuery = fsDate || new Date().toISOString().split('T')[0];
+    const url = `/api/appointments/slots?date=${encodeURIComponent(dateToQuery)}&tipo=${encodeURIComponent(agendaTipo)}`;
+
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.data)) {
+          setFsSlotsData(d.data);
+          const availableHours = d.data
+            .filter((s: any) => (s.capacidade - s.vagasOcupadas) > 0)
+            .map((s: any) => s.horario);
+          if (availableHours.length > 0) {
+            setFsTime((prev: string) => (availableHours.includes(prev) ? prev : availableHours[0]));
+          } else {
+            setFsTime('');
+          }
+        } else {
+          setFsSlotsData([]);
+          setFsTime('');
+        }
+      })
+      .catch(() => {
+        setFsSlotsData([]);
+        setFsTime('');
+      })
+      .finally(() => setLoadingFsSlots(false));
+  }, [showFixedSchedModal, fsProfessional, fsService, fsDate, professionals]);
 
   // New client modal
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -3328,11 +3371,16 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                       }}
                     >
                       <option value="">🏋️ Treino Monitorado / Geral (Academia)</option>
-                      {professionals.map(p => (
-                        <option key={p._id} value={p._id}>
-                          🩺 {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
-                        </option>
-                      ))}
+                      {professionals
+                        .filter(p => {
+                          const name = (p.nome || '').toLowerCase();
+                          return name.includes('guilherme') || name.includes('albert');
+                        })
+                        .map(p => (
+                          <option key={p._id} value={p._id}>
+                            🩺 {p.nome} {p.especialidade ? `(${p.especialidade})` : ''}
+                          </option>
+                        ))}
                     </select>
                   </div>
 
@@ -3385,28 +3433,88 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={labelStyle}>Horário</label>
-                      <select style={inputStyle} value={fsTime} onChange={e => setFsTime(e.target.value)} required>
-                        <option value="">Selecione...</option>
-                        {['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'].map(h => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ flex: 1 }}>
+                  {/* Serviço e Data de Início */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
                       <label style={labelStyle}>Serviço</label>
                       <select style={inputStyle} value={fsService} onChange={e => setFsService(e.target.value)} required>
                         <option value="Treino Monitorado">Treino Monitorado</option>
                         <option value="Treino Livre">Treino Livre</option>
                         <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                        <option value="Sessão de Fisioterapia">Sessão de Fisioterapia</option>
+                        <option value="Quiropraxia">Quiropraxia</option>
+                        <option value="Recovery / Bota">Recovery / Bota</option>
                       </select>
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div>
                       <label style={labelStyle}>Data de Início</label>
                       <input style={inputStyle} type="date" value={fsDate} onChange={e => setFsDate(e.target.value)} required />
                     </div>
+                  </div>
+
+                  {/* Grade Interativa de Horários e Vagas Disponíveis */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
+                      <label style={{ ...labelStyle, margin: 0 }}>Horário Desejado</label>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        {loadingFsSlots ? (
+                          <span style={{ color: 'var(--color-primary)' }}><i className="fa-solid fa-spinner fa-spin"></i> Verificando vagas...</span>
+                        ) : (
+                          <span style={{ color: '#10b981' }}><i className="fa-solid fa-check"></i> Mostrando horários com vagas livres para {fsService}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {loadingFsSlots ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.1)', borderRadius: '10px' }}>
+                        <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
+                        Carregando disponibilidade de horários...
+                      </div>
+                    ) : fsSlotsData.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', color: '#ef4444', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', fontSize: '0.82rem' }}>
+                        ⚠️ Nenhum horário configurado para esta agenda nesta data.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: '8px', maxHeight: '180px', overflowY: 'auto', padding: '4px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                        {fsSlotsData.map((slot: any) => {
+                          const vagasLivres = Math.max(0, slot.capacidade - slot.vagasOcupadas);
+                          const isSelected = fsTime === slot.horario;
+                          const isAvailable = vagasLivres > 0;
+
+                          return (
+                            <button
+                              key={slot.horario}
+                              type="button"
+                              disabled={!isAvailable}
+                              onClick={() => setFsTime(slot.horario)}
+                              style={{
+                                borderRadius: '10px',
+                                padding: '10px 4px',
+                                border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
+                                background: isSelected ? 'var(--color-primary)' : 'var(--bg-darker)',
+                                color: isSelected ? '#ffffff' : 'var(--text-main)',
+                                cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                opacity: isAvailable ? 1 : 0.35,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '3px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span style={{ fontSize: '1rem', fontWeight: 800 }}>{slot.horario}</span>
+                              <span style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                color: isSelected ? 'rgba(255,255,255,0.95)' : vagasLivres >= 3 ? '#10b981' : vagasLivres > 0 ? '#f59e0b' : '#ef4444'
+                              }}>
+                                {vagasLivres > 0 ? `${vagasLivres} ${vagasLivres === 1 ? 'vaga livre' : 'vagas livres'}` : 'Lotado'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   <div>
