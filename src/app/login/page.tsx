@@ -36,7 +36,10 @@ function LoginContent() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput || !passwordInput) {
+    const emailClean = emailInput.trim().toLowerCase();
+    const passwordClean = passwordInput.trim();
+
+    if (!emailClean || !passwordClean) {
       setLoginErrorMsg('Preencha todos os campos.');
       return;
     }
@@ -44,8 +47,8 @@ function LoginContent() {
     setLoginErrorMsg('');
     try {
       const res = await signIn('credentials', {
-        email: emailInput,
-        password: passwordInput,
+        email: emailClean,
+        password: passwordClean,
         redirect: false
       });
       if (res?.error) {
@@ -283,8 +286,30 @@ function LoginContent() {
                   <i className={showPassword ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"} style={{ fontSize: '0.95rem', color: '#ffffff' }}></i>
                 </button>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <a
+                  href={`https://wa.me/5531997761481?text=${encodeURIComponent(`Olá! Preciso de ajuda para acessar/redefinir minha senha no Clube Fitness.${emailInput ? ` (E-mail: ${emailInput.trim()})` : ''}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: '0.78rem',
+                    color: 'var(--color-primary)',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontWeight: 500,
+                    transition: 'opacity 0.15s'
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                >
+                  <i className="fa-brands fa-whatsapp" style={{ color: '#25D366' }}></i>
+                  Esqueci minha senha / Solicitar acesso
+                </a>
+              </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px', padding: '11px' }}>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '12px', padding: '11px' }}>
               Entrar
             </button>
           </form>

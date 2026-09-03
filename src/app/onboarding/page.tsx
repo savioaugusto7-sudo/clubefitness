@@ -465,6 +465,23 @@ export default function OnboardingPage() {
             {/* STEP 1 */}
             {step === 1 && (
               <div>
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  marginBottom: '22px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <i className="fa-solid fa-circle-check" style={{ color: 'var(--color-primary)', fontSize: '1.1rem', marginTop: '2px' }}></i>
+                  <div style={{ fontSize: '0.84rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+                    <strong style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '2px' }}>Confirmação Cadastral</strong>
+                    Seus dados já foram pré-carregados pelo Clube Fitness. Por favor, apenas confira se as informações abaixo estão corretas e confirme para acessar o sistema.
+                  </div>
+                </div>
+
                 <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <i className="fa-solid fa-user" style={{ color: 'var(--color-primary)' }}></i> Dados Pessoais
                 </h2>

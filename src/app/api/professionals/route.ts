@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Professional from '@/models/Professional';
 import User from '@/models/User';
+import { hashPassword } from '@/utils/auth';
 
 export const maxDuration = 30;
 
@@ -24,15 +25,24 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, nome, especialidade, registro, cargo, pin, isEstagiario } = body;
 
+    const emailClean = (email || '').toLowerCase().trim();
+    if (!emailClean) {
+      return NextResponse.json({ success: false, error: 'E-mail obrigatório' }, { status: 400 });
+    }
+
     // 1. Create or Find User
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: emailClean });
     if (!user) {
+      const defaultPassword = '123456';
+      const hashedPassword = hashPassword(defaultPassword);
       user = await User.create({
-        nome,
-        email: email.toLowerCase(),
+        nome: (nome || '').trim(),
+        email: emailClean,
         tipo: 'professional',
         roles: ['professional'],
-        cargo: cargo || 'Profissional'
+        cargo: cargo || 'Profissional',
+        password: hashedPassword,
+        needPasswordChange: true
       });
     } else {
       user.tipo = 'professional';
@@ -42,6 +52,10 @@ export async function POST(request: Request) {
         user.roles = [...user.roles, 'professional'];
       }
       if (cargo) user.cargo = cargo;
+      if (!user.password) {
+        user.password = hashPassword('123456');
+        user.needPasswordChange = true;
+      }
       await user.save();
     }
 
