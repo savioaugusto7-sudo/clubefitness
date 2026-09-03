@@ -654,7 +654,7 @@ export default function GestaoContratosPanel({
         duracao: proposal.duracao || 'mensal',
         valorUnitario: Number(proposal.valorUnitario || proposal.valorAcordado || 0),
         vigenciaQtd: Number(proposal.vigenciaQtd || 1),
-        dataInicio: new Date().toISOString().split('T')[0],
+        dataInicio: proposal.dataInicio || new Date().toISOString().split('T')[0],
         criarRecorrenciaMensal: Boolean(proposal.criarRecorrenciaMensal),
         recorrenciaMeses: Number(proposal.recorrenciaMeses || 12),
         descontoTipo: proposal.descontoTipo || 'percentual',
