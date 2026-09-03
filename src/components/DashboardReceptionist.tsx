@@ -229,7 +229,11 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
     }
 
     const dateToQuery = fsDate || new Date().toISOString().split('T')[0];
-    const url = `/api/appointments/slots?date=${encodeURIComponent(dateToQuery)}&tipo=${encodeURIComponent(agendaTipo)}`;
+    const daysStr = (fsSelectedDays || []).join(',');
+    let url = `/api/appointments/slots?date=${encodeURIComponent(dateToQuery)}&tipo=${encodeURIComponent(agendaTipo)}`;
+    if (daysStr) {
+      url += `&diasSemana=${encodeURIComponent(daysStr)}`;
+    }
 
     fetch(url)
       .then(r => r.json())
@@ -237,7 +241,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         if (d.success && Array.isArray(d.data)) {
           setFsSlotsData(d.data);
           const availableHours = d.data
-            .filter((s: any) => (s.capacidade - s.vagasOcupadas) > 0)
+            .filter((s: any) => (s.minVagasLivres ?? (s.capacidade - s.vagasOcupadas)) > 0 && (!s.conflitos || s.conflitos.length === 0))
             .map((s: any) => s.horario);
           if (availableHours.length > 0) {
             setFsTime((prev: string) => (availableHours.includes(prev) ? prev : availableHours[0]));
@@ -254,7 +258,7 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
         setFsTime('');
       })
       .finally(() => setLoadingFsSlots(false));
-  }, [showFixedSchedModal, fsProfessional, fsService, fsDate, professionals]);
+  }, [showFixedSchedModal, fsProfessional, fsService, fsDate, fsSelectedDays, professionals]);
 
   // New client modal
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -3458,9 +3462,9 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                       <label style={{ ...labelStyle, margin: 0 }}>Horário Desejado</label>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {loadingFsSlots ? (
-                          <span style={{ color: 'var(--color-primary)' }}><i className="fa-solid fa-spinner fa-spin"></i> Verificando vagas...</span>
+                          <span style={{ color: 'var(--color-primary)' }}><i className="fa-solid fa-spinner fa-spin"></i> Verificando disponibilidade para os {fsSelectedDays.length} dias...</span>
                         ) : (
-                          <span style={{ color: '#10b981' }}><i className="fa-solid fa-check"></i> Mostrando horários com vagas livres para {fsService}</span>
+                          <span style={{ color: '#10b981' }}><i className="fa-solid fa-check"></i> Vagas consolidadas para os {fsSelectedDays.length} dias fixados</span>
                         )}
                       </div>
                     </div>
@@ -3468,52 +3472,84 @@ export default function DashboardReceptionist({ activeTab, setActiveTab }: Dashb
                     {loadingFsSlots ? (
                       <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.1)', borderRadius: '10px' }}>
                         <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
-                        Carregando disponibilidade de horários...
+                        Calculando disponibilidade para todas as datas futuras...
                       </div>
                     ) : fsSlotsData.length === 0 ? (
                       <div style={{ padding: '16px', textAlign: 'center', color: '#ef4444', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', fontSize: '0.82rem' }}>
                         ⚠️ Nenhum horário configurado para esta agenda nesta data.
                       </div>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: '8px', maxHeight: '180px', overflowY: 'auto', padding: '4px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                        {fsSlotsData.map((slot: any) => {
-                          const vagasLivres = Math.max(0, slot.capacidade - slot.vagasOcupadas);
-                          const isSelected = fsTime === slot.horario;
-                          const isAvailable = vagasLivres > 0;
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: '8px', maxHeight: '180px', overflowY: 'auto', padding: '4px', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                          {fsSlotsData.map((slot: any) => {
+                            const minVagas = slot.minVagasLivres !== undefined ? slot.minVagasLivres : Math.max(0, slot.capacidade - slot.vagasOcupadas);
+                            const hasConflicts = slot.conflitos && slot.conflitos.length > 0;
+                            const isSelected = fsTime === slot.horario;
+
+                            return (
+                              <button
+                                key={slot.horario}
+                                type="button"
+                                onClick={() => setFsTime(slot.horario)}
+                                style={{
+                                  borderRadius: '10px',
+                                  padding: '10px 4px',
+                                  border: isSelected ? '2px solid var(--color-primary)' : hasConflicts ? '1px solid rgba(239,68,68,0.45)' : '1px solid var(--border-color)',
+                                  background: isSelected ? 'var(--color-primary)' : hasConflicts ? 'rgba(239,68,68,0.08)' : 'var(--bg-darker)',
+                                  color: isSelected ? '#ffffff' : 'var(--text-main)',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <span style={{ fontSize: '1rem', fontWeight: 800 }}>{slot.horario}</span>
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  color: isSelected ? 'rgba(255,255,255,0.95)' : hasConflicts ? '#f87171' : minVagas >= 3 ? '#10b981' : '#f59e0b'
+                                }}>
+                                  {hasConflicts ? `🔴 Conflito (${slot.conflitos.length})` : `${minVagas} ${minVagas === 1 ? 'vaga livre' : 'vagas livres'}`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Detalhamento de Conflitos Impeditivos do Horário Selecionado */}
+                        {(() => {
+                          const selectedSlotObj = fsSlotsData.find((s: any) => s.horario === fsTime);
+                          if (!selectedSlotObj?.conflitos || selectedSlotObj.conflitos.length === 0) return null;
 
                           return (
-                            <button
-                              key={slot.horario}
-                              type="button"
-                              disabled={!isAvailable}
-                              onClick={() => setFsTime(slot.horario)}
-                              style={{
-                                borderRadius: '10px',
-                                padding: '10px 4px',
-                                border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
-                                background: isSelected ? 'var(--color-primary)' : 'var(--bg-darker)',
-                                color: isSelected ? '#ffffff' : 'var(--text-main)',
-                                cursor: isAvailable ? 'pointer' : 'not-allowed',
-                                opacity: isAvailable ? 1 : 0.35,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: '3px',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              <span style={{ fontSize: '1rem', fontWeight: 800 }}>{slot.horario}</span>
-                              <span style={{
-                                fontSize: '0.7rem',
-                                fontWeight: 600,
-                                color: isSelected ? 'rgba(255,255,255,0.95)' : vagasLivres >= 3 ? '#10b981' : vagasLivres > 0 ? '#f59e0b' : '#ef4444'
-                              }}>
-                                {vagasLivres > 0 ? `${vagasLivres} ${vagasLivres === 1 ? 'vaga livre' : 'vagas livres'}` : 'Lotado'}
-                              </span>
-                            </button>
+                            <div style={{
+                              marginTop: '10px',
+                              padding: '12px 14px',
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              borderRadius: '10px'
+                            }}>
+                              <div style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.82rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-triangle-exclamation"></i>
+                                Conflitos impeditivos para o horário {fsTime} nos dias selecionados:
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '100px', overflowY: 'auto' }}>
+                                {selectedSlotObj.conflitos.map((c: any, idx: number) => (
+                                  <div key={idx} style={{ fontSize: '0.78rem', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <i className="fa-solid fa-circle-xmark" style={{ fontSize: '0.7rem', color: '#ef4444' }}></i>
+                                    <span><strong>{c.dataFormatada}:</strong> {c.motivo}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '6px', fontStyle: 'italic' }}>
+                                * Selecione outro horário sem conflitos ou ajuste os dias da semana para fixar este aluno.
+                              </div>
+                            </div>
                           );
-                        })}
-                      </div>
+                        })()}
+                      </>
                     )}
                   </div>
 
