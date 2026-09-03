@@ -106,8 +106,14 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
     };
   }
 
-  // 0.1. Rescisão Contratual / Cancelamento Agendado (Prioridade Imediata)
-  if (com.status === 'cancelado_agendado' || com.status === 'cancelado' || latestContract?.status === 'cancelado') {
+  // 0.1. Rescisão Contratual / Cancelamento Agendado (Apenas quando houver rescisão formal ou cancelamento de aluno sem proposta ativa)
+  const isFormalRescisao = Boolean(
+    com.status === 'cancelado_agendado' ||
+    (latestContract?.rescisao && latestContract?.status === 'cancelado') ||
+    (com.status === 'cancelado' && !latestProposal)
+  );
+
+  if (isFormalRescisao) {
     const termDate = latestContract?.dataEncerramentoAcesso || com.dataFim || com.vencimento || '';
     const termDateFmt = termDate ? new Date(termDate + (termDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : '';
     const isTerminated = termDate ? new Date(termDate + 'T23:59:59') < new Date() : false;
