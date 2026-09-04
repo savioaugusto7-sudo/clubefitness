@@ -2597,36 +2597,36 @@ export default function GestaoContratosPanel({
 
     setDcPlano(planObj?._id || effectivePlanoId);
     setDcStatus(latestContract?.status || com.status || 'lead');
-    setDcFormaPag(latestContract?.formaPagamento || latestProposal?.formaPagamentoEscolhida || com.formaPagamento || 'pix');
+    setDcFormaPag(com.formaPagamento || latestContract?.formaPagamento || latestProposal?.formaPagamentoEscolhida || 'pix');
 
-    const effectiveDuracao = latestContract?.duracao || latestProposal?.duracao || com.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal');
+    const effectiveDuracao = com.duracao || latestContract?.duracao || latestProposal?.duracao || (planObj?.tipo === 'Anual' ? 'anual' : 'mensal');
     const isAnual = effectiveDuracao === 'anual' || planObj?.tipo === 'Anual' || (effectivePlanoNome || '').toLowerCase().includes('anual');
     setDcDuracao(isAnual ? 'anual' : (effectiveDuracao === 'semana' ? 'semana' : 'mensal'));
     const effectiveVigenciaQtd = isAnual ? 1 : (() => {
-      if (latestProposal?.vigenciaQtd) return Number(latestProposal.vigenciaQtd);
-      if (latestContract?.vigenciaQtd) return Number(latestContract.vigenciaQtd);
       if (com.duracaoQtd && com.duracaoQtd !== com.parcelas) return Number(com.duracaoQtd);
       if (com.vigenciaQtd) return Number(com.vigenciaQtd);
+      if (latestProposal?.vigenciaQtd) return Number(latestProposal.vigenciaQtd);
+      if (latestContract?.vigenciaQtd) return Number(latestContract.vigenciaQtd);
       if (latestContract?.vigenciaMeses && latestContract.vigenciaMeses !== latestContract.parcelas) return Number(latestContract.vigenciaMeses);
       return Number(com.duracaoQtd || 1);
     })();
     setDcVigenciaQtd(effectiveVigenciaQtd);
 
-    setDcValorUnitario(Number(latestContract?.valorUnitario || latestProposal?.valorUnitario || com.valorUnitario || planObj?.preco || 0));
-    setDcVencimento(latestContract?.dataPrimeiroVencimento || latestContract?.dataVencimento || latestProposal?.dataVencimentoEscolhida || latestProposal?.dataVencimento || com.dataPrimeiroVencimento || com.vencimento || '');
-    setDcDescontoTipo(latestContract?.descontoTipo || latestProposal?.descontoTipo || com.descontoTipo || 'percentual');
-    setDcDescontoValor(Number(latestContract?.descontoValor || latestProposal?.descontoValor || com.descontoValor || 0));
-    setDcParcelas(Number(latestContract?.parcelas || latestProposal?.parcelasEscolhidas || com.parcelas || 1));
-    setDcDataInicio(latestContract?.dataInicio || latestProposal?.dataInicio || com.dataInicio || '');
-    setDcResponsavelVenda(latestContract?.usuarioEmissor || com.responsavelVenda || '');
-    setDcUnidadeContratada(latestContract?.unidadeContratada || latestProposal?.unidadeContratada || com.unidadeContratada || planObj?.unidadeAtendimento || '');
-    setDcObservacoesContratuais(latestContract?.observacoesContratuais || latestProposal?.observacoesContratuais || com.observacoesContratuais || '');
-    setDcFrequencia(Number(latestContract?.frequencia || latestProposal?.frequencia || com.frequencia || client.frequencia || planObj?.frequencia || 0));
-    setDcCreditosTotal(Number(latestContract?.creditosTotal || latestProposal?.creditosMensais || com.creditosTotal || 0));
-    setDcCreditosMassagem(Number(latestContract?.creditosMassagem || latestProposal?.creditosMassagem || com.creditosMassagemTotal || (isAnual ? 1 : 0)));
-    setDcCreditosEmergencia(Number(latestContract?.creditosEmergencia || latestProposal?.creditosEmergencia || com.creditosEmergenciaTotal || (isAnual ? 1 : 0)));
-    setDcCriarRecorrencia(Boolean(latestContract?.criarRecorrenciaMensal || latestProposal?.criarRecorrenciaMensal || com.criarRecorrenciaMensal));
-    setDcRecorrenciaMeses(Number(latestContract?.recorrenciaMeses || latestProposal?.recorrenciaMeses || com.recorrenciaMeses || 12));
+    setDcValorUnitario(Number(com.valorUnitario || com.valorTotal || latestContract?.valorLiquido || latestContract?.valorUnitario || latestProposal?.valorFinalRecalculado || latestProposal?.valorUnitario || planObj?.preco || 0));
+    setDcVencimento(com.dataPrimeiroVencimento || com.vencimento || latestContract?.dataPrimeiroVencimento || latestContract?.dataVencimento || latestProposal?.dataVencimentoEscolhida || latestProposal?.dataVencimento || '');
+    setDcDescontoTipo(com.descontoTipo || latestContract?.descontoTipo || latestProposal?.descontoTipo || 'percentual');
+    setDcDescontoValor(Number(com.descontoValor !== undefined ? com.descontoValor : (latestContract?.descontoValor || latestProposal?.descontoValor || 0)));
+    setDcParcelas(Number(com.parcelas || latestContract?.parcelas || latestProposal?.parcelasEscolhidas || 1));
+    setDcDataInicio(com.dataInicio || latestContract?.dataInicio || latestProposal?.dataInicio || '');
+    setDcResponsavelVenda(com.responsavelVenda || latestContract?.usuarioEmissor || '');
+    setDcUnidadeContratada(com.unidadeContratada || latestContract?.unidadeContratada || latestProposal?.unidadeContratada || planObj?.unidadeAtendimento || '');
+    setDcObservacoesContratuais(com.observacoesContratuais || latestContract?.observacoesContratuais || latestProposal?.observacoesContratuais || '');
+    setDcFrequencia(Number(com.frequencia || latestContract?.frequencia || latestProposal?.frequencia || client.frequencia || planObj?.frequencia || 0));
+    setDcCreditosTotal(Number(com.creditosTotal || latestContract?.creditosTotal || latestProposal?.creditosMensais || 0));
+    setDcCreditosMassagem(Number(com.creditosMassagemTotal !== undefined ? com.creditosMassagemTotal : (latestContract?.creditosMassagem || latestProposal?.creditosMassagem || (isAnual ? 1 : 0))));
+    setDcCreditosEmergencia(Number(com.creditosEmergenciaTotal !== undefined ? com.creditosEmergenciaTotal : (latestContract?.creditosEmergencia || latestProposal?.creditosEmergencia || (isAnual ? 1 : 0))));
+    setDcCriarRecorrencia(Boolean(com.criarRecorrenciaMensal !== undefined ? com.criarRecorrenciaMensal : (latestContract?.criarRecorrenciaMensal || latestProposal?.criarRecorrenciaMensal)));
+    setDcRecorrenciaMeses(Number(com.recorrenciaMeses || latestContract?.recorrenciaMeses || latestProposal?.recorrenciaMeses || 12));
     setDcAsaasCustomerId(com.asaasCustomerId || '');
 
     // Fetch active proposals for this client
@@ -2879,7 +2879,20 @@ export default function GestaoContratosPanel({
     const plan = plans.find(p => p._id === dcPlano);
     if (!plan) return '<p style="color:var(--color-danger);font-weight:bold;">Selecione um plano comercial na coluna da esquerda para gerar a minuta do contrato.</p>';
 
-    const pes = selectedClient.dadosPessoais || {};
+    const pes = selectedClient?.dadosPessoais || {};
+    const com = selectedClient?.dadosComerciais || {};
+
+    const isAnual = dcDuracao === 'anual' || plan.tipo === 'Anual' || (plan.nome || '').toLowerCase().includes('anual');
+    const valorUnit = Number(dcValorUnitario) || Number(com.valorUnitario) || Number(com.valorTotal) || Number(plan.preco) || 0;
+    const grossPrice = valorUnit * (isAnual ? 1 : (Number(dcVigenciaQtd) || 1));
+    
+    let discountVal = 0;
+    if (dcDescontoTipo === 'percentual') {
+      discountVal = (grossPrice * (Number(dcDescontoValor) || 0)) / 100;
+    } else {
+      discountVal = Number(dcDescontoValor) || 0;
+    }
+    const finalPrice = Math.max(0, grossPrice - discountVal);
 
     return getUnifiedTemplate({
       clientNome: pes.nome || '',
@@ -2894,17 +2907,19 @@ export default function GestaoContratosPanel({
       clientEstado: pes.estado,
       clientCep: pes.cep,
       planNome: plan.nome,
-      planPreco: (dcValorUnitario * dcVigenciaQtd) || plan.preco || 0,
+      planPreco: grossPrice,
+      valorUnitario: valorUnit,
+      valorLiquido: finalPrice,
       planTipo: plan.tipo,
       descontoTipo: dcDescontoTipo,
       descontoValor: dcDescontoValor,
-      parcelas: dcParcelas,
+      parcelas: Number(dcParcelas) || 1,
       formaPagamento: dcFormaPag,
-      dataInicio: dcDataInicio,
-      dataVencimento: dcVencimento,
-      observacoesContratuais: dcObservacoesContratuais,
-      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento,
-      creditosMensais: dcCreditosTotal,
+      dataInicio: dcDataInicio || com.dataInicio,
+      dataVencimento: dcVencimento || com.vencimento,
+      observacoesContratuais: dcObservacoesContratuais || com.observacoesContratuais,
+      unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento || 'Clube Fitness',
+      creditosMensais: dcCreditosTotal || com.creditosTotal,
       duracao: dcDuracao,
       vigenciaQtd: dcVigenciaQtd,
       criarRecorrenciaMensal: dcCriarRecorrencia,
