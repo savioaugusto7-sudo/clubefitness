@@ -2140,6 +2140,71 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       .sort((a, b) => b.data.localeCompare(a.data));
   }, [stClient, strengthTests, professionals]);
 
+
+  // Handlers para seleção de alunos com acionamento automático de comparativo
+  const handleSelectReportClient = (clientId: string) => {
+    setRepClient(clientId);
+    if (!clientId) {
+      setRepSelectedPrevReport(null);
+      return;
+    }
+    const past = reports
+      .filter((r: any) => {
+        const rClientId = typeof r.clienteId === 'object' ? r.clienteId?._id : r.clienteId;
+        return rClientId === clientId;
+      })
+      .sort((a: any, b: any) => (b.data || '').localeCompare(a.data || ''));
+
+    if (past.length > 0) {
+      setRepSelectedPrevReport(past[0]);
+      setShowRepCompareModal(true);
+    } else {
+      setRepSelectedPrevReport(null);
+    }
+  };
+
+  const handleSelectAssessmentClient = (clientId: string) => {
+    setAsClient(clientId);
+    if (!clientId) {
+      setAsSelectedPrevAssessment(null);
+      return;
+    }
+    const past = assessments
+      .filter((a: any) => {
+        const aClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId;
+        return aClientId === clientId;
+      })
+      .sort((a: any, b: any) => (b.data || '').localeCompare(a.data || ''));
+
+    if (past.length > 0) {
+      setAsSelectedPrevAssessment(past[0]);
+      setShowAsCompareModal(true);
+    } else {
+      setAsSelectedPrevAssessment(null);
+    }
+  };
+
+  const handleSelectStrengthClient = (clientId: string) => {
+    setStClient(clientId);
+    if (!clientId) {
+      setStSelectedPrevTest(null);
+      return;
+    }
+    const past = strengthTests
+      .filter((s: any) => {
+        const sClientId = typeof s.clienteId === 'object' ? s.clienteId?._id : s.clienteId;
+        return sClientId === clientId;
+      })
+      .sort((a: any, b: any) => (b.data || '').localeCompare(a.data || ''));
+
+    if (past.length > 0) {
+      setStSelectedPrevTest(past[0]);
+      setShowStCompareModal(true);
+    } else {
+      setStSelectedPrevTest(null);
+    }
+  };
+
   const safeFetchJson = async (url: string) => {
     try {
       const res = await fetch(url, { cache: 'no-store' });
@@ -9639,6 +9704,69 @@ goniometria: {
                   />
                 )}
 
+                {/* Banner de Comparativo Disponível */}
+                {asClient && !asSelectedPrevAssessment && pastAssessmentsOptions.length > 0 && (
+                  <div style={{
+                    background: 'linear-gradient(90deg, rgba(56, 189, 248, 0.14) 0%, rgba(99, 102, 241, 0.14) 100%)',
+                    border: '1.5px solid rgba(56, 189, 248, 0.45)',
+                    borderRadius: '12px',
+                    padding: '12px 18px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        color: '#38bdf8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1rem'
+                      }}>
+                        <i className="fa-solid fa-clock-rotate-left"></i>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc' }}>
+                          Avaliação Física Anterior Disponível • {pastAssessmentsOptions[0]?.data ? formatDateBR(pastAssessmentsOptions[0].data) : 'Arquivo'}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                          Este aluno possui {pastAssessmentsOptions.length} avaliação(ões) física(s) no sistema.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => setShowAsCompareModal(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+                        color: '#ffffff',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)'
+                      }}
+                    >
+                      <i className="fa-solid fa-code-compare"></i> Ativar Comparativo em Tempo Real
+                    </button>
+                  </div>
+                )}
+
+
 
                 {/* Banner de Rascunho Recuperado com Data e Opção de Descarte */}
                 {asDraftSavedAt && (
@@ -9678,7 +9806,7 @@ goniometria: {
                       <SearchableSelect
                         options={clientOptions}
                         value={asClient}
-                        onChange={setAsClient}
+                        onChange={handleSelectAssessmentClient}
                         placeholder="Buscar / Selecionar Aluno..."
                         required
                       />
@@ -11548,6 +11676,69 @@ goniometria: {
                   />
                 )}
 
+                {/* Banner de Comparativo Disponível (quando aluno tem histórico mas comparativo ainda não ativado) */}
+                {repClient && !repSelectedPrevReport && pastReportsOptions.length > 0 && (
+                  <div style={{
+                    background: 'linear-gradient(90deg, rgba(56, 189, 248, 0.14) 0%, rgba(99, 102, 241, 0.14) 100%)',
+                    border: '1.5px solid rgba(56, 189, 248, 0.45)',
+                    borderRadius: '12px',
+                    padding: '12px 18px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        color: '#38bdf8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1rem'
+                      }}>
+                        <i className="fa-solid fa-clock-rotate-left"></i>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc' }}>
+                          Histórico Clínico Disponível • Última Avaliação em {pastReportsOptions[0]?.data ? formatDateBR(pastReportsOptions[0].data) : 'Arquivo'}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                          Este aluno possui {pastReportsOptions.length} avaliação(ões) arquivada(s). Ative o comparativo para visualizar referências e evolução em tempo real.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => setShowRepCompareModal(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+                        color: '#ffffff',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)'
+                      }}
+                    >
+                      <i className="fa-solid fa-code-compare"></i> Ativar Comparativo em Tempo Real
+                    </button>
+                  </div>
+                )}
+
+
 
                 {/* Banner de Rascunho Recuperado com Data e Opção de Descarte */}
                 {repDraftSavedAt && (
@@ -11589,7 +11780,7 @@ goniometria: {
                         <SearchableSelect
                           options={clientOptions}
                           value={repClient}
-                          onChange={setRepClient}
+                          onChange={handleSelectReportClient}
                           placeholder="Buscar / Selecionar Cliente..."
                           required
                         />
@@ -13246,6 +13437,69 @@ goniometria: {
                   />
                 )}
 
+                {/* Banner de Comparativo Disponível */}
+                {stClient && !stSelectedPrevTest && pastTestsOptions.length > 0 && (
+                  <div style={{
+                    background: 'linear-gradient(90deg, rgba(56, 189, 248, 0.14) 0%, rgba(99, 102, 241, 0.14) 100%)',
+                    border: '1.5px solid rgba(56, 189, 248, 0.45)',
+                    borderRadius: '12px',
+                    padding: '12px 18px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        color: '#38bdf8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1rem'
+                      }}>
+                        <i className="fa-solid fa-clock-rotate-left"></i>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f8fafc' }}>
+                          Teste de Força Anterior Disponível • {pastTestsOptions[0]?.data ? formatDateBR(pastTestsOptions[0].data) : 'Arquivo'}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                          Este aluno possui {pastTestsOptions.length} dinamometria(s) registradas.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => setShowStCompareModal(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+                        color: '#ffffff',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)'
+                      }}
+                    >
+                      <i className="fa-solid fa-code-compare"></i> Ativar Comparativo em Tempo Real
+                    </button>
+                  </div>
+                )}
+
+
 
                 {/* Banner de Rascunho Recuperado com Data e Opção de Descarte */}
                 {stDraftSavedAt && (
@@ -13284,7 +13538,7 @@ goniometria: {
                     <SearchableSelect
                       options={clientOptions}
                       value={stClient}
-                      onChange={setStClient}
+                      onChange={handleSelectStrengthClient}
                       placeholder="Buscar / Selecionar Aluno..."
                       required
                     />
