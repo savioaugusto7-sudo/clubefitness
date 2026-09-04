@@ -2466,32 +2466,42 @@ export default function TreinamentoProfissionalPage() {
       {/* ========================================================================= */}
       {showWellnessModal && activeWellnessStudent && (() => {
         const currentResult = calculateWellness(wellnessSono, wellnessFadiga, wellnessDor);
-        const renderScale = (val: number, setVal: (v: number) => void, lowTxt: string, highTxt: string) => (
+        const renderScale = (val: number, setVal: (v: number) => void, lowTxt: string, highTxt: string, invertColors = false) => (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '4px', marginTop: '6px' }}>
-              {[1,2,3,4,5,6,7,8,9,10].map(num => (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => setVal(num)}
-                  style={{
-                    background: val === num ? (num <= 3 ? '#10b981' : num <= 7 ? '#eab308' : '#ef4444') : 'rgba(255,255,255,0.06)',
-                    color: val === num ? '#0f172a' : '#cbd5e1',
-                    border: `1px solid ${val === num ? '#fff' : 'rgba(255,255,255,0.12)'}`,
-                    borderRadius: '6px',
-                    padding: '8px 0',
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {num}
-                </button>
-              ))}
+              {[1,2,3,4,5,6,7,8,9,10].map(num => {
+                let btnBg = 'rgba(255,255,255,0.06)';
+                if (val === num) {
+                  if (invertColors) {
+                    btnBg = num >= 8 ? '#10b981' : num >= 6 ? '#eab308' : num >= 4 ? '#f97316' : '#ef4444';
+                  } else {
+                    btnBg = num <= 3 ? '#10b981' : num <= 6 ? '#eab308' : num <= 8 ? '#f97316' : '#ef4444';
+                  }
+                }
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setVal(num)}
+                    style={{
+                      background: btnBg,
+                      color: val === num ? '#0f172a' : '#cbd5e1',
+                      border: `1px solid ${val === num ? '#fff' : 'rgba(255,255,255,0.12)'}`,
+                      borderRadius: '6px',
+                      padding: '8px 0',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px' }}>
-              <span>1 = {lowTxt}</span>
-              <span>10 = {highTxt}</span>
+              <span>{invertColors ? '🔴 1 = ' + lowTxt : '🟢 1 = ' + lowTxt}</span>
+              <span>{invertColors ? '🟢 10 = ' + highTxt : '🔴 10 = ' + highTxt}</span>
             </div>
           </div>
         );
@@ -2544,9 +2554,9 @@ export default function TreinamentoProfissionalPage() {
               <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 14px', borderRadius: '12px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.82rem', fontWeight: 750, color: '#fff' }}>1. Qualidade do Sono na Noite Anterior:</label>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: wellnessSono <= 3 ? '#10b981' : wellnessSono <= 7 ? '#eab308' : '#ef4444' }}>{wellnessSono}/10</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: wellnessSono >= 8 ? '#10b981' : wellnessSono >= 6 ? '#eab308' : wellnessSono >= 4 ? '#f97316' : '#ef4444' }}>{wellnessSono}/10</span>
                 </div>
-                {renderScale(wellnessSono, setWellnessSono, 'Péssimo / Insônia', 'Excelente / Reparador')}
+                {renderScale(wellnessSono, setWellnessSono, 'Péssimo / Insônia', 'Excelente / Reparador', true)}
               </div>
 
               {/* Pergunta 2: Fadiga */}

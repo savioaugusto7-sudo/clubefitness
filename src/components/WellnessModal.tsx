@@ -64,7 +64,13 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
     }
   };
 
-  const renderScaleButtons = (value: number, setValue: (val: number) => void, minLabel: string, maxLabel: string) => {
+  const renderScaleButtons = (
+    value: number, 
+    setValue: (val: number) => void, 
+    minLabel: string, 
+    maxLabel: string,
+    invertColors = false
+  ) => {
     return (
       <div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '4px', marginTop: '8px' }}>
@@ -75,22 +81,44 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
             let borderColor = 'var(--border-color, rgba(255,255,255,0.1))';
 
             if (isSelected) {
-              if (num <= 3) {
-                btnBg = '#10b981';
-                btnColor = '#fff';
-                borderColor = '#10b981';
-              } else if (num <= 6) {
-                btnBg = '#eab308';
-                btnColor = '#000';
-                borderColor = '#eab308';
-              } else if (num <= 8) {
-                btnBg = '#f97316';
-                btnColor = '#fff';
-                borderColor = '#f97316';
+              if (invertColors) {
+                // Para sono: 8-10 é Ótimo (Verde), 6-7 é Moderado (Amarelo), 4-5 é Alerta (Laranja), 1-3 é Crítico (Vermelho)
+                if (num >= 8) {
+                  btnBg = '#10b981';
+                  btnColor = '#fff';
+                  borderColor = '#10b981';
+                } else if (num >= 6) {
+                  btnBg = '#eab308';
+                  btnColor = '#000';
+                  borderColor = '#eab308';
+                } else if (num >= 4) {
+                  btnBg = '#f97316';
+                  btnColor = '#fff';
+                  borderColor = '#f97316';
+                } else {
+                  btnBg = '#ef4444';
+                  btnColor = '#fff';
+                  borderColor = '#ef4444';
+                }
               } else {
-                btnBg = '#ef4444';
-                btnColor = '#fff';
-                borderColor = '#ef4444';
+                // Para fadiga e dor: 1-3 é Bom (Verde), 4-6 é Moderado (Amarelo), 7-8 é Alto (Laranja), 9-10 é Severo (Vermelho)
+                if (num <= 3) {
+                  btnBg = '#10b981';
+                  btnColor = '#fff';
+                  borderColor = '#10b981';
+                } else if (num <= 6) {
+                  btnBg = '#eab308';
+                  btnColor = '#000';
+                  borderColor = '#eab308';
+                } else if (num <= 8) {
+                  btnBg = '#f97316';
+                  btnColor = '#fff';
+                  borderColor = '#f97316';
+                } else {
+                  btnBg = '#ef4444';
+                  btnColor = '#fff';
+                  borderColor = '#ef4444';
+                }
               }
             }
 
@@ -121,8 +149,8 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
           })}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px', padding: '0 2px' }}>
-          <span>🟢 1 = {minLabel}</span>
-          <span>🔴 10 = {maxLabel}</span>
+          <span>{invertColors ? '🔴 1 = ' + minLabel : '🟢 1 = ' + minLabel}</span>
+          <span>{invertColors ? '🟢 10 = ' + maxLabel : '🔴 10 = ' + maxLabel}</span>
         </div>
       </div>
     );
@@ -304,13 +332,13 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
             <div style={{ marginBottom: '16px', background: 'var(--bg-darker, #0f172a)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main, #fff)' }}>
-                  1. Como foi a qualidade do seu sono?
+                  1. Qualidade do Sono na Noite Anterior:
                 </label>
-                <span style={{ fontSize: '1rem', fontWeight: 800, color: sono <= 3 ? '#10b981' : sono <= 7 ? '#eab308' : '#ef4444' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 800, color: sono >= 8 ? '#10b981' : sono >= 6 ? '#eab308' : sono >= 4 ? '#f97316' : '#ef4444' }}>
                   {sono}/10
                 </span>
               </div>
-              {renderScaleButtons(sono, setSono, 'Excelente / Reparador', 'Péssimo / Insônia')}
+              {renderScaleButtons(sono, setSono, 'Péssimo / Insônia', 'Excelente / Reparador', true)}
             </div>
 
             {/* Pergunta 2: Fadiga */}

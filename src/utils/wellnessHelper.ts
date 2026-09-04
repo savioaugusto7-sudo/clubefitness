@@ -13,13 +13,46 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
   const f = Math.max(1, Math.min(10, Number(fadiga) || 1));
   const d = Math.max(1, Math.min(10, Number(dorMuscular) || 1));
 
-  const score = s + f + d;
+  // Normalização do Sono:
+  // No formulário, 1 = Péssimo/Insônia e 10 = Excelente/Reparador.
+  // Para cálculo de sobrecarga/estresse fisiológico (1 = ótimo, 10 = crítico):
+  const estresseSono = 11 - s;
+
+  // Pontuação composta de sobrecarga (mínimo 3, máximo 30)
+  const score = estresseSono + f + d;
   const regrasAtivadas: string[] = [];
 
-  // Regras de Segurança Críticas (Prioritárias)
-  // 1. Sono >= 8 + Fadiga >= 7 -> Recovery
-  if (s >= 8 && f >= 7) {
-    regrasAtivadas.push('Sono Crítico (≥8) + Fadiga Severa (≥7)');
+  // =========================================================================
+  // 1. NÍVEL CRÍTICO (Prioridade Máxima - Vermelho / Recovery)
+  // =========================================================================
+  if (s <= 3 && f >= 7) {
+    regrasAtivadas.push('Insônia Severa (Sono ≤3) + Fadiga Alta (≥7)');
+    return {
+      score,
+      status: 'critico',
+      statusLabel: 'Estado Crítico',
+      statusColor: '#ef4444',
+      statusBadgeBg: 'rgba(239, 68, 68, 0.15)',
+      conduta: 'Recovery e Regenerativo (Sem Carga)',
+      regrasAtivadas
+    };
+  }
+
+  if (d >= 9) {
+    regrasAtivadas.push('Dor Muscular / Articular Severa (≥9)');
+    return {
+      score,
+      status: 'critico',
+      statusLabel: 'Estado Crítico (Dor Severa)',
+      statusColor: '#ef4444',
+      statusBadgeBg: 'rgba(239, 68, 68, 0.15)',
+      conduta: 'Avaliação Presencial / Repouso Articular',
+      regrasAtivadas
+    };
+  }
+
+  if (f >= 8 && d >= 8) {
+    regrasAtivadas.push('Exaustão Extrema (≥8) + Dor Alta (≥8)');
     return {
       score,
       status: 'critico',
@@ -31,9 +64,24 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
     };
   }
 
-  // 2. Fadiga >= 7 + Dor >= 6 -> Treino Livre ou Repouso
+  if (score >= 24) {
+    regrasAtivadas.push('Sobrecarga Fisiológica Crítica (Score ≥ 24)');
+    return {
+      score,
+      status: 'critico',
+      statusLabel: 'Estado Crítico',
+      statusColor: '#ef4444',
+      statusBadgeBg: 'rgba(239, 68, 68, 0.15)',
+      conduta: 'Recovery',
+      regrasAtivadas
+    };
+  }
+
+  // =========================================================================
+  // 2. NÍVEL RUIM (Prioridade Alta - Laranja / Treino Livre ou Repouso)
+  // =========================================================================
   if (f >= 7 && d >= 6) {
-    regrasAtivadas.push('Fadiga Severa (≥7) + Dor Muscular Alta (≥6)');
+    regrasAtivadas.push('Fadiga Severa (≥7) + Dor Muscular Relevante (≥6)');
     return {
       score,
       status: 'ruim',
@@ -45,7 +93,35 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
     };
   }
 
-  // 3. Dor >= 7 -> Treino Técnico Leve, sem treino de força ou impacto
+  if (s <= 4 && f >= 6) {
+    regrasAtivadas.push('Sono Ruim (≤4) + Fadiga Elevada (≥6)');
+    return {
+      score,
+      status: 'ruim',
+      statusLabel: 'Estado Ruim',
+      statusColor: '#f97316',
+      statusBadgeBg: 'rgba(249, 115, 22, 0.15)',
+      conduta: 'Treino Livre ou Repouso',
+      regrasAtivadas
+    };
+  }
+
+  if (score >= 18) {
+    regrasAtivadas.push('Sobrecarga Fisiológica Elevada (Score ≥ 18)');
+    return {
+      score,
+      status: 'ruim',
+      statusLabel: 'Estado Ruim',
+      statusColor: '#f97316',
+      statusBadgeBg: 'rgba(249, 115, 22, 0.15)',
+      conduta: 'Treino Livre ou Repouso',
+      regrasAtivadas
+    };
+  }
+
+  // =========================================================================
+  // 3. NÍVEL MODERADO (Prioridade Média - Amarelo / Ajustes Técnicos ou de Carga)
+  // =========================================================================
   if (d >= 7) {
     regrasAtivadas.push('Dor Muscular Elevada (≥7)');
     return {
@@ -59,32 +135,33 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
     };
   }
 
-  // 4. Sono 1-3 + Fadiga 1-3 + Dor 1-3 -> Treino Completo
-  if (s <= 3 && f <= 3 && d <= 3) {
-    regrasAtivadas.push('Excelência Fisiológica (Sono, Fadiga e Dor ≤ 3)');
+  if (s <= 4) {
+    regrasAtivadas.push('Noite de Sono Ruim (≤4)');
     return {
       score,
-      status: 'otimo',
-      statusLabel: 'Estado Ótimo',
-      statusColor: '#10b981',
-      statusBadgeBg: 'rgba(16, 185, 129, 0.15)',
-      conduta: 'Treino de Alta Carga Liberado',
+      status: 'moderado',
+      statusLabel: 'Ajuste por Sono Ruim',
+      statusColor: '#eab308',
+      statusBadgeBg: 'rgba(234, 179, 8, 0.15)',
+      conduta: 'Ajuste de Carga e Volume Moderado',
       regrasAtivadas
     };
   }
 
-  // Classificação Base por Pontuação Composta
-  if (score <= 10) {
+  if (f >= 6) {
+    regrasAtivadas.push('Fadiga Acima da Média (≥6)');
     return {
       score,
-      status: 'otimo',
-      statusLabel: 'Estado Ótimo',
-      statusColor: '#10b981',
-      statusBadgeBg: 'rgba(16, 185, 129, 0.15)',
-      conduta: 'Treino de Alta Carga Liberado',
+      status: 'moderado',
+      statusLabel: 'Ajuste por Fadiga',
+      statusColor: '#eab308',
+      statusBadgeBg: 'rgba(234, 179, 8, 0.15)',
+      conduta: 'Ajuste de Carga Recomendado',
       regrasAtivadas
     };
-  } else if (score <= 17) {
+  }
+
+  if (score >= 11) {
     return {
       score,
       status: 'moderado',
@@ -94,25 +171,19 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
       conduta: 'Ajuste de Carga Recomendado',
       regrasAtivadas
     };
-  } else if (score <= 24) {
-    return {
-      score,
-      status: 'ruim',
-      statusLabel: 'Estado Ruim',
-      statusColor: '#f97316',
-      statusBadgeBg: 'rgba(249, 115, 22, 0.15)',
-      conduta: 'Treino Livre ou Repouso',
-      regrasAtivadas
-    };
-  } else {
-    return {
-      score,
-      status: 'critico',
-      statusLabel: 'Estado Crítico',
-      statusColor: '#ef4444',
-      statusBadgeBg: 'rgba(239, 68, 68, 0.15)',
-      conduta: 'Recovery',
-      regrasAtivadas
-    };
   }
+
+  // =========================================================================
+  // 4. NÍVEL ÓTIMO (Verde / Treino de Alta Carga Liberado)
+  // =========================================================================
+  regrasAtivadas.push('Excelência Fisiológica (Alta Prontidão)');
+  return {
+    score,
+    status: 'otimo',
+    statusLabel: 'Estado Ótimo',
+    statusColor: '#10b981',
+    statusBadgeBg: 'rgba(16, 185, 129, 0.15)',
+    conduta: 'Treino de Alta Carga Liberado',
+    regrasAtivadas
+  };
 }
