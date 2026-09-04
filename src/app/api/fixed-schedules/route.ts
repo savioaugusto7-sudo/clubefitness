@@ -239,6 +239,88 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    await dbConnect();
+    const body = await request.json();
+    const { id, clienteId, oldProfessionalId, profissionalId, slots, diaSemana, horario, servico, dataInicio, dataFim } = body;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Modo 1: Atualização em lote de regras de um Aluno / Agenda
+    if (clienteId && Array.isArray(slots)) {
+      const filter: any = { clienteId };
+      if (oldProfessionalId !== undefined) {
+        filter.profissionalId = oldProfessionalId || null;
+      }
+
+      // Localizar regras antigas
+      const oldSchedules = await FixedSchedule.find(filter);
+      const oldIds = oldSchedules.map(s => s._id);
+
+      // Deletar agendamentos futuros dessas regras antigas
+      if (oldIds.length > 0) {
+        await Appointment.deleteMany({
+          fixedScheduleId: { $in: oldIds },
+          status: 'agendado',
+          data: { $gte: todayStr }
+        });
+        await FixedSchedule.deleteMany({ _id: { $in: oldIds } });
+      }
+
+      // Inserir novos slots se houver
+      if (slots.length > 0) {
+        const itemsToCreate = slots.map(slot => ({
+          clienteId,
+          profissionalId: profissionalId !== undefined ? (profissionalId || null) : (oldProfessionalId || null),
+          diaSemana: Number(slot.diaSemana),
+          horario: slot.horario,
+          servico: servico || 'Treino Monitorado',
+          dataInicio: dataInicio || todayStr,
+          dataFim: dataFim || null
+        }));
+
+        const created = await FixedSchedule.insertMany(itemsToCreate);
+        await generateAppointmentsForFixedSchedules(created);
+        return NextResponse.json({ success: true, message: 'Regras do aluno atualizadas com sucesso.', data: created });
+      }
+
+      return NextResponse.json({ success: true, message: 'Regras antigas removidas com sucesso.' });
+    }
+
+    // Modo 2: Atualização de uma única regra pelo ID
+    if (id) {
+      const existing = await FixedSchedule.findById(id);
+      if (!existing) {
+        return NextResponse.json({ success: false, error: 'Regra de horário fixo não encontrada.' }, { status: 404 });
+      }
+
+      // Remover agendamentos futuros da versão anterior
+      await Appointment.deleteMany({
+        fixedScheduleId: id,
+        status: 'agendado',
+        data: { $gte: todayStr }
+      });
+
+      if (diaSemana !== undefined) existing.diaSemana = Number(diaSemana);
+      if (horario) existing.horario = horario;
+      if (servico) existing.servico = servico;
+      if (dataInicio) existing.dataInicio = dataInicio;
+      if (dataFim !== undefined) existing.dataFim = dataFim || null;
+      if (profissionalId !== undefined) existing.profissionalId = profissionalId || null;
+
+      await existing.save();
+      await generateAppointmentsForFixedSchedules([existing]);
+
+      return NextResponse.json({ success: true, message: 'Horário fixo atualizado com sucesso.', data: existing });
+    }
+
+    return NextResponse.json({ success: false, error: 'ID ou dados do aluno insuficientes para atualização.' }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     await dbConnect();
@@ -281,3 +363,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

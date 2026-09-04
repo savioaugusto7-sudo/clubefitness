@@ -22,6 +22,7 @@ import WellnessModal from './WellnessModal';
 import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
+import HorariosFixosPanel from './HorariosFixosPanel';
 import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
 import { getWeeklyFrequencyMetrics } from '@/utils/retentionEngine';
 import { getContractValidityInfo } from '@/utils/contractValidity';
@@ -7034,106 +7035,14 @@ goniometria: {
       )}
 
       {/* 4. View: Horários Fixos */}
-      {activeTab === 'agenda_fixa' && (() => {
-        const listKey = 'agenda_fixa';
-        const q = getSearchQuery(listKey);
-        const weekdayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-        const filteredSchedules = fixedSchedules.filter(fs => {
-          const studentName = fs.clienteId?.dadosPessoais?.nome || '';
-          const studentCpf = fs.clienteId?.dadosPessoais?.cpf || '';
-          const profName = fs.profissionalId?.nome || '';
-          const dayName = weekdayNames[fs.diaSemana] || '';
-          const service = fs.servico || '';
-          const time = fs.horario || '';
-          return smartSearchMatch([studentName, studentCpf, profName, dayName, service, time], q);
-        });
-
-        const activeP = getPage(listKey);
-        const size = getPageSize(listKey);
-        const totalPages = Math.ceil(filteredSchedules.length / size);
-        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-        const paginated = filteredSchedules.slice((curP - 1) * size, curP * size);
-
-        return (
-          <>
-            <div className="view-header">
-              <div className="view-title-group">
-                <h1>Horários Fixos (Agenda Recorrente)</h1>
-                <p>Gerencie regras de agendamento permanente semanal para os alunos.</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <SmartSearchInput
-                  value={q}
-                  onChange={val => setSearchQueryForKey('agenda_fixa', val)}
-                  placeholder="Buscar aluno, dia, horário ou especialista..."
-                  resultCount={filteredSchedules.length}
-                  totalCount={fixedSchedules.length}
-                />
-                <button className="btn btn-primary" onClick={() => {
-                  setFsDate(new Date().toISOString().split('T')[0]);
-                  setShowFixedSchedModal(true);
-                }}>
-                  <i className="fa-solid fa-plus"></i> Novo Horário Fixo
-                </button>
-              </div>
-            </div>
-
-            <div className="content-panel">
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Aluno</th>
-                      <th>Especialista</th>
-                      <th>Dia de Semana</th>
-                      <th>Horário</th>
-                      <th>Serviço</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.map(fs => (
-                      <tr key={fs._id}>
-                        <td data-label="Aluno"><strong>{fs.clienteId?.dadosPessoais?.nome || 'Aluno Removido'}</strong></td>
-                        <td data-label="Especialista">{fs.profissionalId?.nome || 'Profissional'}</td>
-                        <td data-label="Dia de Semana">{weekdayNames[fs.diaSemana]}</td>
-                        <td data-label="Horário"><strong>{fs.horario}</strong></td>
-                        <td data-label="Serviço">{fs.servico}</td>
-                        <td data-label="Ações">
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFixedSchedule(fs._id)}>
-                            <i className="fa-solid fa-trash"></i> Excluir
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredSchedules.length === 0 && (
-                      <tr>
-                        <td colSpan={6}>
-                          <div className="empty-state-card">
-                            <i className="fa-solid fa-calendar-alt empty-state-icon"></i>
-                            <div className="empty-state-title">Nenhum horário fixo encontrado</div>
-                            <div className="empty-state-desc">Não há horários correspondentes aos filtros.</div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {filteredSchedules.length > 0 && (
-                <div style={{ marginTop: '16px' }}>
-                  <Pagination
-                    currentPage={curP}
-                    totalItems={filteredSchedules.length}
-                    itemsPerPage={size}
-                    onPageChange={page => setPage('agenda_fixa', page)}
-                  />
-                </div>
-              )}
-            </div>
-          </>
-        );
-      })()}
+      {activeTab === 'agenda_fixa' && (
+        <HorariosFixosPanel
+          fixedSchedules={fixedSchedules}
+          clients={clients}
+          professionals={professionals}
+          onRefresh={fetchData}
+        />
+      )}
 
       {/* 5. View: Avaliações Físicas */}
       {activeTab === 'avaliacoes' && (() => {
