@@ -166,7 +166,7 @@ export function getContractValidityInfo(client: any, planObj?: any, clientPaymen
       hasRealContractDates
     );
 
-    const isLeadStatus = statusSaved === 'lead' && !isManualContractActive;
+    const isLeadStatus = (statusSaved === 'lead' || isCapitacao) && !isManualContractActive;
     const isUncontracted = !com.dataInicio && !com.vencimento && !hasPaidPayments && !isDynamus && !isManualContractActive;
 
     if ((isDynamus && !hasClubePlan && !hasPaidPayments) || isLeadStatus || (isUncontracted && statusSaved !== 'ativo')) {

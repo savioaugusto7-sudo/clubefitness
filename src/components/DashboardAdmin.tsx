@@ -16,6 +16,8 @@ import DadosClinicosPanel from './DadosClinicosPanel';
 import WorkoutBuilder from './WorkoutBuilder';
 import DynamusPanel from './DynamusPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
+import FinanceiroBalancoPanel from './FinanceiroBalancoPanel';
+import ContasPagarPanel from './ContasPagarPanel';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 import MoneyInput from './MoneyInput';
 
@@ -1114,9 +1116,10 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   };
 
   // F7   Controle Financeiro Tabs
-  const [finTab, setFinTab] = useState<'contas_pagar' | 'mensalidades'>('mensalidades');
+  const [finTab, setFinTab] = useState<'balanco' | 'mensalidades' | 'contas_pagar'>('balanco');
+  const [finSelectedMonth, setFinSelectedMonth] = useState<string>(() => new Date().toISOString().split('T')[0].substring(0, 7));
 
-  // F15/F16  Financial filters
+  // F15/F16   Financial filters
   const [finFilterStatus, setFinFilterStatus] = useState('');
   const [finFilterCat, setFinFilterCat] = useState('');
   const [finFilterMonth, setFinFilterMonth] = useState('');
@@ -5051,19 +5054,66 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--border-color)', marginBottom: '20px' }}>
             <button
-              onClick={() => setFinTab('mensalidades')}
-              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'mensalidades' ? 'var(--color-primary)' : 'var(--text-dim)', borderBottom: finTab === 'mensalidades' ? '3px solid var(--color-primary)' : '3px solid transparent', marginBottom: '-2px' }}
+              onClick={() => setFinTab('balanco')}
+              style={{
+                padding: '10px 20px',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: finTab === 'balanco' ? '#10b981' : 'var(--text-dim)',
+                borderBottom: finTab === 'balanco' ? '3px solid #10b981' : '3px solid transparent',
+                marginBottom: '-2px'
+              }}
             >
-              <i className="fa-solid fa-receipt" style={{ marginRight: '6px' }}></i>Mensalidades (Receber)
+              <i className="fa-solid fa-scale-balanced" style={{ marginRight: '6px' }}></i>Balanço & DRE Geral
+            </button>
+            <button
+              onClick={() => setFinTab('mensalidades')}
+              style={{
+                padding: '10px 20px',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: finTab === 'mensalidades' ? 'var(--color-primary)' : 'var(--text-dim)',
+                borderBottom: finTab === 'mensalidades' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                marginBottom: '-2px'
+              }}
+            >
+              <i className="fa-solid fa-receipt" style={{ marginRight: '6px' }}></i>Mensalidades (A Receber)
             </button>
             <button
               onClick={() => setFinTab('contas_pagar')}
-              style={{ padding: '10px 20px', fontWeight: 600, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer', color: finTab === 'contas_pagar' ? 'var(--color-success)' : 'var(--text-dim)', borderBottom: finTab === 'contas_pagar' ? '3px solid var(--color-success)' : '3px solid transparent', marginBottom: '-2px' }}
+              style={{
+                padding: '10px 20px',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: finTab === 'contas_pagar' ? '#f59e0b' : 'var(--text-dim)',
+                borderBottom: finTab === 'contas_pagar' ? '3px solid #f59e0b' : '3px solid transparent',
+                marginBottom: '-2px'
+              }}
             >
               <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i>Contas a Pagar
             </button>
-
           </div>
+
+          {/* TAB 0: BALANÇO & DRE */}
+          {finTab === 'balanco' && (
+            <FinanceiroBalancoPanel
+              clients={clients}
+              financials={financials}
+              payments={payments}
+              selectedMonth={finSelectedMonth}
+              setSelectedMonth={setFinSelectedMonth}
+              onNavigateTab={(t: string) => setFinTab(t as any)}
+            />
+          )}
 
           {/* TAB 1: MENSALIDADES */}
           {finTab === 'mensalidades' && (
@@ -5644,150 +5694,13 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
           {/* TAB 2: CONTAS A PAGAR */}
           {finTab === 'contas_pagar' && (
-            <>
-              {/* Alerts for overdue/today */}
-              {(() => {
-                const today = new Date().toISOString().split('T')[0];
-                const overdue = financials.filter(f => f.status !== 'Pago' && f.vencimento < today);
-                const dueToday = financials.filter(f => f.status !== 'Pago' && f.vencimento === today);
-                if (overdue.length === 0 && dueToday.length === 0) return null;
-                return (
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                    {overdue.length > 0 && (
-                      <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '8px', padding: '10px 16px', flex: 1, minWidth: '220px' }}>
-                        <strong style={{ color: '#ef4444' }}><i className="fa-solid fa-circle-exclamation" style={{ marginRight: '6px' }}></i>{overdue.length} conta(s) ATRASADA(s)</strong>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>Total: R$ {overdue.reduce((s: number, f: any) => s + f.valor, 0).toFixed(2).replace('.', ',')}</div>
-                      </div>
-                    )}
-                    {dueToday.length > 0 && (
-                      <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: '8px', padding: '10px 16px', flex: 1, minWidth: '220px' }}>
-                        <strong style={{ color: '#f59e0b' }}><i className="fa-solid fa-clock" style={{ marginRight: '6px' }}></i>{dueToday.length} conta(s) vencem HOJE</strong>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>Total: R$ {dueToday.reduce((s: number, f: any) => s + f.valor, 0).toFixed(2).replace('.', ',')}</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <input type="month" className="form-control" style={{ maxWidth: '160px' }} value={finFilterMonth} onChange={e => setFinFilterMonth(e.target.value)} />
-                <select className="select-custom" style={{ minWidth: '140px' }} value={finFilterStatus} onChange={e => setFinFilterStatus(e.target.value)}>
-                  <option value="">Todos os Status</option>
-                  <option value="Pendente">Pendente</option>
-                  <option value="Pago">Pago</option>
-                  <option value="Atrasado">Atrasado</option>
-                </select>
-                <div style={{ flex: 1, minWidth: '220px', maxWidth: '340px' }}>
-                  <SmartSearchInput
-                    placeholder="Buscar por descrição, categoria..."
-                    value={finFilterCat}
-                    onChange={val => setFinFilterCat(val)}
-                  />
-                </div>
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button className="btn btn-secondary" onClick={() => exportToCSV(financials, 'financeiro', [
-                    { key: 'vencimento', label: 'Vencimento' },
-                    { key: 'descricao', label: 'Descrição' },
-                    { key: 'categoria', label: 'Categoria' },
-                    { key: 'valor', label: 'Valor (R$)' },
-                    { key: 'status', label: 'Status' },
-                    { key: 'forma_pagamento', label: 'Forma Pagamento' }
-                  ])}><i className="fa-solid fa-file-csv"></i> CSV</button>
-                  <button className="btn btn-primary" onClick={() => handleOpenFinancialModal()}>
-                    <i className="fa-solid fa-plus"></i> Novo Lançamento
-                  </button>
-                </div>
-              </div>
-
-              {/* Summary cards */}
-              {(() => {
-                const filtered = financials.filter(f =>
-                  (finFilterStatus ? f.status === finFilterStatus : true) &&
-                  (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) &&
-                  (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)
-                );
-                const totalPago = filtered.filter(f => f.status === 'Pago').reduce((s: number, f: any) => s + f.valor, 0);
-                const totalPendente = filtered.filter(f => f.status !== 'Pago').reduce((s: number, f: any) => s + f.valor, 0);
-                return (
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                    <div style={{ flex: 1, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600 }}>TOTAL PAGO</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-success)' }}>R$ {totalPago.toFixed(2).replace('.', ',')}</div>
-                    </div>
-                    <div style={{ flex: 1, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600 }}>TOTAL PENDENTE</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f59e0b' }}>R$ {totalPendente.toFixed(2).replace('.', ',')}</div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="content-panel" style={{ padding: 0, overflow: 'hidden' }}>
-                <div className="table-responsive">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Descrição</th><th>Categoria</th><th className="text-right">Valor</th>
-                        <th>Vencimento</th><th style={{ textAlign: 'center' }}>Status</th><th>Pagamento</th><th>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const filtered = financials.filter(f =>
-                          (finFilterStatus ? f.status === finFilterStatus : true) &&
-                          smartSearchMatch([f.descricao, f.categoria, f.forma_pagamento], finFilterCat) &&
-                          (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)
-                        );
-                        const listKey = 'financeiro';
-                        const activeP = getPage(listKey);
-                        const size = getPageSize(listKey);
-                        const totalPages = Math.ceil(filtered.length / size);
-                        const curP = activeP > totalPages ? Math.max(1, totalPages) : activeP;
-                        const paginated = filtered.slice((curP - 1) * size, curP * size);
-                        return paginated.map(f => (
-                          <tr key={f._id}>
-                            <td><strong>{f.descricao}</strong></td>
-                            <td><span className="badge badge-info">{f.categoria}</span></td>
-                            <td className="text-right">R$ {f.valor.toFixed(2).replace('.', ',')}</td>
-                            <td>{f.vencimento}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span className={`badge ${f.status === 'Pago' ? 'badge-success' : f.status === 'Atrasado' ? 'badge-danger' : 'badge-warning'}`}>{f.status}</span>
-                            </td>
-                            <td>{f.forma_pagamento || '-'}</td>
-                            <td>
-                              <button className="btn btn-secondary btn-sm" style={{ marginRight: '6px' }} onClick={() => handleOpenFinancialModal(f)}><i className="fa-solid fa-pen"></i></button>
-                              {f.status !== 'Pago' && (
-                                <button className="btn btn-sm" style={{ marginRight: '6px', background: 'var(--color-success)', color: '#fff' }} title="Marcar como Pago" onClick={async () => {
-                                  await fetch('/api/financial', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: f._id, status: 'Pago' }) });
-                                  fetchData();
-                                }}><i className="fa-solid fa-check"></i></button>
-                              )}
-                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFinancial(f._id)}><i className="fa-solid fa-trash"></i></button>
-                            </td>
-                          </tr>
-                        ));
-                      })()}
-                      {financials.filter(f =>
-                        (finFilterStatus ? f.status === finFilterStatus : true) &&
-                        (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) &&
-                        (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)
-                      ).length === 0 && (
-                        <tr><td colSpan={7}>
-                          <div className="empty-state-card">
-                            <i className="fa-solid fa-wallet empty-state-icon"></i>
-                            <div className="empty-state-title">Nenhum lançamento encontrado</div>
-                            <div className="empty-state-desc">Altere os filtros ou adicione um novo lançamento financeiro.</div>
-                          </div>
-                        </td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {financials.length > 0 && (
-                  <Pagination currentPage={getPage('financeiro')} totalItems={financials.filter(f => (finFilterStatus ? f.status === finFilterStatus : true) && (finFilterCat ? f.categoria?.toLowerCase().includes(finFilterCat.toLowerCase()) : true) && (finFilterMonth ? f.vencimento?.startsWith(finFilterMonth) : true)).length} itemsPerPage={getPageSize('financeiro')} onPageChange={page => setPage('financeiro', page)} />
-                )}
-              </div>
-            </>
+            <ContasPagarPanel
+              financials={financials}
+              fetchData={fetchData}
+              selectedMonth={finSelectedMonth}
+              setSelectedMonth={setFinSelectedMonth}
+              onNavigateTab={(t: string) => setFinTab(t as any)}
+            />
           )}
 
 

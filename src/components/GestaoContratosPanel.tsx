@@ -272,12 +272,15 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   );
 
   const hasActiveContract = Boolean(
-    isContractSigned ||
-    com.status === 'ativo' ||
-    hasManualContractData ||
-    (isRecorrente && hasPaidInstallment && !info.isExpired) ||
-    (plan && !info.isExpired && (valorTotalOrUnit > 0 || hasPaidInstallment)) ||
-    (valorTotalOrUnit > 0 && (com.vencimento || com.dataInicio) && com.status !== 'lead')
+    !isCapitacao &&
+    com.status !== 'lead' && (
+      isContractSigned ||
+      com.status === 'ativo' ||
+      hasManualContractData ||
+      (isRecorrente && hasPaidInstallment && !info.isExpired) ||
+      (plan && !info.isExpired && (valorTotalOrUnit > 0 || hasPaidInstallment)) ||
+      (valorTotalOrUnit > 0 && (com.vencimento || com.dataInicio))
+    )
   );
 
   const isExpired = Boolean(info.isExpired);
