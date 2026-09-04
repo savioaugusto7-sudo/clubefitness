@@ -41,6 +41,36 @@ export const formatDateBR = (dateStr: string) => {
   return dateStr;
 };
 
+export const formatTestOriginInfo = (record: any, fallbackDoc: any, professionalsList: any[]) => {
+  const targetDoc = record || (fallbackDoc ? {
+    data: fallbackDoc.data || fallbackDoc.createdAt,
+    origemDocumento: { tipo: fallbackDoc.tipoModulo === 'physioreport' ? 'PhysioReport' : 'PhysicalAssessment' },
+    profissionalId: fallbackDoc.profissionalId,
+    dados: fallbackDoc.dadosMedidos || fallbackDoc
+  } : null);
+
+  if (!targetDoc || !targetDoc.data) return null;
+
+  const dateStr = formatDateBR(targetDoc.data);
+  const origemTipo = targetDoc.origemDocumento?.tipo || targetDoc.origemModulo || '';
+  let moduloLabel = 'Avaliação Anterior';
+  if (origemTipo === 'PhysioReport' || origemTipo === 'physioreport') moduloLabel = 'Relatório Fisioterapêutico';
+  else if (origemTipo === 'PhysicalAssessment' || origemTipo === 'physicalassessment') moduloLabel = 'Avaliação Física';
+  else if (origemTipo === 'StrengthTest' || origemTipo === 'strengthtest') moduloLabel = 'Teste de Dinamometria';
+  else if (origemTipo === 'Avulso') moduloLabel = 'Teste Avulso';
+
+  const profId = typeof targetDoc.profissionalId === 'object' ? targetDoc.profissionalId?._id : targetDoc.profissionalId;
+  const prof = (professionalsList || []).find((p: any) => p._id === profId);
+  const profName = prof ? ` • ${prof.nome}` : '';
+
+  return {
+    dateStr,
+    moduloLabel,
+    profName,
+    fullLabel: `${dateStr} • ${moduloLabel}${profName}`
+  };
+};
+
 export const getServiceColor = (service: string) => {
   const name = (service || '').toLowerCase();
   if (name.includes('monitorado')) {
@@ -10091,12 +10121,28 @@ goniometria: {
 
                 {asStep === 3 && (() => {
                     const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
-                    const prevCirc = prevDoc?.dadosMedidos?.circunferencias || prevDoc?.circunferencias || {};
+                    const prevPeriRecord = clientTestMemory['PERIMETRIA'] || (prevDoc ? {
+                      data: prevDoc.data || prevDoc.createdAt,
+                      origemDocumento: { tipo: prevDoc.tipoModulo === 'physioreport' ? 'PhysioReport' : 'PhysicalAssessment' },
+                      profissionalId: prevDoc.profissionalId,
+                      dados: prevDoc.dadosMedidos?.circunferencias || prevDoc.circunferencias
+                    } : null);
+
+                    const prevInfo = formatTestOriginInfo(clientTestMemory['PERIMETRIA'], prevDoc, professionals);
+                    const prevCirc = prevPeriRecord?.dados || {};
 
                     return (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                          <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Circunferências Corporais (cm)</h4>
+                          <div>
+                            <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Circunferências Corporais (cm)</h4>
+                            {prevInfo && (
+                              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8' }}></i>
+                                <span>Última Perimetria: <strong style={{ color: '#e2e8f0' }}>{prevInfo.fullLabel}</strong></span>
+                              </div>
+                            )}
+                          </div>
                           {Object.keys(prevCirc).length > 0 && (
                             <button
                               type="button"
@@ -10118,7 +10164,7 @@ goniometria: {
                               }}
                             >
                               <i className="fa-solid fa-arrow-down-to-bracket"></i>
-                              Manter Todas as Circunferências Anteriores
+                              Manter Todas as Circunferências {prevInfo ? `(${prevInfo.dateStr})` : 'Anteriores'}
                             </button>
                           )}
                         </div>
@@ -10470,36 +10516,66 @@ goniometria: {
                             />
                           </div>
                         </div>
-                    {(() => {
-                      const prevPeri = clientTestMemory['PERIMETRIA'];
-                      const prevDate = prevPeri?.data ? formatDateBR(prevPeri.data) : undefined;
-                      const pd = prevPeri?.dados || {};
-                      const items: ComparativeItem[] = [
-                        { label: 'Tórax', prevValue: pd.torax, currValue: asCirc.torax, unit: 'cm' },
-                        { label: 'Cintura', prevValue: pd.cintura, currValue: asCirc.cintura, unit: 'cm', isLowerBetter: true },
-                        { label: 'Abdômen', prevValue: pd.abdomen, currValue: asCirc.abdomen, unit: 'cm', isLowerBetter: true },
-                        { label: 'Quadril', prevValue: pd.quadril, currValue: asCirc.quadril, unit: 'cm' },
-                        { label: 'Braço D', prevValue: pd.braçoD, currValue: asCirc.braçoD, unit: 'cm' },
-                        { label: 'Braço E', prevValue: pd.braçoE, currValue: asCirc.braçoE, unit: 'cm' },
-                        { label: 'Coxa D', prevValue: pd.coxaD, currValue: asCirc.coxaD, unit: 'cm' },
-                        { label: 'Coxa E', prevValue: pd.coxaE, currValue: asCirc.coxaE, unit: 'cm' }
-                      ];
-                      return <TestComparativeSummary testName="Perimetria Corporal" previousDate={prevDate} items={items} />;
-                    })()}
-                  </>
-                );
-              })()}
+                      </>
+                    );
+                  })()}
 
-                {asStep === 4 && (
-                  <>
-                    {(() => {
-                      const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
-                      const prevDobras = prevDoc?.dadosMedidos?.dobras || prevDoc?.dobras || {};
-                      const hasPrevDobras = Object.keys(prevDobras).length > 0;
+                {asStep === 4 && (() => {
+                    const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                    const prevCompRecord = clientTestMemory['COMPOSICAO_CORPORAL'] || (prevDoc ? {
+                      data: prevDoc.data || prevDoc.createdAt,
+                      origemDocumento: { tipo: prevDoc.tipoModulo === 'physioreport' ? 'PhysioReport' : 'PhysicalAssessment' },
+                      profissionalId: prevDoc.profissionalId,
+                      dados: { dobras: prevDoc.dadosMedidos?.dobras || prevDoc.dobras }
+                    } : null);
 
-                      return (
+                    const prevInfo = formatTestOriginInfo(clientTestMemory['COMPOSICAO_CORPORAL'], prevDoc, professionals);
+                    const prevDobras = prevCompRecord?.dados?.dobras || prevCompRecord?.dados || {};
+                    const hasPrevDobras = Object.keys(prevDobras).length > 0;
+
+                    const dobrasList = [
+                      { key: 'peitoral', label: 'Peitoral' },
+                      { key: 'triceps', label: 'Tríceps' },
+                      { key: 'subescapular', label: 'Subescapular' },
+                      { key: 'subaxilar', label: 'Subaxilar' },
+                      { key: 'suprailiaca', label: 'Supra-ilíaca' },
+                      { key: 'abdomen', label: 'Abdômen' },
+                      { key: 'coxa', label: 'Coxa' }
+                    ];
+
+                    const handleDobraReadingChange = (dobraKey: string, subIdx: number, val: string) => {
+                      setAsDobrasReadings(prev => {
+                        const currentReadings = prev[dobraKey] || ['', '', ''];
+                        const nextReadings = [...currentReadings] as [string, string, string];
+                        nextReadings[subIdx] = val;
+
+                        const parsedVals = nextReadings.map(v => parseFloat(v)).filter(v => !isNaN(v));
+                        const avg = parsedVals.length > 0 ? parseFloat((parsedVals.reduce((sum, v) => sum + v, 0) / parsedVals.length).toFixed(1)) : 0;
+
+                        setAsDobras(prevD => ({ ...prevD, [dobraKey]: avg }));
+
+                        setAsPrefilledFields(prevP => {
+                          const copy = { ...prevP };
+                          delete copy['dobras.' + dobraKey];
+                          return copy;
+                        });
+
+                        return { ...prev, [dobraKey]: nextReadings };
+                      });
+                    };
+
+                    return (
+                      <>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
-                          <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Dobras Cutâneas (mm)</h4>
+                          <div>
+                            <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Dobras Cutâneas (mm)</h4>
+                            {prevInfo && (
+                              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8' }}></i>
+                                <span>Última Composição/Dobras: <strong style={{ color: '#e2e8f0' }}>{prevInfo.fullLabel}</strong></span>
+                              </div>
+                            )}
+                          </div>
                           {hasPrevDobras && (
                             <button
                               type="button"
@@ -10531,56 +10607,21 @@ goniometria: {
                               }}
                             >
                               <i className="fa-solid fa-arrow-down-to-bracket"></i>
-                              Manter Todas as Dobras Anteriores
+                              Manter Todas as Dobras {prevInfo ? `(${prevInfo.dateStr})` : 'Anteriores'}
                             </button>
                           )}
                         </div>
-                      );
-                    })()}
-                    <p style={{ color: 'var(--text-dim)', fontSize: '12px', marginBottom: '14px' }}>
-                      Fórmula de Jackson & Pollock (7 Dobras). Insira até 3 medidas por dobra. A média é calculada automaticamente.
-                    </p>
-                    
-                    {(() => {
-                      const dobrasList = [
-                        { key: 'peitoral', label: 'Peitoral' },
-                        { key: 'triceps', label: 'Tríceps' },
-                        { key: 'subescapular', label: 'Subescapular' },
-                        { key: 'subaxilar', label: 'Subaxilar' },
-                        { key: 'suprailiaca', label: 'Supra-ilíaca' },
-                        { key: 'abdomen', label: 'Abdômen' },
-                        { key: 'coxa', label: 'Coxa' }
-                      ];
 
-                      const handleDobraReadingChange = (dobraKey: string, subIdx: number, val: string) => {
-                        setAsDobrasReadings(prev => {
-                          const currentReadings = prev[dobraKey] || ['', '', ''];
-                          const nextReadings = [...currentReadings] as [string, string, string];
-                          nextReadings[subIdx] = val;
+                        <p style={{ color: 'var(--text-dim)', fontSize: '12px', marginBottom: '14px' }}>
+                          Fórmula de Jackson & Pollock (7 Dobras). Insira até 3 medidas por dobra. A média é calculada automaticamente.
+                        </p>
 
-                          // Calcular média em tempo real das medidas válidas
-                          const parsedVals = nextReadings.map(v => parseFloat(v)).filter(v => !isNaN(v));
-                          const avg = parsedVals.length > 0 ? parseFloat((parsedVals.reduce((sum, v) => sum + v, 0) / parsedVals.length).toFixed(1)) : 0;
-
-                          // Atualizar a dobra principal
-                          setAsDobras(prevD => ({ ...prevD, [dobraKey]: avg }));
-
-                          // Atualizar prefilled state
-                          setAsPrefilledFields(prevP => {
-                            const copy = { ...prevP };
-                            delete copy['dobras.' + dobraKey];
-                            return copy;
-                          });
-
-                          return { ...prev, [dobraKey]: nextReadings };
-                        });
-                      };
-
-                      return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                           {dobrasList.map(dobra => {
                             const readings = asDobrasReadings[dobra.key] || ['', '', ''];
                             const isPrefilled = asPrefilledFields['dobras.' + dobra.key];
+                            const prevDobraVal = prevDobras?.[dobra.key];
+
                             return (
                               <div key={dobra.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px 12px' }}>
                                 <div style={{ minWidth: '120px', fontWeight: 'bold', fontSize: '0.85rem' }}>{dobra.label}</div>
@@ -10607,34 +10648,54 @@ goniometria: {
                                   <span style={{ color: 'var(--text-dim)' }}>Média:</span>
                                   <strong style={{ fontSize: '0.9rem', color: 'var(--color-primary)' }}>{asDobras[dobra.key] || '0'} mm</strong>
                                 </div>
+                                {prevDobraVal !== undefined && prevDobraVal !== null && prevDobraVal !== '' && (
+                                  <div style={{ width: '100%', marginTop: '4px' }}>
+                                    <ComparisonPill
+                                      prevValue={prevDobraVal}
+                                      currValue={asDobras[dobra.key] ? asDobras[dobra.key] : undefined}
+                                      unit="mm"
+                                      onKeepValue={() => {
+                                        setAsDobrasReadings(prev => ({
+                                          ...prev,
+                                          [dobra.key]: [String(prevDobraVal), '', '']
+                                        }));
+                                        setAsDobras(prev => ({
+                                          ...prev,
+                                          [dobra.key]: Number(prevDobraVal)
+                                        }));
+                                      }}
+                                    />
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
                         </div>
-                      );
-                    })()}
-                    <div style={{ marginTop: '16px', background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', maxWidth: '250px' }}>
-                      <label style={{ fontWeight: 'bold', display: 'block', color: 'var(--color-primary)' }}>Soma das Dobras:</label>
-                      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-success)' }}>{asSomaDobras} mm</div>
-                    </div>
-
-                    {(() => {
-                      const prevComp = clientTestMemory['COMPOSICAO_CORPORAL'];
-                      const prevDate = prevComp?.data ? formatDateBR(prevComp.data) : undefined;
-                      const items: ComparativeItem[] = [
-                        { label: '% Gordura Corporal', prevValue: prevComp?.metricas?.scorePrincipal, currValue: asFat, unit: '%', isLowerBetter: true },
-                        { label: 'Massa Magra', prevValue: prevComp?.dados?.resultados?.massaMagra, currValue: asMassaMagra, unit: 'kg' },
-                        { label: 'Massa Gorda', prevValue: prevComp?.dados?.resultados?.massaGorda, currValue: asMassaGorda, unit: 'kg', isLowerBetter: true },
-                        { label: 'Soma das Dobras', prevValue: prevComp?.dados?.somaDobras, currValue: asSomaDobras, unit: 'mm', isLowerBetter: true }
-                      ];
-                      return <TestComparativeSummary testName="Composição Corporal (Dobras)" previousDate={prevDate} items={items} />;
-                    })()}
-                  </>
-                )}
+                        <div style={{ marginTop: '16px', background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', maxWidth: '250px' }}>
+                          <label style={{ fontWeight: 'bold', display: 'block', color: 'var(--color-primary)' }}>Soma das Dobras:</label>
+                          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-success)' }}>{asSomaDobras} mm</div>
+                        </div>
+                      </>
+                    );
+                  })()}
 
                 {asStep === 5 && (
                   <>
-                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Flexibilidade & Goniometria (ADM em Graus)</h4>
+                    {(() => {
+                      const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                      const prevGonioInfo = formatTestOriginInfo(clientTestMemory['GONIOMETRIA'], prevDoc, professionals);
+                      return (
+                        <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>
+                          <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Flexibilidade & Goniometria (ADM em Graus)</h4>
+                          {prevGonioInfo && (
+                            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8' }}></i>
+                              <span>Última Goniometria Coletada: <strong style={{ color: '#e2e8f0' }}>{prevGonioInfo.fullLabel}</strong></span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     
                     {/* Alertas Biomecânicos & Resumo Comparativo de Goniometria */}
                     {(() => {
@@ -10656,7 +10717,7 @@ goniometria: {
                       return (
                         <>
                           <LiveClinicalAlert alerts={biomechanicAlerts} title="Indicativos Clínicos de Goniometria" />
-                          <TestComparativeSummary testName="Goniometria & Mobilidade Articular" previousDate={prevDate} items={items} />
+                          
                         </>
                       );
                     })()}
@@ -10835,7 +10896,7 @@ goniometria: {
                       return (
                         <>
                           <LiveClinicalAlert alerts={combined} title="Indicativos Clínicos dos Testes Especiais" />
-                          <TestComparativeSummary testName="Testes de Thomas & Ober" previousDate={prevDate} items={items} />
+                          
                         </>
                       );
                     })()}
@@ -11112,7 +11173,7 @@ goniometria: {
                               return (
                                 <div style={{ marginTop: '10px' }}>
                                   <LiveClinicalAlert alerts={analysis.alerts} title="Indicativos do Y-Balance Test" />
-                                  <TestComparativeSummary testName="Y-Balance Test" previousDate={prevDate} items={items} />
+                                  
                                 </div>
                               );
                             })()}
@@ -11239,7 +11300,7 @@ goniometria: {
                               return (
                                 <div style={{ marginTop: '10px' }}>
                                   <LiveClinicalAlert alerts={analysis.alerts} title="Indicativos do Step Down Test" />
-                                  <TestComparativeSummary testName="Step Down Test (Controle Cinemático)" previousDate={prevDate} items={items} />
+                                  
                                 </div>
                               );
                             })()}
