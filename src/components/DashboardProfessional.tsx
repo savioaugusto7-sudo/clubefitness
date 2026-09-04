@@ -24,6 +24,8 @@ import SmartSearchInput from './SmartSearchInput';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
 import { FastTextarea, FastInput } from './FastFormField';
+import AssessmentCompareSelectorModal, { PreviousAssessmentOption } from './AssessmentCompareSelectorModal';
+import ComparisonPill, { ComparisonActiveBar } from './ComparisonPill';
 import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
 import { getWeeklyFrequencyMetrics } from '@/utils/retentionEngine';
 import { getContractValidityInfo } from '@/utils/contractValidity';
@@ -566,6 +568,16 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [repPrefilledFields, setRepPrefilledFields] = useState<Record<string, boolean>>({});
   const [asMeta2Meses, setAsMeta2Meses] = useState('');
   const [asMeta1Ano, setAsMeta1Ano] = useState('');
+
+  // Live Comparative States across Assessment Modules
+  const [asSelectedPrevAssessment, setAsSelectedPrevAssessment] = useState<any | null>(null);
+  const [showAsCompareModal, setShowAsCompareModal] = useState(false);
+
+  const [repSelectedPrevReport, setRepSelectedPrevReport] = useState<any | null>(null);
+  const [showRepCompareModal, setShowRepCompareModal] = useState(false);
+
+  const [stSelectedPrevTest, setStSelectedPrevTest] = useState<any | null>(null);
+  const [showStCompareModal, setShowStCompareModal] = useState(false);
 
   // Dobras cutâneas triplas
   const [asDobrasReadings, setAsDobrasReadings] = useState<Record<string, [string, string, string]>>({
@@ -2058,6 +2070,76 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
 
 
+
+  // Memoized Options for Comparison Selector Modals
+  const pastAssessmentsOptions: PreviousAssessmentOption[] = useMemo(() => {
+    if (!asClient) return [];
+    return assessments
+      .filter((a: any) => {
+        const aClientId = typeof a.clienteId === 'object' ? a.clienteId?._id : a.clienteId;
+        return aClientId === asClient;
+      })
+      .map((a: any) => {
+        const prof = professionals.find((p: any) => p._id === (typeof a.profissionalId === 'object' ? a.profissionalId?._id : a.profissionalId));
+        return {
+          _id: a._id,
+          data: a.data || (a.createdAt ? a.createdAt.split('T')[0] : ''),
+          profissionalNome: prof?.nome || 'Profissional',
+          detalhes: {
+            peso: Number(a.dadosMedidos?.peso) || undefined,
+            gorduraPercent: Number(a.dadosMedidos?.percentualGordura) || undefined
+          },
+          rawDoc: a
+        };
+      })
+      .sort((a, b) => b.data.localeCompare(a.data));
+  }, [asClient, assessments, professionals]);
+
+  const pastReportsOptions: PreviousAssessmentOption[] = useMemo(() => {
+    if (!repClient) return [];
+    return reports
+      .filter((r: any) => {
+        const rClientId = typeof r.clienteId === 'object' ? r.clienteId?._id : r.clienteId;
+        return rClientId === repClient;
+      })
+      .map((r: any) => {
+        const prof = professionals.find((p: any) => p._id === (typeof r.profissionalId === 'object' ? r.profissionalId?._id : r.profissionalId));
+        return {
+          _id: r._id,
+          data: r.data || (r.createdAt ? r.createdAt.split('T')[0] : ''),
+          profissionalNome: prof?.nome || 'Profissional',
+          detalhes: {
+            dorEVA: r.conteudo?.dorEscala !== undefined ? Number(r.conteudo.dorEscala) : undefined,
+            queixasCount: Array.isArray(r.anamnese?.queixas) ? r.anamnese.queixas.length : 0
+          },
+          rawDoc: r
+        };
+      })
+      .sort((a: any, b: any) => (b.data || '').localeCompare(a.data || ''));
+  }, [repClient, reports, professionals]);
+
+  const pastTestsOptions: PreviousAssessmentOption[] = useMemo(() => {
+    if (!stClient) return [];
+    return strengthTests
+      .filter((s: any) => {
+        const sClientId = typeof s.clienteId === 'object' ? s.clienteId?._id : s.clienteId;
+        return sClientId === stClient;
+      })
+      .map((s: any) => {
+        const prof = professionals.find((p: any) => p._id === (typeof s.profissionalId === 'object' ? s.profissionalId?._id : s.profissionalId));
+        return {
+          _id: s._id,
+          data: s.data || (s.createdAt ? s.createdAt.split('T')[0] : ''),
+          profissionalNome: prof?.nome || 'Profissional',
+          detalhes: {
+            testesCount: Array.isArray(s.dados?.testesRealizados) ? s.dados.testesRealizados.length : 0
+          },
+          rawDoc: s
+        };
+      })
+      .sort((a, b) => b.data.localeCompare(a.data));
+  }, [stClient, strengthTests, professionals]);
+
   const safeFetchJson = async (url: string) => {
     try {
       const res = await fetch(url, { cache: 'no-store' });
@@ -3454,46 +3536,20 @@ goniometria: {
     setRepExamesList(repExamesList.filter((_, idx) => idx !== index));
   };
 
-  const getAsPrefilledStyle = (key: string, baseStyle?: React.CSSProperties): React.CSSProperties => {
-    if (asPrefilledFields[key]) {
-      return {
-        ...baseStyle,
-        color: '#ef4444',
-        borderColor: 'rgba(239, 68, 68, 0.45)',
-        fontWeight: '600'
-      };
-    }
+  const getAsPrefilledStyle = (_key: string, baseStyle?: React.CSSProperties): React.CSSProperties => {
     return baseStyle || {};
   };
 
-  const clearAsPrefill = (key: string) => {
-    setAsPrefilledFields(prev => {
-      if (!prev[key]) return prev;
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
+  const clearAsPrefill = (_key: string) => {
+    // No-op
   };
 
-  const getRepPrefilledStyle = (key: string, baseStyle?: React.CSSProperties): React.CSSProperties => {
-    if (repPrefilledFields[key]) {
-      return {
-        ...baseStyle,
-        color: '#ef4444',
-        borderColor: 'rgba(239, 68, 68, 0.45)',
-        fontWeight: '600'
-      };
-    }
+  const getRepPrefilledStyle = (_key: string, baseStyle?: React.CSSProperties): React.CSSProperties => {
     return baseStyle || {};
   };
 
-  const clearRepPrefill = (key: string) => {
-    setRepPrefilledFields(prev => {
-      if (!prev[key]) return prev;
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
+  const clearRepPrefill = (_key: string) => {
+    // No-op
   };
 
   const addQueixa = () => {
@@ -9572,6 +9628,18 @@ goniometria: {
                 {/* Card de Identificação e Contexto do Aluno Selecionado (Visível em Todas as Etapas) */}
                 {renderActiveStudentHeader(asClient, asStep > 1 ? () => changeAsStep(1) : undefined)}
 
+                {/* Active Comparison Bar */}
+                {asSelectedPrevAssessment && (
+                  <ComparisonActiveBar
+                    assessmentDate={asSelectedPrevAssessment.data || asSelectedPrevAssessment.createdAt}
+                    evaluatorName={professionals.find((p: any) => p._id === (typeof asSelectedPrevAssessment.profissionalId === 'object' ? asSelectedPrevAssessment.profissionalId?._id : asSelectedPrevAssessment.profissionalId))?.nome}
+                    tipoModulo="physicalassessment"
+                    onChangeComparison={() => setShowAsCompareModal(true)}
+                    onDisableComparison={() => setAsSelectedPrevAssessment(null)}
+                  />
+                )}
+
+
                 {/* Banner de Rascunho Recuperado com Data e Opção de Descarte */}
                 {asDraftSavedAt && (
                   <div style={{
@@ -11469,6 +11537,18 @@ goniometria: {
                 {/* Card de Identificação e Contexto do Aluno Selecionado (Visível em Todas as Etapas) */}
                 {renderActiveStudentHeader(repClient, repActiveStep > 1 ? () => changeRepStep(1) : undefined)}
 
+                {/* Active Comparison Bar */}
+                {repSelectedPrevReport && (
+                  <ComparisonActiveBar
+                    assessmentDate={repSelectedPrevReport.data || repSelectedPrevReport.createdAt}
+                    evaluatorName={professionals.find((p: any) => p._id === (typeof repSelectedPrevReport.profissionalId === 'object' ? repSelectedPrevReport.profissionalId?._id : repSelectedPrevReport.profissionalId))?.nome}
+                    tipoModulo="physioreport"
+                    onChangeComparison={() => setShowRepCompareModal(true)}
+                    onDisableComparison={() => setRepSelectedPrevReport(null)}
+                  />
+                )}
+
+
                 {/* Banner de Rascunho Recuperado com Data e Opção de Descarte */}
                 {repDraftSavedAt && (
                   <div style={{
@@ -11848,7 +11928,37 @@ goniometria: {
                       );
                     })()}
 
-                    <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                    
+                    {repSelectedPrevReport?.goniometria && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            if (repSelectedPrevReport.goniometria) {
+                              setGGonio(repSelectedPrevReport.goniometria);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            color: '#38bdf8',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 12px',
+                            borderRadius: '8px'
+                          }}
+                        >
+                          <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                          Manter Todos os Valores da Goniometria Anterior
+                        </button>
+                      </div>
+                    )}
+
+<div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                       <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 10 }}>
                           <tr>
@@ -13124,6 +13234,18 @@ goniometria: {
               <div className="modal-body" style={{ padding: '20px' }}>
                 {/* Card de Identificação e Contexto do Aluno Selecionado */}
                 {renderActiveStudentHeader(stClient)}
+
+                {/* Active Comparison Bar */}
+                {stSelectedPrevTest && (
+                  <ComparisonActiveBar
+                    assessmentDate={stSelectedPrevTest.data || stSelectedPrevTest.createdAt}
+                    evaluatorName={professionals.find((p: any) => p._id === (typeof stSelectedPrevTest.profissionalId === 'object' ? stSelectedPrevTest.profissionalId?._id : stSelectedPrevTest.profissionalId))?.nome}
+                    tipoModulo="strengthtest"
+                    onChangeComparison={() => setShowStCompareModal(true)}
+                    onDisableComparison={() => setStSelectedPrevTest(null)}
+                  />
+                )}
+
 
                 {/* Banner de Rascunho Recuperado com Data e Opção de Descarte */}
                 {stDraftSavedAt && (
