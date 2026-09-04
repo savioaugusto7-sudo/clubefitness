@@ -8,6 +8,7 @@ export interface PreviousAssessmentOption {
   tipo?: string;
   profissionalNome?: string;
   resumo?: string;
+  rawDoc?: any;
   detalhes?: {
     peso?: number;
     gorduraPercent?: number;

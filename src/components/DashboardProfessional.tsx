@@ -2205,6 +2205,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
+
+  // Helper functions to safely resolve data from comparative documents
+  const getPrevAsDoc = () => asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+  const getPrevRepDoc = () => repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
+  const getPrevStDoc = () => stSelectedPrevTest?.rawDoc || stSelectedPrevTest;
+
   const safeFetchJson = async (url: string) => {
     try {
       const res = await fetch(url, { cache: 'no-store' });
