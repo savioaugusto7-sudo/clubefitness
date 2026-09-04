@@ -9971,7 +9971,37 @@ goniometria: {
 
                 {asStep === 3 && (
                   <>
-                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Circunferências Corporais (cm)</h4>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                      <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Circunferências Corporais (cm)</h4>
+                      {asSelectedPrevAssessment?.dadosMedidos?.circunferencias && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            if (asSelectedPrevAssessment.dadosMedidos.circunferencias) {
+                              setAsCirc(asSelectedPrevAssessment.dadosMedidos.circunferencias);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            color: '#38bdf8',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 12px',
+                            borderRadius: '8px'
+                          }}
+                        >
+                          <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                          Manter Todas as Circunferências Anteriores
+                        </button>
+                      )}
+                    </div>
+
                     <div className="form-row">
                       <div className="form-group">
                         <label>Pescoço</label>
@@ -10326,7 +10356,42 @@ goniometria: {
                       <p style={{ color: 'var(--text-dim)', fontSize: '11px', marginBottom: '12px' }}>
                         Informe a amplitude em graus. <strong>Ativo</strong> = Sem aplicar força do instrutor. <strong>Passivo</strong> = Aplicando força.
                       </p>
-                      <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                      
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                      {asSelectedPrevAssessment?.dadosMedidos?.goniometria && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            if (asSelectedPrevAssessment.dadosMedidos.goniometria) {
+                              const g = asSelectedPrevAssessment.dadosMedidos.goniometria;
+                              const mapped: any = {};
+                              Object.keys(g).forEach(k => {
+                                mapped[k] = parseGonioValue(g[k]);
+                              });
+                              setAsGonio(mapped);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            color: '#38bdf8',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 12px',
+                            borderRadius: '8px'
+                          }}
+                        >
+                          <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                          Manter Toda a Goniometria Anterior
+                        </button>
+                      )}
+                    </div>
+
+<div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
                         <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
                           <thead style={{ background: 'var(--bg-card)' }}>
                             <tr>
@@ -12479,18 +12544,22 @@ goniometria: {
                             <div className="form-group">
                               <label style={{ fontSize: '0.75rem' }}>Tórax</label>
                               <input type="number" step="0.1" className="form-control" value={repCirc.torax} onChange={e => setRepCirc(prev => ({ ...prev, torax: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.torax || repSelectedPrevReport?.perimetria?.torax} currValue={repCirc.torax} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('torax')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, torax: Number(val) }))} />
                             </div>
                             <div className="form-group">
                               <label style={{ fontSize: '0.75rem' }}>Cintura</label>
                               <input type="number" step="0.1" className="form-control" value={repCirc.cintura} onChange={e => setRepCirc(prev => ({ ...prev, cintura: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.cintura || repSelectedPrevReport?.perimetria?.cintura} currValue={repCirc.cintura} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('cintura')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, cintura: Number(val) }))} />
                             </div>
                             <div className="form-group">
                               <label style={{ fontSize: '0.75rem' }}>Abdômen</label>
                               <input type="number" step="0.1" className="form-control" value={repCirc.abdomen} onChange={e => setRepCirc(prev => ({ ...prev, abdomen: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.abdomen || repSelectedPrevReport?.perimetria?.abdomen} currValue={repCirc.abdomen} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('abdomen')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, abdomen: Number(val) }))} />
                             </div>
                             <div className="form-group">
                               <label style={{ fontSize: '0.75rem' }}>Quadril</label>
                               <input type="number" step="0.1" className="form-control" value={repCirc.quadril} onChange={e => setRepCirc(prev => ({ ...prev, quadril: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.quadril || repSelectedPrevReport?.perimetria?.quadril} currValue={repCirc.quadril} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('quadril')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, quadril: Number(val) }))} />
                             </div>
                           </div>
 
@@ -12499,40 +12568,48 @@ goniometria: {
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Braço Direito</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.braçoD} onChange={e => setRepCirc(prev => ({ ...prev, braçoD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.braçoD || repSelectedPrevReport?.perimetria?.braçoD} currValue={repCirc.braçoD} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('braçoD')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, braçoD: Number(val) }))} />
                               </div>
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Braço Esquerdo</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.braçoE} onChange={e => setRepCirc(prev => ({ ...prev, braçoE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.braçoE || repSelectedPrevReport?.perimetria?.braçoE} currValue={repCirc.braçoE} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('braçoE')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, braçoE: Number(val) }))} />
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px' }}>
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Antebraço Direito</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.antebraçoD} onChange={e => setRepCirc(prev => ({ ...prev, antebraçoD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.antebraçoD || repSelectedPrevReport?.perimetria?.antebraçoD} currValue={repCirc.antebraçoD} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('antebraçoD')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, antebraçoD: Number(val) }))} />
                               </div>
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Antebraço Esquerdo</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.antebraçoE} onChange={e => setRepCirc(prev => ({ ...prev, antebraçoE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.antebraçoE || repSelectedPrevReport?.perimetria?.antebraçoE} currValue={repCirc.antebraçoE} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('antebraçoE')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, antebraçoE: Number(val) }))} />
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px' }}>
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Coxa Direito</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.coxaD} onChange={e => setRepCirc(prev => ({ ...prev, coxaD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.coxaD || repSelectedPrevReport?.perimetria?.coxaD} currValue={repCirc.coxaD} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('coxaD')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, coxaD: Number(val) }))} />
                               </div>
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Coxa Esquerdo</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.coxaE} onChange={e => setRepCirc(prev => ({ ...prev, coxaE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.coxaE || repSelectedPrevReport?.perimetria?.coxaE} currValue={repCirc.coxaE} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('coxaE')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, coxaE: Number(val) }))} />
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px' }}>
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Panturrilha Direita</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.panturrilhaD} onChange={e => setRepCirc(prev => ({ ...prev, panturrilhaD: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.panturrilhaD || repSelectedPrevReport?.perimetria?.panturrilhaD} currValue={repCirc.panturrilhaD} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('panturrilhaD')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, panturrilhaD: Number(val) }))} />
                               </div>
                               <div className="form-group" style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem' }}>Panturrilha Esquerdo</label>
                                 <input type="number" step="0.1" className="form-control" value={repCirc.panturrilhaE} onChange={e => setRepCirc(prev => ({ ...prev, panturrilhaE: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                                <ComparisonPill prevValue={repSelectedPrevReport?.dados?.perimetria?.panturrilhaE || repSelectedPrevReport?.perimetria?.panturrilhaE} currValue={repCirc.panturrilhaE} unit=" cm" size="sm" isLowerBetter={['cintura', 'abdomen'].includes('panturrilhaE')} onKeepPrevious={val => setRepCirc(prev => ({ ...prev, panturrilhaE: Number(val) }))} />
                               </div>
                             </div>
                           </div>
