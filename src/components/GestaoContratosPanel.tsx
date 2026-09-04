@@ -1326,6 +1326,7 @@ export default function GestaoContratosPanel({
   // Modals & Triggers
   const [showEditClientModal, setShowEditClientModal] = useState(false);
   const [showTextPreview, setShowTextPreview] = useState(false);
+  const [dispatchingClicksignFromPreview, setDispatchingClicksignFromPreview] = useState(false);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [showImportSignedModal, setShowImportSignedModal] = useState(false);
   const [importPdfFile, setImportPdfFile] = useState<File | null>(null);
@@ -2925,6 +2926,122 @@ export default function GestaoContratosPanel({
       criarRecorrenciaMensal: dcCriarRecorrencia,
       recorrenciaMeses: dcRecorrenciaMeses
     });
+  };
+
+  // Disparo manual direto do contrato a partir da Minuta Inspecionada na tela
+  const handleDispatchFromTextPreview = async () => {
+    if (!selectedClient) return;
+    const validation = validateContractClientData(selectedClient);
+    if (!validation.isValid) {
+      alert(`Não é possível enviar o contrato para o Clicksign. Os seguintes dados obrigatórios do aluno estão ausentes:\n\n• ${validation.missingFields.join('\n• ')}\n\nPor favor, complete o cadastro na aba "Dados Pessoais" primeiro.`);
+      return;
+    }
+
+    const plan = plans.find(p => p._id === dcPlano);
+    if (!plan) {
+      alert('Selecione um plano comercial válido para o contrato.');
+      return;
+    }
+
+    const cleanPhone = (selectedClient.dadosPessoais?.telefone || '').replace(/\D/g, '');
+    if (!selectedClient.dadosPessoais?.telefone || cleanPhone.length < 10) {
+      alert('Para enviar via Clicksign (WhatsApp), o aluno deve possuir um número de celular cadastrado com DDD (mínimo 10 dígitos). Por favor, complete o cadastro do aluno na aba "Dados Pessoais".');
+      return;
+    }
+
+    const currentHtml = generateContractText();
+    if (!currentHtml || currentHtml.includes('Selecione um plano comercial')) {
+      alert('Minuta inválida ou incompleta.');
+      return;
+    }
+
+    const isAnual = dcDuracao === 'anual' || plan.tipo === 'Anual' || (plan.nome || '').toLowerCase().includes('anual');
+    const valorUnit = Number(dcValorUnitario) || Number(selectedClient.dadosComerciais?.valorUnitario) || Number(selectedClient.dadosComerciais?.valorTotal) || Number(plan.preco) || 0;
+    const grossPrice = valorUnit * (isAnual ? 1 : (Number(dcVigenciaQtd) || 1));
+    let discountVal = 0;
+    if (dcDescontoTipo === 'percentual') {
+      discountVal = (grossPrice * (Number(dcDescontoValor) || 0)) / 100;
+    } else {
+      discountVal = Number(dcDescontoValor) || 0;
+    }
+    const finalPrice = Math.max(0, grossPrice - discountVal);
+    const dueDay = dcVencimento ? parseInt(dcVencimento.split('-')[2] || '5', 10) : new Date().getDate();
+
+    if (!confirm(`Confirmar o envio desta minuta exata para assinatura via Clicksign (WhatsApp & E-mail)?\n\nAluno: ${selectedClient.dadosPessoais?.nome}\nTelefone/WhatsApp: ${selectedClient.dadosPessoais?.telefone}\nPlano: ${plan.nome}\nValor Total: R$ ${finalPrice.toFixed(2).replace('.', ',')} (${dcParcelas}x de R$ ${(finalPrice / (Number(dcParcelas) || 1)).toFixed(2).replace('.', ',')})`)) {
+      return;
+    }
+
+    setDispatchingClicksignFromPreview(true);
+
+    try {
+      // 1. Gerar o PDF base64 a partir do HTML EXATO exibido na tela
+      const pdfBase64 = await getContractPDFBase64(
+        selectedClient,
+        plan,
+        currentHtml,
+        {
+          descontoTipo: dcDescontoTipo,
+          descontoValor: dcDescontoValor,
+          parcelas: dcParcelas,
+          formaPagamento: dcFormaPag,
+          dataInicio: dcDataInicio,
+          vencimento: dcVencimento,
+          observacoesContratuais: dcObservacoesContratuais,
+          unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento
+        }
+      );
+
+      const contractPayload: any = {
+        clientId: selectedClient._id,
+        planoId: dcPlano,
+        planoNome: plan.nome,
+        planoTipo: isAnual ? 'Anual' : 'Mensal',
+        valorBruto: grossPrice,
+        descontoTipo: dcDescontoTipo,
+        descontoValor: dcDescontoValor,
+        valorLiquido: finalPrice,
+        parcelas: Number(dcParcelas) || 1,
+        formaPagamento: dcFormaPag,
+        diaVencimento: dueDay,
+        dataPrimeiroVencimento: dcVencimento || dcDataInicio,
+        dataInicio: dcDataInicio,
+        dataFim: calculateContractEndDate(dcDataInicio, dcDuracao, dcVigenciaQtd, undefined, dcCriarRecorrencia),
+        vigenciaMeses: isAnual ? 12 : (Number(dcVigenciaQtd) || 1),
+        status: 'pendente',
+        contratoTexto: currentHtml,
+        contratoPdfBase64: pdfBase64,
+        usuarioEmissor: userCargo || 'Administrador',
+        unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento || 'Clube Fitness',
+        frequencia: dcFrequencia,
+        creditosTotal: dcCreditosTotal,
+        enviarClicksign: true,
+        signerNome: selectedClient.dadosPessoais?.nome,
+        signerCpf: selectedClient.dadosPessoais?.cpf,
+        signerEmail: selectedClient.dadosPessoais?.email,
+        signerTelefone: selectedClient.dadosPessoais?.telefone
+      };
+
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contractPayload)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao emitir contrato no Clicksign.');
+      }
+
+      alert('✅ Minuta enviada com sucesso para o WhatsApp e E-mail do aluno via Clicksign!');
+      setShowTextPreview(false);
+      fetchData();
+      loadContractsAndProposalsOverview();
+      loadContracts(selectedClient._id, true);
+    } catch (err: any) {
+      alert('Erro ao disparar para o Clicksign: ' + err.message);
+    } finally {
+      setDispatchingClicksignFromPreview(false);
+    }
   };
 
   // Submit contract (clicksSign, manual pending, or direct signed)
@@ -6168,11 +6285,12 @@ export default function GestaoContratosPanel({
             <div className="modal-body" style={{ maxHeight: '500px', overflowY: 'auto', background: '#fff', color: '#000', padding: '30px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
               <div dangerouslySetInnerHTML={{ __html: generateContractText() }} />
             </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 type="button"
-                className="btn btn-primary"
-                style={{ background: '#3b82f6', borderColor: '#3b82f6', display: 'flex', gap: '6px', alignItems: 'center' }}
+                className="btn btn-secondary"
+                disabled={dispatchingClicksignFromPreview}
+                style={{ background: 'rgba(59,130,246,0.1)', borderColor: '#3b82f6', color: '#3b82f6', display: 'flex', gap: '6px', alignItems: 'center', fontWeight: 700 }}
                 onClick={() => {
                   const plan = plans.find(p => p._id === dcPlano);
                   if (!plan) {
@@ -6184,7 +6302,37 @@ export default function GestaoContratosPanel({
               >
                 <i className="fa-solid fa-file-pdf"></i> Baixar PDF
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowTextPreview(false)}>Fechar</button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={dispatchingClicksignFromPreview}
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  borderColor: '#4f46e5',
+                  color: '#fff',
+                  fontWeight: 800,
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center',
+                  padding: '9px 18px',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                }}
+                onClick={handleDispatchFromTextPreview}
+                title="Disparar esta minuta exata para o WhatsApp e E-mail do aluno via Clicksign"
+              >
+                {dispatchingClicksignFromPreview ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i> Enviando p/ Clicksign...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-brands fa-whatsapp" style={{ fontSize: '1rem' }}></i> Enviar Minuta p/ Clicksign
+                  </>
+                )}
+              </button>
+
+              <button className="btn btn-secondary" disabled={dispatchingClicksignFromPreview} onClick={() => setShowTextPreview(false)}>Fechar</button>
             </div>
           </div>
         </div>
