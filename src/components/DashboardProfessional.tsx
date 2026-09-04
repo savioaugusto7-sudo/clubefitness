@@ -23,6 +23,7 @@ import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
+import { FastTextarea, FastInput } from './FastFormField';
 import { smartSearchMatch, normalizeText } from '@/utils/searchUtils';
 import { getWeeklyFrequencyMetrics } from '@/utils/retentionEngine';
 import { getContractValidityInfo } from '@/utils/contractValidity';
@@ -11122,12 +11123,12 @@ goniometria: {
 
                     <div className="form-group">
                       <label>Avaliação Postural Visual</label>
-                      <textarea className="form-control" placeholder="Ex: Escoliose leve torácica esquerda, anteriorização de pelve..." rows={2} value={asPostura} onChange={e => setAsPostura(e.target.value)} />
+                      <FastTextarea className="form-control" placeholder="Ex: Escoliose leve torácica esquerda, anteriorização de pelve..." rows={2} value={asPostura} onChange={val => setAsPostura(val)} />
                     </div>
                     
                     <div className="form-group">
                       <label>Considerações Finais e Conduta do Avaliador</label>
-                      <textarea className="form-control" placeholder="Observações gerais sobre a avaliação..." rows={4} value={asObs} onChange={e => setAsObs(e.target.value)} required />
+                      <FastTextarea className="form-control" placeholder="Observações gerais sobre a avaliação..." rows={4} value={asObs} onChange={val => setAsObs(val)} required />
                     </div>
 
                     {/* PDF Attachment Section - Premium Redesign */}
@@ -11688,7 +11689,7 @@ goniometria: {
                     <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Histórico Clínico</h4>
                     <div className="form-group">
                       <label>Traumas Pregressos</label>
-                      <textarea className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumas')} rows={2} value={repTraumas} onChange={e => { setRepTraumas(e.target.value); clearRepPrefill('anamnese.historico.traumas'); }} placeholder="Possíveis lesões primárias / urgências osteopáticas..." />
+                      <FastTextarea className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumas')} rows={2} value={repTraumas} onChange={val => { setRepTraumas(val); clearRepPrefill('anamnese.historico.traumas'); }} placeholder="Possíveis lesões primárias / urgências osteopáticas..." />
                     </div>
 
                     <div className="form-row">
@@ -12829,11 +12830,11 @@ goniometria: {
                     {incluirConduta && (
                       <div className="form-group">
                         <label style={{ fontWeight: '600' }}>Conduta Fisioterapêutica Aplicada (Sessão) *</label>
-                        <textarea
+                        <FastTextarea
                           className="form-control"
                           rows={6}
                           value={repContent}
-                          onChange={e => setRepContent(e.target.value)}
+                          onChange={val => setRepContent(val)}
                           placeholder="Ex: Mobilização articular passiva da coluna lombar, liberação miofascial de quadrado lombar, aplicação de agulhamento seco..."
                           required
                         />
@@ -12844,11 +12845,11 @@ goniometria: {
                     {incluirPrescricao && (
                       <div className="form-group">
                         <label style={{ fontWeight: '600' }}>Prescrição de Autocuidado / Exercícios para Casa *</label>
-                        <textarea
+                        <FastTextarea
                           className="form-control"
                           rows={6}
                           value={repExercicios}
-                          onChange={e => setRepExercicios(e.target.value)}
+                          onChange={val => setRepExercicios(val)}
                           placeholder="Ex: Ponte pélvica isométrica 3x45s, alongamento de flexores de quadril..."
                           required
                         />
@@ -13431,7 +13432,7 @@ goniometria: {
 
                 <div className="form-group" style={{ marginTop: '15px' }}>
                   <label>Observações / Análise Clínica Geral</label>
-                  <textarea className="form-control" value={stObs} onChange={e => setStObs(e.target.value)} placeholder="Anotações gerais sobre o padrão motor, dor ou progresso do teste..." />
+                  <FastTextarea className="form-control" value={stObs} onChange={val => setStObs(val)} placeholder="Anotações gerais sobre o padrão motor, dor ou progresso do teste..." />
                 </div>
 
                 {/* Interpretação Clínica dos Resultados */}
@@ -13509,7 +13510,7 @@ goniometria: {
                 </div>
                 <div className="form-group">
                   <label>Evolução / Histórico Clínico</label>
-                  <textarea className="form-control" style={{ height: '240px' }} value={prContent} onChange={e => setPrContent(e.target.value)} placeholder="Registrar evolução do tratamento e condutas tomadas..." required />
+                  <FastTextarea className="form-control" style={{ height: '240px' }} value={prContent} onChange={val => setPrContent(val)} placeholder="Registrar evolução do tratamento e condutas tomadas..." required />
                 </div>
               </div>
               <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -13884,14 +13885,14 @@ goniometria: {
                     <label style={{ fontWeight: 700, display: 'block', marginBottom: '6px', fontSize: '0.9rem' }}>
                       Evolução Clínica / Relato do Prontuário <span style={{ color: 'var(--color-danger)' }}>*</span>
                     </label>
-                    <textarea
+                    <FastTextarea
                       className="form-control"
                       rows={6}
                       required
                       style={{ resize: 'vertical' }}
                       placeholder="Descreva a queixa aguda do paciente, procedimentos/técnicas realizadas, alívio de dor e orientações pós-atendimento..."
                       value={emergencyReport}
-                      onChange={e => setEmergencyReport(e.target.value)}
+                      onChange={val => setEmergencyReport(val)}
                     />
                   </div>
 
@@ -14400,9 +14401,9 @@ goniometria: {
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>
                 Observações Clínicas / Detalhes (Opcional):
               </label>
-              <textarea
+              <FastTextarea
                 value={tratativaObs}
-                onChange={(e) => setTratativaObs(e.target.value)}
+                onChange={val => setTratativaObs(val)}
                 placeholder="Ex: Aluno informou que viajou a trabalho e retorna na segunda-feira..."
                 rows={3}
                 style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff', fontSize: '0.85rem', resize: 'vertical' }}

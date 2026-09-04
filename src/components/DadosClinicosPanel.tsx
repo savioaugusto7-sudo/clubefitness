@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SmartSearchInput from './SmartSearchInput';
 import { smartSearchMatch } from '@/utils/smartSearch';
+import { FastTextarea } from './FastFormField';
 
 interface Client {
   _id: string;
@@ -38,7 +39,9 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
   
   const [saving, setSaving] = useState(false);
 
-  const selectedClient = clients.find(c => c._id === selectedClientId);
+  const selectedClient = useMemo(() => {
+    return clients.find(c => c._id === selectedClientId);
+  }, [clients, selectedClientId]);
 
   useEffect(() => {
     if (selectedClient && selectedClient.dadosClinicos) {
@@ -54,7 +57,7 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
       setHistoricoClinico('');
       setObservacoes('');
     }
-  }, [selectedClientId, selectedClient]);
+  }, [selectedClientId]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,12 +289,12 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
                 </div>
                 Histórico Clínico / Patologias Pregressas
               </label>
-              <textarea
+              <FastTextarea
                 className="form-control"
                 rows={3}
                 placeholder="Hipertensão, diabetes, cirurgias prévias, hérnia de disco ou outras condições..."
                 value={historicoClinico}
-                onChange={e => setHistoricoClinico(e.target.value)}
+                onChange={val => setHistoricoClinico(val)}
                 style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
@@ -304,12 +307,12 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
                 </div>
                 Lesões / Histórico de Lesões Musculares ou Articulares
               </label>
-              <textarea
+              <FastTextarea
                 className="form-control"
                 rows={3}
                 placeholder="Descreva lesões musculares, estiramentos, rupturas, dor crônica ou inflamações..."
                 value={lesoes}
-                onChange={e => setLesoes(e.target.value)}
+                onChange={val => setLesoes(val)}
                 style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
@@ -322,12 +325,12 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
                 </div>
                 Restrições Médicas / Movimentos Contraindicados
               </label>
-              <textarea
+              <FastTextarea
                 className="form-control"
                 rows={3}
                 placeholder="Movimentos contraindicados, limites de flexão/extensão ou restrições de impacto..."
                 value={restricoes}
-                onChange={e => setRestricoes(e.target.value)}
+                onChange={val => setRestricoes(val)}
                 style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
@@ -340,12 +343,12 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
                 </div>
                 Medicamentos em Uso e Dosagens
               </label>
-              <textarea
+              <FastTextarea
                 className="form-control"
                 rows={2}
                 placeholder="Medicamentos contínuos, analgésicos ou alertas fisiológicos..."
                 value={medicamentos}
-                onChange={e => setMedicamentos(e.target.value)}
+                onChange={val => setMedicamentos(val)}
                 style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
@@ -358,12 +361,12 @@ export default function DadosClinicosPanel({ clients, onUpdate }: DadosClinicosP
                 </div>
                 Observações Clínicas Gerais
               </label>
-              <textarea
+              <FastTextarea
                 className="form-control"
                 rows={3}
                 placeholder="Anotações adicionais de acompanhamento..."
                 value={observacoes}
-                onChange={e => setObservacoes(e.target.value)}
+                onChange={val => setObservacoes(val)}
                 style={{ width: '100%', background: 'var(--bg-darker)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>

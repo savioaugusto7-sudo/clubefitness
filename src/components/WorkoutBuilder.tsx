@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { FastTextarea } from './FastFormField';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -1394,11 +1395,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
               <label style={{ fontSize: '0.76rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: 700 }}>
                 INSTRUÇÃO BIOMECÂNICA PERSONALIZADA:
               </label>
-              <textarea
+              <FastTextarea
                 className="form-control"
                 rows={3}
                 value={tempObsText}
-                onChange={e => setTempObsText(e.target.value)}
+                onChange={val => setTempObsText(val)}
                 placeholder="Ex: Manter cotovelos alinhados, fazer pico de contração de 2 segundos..."
                 style={{
                   width: '100%',
