@@ -9835,383 +9835,641 @@ goniometria: {
                   </div>
                 )}
 
-                {asStep === 2 && (
-                  <>
-                    <div className="resp-grid-1-1-1" style={{ marginBottom: '16px' }}>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontWeight: 600 }}>Idade (anos)</label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          style={getAsPrefilledStyle('idade')}
-                          value={asAge}
-                          onChange={e => {
-                            setAsAge(Number(e.target.value));
-                            clearAsPrefill('idade');
-                          }}
-                          required
-                        />
-                      </div>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontWeight: 600 }}>Peso Atual (kg)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('peso')}
-                          value={asWeight}
-                          onChange={e => {
-                            setAsWeight(e.target.value);
-                            clearAsPrefill('peso');
-                          }}
-                          required
-                        />
-                      </div>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontWeight: 600 }}>Altura (m)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="form-control"
-                          style={getAsPrefilledStyle('altura')}
-                          value={asHeight}
-                          onChange={e => {
-                            setAsHeight(e.target.value);
-                            clearAsPrefill('altura');
-                          }}
-                          required
-                        />
-                      </div>
-                    </div>
+                {asStep === 2 && (() => {
+                    const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                    const prevPeso = prevDoc?.dadosMedidos?.peso || prevDoc?.dadosMedidos?.dadosBiometricos?.peso || prevDoc?.peso;
+                    const prevAlt = prevDoc?.dadosMedidos?.altura || prevDoc?.dadosMedidos?.dadosBiometricos?.altura || prevDoc?.altura;
+                    const prevSG = prevDoc?.dadosMedidos?.saudeGeral || prevDoc?.saudeGeral || {};
 
-                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginTop: '8px', marginBottom: '14px' }}>
-                      <i className="fa-solid fa-heart-pulse" style={{ marginRight: '6px' }}></i> Histórico de Saúde & Estilo de Vida
-                    </h4>
+                    return (
+                      <>
+                        <div className="resp-grid-1-1-1" style={{ marginBottom: '16px' }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label style={{ fontWeight: 600 }}>Idade (anos)</label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              value={asAge}
+                              onChange={e => {
+                                setAsAge(Number(e.target.value));
+                                clearAsPrefill('idade');
+                              }}
+                              required
+                            />
+                            <small style={{ color: 'var(--text-dim)', fontSize: '0.72rem', display: 'block', marginTop: '4px' }}>
+                              <i className="fa-solid fa-cake-candles" style={{ marginRight: '4px' }}></i> Calculada automaticamente
+                            </small>
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label style={{ fontWeight: 600 }}>Peso Atual (kg)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asWeight}
+                              onChange={e => {
+                                setAsWeight(e.target.value);
+                                clearAsPrefill('peso');
+                              }}
+                              required
+                            />
+                            <ComparisonPill
+                              prevValue={prevPeso}
+                              currValue={asWeight}
+                              unit="kg"
+                              onKeepValue={() => {
+                                if (prevPeso !== undefined) {
+                                  setAsWeight(String(prevPeso));
+                                  clearAsPrefill('peso');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label style={{ fontWeight: 600 }}>Altura (m)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="form-control"
+                              value={asHeight}
+                              onChange={e => {
+                                setAsHeight(e.target.value);
+                                clearAsPrefill('altura');
+                              }}
+                              required
+                            />
+                            <ComparisonPill
+                              prevValue={prevAlt}
+                              currValue={asHeight}
+                              unit="m"
+                              onKeepValue={() => {
+                                if (prevAlt !== undefined) {
+                                  setAsHeight(String(prevAlt));
+                                  clearAsPrefill('altura');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
 
-                    <div className="resp-grid-1-1-1" style={{ marginBottom: '14px' }}>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label>Horas de Sono / Noite</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          style={getAsPrefilledStyle('saudeGeral.sono')}
-                          value={asSono}
-                          onChange={e => {
-                            setAsSono(e.target.value);
-                            clearAsPrefill('saudeGeral.sono');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label>Nutrição / Alimentação</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          style={getAsPrefilledStyle('saudeGeral.nutricao')}
-                          value={asNutricao}
-                          onChange={e => {
-                            setAsNutricao(e.target.value);
-                            clearAsPrefill('saudeGeral.nutricao');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label>Atividade Física Atual</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          style={getAsPrefilledStyle('saudeGeral.atividadeFisica')}
-                          value={asAtivFisica}
-                          onChange={e => {
-                            setAsAtivFisica(e.target.value);
-                            clearAsPrefill('saudeGeral.atividadeFisica');
-                          }}
-                        />
-                      </div>
-                    </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginTop: '8px', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
+                          <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>
+                            <i className="fa-solid fa-heart-pulse" style={{ marginRight: '6px' }}></i> Histórico de Saúde & Estilo de Vida
+                          </h4>
+                          {(prevSG?.sono || prevSG?.nutricao || prevSG?.atividadeFisica || prevSG?.medicamentos || prevSG?.cirurgias || prevSG?.queixas) && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                if (prevSG.sono !== undefined) { setAsSono(prevSG.sono); clearAsPrefill('saudeGeral.sono'); }
+                                if (prevSG.nutricao !== undefined) { setAsNutricao(prevSG.nutricao); clearAsPrefill('saudeGeral.nutricao'); }
+                                if (prevSG.atividadeFisica !== undefined) { setAsAtivFisica(prevSG.atividadeFisica); clearAsPrefill('saudeGeral.atividadeFisica'); }
+                                if (prevSG.medicamentos !== undefined) { setAsMedicamentos(prevSG.medicamentos); clearAsPrefill('saudeGeral.medicamentos'); }
+                                if (prevSG.cirurgias !== undefined) { setAsCirurgias(prevSG.cirurgias); clearAsPrefill('saudeGeral.cirurgias'); }
+                                if (prevSG.queixas !== undefined) { setAsQueixas(prevSG.queixas); clearAsPrefill('saudeGeral.queixas'); }
+                              }}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                color: '#38bdf8',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                borderRadius: '8px'
+                              }}
+                            >
+                              <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                              Manter Todo o Histórico de Saúde Anterior
+                            </button>
+                          )}
+                        </div>
 
-                    <div className="resp-grid-1-1" style={{ marginBottom: '14px' }}>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label>Medicamentos em Uso</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          style={getAsPrefilledStyle('saudeGeral.medicamentos')}
-                          value={asMedicamentos}
-                          onChange={e => {
-                            setAsMedicamentos(e.target.value);
-                            clearAsPrefill('saudeGeral.medicamentos');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label>Cirurgias Anteriores</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          style={getAsPrefilledStyle('saudeGeral.cirurgias')}
-                          value={asCirurgias}
-                          onChange={e => {
-                            setAsCirurgias(e.target.value);
-                            clearAsPrefill('saudeGeral.cirurgias');
-                          }}
-                        />
-                      </div>
-                    </div>
+                        <div className="resp-grid-1-1-1" style={{ marginBottom: '14px' }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Horas de Sono / Noite</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={asSono}
+                              onChange={e => {
+                                setAsSono(e.target.value);
+                                clearAsPrefill('saudeGeral.sono');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevSG.sono}
+                              currValue={asSono}
+                              onKeepValue={() => {
+                                if (prevSG.sono !== undefined) {
+                                  setAsSono(prevSG.sono);
+                                  clearAsPrefill('saudeGeral.sono');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Nutrição / Alimentação</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={asNutricao}
+                              onChange={e => {
+                                setAsNutricao(e.target.value);
+                                clearAsPrefill('saudeGeral.nutricao');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevSG.nutricao}
+                              currValue={asNutricao}
+                              onKeepValue={() => {
+                                if (prevSG.nutricao !== undefined) {
+                                  setAsNutricao(prevSG.nutricao);
+                                  clearAsPrefill('saudeGeral.nutricao');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Atividade Física Atual</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={asAtivFisica}
+                              onChange={e => {
+                                setAsAtivFisica(e.target.value);
+                                clearAsPrefill('saudeGeral.atividadeFisica');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevSG.atividadeFisica}
+                              currValue={asAtivFisica}
+                              onKeepValue={() => {
+                                if (prevSG.atividadeFisica !== undefined) {
+                                  setAsAtivFisica(prevSG.atividadeFisica);
+                                  clearAsPrefill('saudeGeral.atividadeFisica');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
 
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label>Principais Queixas / Dores</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        style={getAsPrefilledStyle('saudeGeral.queixas')}
-                        value={asQueixas}
-                        onChange={e => {
-                          setAsQueixas(e.target.value);
-                          clearAsPrefill('saudeGeral.queixas');
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
+                        <div className="resp-grid-1-1" style={{ marginBottom: '14px' }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Medicamentos em Uso</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={asMedicamentos}
+                              onChange={e => {
+                                setAsMedicamentos(e.target.value);
+                                clearAsPrefill('saudeGeral.medicamentos');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevSG.medicamentos}
+                              currValue={asMedicamentos}
+                              onKeepValue={() => {
+                                if (prevSG.medicamentos !== undefined) {
+                                  setAsMedicamentos(prevSG.medicamentos);
+                                  clearAsPrefill('saudeGeral.medicamentos');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>Cirurgias Anteriores</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={asCirurgias}
+                              onChange={e => {
+                                setAsCirurgias(e.target.value);
+                                clearAsPrefill('saudeGeral.cirurgias');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevSG.cirurgias}
+                              currValue={asCirurgias}
+                              onKeepValue={() => {
+                                if (prevSG.cirurgias !== undefined) {
+                                  setAsCirurgias(prevSG.cirurgias);
+                                  clearAsPrefill('saudeGeral.cirurgias');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
 
-                {asStep === 3 && (
-                  <>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                      <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Circunferências Corporais (cm)</h4>
-                      {asSelectedPrevAssessment?.dadosMedidos?.circunferencias && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => {
-                            if (asSelectedPrevAssessment.dadosMedidos.circunferencias) {
-                              setAsCirc(asSelectedPrevAssessment.dadosMedidos.circunferencias);
-                            }
-                          }}
-                          style={{
-                            background: 'rgba(56, 189, 248, 0.12)',
-                            border: '1px solid rgba(56, 189, 248, 0.35)',
-                            color: '#38bdf8',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '5px 12px',
-                            borderRadius: '8px'
-                          }}
-                        >
-                          <i className="fa-solid fa-arrow-down-to-bracket"></i>
-                          Manter Todas as Circunferências Anteriores
-                        </button>
-                      )}
-                    </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>Principais Queixas / Dores</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={asQueixas}
+                            onChange={e => {
+                              setAsQueixas(e.target.value);
+                              clearAsPrefill('saudeGeral.queixas');
+                            }}
+                          />
+                          <ComparisonPill
+                            prevValue={prevSG.queixas}
+                            currValue={asQueixas}
+                            onKeepValue={() => {
+                              if (prevSG.queixas !== undefined) {
+                                setAsQueixas(prevSG.queixas);
+                                clearAsPrefill('saudeGeral.queixas');
+                              }
+                            }}
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
 
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Pescoço</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.pescoco')}
-                          value={asCirc.pescoco}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, pescoco: e.target.value as any });
-                            clearAsPrefill('circ.pescoco');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Ombros</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.ombros')}
-                          value={asCirc.ombros}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, ombros: e.target.value as any });
-                            clearAsPrefill('circ.ombros');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Tórax</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.torax')}
-                          value={asCirc.torax}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, torax: e.target.value as any });
-                            clearAsPrefill('circ.torax');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Cintura</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.cintura')}
-                          value={asCirc.cintura}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, cintura: e.target.value as any });
-                            clearAsPrefill('circ.cintura');
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Abdômen</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.abdomen')}
-                          value={asCirc.abdomen}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, abdomen: e.target.value as any });
-                            clearAsPrefill('circ.abdomen');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Quadril</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.quadril')}
-                          value={asCirc.quadril}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, quadril: e.target.value as any });
-                            clearAsPrefill('circ.quadril');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Braço Direito</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.braçoD')}
-                          value={asCirc.braçoD}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, braçoD: e.target.value as any });
-                            clearAsPrefill('circ.braçoD');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Braço Esquerdo</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.braçoE')}
-                          value={asCirc.braçoE}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, braçoE: e.target.value as any });
-                            clearAsPrefill('circ.braçoE');
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Antebraço D</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.antebraçoD')}
-                          value={asCirc.antebraçoD}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, antebraçoD: e.target.value as any });
-                            clearAsPrefill('circ.antebraçoD');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Antebraço E</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.antebraçoE')}
-                          value={asCirc.antebraçoE}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, antebraçoE: e.target.value as any });
-                            clearAsPrefill('circ.antebraçoE');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Coxa Direita</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.coxaD')}
-                          value={asCirc.coxaD}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, coxaD: e.target.value as any });
-                            clearAsPrefill('circ.coxaD');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Coxa Esquerda</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.coxaE')}
-                          value={asCirc.coxaE}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, coxaE: e.target.value as any });
-                            clearAsPrefill('circ.coxaE');
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group" style={{ maxWidth: '25%' }}>
-                        <label>Panturrilha D</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.panturrilhaD')}
-                          value={asCirc.panturrilhaD}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, panturrilhaD: e.target.value as any });
-                            clearAsPrefill('circ.panturrilhaD');
-                          }}
-                        />
-                      </div>
-                      <div className="form-group" style={{ maxWidth: '25%' }}>
-                        <label>Panturrilha E</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          style={getAsPrefilledStyle('circ.panturrilhaE')}
-                          value={asCirc.panturrilhaE}
-                          onChange={e => {
-                            setAsCirc({ ...asCirc, panturrilhaE: e.target.value as any });
-                            clearAsPrefill('circ.panturrilhaE');
-                          }}
-                        />
-                      </div>
-                    </div>
+                {asStep === 3 && (() => {
+                    const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                    const prevCirc = prevDoc?.dadosMedidos?.circunferencias || prevDoc?.circunferencias || {};
+
+                    return (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                          <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Circunferências Corporais (cm)</h4>
+                          {Object.keys(prevCirc).length > 0 && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setAsCirc(prev => ({ ...prev, ...prevCirc }));
+                              }}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                color: '#38bdf8',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                borderRadius: '8px'
+                              }}
+                            >
+                              <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                              Manter Todas as Circunferências Anteriores
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Pescoço</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.pescoco}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, pescoco: e.target.value as any });
+                                clearAsPrefill('circ.pescoco');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.pescoco}
+                              currValue={asCirc.pescoco}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.pescoco !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, pescoco: prevCirc.pescoco }));
+                                  clearAsPrefill('circ.pescoco');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Ombros</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.ombros}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, ombros: e.target.value as any });
+                                clearAsPrefill('circ.ombros');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.ombros}
+                              currValue={asCirc.ombros}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.ombros !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, ombros: prevCirc.ombros }));
+                                  clearAsPrefill('circ.ombros');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Tórax</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.torax}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, torax: e.target.value as any });
+                                clearAsPrefill('circ.torax');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.torax}
+                              currValue={asCirc.torax}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.torax !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, torax: prevCirc.torax }));
+                                  clearAsPrefill('circ.torax');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Cintura</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.cintura}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, cintura: e.target.value as any });
+                                clearAsPrefill('circ.cintura');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.cintura}
+                              currValue={asCirc.cintura}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.cintura !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, cintura: prevCirc.cintura }));
+                                  clearAsPrefill('circ.cintura');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Abdômen</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.abdomen}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, abdomen: e.target.value as any });
+                                clearAsPrefill('circ.abdomen');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.abdomen}
+                              currValue={asCirc.abdomen}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.abdomen !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, abdomen: prevCirc.abdomen }));
+                                  clearAsPrefill('circ.abdomen');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Quadril</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.quadril}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, quadril: e.target.value as any });
+                                clearAsPrefill('circ.quadril');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.quadril}
+                              currValue={asCirc.quadril}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.quadril !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, quadril: prevCirc.quadril }));
+                                  clearAsPrefill('circ.quadril');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Braço Direito</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.braçoD}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, braçoD: e.target.value as any });
+                                clearAsPrefill('circ.braçoD');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.braçoD}
+                              currValue={asCirc.braçoD}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.braçoD !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, braçoD: prevCirc.braçoD }));
+                                  clearAsPrefill('circ.braçoD');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Braço Esquerdo</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.braçoE}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, braçoE: e.target.value as any });
+                                clearAsPrefill('circ.braçoE');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.braçoE}
+                              currValue={asCirc.braçoE}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.braçoE !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, braçoE: prevCirc.braçoE }));
+                                  clearAsPrefill('circ.braçoE');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Antebraço D</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.antebraçoD}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, antebraçoD: e.target.value as any });
+                                clearAsPrefill('circ.antebraçoD');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.antebraçoD}
+                              currValue={asCirc.antebraçoD}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.antebraçoD !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, antebraçoD: prevCirc.antebraçoD }));
+                                  clearAsPrefill('circ.antebraçoD');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Antebraço E</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.antebraçoE}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, antebraçoE: e.target.value as any });
+                                clearAsPrefill('circ.antebraçoE');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.antebraçoE}
+                              currValue={asCirc.antebraçoE}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.antebraçoE !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, antebraçoE: prevCirc.antebraçoE }));
+                                  clearAsPrefill('circ.antebraçoE');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Coxa Direita</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.coxaD}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, coxaD: e.target.value as any });
+                                clearAsPrefill('circ.coxaD');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.coxaD}
+                              currValue={asCirc.coxaD}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.coxaD !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, coxaD: prevCirc.coxaD }));
+                                  clearAsPrefill('circ.coxaD');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Coxa Esquerda</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.coxaE}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, coxaE: e.target.value as any });
+                                clearAsPrefill('circ.coxaE');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.coxaE}
+                              currValue={asCirc.coxaE}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.coxaE !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, coxaE: prevCirc.coxaE }));
+                                  clearAsPrefill('circ.coxaE');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group" style={{ maxWidth: '25%' }}>
+                            <label>Panturrilha D</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.panturrilhaD}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, panturrilhaD: e.target.value as any });
+                                clearAsPrefill('circ.panturrilhaD');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.panturrilhaD}
+                              currValue={asCirc.panturrilhaD}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.panturrilhaD !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, panturrilhaD: prevCirc.panturrilhaD }));
+                                  clearAsPrefill('circ.panturrilhaD');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group" style={{ maxWidth: '25%' }}>
+                            <label>Panturrilha E</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="form-control"
+                              value={asCirc.panturrilhaE}
+                              onChange={e => {
+                                setAsCirc({ ...asCirc, panturrilhaE: e.target.value as any });
+                                clearAsPrefill('circ.panturrilhaE');
+                              }}
+                            />
+                            <ComparisonPill
+                              prevValue={prevCirc.panturrilhaE}
+                              currValue={asCirc.panturrilhaE}
+                              unit="cm"
+                              onKeepValue={() => {
+                                if (prevCirc.panturrilhaE !== undefined) {
+                                  setAsCirc(prev => ({ ...prev, panturrilhaE: prevCirc.panturrilhaE }));
+                                  clearAsPrefill('circ.panturrilhaE');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
                     {(() => {
                       const prevPeri = clientTestMemory['PERIMETRIA'];
                       const prevDate = prevPeri?.data ? formatDateBR(prevPeri.data) : undefined;
@@ -10229,11 +10487,56 @@ goniometria: {
                       return <TestComparativeSummary testName="Perimetria Corporal" previousDate={prevDate} items={items} />;
                     })()}
                   </>
-                )}
+                );
+              })()}
 
                 {asStep === 4 && (
                   <>
-                    <h4 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '16px' }}>Dobras Cutâneas (mm)</h4>
+                    {(() => {
+                      const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                      const prevDobras = prevDoc?.dadosMedidos?.dobras || prevDoc?.dobras || {};
+                      const hasPrevDobras = Object.keys(prevDobras).length > 0;
+
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
+                          <h4 style={{ color: 'var(--color-primary)', margin: 0 }}>Dobras Cutâneas (mm)</h4>
+                          {hasPrevDobras && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                const newReadings: Record<string, [string, string, string]> = {};
+                                const newDobras: Record<string, number> = {};
+                                Object.keys(prevDobras).forEach(k => {
+                                  const val = Number(prevDobras[k]);
+                                  if (!isNaN(val)) {
+                                    newReadings[k] = [String(val), '', ''];
+                                    newDobras[k] = val;
+                                  }
+                                });
+                                setAsDobrasReadings(prev => ({ ...prev, ...newReadings }));
+                                setAsDobras(prev => ({ ...prev, ...newDobras }));
+                              }}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                color: '#38bdf8',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                borderRadius: '8px'
+                              }}
+                            >
+                              <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                              Manter Todas as Dobras Anteriores
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <p style={{ color: 'var(--text-dim)', fontSize: '12px', marginBottom: '14px' }}>
                       Fórmula de Jackson & Pollock (7 Dobras). Insira até 3 medidas por dobra. A média é calculada automaticamente.
                     </p>
@@ -10539,7 +10842,28 @@ goniometria: {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', fontSize: '12px' }}>
                       <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Ober</h5>
+                        {(() => {
+                          const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                          const prevOber = prevDoc?.dadosMedidos?.testesEspeciais?.ober || prevDoc?.ober;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                              <h5 style={{ color: 'var(--color-primary)', margin: 0 }}>Teste de Ober</h5>
+                              {prevOber && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => {
+                                    if (prevOber.oberD) setAsOberD(prevOber.oberD);
+                                    if (prevOber.oberE) setAsOberE(prevOber.oberE);
+                                  }}
+                                  style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                >
+                                  <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                         <div style={{ display: 'flex', gap: '12px' }}>
                           <div style={{ flex: 1 }}>
                             <label>Lado Direito</label>
@@ -10560,7 +10884,30 @@ goniometria: {
 
                       <div style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         <div>
-                          <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Thomas - Iliopsoas</h5>
+                          {(() => {
+                          const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                          const prevTh = prevDoc?.dadosMedidos?.testesEspeciais?.thomas || prevDoc?.thomas;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                              <h5 style={{ color: 'var(--color-primary)', margin: 0 }}>Teste de Thomas - Iliopsoas</h5>
+                              {prevTh && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => {
+                                    if (prevTh.thomasIliopsoasDStatus) setAsThomasIliopsoasDStatus(prevTh.thomasIliopsoasDStatus);
+                                    if (prevTh.thomasIliopsoasEStatus) setAsThomasIliopsoasEStatus(prevTh.thomasIliopsoasEStatus);
+                                    if (prevTh.thomasIliopsoasD) setAsThomasIliopsoasD(prevTh.thomasIliopsoasD);
+                                    if (prevTh.thomasIliopsoasE) setAsThomasIliopsoasE(prevTh.thomasIliopsoasE);
+                                  }}
+                                  style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                >
+                                  <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                           <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
                             <div style={{ flex: 1 }}>
                               <label>Lado Direito</label>
@@ -10598,7 +10945,30 @@ goniometria: {
                         </div>
 
                         <div>
-                          <h5 style={{ color: 'var(--color-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px' }}>Teste de Thomas - Retofemoral</h5>
+                          {(() => {
+                          const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                          const prevTh = prevDoc?.dadosMedidos?.testesEspeciais?.thomas || prevDoc?.thomas;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                              <h5 style={{ color: 'var(--color-primary)', margin: 0 }}>Teste de Thomas - Retofemoral</h5>
+                              {prevTh && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => {
+                                    if (prevTh.thomasRetofemoralDStatus) setAsThomasRetofemoralDStatus(prevTh.thomasRetofemoralDStatus);
+                                    if (prevTh.thomasRetofemoralEStatus) setAsThomasRetofemoralEStatus(prevTh.thomasRetofemoralEStatus);
+                                    if (prevTh.thomasRetofemoralD) setAsThomasRetofemoralD(prevTh.thomasRetofemoralD);
+                                    if (prevTh.thomasRetofemoralE) setAsThomasRetofemoralE(prevTh.thomasRetofemoralE);
+                                  }}
+                                  style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                >
+                                  <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                           <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
                             <div style={{ flex: 1 }}>
                               <label>Lado Direito</label>
@@ -10753,7 +11123,35 @@ goniometria: {
                       {/* Step Down — Structured numeric inputs */}
                       <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asStepDownRealizou === 'sim' ? '12px' : '0px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Step Down (Controle Cinemático)</span>
+                          {(() => {
+                            const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                            const prevSd = prevDoc?.dadosMedidos?.stepDown || prevDoc?.stepDown;
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Step Down (Controle Cinemático)</span>
+                                {prevSd && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                      setAsStepDownRealizou('sim');
+                                      if (prevSd.quedaPelvicaD !== undefined) setAsSdPelvicaD(prevSd.quedaPelvicaD);
+                                      if (prevSd.quedaPelvicaE !== undefined) setAsSdPelvicaE(prevSd.quedaPelvicaE);
+                                      if (prevSd.aducaoQuadrilD !== undefined) setAsSdAducaoD(prevSd.aducaoQuadrilD);
+                                      if (prevSd.aducaoQuadrilE !== undefined) setAsSdAducaoE(prevSd.aducaoQuadrilE);
+                                      if (prevSd.valgoDinamicoJoelhoD !== undefined) setAsSdValgoD(prevSd.valgoDinamicoJoelhoD);
+                                      if (prevSd.valgoDinamicoJoelhoE !== undefined) setAsSdValgoE(prevSd.valgoDinamicoJoelhoE);
+                                      if (prevSd.prpsD !== undefined) setAsSdPrpsD(prevSd.prpsD);
+                                      if (prevSd.prpsE !== undefined) setAsSdPrpsE(prevSd.prpsE);
+                                    }}
+                                    style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                  >
+                                    <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter Step Down Anterior
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asStepDownRealizou} onChange={e => setAsStepDownRealizou(e.target.value)}>
                             <option value="nao">Não se Aplica</option>
                             <option value="sim">Realizado</option>
@@ -10853,9 +11251,35 @@ goniometria: {
                     {/* ESTRELA MAIGNE */}
                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: asMaigneRealizou === 'sim' ? '16px' : '0px' }}>
-                        <h5 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-                          Estrela Maigne (Rosa dos Ventos Clínica de Dor)
-                        </h5>
+                        {(() => {
+                          const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                          const prevMaigne = prevDoc?.dadosMedidos?.maigne || prevDoc?.maigne;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                              <h5 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
+                                Estrela Maigne (Rosa dos Ventos Clínica de Dor)
+                              </h5>
+                              {prevMaigne && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => {
+                                    setAsMaigneRealizou('sim');
+                                    if (prevMaigne.dados) {
+                                      setAsMaigneData(prev => ({ ...prev, ...prevMaigne.dados }));
+                                    }
+                                    if (prevMaigne.observacoes) {
+                                      setAsMaigne(prevMaigne.observacoes);
+                                    }
+                                  }}
+                                  style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                >
+                                  <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter Maigne Anterior
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                         <select className="select-custom" style={{ width: 'auto', margin: 0, height: '28px', padding: '0 8px', fontSize: '0.8rem' }} value={asMaigneRealizou} onChange={e => setAsMaigneRealizou(e.target.value)}>
                           <option value="nao">Não se Aplica</option>
                           <option value="sim">Realizado</option>
@@ -11163,51 +11587,86 @@ goniometria: {
                     </div>
 
                     {/* Foco e Metas do Planejamento */}
-                    <div className="form-group">
-                      <label>Objetivo Principal (ex: Perda de gordura e ganho de massa magra)</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        style={asPrefilledFields['objetivoPrincipal'] ? { color: '#ef4444' } : {}} 
-                        value={asObjetivoPrincipal} 
-                        onChange={e => {
-                          setAsObjetivoPrincipal(e.target.value);
-                          setAsPrefilledFields(prev => { const c = { ...prev }; delete c['objetivoPrincipal']; return c; });
-                        }} 
-                        placeholder="Objetivos do aluno..." 
-                        required 
-                      />
-                    </div>
-                    <div className="form-row" style={{ marginBottom: '16px' }}>
-                      <div className="form-group">
-                        <label>Objetivo Curto Prazo (2 Meses)</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
-                          style={asPrefilledFields['metas.objetivo2Meses'] ? { color: '#ef4444' } : {}} 
-                          value={asMeta2Meses} 
-                          onChange={e => {
-                            setAsMeta2Meses(e.target.value);
-                            setAsPrefilledFields(prev => { const c = { ...prev }; delete c['metas.objetivo2Meses']; return c; });
-                          }} 
-                          placeholder="Ex: Reduzir 2% de BF, melhorar dorsiflexão..." 
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Objetivo Longo Prazo (1 Ano)</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
-                          style={asPrefilledFields['metas.objetivo1Ano'] ? { color: '#ef4444' } : {}} 
-                          value={asMeta1Ano} 
-                          onChange={e => {
-                            setAsMeta1Ano(e.target.value);
-                            setAsPrefilledFields(prev => { const c = { ...prev }; delete c['metas.objetivo1Ano']; return c; });
-                          }} 
-                          placeholder="Ex: Hipertrofia de 5kg, manter simetria..." 
-                        />
-                      </div>
-                    </div>
+                    {(() => {
+                      const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                      const prevObjPrinc = prevDoc?.dadosMedidos?.objetivoPrincipal || prevDoc?.objetivoPrincipal;
+                      const prevM2 = prevDoc?.dadosMedidos?.metas?.objetivo2Meses || prevDoc?.metas?.objetivo2Meses;
+                      const prevM1 = prevDoc?.dadosMedidos?.metas?.objetivo1Ano || prevDoc?.metas?.objetivo1Ano;
+
+                      return (
+                        <>
+                          <div className="form-group">
+                            <label>Objetivo Principal (ex: Perda de gordura e ganho de massa magra)</label>
+                            <input 
+                              type="text" 
+                              className="form-control" 
+                              value={asObjetivoPrincipal} 
+                              onChange={e => {
+                                setAsObjetivoPrincipal(e.target.value);
+                                setAsPrefilledFields(prev => { const c = { ...prev }; delete c['objetivoPrincipal']; return c; });
+                              }} 
+                              placeholder="Objetivos do aluno..." 
+                              required 
+                            />
+                            <ComparisonPill
+                              prevValue={prevObjPrinc}
+                              currValue={asObjetivoPrincipal}
+                              onKeepValue={() => {
+                                if (prevObjPrinc) {
+                                  setAsObjetivoPrincipal(prevObjPrinc);
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-row" style={{ marginBottom: '16px' }}>
+                            <div className="form-group">
+                              <label>Objetivo Curto Prazo (2 Meses)</label>
+                              <input 
+                                type="text" 
+                                className="form-control" 
+                                value={asMeta2Meses} 
+                                onChange={e => {
+                                  setAsMeta2Meses(e.target.value);
+                                  setAsPrefilledFields(prev => { const c = { ...prev }; delete c['metas.objetivo2Meses']; return c; });
+                                }} 
+                                placeholder="Ex: Reduzir 2% de BF, melhorar dorsiflexão..." 
+                              />
+                              <ComparisonPill
+                                prevValue={prevM2}
+                                currValue={asMeta2Meses}
+                                onKeepValue={() => {
+                                  if (prevM2) {
+                                    setAsMeta2Meses(prevM2);
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Objetivo Longo Prazo (1 Ano)</label>
+                              <input 
+                                type="text" 
+                                className="form-control" 
+                                value={asMeta1Ano} 
+                                onChange={e => {
+                                  setAsMeta1Ano(e.target.value);
+                                  setAsPrefilledFields(prev => { const c = { ...prev }; delete c['metas.objetivo1Ano']; return c; });
+                                }} 
+                                placeholder="Ex: Hipertrofia de 5kg, manter simetria..." 
+                              />
+                              <ComparisonPill
+                                prevValue={prevM1}
+                                currValue={asMeta1Ano}
+                                onKeepValue={() => {
+                                  if (prevM1) {
+                                    setAsMeta1Ano(prevM1);
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                     <div className="form-row" style={{ marginBottom: '16px' }}>
                       <div className="form-group">
                         <label>Meses para Adequação</label>
@@ -11391,11 +11850,37 @@ goniometria: {
                     <div className="form-group">
                       <label>Avaliação Postural Visual</label>
                       <FastTextarea className="form-control" placeholder="Ex: Escoliose leve torácica esquerda, anteriorização de pelve..." rows={2} value={asPostura} onChange={val => setAsPostura(val)} />
+                      {(() => {
+                        const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                        const prevPostura = prevDoc?.dadosMedidos?.avaliacaoPostural || prevDoc?.avaliacaoPostural;
+                        return (
+                          <ComparisonPill
+                            prevValue={prevPostura}
+                            currValue={asPostura}
+                            onKeepValue={() => {
+                              if (prevPostura) setAsPostura(prevPostura);
+                            }}
+                          />
+                        );
+                      })()}
                     </div>
                     
                     <div className="form-group">
                       <label>Considerações Finais e Conduta do Avaliador</label>
                       <FastTextarea className="form-control" placeholder="Observações gerais sobre a avaliação..." rows={4} value={asObs} onChange={val => setAsObs(val)} required />
+                      {(() => {
+                        const prevDoc = asSelectedPrevAssessment?.rawDoc || asSelectedPrevAssessment;
+                        const prevObs = prevDoc?.dadosMedidos?.observacoes || prevDoc?.observacoes;
+                        return (
+                          <ComparisonPill
+                            prevValue={prevObs}
+                            currValue={asObs}
+                            onKeepValue={() => {
+                              if (prevObs) setAsObs(prevObs);
+                            }}
+                          />
+                        );
+                      })()}
                     </div>
 
                     {/* PDF Attachment Section - Premium Redesign */}

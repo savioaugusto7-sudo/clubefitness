@@ -4,11 +4,13 @@ import React from 'react';
 
 export interface ComparisonPillProps {
   prevValue: number | string | undefined | null;
-  currValue: number | string | undefined | null;
+  currValue?: number | string | undefined | null;
   unit?: string;
   refRange?: string;
   isLowerBetter?: boolean;
   onKeepPrevious?: (val: any) => void;
+  onKeepValue?: (val?: any) => void;
+  onKeep?: (val?: any) => void;
   style?: React.CSSProperties;
   size?: 'sm' | 'md';
 }
@@ -20,9 +22,12 @@ export default function ComparisonPill({
   refRange,
   isLowerBetter = false,
   onKeepPrevious,
+  onKeepValue,
+  onKeep,
   style,
   size = 'md'
 }: ComparisonPillProps) {
+  const handleKeep = onKeepPrevious || onKeepValue || onKeep;
   // If no previous value exists, return null
   if (prevValue === undefined || prevValue === null || prevValue === '') {
     return null;
@@ -130,13 +135,13 @@ export default function ComparisonPill({
           <span>
             Ant: <strong style={{ color: '#f8fafc' }}>{hasPrev ? formatVal(pNum) : prevValue}{unit}</strong>
           </span>
-          {onKeepPrevious && (
+          {handleKeep && (
             <button
               type="button"
               onClick={e => {
                 e.preventDefault();
                 e.stopPropagation();
-                onKeepPrevious(prevValue);
+                handleKeep(prevValue);
               }}
               title="Manter exatamente o valor da avaliação anterior neste campo"
               style={{
