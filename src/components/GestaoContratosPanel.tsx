@@ -860,6 +860,42 @@ export default function GestaoContratosPanel({
       const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
       const dueDay = ecDataPrimeiroVencimento ? parseInt(ecDataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate();
 
+      // Gerar minuta unificada e precisa do contrato com todas as condições configuradas
+      const pes = editContractClient.dadosPessoais || {};
+      const contractDataForTemplate = {
+        clientNome: pes.nome || editContractClient.nome || '',
+        clientCpf: pes.cpf || editContractClient.cpf || '',
+        clientEmail: pes.email || editContractClient.email,
+        clientTelefone: pes.telefone || editContractClient.telefone,
+        clientEndereco: pes.endereco,
+        clientNumero: pes.numero,
+        clientComplemento: pes.complemento,
+        clientBairro: pes.bairro,
+        clientCidade: pes.cidade,
+        clientEstado: pes.estado,
+        clientCep: pes.cep,
+        planNome: plan?.nome || 'Tratamento Personalizado',
+        planPreco: grossPrice,
+        valorUnitario: Number(ecValorUnitario) || grossPrice,
+        valorLiquido: calculatedValorLiquido,
+        planTipo: isAnual ? 'Anual' : 'Mensal',
+        descontoTipo: ecDescontoTipo,
+        descontoValor: Number(ecDescontoValor) || 0,
+        parcelas: Number(ecParcelas) || 1,
+        formaPagamento: ecFormaPagamento || 'pix',
+        dataInicio: ecDataInicio,
+        dataVencimento: ecDataPrimeiroVencimento || ecDataInicio,
+        observacoesContratuais: editContractClient.dadosComerciais?.observacoesContratuais || '',
+        unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
+        creditosMensais: ecCreditosTotal,
+        creditosMassagem: ecCreditosMassagemTotal,
+        creditosEmergencia: ecCreditosEmergenciaTotal,
+        duracao: ecDuracao,
+        vigenciaQtd: ecVigenciaQtd,
+        criarRecorrenciaMensal: ecCriarRecorrenciaMensal
+      };
+      const generatedContractText = getUnifiedTemplate(contractDataForTemplate);
+
       // 1. SE FOR ATIVAÇÃO COMO VIGENTE: Emitir e formalizar o contrato oficial (POST /api/contracts)
       if (activateAsVigente) {
         const contractPayload: any = {
@@ -880,6 +916,7 @@ export default function GestaoContratosPanel({
           dataFim: finalEndDate,
           vigenciaMeses: isAnual ? 12 : (ecDuracao === 'semestral' ? 6 : (Number(ecVigenciaQtd) || 1)),
           status: 'assinado',
+          contratoTexto: generatedContractText,
           usuarioEmissor: userCargo || 'Administrador',
           unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
           frequencia: ecFrequencia,
@@ -905,6 +942,28 @@ export default function GestaoContratosPanel({
         const latestP = allProposalsMap[editContractClient._id];
         if (latestP?._id) {
           await fetch(`/api/propostas?id=${latestP._id}`, { method: 'DELETE' }).catch(() => {});
+        }
+      } else {
+        // Se já existe contrato vinculado a este cliente, atualiza a minuta e condições
+        const existingContract = allContractsMap[editContractClient._id];
+        if (existingContract?._id) {
+          await fetch('/api/contracts', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: existingContract._id,
+              planoId: ecPlanoId,
+              planoNome: plan?.nome || 'Plano Clube Fitness',
+              valorBruto: grossPrice,
+              valorLiquido: calculatedValorLiquido,
+              parcelas: Number(ecParcelas) || 1,
+              formaPagamento: ecFormaPagamento || 'pix',
+              dataInicio: ecDataInicio,
+              dataFim: finalEndDate,
+              dataPrimeiroVencimento: ecDataPrimeiroVencimento || ecDataInicio,
+              contratoTexto: generatedContractText
+            })
+          }).catch(() => {});
         }
       }
 

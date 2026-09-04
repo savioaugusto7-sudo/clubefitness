@@ -68,16 +68,10 @@ function safeFormatYYYYMMDD(d: Date): string {
   }
 }
 
+import { formatDateSafeBR } from './dateFormatter';
+
 const formatPtBr = (dStr: string) => {
-  try {
-    if (!dStr) return '';
-    const [y, m, d] = dStr.split('-');
-    if (y && m && d) return `${d}/${m}/${y}`;
-    const parsed = safeParseDate(dStr);
-    return parsed.toLocaleDateString('pt-BR');
-  } catch {
-    return dStr;
-  }
+  return formatDateSafeBR(dStr);
 };
 
 function addMonthsWithClamping(date: Date, months: number): Date {

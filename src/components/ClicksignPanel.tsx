@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatDateSafeBR } from '@/utils/dateFormatter';
 
 interface ClicksignContract {
   _id: string;
@@ -101,7 +102,7 @@ export default function ClicksignPanel() {
     return { label: '⏳ Aguardando Assinatura', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' };
   };
 
-  const fmtDate = (d?: string) => d ? new Date(d + (d.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('pt-BR') : '—';
+  const fmtDate = (d?: string) => formatDateSafeBR(d);
   const fmtCurrency = (v: number) => v?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00';
 
   return (

@@ -7,6 +7,8 @@ import Client from '@/models/Client';
 import Plan from '@/models/Plan';
 import { createAsaasCustomer, updateAsaasCustomer, createAsaasPayment, createAsaasSubscription, getAsaasPixQrCode } from '@/utils/asaas';
 import { generateContractPDFBase64 } from '@/utils/serverPdfGenerator';
+import { generateContractTemplate } from '@/utils/contractTemplate';
+import { formatDateSafeBR } from '@/utils/dateFormatter';
 
 import { syncContractStatus } from '@/app/api/clicksign/route';
 
@@ -642,6 +644,44 @@ export async function POST(request: Request) {
 
     // 4. Criar o Contrato
     const calcCreditos = creditosTotal !== undefined ? Number(creditosTotal) : (typeof frequencia === 'number' ? (frequencia * 4 + 1) : (plan.creditosTotal || 0));
+
+    let finalContratoTexto = contratoTexto || '';
+    if (!finalContratoTexto) {
+      const pes = client.dadosPessoais || {};
+      finalContratoTexto = generateContractTemplate({
+        clientNome: signerNome || pes.nome || '',
+        clientCpf: signerCpf || pes.cpf || '',
+        clientEmail: signerEmail || pes.email,
+        clientTelefone: signerTelefone || pes.telefone,
+        clientEndereco: pes.endereco,
+        clientNumero: pes.numero,
+        clientComplemento: pes.complemento,
+        clientBairro: pes.bairro,
+        clientCidade: pes.cidade,
+        clientEstado: pes.estado,
+        clientCep: pes.cep,
+        planNome: plan.nome,
+        planPreco: valorBruto,
+        valorUnitario: valorBruto,
+        valorLiquido,
+        planTipo: plan.tipo,
+        descontoTipo: descontoTipo || 'percentual',
+        descontoValor: descVal,
+        parcelas: numParcelas,
+        formaPagamento,
+        dataInicio,
+        dataVencimento: dataPrimeiroVencimento || dataInicio,
+        observacoesContratuais,
+        unidadeContratada: unidadeContratada || plan.unidadeAtendimento || 'Clube Fitness',
+        creditosMensais: calcCreditos,
+        duracao: isAnual ? 'anual' : 'mensal',
+        vigenciaQtd: isAnual ? 1 : vigenciaMeses,
+        isMinor: !!body.isMinor,
+        beneficiarioNome: body.isMinor ? pes.nome : undefined,
+        beneficiarioCpf: body.isMinor ? pes.cpf : undefined
+      });
+    }
+
     const newContract = await Contract.create({
       clicksignDocKey,
       clicksignSignerKey,
@@ -681,7 +721,7 @@ export async function POST(request: Request) {
       versao,
       assinaturaNome: status === 'assinado' ? (assinaturaNome || client.dadosPessoais.nome) : '',
       assinaturaData: status === 'assinado' ? new Date() : undefined,
-      contratoTexto: contratoTexto || '',
+      contratoTexto: finalContratoTexto,
       contratoAnexo: contratoAnexo || '',
       usuarioEmissor: usuarioEmissor || ''
     });
@@ -976,6 +1016,34 @@ export async function PUT(request: Request) {
       client.dadosComerciais.status = 'suspenso';
       await client.save();
 
+      }
+
+    if (!action || action === 'update') {
+      const {
+        planoId,
+        planoNome,
+        valorBruto,
+        valorLiquido,
+        parcelas,
+        formaPagamento,
+        dataInicio,
+        dataFim,
+        dataPrimeiroVencimento,
+        contratoTexto: newContratoTexto
+      } = body;
+
+      if (planoId) contract.planoId = planoId;
+      if (planoNome) contract.planoNome = planoNome;
+      if (valorBruto !== undefined) contract.valorBruto = Number(valorBruto);
+      if (valorLiquido !== undefined) contract.valorLiquido = Number(valorLiquido);
+      if (parcelas !== undefined) contract.parcelas = Number(parcelas);
+      if (formaPagamento) contract.formaPagamento = formaPagamento;
+      if (dataInicio) contract.dataInicio = dataInicio;
+      if (dataFim) contract.dataFim = dataFim;
+      if (dataPrimeiroVencimento) contract.dataPrimeiroVencimento = dataPrimeiroVencimento;
+      if (newContratoTexto) contract.contratoTexto = newContratoTexto;
+
+      await contract.save();
       return NextResponse.json({ success: true, data: contract });
     }
 

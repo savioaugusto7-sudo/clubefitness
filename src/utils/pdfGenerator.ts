@@ -2,15 +2,13 @@
 import { generateContractTemplate as getUnifiedTemplate } from '@/utils/contractTemplate';
 import { calculateGoniometryAlerts, calculateStrengthTestAlerts } from '@/utils/biomechanicsEngine';
 import { getStrengthAtlasKey, getDynamicStrengthAtlasBase64, renderStrengthAtlasFooterHtml, extractActiveJoints } from '@/utils/strengthAtlas';
+import { formatDateSafeBR } from '@/utils/dateFormatter';
 
 declare const Chart: any;
 declare const PDFLib: any;
 
 function formatDate(dateString: string): string {
-  if (!dateString) return '-';
-  const parts = dateString.split('-');
-  if (parts.length !== 3) return dateString;
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return formatDateSafeBR(dateString);
 }
 
 function safeRemoveWrapper(pdfWrapper: HTMLElement) {
@@ -4957,7 +4955,7 @@ export function downloadContractPDF(client: any, plan: any, templateOverride?: a
     `;
   }
 
-  const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
+  const fmtDate = (d: any) => formatDateSafeBR(d);
   const com = client.dadosComerciais || {};
   const pes = client.dadosPessoais || {};
   
@@ -5245,7 +5243,7 @@ export function getContractPDFBase64(client: any, plan: any, templateOverride?: 
       `;
     }
 
-    const fmtDate = (d: string) => { if (!d) return '-'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
+    const fmtDate = (d: any) => formatDateSafeBR(d);
     const com = client.dadosComerciais || {};
     const pes = client.dadosPessoais || {};
     

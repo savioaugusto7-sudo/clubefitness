@@ -1,4 +1,5 @@
 import { calculateContractEndDate } from './contractValidity';
+import { formatDateSafeBR } from './dateFormatter';
 
 function valorExtenso(valor: number): string {
   const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
@@ -70,17 +71,8 @@ function diaExtenso(n: number): string {
   return nomes[n] || n.toString();
 }
 
-function fmtDate(dStr: any) {
-  if (!dStr) return '-';
-  try {
-    const d = new Date(dStr);
-    if (isNaN(d.getTime())) {
-      return dStr;
-    }
-    return d.toLocaleDateString('pt-BR');
-  } catch (e) {
-    return dStr;
-  }
+function fmtDate(dStr: any): string {
+  return formatDateSafeBR(dStr);
 }
 
 function creditosExtenso(n: number): string {
@@ -253,12 +245,15 @@ export function generateContractTemplate(data: ContractData): string {
   const dateVenc = data.dataVencimento || todayStr;
   const diaVenc = dateVenc.split('-')[2] ? parseInt(dateVenc.split('-')[2], 10) : 5;
 
-  const formaPag = ({
-    pix: 'Boleto / Pix',
-    boleto: 'Boleto / Pix',
-    cartao: 'Cartão de Crédito',
-    dinheiro: 'Dinheiro'
-  } as any)[(data.formaPagamento || '').toLowerCase()] || data.formaPagamento || 'Boleto / Pix';
+  const formaPag = (() => {
+    const fp = (data.formaPagamento || '').toLowerCase();
+    if (fp.includes('cart') || fp.includes('crédito') || fp.includes('credito')) return 'Cartão de Crédito';
+    if (fp === 'pix') return 'Pix';
+    if (fp === 'boleto') return 'Boleto Bancário';
+    if (fp.includes('boleto') || fp.includes('pix')) return 'Boleto / Pix';
+    if (fp === 'dinheiro') return 'Dinheiro';
+    return data.formaPagamento || 'Boleto / Pix';
+  })();
 
   // Address
   const addressParts = [
