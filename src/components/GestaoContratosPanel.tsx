@@ -1766,8 +1766,8 @@ export default function GestaoContratosPanel({
 
     setMsSubmitting(true);
     try {
-      const plan = plans.find(p => p._id === msPlano);
-      const isAnual = msDuracao === 'anual';
+      const plan = plans.find((p: any) => p._id === msPlano);
+      const isAnual = (msDuracao as string) === 'anual' || ((plan as any)?.nome || '').toLowerCase().includes('anual');
       const grossPrice = Number(msValorUnitario || 0) * (msDuracao === 'mensal' ? Number(msVigenciaQtd || 1) : 1);
       let discountDeduction = 0;
       if (msDescontoTipo === 'percentual') {
@@ -1779,7 +1779,9 @@ export default function GestaoContratosPanel({
       const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
 
       const numParcelas = Number(msParcelas) || 1;
-      const cardRate = msFormaPagamento === 'cartao' ? getCardRateForInstallment(numParcelas) : 0;
+      const cardRate = msFormaPagamento === 'cartao' 
+        ? (isAnual && numParcelas === 12 ? 0.05 : getCardRateForInstallment(numParcelas)) 
+        : 0;
       const finalPrice = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + cardRate)).toFixed(2)) : calculatedValorLiquido;
 
       const dataFimCalculada = calculateContractEndDate(msDataInicio, msDuracao, msVigenciaQtd, undefined, msCriarRecorrencia);
@@ -5188,7 +5190,10 @@ export default function GestaoContratosPanel({
                     setDcVencimento(activeProposal.dataVencimentoEscolhida);
                   }
                   if (activeProposal.formaPagamentoEscolhida === 'cartao') {
-                    const rate = getCardRateForInstallment(activeProposal.parcelasEscolhidas || 1);
+                    const isAnualProp = activeProposal.duracao === 'anual' || (activeProposal.planoNome || '').toLowerCase().includes('anual');
+                    const rate = isAnualProp && activeProposal.parcelasEscolhidas === 12 
+                      ? 0.05 
+                      : getCardRateForInstallment(activeProposal.parcelasEscolhidas || 1);
                     setDcValorUnitario(activeProposal.valorFinalRecalculado || Number((activeProposal.valorUnitario * (1 + rate)).toFixed(2)));
                   } else {
                     setDcValorUnitario(activeProposal.valorFinalRecalculado || activeProposal.valorUnitario);
@@ -7532,9 +7537,12 @@ export default function GestaoContratosPanel({
           discountDeduction = Number(msDescontoValor) || 0;
         }
         const calculatedValorLiquido = Math.max(0, grossPrice - discountDeduction);
-
+        const selectedPlan = plans.find((p: any) => p._id === msPlano);
         const numParcelas = Number(msParcelas) || 1;
-        const cardRate = msFormaPagamento === 'cartao' ? getCardRateForInstallment(numParcelas) : 0;
+        const isAnualSale = (msDuracao as string) === 'anual' || ((selectedPlan as any)?.nome || '').toLowerCase().includes('anual');
+        const cardRate = msFormaPagamento === 'cartao' 
+          ? (isAnualSale && numParcelas === 12 ? 0.05 : getCardRateForInstallment(numParcelas)) 
+          : 0;
         const finalPrice = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + cardRate)).toFixed(2)) : calculatedValorLiquido;
         const valorParcela = Number((finalPrice / numParcelas).toFixed(2));
 
@@ -8084,7 +8092,9 @@ export default function GestaoContratosPanel({
                         onChange={e => setMsParcelas(Number(e.target.value))}
                       >
                         {Array.from({ length: msFormaPagamento === 'cartao' ? 12 : 10 }, (_, i) => i + 1).map(num => {
-                          const rate = msFormaPagamento === 'cartao' ? getCardRateForInstallment(num) : 0;
+                          const rate = msFormaPagamento === 'cartao' 
+                            ? (isAnualSale && num === 12 ? 0.05 : getCardRateForInstallment(num)) 
+                            : 0;
                           const total = msFormaPagamento === 'cartao' ? Number((calculatedValorLiquido * (1 + rate)).toFixed(2)) : calculatedValorLiquido;
                           const instVal = Number((total / num).toFixed(2));
                           return (

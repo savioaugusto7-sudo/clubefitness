@@ -274,7 +274,9 @@ export default function VendaPage({ params }: { params: any }) {
     ? (formaPagamento === 'cartao' ? 12 : 10)
     : Math.max(1, Math.min(parcelas, maxInstallments));
 
-  const cardRate = formaPagamento === 'cartao' ? getCardRateForInstallment(currentInstallments) : 0;
+  const cardRate = formaPagamento === 'cartao' 
+    ? (isAnual ? 0.05 : getCardRateForInstallment(currentInstallments)) 
+    : 0;
   const finalPrice = formaPagamento === 'cartao' ? Number((basePrice * (1 + cardRate)).toFixed(2)) : basePrice;
   const valorParcelaAtual = Number((finalPrice / currentInstallments).toFixed(2));
 
@@ -282,7 +284,7 @@ export default function VendaPage({ params }: { params: any }) {
   const valorParcelaMaxBoleto = Number((basePrice / maxInstallmentsBoleto).toFixed(2));
   const valorMensalEquivalenteAnual = isAnual ? Number((basePrice / 12).toFixed(2)) : null;
 
-  const cardRateMax = getCardRateForInstallment(maxInstallmentsCartao);
+  const cardRateMax = isAnual ? 0.05 : getCardRateForInstallment(maxInstallmentsCartao);
   const finalPriceMaxCartao = Number((basePrice * (1 + cardRateMax)).toFixed(2));
   const valorParcelaMaxCartao = Number((finalPriceMaxCartao / maxInstallmentsCartao).toFixed(2));
 
@@ -955,31 +957,50 @@ export default function VendaPage({ params }: { params: any }) {
             {/* Installments & Due Date */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '20px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  Selecione o Número de Parcelas
-                </label>
-                <select 
-                  className="form-control" 
-                  value={currentInstallments} 
-                  onChange={(e) => setParcelas(Number(e.target.value))} 
-                  disabled={isAnual || availableInstallments.length <= 1}
-                  style={{ width: '100%', background: isAnual ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '0.95rem', cursor: isAnual ? 'default' : 'pointer' }}
-                >
-                  {availableInstallments.map((num) => {
-                    const rate = formaPagamento === 'cartao' ? getCardRateForInstallment(num) : 0;
-                    const total = formaPagamento === 'cartao' ? Number((basePrice * (1 + rate)).toFixed(2)) : basePrice;
-                    const instVal = Number((total / num).toFixed(2));
-                    return (
-                      <option key={num} value={num} style={{ background: '#1e293b', color: '#fff' }}>
-                        {num}x de R$ {instVal.toFixed(2).replace('.', ',')} (Total: R$ {total.toFixed(2).replace('.', ',')})
-                      </option>
-                    );
-                  })}
-                </select>
-                {isAnual && (
-                  <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-solid fa-circle-info"></i>
-                    <span>Condição exclusiva do plano anual: <strong>{formaPagamento === 'cartao' ? '12x no cartão de crédito' : '10x no boleto bancário / Pix'}</strong>.</span>
+                {!isAnual ? (
+                  <>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
+                      Selecione o Número de Parcelas
+                    </label>
+                    <select 
+                      className="form-control" 
+                      value={currentInstallments} 
+                      onChange={(e) => setParcelas(Number(e.target.value))} 
+                      disabled={availableInstallments.length <= 1}
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '0.95rem', cursor: 'pointer' }}
+                    >
+                      {availableInstallments.map((num) => {
+                        const rate = formaPagamento === 'cartao' ? getCardRateForInstallment(num) : 0;
+                        const total = formaPagamento === 'cartao' ? Number((basePrice * (1 + rate)).toFixed(2)) : basePrice;
+                        const instVal = Number((total / num).toFixed(2));
+                        return (
+                          <option key={num} value={num} style={{ background: '#1e293b', color: '#fff' }}>
+                            {num}x de R$ {instVal.toFixed(2).replace('.', ',')} (Total: R$ {total.toFixed(2).replace('.', ',')})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </>
+                ) : (
+                  <div style={{ padding: '12px 16px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <i className="fa-solid fa-circle-check" style={{ color: '#38bdf8', fontSize: '1.2rem' }}></i>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.92rem' }}>
+                          Condição Exclusiva do Plano Anual
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                          {formaPagamento === 'cartao' 
+                            ? '12x no cartão de crédito com taxa especial de 5%' 
+                            : '10x no boleto bancário / Pix sem juros'}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <strong style={{ fontSize: '1.1rem', color: formaPagamento === 'cartao' ? '#60a5fa' : 'var(--color-primary)' }}>
+                        {currentInstallments}x de R$ {valorParcelaAtual.toFixed(2).replace('.', ',')}
+                      </strong>
+                    </div>
                   </div>
                 )}
               </div>

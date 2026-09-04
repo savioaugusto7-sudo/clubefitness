@@ -461,59 +461,76 @@ export default function RenovacaoPage({ params }: { params: any }) {
               </div>
 
               {/* Opções de Parcelamento */}
-              {maxInstallments > 1 || isAnual ? (
-                <div style={{ marginTop: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                    {formaPagamento === 'cartao' ? 'Número de Parcelas no Cartão:' : 'Número de Parcelas no Boleto / Pix:'}
-                  </label>
-                  <select 
-                    className="form-control" 
-                    value={currentInstallments} 
-                    onChange={e => setParcelas(Number(e.target.value))}
-                    disabled={isAnual || availableInstallments.length <= 1}
-                    style={{ padding: '10px 12px', background: isAnual ? 'rgba(255,255,255,0.06)' : 'var(--bg-darker)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: isAnual ? 'default' : 'pointer' }}
-                  >
-                    {availableInstallments.map(num => {
-                      const parcVal = (currentTotal / num).toFixed(2).replace('.', ',');
-                      return (
-                        <option key={num} value={num}>
-                          {num === 1 
-                            ? `1x de R$ ${currentTotal.toFixed(2).replace('.', ',')} (à vista)` 
-                            : `${num}x de R$ ${parcVal}/mês`}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {isAnual && (
-                    <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-circle-info"></i>
-                      <span>Condição exclusiva do plano anual: <strong>{formaPagamento === 'cartao' ? '12x no cartão de crédito' : '10x no boleto bancário / Pix'}</strong>.</span>
-                    </div>
-                  )}
-                  {/* Destaque no plano anual: Valor referente ao mês de acesso (espelhado da página de vendas) */}
-                  {isAnual && formaPagamento === 'boleto' && valorMensalEquivalenteAnual !== null && (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '10px 14px',
-                      background: 'rgba(234, 179, 8, 0.12)',
-                      border: '1px solid rgba(234, 179, 8, 0.35)',
-                      borderRadius: '8px',
-                      fontSize: '0.84rem',
-                      color: '#fde047',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <i className="fa-solid fa-fire" style={{ color: '#eab308' }}></i>
-                      <span>
-                        Equivalente a <strong style={{ color: '#fff' }}>R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês</strong> nos 12 meses de acesso
-                      </span>
-                    </div>
-                  )}
-                </div>
+              {!isAnual ? (
+                maxInstallments > 1 ? (
+                  <div style={{ marginTop: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                      {formaPagamento === 'cartao' ? 'Número de Parcelas no Cartão:' : 'Número de Parcelas no Boleto / Pix:'}
+                    </label>
+                    <select 
+                      className="form-control" 
+                      value={currentInstallments} 
+                      onChange={e => setParcelas(Number(e.target.value))}
+                      disabled={availableInstallments.length <= 1}
+                      style={{ padding: '10px 12px', background: 'var(--bg-darker)', color: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer' }}
+                    >
+                      {availableInstallments.map(num => {
+                        const parcVal = (currentTotal / num).toFixed(2).replace('.', ',');
+                        return (
+                          <option key={num} value={num}>
+                            {num === 1 
+                              ? `1x de R$ ${currentTotal.toFixed(2).replace('.', ',')} (à vista)` 
+                              : `${num}x de R$ ${parcVal}/mês`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                ) : (
+                  <div style={{ padding: '10px 12px', background: 'var(--bg-darker)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '14px' }}>
+                    ✅ <strong>Pagamento à vista:</strong> Quitação única no valor de <strong>R$ {currentTotal.toFixed(2).replace('.', ',')}</strong>.
+                  </div>
+                )
               ) : (
-                <div style={{ padding: '10px 12px', background: 'var(--bg-darker)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  ✅ <strong>Pagamento via PIX:</strong> Quitação única à vista no valor de <strong>R$ {currentTotal.toFixed(2).replace('.', ',')}</strong>.
+                <div style={{ marginTop: '14px', padding: '12px 16px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <i className="fa-solid fa-circle-check" style={{ color: '#38bdf8', fontSize: '1.2rem' }}></i>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.92rem' }}>
+                        Condição Exclusiva do Plano Anual
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                        {formaPagamento === 'cartao' 
+                          ? '12x no cartão de crédito com taxa especial de 5%' 
+                          : '10x no boleto bancário / Pix sem juros'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <strong style={{ fontSize: '1.1rem', color: formaPagamento === 'cartao' ? '#60a5fa' : 'var(--color-primary)' }}>
+                      {currentInstallments}x de R$ {installmentValue.toFixed(2).replace('.', ',')}
+                    </strong>
+                  </div>
+                </div>
+              )}
+              {/* Destaque no plano anual: Valor referente ao mês de acesso (espelhado da página de vendas) */}
+              {isAnual && formaPagamento === 'boleto' && valorMensalEquivalenteAnual !== null && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px 14px',
+                  background: 'rgba(234, 179, 8, 0.12)',
+                  border: '1px solid rgba(234, 179, 8, 0.35)',
+                  borderRadius: '8px',
+                  fontSize: '0.84rem',
+                  color: '#fde047',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <i className="fa-solid fa-fire" style={{ color: '#eab308' }}></i>
+                  <span>
+                    Equivalente a <strong style={{ color: '#fff' }}>R$ {valorMensalEquivalenteAnual.toFixed(2).replace('.', ',')}/mês</strong> nos 12 meses de acesso
+                  </span>
                 </div>
               )}
             </div>
