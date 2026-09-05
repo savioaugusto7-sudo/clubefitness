@@ -12453,320 +12453,685 @@ goniometria: {
                           Intensidade: {repPain}/10
                         </div>
                       </div>
-                    ) : (
-                      <>
-                        <h4 style={{ margin: '16px 0 8px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-                          <i className="fa-solid fa-comments" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
-                          Anamnese e Queixas (Múltiplas)
-                        </h4>
-                        
-                        {repQueixas.map((q, idx) => (
-                          <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '12px', position: 'relative' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                              <strong style={{ color: 'var(--color-primary)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
-                                {idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
-                              </strong>
-                              {idx > 0 && (
-                                <button type="button" className="btn btn-danger btn-sm" onClick={() => removeQueixa(idx)} style={{ padding: '3px 8px', fontSize: '0.75rem' }}>
-                                  <i className="fa-solid fa-trash" style={{ marginRight: '4px' }}></i> Remover
-                                </button>
-                              )}
-                            </div>
-                            
-                            <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Onde é a dor?</label>
-                                <input type="text" className="form-control form-control-sm" value={q.dorOnde} onChange={e => updateQueixa(idx, 'dorOnde', e.target.value)} placeholder="Ex: Joelho lateral esquerdo..." required />
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Quando começou a sentir?</label>
-                                <input type="text" className="form-control form-control-sm" value={q.quandoComecou} onChange={e => updateQueixa(idx, 'quandoComecou', e.target.value)} placeholder="Ex: Há 3 semanas..." />
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Como iniciou?</label>
-                                <input type="text" className="form-control form-control-sm" value={q.comoIniciou} onChange={e => updateQueixa(idx, 'comoIniciou', e.target.value)} placeholder="Ex: Durante agachamento..." />
-                              </div>
-                            </div>
+                    ) : (() => {
+                      const prevDoc = repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
+                      const prevQueixas = prevDoc?.anamnese?.queixas || (prevDoc?.conteudo?.queixaPrincipal ? [{ dorOnde: prevDoc.conteudo.queixaPrincipal, dorIntensidade: prevDoc.conteudo.dorEscala }] : []);
+                      const hasPrevQueixas = prevQueixas.length > 0;
 
-                            <div className="resp-grid-1-1" style={{ marginBottom: '10px' }}>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Evolução da Dor</label>
-                                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'estavel'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'estavel')} /> Sente a mesma dor</label>
-                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'aumentando'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'aumentando')} /> Foi aumentando</label>
-                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'diminuindo'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'diminuindo')} /> Foi diminuindo</label>
-                                </div>
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Intensidade da Dor (EVA: <strong>{q.dorIntensidade}</strong>/10)</label>
-                                <input type="range" className="form-control" min="0" max="10" value={q.dorIntensidade} onChange={e => updateQueixa(idx, 'dorIntensidade', Number(e.target.value))} style={{ accentColor: 'var(--color-danger)' }} />
-                              </div>
-                            </div>
-
-                            <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Sente essa dor a todo momento?</label>
-                                <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
-                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'sim'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'sim')} /> Sim</label>
-                                  <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'nao'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'nao')} /> Não</label>
-                                </div>
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>O que piora?</label>
-                                <input type="text" className="form-control form-control-sm" value={q.desencadeiaPiora || ''} onChange={e => updateQueixa(idx, 'desencadeiaPiora', e.target.value)} placeholder="Ex: Ficar de pé prolongado..." />
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>O que melhora?</label>
-                                <input type="text" className="form-control form-control-sm" value={q.melhoraDesaparece || ''} onChange={e => updateQueixa(idx, 'melhoraDesaparece', e.target.value)} placeholder="Ex: Repouso..." />
-                              </div>
-                            </div>
-
-                            <div className="resp-grid-1-2">
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Característica da Dor</label>
-                                <select className="form-control form-control-sm" value={q.caracteristicaDor || 'Pontual / Aguda'} onChange={e => updateQueixa(idx, 'caracteristicaDor', e.target.value)}>
-                                  <option value="Queimação">Queimação</option>
-                                  <option value="Elétrica / Choque">Elétrica / Choque</option>
-                                  <option value="Pontual / Aguda">Pontual / Aguda</option>
-                                  <option value="Difusa / Surda">Difusa / Surda</option>
-                                  <option value="Latejante">Latejante</option>
-                                  <option value="Outra">Outra</option>
-                                </select>
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.75rem' }}>Origem Estimada da Dor</label>
-                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}>
-                                  {['Discal', 'Ligamentar', 'Muscular', 'Nervoso', 'Facetário', 'Visceral'].map(orig => {
-                                    const hasOrig = (q.origens || []).includes(orig);
-                                    return (
-                                      <label key={orig} style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={hasOrig}
-                                          onChange={e => {
-                                            const current = q.origens || [];
-                                            const updated = e.target.checked
-                                              ? [...current, orig]
-                                              : current.filter((o: string) => o !== orig);
-                                            updateQueixa(idx, 'origens', updated);
-                                          }}
-                                        />
-                                        {orig}
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
+                      return (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '16px 0 8px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', flexWrap: 'wrap', gap: '10px' }}>
+                            <h4 style={{ margin: 0 }}>
+                              <i className="fa-solid fa-comments" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i>
+                              Anamnese e Queixas (Múltiplas)
+                            </h4>
+                            {hasPrevQueixas && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => {
+                                  const imported = prevQueixas.map((pq: any) => ({
+                                    dorOnde: pq.dorOnde || '',
+                                    quandoComecou: pq.quandoComecou || '',
+                                    comoIniciou: pq.comoIniciou || '',
+                                    dorEvolucao: pq.dorEvolucao || 'estavel',
+                                    dorIntensidade: pq.dorIntensidade !== undefined ? Number(pq.dorIntensidade) : 5,
+                                    dorTodoMomento: pq.dorTodoMomento || 'sim',
+                                    desencadeiaPiora: pq.desencadeiaPiora || '',
+                                    melhoraDesaparece: pq.melhoraDesaparece || '',
+                                    caracteristicaDor: pq.caracteristicaDor || 'Pontual / Aguda',
+                                    origens: pq.origens || []
+                                  }));
+                                  setRepQueixas(imported);
+                                }}
+                                style={{
+                                  background: 'rgba(56, 189, 248, 0.12)',
+                                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                                  color: '#38bdf8',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  padding: '5px 12px',
+                                  borderRadius: '8px'
+                                }}
+                              >
+                                <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                                Importar Todas as Queixas Anteriores
+                              </button>
+                            )}
                           </div>
-                        ))}
-                        
-                        <div style={{ textAlign: 'right' }}>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={addQueixa}>
-                            <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Adicionar Outra Queixa
-                          </button>
-                        </div>
-                      </>
-                    )}
+                          
+                          {repQueixas.map((q, idx) => {
+                            const prevQ = prevQueixas[idx];
+
+                            return (
+                              <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '8px', marginBottom: '12px', position: 'relative' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <strong style={{ color: 'var(--color-primary)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                                      {idx === 0 ? 'Queixa Principal' : `Queixa Secundária #${idx}`}
+                                    </strong>
+                                    {prevQ && (
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => {
+                                          if (prevQ.dorOnde !== undefined) updateQueixa(idx, 'dorOnde', prevQ.dorOnde);
+                                          if (prevQ.quandoComecou !== undefined) updateQueixa(idx, 'quandoComecou', prevQ.quandoComecou);
+                                          if (prevQ.comoIniciou !== undefined) updateQueixa(idx, 'comoIniciou', prevQ.comoIniciou);
+                                          if (prevQ.dorEvolucao !== undefined) updateQueixa(idx, 'dorEvolucao', prevQ.dorEvolucao);
+                                          if (prevQ.dorIntensidade !== undefined) updateQueixa(idx, 'dorIntensidade', Number(prevQ.dorIntensidade));
+                                          if (prevQ.dorTodoMomento !== undefined) updateQueixa(idx, 'dorTodoMomento', prevQ.dorTodoMomento);
+                                          if (prevQ.desencadeiaPiora !== undefined) updateQueixa(idx, 'desencadeiaPiora', prevQ.desencadeiaPiora);
+                                          if (prevQ.melhoraDesaparece !== undefined) updateQueixa(idx, 'melhoraDesaparece', prevQ.melhoraDesaparece);
+                                          if (prevQ.caracteristicaDor !== undefined) updateQueixa(idx, 'caracteristicaDor', prevQ.caracteristicaDor);
+                                          if (prevQ.origens !== undefined) updateQueixa(idx, 'origens', prevQ.origens);
+                                        }}
+                                        style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                      >
+                                        <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter Esta Queixa
+                                      </button>
+                                    )}
+                                  </div>
+                                  {idx > 0 && (
+                                    <button type="button" className="btn btn-danger btn-sm" onClick={() => removeQueixa(idx)} style={{ padding: '3px 8px', fontSize: '0.75rem' }}>
+                                      <i className="fa-solid fa-trash" style={{ marginRight: '4px' }}></i> Remover
+                                    </button>
+                                  )}
+                                </div>
+                                
+                                <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Onde é a dor?</label>
+                                    <input type="text" className="form-control form-control-sm" value={q.dorOnde} onChange={e => updateQueixa(idx, 'dorOnde', e.target.value)} placeholder="Ex: Joelho lateral esquerdo..." required />
+                                    <ComparisonPill
+                                      prevValue={prevQ?.dorOnde}
+                                      currValue={q.dorOnde}
+                                      onKeepValue={() => {
+                                        if (prevQ?.dorOnde) updateQueixa(idx, 'dorOnde', prevQ.dorOnde);
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Quando começou a sentir?</label>
+                                    <input type="text" className="form-control form-control-sm" value={q.quandoComecou} onChange={e => updateQueixa(idx, 'quandoComecou', e.target.value)} placeholder="Ex: Há 3 semanas..." />
+                                    <ComparisonPill
+                                      prevValue={prevQ?.quandoComecou}
+                                      currValue={q.quandoComecou}
+                                      onKeepValue={() => {
+                                        if (prevQ?.quandoComecou) updateQueixa(idx, 'quandoComecou', prevQ.quandoComecou);
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Como iniciou?</label>
+                                    <input type="text" className="form-control form-control-sm" value={q.comoIniciou} onChange={e => updateQueixa(idx, 'comoIniciou', e.target.value)} placeholder="Ex: Durante agachamento..." />
+                                    <ComparisonPill
+                                      prevValue={prevQ?.comoIniciou}
+                                      currValue={q.comoIniciou}
+                                      onKeepValue={() => {
+                                        if (prevQ?.comoIniciou) updateQueixa(idx, 'comoIniciou', prevQ.comoIniciou);
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="resp-grid-1-1" style={{ marginBottom: '10px' }}>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Evolução da Dor</label>
+                                    <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'estavel'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'estavel')} /> Sente a mesma dor</label>
+                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'aumentando'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'aumentando')} /> Foi aumentando</label>
+                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorEvolucao === 'diminuindo'} onChange={() => updateQueixa(idx, 'dorEvolucao', 'diminuindo')} /> Foi diminuindo</label>
+                                    </div>
+                                    <ComparisonPill
+                                      prevValue={prevQ?.dorEvolucao ? (prevQ.dorEvolucao === 'estavel' ? 'Sente a mesma dor' : prevQ.dorEvolucao === 'aumentando' ? 'Foi aumentando' : 'Foi diminuindo') : undefined}
+                                      currValue={q.dorEvolucao === 'estavel' ? 'Sente a mesma dor' : q.dorEvolucao === 'aumentando' ? 'Foi aumentando' : 'Foi diminuindo'}
+                                      onKeepValue={() => {
+                                        if (prevQ?.dorEvolucao) updateQueixa(idx, 'dorEvolucao', prevQ.dorEvolucao);
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Intensidade da Dor (EVA: <strong>{q.dorIntensidade}</strong>/10)</label>
+                                    <input type="range" className="form-control" min="0" max="10" value={q.dorIntensidade} onChange={e => updateQueixa(idx, 'dorIntensidade', Number(e.target.value))} style={{ accentColor: 'var(--color-danger)' }} />
+                                    <ComparisonPill
+                                      prevValue={prevQ?.dorIntensidade}
+                                      currValue={q.dorIntensidade}
+                                      unit="/10"
+                                      isLowerBetter={true}
+                                      onKeepValue={() => {
+                                        if (prevQ?.dorIntensidade !== undefined) updateQueixa(idx, 'dorIntensidade', Number(prevQ.dorIntensidade));
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="resp-grid-1-1-1" style={{ marginBottom: '10px' }}>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Sente essa dor a todo momento?</label>
+                                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'sim'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'sim')} /> Sim</label>
+                                      <label style={{ fontSize: '0.8rem', cursor: 'pointer' }}><input type="radio" checked={q.dorTodoMomento === 'nao'} onChange={() => updateQueixa(idx, 'dorTodoMomento', 'nao')} /> Não</label>
+                                    </div>
+                                    <ComparisonPill
+                                      prevValue={prevQ?.dorTodoMomento ? (prevQ.dorTodoMomento === 'sim' ? 'Sim' : 'Não') : undefined}
+                                      currValue={q.dorTodoMomento === 'sim' ? 'Sim' : 'Não'}
+                                      onKeepValue={() => {
+                                        if (prevQ?.dorTodoMomento) updateQueixa(idx, 'dorTodoMomento', prevQ.dorTodoMomento);
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>O que piora?</label>
+                                    <input type="text" className="form-control form-control-sm" value={q.desencadeiaPiora || ''} onChange={e => updateQueixa(idx, 'desencadeiaPiora', e.target.value)} placeholder="Ex: Ficar de pé prolongado..." />
+                                    <ComparisonPill
+                                      prevValue={prevQ?.desencadeiaPiora}
+                                      currValue={q.desencadeiaPiora}
+                                      onKeepValue={() => {
+                                        if (prevQ?.desencadeiaPiora) updateQueixa(idx, 'desencadeiaPiora', prevQ.desencadeiaPiora);
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>O que melhora?</label>
+                                    <input type="text" className="form-control form-control-sm" value={q.melhoraDesaparece || ''} onChange={e => updateQueixa(idx, 'melhoraDesaparece', e.target.value)} placeholder="Ex: Repouso..." />
+                                    <ComparisonPill
+                                      prevValue={prevQ?.melhoraDesaparece}
+                                      currValue={q.melhoraDesaparece}
+                                      onKeepValue={() => {
+                                        if (prevQ?.melhoraDesaparece) updateQueixa(idx, 'melhoraDesaparece', prevQ.melhoraDesaparece);
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="resp-grid-1-2">
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Característica da Dor</label>
+                                    <select className="form-control form-control-sm" value={q.caracteristicaDor || 'Pontual / Aguda'} onChange={e => updateQueixa(idx, 'caracteristicaDor', e.target.value)}>
+                                      <option value="Queimação">Queimação</option>
+                                      <option value="Elétrica / Choque">Elétrica / Choque</option>
+                                      <option value="Pontual / Aguda">Pontual / Aguda</option>
+                                      <option value="Difusa / Surda">Difusa / Surda</option>
+                                      <option value="Latejante">Latejante</option>
+                                      <option value="Outra">Outra</option>
+                                    </select>
+                                    <ComparisonPill
+                                      prevValue={prevQ?.caracteristicaDor}
+                                      currValue={q.caracteristicaDor}
+                                      onKeepValue={() => {
+                                        if (prevQ?.caracteristicaDor) updateQueixa(idx, 'caracteristicaDor', prevQ.caracteristicaDor);
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="form-group">
+                                    <label style={{ fontSize: '0.75rem' }}>Origem Estimada da Dor</label>
+                                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                      {['Discal', 'Ligamentar', 'Muscular', 'Nervoso', 'Facetário', 'Visceral'].map(orig => {
+                                        const hasOrig = (q.origens || []).includes(orig);
+                                        return (
+                                          <label key={orig} style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={hasOrig}
+                                              onChange={e => {
+                                                const current = q.origens || [];
+                                                const updated = e.target.checked
+                                                  ? [...current, orig]
+                                                  : current.filter((o: string) => o !== orig);
+                                                updateQueixa(idx, 'origens', updated);
+                                              }}
+                                            />
+                                            {orig}
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                    <ComparisonPill
+                                      prevValue={prevQ?.origens?.length ? prevQ.origens.join(', ') : undefined}
+                                      currValue={q.origens?.length ? q.origens.join(', ') : undefined}
+                                      onKeepValue={() => {
+                                        if (prevQ?.origens) updateQueixa(idx, 'origens', prevQ.origens);
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          
+                          <div style={{ textAlign: 'right' }}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={addQueixa}>
+                              <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Adicionar Outra Queixa
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 
                 {/* PASSO 2: HISTÓRICO CLÍNICO E HÁBITOS DE VIDA */}
-                {repActiveStep === 2 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Histórico Clínico</h4>
-                    <div className="form-group">
-                      <label>Traumas Pregressos</label>
-                      <FastTextarea className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumas')} rows={2} value={repTraumas} onChange={val => { setRepTraumas(val); clearRepPrefill('anamnese.historico.traumas'); }} placeholder="Possíveis lesões primárias / urgências osteopáticas..." />
-                    </div>
+                {repActiveStep === 2 && (() => {
+                    const prevDoc = repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
+                    const prevHist = prevDoc?.anamnese?.historico || {};
+                    const prevHab = prevDoc?.anamnese?.habitos || {};
+                    const hasPrevHist = prevHist.traumas || prevHist.cirurgiasRealizou || prevHist.doencasPregressasAtuais || prevHist.traumasEmocionaisStress || prevHist.medicacao || prevHist.drogasRecreativas;
+                    const hasPrevHab = prevHab.sonoHoras !== undefined || prevHab.sonoTipo || prevHab.sonoQualidade || prevHab.alimentacaoDor || prevHab.atividadeFisicaFaz || prevHab.stressNivel !== undefined || prevHab.controleStress;
 
-                    <div className="form-row">
-                      <div className="form-group" style={{ flex: 1 }}>
-                        <label>Realizou cirurgias?</label>
-                        <select className="form-control" style={getRepPrefilledStyle('anamnese.historico.cirurgiasRealizou')} value={repCirurgiasRealizou} onChange={e => { setRepCirurgiasRealizou(e.target.value); clearRepPrefill('anamnese.historico.cirurgiasRealizou'); }}>
-                          <option value="nao">Não</option>
-                          <option value="sim">Sim</option>
-                        </select>
-                      </div>
-                      <div className="form-group" style={{ flex: 2 }}>
-                        <label>Doenças pregressas e atuais</label>
-                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.doencasPregressasAtuais')} value={repDoencas} onChange={e => { setRepDoencas(e.target.value); clearRepPrefill('anamnese.historico.doencasPregressasAtuais'); }} placeholder="Ex: Diabetes, labirintite, hipertensão..." />
-                      </div>
-                    </div>
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', flexWrap: 'wrap', gap: '10px' }}>
+                          <h4 style={{ margin: 0 }}>Histórico Clínico</h4>
+                          {hasPrevHist && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                if (prevHist.traumas !== undefined) { setRepTraumas(prevHist.traumas); clearRepPrefill('anamnese.historico.traumas'); }
+                                if (prevHist.cirurgiasRealizou !== undefined) { setRepCirurgiasRealizou(prevHist.cirurgiasRealizou); clearRepPrefill('anamnese.historico.cirurgiasRealizou'); }
+                                if (prevHist.doencasPregressasAtuais !== undefined) { setRepDoencas(prevHist.doencasPregressasAtuais); clearRepPrefill('anamnese.historico.doencasPregressasAtuais'); }
+                                if (prevHist.traumasEmocionaisStress !== undefined) { setRepTraumasEmo(prevHist.traumasEmocionaisStress); clearRepPrefill('anamnese.historico.traumasEmocionaisStress'); }
+                                if (prevHist.medicacao !== undefined) { setRepMedicao(prevHist.medicacao); clearRepPrefill('anamnese.historico.medicacao'); }
+                                if (prevHist.drogasRecreativas !== undefined) { setRepDrogas(prevHist.drogasRecreativas); clearRepPrefill('anamnese.historico.drogasRecreativas'); }
+                                if (prevHist.cirurgias && Array.isArray(prevHist.cirurgias)) { setRepCirurgiasList(prevHist.cirurgias); }
+                              }}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                color: '#38bdf8',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                borderRadius: '8px'
+                              }}
+                            >
+                              <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                              Manter Todo o Histórico Clínico Anterior
+                            </button>
+                          )}
+                        </div>
 
-                    {repCirurgiasRealizou === 'sim' && (
-                      <div style={{ border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '6px', marginBottom: '10px' }}>
-                        <strong style={{ fontSize: '0.8rem', display: 'block', marginBottom: '8px' }}>Detalhamento das Cirurgias</strong>
-                        {repCirurgiasList.map((c, sIdx) => (
-                          <div key={sIdx} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
-                            <input type="date" className="form-control form-control-sm" style={{ width: '130px', ...getRepPrefilledStyle('anamnese.historico.cirurgias') }} value={c.data} onChange={e => updateCirurgia(sIdx, 'data', e.target.value)} />
-                            <input type="text" className="form-control form-control-sm" style={getRepPrefilledStyle('anamnese.historico.cirurgias')} value={c.local} onChange={e => updateCirurgia(sIdx, 'local', e.target.value)} placeholder="Ex: Cirurgia no menisco joelho esquerdo..." />
-                            <button type="button" className="btn btn-danger btn-sm" onClick={() => removeCirurgia(sIdx)} style={{ height: '32px' }}><i className="fa-solid fa-trash"></i></button>
-                          </div>
-                        ))}
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={addCirurgia} style={{ marginTop: '4px' }}>
-                          <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Adicionar Cirurgia
-                        </button>
-                      </div>
-                    )}
+                        <div className="form-group">
+                          <label>Traumas Pregressos</label>
+                          <FastTextarea className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumas')} rows={2} value={repTraumas} onChange={val => { setRepTraumas(val); clearRepPrefill('anamnese.historico.traumas'); }} placeholder="Possíveis lesões primárias / urgências osteopáticas..." />
+                          <ComparisonPill
+                            prevValue={prevHist.traumas}
+                            currValue={repTraumas}
+                            onKeepValue={() => {
+                              if (prevHist.traumas !== undefined) {
+                                setRepTraumas(prevHist.traumas);
+                                clearRepPrefill('anamnese.historico.traumas');
+                              }
+                            }}
+                          />
+                        </div>
 
-                    <div className="resp-grid-1-1">
-                      <div className="form-group">
-                        <label>Traumas emocionais / Estresse crônico</label>
-                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumasEmocionaisStress')} value={repTraumasEmo} onChange={e => { setRepTraumasEmo(e.target.value); clearRepPrefill('anamnese.historico.traumasEmocionaisStress'); }} placeholder="Estresse severo, perdas, efeito sobre SNV..." />
-                      </div>
-                      <div className="form-group">
-                        <label>Medicação em uso</label>
-                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.medicacao')} value={repMedicao} onChange={e => { setRepMedicao(e.target.value); clearRepPrefill('anamnese.historico.medicacao'); }} placeholder="Remédios que alteram SNV, dor ou inflamação..." />
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Uso de drogas recreativas / álcool / tabaco</label>
-                      <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.drogasRecreativas')} value={repDrogas} onChange={e => { setRepDrogas(e.target.value); clearRepPrefill('anamnese.historico.drogasRecreativas'); }} placeholder="Frequência e substâncias..." />
-                    </div>
-
-                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px' }}>Hábitos de Vida & Estilo de Vida</h4>
-                    <div className="resp-grid-1-1-1">
-                      <div className="form-group">
-                        <label>Horas sono / noite</label>
-                        <input type="number" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoHoras')} min={0} max={24} value={repSonoHoras} onChange={e => { setRepSonoHoras(Number(e.target.value)); clearRepPrefill('anamnese.habitos.sonoHoras'); }} />
-                      </div>
-                      <div className="form-group">
-                        <label>Tipo de sono</label>
-                        <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoTipo')} value={repSonoTipo} onChange={e => { setRepSonoTipo(e.target.value); clearRepPrefill('anamnese.habitos.sonoTipo'); }}>
-                          <option value="continuo">Contínuo</option>
-                          <option value="acorda">Acorda à noite (intermitente)</option>
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label>Qualidade do Sono</label>
-                        <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoQualidade')} value={repSonoQualidade} onChange={e => { setRepSonoQualidade(e.target.value); clearRepPrefill('anamnese.habitos.sonoQualidade'); }}>
-                          <option value="Excelente">Excelente</option>
-                          <option value="Bom">Bom</option>
-                          <option value="Regular">Regular</option>
-                          <option value="Ruim">Ruim</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Alimentação (Influência sobre inflamação/dor)</label>
-                      <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.alimentacaoDor')} value={repAlimentacaoDor} onChange={e => { setRepAlimentacaoDor(e.target.value); clearRepPrefill('anamnese.habitos.alimentacaoDor'); }} placeholder="Hábitos, jejum, café, açúcar, queixas intestinais..." />
-                    </div>
-
-                    <div className="form-row">
-                      <div className="form-group" style={{ flex: 1 }}>
-                        <label>Faz atividade física?</label>
-                        <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaFaz')} value={repAtividadeFisica} onChange={e => { setRepAtividadeFisica(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaFaz'); }}>
-                          <option value="nao">Não</option>
-                          <option value="sim">Sim</option>
-                        </select>
-                      </div>
-                      {repAtividadeFisica === 'sim' && (
-                        <>
-                          <div className="form-group" style={{ flex: 2 }}>
-                            <label>Qual atividade e freq.?</label>
-                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaQual')} value={repAtividadeFisicaQual} onChange={e => { setRepAtividadeFisicaQual(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaQual'); }} placeholder="Ex: Musculação 3x/sem..." />
+                        <div className="form-row">
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label>Realizou cirurgias?</label>
+                            <select className="form-control" style={getRepPrefilledStyle('anamnese.historico.cirurgiasRealizou')} value={repCirurgiasRealizou} onChange={e => { setRepCirurgiasRealizou(e.target.value); clearRepPrefill('anamnese.historico.cirurgiasRealizou'); }}>
+                              <option value="nao">Não</option>
+                              <option value="sim">Sim</option>
+                            </select>
+                            <ComparisonPill
+                              prevValue={prevHist.cirurgiasRealizou ? (prevHist.cirurgiasRealizou === 'sim' ? 'Sim' : 'Não') : undefined}
+                              currValue={repCirurgiasRealizou === 'sim' ? 'Sim' : 'Não'}
+                              onKeepValue={() => {
+                                if (prevHist.cirurgiasRealizou !== undefined) {
+                                  setRepCirurgiasRealizou(prevHist.cirurgiasRealizou);
+                                  clearRepPrefill('anamnese.historico.cirurgiasRealizou');
+                                }
+                              }}
+                            />
                           </div>
                           <div className="form-group" style={{ flex: 2 }}>
-                            <label>Interfere na dor?</label>
-                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaInterfere')} value={repAtividadeFisicaInterfere} onChange={e => { setRepAtividadeFisicaInterfere(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaInterfere'); }} placeholder="Ex: Dor diminui no aquecimento..." />
+                            <label>Doenças pregressas e atuais</label>
+                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.doencasPregressasAtuais')} value={repDoencas} onChange={e => { setRepDoencas(e.target.value); clearRepPrefill('anamnese.historico.doencasPregressasAtuais'); }} placeholder="Ex: Diabetes, labirintite, hipertensão..." />
+                            <ComparisonPill
+                              prevValue={prevHist.doencasPregressasAtuais}
+                              currValue={repDoencas}
+                              onKeepValue={() => {
+                                if (prevHist.doencasPregressasAtuais !== undefined) {
+                                  setRepDoencas(prevHist.doencasPregressasAtuais);
+                                  clearRepPrefill('anamnese.historico.doencasPregressasAtuais');
+                                }
+                              }}
+                            />
                           </div>
-                        </>
-                      )}
-                    </div>
+                        </div>
 
-                    <div className="resp-grid-1-2">
-                      <div className="form-group">
-                        <label>Geral Estresse (EVA: <strong>{repStress}</strong>/10)</label>
-                        <input type="range" className="form-control" min={0} max={10} value={repStress} onChange={e => { setRepStress(Number(e.target.value)); clearRepPrefill('anamnese.habitos.stressNivel'); }} style={{ accentColor: 'var(--color-primary)', ...getRepPrefilledStyle('anamnese.habitos.stressNivel') }} />
+                        {repCirurgiasRealizou === 'sim' && (
+                          <div style={{ border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '6px', marginBottom: '10px' }}>
+                            <strong style={{ fontSize: '0.8rem', display: 'block', marginBottom: '8px' }}>Detalhamento das Cirurgias</strong>
+                            {repCirurgiasList.map((c, sIdx) => (
+                              <div key={sIdx} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                                <input type="date" className="form-control form-control-sm" style={{ width: '130px', ...getRepPrefilledStyle('anamnese.historico.cirurgias') }} value={c.data} onChange={e => updateCirurgia(sIdx, 'data', e.target.value)} />
+                                <input type="text" className="form-control form-control-sm" style={getRepPrefilledStyle('anamnese.historico.cirurgias')} value={c.local} onChange={e => updateCirurgia(sIdx, 'local', e.target.value)} placeholder="Ex: Cirurgia no menisco joelho esquerdo..." />
+                                <button type="button" className="btn btn-danger btn-sm" onClick={() => removeCirurgia(sIdx)} style={{ height: '32px' }}><i className="fa-solid fa-trash"></i></button>
+                              </div>
+                            ))}
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={addCirurgia} style={{ marginTop: '4px' }}>
+                              <i className="fa-solid fa-plus" style={{ marginRight: '4px' }}></i> Adicionar Cirurgia
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="resp-grid-1-1">
+                          <div className="form-group">
+                            <label>Traumas emocionais / Estresse crônico</label>
+                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.traumasEmocionaisStress')} value={repTraumasEmo} onChange={e => { setRepTraumasEmo(e.target.value); clearRepPrefill('anamnese.historico.traumasEmocionaisStress'); }} placeholder="Estresse severo, perdas, efeito sobre SNV..." />
+                            <ComparisonPill
+                              prevValue={prevHist.traumasEmocionaisStress}
+                              currValue={repTraumasEmo}
+                              onKeepValue={() => {
+                                if (prevHist.traumasEmocionaisStress !== undefined) {
+                                  setRepTraumasEmo(prevHist.traumasEmocionaisStress);
+                                  clearRepPrefill('anamnese.historico.traumasEmocionaisStress');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Medicação em uso</label>
+                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.medicacao')} value={repMedicao} onChange={e => { setRepMedicao(e.target.value); clearRepPrefill('anamnese.historico.medicacao'); }} placeholder="Remédios que alteram SNV, dor ou inflamação..." />
+                            <ComparisonPill
+                              prevValue={prevHist.medicacao}
+                              currValue={repMedicao}
+                              onKeepValue={() => {
+                                if (prevHist.medicacao !== undefined) {
+                                  setRepMedicao(prevHist.medicacao);
+                                  clearRepPrefill('anamnese.historico.medicacao');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-group">
+                          <label>Uso de drogas recreativas / álcool / tabaco</label>
+                          <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.historico.drogasRecreativas')} value={repDrogas} onChange={e => { setRepDrogas(e.target.value); clearRepPrefill('anamnese.historico.drogasRecreativas'); }} placeholder="Frequência e substâncias..." />
+                          <ComparisonPill
+                            prevValue={prevHist.drogasRecreativas}
+                            currValue={repDrogas}
+                            onKeepValue={() => {
+                              if (prevHist.drogasRecreativas !== undefined) {
+                                setRepDrogas(prevHist.drogasRecreativas);
+                                clearRepPrefill('anamnese.historico.drogasRecreativas');
+                              }
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginTop: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                          <h4 style={{ margin: 0 }}>Hábitos de Vida & Estilo de Vida</h4>
+                          {hasPrevHab && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                if (prevHab.sonoHoras !== undefined) { setRepSonoHoras(Number(prevHab.sonoHoras)); clearRepPrefill('anamnese.habitos.sonoHoras'); }
+                                if (prevHab.sonoTipo !== undefined) { setRepSonoTipo(prevHab.sonoTipo); clearRepPrefill('anamnese.habitos.sonoTipo'); }
+                                if (prevHab.sonoQualidade !== undefined) { setRepSonoQualidade(prevHab.sonoQualidade); clearRepPrefill('anamnese.habitos.sonoQualidade'); }
+                                if (prevHab.alimentacaoDor !== undefined) { setRepAlimentacaoDor(prevHab.alimentacaoDor); clearRepPrefill('anamnese.habitos.alimentacaoDor'); }
+                                if (prevHab.atividadeFisicaFaz !== undefined) { setRepAtividadeFisica(prevHab.atividadeFisicaFaz); clearRepPrefill('anamnese.habitos.atividadeFisicaFaz'); }
+                                if (prevHab.atividadeFisicaQual !== undefined) { setRepAtividadeFisicaQual(prevHab.atividadeFisicaQual); clearRepPrefill('anamnese.habitos.atividadeFisicaQual'); }
+                                if (prevHab.atividadeFisicaInterfere !== undefined) { setRepAtividadeFisicaInterfere(prevHab.atividadeFisicaInterfere); clearRepPrefill('anamnese.habitos.atividadeFisicaInterfere'); }
+                                if (prevHab.stressNivel !== undefined) { setRepStress(Number(prevHab.stressNivel)); clearRepPrefill('anamnese.habitos.stressNivel'); }
+                                if (prevHab.controleStress !== undefined) { setRepControleStress(prevHab.controleStress); clearRepPrefill('anamnese.habitos.controleStress'); }
+                              }}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                color: '#38bdf8',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                borderRadius: '8px'
+                              }}
+                            >
+                              <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                              Manter Todos os Hábitos Anteriores
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="resp-grid-1-1-1">
+                          <div className="form-group">
+                            <label>Horas sono / noite</label>
+                            <input type="number" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoHoras')} min={0} max={24} value={repSonoHoras} onChange={e => { setRepSonoHoras(Number(e.target.value)); clearRepPrefill('anamnese.habitos.sonoHoras'); }} />
+                            <ComparisonPill
+                              prevValue={prevHab.sonoHoras}
+                              currValue={repSonoHoras}
+                              unit="h"
+                              onKeepValue={() => {
+                                if (prevHab.sonoHoras !== undefined) {
+                                  setRepSonoHoras(Number(prevHab.sonoHoras));
+                                  clearRepPrefill('anamnese.habitos.sonoHoras');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Tipo de sono</label>
+                            <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoTipo')} value={repSonoTipo} onChange={e => { setRepSonoTipo(e.target.value); clearRepPrefill('anamnese.habitos.sonoTipo'); }}>
+                              <option value="continuo">Contínuo</option>
+                              <option value="acorda">Acorda à noite (intermitente)</option>
+                            </select>
+                            <ComparisonPill
+                              prevValue={prevHab.sonoTipo ? (prevHab.sonoTipo === 'continuo' ? 'Contínuo' : 'Acorda à noite') : undefined}
+                              currValue={repSonoTipo === 'continuo' ? 'Contínuo' : 'Acorda à noite'}
+                              onKeepValue={() => {
+                                if (prevHab.sonoTipo) {
+                                  setRepSonoTipo(prevHab.sonoTipo);
+                                  clearRepPrefill('anamnese.habitos.sonoTipo');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Qualidade do Sono</label>
+                            <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.sonoQualidade')} value={repSonoQualidade} onChange={e => { setRepSonoQualidade(e.target.value); clearRepPrefill('anamnese.habitos.sonoQualidade'); }}>
+                              <option value="Excelente">Excelente</option>
+                              <option value="Bom">Bom</option>
+                              <option value="Regular">Regular</option>
+                              <option value="Ruim">Ruim</option>
+                            </select>
+                            <ComparisonPill
+                              prevValue={prevHab.sonoQualidade}
+                              currValue={repSonoQualidade}
+                              onKeepValue={() => {
+                                if (prevHab.sonoQualidade) {
+                                  setRepSonoQualidade(prevHab.sonoQualidade);
+                                  clearRepPrefill('anamnese.habitos.sonoQualidade');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-group">
+                          <label>Alimentação (Influência sobre inflamação/dor)</label>
+                          <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.alimentacaoDor')} value={repAlimentacaoDor} onChange={e => { setRepAlimentacaoDor(e.target.value); clearRepPrefill('anamnese.habitos.alimentacaoDor'); }} placeholder="Hábitos, jejum, café, açúcar, queixas intestinais..." />
+                          <ComparisonPill
+                            prevValue={prevHab.alimentacaoDor}
+                            currValue={repAlimentacaoDor}
+                            onKeepValue={() => {
+                              if (prevHab.alimentacaoDor) {
+                                setRepAlimentacaoDor(prevHab.alimentacaoDor);
+                                clearRepPrefill('anamnese.habitos.alimentacaoDor');
+                              }
+                            }}
+                          />
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label>Faz atividade física?</label>
+                            <select className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaFaz')} value={repAtividadeFisica} onChange={e => { setRepAtividadeFisica(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaFaz'); }}>
+                              <option value="nao">Não</option>
+                              <option value="sim">Sim</option>
+                            </select>
+                            <ComparisonPill
+                              prevValue={prevHab.atividadeFisicaFaz ? (prevHab.atividadeFisicaFaz === 'sim' ? 'Sim' : 'Não') : undefined}
+                              currValue={repAtividadeFisica === 'sim' ? 'Sim' : 'Não'}
+                              onKeepValue={() => {
+                                if (prevHab.atividadeFisicaFaz) {
+                                  setRepAtividadeFisica(prevHab.atividadeFisicaFaz);
+                                  clearRepPrefill('anamnese.habitos.atividadeFisicaFaz');
+                                }
+                              }}
+                            />
+                          </div>
+                          {repAtividadeFisica === 'sim' && (
+                            <>
+                              <div className="form-group" style={{ flex: 2 }}>
+                                <label>Qual atividade e freq.?</label>
+                                <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaQual')} value={repAtividadeFisicaQual} onChange={e => { setRepAtividadeFisicaQual(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaQual'); }} placeholder="Ex: Musculação 3x/sem..." />
+                                <ComparisonPill
+                                  prevValue={prevHab.atividadeFisicaQual}
+                                  currValue={repAtividadeFisicaQual}
+                                  onKeepValue={() => {
+                                    if (prevHab.atividadeFisicaQual) {
+                                      setRepAtividadeFisicaQual(prevHab.atividadeFisicaQual);
+                                      clearRepPrefill('anamnese.habitos.atividadeFisicaQual');
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div className="form-group" style={{ flex: 2 }}>
+                                <label>Interfere na dor?</label>
+                                <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.atividadeFisicaInterfere')} value={repAtividadeFisicaInterfere} onChange={e => { setRepAtividadeFisicaInterfere(e.target.value); clearRepPrefill('anamnese.habitos.atividadeFisicaInterfere'); }} placeholder="Ex: Dor diminui no aquecimento..." />
+                                <ComparisonPill
+                                  prevValue={prevHab.atividadeFisicaInterfere}
+                                  currValue={repAtividadeFisicaInterfere}
+                                  onKeepValue={() => {
+                                    if (prevHab.atividadeFisicaInterfere) {
+                                      setRepAtividadeFisicaInterfere(prevHab.atividadeFisicaInterfere);
+                                      clearRepPrefill('anamnese.habitos.atividadeFisicaInterfere');
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="resp-grid-1-2">
+                          <div className="form-group">
+                            <label>Geral Estresse (EVA: <strong>{repStress}</strong>/10)</label>
+                            <input type="range" className="form-control" min="0" max="10" value={repStress} onChange={e => { setRepStress(Number(e.target.value)); clearRepPrefill('anamnese.habitos.stressNivel'); }} style={{ accentColor: 'var(--color-primary)', ...getRepPrefilledStyle('anamnese.habitos.stressNivel') }} />
+                            <ComparisonPill
+                              prevValue={prevHab.stressNivel}
+                              currValue={repStress}
+                              unit="/10"
+                              isLowerBetter={true}
+                              onKeepValue={() => {
+                                if (prevHab.stressNivel !== undefined) {
+                                  setRepStress(Number(prevHab.stressNivel));
+                                  clearRepPrefill('anamnese.habitos.stressNivel');
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Mecanismo de controle do estresse</label>
+                            <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.controleStress')} value={repControleStress} onChange={e => { setRepControleStress(e.target.value); clearRepPrefill('anamnese.habitos.controleStress'); }} placeholder="Ex: Meditação, corrida, leitura, lazer..." />
+                            <ComparisonPill
+                              prevValue={prevHab.controleStress}
+                              currValue={repControleStress}
+                              onKeepValue={() => {
+                                if (prevHab.controleStress) {
+                                  setRepControleStress(prevHab.controleStress);
+                                  clearRepPrefill('anamnese.habitos.controleStress');
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="form-group">
-                        <label>Mecanismo de controle do estresse</label>
-                        <input type="text" className="form-control" style={getRepPrefilledStyle('anamnese.habitos.controleStress')} value={repControleStress} onChange={e => { setRepControleStress(e.target.value); clearRepPrefill('anamnese.habitos.controleStress'); }} placeholder="Ex: Meditação, corrida, leitura, lazer..." />
-                      </div>
-                    </div>
-                  </div>
-                )}
+                    );
+                  })()}
 
                 {/* PASSO 3: GONIOMETRIA E TESTES DE ENCURTAMENTO */}
-                {repActiveStep === 3 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', margin: 0 }}>Goniometria (Amplitude Articular em Graus)</h4>
+                {repActiveStep === 3 && (() => {
+                  const prevDoc = repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
+                  const prevGonio = prevDoc?.goniometria || prevDoc?.dadosMedidos?.goniometria || clientTestMemory['GONIOMETRIA']?.dados || {};
+                  const prevGonioInfo = formatTestOriginInfo(clientTestMemory['GONIOMETRIA'], prevDoc, professionals);
+                  const hasPrevGonio = Object.keys(prevGonio).length > 0;
 
-                    {(() => {
-                      const latest = getLatestRepAssessment();
-                      if (!latest?.dadosMedidos?.goniometria) return null;
-                      return (
-                        <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
-                            <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
-                            <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Goniometria disponível</span>
-                          </div>
-                          <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['goniometria'])}>
-                            <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Goniometria
-                          </button>
+                  const prevOber = prevDoc?.testesEspeciais?.ober || prevDoc?.testesOrtopedicos?.ober || clientTestMemory['OBER']?.dados || {};
+                  const prevThomas = prevDoc?.testesEspeciais?.thomas || prevDoc?.testesOrtopedicos?.thomas || clientTestMemory['THOMAS']?.dados || {};
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', margin: 0, flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <h4 style={{ margin: 0 }}>Goniometria (Amplitude Articular em Graus)</h4>
+                          {prevGonioInfo && (
+                            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8' }}></i>
+                              <span>Última Goniometria: <strong style={{ color: '#e2e8f0' }}>{prevGonioInfo.fullLabel}</strong></span>
+                            </div>
+                          )}
                         </div>
-                      );
-                    })()}
-
-                    {/* Alertas Biomecânicos & Resumo Comparativo de Goniometria */}
-                    {(() => {
-                      const biomechanicAlerts = calculateGoniometryAlerts(gGonio);
-                      const prevGonio = clientTestMemory['GONIOMETRIA'];
-                      const prevDate = prevGonio?.data ? formatDateBR(prevGonio.data) : undefined;
-                      const pg = prevGonio?.dados || {};
-                      const getGVal = (v: any) => typeof v === 'object' ? (v?.semForca || v?.ativo || '') : (v || '');
-                      const items: ComparativeItem[] = [
-                        { label: 'Quadril Rot. Interna (D)', prevValue: getGVal(pg.quadrilRotIntD), currValue: getGVal(gGonio.quadrilRotIntD), unit: '°' },
-                        { label: 'Quadril Rot. Interna (E)', prevValue: getGVal(pg.quadrilRotIntE), currValue: getGVal(gGonio.quadrilRotIntE), unit: '°' },
-                        { label: 'Quadril Flexão 2 (D)', prevValue: getGVal(pg.quadrilFlexao2D), currValue: getGVal(gGonio.quadrilFlexao2D), unit: '°' },
-                        { label: 'Quadril Flexão 2 (E)', prevValue: getGVal(pg.quadrilFlexao2E), currValue: getGVal(gGonio.quadrilFlexao2E), unit: '°' },
-                        { label: 'Tornozelo Dorsi 1 (D)', prevValue: getGVal(pg.tornozeloDorsi1D), currValue: getGVal(gGonio.tornozeloDorsi1D), unit: '°' },
-                        { label: 'Tornozelo Dorsi 1 (E)', prevValue: getGVal(pg.tornozeloDorsi1E), currValue: getGVal(gGonio.tornozeloDorsi1E), unit: '°' },
-                        { label: 'Ombro Rot. Interna (D)', prevValue: getGVal(pg.ombroRotIntD), currValue: getGVal(gGonio.ombroRotIntD), unit: '°' },
-                        { label: 'Ombro Rot. Interna (E)', prevValue: getGVal(pg.ombroRotIntE), currValue: getGVal(gGonio.ombroRotIntE), unit: '°' }
-                      ];
-                      return (
-                        <>
-                          <LiveClinicalAlert alerts={biomechanicAlerts} title="Indicativos Clínicos de Goniometria" />
-                          <TestComparativeSummary testName="Goniometria & Mobilidade Articular" previousDate={prevDate} items={items} />
-                        </>
-                      );
-                    })()}
-
-                    
-                    {repSelectedPrevReport?.goniometria && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => {
-                            if (repSelectedPrevReport.goniometria) {
-                              setGGonio(repSelectedPrevReport.goniometria);
-                            }
-                          }}
-                          style={{
-                            background: 'rgba(56, 189, 248, 0.12)',
-                            border: '1px solid rgba(56, 189, 248, 0.35)',
-                            color: '#38bdf8',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '5px 12px',
-                            borderRadius: '8px'
-                          }}
-                        >
-                          <i className="fa-solid fa-arrow-down-to-bracket"></i>
-                          Manter Todos os Valores da Goniometria Anterior
-                        </button>
+                        {hasPrevGonio && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setGGonio(prevGonio);
+                            }}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                              color: '#38bdf8',
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '5px 12px',
+                              borderRadius: '8px'
+                            }}
+                          >
+                            <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                            Manter Toda a Goniometria Anterior {prevGonioInfo ? `(${prevGonioInfo.dateStr})` : ''}
+                          </button>
+                        )}
                       </div>
-                    )}
 
-<div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                      {(() => {
+                        const latest = getLatestRepAssessment();
+                        if (!latest?.dadosMedidos?.goniometria) return null;
+                        return (
+                          <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                              <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                              <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Goniometria disponível</span>
+                            </div>
+                            <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['goniometria'])}>
+                              <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Goniometria
+                            </button>
+                          </div>
+                        );
+                      })()}
+
+                      {(() => {
+                        const biomechanicAlerts = calculateGoniometryAlerts(gGonio);
+                        return <LiveClinicalAlert alerts={biomechanicAlerts} title="Indicativos Clínicos de Goniometria" />;
+                      })()}
+
+                      <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                       <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 10 }}>
                           <tr>
@@ -12929,7 +13294,7 @@ goniometria: {
                       return (
                         <>
                           <LiveClinicalAlert alerts={combined} title="Indicativos Clínicos dos Testes Especiais" />
-                          <TestComparativeSummary testName="Testes de Thomas & Ober" previousDate={prevDate} items={items} />
+                          
                         </>
                       );
                     })()}
@@ -13033,57 +13398,105 @@ goniometria: {
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                    </div>
+                  );
+                })()}
 
-                {/* PASSO 4: TERMOGRAFIA E EXAMES COMPLEMENTARES */}
-                {repActiveStep === 4 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', margin: 0 }}>Perimetria (Circunferências em cm)</h4>
+                {/* PASSO 4: PERIMETRIA */}
+                {repActiveStep === 4 && (() => {
+                  const prevDoc = repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
+                  const prevPeriRecord = clientTestMemory['PERIMETRIA'] || (prevDoc ? {
+                    data: prevDoc.data || prevDoc.createdAt,
+                    origemDocumento: { tipo: prevDoc.tipoModulo === 'physioreport' ? 'PhysioReport' : 'PhysicalAssessment' },
+                    profissionalId: prevDoc.profissionalId,
+                    dados: prevDoc.dadosMedidos?.circunferencias || prevDoc.perimetria || prevDoc.circunferencias
+                  } : null);
 
-                        {(() => {
-                          const latest = getLatestRepAssessment();
-                          if (!latest?.dadosMedidos?.circunferencias) return null;
-                          return (
-                            <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
-                                <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
-                                <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Perimetria disponível</span>
-                              </div>
-                              <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['perimetria'])}>
-                                <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Perimetria
-                              </button>
+                  const prevInfo = formatTestOriginInfo(clientTestMemory['PERIMETRIA'], prevDoc, professionals);
+                  const prevCirc = prevPeriRecord?.dados || {};
+                  const hasPrevCirc = Object.keys(prevCirc).length > 0;
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', margin: 0, flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <h4 style={{ margin: 0 }}>Perimetria (Circunferências em cm)</h4>
+                          {prevInfo && (
+                            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <i className="fa-solid fa-clock-rotate-left" style={{ color: '#38bdf8' }}></i>
+                              <span>Última Perimetria: <strong style={{ color: '#e2e8f0' }}>{prevInfo.fullLabel}</strong></span>
                             </div>
-                          );
-                        })()}
+                          )}
+                        </div>
+                        {hasPrevCirc && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setRepCirc(prev => ({ ...prev, ...prevCirc }));
+                            }}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                              color: '#38bdf8',
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '5px 12px',
+                              borderRadius: '8px'
+                            }}
+                          >
+                            <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                            Manter Todas as Circunferências {prevInfo ? `(${prevInfo.dateStr})` : 'Anteriores'}
+                          </button>
+                        )}
+                      </div>
 
-                        {(() => {
-                          const checkAsy = (d: any, e: any, label: string) => {
-                            const valD = Number(d) || 0;
-                            const valE = Number(e) || 0;
-                            const max = Math.max(valD, valE);
-                            if (max > 0 && (Math.abs(valD - valE) / max) > 0.10) {
-                              return `${label} (${((Math.abs(valD - valE) / max) * 100).toFixed(0)}%)`;
-                            }
-                            return null;
-                          };
-                          const list = [
-                            checkAsy(repCirc.braçoD, repCirc.braçoE, 'Braço'),
-                            checkAsy(repCirc.antebraçoD, repCirc.antebraçoE, 'Antebraço'),
-                            checkAsy(repCirc.coxaD, repCirc.coxaE, 'Coxa'),
-                            checkAsy(repCirc.panturrilhaD, repCirc.panturrilhaE, 'Panturrilha')
-                          ].filter(Boolean);
-
-                          if (list.length === 0) return null;
-                          return (
-                            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.8rem', color: '#ef4444' }}>
-                              <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
-                              <strong>Assimetria significativa (&gt;10%) detectada em:</strong> {list.join(', ')}.
+                      {(() => {
+                        const latest = getLatestRepAssessment();
+                        if (!latest?.dadosMedidos?.circunferencias) return null;
+                        return (
+                          <div style={{ background: 'rgba(13,148,136,0.07)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                              <i className="fa-solid fa-file-medical" style={{ color: 'var(--color-primary)' }}></i>
+                              <span>Avaliação Física: <strong>{fmtDateBR(latest.data)}</strong> — Perimetria disponível</span>
                             </div>
-                          );
-                        })()}
+                            <button type="button" className="btn btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => importFromPhysAssessment(['perimetria'])}>
+                              <i className="fa-solid fa-download" style={{ marginRight: '5px' }}></i>Importar Perimetria
+                            </button>
+                          </div>
+                        );
+                      })()}
 
-                        <div className="resp-grid-1-1">
+                      {(() => {
+                        const checkAsy = (d: any, e: any, label: string) => {
+                          const valD = Number(d) || 0;
+                          const valE = Number(e) || 0;
+                          const max = Math.max(valD, valE);
+                          if (max > 0 && (Math.abs(valD - valE) / max) > 0.10) {
+                            return `${label} (${((Math.abs(valD - valE) / max) * 100).toFixed(0)}%)`;
+                          }
+                          return null;
+                        };
+                        const list = [
+                          checkAsy(repCirc.braçoD, repCirc.braçoE, 'Braço'),
+                          checkAsy(repCirc.antebraçoD, repCirc.antebraçoE, 'Antebraço'),
+                          checkAsy(repCirc.coxaD, repCirc.coxaE, 'Coxa'),
+                          checkAsy(repCirc.panturrilhaD, repCirc.panturrilhaE, 'Panturrilha')
+                        ].filter(Boolean);
+
+                        if (list.length === 0) return null;
+                        return (
+                          <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.8rem', color: '#ef4444' }}>
+                            <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
+                            <strong>Assimetria significativa (&gt;10%) detectada em:</strong> {list.join(', ')}.
+                          </div>
+                        );
+                      })()}
+
+                      <div className="resp-grid-1-1">
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <div className="form-group">
                               <label style={{ fontSize: '0.75rem' }}>Pescoço</label>
@@ -13166,25 +13579,9 @@ goniometria: {
                             </div>
                           </div>
                         </div>
-
-                        {(() => {
-                          const prevPeri = clientTestMemory['PERIMETRIA'];
-                          const prevDate = prevPeri?.data ? formatDateBR(prevPeri.data) : undefined;
-                          const pd = prevPeri?.dados || {};
-                          const items: ComparativeItem[] = [
-                            { label: 'Tórax', prevValue: pd.torax, currValue: repCirc.torax, unit: 'cm' },
-                            { label: 'Cintura', prevValue: pd.cintura, currValue: repCirc.cintura, unit: 'cm', isLowerBetter: true },
-                            { label: 'Abdômen', prevValue: pd.abdomen, currValue: repCirc.abdomen, unit: 'cm', isLowerBetter: true },
-                            { label: 'Quadril', prevValue: pd.quadril, currValue: repCirc.quadril, unit: 'cm' },
-                            { label: 'Braço D', prevValue: pd.braçoD, currValue: repCirc.braçoD, unit: 'cm' },
-                            { label: 'Braço E', prevValue: pd.braçoE, currValue: repCirc.braçoE, unit: 'cm' },
-                            { label: 'Coxa D', prevValue: pd.coxaD, currValue: repCirc.coxaD, unit: 'cm' },
-                            { label: 'Coxa E', prevValue: pd.coxaE, currValue: repCirc.coxaE, unit: 'cm' }
-                          ];
-                          return <TestComparativeSummary testName="Perimetria Corporal" previousDate={prevDate} items={items} />;
-                        })()}
                       </div>
-                    )}
+                    );
+                  })()}
 
                 {repActiveStep === 5 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -13353,7 +13750,7 @@ goniometria: {
                             return (
                               <div style={{ marginTop: '12px' }}>
                                 <LiveClinicalAlert alerts={analysis.alerts} title="Indicativos do Y-Balance Test" />
-                                <TestComparativeSummary testName="Y-Balance Test" previousDate={prevDate} items={items} />
+                                
                               </div>
                             );
                           })()}
@@ -13519,7 +13916,7 @@ goniometria: {
                           { label: 'Rot. E (ADM)', prevValue: pmd.rotacaoE, currValue: mRotE, unit: '°' },
                           { label: 'Rot. E (Dor EVA)', prevValue: pmd.rotacaoEEVA, currValue: mRotEEVA, unit: '/10', isLowerBetter: true }
                         ];
-                        return <TestComparativeSummary testName="Estrela de Maigne (Coluna & Dor)" previousDate={prevDate} items={items} />;
+                        return ;
                       })()}
                         </>
                       )}
@@ -13757,35 +14154,83 @@ goniometria: {
                       </label>
                     </div>
 
-                    {incluirConduta && (
-                      <div className="form-group">
-                        <label style={{ fontWeight: '600' }}>Conduta Fisioterapêutica Aplicada (Sessão) *</label>
-                        <FastTextarea
-                          className="form-control"
-                          rows={6}
-                          value={repContent}
-                          onChange={val => setRepContent(val)}
-                          placeholder="Ex: Mobilização articular passiva da coluna lombar, liberação miofascial de quadrado lombar, aplicação de agulhamento seco..."
-                          required
-                        />
-                        <small style={{ color: 'var(--text-muted)' }}>Descreva as técnicas manuais, recursos físicos e condutas executadas em sessão.</small>
-                      </div>
-                    )}
+                    {incluirConduta && (() => {
+                        const prevDoc = repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
+                        const prevConduta = prevDoc?.conteudo?.conduta || prevDoc?.conduta;
 
-                    {incluirPrescricao && (
-                      <div className="form-group">
-                        <label style={{ fontWeight: '600' }}>Prescrição de Autocuidado / Exercícios para Casa *</label>
-                        <FastTextarea
-                          className="form-control"
-                          rows={6}
-                          value={repExercicios}
-                          onChange={val => setRepExercicios(val)}
-                          placeholder="Ex: Ponte pélvica isométrica 3x45s, alongamento de flexores de quadril..."
-                          required
-                        />
-                        <small style={{ color: 'var(--text-muted)' }}>Indique orientações ergonômicas e exercícios prescritos ao paciente.</small>
-                      </div>
-                    )}
+                        return (
+                          <div className="form-group">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <label style={{ fontWeight: '600', margin: 0 }}>Conduta Fisioterapêutica Aplicada (Sessão) *</label>
+                              {prevConduta && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => setRepContent(prevConduta)}
+                                  style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                >
+                                  <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter Conduta Anterior
+                                </button>
+                              )}
+                            </div>
+                            <FastTextarea
+                              className="form-control"
+                              rows={6}
+                              value={repContent}
+                              onChange={val => setRepContent(val)}
+                              placeholder="Ex: Mobilização articular passiva da coluna lombar, liberação miofascial de quadrado lombar, aplicação de agulhamento seco..."
+                              required
+                            />
+                            <ComparisonPill
+                              prevValue={prevConduta}
+                              currValue={repContent}
+                              onKeepValue={() => {
+                                if (prevConduta) setRepContent(prevConduta);
+                              }}
+                            />
+                            <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>Descreva as técnicas manuais, recursos físicos e condutas executadas em sessão.</small>
+                          </div>
+                        );
+                      })()}
+
+                    {incluirPrescricao && (() => {
+                        const prevDoc = repSelectedPrevReport?.rawDoc || repSelectedPrevReport;
+                        const prevExercicios = prevDoc?.conteudo?.exercicios || prevDoc?.exercicios;
+
+                        return (
+                          <div className="form-group">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <label style={{ fontWeight: '600', margin: 0 }}>Prescrição de Autocuidado / Exercícios para Casa *</label>
+                              {prevExercicios && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => setRepExercicios(prevExercicios)}
+                                  style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+                                >
+                                  <i className="fa-solid fa-arrow-down-to-bracket"></i> Manter Exercícios Anteriores
+                                </button>
+                              )}
+                            </div>
+                            <FastTextarea
+                              className="form-control"
+                              rows={6}
+                              value={repExercicios}
+                              onChange={val => setRepExercicios(val)}
+                              placeholder="Ex: Ponte pélvica isométrica 3x45s, alongamento de flexores de quadril..."
+                              required
+                            />
+                            <ComparisonPill
+                              prevValue={prevExercicios}
+                              currValue={repExercicios}
+                              onKeepValue={() => {
+                                if (prevExercicios) setRepExercicios(prevExercicios);
+                              }}
+                            />
+                            <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>Indique orientações ergonômicas e exercícios prescritos ao paciente.</small>
+                          </div>
+                        );
+                      })()}
 
                     {/* PDF Attachment Section - Premium Redesign */}
                     <div style={{
