@@ -10,6 +10,7 @@ interface ClientInfo {
     email?: string;
     cpf?: string;
     telefone?: string;
+    [key: string]: any;
   };
   nome?: string;
   email?: string;
@@ -18,6 +19,7 @@ interface ClientInfo {
   dadosComerciais?: {
     planoId?: any;
     status?: string;
+    isConvenioDynamus?: boolean;
     creditosTotal?: number;
     creditosUsados?: number;
     creditosReservados?: number;
@@ -25,8 +27,10 @@ interface ClientInfo {
     creditosMassagemUsados?: number;
     creditosEmergenciaTotal?: number;
     creditosEmergenciaUsados?: number;
+    [key: string]: any;
   };
   planoNome?: string;
+  [key: string]: any;
 }
 
 interface ProfessionalInfo {
