@@ -37,10 +37,18 @@ interface ProfessionalInfo {
 
 interface SlotInfo {
   horario: string;
+  horarioFim?: string;
+  duracaoHoras?: number;
   capacidade: number;
-  tipo: 'academia' | 'consultorio';
+  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
   vagasOcupadas: number;
+  vagasRestantes?: number;
+  minVagasLivres?: number;
+  disponivel?: boolean;
+  status?: string;
+  motivoIndisponibilidade?: string;
   appointments?: any[];
+  conflitos?: any[];
 }
 
 interface AgendamentoProfissionalPanelProps {
