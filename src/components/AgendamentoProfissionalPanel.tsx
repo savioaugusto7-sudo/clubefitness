@@ -260,7 +260,9 @@ export default function AgendamentoProfissionalPanel({
       setLoadingSlots(true);
       setSelectedHour('');
       try {
-        const res = await fetch(`/api/appointments/slots?date=${selectedDate}&tipo=${agendaTipo}`);
+        const clienteId = selectedClient?._id || '';
+        const servicoNome = encodeURIComponent(selectedService.nome);
+        const res = await fetch(`/api/appointments/slots?date=${selectedDate}&tipo=${agendaTipo}&servico=${servicoNome}&clienteId=${clienteId}`);
         const json = await res.json();
         if (isMounted && json.success) {
           setSlots(json.data || []);
@@ -276,15 +278,17 @@ export default function AgendamentoProfissionalPanel({
     return () => {
       isMounted = false;
     };
-  }, [selectedDate, agendaTipo]);
+  }, [selectedDate, agendaTipo, selectedService.nome, selectedClient?._id]);
 
-  // Filtrar horários de acordo com a quantidade de vagas necessárias do serviço selecionado
+  // Filtrar horários de acordo com a quantidade de vagas necessárias do serviço selecionado e disponibilidade da API
   const availableSlots = useMemo(() => {
     const isDoctorAgenda = agendaTipo === 'dr_albert' || agendaTipo === 'dr_guilherme';
     const requiredVagas = isDoctorAgenda ? 1 : selectedService.vagasNecessarias;
     return slots.map(slot => {
-      const vagasLivres = Math.max(0, slot.capacidade - slot.vagasOcupadas);
-      const isAvailable = requiredVagas === 0 ? vagasLivres >= 0 : vagasLivres >= requiredVagas;
+      const vagasLivres = slot.vagasRestantes !== undefined ? slot.vagasRestantes : Math.max(0, slot.capacidade - slot.vagasOcupadas);
+      const isAvailable = slot.disponivel !== undefined 
+        ? slot.disponivel 
+        : (requiredVagas === 0 ? vagasLivres >= 0 : vagasLivres >= requiredVagas);
       return {
         ...slot,
         vagasLivres,
@@ -838,7 +842,19 @@ export default function AgendamentoProfissionalPanel({
             }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Regra de Vagas Aplicada:</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                {selectedService.vagasNecessarias >= 3 ? (
+                {selectedService.nome === 'Avaliação Fisioterápica' ? (
+                  Boolean(selectedClient?.dadosComerciais?.isConvenioDynamus || selectedClient?.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus') || selectedClient?.planoNome?.toLowerCase().includes('dynamus')) ? (
+                    <span style={{ color: '#38bdf8' }}>
+                      <i className="fa-solid fa-bolt" style={{ marginRight: '6px' }}></i>
+                      Convênio <strong>DYNAMUS</strong>: Reserva de <strong>3 vagas</strong> em <strong>1 horário (1h)</strong>.
+                    </span>
+                  ) : (
+                    <span style={{ color: '#f59e0b' }}>
+                      <i className="fa-solid fa-stopwatch" style={{ marginRight: '6px' }}></i>
+                      Aluno Regular: Reserva de <strong>3 vagas por horário</strong> em <strong>2 horários seguidos (2h)</strong>.
+                    </span>
+                  )
+                ) : selectedService.vagasNecessarias >= 3 ? (
                   <span style={{ color: '#f59e0b' }}>
                     <i className="fa-solid fa-filter" style={{ marginRight: '6px' }}></i>
                     Mostrando apenas horários com <strong>3 ou mais vagas livres</strong> (exigência de {selectedService.nome}).
@@ -872,15 +888,15 @@ export default function AgendamentoProfissionalPanel({
                 }}>
                   <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '2rem', color: '#ef4444', marginBottom: '10px', display: 'block' }}></i>
                   <strong style={{ color: '#ef4444', display: 'block', marginBottom: '4px' }}>
-                    Nenhum horário com capacidade suficiente ({selectedService.vagasNecessarias} vagas) encontrado nesta data.
+                    Nenhum horário com capacidade suficiente ({selectedService.nome === 'Avaliação Fisioterápica' ? '3 vagas em 2 horários seguidos' : `${selectedService.vagasNecessarias} vagas`}) encontrado nesta data.
                   </strong>
                   <span>Por favor, selecione outra data acima ou ajuste o serviço solicitado.</span>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
                   {availableSlots.map(slot => {
                     const isSelected = selectedHour === slot.horario;
-                    if (!slot.isAvailable) return null; // Filtra estritamente horários sem a quantidade de vagas necessária
+                    if (!slot.isAvailable) return null; // Filtra estritamente horários indisponíveis
 
                     return (
                       <button
@@ -902,14 +918,14 @@ export default function AgendamentoProfissionalPanel({
                         }}
                       >
                         <span style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '0.5px' }}>
-                          {slot.horario}
+                          {slot.horarioFim ? `${slot.horario} - ${slot.horarioFim}` : slot.horario}
                         </span>
                         <span style={{
                           fontSize: '0.7rem',
                           fontWeight: 600,
                           color: isSelected ? 'rgba(255,255,255,0.9)' : slot.vagasLivres >= 3 ? '#10b981' : '#f59e0b'
                         }}>
-                          {slot.vagasLivres} {slot.vagasLivres === 1 ? 'vaga livre' : 'vagas livres'}
+                          {slot.duracaoHoras === 2 ? '⏱️ Bloco Duplo (2h)' : `${slot.vagasLivres} ${slot.vagasLivres === 1 ? 'vaga livre' : 'vagas livres'}`}
                         </span>
                       </button>
                     );

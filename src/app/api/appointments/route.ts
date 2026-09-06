@@ -25,15 +25,22 @@ const SERVICOS_CONFIG: Record<string, {
   'Recovery':                 { tipoCredito: 'nenhum',     vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Avaliação Física':         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Teste de Força':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Avaliação Fisioterápica':  { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Emergência':               { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Terapia Manual':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Massagem':                 { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
-  'Consulta':                 { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
-  'Quiropraxia':              { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
+  'Avaliação Fisioterápica':                { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
+  'Avaliação Fisioterápica (Continuação)':  { tipoCredito: 'nenhum',     vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
+  'Emergência':                             { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
+  'Terapia Manual':                         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
+  'Massagem':                               { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Consulta':                               { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
+  'Quiropraxia':                            { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
 };
 
 export { SERVICOS_CONFIG };
+
+function getNextHour(hourStr: string): string {
+  const [h, m] = hourStr.split(':').map(Number);
+  const nextH = h + 1;
+  return `${String(nextH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
 
 const CAPACIDADE_POR_PROFISSIONAL = 3;
 const CANCELAMENTO_JANELAS: Record<string, number> = {
@@ -511,6 +518,64 @@ export async function POST(request: Request) {
           return NextResponse.json({ success: false, error: 'Limite de 3 Treinos Livres por horário atingido.' }, { status: 400 });
         }
       }
+
+      // Se for Avaliação Fisioterápica de aluno regular, verificar também a capacidade do horário subsequente (+1h)
+      const isAvaliacaoFisioRegular = servico === 'Avaliação Fisioterápica' && !isDynamus;
+      const nextHorario = isAvaliacaoFisioRegular ? getNextHour(horario) : null;
+      if (isAvaliacaoFisioRegular && nextHorario) {
+        if (nextHorario > '20:00') {
+          return NextResponse.json({ 
+            success: false, 
+            error: 'Avaliação Fisioterápica para aluno regular requer 2 horas consecutivas (2 blocos). Não há horário seguinte disponível na grade para as ' + horario + '.' 
+          }, { status: 400 });
+        }
+
+        const nextCustomRule = await AgendaConfig.findOne({
+          tipo: 'academia',
+          horario: nextHorario,
+          $or: [
+            { dataEspecifica: data },
+            { diaSemana: dayOfWeek, dataEspecifica: null }
+          ]
+        }).sort({ dataEspecifica: -1 });
+
+        if (nextCustomRule && nextCustomRule.acao === 'bloquear') {
+          return NextResponse.json({ 
+            success: false, 
+            error: `O horário subsequente (${nextHorario}) necessário para a Avaliação Fisioterápica está bloqueado na grade.` 
+          }, { status: 400 });
+        }
+
+        let maxVagasAcademiaNext = 6;
+        if (nextCustomRule && nextCustomRule.acao === 'alterar_capacidade' && nextCustomRule.capacidadePersonalizada !== null) {
+          maxVagasAcademiaNext = nextCustomRule.capacidadePersonalizada;
+        }
+
+        const nextAllGymApts = await Appointment.find({
+          data,
+          horario: nextHorario,
+          status: { $ne: 'cancelado' }
+        }).populate('profissionalId');
+
+        const nextOnlyGymApts = nextAllGymApts.filter(a => {
+          const profNome = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+          if (a.tipo === 'dr_albert' || profNome.includes('albert')) return false;
+          if (a.tipo === 'dr_guilherme' || profNome.includes('guilherme')) return false;
+          return true;
+        });
+
+        const nextVagasTotais = nextOnlyGymApts.reduce((sum, apt) => {
+          const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
+          return sum + cfg.vagasOcupadas;
+        }, 0);
+
+        if (nextVagasTotais + 3 > maxVagasAcademiaNext && !bypassRestrictions) {
+          return NextResponse.json({ 
+            success: false, 
+            error: `Avaliação Fisioterápica requer 2 horários consecutivos com 3 vagas cada. O horário seguinte (${nextHorario}) possui ${nextVagasTotais}/${maxVagasAcademiaNext} vagas ocupadas (restam apenas ${Math.max(0, maxVagasAcademiaNext - nextVagasTotais)}).` 
+          }, { status: 400 });
+        }
+      }
     }
 
     // --- Se for remanejamento, cancelar o agendamento anterior atomicamente ---
@@ -555,6 +620,30 @@ export async function POST(request: Request) {
       observacoes: observacoesText,
       observacaoDataHora: observacoesText ? new Date() : null
     });
+
+    // Se for Avaliação Fisioterápica de aluno regular, criar automaticamente o 2º bloco consecutivo vinculado
+    const isAvaliacaoFisioRegular = servico === 'Avaliação Fisioterápica' && !isDynamus;
+    const nextHorario = isAvaliacaoFisioRegular ? getNextHour(horario) : null;
+    if (isAvaliacaoFisioRegular && nextHorario) {
+      const continuationApt = await Appointment.create({
+        data,
+        horario: nextHorario,
+        tipo,
+        servico: 'Avaliação Fisioterápica (Continuação)',
+        consumeCredito: false,
+        tipoCredito: 'nenhum',
+        isBlocoContinuacao: true,
+        linkedAppointmentId: appointment._id,
+        mesReferencia,
+        profissionalId: finalProfId,
+        clienteId,
+        status: 'agendado',
+        observacoes: observacoesText ? `[Continuação de ${horario}] ${observacoesText}` : `[Continuação de ${horario}]`,
+        observacaoDataHora: observacoesText ? new Date() : null
+      });
+      appointment.linkedAppointmentId = continuationApt._id;
+      await appointment.save();
+    }
 
     return NextResponse.json({ success: true, data: appointment });
   } catch (error: any) {
@@ -684,6 +773,25 @@ export async function PUT(request: Request) {
     }
     await appointment.save();
 
+    // Sincronizar agendamento vinculado se existir (ex: 2º bloco consecutivo de Avaliação Fisioterápica)
+    if (appointment.linkedAppointmentId) {
+      try {
+        const linkedApt = await Appointment.findById(appointment.linkedAppointmentId);
+        if (linkedApt && linkedApt.status !== status) {
+          linkedApt.status = status;
+          if (appointment.wellness) {
+            linkedApt.wellness = appointment.wellness;
+          }
+          if (body.finalizado !== undefined) {
+            linkedApt.finalizado = Boolean(body.finalizado);
+          }
+          await linkedApt.save();
+        }
+      } catch (linkErr) {
+        console.warn('Erro ao sincronizar linkedAppointment no PUT:', linkErr);
+      }
+    }
+
     return NextResponse.json({ success: true, data: appointment, wellness: appointment.wellness });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -730,9 +838,18 @@ export async function DELETE(request: Request) {
       await client.save();
     }
 
+    if (appointment.linkedAppointmentId) {
+      try {
+        await Appointment.findByIdAndDelete(appointment.linkedAppointmentId);
+      } catch (linkDelErr) {
+        console.warn('Erro ao deletar linkedAppointmentId:', linkDelErr);
+      }
+    }
+
     await Appointment.findByIdAndDelete(id);
     return NextResponse.json({ success: true, message: 'Appointment deleted' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

@@ -33,6 +33,8 @@ const AppointmentSchema = new Schema({
   finalizado: { type: Boolean, default: false },
   isEmergenciaExtra: { type: Boolean, default: false },
   mesReferencia: { type: String, default: '' }, // formato YYYY-MM
+  linkedAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', default: null },
+  isBlocoContinuacao: { type: Boolean, default: false },
   wellness: { type: WellnessSchema, default: null }
 }, { timestamps: true });
 

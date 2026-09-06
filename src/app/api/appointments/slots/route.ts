@@ -41,6 +41,7 @@ export async function GET(request: Request) {
     const servicoParam = searchParams.get('servico') || searchParams.get('service') || 'Treino Monitorado';
     const semanasParam = searchParams.get('semanas') || searchParams.get('weeks');
     const weeksToProject = semanasParam ? Math.min(24, Math.max(1, Number(semanasParam))) : 16;
+    const clienteIdParam = searchParams.get('clienteId') || searchParams.get('clientId');
 
     // Normalizar tipoFiltro caso venha com nomes legados
     if (tipoFiltro === 'albert') tipoFiltro = 'dr_albert';
@@ -63,12 +64,34 @@ export async function GET(request: Request) {
     const _c = Client;
     const _p = Professional;
 
+    // Verificar se o cliente possui convênio DYNAMUS
+    let isDynamus = false;
+    if (clienteIdParam) {
+      const clientObj = await Client.findById(clienteIdParam).populate('dadosComerciais.planoId').lean() as any;
+      if (clientObj) {
+        isDynamus = Boolean(
+          clientObj.dadosComerciais?.isConvenioDynamus ||
+          clientObj.dadosComerciais?.planoId?.nome?.toLowerCase().includes('dynamus')
+        );
+      }
+    }
+
+    const isAvaliacaoFisioterapica = (servicoParam || '').toLowerCase().includes('fisioter');
+    const requerDoisBlocos = isAvaliacaoFisioterapica && !isDynamus && tipoFiltro === 'academia';
+
     const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     const dayNamesShort = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
     const servicoWeight = tipoFiltro === 'academia' 
       ? (SERVICOS_CONFIG[servicoParam]?.vagasOcupadas !== undefined ? SERVICOS_CONFIG[servicoParam].vagasOcupadas : 1)
       : 1;
+
+    // Helper para obter a próxima hora cheia (ex: '09:00' -> '10:00')
+    const getNextHour = (hourStr: string): string => {
+      const [h, m] = hourStr.split(':').map(Number);
+      const nextH = h + 1;
+      return `${String(nextH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
 
     // ─────────────────────────────────────────────────────────────
     // MODO MULTI-DIAS (Para Horários Fixos com múltiplos dias da semana)
@@ -201,12 +224,15 @@ export async function GET(request: Request) {
         const conflitos: any[] = [];
         let datasLivresCount = 0;
 
+        const nextHour = getNextHour(horario);
+        const hasNextHourInGrid = defaultSlots.includes(nextHour);
+
         for (const target of allTargetDates) {
           const occ = getSlotOccupancy(target.dateStr, target.dayOfWeek, horario);
+          const nextOcc = requerDoisBlocos ? getSlotOccupancy(target.dateStr, target.dayOfWeek, nextHour) : null;
 
-          if (occ.bloqueado) {
+          if (occ.bloqueado || (requerDoisBlocos && (!hasNextHourInGrid || nextOcc?.bloqueado))) {
             minVagasLivres = 0;
-            // Buscar sugestões de horários alternativos livres nesta data
             const alternativos = defaultSlots
               .filter(h => h !== horario)
               .map(h => ({ horario: h, ...getSlotOccupancy(target.dateStr, target.dayOfWeek, h) }))
@@ -221,7 +247,7 @@ export async function GET(request: Request) {
               capacidade: 0,
               vagasOcupadas: 0,
               vagasRestantes: 0,
-              motivo: `Horário suspenso/bloqueado na grade em ${target.formatted}`,
+              motivo: `Horário bloqueado ou sem bloco consecutivo na grade em ${target.formatted}`,
               horariosAlternativos: alternativos
             });
             continue;
@@ -234,18 +260,22 @@ export async function GET(request: Request) {
             maxVagasOcupadas = occ.ocupadas;
           }
 
-          const comportaServico = occ.livres >= servicoWeight;
+          const comportaServico = requerDoisBlocos
+            ? (occ.livres >= 3 && Boolean(nextOcc && nextOcc.livres >= 3))
+            : (occ.livres >= servicoWeight);
+
           if (comportaServico) {
             datasLivresCount++;
           } else {
-            // Buscar sugestões de horários alternativos livres nesta data
             const alternativos = defaultSlots
               .filter(h => h !== horario)
               .map(h => ({ horario: h, ...getSlotOccupancy(target.dateStr, target.dayOfWeek, h) }))
               .filter(alt => !alt.bloqueado && alt.livres >= servicoWeight)
               .map(alt => ({ horario: alt.horario, vagasRestantes: alt.livres, capacidade: alt.capacidade }));
 
-            const motivoTexto = tipoFiltro === 'dr_albert'
+            const motivoTexto = requerDoisBlocos
+              ? `Avaliação requer 3 vagas às ${horario} e às ${nextHour} (Restam ${occ.livres}/6 às ${horario} e ${nextOcc?.livres ?? 0}/6 às ${nextHour} em ${target.formatted})`
+              : tipoFiltro === 'dr_albert'
               ? `Horário lotado (${occ.ocupadas}/${occ.capacidade} pacientes em ${target.formatted})`
               : tipoFiltro === 'dr_guilherme'
               ? `Horário ocupado (1/1 paciente em ${target.formatted})`
@@ -277,6 +307,9 @@ export async function GET(request: Request) {
 
         return {
           horario,
+          horarioFim: requerDoisBlocos ? nextHour : undefined,
+          duracaoHoras: requerDoisBlocos ? 2 : 1,
+          isDynamus,
           capacidade: capacidadeNominal,
           tipo: tipoFiltro,
           vagasOcupadas: maxVagasOcupadas,
@@ -297,6 +330,8 @@ export async function GET(request: Request) {
         data: result,
         slots: result,
         isMultiDay: true,
+        requerDoisBlocos,
+        isDynamus,
         totalDatasAvaliadas: allTargetDates.length,
         datasAvaliadas: allTargetDates.map(d => d.formatted)
       });
@@ -390,7 +425,7 @@ export async function GET(request: Request) {
       })
       .populate('profissionalId');
 
-    const result = resolvedSlots.map(slot => {
+    const rawResult = resolvedSlots.map(slot => {
       const slotsApts = appointments.filter(apt => {
         if (apt.horario !== slot.horario) return false;
         if (slot.tipo === 'dr_albert') {
@@ -415,24 +450,62 @@ export async function GET(request: Request) {
       }
 
       const vagasRestantes = Math.max(0, slot.capacidade - totalVagasOcupadas);
-      const disponivel = vagasRestantes >= servicoWeight;
 
       return {
         ...slot,
         vagasOcupadas: totalVagasOcupadas,
         vagasRestantes,
         minVagasLivres: vagasRestantes,
+        appointments: slotsApts
+      };
+    });
+
+    // 4. Avaliar disponibilidade considerando se requer 2 blocos consecutivos
+    const result = rawResult.map(slot => {
+      const nextHour = getNextHour(slot.horario);
+      const nextSlot = rawResult.find(s => s.horario === nextHour);
+
+      let disponivel = false;
+      let motivo = '';
+
+      if (requerDoisBlocos) {
+        if (!nextSlot) {
+          disponivel = false;
+          motivo = 'Sem horário subsequente no expediente';
+        } else if (slot.vagasRestantes < 3) {
+          disponivel = false;
+          motivo = `Horário das ${slot.horario} com apenas ${slot.vagasRestantes}/6 vagas (necessário 3)`;
+        } else if (nextSlot.vagasRestantes < 3) {
+          disponivel = false;
+          motivo = `Horário seguinte das ${nextHour} com apenas ${nextSlot.vagasRestantes}/6 vagas (necessário 3)`;
+        } else {
+          disponivel = true;
+        }
+      } else {
+        disponivel = slot.vagasRestantes >= servicoWeight;
+        if (!disponivel) {
+          motivo = `Vagas insuficientes (${slot.vagasRestantes}/${slot.capacidade}, necessário ${servicoWeight})`;
+        }
+      }
+
+      return {
+        ...slot,
+        horarioFim: requerDoisBlocos && nextSlot ? nextHour : undefined,
+        duracaoHoras: requerDoisBlocos ? 2 : 1,
+        isDynamus,
         disponivel,
         status: disponivel ? 'livre' : 'lotado',
-        conflitos: [],
-        appointments: slotsApts
+        motivoIndisponibilidade: motivo,
+        conflitos: []
       };
     });
 
     return NextResponse.json({ 
       success: true, 
       data: result,
-      slots: result 
+      slots: result,
+      requerDoisBlocos,
+      isDynamus
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
