@@ -262,17 +262,14 @@ export function resolveClientContractStage(c: any, plan: any, latestContract: an
   }
 
   // 4. Contrato Assinado / Perfil Ativo com Vigência Válida ou Recorrência em Dia
-  const isCapitacao = (plan?.nome || com.planoNome || '').toLowerCase().includes('captação');
   const valorTotalOrUnit = Number(com.valorTotal || com.valorUnitario || latestContract?.valorTotal || 0);
   const hasManualContractData = Boolean(
-    !isCapitacao &&
-    (plan || com.planoId) &&
+    (plan || com.planoId || com.planoNome) &&
     valorTotalOrUnit > 0 &&
     (com.vencimento || com.dataFim || com.dataInicio)
   );
 
   const hasActiveContract = Boolean(
-    !isCapitacao &&
     com.status !== 'lead' && (
       isContractSigned ||
       com.status === 'ativo' ||
@@ -2671,9 +2668,8 @@ export default function GestaoContratosPanel({
 
       const isLocked = selectedClient.bloqueioCadastral?.bloqueado !== false;
       const planObj = plans.find(p => p._id === dcPlano);
-      const isPlanCapitacao = (planObj?.nome || '').toLowerCase().includes('captação');
-      const isContractComplete = Boolean(dcPlano && !isPlanCapitacao && Number(dcValorUnitario || 0) > 0 && dcDataInicio);
-      const targetStatus = isContractComplete ? 'ativo' : (dcStatus || 'ativo');
+      const isContractComplete = Boolean(dcPlano && Number(dcValorUnitario || 0) > 0 && dcDataInicio);
+      const targetStatus = dcStatus || (isContractComplete ? 'ativo' : 'lead');
 
       const payload: any = {
         id: selectedClient._id,
