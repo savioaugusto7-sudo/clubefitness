@@ -81,6 +81,7 @@ export default function HorariosFixosPanel({
   // Validação de vagas / conflitos para os horários selecionados
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsData, setSlotsData] = useState<any[]>([]);
+  const [exceptionsMap, setExceptionsMap] = useState<Record<string, { acao: 'outro_horario' | 'outro_dia' | 'pular'; novoHorario?: string; novaData?: string }>>({});
   const [savingSchedule, setSavingSchedule] = useState(false);
 
   // Sincronização em massa
@@ -216,11 +217,21 @@ export default function HorariosFixosPanel({
         const servParam = modalService || 'Treino Monitorado';
         const dateParam = modalStartDate || new Date().toISOString().split('T')[0];
 
+        let tipoParam = 'academia';
+        if (pIdParam) {
+          const pObj = professionals.find(p => p._id === pIdParam);
+          const pName = (pObj?.nome || '').toLowerCase();
+          if (pName.includes('albert')) tipoParam = 'dr_albert';
+          else if (pName.includes('guilherme')) tipoParam = 'dr_guilherme';
+        }
+
         const daysParam = selectedDays.join(',');
         const queryParams = new URLSearchParams({
           date: dateParam,
-          service: servParam,
-          daysOfWeek: daysParam
+          servico: servParam,
+          diasSemana: daysParam,
+          tipo: tipoParam,
+          semanas: '16'
         });
         if (pIdParam) queryParams.set('profissionalId', pIdParam);
 
@@ -241,7 +252,7 @@ export default function HorariosFixosPanel({
     return () => {
       isMounted = false;
     };
-  }, [showModal, modalProf, modalService, modalStartDate, selectedDays]);
+  }, [showModal, modalProf, modalService, modalStartDate, selectedDays, professionals]);
 
   // --- Abertura do Modal para Novo Horário Fixo ---
   const handleOpenNewModal = (prefillDay?: number, prefillTime?: string) => {
@@ -253,6 +264,7 @@ export default function HorariosFixosPanel({
     setModalDurationType('contrato');
     setModalManualEndDate('');
     setScheduleMode('uniforme');
+    setExceptionsMap({});
 
     if (prefillDay !== undefined) {
       setSelectedDays([prefillDay]);
@@ -277,6 +289,7 @@ export default function HorariosFixosPanel({
     setModalProf(group.professional?._id || group.professional || '');
     setModalService(group.servico || 'Treino Monitorado');
     setModalStartDate(group.dataInicio || new Date().toISOString().split('T')[0]);
+    setExceptionsMap({});
 
     if (group.dataFim) {
       setModalDurationType('manual');
@@ -366,7 +379,13 @@ export default function HorariosFixosPanel({
         };
       });
 
-      // 3. Enviar para a API (POST ou PUT)
+      // 3. Montar lista de exceções acordadas
+      const excecoesList = Object.entries(exceptionsMap).map(([dataOriginal, val]) => ({
+        dataOriginal,
+        ...val
+      }));
+
+      // 4. Enviar para a API (POST ou PUT)
       let res;
       if (editingGroup) {
         // Atualização em lote das regras do aluno
@@ -380,7 +399,8 @@ export default function HorariosFixosPanel({
             slots,
             servico: modalService,
             dataInicio: modalStartDate,
-            dataFim: finalEndDate
+            dataFim: finalEndDate,
+            excecoes: excecoesList
           })
         });
       } else {
@@ -395,7 +415,8 @@ export default function HorariosFixosPanel({
             servico: modalService,
             dataInicio: modalStartDate,
             duracaoSemanas: null,
-            dataFim: finalEndDate
+            dataFim: finalEndDate,
+            excecoes: excecoesList
           })
         });
       }
@@ -1402,15 +1423,18 @@ export default function HorariosFixosPanel({
                         Horário Desejado (para todos os {selectedDays.length} dias)
                       </label>
                       <span style={{ fontSize: '0.75rem', color: slotsLoading ? 'var(--color-primary)' : '#10b981' }}>
-                        {slotsLoading ? <><i className="fa-solid fa-spinner fa-spin"></i> Verificando vagas...</> : <><i className="fa-solid fa-check"></i> Vagas verificadas</>}
+                        {slotsLoading ? <><i className="fa-solid fa-spinner fa-spin"></i> Verificando vagas semana a semana...</> : <><i className="fa-solid fa-check"></i> Vagas auditadas em 16 semanas</>}
                       </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))', gap: '6px', maxHeight: '150px', overflowY: 'auto', padding: '6px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(95px, 1fr))', gap: '8px', maxHeight: '160px', overflowY: 'auto', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                       {STANDARD_HOURS.map(hour => {
                         const slotObj = slotsData.find(s => s.horario === hour);
-                        const minVagas = slotObj?.minVagasLivres !== undefined ? slotObj.minVagasLivres : Math.max(0, (slotObj?.capacidade || 8) - (slotObj?.vagasOcupadas || 0));
-                        const hasConflicts = slotObj?.conflitos && slotObj.conflitos.length > 0;
+                        const baseCap = modalProf ? (professionals.find(p => p._id === modalProf)?.nome?.toLowerCase().includes('albert') ? 2 : 1) : 6;
+                        const cap = slotObj?.capacidade ?? baseCap;
+                        const minVagas = slotObj?.minVagasLivres !== undefined ? slotObj.minVagasLivres : Math.max(0, cap - (slotObj?.vagasOcupadas || 0));
+                        const conflitosCount = slotObj?.totalConflitos ?? (slotObj?.conflitos?.length || 0);
+                        const status = slotObj?.status || (conflitosCount === 0 && minVagas > 0 ? 'livre' : conflitosCount > 0 && slotObj?.totalDatasLivres > 0 ? 'conflito_parcial' : 'lotado');
                         const isSelected = uniformTime === hour;
 
                         return (
@@ -1421,24 +1445,187 @@ export default function HorariosFixosPanel({
                             style={{
                               borderRadius: '8px',
                               padding: '8px 4px',
-                              border: isSelected ? '2px solid var(--color-primary)' : hasConflicts ? '1px solid rgba(239,68,68,0.45)' : '1px solid var(--border-color)',
-                              background: isSelected ? 'var(--color-primary)' : hasConflicts ? 'rgba(239,68,68,0.08)' : 'var(--bg-darker)',
+                              border: isSelected ? '2px solid var(--color-primary)' : status === 'conflito_parcial' ? '1px solid rgba(245,158,11,0.5)' : status === 'lotado' ? '1px solid rgba(239,68,68,0.45)' : '1px solid var(--border-color)',
+                              background: isSelected ? 'var(--color-primary)' : status === 'conflito_parcial' ? 'rgba(245,158,11,0.08)' : status === 'lotado' ? 'rgba(239,68,68,0.08)' : 'var(--bg-darker)',
                               color: isSelected ? '#fff' : 'var(--text-main)',
                               cursor: 'pointer',
                               display: 'flex',
                               flexDirection: 'column',
                               alignItems: 'center',
-                              gap: '2px'
+                              gap: '2px',
+                              transition: 'all 0.15s ease'
                             }}
                           >
                             <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{hour}</span>
-                            <span style={{ fontSize: '0.65rem', color: isSelected ? '#fff' : hasConflicts ? '#f87171' : minVagas >= 3 ? '#10b981' : '#f59e0b' }}>
-                              {hasConflicts ? `🔴 Conflito` : `${minVagas} vagas`}
+                            <span style={{ fontSize: '0.66rem', fontWeight: 650, color: isSelected ? '#fff' : status === 'livre' ? '#10b981' : status === 'conflito_parcial' ? '#fbbf24' : '#f87171' }}>
+                              {status === 'livre' ? `${minVagas}/${cap} vagas` : status === 'conflito_parcial' ? `🟡 ${conflitosCount} conflito(s)` : `🔴 Lotado`}
                             </span>
                           </button>
                         );
                       })}
                     </div>
+
+                    {/* Painel Inteligente de Resolução de Conflitos para o Horário Selecionado */}
+                    {(() => {
+                      const selectedSlot = slotsData.find(s => s.horario === uniformTime);
+                      const conflitos = selectedSlot?.datasConflito || selectedSlot?.conflitos || [];
+                      if (conflitos.length === 0) return null;
+
+                      return (
+                        <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px', padding: '12px', marginTop: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontWeight: 700, fontSize: '0.84rem' }}>
+                              <i className="fa-solid fa-triangle-exclamation"></i>
+                              <span>Resolução Inteligente de Conflitos ({conflitos.length} data(s) com agendamento prévio)</span>
+                            </div>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              Personalize a ação para as semanas conflitantes
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                            {conflitos.map((c: any, idx: number) => {
+                              const exc = exceptionsMap[c.data] || { acao: 'outro_horario', novoHorario: c.horariosAlternativos?.[0]?.horario || '09:00' };
+
+                              return (
+                                <div key={c.data || idx} style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                      <strong style={{ fontSize: '0.82rem', color: '#fff' }}>📅 {c.dataFormatada || c.data}</strong>
+                                      <div style={{ fontSize: '0.72rem', color: '#f87171', marginTop: '1px' }}>{c.motivo}</div>
+                                    </div>
+                                    
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setExceptionsMap(prev => ({
+                                          ...prev,
+                                          [c.data]: { acao: 'outro_horario', novoHorario: c.horariosAlternativos?.[0]?.horario || '09:00' }
+                                        }))}
+                                        style={{
+                                          padding: '3px 8px',
+                                          fontSize: '0.72rem',
+                                          borderRadius: '6px',
+                                          border: exc.acao === 'outro_horario' ? '1px solid #3b82f6' : '1px solid var(--border-color)',
+                                          background: exc.acao === 'outro_horario' ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.03)',
+                                          color: exc.acao === 'outro_horario' ? '#60a5fa' : 'var(--text-muted)',
+                                          cursor: 'pointer',
+                                          fontWeight: 600
+                                        }}
+                                      >
+                                        🕒 Outro Horário
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setExceptionsMap(prev => ({
+                                          ...prev,
+                                          [c.data]: { acao: 'outro_dia', novoHorario: uniformTime }
+                                        }))}
+                                        style={{
+                                          padding: '3px 8px',
+                                          fontSize: '0.72rem',
+                                          borderRadius: '6px',
+                                          border: exc.acao === 'outro_dia' ? '1px solid #10b981' : '1px solid var(--border-color)',
+                                          background: exc.acao === 'outro_dia' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
+                                          color: exc.acao === 'outro_dia' ? '#34d399' : 'var(--text-muted)',
+                                          cursor: 'pointer',
+                                          fontWeight: 600
+                                        }}
+                                      >
+                                        📅 Outro Dia
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setExceptionsMap(prev => ({
+                                          ...prev,
+                                          [c.data]: { acao: 'pular' }
+                                        }))}
+                                        style={{
+                                          padding: '3px 8px',
+                                          fontSize: '0.72rem',
+                                          borderRadius: '6px',
+                                          border: exc.acao === 'pular' ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                                          background: exc.acao === 'pular' ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.03)',
+                                          color: exc.acao === 'pular' ? '#f87171' : 'var(--text-muted)',
+                                          cursor: 'pointer',
+                                          fontWeight: 600
+                                        }}
+                                      >
+                                        ⏭️ Pular Semana
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Detalhe da opção escolhida */}
+                                  {exc.acao === 'outro_horario' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.76rem' }}>
+                                      <span style={{ color: 'var(--text-muted)' }}>Horário alternativo para esta data:</span>
+                                      {c.horariosAlternativos && c.horariosAlternativos.length > 0 ? (
+                                        <select
+                                          className="select-custom"
+                                          value={exc.novoHorario || c.horariosAlternativos[0].horario}
+                                          onChange={e => setExceptionsMap(prev => ({
+                                            ...prev,
+                                            [c.data]: { ...exc, novoHorario: e.target.value }
+                                          }))}
+                                          style={{ padding: '3px 8px', fontSize: '0.76rem', width: 'auto' }}
+                                        >
+                                          {c.horariosAlternativos.map((alt: any) => (
+                                            <option key={alt.horario} value={alt.horario}>
+                                              {alt.horario} ({alt.vagasRestantes}/{alt.capacidade} vagas livres)
+                                            </option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <span style={{ color: '#f87171' }}>Nenhum horário livre nesta data específica. Sugerimos mudar o dia ou pular a semana.</span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {exc.acao === 'outro_dia' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.76rem' }}>
+                                      <span style={{ color: 'var(--text-muted)' }}>Nova data nesta semana:</span>
+                                      <input
+                                        type="date"
+                                        className="form-control"
+                                        value={exc.novaData || c.data}
+                                        onChange={e => setExceptionsMap(prev => ({
+                                          ...prev,
+                                          [c.data]: { ...exc, novaData: e.target.value }
+                                        }))}
+                                        style={{ padding: '3px 8px', fontSize: '0.76rem', width: 'auto' }}
+                                      />
+                                      <span style={{ color: 'var(--text-muted)' }}>às</span>
+                                      <select
+                                        className="select-custom"
+                                        value={exc.novoHorario || uniformTime}
+                                        onChange={e => setExceptionsMap(prev => ({
+                                          ...prev,
+                                          [c.data]: { ...exc, novoHorario: e.target.value }
+                                        }))}
+                                        style={{ padding: '3px 8px', fontSize: '0.76rem', width: 'auto' }}
+                                      >
+                                        {STANDARD_HOURS.map(h => (
+                                          <option key={h} value={h}>{h}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+
+                                  {exc.acao === 'pular' && (
+                                    <div style={{ fontSize: '0.74rem', color: '#93c5fd' }}>
+                                      ℹ️ O agendamento desta semana específica não será gerado automaticamente. O aluno poderá realizar reposição avulsa posteriormente.
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="form-group" style={{ margin: 0 }}>
@@ -1448,6 +1635,11 @@ export default function HorariosFixosPanel({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {selectedDays.map(day => {
                         const curTime = dayTimesMap[day] || uniformTime;
+                        const slotObj = slotsData.find(s => s.horario === curTime);
+                        const baseCap = modalProf ? (professionals.find(p => p._id === modalProf)?.nome?.toLowerCase().includes('albert') ? 2 : 1) : 6;
+                        const cap = slotObj?.capacidade ?? baseCap;
+                        const minVagas = slotObj?.minVagasLivres !== undefined ? slotObj.minVagasLivres : Math.max(0, cap - (slotObj?.vagasOcupadas || 0));
+
                         return (
                           <div
                             key={day}
@@ -1461,9 +1653,14 @@ export default function HorariosFixosPanel({
                               borderRadius: '8px'
                             }}
                           >
-                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                              {DAYS_FULL[day]}
-                            </span>
+                            <div>
+                              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                                {DAYS_FULL[day]}
+                              </span>
+                              <div style={{ fontSize: '0.72rem', color: minVagas > 0 ? '#10b981' : '#f87171', marginTop: '2px' }}>
+                                {minVagas > 0 ? `🟢 ${minVagas}/${cap} vagas livres` : `🔴 Horário lotado`}
+                              </div>
+                            </div>
                             <select
                               className="select-custom"
                               value={curTime}

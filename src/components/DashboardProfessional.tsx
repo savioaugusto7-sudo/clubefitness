@@ -461,6 +461,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [emergencyReschedHour, setEmergencyReschedHour] = useState('08:00');
   const [emergencyAvailableSlots, setEmergencyAvailableSlots] = useState<any[]>([]);
   const [loadingEmergencySlots, setLoadingEmergencySlots] = useState(false);
+  const [emergencyAgendaTipo, setEmergencyAgendaTipo] = useState<'academia' | 'dr_guilherme'>('academia');
   const [submittingEmergency, setSubmittingEmergency] = useState(false);
   const [createdEmergencyProntuarioId, setCreatedEmergencyProntuarioId] = useState<string | null>(null);
 
@@ -2908,17 +2909,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   };
 
-  const fetchEmergencySlots = async (dateStr: string) => {
+  const fetchEmergencySlots = async (dateStr: string, tipoOverride?: 'academia' | 'dr_guilherme') => {
+    const tipoToFetch = tipoOverride || emergencyAgendaTipo;
     setLoadingEmergencySlots(true);
     try {
-      const res = await fetch(`/api/appointments/slots?date=${dateStr}&tipo=academia`);
+      const res = await fetch(`/api/appointments/slots?date=${dateStr}&tipo=${tipoToFetch}`);
       const data = await res.json();
       const rawSlots: any[] = Array.isArray(data.slots) ? data.slots : Array.isArray(data.data) ? data.data : [];
       if (data.success && rawSlots.length > 0) {
         const available = rawSlots
           .map((s: any) => {
             const ocupadas = s.vagasOcupadas ?? 0;
-            const cap = s.capacidade ?? 6;
+            const cap = s.capacidade ?? (tipoToFetch === 'academia' ? 6 : 1);
             const restantes = s.vagasRestantes !== undefined ? s.vagasRestantes : Math.max(0, cap - ocupadas);
             return {
               ...s,
@@ -2951,13 +2953,14 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setEmergencyReport('');
     setEmergencyConduct('alta');
     setEmergencyStep('prontuario');
+    setEmergencyAgendaTipo('academia');
     setCreatedEmergencyProntuarioId(null);
     setSubmittingEmergency(false);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dStr = tomorrow.toISOString().split('T')[0];
     setEmergencyReschedDate(dStr);
-    fetchEmergencySlots(dStr);
+    fetchEmergencySlots(dStr, 'academia');
     setShowEmergencyModal(true);
   };
 
@@ -3121,6 +3124,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     setSubmittingEmergency(true);
     executeAction('Agendou Próxima Emergência', targetClientId, async (executorProfId) => {
       try {
+        const guilhermeProf = professionals.find(p => (p.nome || '').toLowerCase().includes('guilherme'));
+        const targetProfId = emergencyAgendaTipo === 'dr_guilherme' && guilhermeProf ? guilhermeProf._id : executorProfId;
+
         const res = await fetch('/api/appointments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3128,9 +3134,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
             data: emergencyReschedDate,
             horario: emergencyReschedHour,
             servico: 'Emergência',
-            tipo: 'academia',
+            tipo: emergencyAgendaTipo,
             clienteId: targetClientId,
-            profissionalId: executorProfId,
+            profissionalId: targetProfId,
             status: 'agendado',
             bypassRestrictions: true
           })
@@ -3139,7 +3145,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
         if (data.success) {
           setShowEmergencyModal(false);
           setCreatedEmergencyProntuarioId(null);
-          alert(`✅ Próxima Emergência agendada com sucesso para ${clientName} em ${emergencyReschedDate} às ${emergencyReschedHour}!`);
+          const agendaLabel = emergencyAgendaTipo === 'dr_guilherme' ? 'na Agenda do Guilherme' : 'na Agenda Geral';
+          alert(`✅ Próxima Emergência agendada com sucesso para ${clientName} em ${emergencyReschedDate} às ${emergencyReschedHour} (${agendaLabel})!`);
           fetchData();
         } else {
           alert('Erro ao criar agendamento: ' + (data.error || 'Horário indisponível'));
@@ -15405,9 +15412,64 @@ goniometria: {
                 <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '8px', padding: '12px', fontSize: '0.9rem' }}>
                     <p style={{ margin: '0 0 4px 0' }}><strong>Paciente:</strong> {emergencyApt?.clienteId?.dadosPessoais?.nome || emergencyApt?.clienteId?.nome || 'Paciente'} <span style={{ fontSize: '0.72rem', background: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 700 }}>FIXO</span></p>
-                    <p style={{ margin: '0 0 4px 0' }}><strong>Serviço:</strong> Atendimento de Emergência (Ocupa 3 vagas)</p>
+                    <p style={{ margin: '0 0 4px 0' }}><strong>Serviço:</strong> Atendimento de Emergência {emergencyAgendaTipo === 'academia' ? '(Ocupa 3 vagas na Agenda Geral)' : '(Agenda Individual Dr. Guilherme)'}</p>
                     <div style={{ marginTop: '6px', fontSize: '0.76rem', color: '#93c5fd', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <i className="fa-solid fa-circle-info"></i> Caso o aluno não possua saldo de créditos no mês, o sistema registrará como <strong>Emergência Extra</strong> para controle interno da administração.
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '8px', display: 'block' }}>Destino da Próxima Sessão:</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmergencyAgendaTipo('academia');
+                          if (emergencyReschedDate) fetchEmergencySlots(emergencyReschedDate, 'academia');
+                        }}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: emergencyAgendaTipo === 'academia' ? '2px solid #3b82f6' : '1px solid var(--border-color)',
+                          background: emergencyAgendaTipo === 'academia' ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)',
+                          color: emergencyAgendaTipo === 'academia' ? '#60a5fa' : 'inherit',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '3px'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-dumbbell"></i> Agenda Geral (Academia)
+                        </div>
+                        <div style={{ fontSize: '0.72rem', opacity: 0.8 }}>Equipe / Fisioterapia geral</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmergencyAgendaTipo('dr_guilherme');
+                          if (emergencyReschedDate) fetchEmergencySlots(emergencyReschedDate, 'dr_guilherme');
+                        }}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: emergencyAgendaTipo === 'dr_guilherme' ? '2px solid #10b981' : '1px solid var(--border-color)',
+                          background: emergencyAgendaTipo === 'dr_guilherme' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)',
+                          color: emergencyAgendaTipo === 'dr_guilherme' ? '#34d399' : 'inherit',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '3px'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="fa-solid fa-user-doctor"></i> Dr. Guilherme
+                        </div>
+                        <div style={{ fontSize: '0.72rem', opacity: 0.8 }}>Consultório individual</div>
+                      </button>
                     </div>
                   </div>
 

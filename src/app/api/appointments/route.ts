@@ -443,19 +443,34 @@ export async function POST(request: Request) {
     }
 
     // --- Validação de Vagas / Capacidade ---
-    if (tipo === 'dr_albert' || tipo === 'dr_guilherme' || tipo === 'consultorio') {
-      let maxVagas = 1;
+    if (tipo === 'dr_albert' || tipo === 'dr_guilherme') {
+      let maxVagas = tipo === 'dr_albert' ? 2 : 1;
       if (customRule && customRule.acao === 'alterar_capacidade' && customRule.capacidadePersonalizada !== null) {
         maxVagas = customRule.capacidadePersonalizada;
       }
-      const existingDoctorApts = await Appointment.countDocuments({
+
+      // Localizar agendamentos existentes no horário
+      const matchingApts = await Appointment.find({
         data,
         horario,
-        tipo,
         status: { $ne: 'cancelado' }
-      });
-      if (existingDoctorApts >= maxVagas && !bypassRestrictions) {
-        return NextResponse.json({ success: false, error: `Horário lotado! Apenas ${maxVagas} vaga(s) disponível(is) neste horário.` }, { status: 400 });
+      }).populate('profissionalId');
+
+      const countProfApts = matchingApts.filter(a => {
+        if (tipo === 'dr_albert') {
+          const profNome = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+          return a.tipo === 'dr_albert' || (a.tipo !== 'academia' && profNome.includes('albert'));
+        }
+        if (tipo === 'dr_guilherme') {
+          const profNome = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+          return a.tipo === 'dr_guilherme' || (a.tipo !== 'academia' && profNome.includes('guilherme'));
+        }
+        return false;
+      }).length;
+
+      if (countProfApts >= maxVagas && !bypassRestrictions) {
+        const medicoNome = tipo === 'dr_albert' ? 'Dr. Albert (Máximo 2 pacientes)' : 'Dr. Guilherme (Máximo 1 paciente)';
+        return NextResponse.json({ success: false, error: `Horário lotado na agenda do ${medicoNome}! Já existem ${countProfApts} agendamento(s) neste horário.` }, { status: 400 });
       }
     } else {
       let maxVagasAcademia = 6;
@@ -466,19 +481,32 @@ export async function POST(request: Request) {
       const allGymApts = await Appointment.find({
         data,
         horario,
-        tipo: 'academia',
         status: { $ne: 'cancelado' }
+      }).populate('profissionalId');
+
+      const onlyGymApts = allGymApts.filter(a => {
+        const profNome = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+        if (a.tipo === 'dr_albert' || profNome.includes('albert')) return false;
+        if (a.tipo === 'dr_guilherme' || profNome.includes('guilherme')) return false;
+        return true;
       });
-      const vagasTotais = allGymApts.reduce((sum, apt) => {
+
+      const vagasTotais = onlyGymApts.reduce((sum, apt) => {
         const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
         return sum + cfg.vagasOcupadas;
       }, 0);
-      if (vagasTotais + servicoConfig.vagasOcupadas > maxVagasAcademia && !bypassRestrictions) {
-        return NextResponse.json({ success: false, error: `Horário na academia lotado! Máximo de ${maxVagasAcademia} vagas.` }, { status: 400 });
+
+      const requiredVagas = servicoConfig.vagasOcupadas !== undefined ? servicoConfig.vagasOcupadas : 1;
+
+      if (vagasTotais + requiredVagas > maxVagasAcademia && !bypassRestrictions) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Horário na academia lotado! Este horário possui ${vagasTotais}/${maxVagasAcademia} vagas ocupadas e o serviço '${servico}' requer ${requiredVagas} vaga(s).` 
+        }, { status: 400 });
       }
 
       if (servico === 'Treino Livre') {
-        const treinosLivresNesteHorario = allGymApts.filter(a => a.servico === 'Treino Livre').length;
+        const treinosLivresNesteHorario = onlyGymApts.filter(a => a.servico === 'Treino Livre').length;
         if (treinosLivresNesteHorario >= 3 && !bypassRestrictions) {
           return NextResponse.json({ success: false, error: 'Limite de 3 Treinos Livres por horário atingido.' }, { status: 400 });
         }

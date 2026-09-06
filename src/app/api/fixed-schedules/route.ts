@@ -4,11 +4,39 @@ import FixedSchedule from '@/models/FixedSchedule';
 import Client from '@/models/Client';
 import Professional from '@/models/Professional';
 import Appointment from '@/models/Appointment';
+import AgendaConfig from '@/models/AgendaConfig';
 
 export const maxDuration = 30;
 
+const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number }> = {
+  'Treino Monitorado':        { vagasOcupadas: 1 },
+  'Treino Livre':             { vagasOcupadas: 0 },
+  'Recovery':                 { vagasOcupadas: 1 },
+  'Avaliação Física':         { vagasOcupadas: 3 },
+  'Teste de Força':           { vagasOcupadas: 3 },
+  'Avaliação Fisioterápica':  { vagasOcupadas: 3 },
+  'Emergência':               { vagasOcupadas: 3 },
+  'Terapia Manual':           { vagasOcupadas: 3 },
+  'Sessão de Fisioterapia':   { vagasOcupadas: 3 },
+  'Atendimento Individual':   { vagasOcupadas: 3 },
+  'Pilates':                  { vagasOcupadas: 2 },
+  'Funcional':                { vagasOcupadas: 2 },
+  'Massagem':                 { vagasOcupadas: 1 },
+  'Consulta':                 { vagasOcupadas: 1 },
+  'Quiropraxia':              { vagasOcupadas: 1 }
+};
+
+function getCapacidadeBase(tipo: string): number {
+  if (tipo === 'dr_albert') return 2;
+  if (tipo === 'dr_guilherme') return 1;
+  return 6;
+}
+
 // Helper otimizado para gerar agendamentos reais na grade a partir de regras de horário fixo
-async function generateAppointmentsForFixedSchedules(schedules: any[]) {
+async function generateAppointmentsForFixedSchedules(
+  schedules: any[],
+  excecoes?: Array<{ dataOriginal: string; acao: 'outro_horario' | 'outro_dia' | 'pular'; novaData?: string; novoHorario?: string }>
+) {
   try {
     if (!schedules || schedules.length === 0) return;
 
@@ -18,11 +46,18 @@ async function generateAppointmentsForFixedSchedules(schedules: any[]) {
     const defaultProf = await Professional.findOne();
     const defaultProfId = defaultProf?._id;
 
-    const allAppointmentsToCreate: any[] = [];
-    const allCandidateDatesByClient: { clienteId: string; dateStr: string; horario: string }[] = [];
+    // Mapa de exceções para busca rápida
+    const exceptionMap = new Map<string, { acao: 'outro_horario' | 'outro_dia' | 'pular'; novaData?: string; novoHorario?: string }>();
+    if (Array.isArray(excecoes)) {
+      for (const exc of excecoes) {
+        if (exc.dataOriginal) {
+          exceptionMap.set(exc.dataOriginal, exc);
+        }
+      }
+    }
 
     // Pre-calcular todas as datas para todas as regras
-    const scheduleDatePairs: { schedule: any; dateStr: string }[] = [];
+    const scheduleDatePairs: { schedule: any; dateStr: string; horario: string }[] = [];
 
     for (const schedule of schedules) {
       const startDate = new Date((schedule.dataInicio || today.toISOString().split('T')[0]) + 'T12:00:00');
@@ -45,12 +80,24 @@ async function generateAppointmentsForFixedSchedules(schedules: any[]) {
 
       while (current <= endDate) {
         const dateStr = current.toISOString().split('T')[0];
-        scheduleDatePairs.push({ schedule, dateStr });
-        allCandidateDatesByClient.push({
-          clienteId: String(schedule.clienteId),
-          dateStr,
-          horario: schedule.horario
-        });
+        const exc = exceptionMap.get(dateStr);
+
+        if (exc) {
+          if (exc.acao === 'pular') {
+            // Pular esta data específica
+            current.setDate(current.getDate() + 7);
+            continue;
+          } else if (exc.acao === 'outro_horario' && exc.novoHorario) {
+            scheduleDatePairs.push({ schedule, dateStr, horario: exc.novoHorario });
+          } else if (exc.acao === 'outro_dia' && exc.novaData) {
+            scheduleDatePairs.push({ schedule, dateStr: exc.novaData, horario: exc.novoHorario || schedule.horario });
+          } else {
+            scheduleDatePairs.push({ schedule, dateStr, horario: schedule.horario });
+          }
+        } else {
+          scheduleDatePairs.push({ schedule, dateStr, horario: schedule.horario });
+        }
+
         current.setDate(current.getDate() + 7);
       }
     }
@@ -71,70 +118,123 @@ async function generateAppointmentsForFixedSchedules(schedules: any[]) {
     const dateStrings = Array.from(new Set(scheduleDatePairs.map(p => p.dateStr)));
 
     const existingAppointments = await Appointment.find({
-      $or: [
-        { clienteId: { $in: [...idStrings, ...idObjects] } },
-        { clientId: { $in: [...idStrings, ...idObjects] } }
-      ],
       data: { $in: dateStrings },
       status: { $ne: 'cancelado' }
-    }).select('clienteId clientId data horario').lean();
+    }).populate('profissionalId').lean();
 
     const existingSet = new Set(
-      existingAppointments.map((a: any) => {
-        const raw = a.clienteId || a.clientId;
-        const cIdStr = String(raw?._id || raw);
-        return `${cIdStr}_${a.data}_${a.horario}`;
-      })
+      existingAppointments
+        .filter((a: any) => {
+          const raw = a.clienteId || a.clientId;
+          const cIdStr = String(raw?._id || raw);
+          return idStrings.includes(cIdStr);
+        })
+        .map((a: any) => {
+          const raw = a.clienteId || a.clientId;
+          const cIdStr = String(raw?._id || raw);
+          return `${cIdStr}_${a.data}_${a.horario}`;
+        })
     );
+
+    // Buscar configurações de capacidade customizadas
+    const configs = await AgendaConfig.find({
+      $or: [
+        { dataEspecifica: { $in: dateStrings } },
+        { diaSemana: { $in: [1, 2, 3, 4, 5, 6] }, dataEspecifica: null }
+      ]
+    }).lean();
 
     // Buscar profissionais para mapeamento de agendas dedicadas (Dr. Albert / Dr. Guilherme)
     const allProfs = await Professional.find({}).lean();
     const profMap = new Map<string, any>();
     allProfs.forEach((p: any) => profMap.set(String(p._id), p));
 
+    const allAppointmentsToCreate: any[] = [];
+    const localOccupancyMap = new Map<string, number>();
+
     for (const pair of scheduleDatePairs) {
       const cIdStr = String(pair.schedule.clienteId?._id || pair.schedule.clienteId);
-      const key = `${cIdStr}_${pair.dateStr}_${pair.schedule.horario}`;
+      const key = `${cIdStr}_${pair.dateStr}_${pair.horario}`;
+
       if (!existingSet.has(key)) {
         existingSet.add(key); // evitar duplicatas dentro do mesmo lote
         const hasSpecificProf = Boolean(pair.schedule.profissionalId);
         const profId = pair.schedule.profissionalId || defaultProfId;
+
         if (profId) {
-          let resolvedTipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme' = 'academia';
+          let resolvedTipo: 'academia' | 'dr_albert' | 'dr_guilherme' = 'academia';
 
           if (hasSpecificProf) {
             const profObj = profMap.get(String(profId?._id || profId));
             const profName = (profObj?.nome || '').toLowerCase();
-            const serv = (pair.schedule.servico || '').toLowerCase();
-            const isDoctorAlbert = profName.includes('albert');
-            const isDoctorGuilherme = profName.includes('guilherme');
-            const isConsultorio = isDoctorAlbert || isDoctorGuilherme || serv.includes('avalia') || serv.includes('fisioterap') || serv.includes('consulta') || serv.includes('quiroprax') || serv.includes('individual');
-
-            if (isDoctorAlbert) {
+            if (profName.includes('albert')) {
               resolvedTipo = 'dr_albert';
-            } else if (isDoctorGuilherme) {
+            } else if (profName.includes('guilherme')) {
               resolvedTipo = 'dr_guilherme';
-            } else if (isConsultorio) {
-              resolvedTipo = 'consultorio';
             }
-          } else {
-            // Quando não há profissional específico (Treino / Geral - Agenda Geral)
-            resolvedTipo = 'academia';
           }
 
-          allAppointmentsToCreate.push({
-            data: pair.dateStr,
-            horario: pair.schedule.horario,
-            tipo: resolvedTipo,
-            servico: pair.schedule.servico || (resolvedTipo !== 'academia' ? 'Atendimento Individual' : 'Treino Monitorado'),
-            consumeCredito: true,
-            tipoCredito: 'academia',
-            profissionalId: profId,
-            clienteId: pair.schedule.clienteId,
-            status: 'agendado',
-            origemHorarioFixo: true,
-            fixedScheduleId: pair.schedule._id
+          // Resolver capacidade e ocupação do slot para garantir que não haja overbooking
+          const slotKey = `${pair.dateStr}_${pair.horario}_${resolvedTipo}`;
+          const capacidadeBase = getCapacidadeBase(resolvedTipo);
+
+          const parts = pair.dateStr.split('-');
+          const dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          const dayOfW = dObj.getDay();
+
+          const customCap = configs.find((c: any) => c.horario === pair.horario && c.acao === 'alterar_capacidade' && (c.dataEspecifica === pair.dateStr || (c.diaSemana === dayOfW && !c.dataEspecifica)));
+          const maxCap = customCap?.capacidadePersonalizada !== undefined && customCap?.capacidadePersonalizada !== null
+            ? customCap.capacidadePersonalizada
+            : capacidadeBase;
+
+          // Calcular ocupação existente + novos a criar
+          let existingOccupancy = 0;
+          const matchingExisting = existingAppointments.filter((a: any) => {
+            if (a.data !== pair.dateStr || a.horario !== pair.horario) return false;
+            if (resolvedTipo === 'dr_albert') {
+              const pName = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+              return a.tipo === 'dr_albert' || (a.tipo !== 'academia' && pName.includes('albert'));
+            }
+            if (resolvedTipo === 'dr_guilherme') {
+              const pName = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
+              return a.tipo === 'dr_guilherme' || (a.tipo !== 'academia' && pName.includes('guilherme'));
+            }
+            return (a.tipo || 'academia') === 'academia';
           });
+
+          if (resolvedTipo === 'dr_albert' || resolvedTipo === 'dr_guilherme') {
+            existingOccupancy = matchingExisting.length;
+          } else {
+            existingOccupancy = matchingExisting.reduce((sum: number, apt: any) => {
+              const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
+              return sum + cfg.vagasOcupadas;
+            }, 0);
+          }
+
+          const currentBatchAdded = localOccupancyMap.get(slotKey) || 0;
+          const serviceWeight = resolvedTipo === 'academia'
+            ? (SERVICOS_CONFIG[pair.schedule.servico]?.vagasOcupadas !== undefined ? SERVICOS_CONFIG[pair.schedule.servico].vagasOcupadas : 1)
+            : 1;
+
+          if (existingOccupancy + currentBatchAdded + serviceWeight <= maxCap) {
+            localOccupancyMap.set(slotKey, currentBatchAdded + serviceWeight);
+
+            allAppointmentsToCreate.push({
+              data: pair.dateStr,
+              horario: pair.horario,
+              tipo: resolvedTipo,
+              servico: pair.schedule.servico || (resolvedTipo !== 'academia' ? 'Atendimento Individual' : 'Treino Monitorado'),
+              consumeCredito: true,
+              tipoCredito: 'academia',
+              profissionalId: profId,
+              clienteId: pair.schedule.clienteId,
+              status: 'agendado',
+              origemHorarioFixo: true,
+              fixedScheduleId: pair.schedule._id
+            });
+          } else {
+            console.warn(`[FixedSchedules] Slot ${pair.dateStr} às ${pair.horario} (${resolvedTipo}) atingiu capacidade (${existingOccupancy + currentBatchAdded}/${maxCap}). Agendamento excedente bloqueado.`);
+          }
         }
       }
     }
@@ -170,7 +270,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clienteId, profissionalId, slots, diaSemana, horario, servico, dataInicio, duracaoSemanas, dataFim, syncAll } = body;
+    const { clienteId, profissionalId, slots, diaSemana, horario, servico, dataInicio, duracaoSemanas, dataFim, excecoes, syncAll } = body;
 
     // Sincronização em massa de todas as regras existentes
     if (syncAll) {
@@ -230,8 +330,8 @@ export async function POST(request: Request) {
 
     const createdSchedules = await FixedSchedule.insertMany(itemsToCreate);
 
-    // Gerar agendamentos reais em lote de forma instantânea
-    await generateAppointmentsForFixedSchedules(createdSchedules);
+    // Gerar agendamentos reais em lote de forma instantânea com suporte a exceções
+    await generateAppointmentsForFixedSchedules(createdSchedules, excecoes);
 
     return NextResponse.json({ success: true, data: createdSchedules });
   } catch (error: any) {
@@ -243,7 +343,7 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, clienteId, oldProfessionalId, profissionalId, slots, diaSemana, horario, servico, dataInicio, dataFim } = body;
+    const { id, clienteId, oldProfessionalId, profissionalId, slots, diaSemana, horario, servico, dataInicio, dataFim, excecoes } = body;
 
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -281,7 +381,7 @@ export async function PUT(request: Request) {
         }));
 
         const created = await FixedSchedule.insertMany(itemsToCreate);
-        await generateAppointmentsForFixedSchedules(created);
+        await generateAppointmentsForFixedSchedules(created, excecoes);
         return NextResponse.json({ success: true, message: 'Regras do aluno atualizadas com sucesso.', data: created });
       }
 
@@ -310,7 +410,7 @@ export async function PUT(request: Request) {
       if (profissionalId !== undefined) existing.profissionalId = profissionalId || null;
 
       await existing.save();
-      await generateAppointmentsForFixedSchedules([existing]);
+      await generateAppointmentsForFixedSchedules([existing], excecoes);
 
       return NextResponse.json({ success: true, message: 'Horário fixo atualizado com sucesso.', data: existing });
     }
