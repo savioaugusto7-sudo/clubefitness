@@ -1457,7 +1457,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                 <i className="fa-solid fa-clipboard-list" style={{ color: '#f59e0b' }}></i> Registro Detalhado dos Atendimentos ({atendimentosDetalhados.length})
               </h3>
               <p style={{ margin: '0 0 16px 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                Histórico de cada sessão emergencial realizada em <strong style={{ color: '#fff' }}>{selectedMonth}</strong> com queixa e profissional
+                Histórico cronológico de cada sessão de emergência realizada em <strong style={{ color: '#fff' }}>{selectedMonth}</strong> com o desfecho clínico
               </p>
 
               <div className="table-responsive" style={{ overflowX: 'auto' }}>
@@ -1466,9 +1466,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                     <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: '#94a3b8' }}>
                       <th style={{ padding: '10px' }}>Data & Horário</th>
                       <th style={{ padding: '10px' }}>Aluno</th>
-                      <th style={{ padding: '10px' }}>Profissional Atendente</th>
-                      <th style={{ padding: '10px' }}>Serviço / Procedimento</th>
-                      <th style={{ padding: '10px' }}>Observações / Queixa Clínica</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Conduta Escolhida</th>
                       <th style={{ padding: '10px', textAlign: 'center' }}>Status</th>
                     </tr>
                   </thead>
@@ -1481,17 +1479,66 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                         <td style={{ padding: '10px', fontWeight: 600, color: '#cbd5e1' }}>
                           {at.clienteNome}
                         </td>
-                        <td style={{ padding: '10px', color: '#cbd5e1' }}>
-                          <i className="fa-solid fa-user-doctor" style={{ color: '#c084fc', marginRight: '5px' }}></i> {at.profissionalNome}
-                        </td>
-                        <td style={{ padding: '10px', color: '#94a3b8' }}>
-                          {at.servico}
-                        </td>
-                        <td style={{ padding: '10px', color: '#cbd5e1', maxWidth: '300px' }}>
-                          {at.observacoes || <span style={{ color: '#64748b', fontStyle: 'italic' }}>Sem observações registradas</span>}
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          {at.conduta === 'alta' ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                color: '#34d399',
+                                border: '1px solid rgba(16, 185, 129, 0.3)'
+                              }}
+                            >
+                              <i className="fa-solid fa-circle-check"></i> Alta
+                            </span>
+                          ) : at.conduta === 'novo_agendamento' ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                color: '#fbbf24',
+                                border: '1px solid rgba(245, 158, 11, 0.3)'
+                              }}
+                            >
+                              <i className="fa-solid fa-calendar-plus"></i> Novo Agendamento
+                            </span>
+                          ) : (
+                            <span style={{ color: '#64748b', fontSize: '0.85rem' }}>-</span>
+                          )}
                         </td>
                         <td style={{ padding: '10px', textAlign: 'center' }}>
-                          <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                          <span
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              background:
+                                at.status === 'presenca'
+                                  ? 'rgba(16, 185, 129, 0.15)'
+                                  : at.status === 'falta'
+                                  ? 'rgba(239, 68, 68, 0.15)'
+                                  : 'rgba(56, 189, 248, 0.15)',
+                              color:
+                                at.status === 'presenca'
+                                  ? '#34d399'
+                                  : at.status === 'falta'
+                                  ? '#f87171'
+                                  : '#38bdf8'
+                            }}
+                          >
                             {at.status}
                           </span>
                         </td>

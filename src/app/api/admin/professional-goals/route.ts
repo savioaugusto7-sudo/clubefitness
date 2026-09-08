@@ -7,6 +7,7 @@ import StrengthTest from '@/models/StrengthTest';
 import PhysioReport from '@/models/PhysioReport';
 import ClientWorkout from '@/models/ClientWorkout';
 import Appointment from '@/models/Appointment';
+import Prontuario from '@/models/Prontuario';
 
 export const maxDuration = 30;
 
@@ -54,8 +55,8 @@ export async function GET(request: Request) {
     const sixMonthsAgoDate = new Date(selYear, selMonth - 6, 1);
     const sixMonthsAgoFirstDayStr = `${sixMonthsAgoDate.getFullYear()}-${String(sixMonthsAgoDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios e Atendimentos do mês e de 6 meses
-    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments] = await Promise.all([
+    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios, Atendimentos e Prontuários
+    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments, periodProntuarios] = await Promise.all([
       PhysicalAssessment.find({
         data: { $gte: firstDayStr, $lte: lastDayStr }
       }).lean(),
@@ -76,7 +77,10 @@ export async function GET(request: Request) {
           { servico: { $regex: /emerg/i } },
           { tipoCredito: 'emergencia' }
         ]
-      }).sort({ data: -1, horario: -1 }).lean()
+      }).sort({ data: -1, horario: -1 }).lean(),
+      Prontuario.find({
+        data: { $gte: firstDayStr, $lte: lastDayStr }
+      }).lean()
     ]);
 
     // Mapear fichas de treino por cliente e data
@@ -861,16 +865,46 @@ export async function GET(request: Request) {
       const cObj = clientMap.get(cId);
       const alunoNome = cObj?.dadosPessoais?.nome || cObj?.nome || a.clienteNome || 'Aluno';
       const profNome = a.profissionalNome || (a.profissionalId?.nome) || 'Profissional';
+      const aptData = a.data || '';
+      const aptStatus = a.status || 'agendado';
+
+      let conduta: 'alta' | 'novo_agendamento' | null = null;
+      let condutaLabel = '-';
+
+      if (aptStatus === 'presenca') {
+        // Verificar se há prontuário do cliente na data do atendimento ou no período
+        const prontuariosCliente = periodProntuarios.filter((pr: any) => String(pr.clienteId) === cId);
+        const prontuarioData = prontuariosCliente.find((pr: any) => pr.data === aptData) || prontuariosCliente[0];
+        const conteudo = (prontuarioData?.conteudo || '').toLowerCase();
+
+        // Verificar se há outro agendamento de emergência do cliente em data posterior
+        const hasLaterEmergency = selectedMonthEmergApts.some((other: any) => {
+          if (String(other.clienteId?._id || other.clienteId) !== cId) return false;
+          if (String(other._id) === String(a._id)) return false;
+          return (other.data || '') > aptData;
+        });
+
+        if (conteudo.includes('continuidade') || conteudo.includes('agendamento de pr') || hasLaterEmergency) {
+          conduta = 'novo_agendamento';
+          condutaLabel = 'Novo Agendamento';
+        } else {
+          conduta = 'alta';
+          condutaLabel = 'Alta';
+        }
+      }
+
       return {
         id: String(a._id),
-        data: a.data || '',
+        data: aptData,
         horario: a.horario || a.hora || '',
         clienteId: cId,
         clienteNome: alunoNome,
         profissionalNome: profNome,
         servico: a.servico || 'Atendimento de Emergência',
         observacoes: a.observacoes || a.motivo || '',
-        status: a.status || 'concluido'
+        status: aptStatus,
+        conduta,
+        condutaLabel
       };
     });
 
