@@ -1345,34 +1345,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                         >
                           {/* Aluno */}
                           <td style={{ padding: '12px 10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div
-                                style={{
-                                  width: '34px',
-                                  height: '34px',
-                                  borderRadius: '50%',
-                                  background: isReincidente
-                                    ? 'linear-gradient(135deg, #ef4444 0%, #991b1b 100%)'
-                                    : 'linear-gradient(135deg, #10b981 0%, #065f46 100%)',
-                                  color: '#fff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontWeight: 800,
-                                  fontSize: '0.8rem',
-                                  overflow: 'hidden'
-                                }}
-                              >
-                                {a.foto ? (
-                                  <img src={a.foto} alt={a.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  (a.nome || 'A').charAt(0).toUpperCase()
-                                )}
-                              </div>
-                              <div>
-                                <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem' }}>{a.nome}</strong>
-                              </div>
-                            </div>
+                            <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem' }}>{a.nome}</strong>
                           </td>
 
                           {/* Profissional Vinculado */}
