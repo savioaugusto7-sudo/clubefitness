@@ -439,10 +439,11 @@ export async function downloadReportPDF(report: any) {
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.5fr 0.8fr 0.8fr;
+        grid-template-columns: 1.5fr 0.75fr 0.75fr;
         padding: 6px 12px;
         margin-bottom: 12px;
         font-size: 9px;
+        align-items: center;
       }
       .client-bar-item {
         border-right: 1px solid #e2e8f0;
@@ -461,10 +462,10 @@ export async function downloadReportPDF(report: any) {
       }
       .client-bar-item strong {
         color: #0f172a;
-        font-size: 10px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 9.5px;
+        line-height: 1.2;
+        word-break: break-word;
+        white-space: normal;
         display: block;
       }
       .table-data {
@@ -2205,10 +2206,11 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.5fr;
+        grid-template-columns: 1.2fr 0.55fr 0.55fr 1.7fr;
         padding: 6px 12px;
         margin-bottom: 6px;
         font-size: 9px;
+        align-items: center;
       }
       .client-bar-item {
         border-right: 1px solid #e2e8f0;
@@ -2227,10 +2229,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       }
       .client-bar-item strong {
         color: #0f172a;
-        font-size: 10px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 9.5px;
+        line-height: 1.2;
+        word-break: break-word;
+        white-space: normal;
         display: block;
       }
       .metric-badge {
@@ -2314,7 +2316,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
       <div class="client-bar" style="${assessment.dadosMedidos.tipoObjetivo ? 'border-bottom: none; border-radius: 8px 8px 0 0; margin-bottom: 0;' : ''}">
         <div class="client-bar-item">
           <span>Nome do Aluno</span>
-          <strong>${client.dadosPessoais.nome}</strong>
+          <strong style="font-size: ${(client.dadosPessoais.nome || '').length > 32 ? '8.5px' : '9.5px'};">${client.dadosPessoais.nome}</strong>
         </div>
         <div class="client-bar-item">
           <span>Idade</span>
@@ -2326,7 +2328,7 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
         </div>
         <div class="client-bar-item">
           <span>Objetivo Principal</span>
-          <strong title="${assessment.dadosMedidos.objetivoPrincipal || 'Geral'}">${assessment.dadosMedidos.objetivoPrincipal || 'Condicionamento'}</strong>
+          <strong style="font-size: ${(assessment.dadosMedidos.objetivoPrincipal || '').length > 50 ? '7.5px' : ((assessment.dadosMedidos.objetivoPrincipal || '').length > 30 ? '8.5px' : '9.5px')}; line-height: 1.15;" title="${assessment.dadosMedidos.objetivoPrincipal || 'Geral'}">${assessment.dadosMedidos.objetivoPrincipal || 'Condicionamento'}</strong>
         </div>
       </div>
 
@@ -2460,10 +2462,10 @@ export async function downloadAssessmentPDF(assessment: any, allAssessments?: an
             <div style="border-left:1px solid #f1f5f9; padding-left:10px;">
               <span style="font-size:7.5px; color:#64748b; font-weight:600; text-transform:uppercase; display:block; margin-bottom:4px;">Análise Clínica complementar</span>
               <table style="width:100%; font-size:7.5px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Nutrição</td><td style="text-align:right; font-weight:600; color:#15803d;">${saudeGeral.nutricao || 'Adequada'} ✓</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Medicamentos</td><td style="text-align:right; font-weight:600;">${saudeGeral.medicamentos || 'Nenhum'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Cirurgias</td><td style="text-align:right; font-weight:600;">${saudeGeral.cirurgias || 'Nenhuma'}</td></tr>
-                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 0;">Queixas</td><td style="text-align:right; font-weight:600;">${saudeGeral.queixas || 'Nenhuma'}</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Nutrição</td><td style="text-align:right; font-weight:600; color:#15803d; word-break:break-word; max-width:130px;">${saudeGeral.nutricao || 'Adequada'} ✓</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Medicamentos</td><td style="text-align:right; font-weight:600; word-break:break-word; max-width:130px; font-size:7px;">${saudeGeral.medicamentos || 'Nenhum'}</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Cirurgias</td><td style="text-align:right; font-weight:600; word-break:break-word; max-width:130px; font-size:7px;">${saudeGeral.cirurgias || 'Nenhuma'}</td></tr>
+                <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:3px 0;">Queixas</td><td style="text-align:right; font-weight:600; word-break:break-word; max-width:130px; font-size:7px;">${saudeGeral.queixas || 'Nenhuma'}</td></tr>
               </table>
             </div>
           </div>
@@ -3277,10 +3279,11 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.4fr;
-        padding: 8px 12px;
-        margin-bottom: 14px;
+        grid-template-columns: 1.2fr 0.55fr 0.55fr 1.7fr;
+        padding: 6px 12px;
+        margin-bottom: 12px;
         font-size: 9px;
+        align-items: center;
       }
       .client-bar-item {
         border-right: 1px solid #e2e8f0;
@@ -3300,11 +3303,11 @@ export async function downloadProntuarioPDF(prontuario: any, client: any, profNo
       }
       .client-bar-item strong {
         color: #0f172a;
-        font-size: 10.5px;
+        font-size: 9.5px;
         font-weight: 700;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        line-height: 1.2;
+        word-break: break-word;
+        white-space: normal;
         display: block;
       }
       .section-card {
@@ -3604,10 +3607,11 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.4fr;
-        padding: 8px 12px;
-        margin-bottom: 14px;
+        grid-template-columns: 1.2fr 0.55fr 0.55fr 1.7fr;
+        padding: 6px 12px;
+        margin-bottom: 12px;
         font-size: 9px;
+        align-items: center;
       }
       .client-bar-item {
         border-right: 1px solid #e2e8f0;
@@ -3627,11 +3631,11 @@ export async function downloadUnifiedProntuariosPDF(prontuarios: any[], client: 
       }
       .client-bar-item strong {
         color: #0f172a;
-        font-size: 10.5px;
+        font-size: 9.5px;
         font-weight: 700;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        line-height: 1.2;
+        word-break: break-word;
+        white-space: normal;
         display: block;
       }
       .section-card {
@@ -3956,10 +3960,11 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         display: grid;
-        grid-template-columns: 1.5fr 1fr 1fr 1fr;
-        padding: 8px 14px;
-        margin-bottom: 12px;
+        grid-template-columns: 1.4fr 0.8fr 0.8fr 1fr;
+        padding: 6px 12px;
+        margin-bottom: 10px;
         font-size: 9px;
+        align-items: center;
       }
       .client-bar-item {
         border-right: 1px solid #e2e8f0;
@@ -3978,10 +3983,10 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
       }
       .client-bar-item strong {
         color: #0f172a;
-        font-size: 10px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 9.5px;
+        line-height: 1.2;
+        word-break: break-word;
+        white-space: normal;
         display: block;
       }
       .table-data {
