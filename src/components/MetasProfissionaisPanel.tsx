@@ -61,16 +61,26 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
     return months;
   }, []);
 
-  // Aba Principal da Tela: 'ranking' ou 'alunos_tracking'
-  const [activeMainTab, setActiveMainTab] = useState<'ranking' | 'alunos_tracking'>('ranking');
+  // Aba Principal da Tela: 'ranking', 'alunos_tracking' ou 'emergencias_evolucao'
+  const [activeMainTab, setActiveMainTab] = useState<'ranking' | 'alunos_tracking' | 'emergencias_evolucao'>('ranking');
 
   // Tracking de Alunos
   const [trackingFilter, setTrackingFilter] = useState<'todos' | 'baixo' | 'medio' | 'alto'>('todos');
   const [trackingSearch, setTrackingSearch] = useState('');
 
+  // Evolução de Emergências
+  const [emergenciaFilter, setEmergenciaFilter] = useState<'todos' | 'reincidentes' | 'ok'>('todos');
+  const [emergenciaSearch, setEmergenciaSearch] = useState('');
+  const [emergenciaVisualMode, setEmergenciaVisualMode] = useState<'cards' | 'tabela'>('cards');
+
   const rankingList = data?.ranking || [];
   const kpis = data?.kpis || {};
   const alunosTracking: any[] = data?.alunosTracking || [];
+  const emergenciasData = data?.emergenciasData || {};
+  const historicoMensal: any[] = emergenciasData.historicoMensal || [];
+  const alunosComEmergencia: any[] = emergenciasData.alunosComEmergencia || [];
+  const atendimentosDetalhados: any[] = emergenciasData.atendimentosDetalhados || [];
+  const resumoEmergencia = emergenciasData.resumoMes || {};
 
   const filteredRanking = rankingList.filter((item: any) => {
     const nome = (item.prof?.nome || '').toLowerCase();
@@ -91,6 +101,21 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
       (a.nome || '').toLowerCase().includes(q) ||
       (a.profissionalVinculadoNome || '').toLowerCase().includes(q) ||
       (a.frequenciaContratada || '').toLowerCase().includes(q);
+
+    return matchesFilter && matchesSearch;
+  });
+
+  const filteredAlunosEmergencia = alunosComEmergencia.filter((a: any) => {
+    const matchesFilter =
+      emergenciaFilter === 'todos' ||
+      (emergenciaFilter === 'reincidentes' && a.status === 'reincidente') ||
+      (emergenciaFilter === 'ok' && a.status === 'ok');
+
+    const q = emergenciaSearch.toLowerCase();
+    const matchesSearch =
+      (a.nome || '').toLowerCase().includes(q) ||
+      (a.profissionalVinculadoNome || '').toLowerCase().includes(q) ||
+      (a.profissionaisAtendentes || '').toLowerCase().includes(q);
 
     return matchesFilter && matchesSearch;
   });
@@ -185,7 +210,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
       </div>
 
       {/* NAVEGAÇÃO ENTRE ABAS PRINCIPAIS */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '2px' }}>
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '2px', flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={() => setActiveMainTab('ranking')}
@@ -224,6 +249,26 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
           }}
         >
           <i className="fa-solid fa-users-viewfinder"></i> Monitor de Progressão & Risco dos Alunos ({alunosTracking.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('emergencias_evolucao')}
+          style={{
+            padding: '10px 18px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeMainTab === 'emergencias_evolucao' ? '3px solid #ef4444' : '3px solid transparent',
+            color: activeMainTab === 'emergencias_evolucao' ? '#f87171' : '#94a3b8',
+            fontWeight: 800,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <i className="fa-solid fa-truck-medical"></i> Evolução de Emergências ({alunosComEmergencia.length})
         </button>
       </div>
 
@@ -877,6 +922,586 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
             )}
 
           </div>
+
+        </div>
+      )}
+
+      {/* CONTEÚDO DA ABA 3: EVOLUÇÃO DE EMERGÊNCIAS */}
+      {activeMainTab === 'emergencias_evolucao' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* 1. DIRETRIZ DA REGRA DE PONTUAÇÃO DE EMERGÊNCIA */}
+          <div
+            style={{
+              background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(185, 28, 28, 0.03) 100%)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: '12px',
+              padding: '14px 18px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '14px'
+            }}
+          >
+            <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '10px', borderRadius: '10px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa-solid fa-truck-medical"></i>
+            </div>
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                Diretriz de Pontuação Coletiva para Atendimentos de Emergência
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.45' }}>
+                O objetivo clínico é a prevenção e o controle de crises. A pontuação é computada de forma coletiva entre todos os profissionais:
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginTop: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-circle-check"></i> <strong>≤ 1 Emergência no Mês:</strong> +3 pontos por aluno em controle (Crédito Coletivo)
+                </span>
+                <span style={{ fontSize: '0.8rem', color: '#f87171', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-circle-exclamation"></i> <strong>&gt; 1 Emergência no Mês:</strong> -4 pontos por aluno reincidente (Débito Coletivo)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. KPIS EXECUTIVOS DE EMERGÊNCIA */}
+          <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px' }}>
+            
+            {/* Card 1: Alunos em Controle (<= 1) */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.15) 100%)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Alunos em Controle (≤ 1 Atendimento)</h3>
+                <div className="value" style={{ color: '#10b981', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {resumoEmergencia.totalAlunosOk || 0}{' '}
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>
+                    de {kpis.totalAlunosAtivos || 0} alunos
+                  </span>
+                </div>
+                <small style={{ color: '#34d399', fontSize: '0.74rem', fontWeight: 700 }}>
+                  <i className="fa-solid fa-arrow-up"></i> +{resumoEmergencia.creditosTotal || 0} pts coletivos (+3 pts/aluno)
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                <i className="fa-solid fa-shield-heart"></i>
+              </div>
+            </div>
+
+            {/* Card 2: Alunos Reincidentes (> 1) */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(185, 28, 28, 0.15) 100%)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Alunos Reincidentes (&gt; 1 Atendimento)</h3>
+                <div className="value" style={{ color: '#ef4444', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {resumoEmergencia.totalAlunosExtra || 0}{' '}
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>
+                    aluno(s) em alerta
+                  </span>
+                </div>
+                <small style={{ color: '#f87171', fontSize: '0.74rem', fontWeight: 700 }}>
+                  <i className="fa-solid fa-arrow-down"></i> -{resumoEmergencia.debitosTotal || 0} pts coletivos (-4 pts/aluno)
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+            </div>
+
+            {/* Card 3: Total de Atendimentos no Mês */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.15) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Total de Atendimentos no Mês</h3>
+                <div className="value" style={{ color: '#38bdf8', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {resumoEmergencia.totalAtendimentos || 0}{' '}
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>
+                    sessões
+                  </span>
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  Distribuídos em <strong style={{ color: '#fff' }}>{resumoEmergencia.totalAlunosComEmergencia || 0}</strong> aluno(s)
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                <i className="fa-solid fa-kit-medical"></i>
+              </div>
+            </div>
+
+            {/* Card 4: Saldo Coletivo */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.15) 100%)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Saldo de Pontuação Coletiva</h3>
+                <div className="value" style={{ color: (resumoEmergencia.saldoTotal || 0) >= 0 ? '#f59e0b' : '#f87171', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {(resumoEmergencia.saldoTotal || 0) >= 0 ? `+${resumoEmergencia.saldoTotal || 0}` : (resumoEmergencia.saldoTotal || 0)} pts
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  Créditos: <strong style={{ color: '#34d399' }}>+{resumoEmergencia.creditosTotal || 0}</strong> • Débitos: <strong style={{ color: '#f87171' }}>-{resumoEmergencia.debitosTotal || 0}</strong>
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                <i className="fa-solid fa-scale-balanced"></i>
+              </div>
+            </div>
+
+          </div>
+
+          {/* 3. HISTÓRICO & TENDÊNCIA DOS ÚLTIMOS 6 MESES */}
+          <div className="card" style={{ padding: '20px', border: '1px solid var(--border-color)', borderRadius: '14px', background: 'var(--card-bg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-chart-line" style={{ color: '#38bdf8' }}></i> Evolução Histórica (Últimos 6 Meses)
+                </h3>
+                <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                  Acompanhamento mês a mês do volume de atendimentos de emergência e pontuação coletiva apurada
+                </p>
+              </div>
+
+              {/* Seletor de Modo: Cards ou Tabela */}
+              <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.05)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <button
+                  type="button"
+                  onClick={() => setEmergenciaVisualMode('cards')}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: emergenciaVisualMode === 'cards' ? '#38bdf8' : 'transparent',
+                    color: emergenciaVisualMode === 'cards' ? '#0f172a' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <i className="fa-solid fa-grip"></i> Cards
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmergenciaVisualMode('tabela')}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: emergenciaVisualMode === 'tabela' ? '#38bdf8' : 'transparent',
+                    color: emergenciaVisualMode === 'tabela' ? '#0f172a' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <i className="fa-solid fa-table-list"></i> Tabela
+                </button>
+              </div>
+            </div>
+
+            {/* MODO CARDS HISTÓRICOS */}
+            {emergenciaVisualMode === 'cards' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                {historicoMensal.map((m: any) => {
+                  const isSelected = m.mes === selectedMonth;
+                  return (
+                    <div
+                      key={m.mes}
+                      onClick={() => setSelectedMonth(m.mes)}
+                      style={{
+                        background: isSelected
+                          ? 'linear-gradient(180deg, rgba(56, 189, 248, 0.12) 0%, rgba(3, 105, 161, 0.05) 100%)'
+                          : 'rgba(255, 255, 255, 0.02)',
+                        border: `1px solid ${isSelected ? '#38bdf8' : 'var(--border-color)'}`,
+                        borderRadius: '12px',
+                        padding: '14px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '10px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: isSelected ? '#38bdf8' : 'var(--text-main)' }}>
+                          {m.nomeMes}
+                        </span>
+                        {isSelected && (
+                          <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', fontWeight: 800 }}>
+                            Selecionado
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 900, color: m.totalAtendimentos > 0 ? '#f87171' : '#34d399' }}>
+                          {m.totalAtendimentos}{' '}
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 500 }}>atendimentos</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                          {m.totalAlunosComEmergencia} aluno(s) • {m.alunosReincidentes} reincidente(s)
+                        </div>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                        <span style={{ color: '#94a3b8' }}>Saldo:</span>
+                        <strong style={{ color: m.saldo >= 0 ? '#34d399' : '#f87171', fontWeight: 800 }}>
+                          {m.saldo >= 0 ? `+${m.saldo}` : m.saldo} pts
+                        </strong>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* MODO TABELA HISTÓRICA */
+              <div className="table-responsive" style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: '#94a3b8' }}>
+                      <th style={{ padding: '10px' }}>Mês</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Total Atendimentos</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Alunos Atendidos</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Em Controle (≤ 1)</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Reincidentes (&gt; 1)</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Créditos (+)</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Débitos (-)</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Saldo Líquido</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historicoMensal.map((m: any) => {
+                      const isSelected = m.mes === selectedMonth;
+                      return (
+                        <tr
+                          key={m.mes}
+                          style={{
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                            background: isSelected ? 'rgba(56, 189, 248, 0.05)' : 'transparent'
+                          }}
+                        >
+                          <td style={{ padding: '12px 10px', fontWeight: isSelected ? 800 : 600, color: isSelected ? '#38bdf8' : 'var(--text-main)' }}>
+                            {m.nomeMes} {isSelected ? '(Ativo)' : ''}
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 700, color: m.totalAtendimentos > 0 ? '#f87171' : '#34d399' }}>
+                            {m.totalAtendimentos}
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'center', color: '#cbd5e1' }}>
+                            {m.totalAlunosComEmergencia}
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'center', color: '#34d399', fontWeight: 600 }}>
+                            {m.alunosOk} alunos
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'center', color: m.alunosReincidentes > 0 ? '#f87171' : '#94a3b8', fontWeight: 600 }}>
+                            {m.alunosReincidentes} alunos
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399', fontWeight: 700 }}>
+                            +{m.creditos} pts
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', color: '#f87171', fontWeight: 700 }}>
+                            -{m.debitos} pts
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 800, color: m.saldo >= 0 ? '#34d399' : '#f87171' }}>
+                            {m.saldo >= 0 ? `+${m.saldo}` : m.saldo} pts
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setSelectedMonth(m.mes)}
+                              disabled={isSelected}
+                              style={{ padding: '3px 8px', fontSize: '0.74rem' }}
+                            >
+                              {isSelected ? 'Selecionado' : 'Ver Mês'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* 4. ALUNOS COM ATENDIMENTOS DE EMERGÊNCIA NO MÊS SELECIONADO */}
+          <div className="card" style={{ padding: '20px', border: '1px solid var(--border-color)', borderRadius: '14px', background: 'var(--card-bg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '18px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-users" style={{ color: '#ef4444' }}></i> Alunos com Emergência no Mês ({filteredAlunosEmergencia.length})
+                </h3>
+                <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                  Detalhamento de cada aluno atendido em emergência em <strong style={{ color: '#fff' }}>{selectedMonth}</strong> e seu status de conformidade
+                </p>
+              </div>
+
+              {/* Filtros e Busca */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {/* Filtro Status */}
+                <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.05)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setEmergenciaFilter('todos')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: emergenciaFilter === 'todos' ? 'rgba(255,255,255,0.15)' : 'transparent',
+                      color: emergenciaFilter === 'todos' ? '#fff' : '#94a3b8',
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Todos ({alunosComEmergencia.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmergenciaFilter('reincidentes')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: emergenciaFilter === 'reincidentes' ? 'rgba(239, 68, 68, 0.25)' : 'transparent',
+                      color: emergenciaFilter === 'reincidentes' ? '#f87171' : '#94a3b8',
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Reincidentes &gt;1 ({alunosComEmergencia.filter(a => a.status === 'reincidente').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmergenciaFilter('ok')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: emergenciaFilter === 'ok' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
+                      color: emergenciaFilter === 'ok' ? '#34d399' : '#94a3b8',
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Controle 1x ({alunosComEmergencia.filter(a => a.status === 'ok').length})
+                  </button>
+                </div>
+
+                {/* Campo de Busca */}
+                <div style={{ position: 'relative' }}>
+                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: '0.8rem' }}></i>
+                  <input
+                    type="text"
+                    placeholder="Buscar aluno ou profissional..."
+                    value={emergenciaSearch}
+                    onChange={(e) => setEmergenciaSearch(e.target.value)}
+                    style={{
+                      padding: '5px 12px 5px 30px',
+                      fontSize: '0.82rem',
+                      borderRadius: '8px',
+                      background: 'var(--bg-main)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-main)',
+                      width: '210px'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* TABELA DE ALUNOS COM EMERGÊNCIA */}
+            {filteredAlunosEmergencia.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '36px 20px', color: '#94a3b8' }}>
+                <i className="fa-solid fa-shield-heart" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '12px' }}></i>
+                <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700 }}>
+                  Nenhum registro de emergência encontrado
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.82rem' }}>
+                  {alunosComEmergencia.length === 0
+                    ? `Excelente! Nenhum aluno necessitou de atendimento de emergência no mês de ${selectedMonth}. Todos estão em controle preventivo pleno.`
+                    : 'Nenhum aluno corresponde aos filtros selecionados acima.'}
+                </p>
+              </div>
+            ) : (
+              <div className="table-responsive" style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: '#94a3b8' }}>
+                      <th style={{ padding: '10px' }}>Aluno</th>
+                      <th style={{ padding: '10px' }}>Profissional Responsável</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Qtd. Emergências</th>
+                      <th style={{ padding: '10px' }}>Datas dos Atendimentos</th>
+                      <th style={{ padding: '10px' }}>Profissionais Atendentes</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Status de Risco</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Impacto Coletivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAlunosEmergencia.map((a: any) => {
+                      const isReincidente = a.status === 'reincidente';
+                      return (
+                        <tr
+                          key={a.clientId}
+                          style={{
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                            background: isReincidente ? 'rgba(239, 68, 68, 0.03)' : 'transparent'
+                          }}
+                        >
+                          {/* Aluno */}
+                          <td style={{ padding: '12px 10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div
+                                style={{
+                                  width: '34px',
+                                  height: '34px',
+                                  borderRadius: '50%',
+                                  background: isReincidente
+                                    ? 'linear-gradient(135deg, #ef4444 0%, #991b1b 100%)'
+                                    : 'linear-gradient(135deg, #10b981 0%, #065f46 100%)',
+                                  color: '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 800,
+                                  fontSize: '0.8rem',
+                                  overflow: 'hidden'
+                                }}
+                              >
+                                {a.foto ? (
+                                  <img src={a.foto} alt={a.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  (a.nome || 'A').charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              <div>
+                                <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem' }}>{a.nome}</strong>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Profissional Vinculado */}
+                          <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>
+                            {a.profissionalVinculadoNome || <span style={{ color: '#64748b' }}>Geral</span>}
+                          </td>
+
+                          {/* Qtd. Emergências */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 10px',
+                                borderRadius: '12px',
+                                fontWeight: 900,
+                                fontSize: '0.85rem',
+                                background: isReincidente ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                                color: isReincidente ? '#f87171' : '#34d399',
+                                border: `1px solid ${isReincidente ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`
+                              }}
+                            >
+                              {a.totalEmergencias}x
+                            </span>
+                          </td>
+
+                          {/* Datas dos Atendimentos */}
+                          <td style={{ padding: '12px 10px', color: '#cbd5e1', fontSize: '0.8rem' }}>
+                            {a.datasFormatadas || '-'}
+                          </td>
+
+                          {/* Profissionais Atendentes */}
+                          <td style={{ padding: '12px 10px', color: '#cbd5e1', fontSize: '0.8rem' }}>
+                            {a.profissionaisAtendentes || '-'}
+                          </td>
+
+                          {/* Status de Risco */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                background: isReincidente ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                color: isReincidente ? '#f87171' : '#34d399',
+                                border: `1px solid ${isReincidente ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                                fontSize: '0.76rem',
+                                fontWeight: 800
+                              }}
+                            >
+                              <i className={`fa-solid ${isReincidente ? 'fa-triangle-exclamation' : 'fa-circle-check'}`}></i>
+                              {isReincidente ? 'Reincidente (> 1)' : 'Controle (1x)'}
+                            </span>
+                          </td>
+
+                          {/* Impacto Coletivo */}
+                          <td style={{ padding: '12px 10px', textAlign: 'right' }}>
+                            <span
+                              style={{
+                                fontWeight: 900,
+                                fontSize: '0.88rem',
+                                color: isReincidente ? '#f87171' : '#34d399'
+                              }}
+                            >
+                              {isReincidente ? '-4 pts' : '+3 pts'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* 5. REGISTRO CRONOLÓGICO DE ATENDIMENTOS DE EMERGÊNCIA */}
+          {atendimentosDetalhados.length > 0 && (
+            <div className="card" style={{ padding: '20px', border: '1px solid var(--border-color)', borderRadius: '14px', background: 'var(--card-bg)' }}>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-clipboard-list" style={{ color: '#f59e0b' }}></i> Registro Detalhado dos Atendimentos ({atendimentosDetalhados.length})
+              </h3>
+              <p style={{ margin: '0 0 16px 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                Histórico de cada sessão emergencial realizada em <strong style={{ color: '#fff' }}>{selectedMonth}</strong> com queixa e profissional
+              </p>
+
+              <div className="table-responsive" style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: '#94a3b8' }}>
+                      <th style={{ padding: '10px' }}>Data & Horário</th>
+                      <th style={{ padding: '10px' }}>Aluno</th>
+                      <th style={{ padding: '10px' }}>Profissional Atendente</th>
+                      <th style={{ padding: '10px' }}>Serviço / Procedimento</th>
+                      <th style={{ padding: '10px' }}>Observações / Queixa Clínica</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {atendimentosDetalhados.map((at: any) => (
+                      <tr key={at.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td style={{ padding: '10px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                          <i className="fa-regular fa-calendar" style={{ color: '#38bdf8', marginRight: '5px' }}></i> {at.data} {at.horario ? `às ${at.horario}` : ''}
+                        </td>
+                        <td style={{ padding: '10px', fontWeight: 600, color: '#cbd5e1' }}>
+                          {at.clienteNome}
+                        </td>
+                        <td style={{ padding: '10px', color: '#cbd5e1' }}>
+                          <i className="fa-solid fa-user-doctor" style={{ color: '#c084fc', marginRight: '5px' }}></i> {at.profissionalNome}
+                        </td>
+                        <td style={{ padding: '10px', color: '#94a3b8' }}>
+                          {at.servico}
+                        </td>
+                        <td style={{ padding: '10px', color: '#cbd5e1', maxWidth: '300px' }}>
+                          {at.observacoes || <span style={{ color: '#64748b', fontStyle: 'italic' }}>Sem observações registradas</span>}
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                            {at.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
         </div>
       )}

@@ -47,8 +47,15 @@ export async function GET(request: Request) {
       return st === 'ativo' || st === 'pendente';
     });
 
-    // 3. Buscar Avaliações Físicas, Testes de Força e Relatórios do mês
-    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments] = await Promise.all([
+    // Calcular data de 6 meses atrás para o histórico de emergências
+    const [selYearStr, selMonthStr] = mesParam.split('-');
+    const selYear = parseInt(selYearStr, 10);
+    const selMonth = parseInt(selMonthStr, 10);
+    const sixMonthsAgoDate = new Date(selYear, selMonth - 6, 1);
+    const sixMonthsAgoFirstDayStr = `${sixMonthsAgoDate.getFullYear()}-${String(sixMonthsAgoDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios e Atendimentos do mês e de 6 meses
+    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments] = await Promise.all([
       PhysicalAssessment.find({
         data: { $gte: firstDayStr, $lte: lastDayStr }
       }).lean(),
@@ -61,7 +68,15 @@ export async function GET(request: Request) {
       ClientWorkout.find({}).lean(),
       Appointment.find({
         data: { $gte: firstDayStr, $lte: lastDayStr }
-      }).lean()
+      }).lean(),
+      Appointment.find({
+        data: { $gte: sixMonthsAgoFirstDayStr, $lte: lastDayStr },
+        status: { $ne: 'cancelado' },
+        $or: [
+          { servico: { $regex: /emerg/i } },
+          { tipoCredito: 'emergencia' }
+        ]
+      }).sort({ data: -1, horario: -1 }).lean()
     ]);
 
     // Mapear fichas de treino por cliente e data
@@ -723,12 +738,164 @@ export async function GET(request: Request) {
       }
     };
 
+    // =========================================================================
+    // 8. ESTRUTURAR HISTÓRICO DE 6 MESES E DETALHES DE EMERGÊNCIAS
+    // =========================================================================
+    const mesesHistorico: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(selYear, selMonth - 1 - i, 1);
+      const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      mesesHistorico.push(mStr);
+    }
+
+    const historicoMensal = mesesHistorico.map(mStr => {
+      const [y, m] = mStr.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, 1);
+      const nomeMes = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const nomeMesCapitalized = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
+
+      const aptsDoMes = sixMonthsEmergencyAppointments.filter((a: any) => (a.data || '').startsWith(mStr));
+      const totalAtendimentos = aptsDoMes.length;
+
+      // Agrupar por aluno
+      const clientCountMap = new Map<string, number>();
+      aptsDoMes.forEach((a: any) => {
+        const cId = String(a.clienteId?._id || a.clienteId);
+        clientCountMap.set(cId, (clientCountMap.get(cId) || 0) + 1);
+      });
+
+      const totalAlunosComEmergencia = clientCountMap.size;
+      let totalReincidentes = 0;
+      clientCountMap.forEach((count) => {
+        if (count > 1) totalReincidentes++;
+      });
+
+      const totalBase = activeClients.length;
+      const alunosOk = Math.max(0, totalBase - totalReincidentes);
+      const creditos = alunosOk * 3;
+      const debitos = totalReincidentes * 4;
+      const saldo = creditos - debitos;
+
+      return {
+        mes: mStr,
+        nomeMes: nomeMesCapitalized,
+        isMesSelecionado: mStr === mesParam,
+        totalAtendimentos,
+        totalAlunosComEmergencia,
+        totalAlunosBase: totalBase,
+        alunosOk,
+        alunosReincidentes: totalReincidentes,
+        creditos,
+        debitos,
+        saldo
+      };
+    });
+
+    // Detalhar alunos com emergência no mês selecionado
+    const selectedMonthEmergApts = sixMonthsEmergencyAppointments.filter((a: any) => (a.data || '').startsWith(mesParam));
+    const studentEmergMap = new Map<string, {
+      clientId: string;
+      nome: string;
+      foto?: string;
+      profissionalVinculadoNome?: string;
+      totalEmergencias: number;
+      atendimentos: Array<{
+        id: string;
+        data: string;
+        horario: string;
+        profissionalNome: string;
+        servico: string;
+        observacoes?: string;
+        status: string;
+      }>;
+    }>();
+
+    selectedMonthEmergApts.forEach((a: any) => {
+      const cId = String(a.clienteId?._id || a.clienteId);
+      const cObj = clientMap.get(cId);
+      const alunoNome = cObj?.dadosPessoais?.nome || cObj?.nome || a.clienteNome || 'Aluno';
+      const profNome = a.profissionalNome || (a.profissionalId?.nome) || 'Profissional';
+
+      if (!studentEmergMap.has(cId)) {
+        let respProf = 'Não vinculado';
+        if (cObj?.profissionalId) {
+          const p = professionals.find((pr: any) => String(pr._id) === String(cObj.profissionalId));
+          if (p) respProf = p.nome;
+        }
+        studentEmergMap.set(cId, {
+          clientId: cId,
+          nome: alunoNome,
+          foto: cObj?.dadosPessoais?.foto || cObj?.foto,
+          profissionalVinculadoNome: respProf,
+          totalEmergencias: 0,
+          atendimentos: []
+        });
+      }
+
+      const st = studentEmergMap.get(cId)!;
+      st.totalEmergencias++;
+      st.atendimentos.push({
+        id: String(a._id),
+        data: a.data || '',
+        horario: a.horario || a.hora || '',
+        profissionalNome: profNome,
+        servico: a.servico || 'Atendimento de Emergência',
+        observacoes: a.observacoes || a.motivo || '',
+        status: a.status || 'concluido'
+      });
+    });
+
+    const alunosComEmergencia = Array.from(studentEmergMap.values()).map(st => {
+      const isReincidente = st.totalEmergencias > 1;
+      return {
+        ...st,
+        status: isReincidente ? 'reincidente' : 'ok',
+        impactoPontos: isReincidente ? -4 : 3,
+        profissionaisAtendentes: Array.from(new Set(st.atendimentos.map(at => at.profissionalNome))).join(', '),
+        datasFormatadas: st.atendimentos.map(at => at.data).sort().join(', ')
+      };
+    }).sort((a, b) => b.totalEmergencias - a.totalEmergencias);
+
+    const atendimentosDetalhados = selectedMonthEmergApts.map((a: any) => {
+      const cId = String(a.clienteId?._id || a.clienteId);
+      const cObj = clientMap.get(cId);
+      const alunoNome = cObj?.dadosPessoais?.nome || cObj?.nome || a.clienteNome || 'Aluno';
+      const profNome = a.profissionalNome || (a.profissionalId?.nome) || 'Profissional';
+      return {
+        id: String(a._id),
+        data: a.data || '',
+        horario: a.horario || a.hora || '',
+        clienteId: cId,
+        clienteNome: alunoNome,
+        profissionalNome: profNome,
+        servico: a.servico || 'Atendimento de Emergência',
+        observacoes: a.observacoes || a.motivo || '',
+        status: a.status || 'concluido'
+      };
+    });
+
+    const emergenciasData = {
+      historicoMensal,
+      alunosComEmergencia,
+      atendimentosDetalhados,
+      resumoMes: {
+        totalAtendimentos: selectedMonthEmergApts.length,
+        totalAlunosComEmergencia: studentEmergMap.size,
+        totalAlunosOk: totalAlunosEmergenciaOk,
+        totalAlunosExtra: totalAlunosEmergenciaExtra,
+        creditosTotal: totalAlunosEmergenciaOk * 3,
+        debitosTotal: totalAlunosEmergenciaExtra * 4,
+        saldoTotal: (totalAlunosEmergenciaOk * 3) - (totalAlunosEmergenciaExtra * 4)
+      }
+    };
+
     return NextResponse.json({
       success: true,
       data: {
         ranking,
         kpis,
         alunosTracking,
+        emergenciasData,
         mes: mesParam
       }
     });
