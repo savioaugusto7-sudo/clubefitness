@@ -61,14 +61,37 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
     return months;
   }, []);
 
+  // Tracking de Alunos
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [trackingFilter, setTrackingFilter] = useState<'todos' | 'no_ritmo' | 'em_risco' | 'fora_da_meta' | 'meta_batida'>('todos');
+  const [trackingSearch, setTrackingSearch] = useState('');
+
   const rankingList = data?.ranking || [];
   const kpis = data?.kpis || {};
+  const alunosTracking: any[] = data?.alunosTracking || [];
 
   const filteredRanking = rankingList.filter((item: any) => {
     const nome = (item.prof?.nome || '').toLowerCase();
     const esp = (item.prof?.especialidade || '').toLowerCase();
     const q = searchQuery.toLowerCase();
     return nome.includes(q) || esp.includes(q);
+  });
+
+  const filteredTracking = alunosTracking.filter((a: any) => {
+    const matchesFilter =
+      trackingFilter === 'todos' ||
+      (trackingFilter === 'no_ritmo' && (a.statusRitmo === 'no_ritmo' || a.statusRitmo === 'meta_batida')) ||
+      (trackingFilter === 'em_risco' && a.statusRitmo === 'em_risco') ||
+      (trackingFilter === 'fora_da_meta' && a.statusRitmo === 'fora_da_meta') ||
+      (trackingFilter === 'meta_batida' && a.statusRitmo === 'meta_batida');
+
+    const q = trackingSearch.toLowerCase();
+    const matchesSearch =
+      (a.nome || '').toLowerCase().includes(q) ||
+      (a.profissionalVinculadoNome || '').toLowerCase().includes(q) ||
+      (a.frequenciaContratada || '').toLowerCase().includes(q);
+
+    return matchesFilter && matchesSearch;
   });
 
   return (
@@ -112,6 +135,53 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
             <i className={`fa-solid fa-rotate-right ${loading ? 'fa-spin' : ''}`}></i> Atualizar
           </button>
         </div>
+      </div>
+
+      {/* BANNER DE STATUS DO MÊS: EM ANDAMENTO VS CONSOLIDADO */}
+      <div
+        style={{
+          background: kpis.isMesEmAndamento
+            ? 'linear-gradient(90deg, rgba(56, 189, 248, 0.12) 0%, rgba(3, 105, 161, 0.08) 100%)'
+            : 'linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
+          border: `1px solid ${kpis.isMesEmAndamento ? 'rgba(56, 189, 248, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+          borderRadius: '12px',
+          padding: '12px 18px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <i
+            className={`fa-solid ${kpis.isMesEmAndamento ? 'fa-hourglass-half' : 'fa-circle-check'}`}
+            style={{ color: kpis.isMesEmAndamento ? '#38bdf8' : '#34d399', fontSize: '1.2rem' }}
+          ></i>
+          <div>
+            <strong style={{ color: 'var(--text-main)', fontSize: '0.92rem' }}>
+              {kpis.isMesEmAndamento
+                ? `Mês em Andamento • Dia ${kpis.diaAtualMes} de ${kpis.diasTotalMes} (${kpis.percentualMesDecorrido}% do mês decorrido)`
+                : `Mês Encerrado • Fechamento Consolidado Oficial (${selectedMonth})`}
+            </strong>
+            <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '2px' }}>
+              {kpis.isMesEmAndamento
+                ? 'Acompanhamento em tempo real: créditos são somados imediatamente e débitos de fechamento mensal serão apurados ao término do mês.'
+                : 'Pontuação final apurada com todos os créditos de produção e débitos de fechamento mensal aplicados.'}
+            </div>
+          </div>
+        </div>
+
+        {kpis.isMesEmAndamento && (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowTrackingModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+          >
+            <i className="fa-solid fa-users-viewfinder"></i> Monitor de Ritmo dos Alunos ({alunosTracking.length})
+          </button>
+        )}
       </div>
 
       {/* 2. KPIS EXECUTIVOS */}
@@ -159,7 +229,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
               <span style={{ color: '#f87171', fontSize: '1.25rem', fontWeight: 900 }}>-{kpis.totalDebitosClinica || 0}</span>
             </div>
             <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
-              Créditos de Produção e Débitos por Não Conformidade
+              Créditos de Produção e Débitos de Conformidade
             </small>
           </div>
           <div className="metric-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
@@ -167,15 +237,24 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
           </div>
         </div>
 
-        {/* Card 4: Retenção Coletiva (Alunos ≥ 80%) */}
+        {/* Card 4: Retenção e Ritmo de Frequência */}
         <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(107, 33, 168, 0.15) 100%)', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
           <div className="metric-info">
-            <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Alunos em Alta Retenção (≥ 80%)</h3>
+            <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+              {kpis.isMesEmAndamento ? 'Alunos no Ritmo / Meta Batida' : 'Alunos em Alta Retenção (≥ 80%)'}
+            </h3>
             <div className="value" style={{ color: '#c084fc', fontSize: '1.8rem', fontWeight: 900 }}>
-              {kpis.totalAlunosAltaFreq || 0} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>de {(kpis.totalAlunosAltaFreq || 0) + (kpis.totalAlunosBaixaFreq || 0)} avaliados</span>
+              {kpis.isMesEmAndamento
+                ? (kpis.totalAlunosNoRitmo || 0) + (kpis.totalAlunosMetaBatida || 0)
+                : kpis.totalAlunosAltaFreq || 0}{' '}
+              <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>
+                de {kpis.totalAlunosAtivos || 0}
+              </span>
             </div>
             <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
-              Presenças reais vs meta contratada ({kpis.totalAlunosNeutrosFreq ? `${kpis.totalAlunosNeutrosFreq} neutros` : '100% da base'}) • <strong style={{ color: '#c084fc' }}>+{(kpis.totalAlunosAltaFreq || 0) * 5} pts</strong>/prof
+              {kpis.isMesEmAndamento
+                ? `🟡 ${kpis.totalAlunosEmRisco || 0} em risco • 🔴 ${kpis.totalAlunosForaDaMeta || 0} críticos`
+                : `+${(kpis.totalAlunosAltaFreq || 0) * 5} pts/prof • ${kpis.totalAlunosBaixaFreq || 0} com débito`}
             </small>
           </div>
           <div className="metric-icon" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
@@ -599,6 +678,257 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                 onClick={() => setSelectedProfExtrato(null)}
               >
                 Concluir Visualização
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 6. MODAL DO MONITOR DE RITMO DOS ALUNOS */}
+      {showTrackingModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card-bg)',
+              borderRadius: '16px',
+              border: '1px solid var(--border-color)',
+              width: '100%',
+              maxWidth: '950px',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}
+          >
+            {/* Header Modal */}
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-users-viewfinder" style={{ color: '#38bdf8' }}></i> Acompanhamento de Ritmo dos Alunos ({selectedMonth})
+                </h3>
+                <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                  Progresso do mês: Dia {kpis.diaAtualMes} de {kpis.diasTotalMes} ({kpis.percentualMesDecorrido}% decorrido) • Identifique quem precisa de reposição antes do fechamento
+                </small>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowTrackingModal(false)}
+                style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            {/* Filtros e Busca */}
+            <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setTrackingFilter('todos')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    background: trackingFilter === 'todos' ? '#38bdf8' : 'rgba(255,255,255,0.05)',
+                    color: trackingFilter === 'todos' ? '#0f172a' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.76rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Todos ({alunosTracking.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrackingFilter('no_ritmo')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    background: trackingFilter === 'no_ritmo' ? '#10b981' : 'rgba(16, 185, 129, 0.08)',
+                    color: trackingFilter === 'no_ritmo' ? '#ffffff' : '#34d399',
+                    fontWeight: 700,
+                    fontSize: '0.76rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  No Ritmo / Meta Batida ({(kpis.totalAlunosNoRitmo || 0) + (kpis.totalAlunosMetaBatida || 0)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrackingFilter('em_risco')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    background: trackingFilter === 'em_risco' ? '#f59e0b' : 'rgba(245, 158, 11, 0.08)',
+                    color: trackingFilter === 'em_risco' ? '#0f172a' : '#fbbf24',
+                    fontWeight: 700,
+                    fontSize: '0.76rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Em Risco ({kpis.totalAlunosEmRisco || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrackingFilter('fora_da_meta')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    background: trackingFilter === 'fora_da_meta' ? '#ef4444' : 'rgba(239, 68, 68, 0.08)',
+                    color: trackingFilter === 'fora_da_meta' ? '#ffffff' : '#f87171',
+                    fontWeight: 700,
+                    fontSize: '0.76rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Crítico / Fora da Meta ({kpis.totalAlunosForaDaMeta || 0})
+                </button>
+              </div>
+
+              <div style={{ width: '240px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Buscar aluno ou profissional..."
+                  value={trackingSearch}
+                  onChange={(e) => setTrackingSearch(e.target.value)}
+                  style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                />
+              </div>
+            </div>
+
+            {/* Tabela de Alunos */}
+            <div style={{ padding: '16px 24px', overflowY: 'auto', flex: '1 1 auto' }}>
+              {filteredTracking.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                  <i className="fa-solid fa-users-slash" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
+                  <p style={{ margin: 0, fontSize: '0.88rem' }}>Nenhum aluno encontrado para os filtros selecionados.</p>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: '#94a3b8' }}>
+                        <th style={{ padding: '10px 8px' }}>Aluno</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Plano</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Meta Mês</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Presenças</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Esperado Hoje</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>% Atual</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Status do Ritmo</th>
+                        <th style={{ padding: '10px 8px' }}>Profissional Responsável</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTracking.map((a: any, idx: number) => {
+                        let badgeBg = 'rgba(148, 163, 184, 0.1)';
+                        let badgeColor = '#94a3b8';
+                        let badgeBorder = 'rgba(148, 163, 184, 0.2)';
+                        let icon = 'fa-circle-question';
+
+                        if (a.statusRitmo === 'meta_batida') {
+                          badgeBg = 'rgba(16, 185, 129, 0.15)';
+                          badgeColor = '#34d399';
+                          badgeBorder = 'rgba(16, 185, 129, 0.3)';
+                          icon = 'fa-circle-check';
+                        } else if (a.statusRitmo === 'no_ritmo') {
+                          badgeBg = 'rgba(56, 189, 248, 0.15)';
+                          badgeColor = '#38bdf8';
+                          badgeBorder = 'rgba(56, 189, 248, 0.3)';
+                          icon = 'fa-arrow-trend-up';
+                        } else if (a.statusRitmo === 'em_risco') {
+                          badgeBg = 'rgba(245, 158, 11, 0.15)';
+                          badgeColor = '#fbbf24';
+                          badgeBorder = 'rgba(245, 158, 11, 0.3)';
+                          icon = 'fa-triangle-exclamation';
+                        } else if (a.statusRitmo === 'fora_da_meta') {
+                          badgeBg = 'rgba(239, 68, 68, 0.15)';
+                          badgeColor = '#f87171';
+                          badgeBorder = 'rgba(239, 68, 68, 0.3)';
+                          icon = 'fa-circle-exclamation';
+                        }
+
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                            <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--text-main)' }}>
+                              {a.nome}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', color: '#94a3b8' }}>
+                              {a.frequenciaContratada}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {a.metaAulasMes > 0 ? `${a.metaAulasMes} aulas` : '-'}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 800, color: a.presencasRealizadas > 0 ? '#34d399' : '#94a3b8' }}>
+                              {a.presencasRealizadas}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', color: '#94a3b8' }}>
+                              {a.esperadoAteHoje > 0 ? `${a.esperadoAteHoje}` : '-'}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700, color: a.percentualAtual >= 80 ? '#34d399' : a.percentualAtual >= 50 ? '#fbbf24' : '#f87171' }}>
+                              {a.metaAulasMes > 0 ? `${a.percentualAtual}%` : '-'}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: badgeBg,
+                                  color: badgeColor,
+                                  border: `1px solid ${badgeBorder}`,
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700
+                                }}
+                              >
+                                <i className={`fa-solid ${icon}`}></i> {a.statusTexto}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 8px', color: '#cbd5e1' }}>
+                              {a.profissionalVinculadoNome || <span style={{ color: '#64748b' }}>Geral</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Modal */}
+            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                Exibindo {filteredTracking.length} de {alunosTracking.length} alunos
+              </span>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowTrackingModal(false)}
+              >
+                Fechar Monitor
               </button>
             </div>
 

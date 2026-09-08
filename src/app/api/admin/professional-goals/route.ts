@@ -407,12 +407,24 @@ export async function GET(request: Request) {
     // =========================================================================
     // 6. PROCESSAR CRÉDITOS E DÉBITOS COLETIVOS (TODOS OS PROFISSIONAIS RECEBEM)
     //    - Frequência ≥ 80% (+5 pts) vs < 80% (-5 pts)
-    //    - Treino Livre semanal (+2 pts) vs sem Treino Livre (-2 pts)
-    //    - Emergências ≤ 1 (+3 pts) vs Emergências > 1 (-4 pts)
     // =========================================================================
+    // 6. PROCESSAR CRÉDITOS E DÉBITOS COLETIVOS E TRACKING DE RITMO
+    //    - Mês em Andamento: débitos de frequência e treino livre são suspensos até o fechamento.
+    //    - Mês Encerrado: fechamento oficial consolidado (+5/-5, +2/-2, +3/-4).
+    // =========================================================================
+    const isCurrentMonth = mesParam === currentYearMonth;
+    const currentDay = isCurrentMonth ? Math.min(now.getDate(), lastDayOfMonth) : lastDayOfMonth;
+    const progressPct = Math.round((currentDay / lastDayOfMonth) * 100);
+    const todayISO = now.toISOString().split('T')[0];
+
     let totalAlunosAltaFreq = 0;
     let totalAlunosBaixaFreq = 0;
     let totalAlunosNeutrosFreq = 0;
+    let totalAlunosNoRitmo = 0;
+    let totalAlunosEmRisco = 0;
+    let totalAlunosForaDaMeta = 0;
+    let totalAlunosMetaBatida = 0;
+
     let totalAlunosTreinoLivreOk = 0;
     let totalAlunosTreinoLivreFalta = 0;
     let totalAlunosEmergenciaOk = 0;
@@ -443,42 +455,133 @@ export async function GET(request: Request) {
 
     const collectiveCreditEvents: Array<{ tipo: string; descricao: string; alunoNome: string; pontos: number }> = [];
     const collectiveDebitEvents: Array<{ tipo: string; motivo: string; alunoNome: string; pontosDebito: number }> = [];
+    const alunosTracking: Array<{
+      clientId: string;
+      nome: string;
+      frequenciaContratada: string;
+      metaAulasMes: number;
+      presencasRealizadas: number;
+      faltasRegistradas: number;
+      agendadosFuturos: number;
+      esperadoAteHoje: number;
+      percentualAtual: number;
+      statusRitmo: 'meta_batida' | 'no_ritmo' | 'em_risco' | 'fora_da_meta' | 'neutro';
+      statusTexto: string;
+      profissionalVinculadoNome?: string;
+    }> = [];
 
     activeClients.forEach((client: any) => {
       const cId = String(client._id);
       const alunoNome = client.dadosPessoais?.nome || client.nome || 'Aluno';
+      const respProfId = client.dadosClinicos?.profissionalResponsavelId ? String(client.dadosClinicos.profissionalResponsavelId) : undefined;
+      const respProf = respProfId ? profScoresMap.get(respProfId)?.prof?.nome : undefined;
 
       const clientMonthApts = monthAppointments.filter((a: any) => {
         const aCId = String(a.clienteId?._id || a.clienteId);
         return aCId === cId;
       });
 
+      const presencas = clientMonthApts.filter((a: any) => a.status === 'presenca').length;
+      const faltas = clientMonthApts.filter((a: any) => a.status === 'falta').length;
+      const agendadosFuturos = clientMonthApts.filter((a: any) => a.status === 'agendado' && (a.data >= todayISO)).length;
+
       // Frequência Mensal (Base Contratada vs Presenças Efetivas)
       const metaAulas = getMonthlySessionTarget(client, lastDayOfMonth);
+      const rawFreqStr = client.dadosComerciais?.frequencia ?? client.frequencia ?? 'Não definida';
 
       if (metaAulas > 0) {
-        const presencas = clientMonthApts.filter((a: any) => a.status === 'presenca').length;
         const freqMensalPct = Math.min(100, (presencas / metaAulas) * 100);
+        const target80 = Math.ceil(metaAulas * 0.8);
+        const esperadoAteHoje = Math.round(metaAulas * (currentDay / lastDayOfMonth));
+        const diasRestantesMes = Math.max(0, lastDayOfMonth - currentDay);
+        const semanasRestantes = diasRestantesMes / 7;
+        const freqSemanal = parseWeeklyFreq(rawFreqStr);
+        const aulasPossiveisAteFim = presencas + agendadosFuturos + Math.round(semanasRestantes * freqSemanal);
 
-        if (freqMensalPct >= 80) {
-          totalAlunosAltaFreq++;
-          collectiveCreditEvents.push({
-            tipo: 'Retenção Coletiva (Frequência ≥ 80%)',
-            descricao: `Aluno realizou ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta atingida)`,
-            alunoNome,
-            pontos: 5
-          });
+        let statusRitmo: 'meta_batida' | 'no_ritmo' | 'em_risco' | 'fora_da_meta' = 'no_ritmo';
+        let statusTexto = 'Dentro do ritmo';
+
+        if (presencas >= target80) {
+          statusRitmo = 'meta_batida';
+          statusTexto = 'Meta mensal batida (≥ 80%)';
+          totalAlunosMetaBatida++;
+        } else if (presencas >= esperadoAteHoje) {
+          statusRitmo = 'no_ritmo';
+          statusTexto = 'No ritmo esperado';
+          totalAlunosNoRitmo++;
+        } else if (aulasPossiveisAteFim >= target80) {
+          statusRitmo = 'em_risco';
+          statusTexto = 'Abaixo do esperado (Em risco)';
+          totalAlunosEmRisco++;
         } else {
-          totalAlunosBaixaFreq++;
-          collectiveDebitEvents.push({
-            tipo: 'Baixa Frequência do Aluno (< 80%)',
-            motivo: `Aluno realizou apenas ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta contratada)`,
-            alunoNome,
-            pontosDebito: 5
-          });
+          statusRitmo = 'fora_da_meta';
+          statusTexto = 'Fora da meta (Risco crítico)';
+          totalAlunosForaDaMeta++;
+        }
+
+        alunosTracking.push({
+          clientId: cId,
+          nome: alunoNome,
+          frequenciaContratada: typeof rawFreqStr === 'number' ? `${rawFreqStr}x/sem` : String(rawFreqStr),
+          metaAulasMes: metaAulas,
+          presencasRealizadas: presencas,
+          faltasRegistradas: faltas,
+          agendadosFuturos,
+          esperadoAteHoje,
+          percentualAtual: Math.round(freqMensalPct),
+          statusRitmo,
+          statusTexto,
+          profissionalVinculadoNome: respProf
+        });
+
+        if (!isCurrentMonth) {
+          // Mês Encerrado: fechamento oficial
+          if (freqMensalPct >= 80) {
+            totalAlunosAltaFreq++;
+            collectiveCreditEvents.push({
+              tipo: 'Retenção Coletiva (Frequência ≥ 80%)',
+              descricao: `Aluno realizou ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta atingida)`,
+              alunoNome,
+              pontos: 5
+            });
+          } else {
+            totalAlunosBaixaFreq++;
+            collectiveDebitEvents.push({
+              tipo: 'Baixa Frequência do Aluno (< 80%)',
+              motivo: `Aluno realizou apenas ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta contratada)`,
+              alunoNome,
+              pontosDebito: 5
+            });
+          }
+        } else {
+          // Mês em Andamento: bonifica quem já bateu a meta ou está no ritmo; não aplica débito prematuro
+          if (statusRitmo === 'meta_batida' || statusRitmo === 'no_ritmo') {
+            totalAlunosAltaFreq++;
+            collectiveCreditEvents.push({
+              tipo: 'Retenção em Tempo Real (Ritmo ≥ 80%)',
+              descricao: `Aluno está no ritmo com ${presencas} de ${metaAulas} aulas (${Math.round(freqMensalPct)}% da meta)`,
+              alunoNome,
+              pontos: 5
+            });
+          }
+          // Débito só entra no fechamento oficial do mês
         }
       } else {
         totalAlunosNeutrosFreq++;
+        alunosTracking.push({
+          clientId: cId,
+          nome: alunoNome,
+          frequenciaContratada: 'Sem contrato',
+          metaAulasMes: 0,
+          presencasRealizadas: presencas,
+          faltasRegistradas: faltas,
+          agendadosFuturos,
+          esperadoAteHoje: 0,
+          percentualAtual: 0,
+          statusRitmo: 'neutro',
+          statusTexto: 'Neutro (Sem plano)',
+          profissionalVinculadoNome: respProf
+        });
       }
 
       // Treino Livre Semanal
@@ -487,15 +590,18 @@ export async function GET(request: Request) {
         return (serv.includes('livre') || a.tipoCredito === 'nenhum') && a.status === 'presenca';
       }).length;
 
-      if (treinosLivres >= 4) { // Pelo menos 1 treino livre por semana (4 semanas/mês)
+      const treinosLivresEsperadosAteHoje = Math.max(1, Math.round(4 * (currentDay / lastDayOfMonth)));
+
+      if (treinosLivres >= 4 || (isCurrentMonth && treinosLivres >= treinosLivresEsperadosAteHoje)) {
         totalAlunosTreinoLivreOk++;
         collectiveCreditEvents.push({
           tipo: 'Treino Livre Semanal',
-          descricao: `Aluno realizou ${treinosLivres} treinos livres no mês (Meta semanal cumprida)`,
+          descricao: `Aluno realizou ${treinosLivres} treinos livres no período (Meta cumprida)`,
           alunoNome,
           pontos: 2
         });
-      } else {
+      } else if (!isCurrentMonth) {
+        // Débito de Treino Livre apenas no fechamento do mês
         totalAlunosTreinoLivreFalta++;
         collectiveDebitEvents.push({
           tipo: 'Ausência de Treino Livre Semanal',
@@ -574,6 +680,10 @@ export async function GET(request: Request) {
 
     const kpis = {
       mesReferencia: mesParam,
+      isMesEmAndamento: isCurrentMonth,
+      diaAtualMes: currentDay,
+      diasTotalMes: lastDayOfMonth,
+      percentualMesDecorrido: progressPct,
       totalProfissionais: professionals.length,
       totalAlunosAtivos: activeClients.length,
       totalPontosClinica,
@@ -584,6 +694,10 @@ export async function GET(request: Request) {
       totalAlunosAltaFreq,
       totalAlunosBaixaFreq,
       totalAlunosNeutrosFreq,
+      totalAlunosNoRitmo,
+      totalAlunosEmRisco,
+      totalAlunosForaDaMeta,
+      totalAlunosMetaBatida,
       totalAlunosEmergenciaOk,
       totalAlunosEmergenciaExtra
     };
@@ -593,6 +707,7 @@ export async function GET(request: Request) {
       data: {
         ranking,
         kpis,
+        alunosTracking,
         mes: mesParam
       }
     });
