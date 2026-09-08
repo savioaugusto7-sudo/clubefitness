@@ -15,7 +15,10 @@ const WorkoutSheetSchema = new Schema({
   id: { type: String, required: true }, // "A", "B", "C"
   nome: { type: String, required: true },
   ultimaAtualizacao: { type: String, default: '' },
+  dataCriacao: { type: String, default: '' },
   observacoesGerais: { type: String, default: '' },
+  profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional', required: false },
+  profissionalNome: { type: String, default: '' },
   exercicios: [WorkoutExerciseSchema]
 });
 

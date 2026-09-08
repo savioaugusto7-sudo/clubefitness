@@ -20,6 +20,7 @@ import FinanceiroBalancoPanel from './FinanceiroBalancoPanel';
 import ContasPagarPanel from './ContasPagarPanel';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 import MoneyInput from './MoneyInput';
+import MetasProfissionaisPanel from './MetasProfissionaisPanel';
 
 
 export const normalizeText = (str: string) => {
@@ -4206,6 +4207,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           contractsList={contractsAdminList}
           onRefresh={fetchData}
         />
+      )}
+
+      {/* View: Metas dos Profissionais */}
+      {activeTab === 'metas_profissionais' && (
+        <MetasProfissionaisPanel onRefresh={fetchData} />
       )}
 
       {/* View: Movimentos Realizados via Link */}

@@ -43,6 +43,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       tabs: [
         { id: 'usuarios', label: 'Cadastro de Usuários', icon: 'fa-user-cog' },
         { id: 'profissionais', label: 'Profissionais', icon: 'fa-user-md' },
+        { id: 'metas_profissionais', label: 'Metas dos Profissionais', icon: 'fa-trophy' },
         { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
         { id: 'vincular_alunos', label: 'Vincular Alunos', icon: 'fa-link' },
         { id: 'dados_clinicos', label: 'Dados Clínicos', icon: 'fa-notes-medical' }
