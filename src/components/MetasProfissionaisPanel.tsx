@@ -61,9 +61,11 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
     return months;
   }, []);
 
+  // Aba Principal da Tela: 'ranking' ou 'alunos_tracking'
+  const [activeMainTab, setActiveMainTab] = useState<'ranking' | 'alunos_tracking'>('ranking');
+
   // Tracking de Alunos
-  const [showTrackingModal, setShowTrackingModal] = useState(false);
-  const [trackingFilter, setTrackingFilter] = useState<'todos' | 'no_ritmo' | 'em_risco' | 'fora_da_meta' | 'meta_batida'>('todos');
+  const [trackingFilter, setTrackingFilter] = useState<'todos' | 'baixo' | 'medio' | 'alto'>('todos');
   const [trackingSearch, setTrackingSearch] = useState('');
 
   const rankingList = data?.ranking || [];
@@ -80,10 +82,9 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
   const filteredTracking = alunosTracking.filter((a: any) => {
     const matchesFilter =
       trackingFilter === 'todos' ||
-      (trackingFilter === 'no_ritmo' && (a.statusRitmo === 'no_ritmo' || a.statusRitmo === 'meta_batida')) ||
-      (trackingFilter === 'em_risco' && a.statusRitmo === 'em_risco') ||
-      (trackingFilter === 'fora_da_meta' && a.statusRitmo === 'fora_da_meta') ||
-      (trackingFilter === 'meta_batida' && a.statusRitmo === 'meta_batida');
+      (trackingFilter === 'baixo' && a.riscoGeral === 'baixo') ||
+      (trackingFilter === 'medio' && a.riscoGeral === 'medio') ||
+      (trackingFilter === 'alto' && a.riscoGeral === 'alto');
 
     const q = trackingSearch.toLowerCase();
     const matchesSearch =
@@ -137,7 +138,7 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
         </div>
       </div>
 
-      {/* BANNER DE STATUS DO MÊS: EM ANDAMENTO VS CONSOLIDADO */}
+      {/* BANNER DE STATUS DO MÊS */}
       <div
         style={{
           background: kpis.isMesEmAndamento
@@ -161,176 +162,223 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
           <div>
             <strong style={{ color: 'var(--text-main)', fontSize: '0.92rem' }}>
               {kpis.isMesEmAndamento
-                ? `Mês em Andamento • Dia ${kpis.diaAtualMes} de ${kpis.diasTotalMes} (${kpis.percentualMesDecorrido}% do mês decorrido)`
+                ? `Mês em Andamento • Dia ${kpis.diaAtualMes} de ${kpis.diasTotalMes} (${kpis.percentualMesDecorrido}% decorrido)`
                 : `Mês Encerrado • Fechamento Consolidado Oficial (${selectedMonth})`}
             </strong>
             <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '2px' }}>
               {kpis.isMesEmAndamento
-                ? 'Acompanhamento em tempo real: créditos são somados imediatamente e débitos de fechamento mensal serão apurados ao término do mês.'
-                : 'Pontuação final apurada com todos os créditos de produção e débitos de fechamento mensal aplicados.'}
+                ? 'Durante o mês, o balanço dos profissionais contabiliza estritamente a produção individual. Frequência, treino livre e emergências são consolidados no fechamento.'
+                : 'Pontuação oficial consolidada: inclui créditos de produção individual e apuração definitiva dos indicadores coletivos.'}
             </div>
           </div>
         </div>
 
-        {kpis.isMesEmAndamento && (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowTrackingModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
-          >
-            <i className="fa-solid fa-users-viewfinder"></i> Monitor de Ritmo dos Alunos ({alunosTracking.length})
-          </button>
+        {/* Projeção Coletiva para Fechamento */}
+        {kpis.isMesEmAndamento && kpis.projecaoColetiva && (
+          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.78rem', color: '#cbd5e1' }}>
+            <span style={{ color: '#94a3b8' }}>Projeção Coletiva para o Fechamento: </span>
+            <strong style={{ color: kpis.projecaoColetiva.saldoProjetado >= 0 ? '#34d399' : '#f87171' }}>
+              {kpis.projecaoColetiva.saldoProjetado >= 0 ? `+${kpis.projecaoColetiva.saldoProjetado}` : kpis.projecaoColetiva.saldoProjetado} pts/prof
+            </strong>
+          </div>
         )}
       </div>
 
-      {/* 2. KPIS EXECUTIVOS */}
-      <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px' }}>
-        
-        {/* Card 1: Pontuação Total da Clínica */}
-        <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.15) 100%)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-          <div className="metric-info">
-            <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Saldo Total de Pontos da Equipe</h3>
-            <div className="value" style={{ color: '#f59e0b', fontSize: '1.8rem', fontWeight: 900 }}>
-              {kpis.totalPontosClinica || 0} pts
-            </div>
-            <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
-              Mês: <strong style={{ color: '#fff' }}>{selectedMonth}</strong> • {kpis.totalProfissionais || 0} profissionais ativos
-            </small>
-          </div>
-          <div className="metric-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
-            <i className="fa-solid fa-award"></i>
-          </div>
-        </div>
+      {/* NAVEGAÇÃO ENTRE ABAS PRINCIPAIS */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '2px' }}>
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('ranking')}
+          style={{
+            padding: '10px 18px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeMainTab === 'ranking' ? '3px solid #38bdf8' : '3px solid transparent',
+            color: activeMainTab === 'ranking' ? '#38bdf8' : '#94a3b8',
+            fontWeight: 800,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <i className="fa-solid fa-ranking-star"></i> Ranking dos Profissionais
+        </button>
 
-        {/* Card 2: Profissional Destaque */}
-        <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.15) 100%)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-          <div className="metric-info">
-            <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Profissional Líder do Mês</h3>
-            <div className="value" style={{ color: '#10b981', fontSize: '1.2rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {kpis.liderNome || 'Nenhum'}
-            </div>
-            <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
-              Pontuação individual: <strong style={{ color: '#34d399' }}>{kpis.liderPontos || 0} pts</strong>
-            </small>
-          </div>
-          <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
-            <i className="fa-solid fa-medal"></i>
-          </div>
-        </div>
-
-        {/* Card 3: Total de Créditos (+) vs Débitos (-) */}
-        <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.15) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-          <div className="metric-info">
-            <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Balanço de Pontuações</h3>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'baseline', marginTop: '4px' }}>
-              <span style={{ color: '#34d399', fontSize: '1.25rem', fontWeight: 900 }}>+{kpis.totalCreditosClinica || 0}</span>
-              <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>/</span>
-              <span style={{ color: '#f87171', fontSize: '1.25rem', fontWeight: 900 }}>-{kpis.totalDebitosClinica || 0}</span>
-            </div>
-            <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
-              Créditos de Produção e Débitos de Conformidade
-            </small>
-          </div>
-          <div className="metric-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-            <i className="fa-solid fa-scale-balanced"></i>
-          </div>
-        </div>
-
-        {/* Card 4: Retenção e Ritmo de Frequência */}
-        <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(107, 33, 168, 0.15) 100%)', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-          <div className="metric-info">
-            <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-              {kpis.isMesEmAndamento ? 'Alunos no Ritmo / Meta Batida' : 'Alunos em Alta Retenção (≥ 80%)'}
-            </h3>
-            <div className="value" style={{ color: '#c084fc', fontSize: '1.8rem', fontWeight: 900 }}>
-              {kpis.isMesEmAndamento
-                ? (kpis.totalAlunosNoRitmo || 0) + (kpis.totalAlunosMetaBatida || 0)
-                : kpis.totalAlunosAltaFreq || 0}{' '}
-              <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>
-                de {kpis.totalAlunosAtivos || 0}
-              </span>
-            </div>
-            <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
-              {kpis.isMesEmAndamento
-                ? `🟡 ${kpis.totalAlunosEmRisco || 0} em risco • 🔴 ${kpis.totalAlunosForaDaMeta || 0} críticos`
-                : `+${(kpis.totalAlunosAltaFreq || 0) * 5} pts/prof • ${kpis.totalAlunosBaixaFreq || 0} com débito`}
-            </small>
-          </div>
-          <div className="metric-icon" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
-            <i className="fa-solid fa-users-viewfinder"></i>
-          </div>
-        </div>
-
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('alunos_tracking')}
+          style={{
+            padding: '10px 18px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeMainTab === 'alunos_tracking' ? '3px solid #c084fc' : '3px solid transparent',
+            color: activeMainTab === 'alunos_tracking' ? '#c084fc' : '#94a3b8',
+            fontWeight: 800,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <i className="fa-solid fa-users-viewfinder"></i> Monitor de Progressão & Risco dos Alunos ({alunosTracking.length})
+        </button>
       </div>
 
-      {/* 3. REGRAS DO SCORECARD (GUIA RÁPIDO) */}
-      <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '14px', border: '1px solid var(--border-color)', padding: '16px 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <i className="fa-solid fa-circle-info" style={{ color: '#38bdf8' }}></i> Regras de Pontuação e Conformidade de Metas
-          </h3>
-          <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Atualização automática em tempo real</span>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', fontSize: '0.78rem' }}>
-          {/* Créditos */}
-          <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', padding: '10px 14px' }}>
-            <div style={{ fontWeight: 800, color: '#34d399', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i className="fa-solid fa-circle-plus"></i> Atividades que Somam Pontos (+)
+      {/* CONTEÚDO DA ABA 1: RANKING DOS PROFISSIONAIS */}
+      {activeMainTab === 'ranking' && (
+        <>
+          {/* 2. KPIS EXECUTIVOS */}
+          <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px' }}>
+            
+            {/* Card 1: Pontuação Total da Clínica */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.15) 100%)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Saldo Total de Pontos ({kpis.isMesEmAndamento ? 'Produção' : 'Consolidado'})</h3>
+                <div className="value" style={{ color: '#f59e0b', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {kpis.totalPontosClinica || 0} pts
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  Mês: <strong style={{ color: '#fff' }}>{selectedMonth}</strong> • {kpis.totalProfissionais || 0} profissionais ativos
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                <i className="fa-solid fa-award"></i>
+              </div>
             </div>
-            <ul style={{ margin: 0, paddingLeft: '16px', color: '#cbd5e1', lineHeight: '1.6' }}>
-              <li>Avaliação Física concluída em ≤ 1h: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
-              <li>Teste de Força concluído em ≤ 1h: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
-              <li>Ficha de Treino montada em ≤ 24h após avaliação: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
-              <li>Relatório Fisioterápico concluído em ≤ 2h: <strong style={{ color: '#34d399' }}>+6 pts</strong></li>
-              <li>Aluno com frequência mensal ≥ 80%: <strong style={{ color: '#34d399' }}>+5 pts/aluno</strong> (todos os profissionais)</li>
-              <li>Aluno com mín. 1 Treino Livre na semana: <strong style={{ color: '#34d399' }}>+2 pts/aluno</strong> (todos os profissionais)</li>
-              <li>Aluno com no máx. 1 emergência no mês: <strong style={{ color: '#34d399' }}>+3 pts/aluno</strong> (todos os profissionais)</li>
-            </ul>
-          </div>
 
-          {/* Débitos */}
-          <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '10px 14px' }}>
-            <div style={{ fontWeight: 800, color: '#f87171', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i className="fa-solid fa-circle-minus"></i> Critérios que Debitam Pontos (-)
+            {/* Card 2: Profissional Destaque */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.15) 100%)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Profissional Líder do Mês</h3>
+                <div className="value" style={{ color: '#10b981', fontSize: '1.2rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {kpis.liderNome || 'Nenhum'}
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  Pontuação individual: <strong style={{ color: '#34d399' }}>{kpis.liderPontos || 0} pts</strong>
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                <i className="fa-solid fa-medal"></i>
+              </div>
             </div>
-            <ul style={{ margin: 0, paddingLeft: '16px', color: '#cbd5e1', lineHeight: '1.6' }}>
-              <li>Avaliação/Teste/Relatório sem Ficha após 24h: <strong style={{ color: '#f87171' }}>-2 pts</strong></li>
-              <li>Aluno ativo com frequência mensal &lt; 80%: <strong style={{ color: '#f87171' }}>-5 pts/aluno</strong> (todos os profissionais)</li>
-              <li>Avaliação ou Ficha vencida há &gt; 2 meses: <strong style={{ color: '#f87171' }}>-10 pts</strong> (profissional vinculado)</li>
-              <li>Aluno sem o mín. de 1 Treino Livre na semana: <strong style={{ color: '#f87171' }}>-2 pts/aluno</strong> (todos os profissionais)</li>
-              <li>Aluno com &gt; 1 emergência no mês: <strong style={{ color: '#f87171' }}>-4 pts/aluno</strong> (todos os profissionais)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
 
-      {/* 4. TABELA DE RANKING DOS PROFISSIONAIS */}
-      <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '20px' }}>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-ranking-star" style={{ color: '#f59e0b' }}></i> Ranking Geral dos Profissionais ({selectedMonth})
-            </h2>
-            <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
-              Classificação por saldo líquido de pontuação obtido no período.
-            </small>
+            {/* Card 3: Total de Créditos (+) vs Débitos (-) */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.15) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Balanço de Pontuações</h3>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'baseline', marginTop: '4px' }}>
+                  <span style={{ color: '#34d399', fontSize: '1.25rem', fontWeight: 900 }}>+{kpis.totalCreditosClinica || 0}</span>
+                  <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>/</span>
+                  <span style={{ color: '#f87171', fontSize: '1.25rem', fontWeight: 900 }}>-{kpis.totalDebitosClinica || 0}</span>
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  Créditos e Débitos de Produção Individual
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                <i className="fa-solid fa-scale-balanced"></i>
+              </div>
+            </div>
+
+            {/* Card 4: Retenção e Ritmo de Frequência */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(107, 33, 168, 0.15) 100%)', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+                  {kpis.isMesEmAndamento ? 'Alunos no Ritmo / Meta Batida' : 'Alunos em Alta Retenção (≥ 80%)'}
+                </h3>
+                <div className="value" style={{ color: '#c084fc', fontSize: '1.8rem', fontWeight: 900 }}>
+                  {kpis.isMesEmAndamento
+                    ? (kpis.totalAlunosNoRitmo || 0) + (kpis.totalAlunosMetaBatida || 0)
+                    : kpis.totalAlunosAltaFreq || 0}{' '}
+                  <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>
+                    de {kpis.totalAlunosAtivos || 0}
+                  </span>
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  {kpis.isMesEmAndamento
+                    ? `🟡 ${kpis.totalAlunosEmRisco || 0} em risco • 🔴 ${kpis.totalAlunosForaDaMeta || 0} críticos`
+                    : `+${(kpis.totalAlunosAltaFreq || 0) * 5} pts/prof • ${kpis.totalAlunosBaixaFreq || 0} com débito`}
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
+                <i className="fa-solid fa-users-viewfinder"></i>
+              </div>
+            </div>
+
           </div>
 
-          {/* Campo de Busca */}
-          <div style={{ width: '260px' }}>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar por profissional ou especialidade..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ fontSize: '0.82rem', padding: '7px 12px' }}
-            />
+          {/* 3. REGRAS DO SCORECARD */}
+          <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '14px', border: '1px solid var(--border-color)', padding: '16px 20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-circle-info" style={{ color: '#38bdf8' }}></i> Regras de Pontuação e Conformidade de Metas
+              </h3>
+              <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Atualização automática em tempo real</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', fontSize: '0.78rem' }}>
+              {/* Créditos */}
+              <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', padding: '10px 14px' }}>
+                <div style={{ fontWeight: 800, color: '#34d399', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-circle-plus"></i> Atividades que Somam Pontos (+)
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '16px', color: '#cbd5e1', lineHeight: '1.6' }}>
+                  <li>Avaliação Física concluída em ≤ 1h: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
+                  <li>Teste de Força concluído em ≤ 1h: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
+                  <li>Ficha de Treino montada em ≤ 24h após avaliação: <strong style={{ color: '#34d399' }}>+4 pts</strong></li>
+                  <li>Relatório Fisioterápico concluído em ≤ 2h: <strong style={{ color: '#34d399' }}>+6 pts</strong></li>
+                  <li>Aluno com frequência mensal ≥ 80% (fechamento): <strong style={{ color: '#34d399' }}>+5 pts/aluno</strong></li>
+                  <li>Aluno com mín. 1 Treino Livre na semana (fechamento): <strong style={{ color: '#34d399' }}>+2 pts/aluno</strong></li>
+                  <li>Aluno com no máx. 1 emergência no mês (fechamento): <strong style={{ color: '#34d399' }}>+3 pts/aluno</strong></li>
+                </ul>
+              </div>
+
+              {/* Débitos */}
+              <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '10px 14px' }}>
+                <div style={{ fontWeight: 800, color: '#f87171', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-circle-minus"></i> Critérios que Debitam Pontos (-)
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '16px', color: '#cbd5e1', lineHeight: '1.6' }}>
+                  <li>Avaliação/Teste/Relatório sem Ficha após 24h: <strong style={{ color: '#f87171' }}>-2 pts</strong></li>
+                  <li>Avaliação ou Ficha vencida há &gt; 2 meses: <strong style={{ color: '#f87171' }}>-10 pts</strong> (profissional vinculado)</li>
+                  <li>Aluno ativo com frequência mensal &lt; 80% (fechamento): <strong style={{ color: '#f87171' }}>-5 pts/aluno</strong></li>
+                  <li>Aluno sem o mín. de 1 Treino Livre na semana (fechamento): <strong style={{ color: '#f87171' }}>-2 pts/aluno</strong></li>
+                  <li>Aluno com &gt; 1 emergência no mês (fechamento): <strong style={{ color: '#f87171' }}>-4 pts/aluno</strong></li>
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
+
+          {/* 4. TABELA DE RANKING DOS PROFISSIONAIS */}
+          <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '20px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-ranking-star" style={{ color: '#f59e0b' }}></i> {kpis.isMesEmAndamento ? 'Ranking de Produção Individual' : 'Ranking Geral Consolidado'} ({selectedMonth})
+                </h2>
+                <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                  {kpis.isMesEmAndamento
+                    ? 'Classificação por saldo de produção clínica individual em tempo real.'
+                    : 'Classificação oficial definitiva por saldo consolidado (produção individual + fechamento coletivo).'}
+                </small>
+              </div>
+
+              {/* Campo de Busca */}
+              <div style={{ width: '260px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Buscar por profissional ou especialidade..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ fontSize: '0.82rem', padding: '7px 12px' }}
+                />
+              </div>
+            </div>
 
         {error && (
           <div className="alert alert-danger" style={{ fontSize: '0.85rem' }}>
@@ -495,6 +543,343 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
         )}
 
       </div>
+      </>
+      )}
+
+      {/* CONTEÚDO DA ABA 2: MONITOR DE PROGRESSÃO E RISCO DOS ALUNOS */}
+      {activeMainTab === 'alunos_tracking' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          
+          {/* CARDS DOS 3 PILARES COLETIVOS */}
+          <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            
+            {/* Pilar 1: Frequência Contratada */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(107, 33, 168, 0.15) 100%)', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>1. Frequência Mensal Contratada (≥ 80%)</h3>
+                <div className="value" style={{ color: '#c084fc', fontSize: '1.7rem', fontWeight: 900 }}>
+                  {(kpis.totalAlunosNoRitmo || 0) + (kpis.totalAlunosMetaBatida || 0)}{' '}
+                  <span style={{ fontSize: '0.88rem', color: '#94a3b8', fontWeight: 500 }}>de {kpis.totalAlunosAtivos || 0} no ritmo</span>
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  🟡 <strong style={{ color: '#fbbf24' }}>{kpis.totalAlunosEmRisco || 0}</strong> em risco • 🔴 <strong style={{ color: '#f87171' }}>{kpis.totalAlunosForaDaMeta || 0}</strong> críticos • {kpis.totalAlunosNeutrosFreq || 0} sem plano
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
+                <i className="fa-solid fa-calendar-check"></i>
+              </div>
+            </div>
+
+            {/* Pilar 2: Treino Livre Semanal */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 105, 161, 0.15) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>2. Treino Livre Semanal (Mín. 1x/sem)</h3>
+                <div className="value" style={{ color: '#38bdf8', fontSize: '1.7rem', fontWeight: 900 }}>
+                  {kpis.totalAlunosTreinoLivreOk || 0}{' '}
+                  <span style={{ fontSize: '0.88rem', color: '#94a3b8', fontWeight: 500 }}>de {kpis.totalAlunosAtivos || 0} em dia</span>
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  {kpis.totalAlunosTreinoLivreFalta ? `🟡 ${kpis.totalAlunosTreinoLivreFalta} alunos com pendência de treino livre` : '100% da base em conformidade'}
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                <i className="fa-solid fa-dumbbell"></i>
+              </div>
+            </div>
+
+            {/* Pilar 3: Controle de Emergências */}
+            <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.15) 100%)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div className="metric-info">
+                <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>3. Controle de Emergências (≤ 1 no mês)</h3>
+                <div className="value" style={{ color: '#34d399', fontSize: '1.7rem', fontWeight: 900 }}>
+                  {kpis.totalAlunosEmergenciaOk || 0}{' '}
+                  <span style={{ fontSize: '0.88rem', color: '#94a3b8', fontWeight: 500 }}>de {kpis.totalAlunosAtivos || 0} sob controle</span>
+                </div>
+                <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                  {kpis.totalAlunosEmergenciaExtra ? `🔴 ${kpis.totalAlunosEmergenciaExtra} aluno(s) com emergência excedente (>1)` : 'Nenhuma emergência excedente registrada'}
+                </small>
+              </div>
+              <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
+                <i className="fa-solid fa-heart-pulse"></i>
+              </div>
+            </div>
+
+          </div>
+
+          {/* PAINEL DE TABELA E FILTROS DE RISCO */}
+          <div className="content-panel" style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '20px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-users-viewfinder" style={{ color: '#c084fc' }}></i> Progressão e Risco dos Alunos ({selectedMonth})
+                </h2>
+                <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                  Acompanhe em tempo real a evolução de cada aluno nos 3 pilares para atuação preventiva da equipe antes do fechamento do mês.
+                </small>
+              </div>
+
+              {/* Busca */}
+              <div style={{ width: '280px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Buscar aluno, plano ou profissional..."
+                  value={trackingSearch}
+                  onChange={(e) => setTrackingSearch(e.target.value)}
+                  style={{ fontSize: '0.82rem', padding: '7px 12px' }}
+                />
+              </div>
+            </div>
+
+            {/* Filtros Rápidos de Risco */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
+              <button
+                type="button"
+                onClick={() => setTrackingFilter('todos')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  background: trackingFilter === 'todos' ? '#38bdf8' : 'rgba(255,255,255,0.05)',
+                  color: trackingFilter === 'todos' ? '#0f172a' : '#94a3b8',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Todos os Alunos ({alunosTracking.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTrackingFilter('baixo')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  background: trackingFilter === 'baixo' ? '#10b981' : 'rgba(16, 185, 129, 0.08)',
+                  color: trackingFilter === 'baixo' ? '#ffffff' : '#34d399',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                🟢 Baixo Risco / No Ritmo ({alunosTracking.filter((a: any) => a.riscoGeral === 'baixo').length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTrackingFilter('medio')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  background: trackingFilter === 'medio' ? '#f59e0b' : 'rgba(245, 158, 11, 0.08)',
+                  color: trackingFilter === 'medio' ? '#0f172a' : '#fbbf24',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                🟡 Médio Risco / Em Atenção ({alunosTracking.filter((a: any) => a.riscoGeral === 'medio').length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTrackingFilter('alto')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: trackingFilter === 'alto' ? '#ef4444' : 'rgba(239, 68, 68, 0.08)',
+                  color: trackingFilter === 'alto' ? '#ffffff' : '#f87171',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                🔴 Alto Risco / Crítico ({alunosTracking.filter((a: any) => a.riscoGeral === 'alto').length})
+              </button>
+            </div>
+
+            {/* TABELA DE PROGRESSÃO E RISCO */}
+            {filteredTracking.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                <i className="fa-solid fa-users-slash" style={{ fontSize: '2rem', marginBottom: '10px' }}></i>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>Nenhum aluno encontrado para os filtros selecionados.</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: '#94a3b8' }}>
+                      <th style={{ padding: '12px 10px' }}>Aluno</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Plano</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Frequência (Check-ins / Meta)</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Status Frequência</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Treino Livre</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Emergências</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Risco Geral</th>
+                      <th style={{ padding: '12px 10px' }}>Profissional Responsável</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTracking.map((a: any, idx: number) => {
+                      let badgeFreqBg = 'rgba(148, 163, 184, 0.1)';
+                      let badgeFreqColor = '#94a3b8';
+                      let badgeFreqBorder = 'rgba(148, 163, 184, 0.2)';
+                      let iconFreq = 'fa-circle-question';
+
+                      if (a.statusRitmo === 'meta_batida') {
+                        badgeFreqBg = 'rgba(16, 185, 129, 0.15)';
+                        badgeFreqColor = '#34d399';
+                        badgeFreqBorder = 'rgba(16, 185, 129, 0.3)';
+                        iconFreq = 'fa-circle-check';
+                      } else if (a.statusRitmo === 'no_ritmo') {
+                        badgeFreqBg = 'rgba(56, 189, 248, 0.15)';
+                        badgeFreqColor = '#38bdf8';
+                        badgeFreqBorder = 'rgba(56, 189, 248, 0.3)';
+                        iconFreq = 'fa-arrow-trend-up';
+                      } else if (a.statusRitmo === 'em_risco') {
+                        badgeFreqBg = 'rgba(245, 158, 11, 0.15)';
+                        badgeFreqColor = '#fbbf24';
+                        badgeFreqBorder = 'rgba(245, 158, 11, 0.3)';
+                        iconFreq = 'fa-triangle-exclamation';
+                      } else if (a.statusRitmo === 'fora_da_meta') {
+                        badgeFreqBg = 'rgba(239, 68, 68, 0.15)';
+                        badgeFreqColor = '#f87171';
+                        badgeFreqBorder = 'rgba(239, 68, 68, 0.3)';
+                        iconFreq = 'fa-circle-exclamation';
+                      }
+
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          
+                          {/* Nome do Aluno */}
+                          <td style={{ padding: '12px 10px', fontWeight: 700, color: 'var(--text-main)' }}>
+                            {a.nome}
+                          </td>
+
+                          {/* Plano */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center', color: '#94a3b8' }}>
+                            {a.frequenciaContratada}
+                          </td>
+
+                          {/* Frequência (Check-ins / Meta) */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            {a.metaAulasMes > 0 ? (
+                              <div>
+                                <span style={{ fontWeight: 800, color: a.presencasRealizadas > 0 ? '#34d399' : '#94a3b8' }}>
+                                  {a.presencasRealizadas}
+                                </span>{' '}
+                                <span style={{ color: '#94a3b8' }}>de {a.metaAulasMes} aulas</span>{' '}
+                                <strong style={{ color: a.percentualAtual >= 80 ? '#34d399' : a.percentualAtual >= 50 ? '#fbbf24' : '#f87171', marginLeft: '4px' }}>
+                                  ({a.percentualAtual}%)
+                                </strong>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>-</span>
+                            )}
+                          </td>
+
+                          {/* Status Frequência */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                background: badgeFreqBg,
+                                color: badgeFreqColor,
+                                border: `1px solid ${badgeFreqBorder}`,
+                                fontSize: '0.74rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              <i className={`fa-solid ${iconFreq}`}></i> {a.statusTexto}
+                            </span>
+                          </td>
+
+                          {/* Treino Livre */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                background: a.statusTreinoLivre === 'ok' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                                color: a.statusTreinoLivre === 'ok' ? '#38bdf8' : '#fbbf24',
+                                border: `1px solid ${a.statusTreinoLivre === 'ok' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                                fontSize: '0.74rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              <i className={`fa-solid ${a.statusTreinoLivre === 'ok' ? 'fa-circle-check' : 'fa-clock'}`}></i> {a.treinosLivresRealizados} feito(s) ({a.statusTreinoLivre === 'ok' ? 'OK' : 'Pendente'})
+                            </span>
+                          </td>
+
+                          {/* Emergências */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                background: a.statusEmergencia === 'ok' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                color: a.statusEmergencia === 'ok' ? '#34d399' : '#f87171',
+                                border: `1px solid ${a.statusEmergencia === 'ok' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                fontSize: '0.74rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              <i className={`fa-solid ${a.statusEmergencia === 'ok' ? 'fa-shield-heart' : 'fa-triangle-exclamation'}`}></i> {a.emergenciasNoMes} ({a.statusEmergencia === 'ok' ? 'OK' : 'Alerta > 1'})
+                            </span>
+                          </td>
+
+                          {/* Risco Geral */}
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                background: a.riscoGeral === 'baixo' ? 'rgba(16, 185, 129, 0.15)' : a.riscoGeral === 'medio' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                color: a.riscoGeral === 'baixo' ? '#34d399' : a.riscoGeral === 'medio' ? '#fbbf24' : '#f87171',
+                                border: `1px solid ${a.riscoGeral === 'baixo' ? 'rgba(16, 185, 129, 0.3)' : a.riscoGeral === 'medio' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                fontSize: '0.76rem',
+                                fontWeight: 800
+                              }}
+                            >
+                              {a.riscoGeral === 'baixo' ? '🟢 Baixo' : a.riscoGeral === 'medio' ? '🟡 Médio' : '🔴 Alto'}
+                            </span>
+                          </td>
+
+                          {/* Profissional */}
+                          <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>
+                            {a.profissionalVinculadoNome || <span style={{ color: '#64748b' }}>Geral</span>}
+                          </td>
+
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+          </div>
+
+        </div>
+      )}
 
       {/* 5. MODAL DE EXTRATO DETALHADO */}
       {selectedProfExtrato && (
@@ -678,257 +1063,6 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
                 onClick={() => setSelectedProfExtrato(null)}
               >
                 Concluir Visualização
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* 6. MODAL DO MONITOR DE RITMO DOS ALUNOS */}
-      {showTrackingModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--card-bg)',
-              borderRadius: '16px',
-              border: '1px solid var(--border-color)',
-              width: '100%',
-              maxWidth: '950px',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-            }}
-          >
-            {/* Header Modal */}
-            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <i className="fa-solid fa-users-viewfinder" style={{ color: '#38bdf8' }}></i> Acompanhamento de Ritmo dos Alunos ({selectedMonth})
-                </h3>
-                <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
-                  Progresso do mês: Dia {kpis.diaAtualMes} de {kpis.diasTotalMes} ({kpis.percentualMesDecorrido}% decorrido) • Identifique quem precisa de reposição antes do fechamento
-                </small>
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowTrackingModal(false)}
-                style={{ padding: '6px 10px', fontSize: '0.85rem' }}
-              >
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-
-            {/* Filtros e Busca */}
-            <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => setTrackingFilter('todos')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: trackingFilter === 'todos' ? '#38bdf8' : 'rgba(255,255,255,0.05)',
-                    color: trackingFilter === 'todos' ? '#0f172a' : '#94a3b8',
-                    fontWeight: 700,
-                    fontSize: '0.76rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Todos ({alunosTracking.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrackingFilter('no_ritmo')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    background: trackingFilter === 'no_ritmo' ? '#10b981' : 'rgba(16, 185, 129, 0.08)',
-                    color: trackingFilter === 'no_ritmo' ? '#ffffff' : '#34d399',
-                    fontWeight: 700,
-                    fontSize: '0.76rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  No Ritmo / Meta Batida ({(kpis.totalAlunosNoRitmo || 0) + (kpis.totalAlunosMetaBatida || 0)})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrackingFilter('em_risco')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    background: trackingFilter === 'em_risco' ? '#f59e0b' : 'rgba(245, 158, 11, 0.08)',
-                    color: trackingFilter === 'em_risco' ? '#0f172a' : '#fbbf24',
-                    fontWeight: 700,
-                    fontSize: '0.76rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Em Risco ({kpis.totalAlunosEmRisco || 0})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrackingFilter('fora_da_meta')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    background: trackingFilter === 'fora_da_meta' ? '#ef4444' : 'rgba(239, 68, 68, 0.08)',
-                    color: trackingFilter === 'fora_da_meta' ? '#ffffff' : '#f87171',
-                    fontWeight: 700,
-                    fontSize: '0.76rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Crítico / Fora da Meta ({kpis.totalAlunosForaDaMeta || 0})
-                </button>
-              </div>
-
-              <div style={{ width: '240px' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Buscar aluno ou profissional..."
-                  value={trackingSearch}
-                  onChange={(e) => setTrackingSearch(e.target.value)}
-                  style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-                />
-              </div>
-            </div>
-
-            {/* Tabela de Alunos */}
-            <div style={{ padding: '16px 24px', overflowY: 'auto', flex: '1 1 auto' }}>
-              {filteredTracking.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                  <i className="fa-solid fa-users-slash" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
-                  <p style={{ margin: 0, fontSize: '0.88rem' }}>Nenhum aluno encontrado para os filtros selecionados.</p>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                    <thead>
-                      <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: '#94a3b8' }}>
-                        <th style={{ padding: '10px 8px' }}>Aluno</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Plano</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Meta Mês</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Presenças</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Esperado Hoje</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>% Atual</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Status do Ritmo</th>
-                        <th style={{ padding: '10px 8px' }}>Profissional Responsável</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTracking.map((a: any, idx: number) => {
-                        let badgeBg = 'rgba(148, 163, 184, 0.1)';
-                        let badgeColor = '#94a3b8';
-                        let badgeBorder = 'rgba(148, 163, 184, 0.2)';
-                        let icon = 'fa-circle-question';
-
-                        if (a.statusRitmo === 'meta_batida') {
-                          badgeBg = 'rgba(16, 185, 129, 0.15)';
-                          badgeColor = '#34d399';
-                          badgeBorder = 'rgba(16, 185, 129, 0.3)';
-                          icon = 'fa-circle-check';
-                        } else if (a.statusRitmo === 'no_ritmo') {
-                          badgeBg = 'rgba(56, 189, 248, 0.15)';
-                          badgeColor = '#38bdf8';
-                          badgeBorder = 'rgba(56, 189, 248, 0.3)';
-                          icon = 'fa-arrow-trend-up';
-                        } else if (a.statusRitmo === 'em_risco') {
-                          badgeBg = 'rgba(245, 158, 11, 0.15)';
-                          badgeColor = '#fbbf24';
-                          badgeBorder = 'rgba(245, 158, 11, 0.3)';
-                          icon = 'fa-triangle-exclamation';
-                        } else if (a.statusRitmo === 'fora_da_meta') {
-                          badgeBg = 'rgba(239, 68, 68, 0.15)';
-                          badgeColor = '#f87171';
-                          badgeBorder = 'rgba(239, 68, 68, 0.3)';
-                          icon = 'fa-circle-exclamation';
-                        }
-
-                        return (
-                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                            <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--text-main)' }}>
-                              {a.nome}
-                            </td>
-                            <td style={{ padding: '10px 8px', textAlign: 'center', color: '#94a3b8' }}>
-                              {a.frequenciaContratada}
-                            </td>
-                            <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-main)' }}>
-                              {a.metaAulasMes > 0 ? `${a.metaAulasMes} aulas` : '-'}
-                            </td>
-                            <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 800, color: a.presencasRealizadas > 0 ? '#34d399' : '#94a3b8' }}>
-                              {a.presencasRealizadas}
-                            </td>
-                            <td style={{ padding: '10px 8px', textAlign: 'center', color: '#94a3b8' }}>
-                              {a.esperadoAteHoje > 0 ? `${a.esperadoAteHoje}` : '-'}
-                            </td>
-                            <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700, color: a.percentualAtual >= 80 ? '#34d399' : a.percentualAtual >= 50 ? '#fbbf24' : '#f87171' }}>
-                              {a.metaAulasMes > 0 ? `${a.percentualAtual}%` : '-'}
-                            </td>
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  padding: '3px 8px',
-                                  borderRadius: '6px',
-                                  background: badgeBg,
-                                  color: badgeColor,
-                                  border: `1px solid ${badgeBorder}`,
-                                  fontSize: '0.74rem',
-                                  fontWeight: 700
-                                }}
-                              >
-                                <i className={`fa-solid ${icon}`}></i> {a.statusTexto}
-                              </span>
-                            </td>
-                            <td style={{ padding: '10px 8px', color: '#cbd5e1' }}>
-                              {a.profissionalVinculadoNome || <span style={{ color: '#64748b' }}>Geral</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Footer Modal */}
-            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                Exibindo {filteredTracking.length} de {alunosTracking.length} alunos
-              </span>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => setShowTrackingModal(false)}
-              >
-                Fechar Monitor
               </button>
             </div>
 
