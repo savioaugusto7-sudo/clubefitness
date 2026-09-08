@@ -412,10 +412,34 @@ export async function GET(request: Request) {
     // =========================================================================
     let totalAlunosAltaFreq = 0;
     let totalAlunosBaixaFreq = 0;
+    let totalAlunosNeutrosFreq = 0;
     let totalAlunosTreinoLivreOk = 0;
     let totalAlunosTreinoLivreFalta = 0;
     let totalAlunosEmergenciaOk = 0;
     let totalAlunosEmergenciaExtra = 0;
+
+    const parseWeeklyFreq = (raw: any): number => {
+      if (raw === undefined || raw === null || raw === '') return 0;
+      if (typeof raw === 'number') return raw;
+      const str = String(raw).trim();
+      const match = str.match(/(\d+)/);
+      if (match) return parseInt(match[1], 10);
+      const lower = str.toLowerCase();
+      if (lower.includes('diár') || lower.includes('diar')) return 5;
+      return 0;
+    };
+
+    const getMonthlySessionTarget = (clientObj: any, daysInMonth: number): number => {
+      const rawFreq = clientObj.dadosComerciais?.frequencia ?? clientObj.frequencia;
+      const freqSemanal = parseWeeklyFreq(rawFreq);
+      if (freqSemanal <= 0) {
+        const cm = Number(clientObj.dadosComerciais?.creditosMensais ?? clientObj.dadosComerciais?.creditosTotal);
+        if (cm > 0 && cm <= 31) return cm;
+        return 0; // Neutro: sem frequência/plano cadastrado
+      }
+      const semanasNoMes = daysInMonth / 7;
+      return Math.max(1, Math.round(freqSemanal * semanasNoMes));
+    };
 
     const collectiveCreditEvents: Array<{ tipo: string; descricao: string; alunoNome: string; pontos: number }> = [];
     const collectiveDebitEvents: Array<{ tipo: string; motivo: string; alunoNome: string; pontosDebito: number }> = [];
@@ -429,29 +453,32 @@ export async function GET(request: Request) {
         return aCId === cId;
       });
 
-      // Frequência
-      const presencas = clientMonthApts.filter((a: any) => a.status === 'presenca').length;
-      const faltas = clientMonthApts.filter((a: any) => a.status === 'falta').length;
-      const totalAulas = presencas + faltas;
+      // Frequência Mensal (Base Contratada vs Presenças Efetivas)
+      const metaAulas = getMonthlySessionTarget(client, lastDayOfMonth);
 
-      const freqMensal = totalAulas > 0 ? (presencas / totalAulas) * 100 : 100;
+      if (metaAulas > 0) {
+        const presencas = clientMonthApts.filter((a: any) => a.status === 'presenca').length;
+        const freqMensalPct = Math.min(100, (presencas / metaAulas) * 100);
 
-      if (freqMensal >= 80) {
-        totalAlunosAltaFreq++;
-        collectiveCreditEvents.push({
-          tipo: 'Retenção Coletiva (Frequência ≥ 80%)',
-          descricao: `Aluno concluiu o mês com frequência de ${freqMensal.toFixed(0)}% (Meta ≥ 80% atingida)`,
-          alunoNome,
-          pontos: 5
-        });
+        if (freqMensalPct >= 80) {
+          totalAlunosAltaFreq++;
+          collectiveCreditEvents.push({
+            tipo: 'Retenção Coletiva (Frequência ≥ 80%)',
+            descricao: `Aluno realizou ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta atingida)`,
+            alunoNome,
+            pontos: 5
+          });
+        } else {
+          totalAlunosBaixaFreq++;
+          collectiveDebitEvents.push({
+            tipo: 'Baixa Frequência do Aluno (< 80%)',
+            motivo: `Aluno realizou apenas ${presencas} de ${metaAulas} aulas contratadas no mês (${freqMensalPct.toFixed(0)}% da meta contratada)`,
+            alunoNome,
+            pontosDebito: 5
+          });
+        }
       } else {
-        totalAlunosBaixaFreq++;
-        collectiveDebitEvents.push({
-          tipo: 'Baixa Frequência do Aluno (< 80%)',
-          motivo: `Aluno concluiu o mês com frequência de apenas ${freqMensal.toFixed(0)}% (Abaixo da meta de 80%)`,
-          alunoNome,
-          pontosDebito: 5
-        });
+        totalAlunosNeutrosFreq++;
       }
 
       // Treino Livre Semanal
@@ -556,6 +583,7 @@ export async function GET(request: Request) {
       liderPontos: ranking[0]?.pontosLiquidos || 0,
       totalAlunosAltaFreq,
       totalAlunosBaixaFreq,
+      totalAlunosNeutrosFreq,
       totalAlunosEmergenciaOk,
       totalAlunosEmergenciaExtra
     };

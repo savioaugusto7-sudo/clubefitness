@@ -172,10 +172,10 @@ export default function MetasProfissionaisPanel({}: MetasProfissionaisPanelProps
           <div className="metric-info">
             <h3 style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Alunos em Alta Retenção (≥ 80%)</h3>
             <div className="value" style={{ color: '#c084fc', fontSize: '1.8rem', fontWeight: 900 }}>
-              {kpis.totalAlunosAltaFreq || 0} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>de {kpis.totalAlunosAtivos || 0}</span>
+              {kpis.totalAlunosAltaFreq || 0} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 500 }}>de {(kpis.totalAlunosAltaFreq || 0) + (kpis.totalAlunosBaixaFreq || 0)} avaliados</span>
             </div>
             <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
-              Impacto positivo: <strong style={{ color: '#c084fc' }}>+{(kpis.totalAlunosAltaFreq || 0) * 5} pts</strong> por profissional
+              Presenças reais vs meta contratada ({kpis.totalAlunosNeutrosFreq ? `${kpis.totalAlunosNeutrosFreq} neutros` : '100% da base'}) • <strong style={{ color: '#c084fc' }}>+{(kpis.totalAlunosAltaFreq || 0) * 5} pts</strong>/prof
             </small>
           </div>
           <div className="metric-icon" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
