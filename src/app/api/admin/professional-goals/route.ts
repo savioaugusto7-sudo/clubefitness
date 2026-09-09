@@ -8,6 +8,7 @@ import PhysioReport from '@/models/PhysioReport';
 import ClientWorkout from '@/models/ClientWorkout';
 import Appointment from '@/models/Appointment';
 import Prontuario from '@/models/Prontuario';
+import PontoRecord from '@/models/PontoRecord';
 
 export const maxDuration = 30;
 
@@ -55,8 +56,8 @@ export async function GET(request: Request) {
     const sixMonthsAgoDate = new Date(selYear, selMonth - 6, 1);
     const sixMonthsAgoFirstDayStr = `${sixMonthsAgoDate.getFullYear()}-${String(sixMonthsAgoDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios, Atendimentos e Prontuários
-    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments, periodProntuarios] = await Promise.all([
+    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios, Atendimentos, Prontuários e Registros de Ponto
+    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments, periodProntuarios, monthPontoRecords] = await Promise.all([
       PhysicalAssessment.find({
         data: { $gte: firstDayStr, $lte: lastDayStr }
       }).lean(),
@@ -80,6 +81,10 @@ export async function GET(request: Request) {
       }).sort({ data: -1, horario: -1 }).lean(),
       Prontuario.find({
         data: { $gte: firstDayStr, $lte: lastDayStr }
+      }).lean(),
+      PontoRecord.find({
+        data: { $gte: firstDayStr, $lte: lastDayStr },
+        status: 'valido'
       }).lean()
     ]);
 
@@ -157,6 +162,8 @@ export async function GET(request: Request) {
         emergenciaOkPts: number;
         emergenciaExtraAlunos: number;
         emergenciaExtraDebito: number;
+        totalAtrasosMinutos: number;
+        atrasosPontoDebito: number;
       };
       extratoCreditos: Array<{
         tipo: string;
@@ -210,7 +217,9 @@ export async function GET(request: Request) {
           emergenciaOkAlunos: 0,
           emergenciaOkPts: 0,
           emergenciaExtraAlunos: 0,
-          emergenciaExtraDebito: 0
+          emergenciaExtraDebito: 0,
+          totalAtrasosMinutos: 0,
+          atrasosPontoDebito: 0
         },
         extratoCreditos: [],
         extratoDebitos: []
@@ -419,6 +428,29 @@ export async function GET(request: Request) {
           alunoNome,
           data: new Date(lastAssDate).toISOString().split('T')[0],
           pontosDebito: 10
+        });
+      }
+    });
+
+    // =========================================================================
+    // 5.1 PROCESSAR DÉBITOS DE ATRASO DE PONTO (-1 pt por minuto de atraso)
+    // =========================================================================
+    monthPontoRecords.forEach((ponto: any) => {
+      const pId = String(ponto.profissionalId?._id || ponto.profissionalId);
+      const targetScore = profScoresMap.get(pId);
+      const minutos = Number(ponto.minutosAtraso) || 0;
+      const ptsDebito = Number(ponto.pontosDebito) || minutos;
+
+      if (targetScore && minutos > 0 && ptsDebito > 0 && ponto.status === 'valido') {
+        targetScore.detalhes.totalAtrasosMinutos += minutos;
+        targetScore.detalhes.atrasosPontoDebito += ptsDebito;
+        targetScore.debitosIndividuais += ptsDebito;
+        targetScore.extratoDebitos.push({
+          tipo: 'Atraso de Ponto',
+          motivo: `Entrada às ${ponto.horario} (esperado ${ponto.horarioEsperado || '08:00'}) - ${minutos} min de atraso`,
+          alunoNome: '-',
+          data: ponto.data,
+          pontosDebito: ptsDebito
         });
       }
     });

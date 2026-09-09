@@ -1656,30 +1656,14 @@ export default function AgendaCompletaPanel({
                           <option value="Massagem">Massagem</option>
                         ) : selectedSlot.tipo === 'dr_albert' || selectedSlot.tipo === 'dr_guilherme' ? (
                           <>
-                            <option value="Consulta">Consulta</option>
+                            <option value="Atendimento Individual">Atendimento Individual</option>
                             <option value="Quiropraxia">Quiropraxia</option>
-                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                            <option value="Terapia Manual">Terapia Manual</option>
                             <option value="Treino Monitorado">Treino Monitorado</option>
-                            <option value="Treino Livre">Treino Livre</option>
-                            <option value="Recovery">Recovery</option>
-                            <option value="Avaliação Física">Avaliação Física</option>
-                            <option value="Teste de Força">Teste de Força</option>
-                            <option value="Emergência">Emergência</option>
-                            <option value="Massagem">Massagem</option>
                           </>
                         ) : (
                           <>
                             <option value="Treino Monitorado">Treino Monitorado</option>
                             <option value="Treino Livre">Treino Livre</option>
-                            <option value="Recovery">Recovery</option>
-                            <option value="Avaliação Física">Avaliação Física</option>
-                            <option value="Teste de Força">Teste de Força</option>
-                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                            <option value="Emergência">Emergência</option>
-                            <option value="Terapia Manual">Terapia Manual</option>
-                            <option value="Consulta">Consulta</option>
-                            <option value="Quiropraxia">Quiropraxia</option>
                           </>
                         )}
                       </select>

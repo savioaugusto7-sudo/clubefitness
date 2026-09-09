@@ -23,6 +23,7 @@ import AgendamentoProfissionalPanel from './AgendamentoProfissionalPanel';
 import SmartSearchInput from './SmartSearchInput';
 import ExerciseCurationPanel from './ExerciseCurationPanel';
 import HorariosFixosPanel from './HorariosFixosPanel';
+import RegistroPontoPanel from './RegistroPontoPanel';
 import { FastTextarea, FastInput } from './FastFormField';
 import AssessmentCompareSelectorModal, { PreviousAssessmentOption } from './AssessmentCompareSelectorModal';
 import ComparisonPill, { ComparisonActiveBar } from './ComparisonPill';
@@ -4794,6 +4795,11 @@ goniometria: {
 
   return (
     <div>
+      {/* View: Registro de Ponto */}
+      {activeTab === 'registro_ponto' && (
+        <RegistroPontoPanel professionalId={professionalId} />
+      )}
+
       {/* 0. View: Resumo do Dia */}
       {activeTab === 'resumo_dia' && (
         <>
@@ -9496,7 +9502,7 @@ goniometria: {
       })()}
 
       {/* Default Fallback for other tabs */}
-      {!['resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino'].includes(activeTab) && (
+      {!['registro_ponto', 'resumo_dia', 'dashboard', 'agendamento_prof', 'clientes', 'treinos_prof', 'agenda_fixa', 'avaliacoes', 'relatorios', 'testes_forca', 'prontuarios', 'frequencia_alunos', 'dados_clinicos', 'agenda_completa', 'fichas_treino'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -9605,9 +9611,10 @@ goniometria: {
                   <div className="form-group">
                     <label>Serviço</label>
                     <select className="select-custom" value={fsService} onChange={e => setFsService(e.target.value)} required>
+                      <option value="Atendimento Individual">Atendimento Individual</option>
+                      <option value="Quiropraxia">Quiropraxia</option>
                       <option value="Treino Monitorado">Treino Monitorado</option>
                       <option value="Treino Livre">Treino Livre</option>
-                      <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
                     </select>
                   </div>
                   <div className="form-group">

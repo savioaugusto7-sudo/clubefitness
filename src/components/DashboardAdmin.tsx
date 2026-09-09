@@ -21,6 +21,7 @@ import ContasPagarPanel from './ContasPagarPanel';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 import MoneyInput from './MoneyInput';
 import MetasProfissionaisPanel from './MetasProfissionaisPanel';
+import GestaoPontoAdminPanel from './GestaoPontoAdminPanel';
 
 
 export const normalizeText = (str: string) => {
@@ -1994,6 +1995,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         alert(`${selectedExerciseRequests.length} exercício(s) aprovado(s) com sucesso!`);
         setSelectedExerciseRequests([]);
         fetchData();
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('pendingExercisesUpdated'));
       } else {
         alert('Erro ao aprovar exercícios: ' + data.error);
       }
@@ -2022,6 +2024,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         alert(`${selectedExerciseRequests.length} solicitação(ões) rejeitada(s) e excluída(s)!`);
         setSelectedExerciseRequests([]);
         fetchData();
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('pendingExercisesUpdated'));
       } else {
         alert('Erro ao rejeitar solicitações: ' + data.error);
       }
@@ -2053,6 +2056,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         alert('Exercício aprovado com sucesso!');
         setSelectedExerciseRequests(prev => prev.filter(i => i !== ex._id));
         fetchData();
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('pendingExercisesUpdated'));
       } else {
         alert('Erro ao aprovar exercício: ' + data.error);
       }
@@ -2070,6 +2074,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         alert('Solicitação rejeitada e excluída!');
         setSelectedExerciseRequests(prev => prev.filter(i => i !== id));
         fetchData();
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('pendingExercisesUpdated'));
       } else {
         alert('Erro ao rejeitar solicitação: ' + data.error);
       }
@@ -2260,6 +2265,9 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           setShowModal(false);
           setSelectedExerciseRequests(prev => prev.filter(i => i !== editingItem?._id));
           fetchData();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('pendingExercisesUpdated'));
+          }
           alert('Exercício editado e aprovado com sucesso!');
         } else {
           alert('Erro ao salvar e aprovar exercício: ' + data.error);
@@ -4212,6 +4220,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       {/* View: Metas dos Profissionais */}
       {activeTab === 'metas_profissionais' && (
         <MetasProfissionaisPanel onRefresh={fetchData} />
+      )}
+
+      {/* View: Controle de Ponto & Escalas */}
+      {activeTab === 'gestao_ponto' && (
+        <GestaoPontoAdminPanel onRefresh={fetchData} />
       )}
 
       {/* View: Movimentos Realizados via Link */}
@@ -6564,7 +6577,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </div>
       )}
 
-      {!['dashboard', 'profissionais', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'gestao_contratos', 'asaas', 'trancamentos_admin', 'config_agenda', 'log_atividades', 'dados_clinicos', 'vincular_alunos', 'treinos_prof', 'fichas_treino', 'dynamus', 'movimentos_links', 'metas_profissionais'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'gestao_ponto', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'gestao_contratos', 'asaas', 'trancamentos_admin', 'config_agenda', 'log_atividades', 'dados_clinicos', 'vincular_alunos', 'treinos_prof', 'fichas_treino', 'dynamus', 'movimentos_links', 'metas_profissionais'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -7477,19 +7490,14 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                       >
                         {fsProfessional ? (
                           <>
-                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                            <option value="Sessão de Fisioterapia">Sessão de Fisioterapia</option>
-                            <option value="Quiropraxia">Quiropraxia</option>
-                            <option value="Recovery / Bota">Recovery / Bota</option>
                             <option value="Atendimento Individual">Atendimento Individual</option>
+                            <option value="Quiropraxia">Quiropraxia</option>
                             <option value="Treino Monitorado">Treino Monitorado</option>
                           </>
                         ) : (
                           <>
                             <option value="Treino Monitorado">Treino Monitorado</option>
-                            <option value="Pilates">Pilates</option>
-                            <option value="Funcional">Funcional</option>
-                            <option value="Avaliação Física">Avaliação Física</option>
+                            <option value="Treino Livre">Treino Livre</option>
                           </>
                         )}
                       </select>

@@ -1255,12 +1255,8 @@ export default function HorariosFixosPanel({
                     onChange={e => {
                       const pId = e.target.value;
                       setModalProf(pId);
-                      const pObj = professionals.find(p => p._id === pId);
-                      if (pObj) {
-                        const pName = (pObj.nome || '').toLowerCase();
-                        if (pName.includes('albert') || pName.includes('guilherme') || (pObj.especialidade || '').toLowerCase().includes('fisio')) {
-                          setModalService('Avaliação Fisioterápica');
-                        }
+                      if (pId) {
+                        setModalService('Atendimento Individual');
                       } else {
                         setModalService('Treino Monitorado');
                       }
@@ -1293,19 +1289,14 @@ export default function HorariosFixosPanel({
                     >
                       {modalProf ? (
                         <>
-                          <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
-                          <option value="Sessão de Fisioterapia">Sessão de Fisioterapia</option>
-                          <option value="Quiropraxia">Quiropraxia</option>
-                          <option value="Recovery / Bota">Recovery / Bota</option>
                           <option value="Atendimento Individual">Atendimento Individual</option>
+                          <option value="Quiropraxia">Quiropraxia</option>
                           <option value="Treino Monitorado">Treino Monitorado</option>
                         </>
                       ) : (
                         <>
                           <option value="Treino Monitorado">Treino Monitorado</option>
-                          <option value="Pilates">Pilates</option>
-                          <option value="Funcional">Funcional</option>
-                          <option value="Avaliação Física">Avaliação Física</option>
+                          <option value="Treino Livre">Treino Livre</option>
                         </>
                       )}
                     </select>

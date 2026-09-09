@@ -43,6 +43,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       tabs: [
         { id: 'usuarios', label: 'Cadastro de Usuários', icon: 'fa-user-cog' },
         { id: 'profissionais', label: 'Profissionais', icon: 'fa-user-md' },
+        { id: 'gestao_ponto', label: 'Controle de Ponto & Escalas', icon: 'fa-user-clock' },
         { id: 'metas_profissionais', label: 'Metas dos Profissionais', icon: 'fa-trophy' },
         { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
         { id: 'vincular_alunos', label: 'Vincular Alunos', icon: 'fa-link' },
@@ -96,6 +97,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
       title: 'ATENDIMENTO & AGENDA',
       icon: 'fa-calendar-alt',
       tabs: [
+        { id: 'registro_ponto', label: 'Registrar Ponto', icon: 'fa-fingerprint' },
         { id: 'resumo_dia', label: 'Resumo do Dia', icon: 'fa-clipboard-list' },
         { id: 'dashboard', label: 'Agenda Completa', icon: 'fa-calendar-alt' },
         { id: 'agendamento_prof', label: 'Agendar Aluno', icon: 'fa-calendar-plus' },
@@ -213,10 +215,46 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const [pendingExercisesCount, setPendingExercisesCount] = useState<number>(0);
 
   const categories = categoryConfigs[role] || [];
   const allTabs = categories.flatMap(c => c.tabs);
+
+  // Consultar contagem de exercícios pendentes para alerta visual na sidebar
+  useEffect(() => {
+    if (role !== 'admin') return;
+
+    let isMounted = true;
+    const fetchPendingExercises = async () => {
+      try {
+        const res = await fetch('/api/exercises?status=pending');
+        const json = await res.json();
+        if (isMounted && json.success && Array.isArray(json.data)) {
+          setPendingExercisesCount(json.data.length);
+        }
+      } catch (_) {}
+    };
+
+    fetchPendingExercises();
+
+    const onUpdated = () => {
+      fetchPendingExercises();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pendingExercisesUpdated', onUpdated);
+    }
+
+    const interval = setInterval(fetchPendingExercises, 25000);
+
+    return () => {
+      isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pendingExercisesUpdated', onUpdated);
+      }
+      clearInterval(interval);
+    };
+  }, [role]);
 
   // Automatically ensure category of active tab is expanded
   useEffect(() => {
@@ -311,6 +349,61 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
 
         {/* Dynamic Navigation Menu */}
         <nav className="nav-menu">
+          {/* Alerta Visual / Notificação no Topo do Menu: Exercícios Solicitados Pendentes */}
+          {role === 'admin' && pendingExercisesCount > 0 && (
+            <div
+              className={`nav-item ${activeTab === 'solicitacoes_exercicios' ? 'active' : ''}`}
+              onClick={() => handleTabClick('solicitacoes_exercicios')}
+              style={{
+                background: activeTab === 'solicitacoes_exercicios'
+                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(217, 119, 6, 0.2))'
+                  : 'linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(217, 119, 6, 0.1))',
+                border: activeTab === 'solicitacoes_exercicios' ? '1.5px solid #f59e0b' : '1px solid rgba(245, 158, 11, 0.45)',
+                borderRadius: '10px',
+                padding: '10px 12px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(245, 158, 11, 0.15)',
+                transition: 'all 0.2s ease'
+              }}
+              title={`${pendingExercisesCount} solicitação(ões) de exercício pendente(s)`}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-bell" style={{ color: '#fbbf24', fontSize: '1.05rem' }}></i>
+                  <span style={{
+                    position: 'absolute',
+                    top: '-3px',
+                    right: '-3px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#f59e0b',
+                    boxShadow: '0 0 8px #fbbf24'
+                  }}></span>
+                </div>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Exercícios Solicitados
+                </span>
+              </div>
+              <span style={{
+                background: '#f59e0b',
+                color: '#0f172a',
+                fontSize: '0.74rem',
+                fontWeight: 900,
+                borderRadius: '12px',
+                padding: '2px 8px',
+                flexShrink: 0,
+                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.4)'
+              }}>
+                {pendingExercisesCount}
+              </span>
+            </div>
+          )}
+
           {categories.map((category) => {
             const matchingTabs = category.tabs.filter(t => 
               !searchTerm || t.label.toLowerCase().includes(searchTerm.toLowerCase())
@@ -369,17 +462,40 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
                 {/* Category Items */}
                 {isOpen && (
                   <div style={{ marginTop: '2px', padding: '0 6px 4px 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    {matchingTabs.map((tab) => (
-                      <div
-                        key={tab.id}
-                        className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
-                        onClick={() => handleTabClick(tab.id)}
-                        style={{ paddingLeft: '12px' }}
-                      >
-                        <i className={`fa-solid ${tab.icon}`}></i>
-                        <span>{tab.label}</span>
-                      </div>
-                    ))}
+                    {matchingTabs.map((tab) => {
+                      const isPendingEx = tab.id === 'solicitacoes_exercicios' && pendingExercisesCount > 0;
+                      return (
+                        <div
+                          key={tab.id}
+                          className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                          onClick={() => handleTabClick(tab.id)}
+                          style={{
+                            paddingLeft: '12px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                            <i className={`fa-solid ${tab.icon}`} style={isPendingEx ? { color: '#fbbf24' } : {}}></i>
+                            <span style={isPendingEx ? { color: '#fbbf24', fontWeight: 700 } : {}}>{tab.label}</span>
+                          </div>
+                          {isPendingEx && (
+                            <span style={{
+                              background: '#f59e0b',
+                              color: '#0f172a',
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              borderRadius: '10px',
+                              padding: '1px 6px',
+                              boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)'
+                            }}>
+                              {pendingExercisesCount}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
