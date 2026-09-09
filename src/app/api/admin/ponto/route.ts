@@ -5,6 +5,7 @@ import ProfessionalSchedule from '@/models/ProfessionalSchedule';
 import Professional from '@/models/Professional';
 import Settings from '@/models/Settings';
 
+export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 export async function GET(request: Request) {

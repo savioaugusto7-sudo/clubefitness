@@ -216,6 +216,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [pendingExercisesCount, setPendingExercisesCount] = useState<number>(0);
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
 
   const categories = categoryConfigs[role] || [];
   const allTabs = categories.flatMap(c => c.tabs);

@@ -160,7 +160,7 @@ export default function RegistroPontoPanel({ professionalId }: RegistroPontoPane
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          profissionalId,
+          profissionalId: professionalId,
           latitude: gpsCoords.latitude,
           longitude: gpsCoords.longitude,
           accuracy: gpsCoords.accuracy,

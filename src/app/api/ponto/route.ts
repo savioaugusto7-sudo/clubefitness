@@ -5,6 +5,7 @@ import ProfessionalSchedule from '@/models/ProfessionalSchedule';
 import Professional from '@/models/Professional';
 import Settings from '@/models/Settings';
 
+export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 // Fórmula de Haversine para calcular distância em metros entre duas coordenadas
@@ -68,22 +69,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'ID do profissional é obrigatório.' }, { status: 400 });
     }
 
+    const profissionalId = professionalId;
     const { dateStr, dayOfWeek, timeHm } = getBrazilDateTime();
     const currentMonthPrefix = dateStr.slice(0, 7); // "YYYY-MM"
 
     // 1. Buscar dados do profissional
-    const prof = await Professional.findById(professionalId).lean();
+    const prof = await Professional.findById(profissionalId).lean();
     if (!prof) {
       return NextResponse.json({ success: false, error: 'Profissional não encontrado.' }, { status: 404 });
     }
 
     // 2. Buscar ou criar escala individual do profissional
-    let schedule = await ProfessionalSchedule.findOne({ profissionalId }).lean();
+    let schedule: any = await ProfessionalSchedule.findOne({ profissionalId }).lean();
     if (!schedule) {
       // Escala padrão padrão
       schedule = {
         profissionalId,
-        profissionalNome: prof.nome,
+        profissionalNome: (prof as any).nome || '',
         diasSemana: {
           '0': { ativo: false, horarioEntrada: '08:00', horarioSaida: '12:00', periodoNome: 'Domingo' },
           '1': { ativo: true, horarioEntrada: '08:00', horarioSaida: '14:00', periodoNome: 'Manhã' },
@@ -98,8 +100,8 @@ export async function GET(request: Request) {
     }
 
     // 3. Avaliar se hoje é dia de folga
-    const dayConfig = (schedule.diasSemana as any)?.[String(dayOfWeek)] || { ativo: true, horarioEntrada: '08:00', horarioSaida: '14:00', periodoNome: 'Geral' };
-    const folgaEspecifica = (schedule.folgasEspecificas || []).find((f: any) => f.data === dateStr);
+    const dayConfig = (schedule?.diasSemana as any)?.[String(dayOfWeek)] || { ativo: true, horarioEntrada: '08:00', horarioSaida: '14:00', periodoNome: 'Geral' };
+    const folgaEspecifica = (schedule?.folgasEspecificas || []).find((f: any) => f.data === dateStr);
     const isFolga = !dayConfig.ativo || Boolean(folgaEspecifica);
     const motivoFolga = folgaEspecifica?.motivo || (!dayConfig.ativo ? 'Folga semanal programada' : '');
 
