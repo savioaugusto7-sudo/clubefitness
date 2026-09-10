@@ -4847,9 +4847,9 @@ goniometria: {
 
             const getAppointmentMeta = (a: any) => {
               const prof = professionals.find(p => p._id === (a.profissionalId?._id || a.profissionalId)) || (typeof a.profissionalId === 'object' ? a.profissionalId : null);
-              const pName = (prof?.nome || '').toLowerCase();
+              const pName = prof?.nome || '';
               
-              if (a.tipo === 'dr_albert' || pName.includes('albert')) {
+              if (a.tipo === 'dr_albert') {
                 return {
                   key: 'dr_albert',
                   label: 'Dr. Albert',
@@ -4857,10 +4857,11 @@ goniometria: {
                   badgeColor: '#38bdf8',
                   badgeBorder: '1px solid rgba(56, 189, 248, 0.4)',
                   icon: 'fa-user-doctor',
-                  profNome: prof?.nome || 'Dr. Albert'
+                  showProf: true,
+                  profNome: pName || 'Albert Nunes'
                 };
               }
-              if (a.tipo === 'dr_guilherme' || pName.includes('guilherme')) {
+              if (a.tipo === 'dr_guilherme') {
                 return {
                   key: 'dr_guilherme',
                   label: 'Dr. Guilherme',
@@ -4868,7 +4869,8 @@ goniometria: {
                   badgeColor: '#818cf8',
                   badgeBorder: '1px solid rgba(129, 140, 248, 0.4)',
                   icon: 'fa-user-doctor',
-                  profNome: prof?.nome || 'Dr. Guilherme'
+                  showProf: true,
+                  profNome: pName || 'Guilherme José Graciano'
                 };
               }
               if (a.tipo === 'consultorio') {
@@ -4879,7 +4881,8 @@ goniometria: {
                   badgeColor: '#f43f5e',
                   badgeBorder: '1px solid rgba(244, 63, 94, 0.4)',
                   icon: 'fa-stethoscope',
-                  profNome: prof?.nome || 'Consultório'
+                  showProf: true,
+                  profNome: pName || 'Consultório'
                 };
               }
               return {
@@ -4889,7 +4892,8 @@ goniometria: {
                 badgeColor: '#10b981',
                 badgeBorder: '1px solid rgba(16, 185, 129, 0.4)',
                 icon: 'fa-dumbbell',
-                profNome: prof?.nome || 'Academia'
+                showProf: false,
+                profNome: ''
               };
             };
 
@@ -5223,7 +5227,7 @@ goniometria: {
                                   <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
                                     {a.servico || a.tipo}
                                   </span>
-                                  {meta.key !== 'academia' && meta.profNome && (
+                                  {meta.showProf && meta.profNome && (
                                     <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
                                       • {meta.profNome}
                                     </span>
