@@ -44,10 +44,12 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
         current.setDate(current.getDate() + 1);
       }
 
+      const stepWeeks = Math.max(1, Number(schedule.intervaloSemanas) || (schedule.frequenciaRepeticao === 'quinzenal' ? 2 : schedule.frequenciaRepeticao === 'a_cada_3_semanas' ? 3 : 1));
+
       while (current <= endDate) {
         const dateStr = current.toISOString().split('T')[0];
         scheduleDatePairs.push({ schedule, dateStr });
-        current.setDate(current.getDate() + 7);
+        current.setDate(current.getDate() + 7 * stepWeeks);
       }
     }
 

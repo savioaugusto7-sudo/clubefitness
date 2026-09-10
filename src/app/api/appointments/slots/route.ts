@@ -41,6 +41,8 @@ export async function GET(request: Request) {
     const servicoParam = searchParams.get('servico') || searchParams.get('service') || 'Treino Monitorado';
     const semanasParam = searchParams.get('semanas') || searchParams.get('weeks');
     const weeksToProject = semanasParam ? Math.min(24, Math.max(1, Number(semanasParam))) : 16;
+    const intervaloSemanasParam = searchParams.get('intervaloSemanas') || searchParams.get('interval');
+    const intervalStep = Math.max(1, Number(intervaloSemanasParam) || 1);
     const clienteIdParam = searchParams.get('clienteId') || searchParams.get('clientId');
 
     // Normalizar tipoFiltro caso venha com nomes legados
@@ -106,11 +108,11 @@ export async function GET(request: Request) {
         return NextResponse.json({ success: true, data: [], slots: [] });
       }
 
-      // 1. Gerar todas as datas candidatas nas próximas N semanas
+      // 1. Gerar todas as datas candidatas nas próximas N semanas respeitando o intervalo de repetição
       const allTargetDates: { dateStr: string; dayOfWeek: number; dayName: string; dayShort: string; formatted: string }[] = [];
       const startDt = new Date(date + 'T12:00:00');
 
-      for (let w = 0; w < weeksToProject; w++) {
+      for (let w = 0; w < weeksToProject; w += intervalStep) {
         for (const d of selectedDays) {
           const target = new Date(startDt);
           const currentDay = target.getDay();

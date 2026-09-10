@@ -78,6 +78,53 @@ export default function HorariosFixosPanel({
     6: '08:00'
   });
 
+  // Modo de Repetição / Frequência (Padrão: Semanal / Toda semana)
+  const [repetitionMode, setRepetitionMode] = useState<'semanal' | 'quinzenal' | 'a_cada_3_semanas' | 'personalizado'>('semanal');
+  const [customIntervalWeeks, setCustomIntervalWeeks] = useState<number>(2);
+  const [showRepetitionSelector, setShowRepetitionSelector] = useState(false);
+
+  // Intervalo efetivo em semanas
+  const effectiveIntervalWeeks = useMemo(() => {
+    if (repetitionMode === 'semanal') return 1;
+    if (repetitionMode === 'quinzenal') return 2;
+    if (repetitionMode === 'a_cada_3_semanas') return 3;
+    return Math.max(1, Number(customIntervalWeeks) || 1);
+  }, [repetitionMode, customIntervalWeeks]);
+
+  // Preview de próximas datas estimadas
+  const previewNextDates = useMemo(() => {
+    if (!modalStartDate || selectedDays.length === 0) return [];
+    try {
+      const parts = modalStartDate.split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const start = new Date(y, m, d);
+
+      const items: { dateStr: string; dayShort: string }[] = [];
+      const numWeeks = 4 * effectiveIntervalWeeks;
+      for (let weekOffset = 0; weekOffset < numWeeks; weekOffset += effectiveIntervalWeeks) {
+        for (const day of selectedDays) {
+          const target = new Date(start);
+          const curDay = target.getDay();
+          let diff = day - curDay;
+          if (diff < 0) diff += 7;
+          target.setDate(target.getDate() + diff + (weekOffset * 7));
+
+          const dd = String(target.getDate()).padStart(2, '0');
+          const mm = String(target.getMonth() + 1).padStart(2, '0');
+          items.push({
+            dateStr: `${dd}/${mm}`,
+            dayShort: DAYS_SHORT[day]
+          });
+        }
+      }
+      return items.slice(0, 4);
+    } catch {
+      return [];
+    }
+  }, [modalStartDate, selectedDays, effectiveIntervalWeeks]);
+
   // Validação de vagas / conflitos para os horários selecionados
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsData, setSlotsData] = useState<any[]>([]);
@@ -231,7 +278,8 @@ export default function HorariosFixosPanel({
           servico: servParam,
           diasSemana: daysParam,
           tipo: tipoParam,
-          semanas: '16'
+          semanas: '16',
+          intervaloSemanas: String(effectiveIntervalWeeks)
         });
         if (pIdParam) queryParams.set('profissionalId', pIdParam);
 
@@ -252,7 +300,7 @@ export default function HorariosFixosPanel({
     return () => {
       isMounted = false;
     };
-  }, [showModal, modalProf, modalService, modalStartDate, selectedDays, professionals]);
+  }, [showModal, modalProf, modalService, modalStartDate, selectedDays, professionals, effectiveIntervalWeeks]);
 
   // --- Abertura do Modal para Novo Horário Fixo ---
   const handleOpenNewModal = (prefillDay?: number, prefillTime?: string) => {
@@ -265,6 +313,9 @@ export default function HorariosFixosPanel({
     setModalManualEndDate('');
     setScheduleMode('uniforme');
     setExceptionsMap({});
+    setRepetitionMode('semanal');
+    setCustomIntervalWeeks(2);
+    setShowRepetitionSelector(false);
 
     if (prefillDay !== undefined) {
       setSelectedDays([prefillDay]);
@@ -290,6 +341,12 @@ export default function HorariosFixosPanel({
     setModalService(group.servico || 'Treino Monitorado');
     setModalStartDate(group.dataInicio || new Date().toISOString().split('T')[0]);
     setExceptionsMap({});
+
+    const firstRule = group.rules?.[0] || {};
+    const repMode = firstRule.frequenciaRepeticao || 'semanal';
+    setRepetitionMode(repMode);
+    setCustomIntervalWeeks(firstRule.intervaloSemanas || 2);
+    setShowRepetitionSelector(repMode !== 'semanal');
 
     if (group.dataFim) {
       setModalDurationType('manual');
@@ -375,7 +432,9 @@ export default function HorariosFixosPanel({
         const horario = scheduleMode === 'uniforme' ? uniformTime : (dayTimesMap[day] || uniformTime);
         return {
           diaSemana: Number(day),
-          horario
+          horario,
+          frequenciaRepeticao: repetitionMode,
+          intervaloSemanas: effectiveIntervalWeeks
         };
       });
 
@@ -397,6 +456,8 @@ export default function HorariosFixosPanel({
             oldProfessionalId: editingGroup.professional?._id || editingGroup.professional || null,
             profissionalId: modalProf || null,
             slots,
+            frequenciaRepeticao: repetitionMode,
+            intervaloSemanas: effectiveIntervalWeeks,
             servico: modalService,
             dataInicio: modalStartDate,
             dataFim: finalEndDate,
@@ -412,6 +473,8 @@ export default function HorariosFixosPanel({
             clienteId: modalClient,
             profissionalId: modalProf || null,
             slots,
+            frequenciaRepeticao: repetitionMode,
+            intervaloSemanas: effectiveIntervalWeeks,
             servico: modalService,
             dataInicio: modalStartDate,
             duracaoSemanas: null,
@@ -872,43 +935,66 @@ export default function HorariosFixosPanel({
                       {/* Dias e Horários Fixados */}
                       <td>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {group.rules.map(r => (
-                            <span
-                              key={r._id}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '4px 10px',
-                                background: 'rgba(16, 185, 129, 0.12)',
-                                border: '1px solid rgba(16, 185, 129, 0.3)',
-                                borderRadius: '16px',
-                                color: '#10b981',
-                                fontSize: '0.8rem',
-                                fontWeight: 700
-                              }}
-                            >
-                              <i className="fa-solid fa-clock" style={{ fontSize: '0.72rem' }}></i>
-                              {DAYS_SHORT[r.diaSemana]} {r.horario}
-                              {!readOnly && (
-                                <button
-                                  onClick={e => handleDeleteSingleSlot(r._id, e)}
-                                  title="Excluir este horário específico"
-                                  style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: '#ef4444',
-                                    cursor: 'pointer',
-                                    padding: '0 0 0 4px',
-                                    fontSize: '0.9rem',
-                                    lineHeight: 1
-                                  }}
-                                >
-                                  &times;
-                                </button>
-                              )}
-                            </span>
-                          ))}
+                          {group.rules.map(r => {
+                            const isCustomRep = r.frequenciaRepeticao && r.frequenciaRepeticao !== 'semanal';
+                            const repLabel = r.frequenciaRepeticao === 'quinzenal'
+                              ? 'Quinzenal'
+                              : r.frequenciaRepeticao === 'a_cada_3_semanas'
+                              ? 'A cada 3 sem'
+                              : `A cada ${r.intervaloSemanas || 1} sem`;
+
+                            return (
+                              <span
+                                key={r._id}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  padding: '4px 10px',
+                                  background: isCustomRep ? 'rgba(168, 85, 247, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                                  border: isCustomRep ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                                  borderRadius: '16px',
+                                  color: isCustomRep ? '#c084fc' : '#10b981',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700
+                                }}
+                              >
+                                <i className="fa-solid fa-clock" style={{ fontSize: '0.72rem' }}></i>
+                                {DAYS_SHORT[r.diaSemana]} {r.horario}
+                                {isCustomRep && (
+                                  <span
+                                    style={{
+                                      background: 'rgba(168, 85, 247, 0.25)',
+                                      color: '#e9d5ff',
+                                      padding: '1px 6px',
+                                      borderRadius: '8px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 800
+                                    }}
+                                  >
+                                    {repLabel}
+                                  </span>
+                                )}
+                                {!readOnly && (
+                                  <button
+                                    onClick={e => handleDeleteSingleSlot(r._id, e)}
+                                    title="Excluir este horário específico"
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#ef4444',
+                                      cursor: 'pointer',
+                                      padding: '0 0 0 4px',
+                                      fontSize: '0.9rem',
+                                      lineHeight: 1
+                                    }}
+                                  >
+                                    &times;
+                                  </button>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
 
@@ -950,7 +1036,7 @@ export default function HorariosFixosPanel({
                               title="Excluir Todos os Horários deste Aluno"
                               style={{ padding: '6px 10px', fontSize: '0.8rem' }}
                             >
-                              <i className="fa-solid fa-trash"></i>
+                              <i className="fa-solid fa-trash-can"></i>
                             </button>
                           )}
                         </div>
@@ -993,109 +1079,71 @@ export default function HorariosFixosPanel({
         </div>
       )}
 
-      {/* 5. Visualização 2: MODO GRADE SEMANAL INTERATIVA */}
+      {/* 5. VISUALIZAÇÃO EM GRADE SEMANAL COM RESUMO DE OCUPAÇÃO */}
       {viewMode === 'grade' && (
-        <div className="content-panel" style={{ padding: '16px', borderRadius: '12px', overflowX: 'auto' }}>
-          <div style={{ minWidth: '950px' }}>
-            
-            {/* Cabeçalho dos Dias (Seg a Sáb) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(6, 1fr)', gap: '8px', marginBottom: '8px' }}>
-              <div style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.85rem', padding: '8px 0' }}>
-                Horário
+        <div style={{ background: 'var(--bg-darker)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(6, minmax(130px, 1fr))', gap: '8px', minWidth: '850px' }}>
+              
+              {/* Header da Grade */}
+              <div style={{ fontWeight: 800, color: 'var(--text-muted)', fontSize: '0.8rem', padding: '8px 4px', textAlign: 'center' }}>
+                HORÁRIO
               </div>
-              {[1, 2, 3, 4, 5, 6].map(day => (
+              {[1, 2, 3, 4, 5, 6].map(d => (
                 <div
-                  key={day}
+                  key={d}
                   style={{
-                    background: 'var(--bg-darker)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    textAlign: 'center',
+                    fontWeight: 800,
+                    color: 'var(--text-main)',
+                    fontSize: '0.85rem',
                     padding: '8px 4px',
-                    fontWeight: 750,
-                    fontSize: '0.9rem',
-                    color: 'var(--text-main)'
+                    textAlign: 'center',
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)'
                   }}
                 >
-                  {DAYS_FULL[day]}
+                  {DAYS_FULL[d]}
                 </div>
               ))}
-            </div>
 
-            {/* Linhas de Horários */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Linhas por Horário Padrão */}
               {STANDARD_HOURS.map(hour => {
                 return (
-                  <div key={hour} style={{ display: 'grid', gridTemplateColumns: '80px repeat(6, 1fr)', gap: '8px' }}>
-                    
-                    {/* Faixa de Horário */}
+                  <React.Fragment key={hour}>
                     <div
                       style={{
+                        fontWeight: 750,
+                        color: 'var(--color-primary)',
+                        fontSize: '0.85rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         background: 'rgba(0,0,0,0.2)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '8px',
-                        fontWeight: 800,
-                        fontSize: '0.92rem',
-                        color: 'var(--color-primary)'
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)'
                       }}
                     >
                       {hour}
                     </div>
 
-                    {/* Células dos Dias (Seg a Sáb) */}
                     {[1, 2, 3, 4, 5, 6].map(day => {
-                      // Alunos fixados neste dia e horário que atendem aos filtros ativos
-                      const matchingRules = fixedSchedules.filter(fs => {
-                        if (Number(fs.diaSemana) !== day) return false;
-                        if (fs.horario !== hour) return false;
-
-                        // Filtro de Agenda
-                        if (agendaFilter === 'albert') {
-                          const pNome = (fs.profissionalId?.nome || '').toLowerCase();
-                          if (!pNome.includes('albert')) return false;
-                        } else if (agendaFilter === 'guilherme') {
-                          const pNome = (fs.profissionalId?.nome || '').toLowerCase();
-                          if (!pNome.includes('guilherme')) return false;
-                        } else if (agendaFilter === 'geral') {
-                          if (fs.profissionalId) return false;
-                        } else if (agendaFilter !== 'todas') {
-                          const pId = fs.profissionalId?._id || fs.profissionalId;
-                          if (pId !== agendaFilter) return false;
-                        }
-
-                        // Filtro de Serviço
-                        if (serviceFilter !== 'todos' && fs.servico !== serviceFilter) return false;
-
-                        // Busca Inteligente
-                        if (searchQuery.trim()) {
-                          const nome = fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome || '';
-                          const cpf = fs.clienteId?.dadosPessoais?.cpf || '';
-                          const servico = fs.servico || '';
-                          return smartSearchMatch([nome, cpf, servico], searchQuery);
-                        }
-
-                        return true;
-                      });
-
+                      // Alunos alocados neste dia e horário (filtrando pelos filtros globais ativos)
+                      const matchingRules = filteredGroups.flatMap(g => g.rules).filter(r => Number(r.diaSemana) === day && r.horario === hour);
                       const count = matchingRules.length;
 
                       return (
                         <div
                           key={day}
                           style={{
-                            background: count > 0 ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.015)',
-                            border: count > 0 ? '1px solid var(--border-color)' : '1px dashed rgba(255,255,255,0.08)',
+                            background: count > 0 ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.01)',
+                            border: count >= 6 ? '1px solid rgba(239, 68, 68, 0.4)' : count > 0 ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)',
                             borderRadius: '8px',
-                            minHeight: '72px',
                             padding: '6px',
+                            minHeight: '65px',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '4px',
-                            position: 'relative',
-                            transition: 'all 0.15s ease'
+                            gap: '4px'
                           }}
                         >
                           {/* Header da Célula com Contagem e Botão de Adicionar */}
@@ -1134,6 +1182,13 @@ export default function HorariosFixosPanel({
                               const cName = fs.clienteId?.dadosPessoais?.nome || fs.clienteId?.nome || 'Aluno';
                               const isAlbert = (fs.profissionalId?.nome || '').toLowerCase().includes('albert');
                               const isGuilherme = (fs.profissionalId?.nome || '').toLowerCase().includes('guilherme');
+                              const repBadge = fs.frequenciaRepeticao === 'quinzenal'
+                                ? ' (Quinzenal)'
+                                : fs.frequenciaRepeticao === 'a_cada_3_semanas'
+                                ? ' (A cada 3 sem)'
+                                : fs.frequenciaRepeticao === 'personalizado'
+                                ? ` (${fs.intervaloSemanas || 1} sem)`
+                                : '';
 
                               return (
                                 <div
@@ -1146,7 +1201,7 @@ export default function HorariosFixosPanel({
                                     });
                                     if (group) handleOpenEditModal(group);
                                   }}
-                                  title={`${cName} - ${fs.servico} (Clique para editar)`}
+                                  title={`${cName} - ${fs.servico}${repBadge} (Clique para editar)`}
                                   style={{
                                     fontSize: '0.74rem',
                                     fontWeight: 650,
@@ -1165,7 +1220,7 @@ export default function HorariosFixosPanel({
                                     cursor: 'pointer'
                                   }}
                                 >
-                                  {cName}
+                                  {cName}{repBadge}
                                 </div>
                               );
                             })}
@@ -1173,7 +1228,7 @@ export default function HorariosFixosPanel({
                         </div>
                       );
                     })}
-                  </div>
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -1669,6 +1724,147 @@ export default function HorariosFixosPanel({
                   </div>
                 )}
 
+                {/* Repetição / Frequência dos Horários Fixos */}
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                        <i className="fa-solid fa-arrows-spin" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i>
+                        Modo de Repetição:
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          background: repetitionMode === 'semanal' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(168, 85, 247, 0.15)',
+                          color: repetitionMode === 'semanal' ? '#34d399' : '#c084fc',
+                          border: `1px solid ${repetitionMode === 'semanal' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
+                        }}
+                      >
+                        {repetitionMode === 'semanal' && '🔁 Toda semana (Padrão)'}
+                        {repetitionMode === 'quinzenal' && '🔁 Semana sim, semana não (Quinzenal)'}
+                        {repetitionMode === 'a_cada_3_semanas' && '🔁 1 semana sim e 2 não (A cada 3 semanas)'}
+                        {repetitionMode === 'personalizado' && `🔁 A cada ${customIntervalWeeks} semanas`}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowRepetitionSelector(prev => !prev)}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        fontSize: '0.78rem',
+                        fontWeight: 650,
+                        color: showRepetitionSelector ? 'var(--color-primary)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className={`fa-solid ${showRepetitionSelector ? 'fa-chevron-up' : 'fa-sliders'}`}></i>
+                      {showRepetitionSelector ? 'Ocultar opções' : 'Selecionar outro modo de repetição'}
+                    </button>
+                  </div>
+
+                  {showRepetitionSelector && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                        {[
+                          { mode: 'semanal', label: 'Toda semana', sub: 'Padrão (1 em 1 sem)' },
+                          { mode: 'quinzenal', label: 'Semana sim / não', sub: 'Quinzenal (2 em 2 sem)' },
+                          { mode: 'a_cada_3_semanas', label: '1 sim e 2 não', sub: 'A cada 3 semanas' },
+                          { mode: 'personalizado', label: 'Personalizado', sub: 'Intervalo em semanas' }
+                        ].map(item => {
+                          const isSel = repetitionMode === item.mode;
+                          return (
+                            <button
+                              key={item.mode}
+                              type="button"
+                              onClick={() => setRepetitionMode(item.mode as any)}
+                              style={{
+                                padding: '8px 10px',
+                                borderRadius: '8px',
+                                border: isSel ? '2px solid var(--color-primary)' : '1px solid var(--border-color)',
+                                background: isSel ? 'rgba(0, 184, 148, 0.15)' : 'rgba(0,0,0,0.2)',
+                                color: isSel ? 'var(--color-primary)' : 'var(--text-main)',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span style={{ fontSize: '0.82rem', fontWeight: 750 }}>
+                                {item.label}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', color: isSel ? 'var(--color-primary)' : 'var(--text-muted)' }}>
+                                {item.sub}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {repetitionMode === 'personalizado' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 650, color: 'var(--text-muted)' }}>
+                            Repetir a cada quantas semanas?
+                          </span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="52"
+                            value={customIntervalWeeks}
+                            onChange={e => setCustomIntervalWeeks(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            className="form-control"
+                            style={{ width: '80px', padding: '4px 8px', fontSize: '0.85rem', fontWeight: 700 }}
+                          />
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>semanas</span>
+                        </div>
+                      )}
+
+                      {/* Prévia das próximas datas */}
+                      {previewNextDates.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                          <span style={{ fontWeight: 700 }}>Próximas datas estimadas:</span>
+                          {previewNextDates.map((p, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                color: 'var(--text-main)',
+                                fontWeight: 600
+                              }}
+                            >
+                              {p.dayShort} {p.dateStr}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Duração e Vigência */}
                 <div style={{ display: 'grid', gridTemplateColumns: modalDurationType === 'manual' ? '1fr 1fr' : '1fr', gap: '12px' }}>
                   <div className="form-group" style={{ margin: 0 }}>
@@ -1705,8 +1901,13 @@ export default function HorariosFixosPanel({
                 {/* Prévia dos slots que serão gerados */}
                 {selectedDays.length > 0 && (
                   <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                      Resumo da Regra:
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        Resumo da Regra:
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: repetitionMode === 'semanal' ? 'var(--color-primary)' : '#c084fc', fontWeight: 700 }}>
+                        {repetitionMode === 'semanal' ? 'Toda semana' : repetitionMode === 'quinzenal' ? 'Quinzenal (semana sim, semana não)' : repetitionMode === 'a_cada_3_semanas' ? '1 semana sim e 2 não' : `A cada ${effectiveIntervalWeeks} semanas`}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {selectedDays.map(d => {

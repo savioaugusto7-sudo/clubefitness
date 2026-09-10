@@ -79,6 +79,8 @@ async function generateAppointmentsForFixedSchedules(
         current.setDate(current.getDate() + 1);
       }
 
+      const stepWeeks = Math.max(1, Number(schedule.intervaloSemanas) || (schedule.frequenciaRepeticao === 'quinzenal' ? 2 : schedule.frequenciaRepeticao === 'a_cada_3_semanas' ? 3 : 1));
+
       while (current <= endDate) {
         const dateStr = current.toISOString().split('T')[0];
         const exc = exceptionMap.get(dateStr);
@@ -86,7 +88,7 @@ async function generateAppointmentsForFixedSchedules(
         if (exc) {
           if (exc.acao === 'pular') {
             // Pular esta data específica
-            current.setDate(current.getDate() + 7);
+            current.setDate(current.getDate() + 7 * stepWeeks);
             continue;
           } else if (exc.acao === 'outro_horario' && exc.novoHorario) {
             scheduleDatePairs.push({ schedule, dateStr, horario: exc.novoHorario });
@@ -99,7 +101,7 @@ async function generateAppointmentsForFixedSchedules(
           scheduleDatePairs.push({ schedule, dateStr, horario: schedule.horario });
         }
 
-        current.setDate(current.getDate() + 7);
+        current.setDate(current.getDate() + 7 * stepWeeks);
       }
     }
 
@@ -271,7 +273,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { clienteId, profissionalId, slots, diaSemana, horario, servico, dataInicio, duracaoSemanas, dataFim, excecoes, syncAll } = body;
+    const { clienteId, profissionalId, slots, diaSemana, horario, servico, dataInicio, duracaoSemanas, dataFim, frequenciaRepeticao, intervaloSemanas, excecoes, syncAll } = body;
 
     // Sincronização em massa de todas as regras existentes
     if (syncAll) {
@@ -298,6 +300,9 @@ export async function POST(request: Request) {
       }
     }
 
+    const resolvedFrequencia = frequenciaRepeticao || 'semanal';
+    const resolvedIntervalo = Math.max(1, Number(intervaloSemanas) || (resolvedFrequencia === 'quinzenal' ? 2 : resolvedFrequencia === 'a_cada_3_semanas' ? 3 : 1));
+
     // Suporte a criação de múltiplos slots de dia/horário em lote
     const itemsToCreate: any[] = [];
 
@@ -311,7 +316,9 @@ export async function POST(request: Request) {
           servico,
           dataInicio,
           duracaoSemanas: duracaoSemanas ? Number(duracaoSemanas) : null,
-          dataFim: validDataFim
+          dataFim: validDataFim,
+          frequenciaRepeticao: slot.frequenciaRepeticao || resolvedFrequencia,
+          intervaloSemanas: slot.intervaloSemanas ? Math.max(1, Number(slot.intervaloSemanas)) : resolvedIntervalo
         });
       }
     } else if (diaSemana !== undefined && horario) {
@@ -323,7 +330,9 @@ export async function POST(request: Request) {
         servico,
         dataInicio,
         duracaoSemanas: duracaoSemanas ? Number(duracaoSemanas) : null,
-        dataFim: validDataFim
+        dataFim: validDataFim,
+        frequenciaRepeticao: resolvedFrequencia,
+        intervaloSemanas: resolvedIntervalo
       });
     } else {
       return NextResponse.json({ success: false, error: 'Nenhum dia ou horário informado.' }, { status: 400 });
@@ -344,9 +353,11 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { id, clienteId, oldProfessionalId, profissionalId, slots, diaSemana, horario, servico, dataInicio, dataFim, excecoes } = body;
+    const { id, clienteId, oldProfessionalId, profissionalId, slots, diaSemana, horario, servico, dataInicio, dataFim, frequenciaRepeticao, intervaloSemanas, excecoes } = body;
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const resolvedFrequencia = frequenciaRepeticao || 'semanal';
+    const resolvedIntervalo = Math.max(1, Number(intervaloSemanas) || (resolvedFrequencia === 'quinzenal' ? 2 : resolvedFrequencia === 'a_cada_3_semanas' ? 3 : 1));
 
     // Modo 1: Atualização em lote de regras de um Aluno / Agenda
     if (clienteId && Array.isArray(slots)) {
@@ -378,7 +389,9 @@ export async function PUT(request: Request) {
           horario: slot.horario,
           servico: servico || 'Treino Monitorado',
           dataInicio: dataInicio || todayStr,
-          dataFim: dataFim || null
+          dataFim: dataFim || null,
+          frequenciaRepeticao: slot.frequenciaRepeticao || resolvedFrequencia,
+          intervaloSemanas: slot.intervaloSemanas ? Math.max(1, Number(slot.intervaloSemanas)) : resolvedIntervalo
         }));
 
         const created = await FixedSchedule.insertMany(itemsToCreate);
@@ -409,6 +422,8 @@ export async function PUT(request: Request) {
       if (dataInicio) existing.dataInicio = dataInicio;
       if (dataFim !== undefined) existing.dataFim = dataFim || null;
       if (profissionalId !== undefined) existing.profissionalId = profissionalId || null;
+      if (frequenciaRepeticao) existing.frequenciaRepeticao = frequenciaRepeticao;
+      if (intervaloSemanas !== undefined) existing.intervaloSemanas = Math.max(1, Number(intervaloSemanas));
 
       await existing.save();
       await generateAppointmentsForFixedSchedules([existing], excecoes);

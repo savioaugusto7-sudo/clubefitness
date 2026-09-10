@@ -8,7 +8,9 @@ const FixedScheduleSchema = new Schema({
   servico: { type: String, required: true }, // e.g. "Treino Monitorado"
   dataInicio: { type: String, required: true }, // "YYYY-MM-DD"
   duracaoSemanas: { type: Number, required: false },
-  dataFim: { type: String, required: false }
+  dataFim: { type: String, required: false },
+  frequenciaRepeticao: { type: String, enum: ['semanal', 'quinzenal', 'a_cada_3_semanas', 'personalizado'], default: 'semanal' },
+  intervaloSemanas: { type: Number, default: 1 }
 }, { timestamps: true });
 
 export default models.FixedSchedule || model('FixedSchedule', FixedScheduleSchema);
