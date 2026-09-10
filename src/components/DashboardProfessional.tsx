@@ -182,6 +182,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const currentProf = professionals.find(p => p._id === professionalId);
   const isColetivo = (session?.user as any)?.email === 'coletivo@clube.com' || currentProf?.userId?.email === 'coletivo@clube.com' || currentProf?.nome?.toLowerCase().includes('coletivo');
+  const isAlbert = currentProf?.nome?.toLowerCase().includes('albert');
+  const isGuilherme = currentProf?.nome?.toLowerCase().includes('guilherme');
+
+  const [filtroAgendaResumo, setFiltroAgendaResumo] = useState<'todos' | 'academia' | 'dr_albert' | 'dr_guilherme'>('todos');
+
+  useEffect(() => {
+    if (isAlbert) {
+      setFiltroAgendaResumo('dr_albert');
+    } else if (isGuilherme) {
+      setFiltroAgendaResumo('dr_guilherme');
+    }
+  }, [isAlbert, isGuilherme]);
 
   // PIN verification states
   const [showPinModal, setShowPinModal] = useState(false);
@@ -4833,10 +4845,69 @@ goniometria: {
               }
             };
 
+            const getAppointmentMeta = (a: any) => {
+              const prof = professionals.find(p => p._id === (a.profissionalId?._id || a.profissionalId)) || (typeof a.profissionalId === 'object' ? a.profissionalId : null);
+              const pName = (prof?.nome || '').toLowerCase();
+              
+              if (a.tipo === 'dr_albert' || pName.includes('albert')) {
+                return {
+                  key: 'dr_albert',
+                  label: 'Dr. Albert',
+                  badgeBg: 'rgba(56, 189, 248, 0.15)',
+                  badgeColor: '#38bdf8',
+                  badgeBorder: '1px solid rgba(56, 189, 248, 0.4)',
+                  icon: 'fa-user-doctor',
+                  profNome: prof?.nome || 'Dr. Albert'
+                };
+              }
+              if (a.tipo === 'dr_guilherme' || pName.includes('guilherme')) {
+                return {
+                  key: 'dr_guilherme',
+                  label: 'Dr. Guilherme',
+                  badgeBg: 'rgba(129, 140, 248, 0.15)',
+                  badgeColor: '#818cf8',
+                  badgeBorder: '1px solid rgba(129, 140, 248, 0.4)',
+                  icon: 'fa-user-doctor',
+                  profNome: prof?.nome || 'Dr. Guilherme'
+                };
+              }
+              if (a.tipo === 'consultorio') {
+                return {
+                  key: 'consultorio',
+                  label: 'Consultório',
+                  badgeBg: 'rgba(244, 63, 94, 0.15)',
+                  badgeColor: '#f43f5e',
+                  badgeBorder: '1px solid rgba(244, 63, 94, 0.4)',
+                  icon: 'fa-stethoscope',
+                  profNome: prof?.nome || 'Consultório'
+                };
+              }
+              return {
+                key: 'academia',
+                label: 'Academia',
+                badgeBg: 'rgba(16, 185, 129, 0.15)',
+                badgeColor: '#10b981',
+                badgeBorder: '1px solid rgba(16, 185, 129, 0.4)',
+                icon: 'fa-dumbbell',
+                profNome: prof?.nome || 'Academia'
+              };
+            };
+
             // Filtrar agendamentos de hoje
-            const todayApts = appointments
+            const allTodayApts = appointments
               .filter(a => a.data === hojeISO)
               .sort((a, b) => a.horario.localeCompare(b.horario));
+
+            const countTotal = allTodayApts.filter(a => a.status !== 'cancelado').length;
+            const countAcademia = allTodayApts.filter(a => a.status !== 'cancelado' && getAppointmentMeta(a).key === 'academia').length;
+            const countAlbert = allTodayApts.filter(a => a.status !== 'cancelado' && getAppointmentMeta(a).key === 'dr_albert').length;
+            const countGuilherme = allTodayApts.filter(a => a.status !== 'cancelado' && getAppointmentMeta(a).key === 'dr_guilherme').length;
+
+            const todayApts = allTodayApts.filter(a => {
+              if (filtroAgendaResumo === 'todos') return true;
+              const meta = getAppointmentMeta(a);
+              return meta.key === filtroAgendaResumo;
+            });
 
             const totalHoje = todayApts.filter(a => a.status !== 'cancelado').length;
             const totalAcademia = todayApts.filter(a => a.tipo === 'academia' && a.status !== 'cancelado').length;
@@ -4858,11 +4929,71 @@ goniometria: {
 
             return (
               <>
-                <div className="view-header">
+                <div className="view-header" style={{ marginBottom: '16px' }}>
                   <div className="view-title-group">
                     <h1>Cockpit Operacional & Frequência Diária</h1>
                     <p>Visão executiva, sinalização em tempo real e central de retenção ativa de hoje, {formatLocalDate(hojeISO)}.</p>
                   </div>
+                </div>
+
+                {/* Barra de Filtros Rápidos de Agenda */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginRight: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-filter"></i> Visualizar Agenda:
+                  </span>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${filtroAgendaResumo === 'todos' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFiltroAgendaResumo('todos')}
+                    style={{ borderRadius: '20px', padding: '6px 14px', fontWeight: filtroAgendaResumo === 'todos' ? 700 : 500 }}
+                  >
+                    <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }}></i> Todos ({countTotal})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${filtroAgendaResumo === 'academia' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFiltroAgendaResumo('academia')}
+                    style={{
+                      borderRadius: '20px',
+                      padding: '6px 14px',
+                      fontWeight: filtroAgendaResumo === 'academia' ? 700 : 500,
+                      borderColor: filtroAgendaResumo === 'academia' ? '#10b981' : undefined,
+                      background: filtroAgendaResumo === 'academia' ? '#10b981' : undefined
+                    }}
+                  >
+                    <i className="fa-solid fa-dumbbell" style={{ marginRight: '6px', color: filtroAgendaResumo === 'academia' ? '#fff' : '#10b981' }}></i>
+                    Academia / Salão ({countAcademia})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${filtroAgendaResumo === 'dr_albert' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFiltroAgendaResumo('dr_albert')}
+                    style={{
+                      borderRadius: '20px',
+                      padding: '6px 14px',
+                      fontWeight: filtroAgendaResumo === 'dr_albert' ? 700 : 500,
+                      borderColor: filtroAgendaResumo === 'dr_albert' ? '#38bdf8' : undefined,
+                      background: filtroAgendaResumo === 'dr_albert' ? '#38bdf8' : undefined
+                    }}
+                  >
+                    <i className="fa-solid fa-user-doctor" style={{ marginRight: '6px', color: filtroAgendaResumo === 'dr_albert' ? '#fff' : '#38bdf8' }}></i>
+                    Dr. Albert ({countAlbert})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${filtroAgendaResumo === 'dr_guilherme' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFiltroAgendaResumo('dr_guilherme')}
+                    style={{
+                      borderRadius: '20px',
+                      padding: '6px 14px',
+                      fontWeight: filtroAgendaResumo === 'dr_guilherme' ? 700 : 500,
+                      borderColor: filtroAgendaResumo === 'dr_guilherme' ? '#818cf8' : undefined,
+                      background: filtroAgendaResumo === 'dr_guilherme' ? '#818cf8' : undefined
+                    }}
+                  >
+                    <i className="fa-solid fa-user-doctor" style={{ marginRight: '6px', color: filtroAgendaResumo === 'dr_guilherme' ? '#fff' : '#818cf8' }}></i>
+                    Dr. Guilherme ({countGuilherme})
+                  </button>
                 </div>
 
                 {/* Alerta de Fila de Prescrição Pendente */}
@@ -4927,13 +5058,14 @@ goniometria: {
                           <tr style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.1)' }}>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço / Agenda</th>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar / Ação</th>
                           </tr>
                         </thead>
                         <tbody>
                           {urgentes.map(a => {
                             const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                            const meta = getAppointmentMeta(a);
                             const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
                             const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
                             return (
@@ -4946,7 +5078,23 @@ goniometria: {
                                   </small>
                                 </td>
                                 <td data-label="Serviço" style={{ padding: '12px 16px' }}>
-                                  <span className={`badge ${isEm ? 'badge-danger' : 'badge-info'}`}>{a.servico || a.tipo}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <span className={`badge ${isEm ? 'badge-danger' : 'badge-info'}`}>{a.servico || a.tipo}</span>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      padding: '1px 6px',
+                                      borderRadius: '12px',
+                                      background: meta.badgeBg,
+                                      color: meta.badgeColor,
+                                      border: meta.badgeBorder
+                                    }}>
+                                      <i className={`fa-solid ${meta.icon}`}></i> {meta.label}
+                                    </span>
+                                  </div>
                                   {isEmPendente && (
                                     <div style={{ marginTop: '4px' }}>
                                       <span className="badge" style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', fontSize: '0.72rem', fontWeight: 700 }}>
@@ -5024,20 +5172,63 @@ goniometria: {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginTop: '16px', paddingBottom: '8px' }}>
                     {atuais.length === 0 ? (
                       <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
-                        Nenhum aluno agendado para o horário de hoje na janela atual ({realTime || '--:--'}).
+                        Nenhum aluno agendado para o horário de hoje na janela atual ({realTime || '--:--'}) {filtroAgendaResumo !== 'todos' ? `no filtro selecionado` : ''}.
                       </div>
                     ) : (
                       atuais.map(a => {
                         const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                        const meta = getAppointmentMeta(a);
                         const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : 'badge-warning';
                         const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : 'Agendado';
                         return (
-                          <div key={a._id} className="metric-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px', borderRadius: '8px', margin: 0, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                          <div 
+                            key={a._id} 
+                            className="metric-card" 
+                            style={{ 
+                              background: 'var(--bg-card)', 
+                              border: meta.key !== 'academia' ? `1px solid ${meta.badgeColor}40` : '1px solid var(--border-color)', 
+                              borderLeft: `5px solid ${meta.badgeColor}`,
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between', 
+                              padding: '16px', 
+                              borderRadius: '8px', 
+                              margin: 0, 
+                              boxShadow: meta.key !== 'academia' ? `0 4px 12px ${meta.badgeColor}15` : '0 4px 6px -1px rgba(0,0,0,0.1)' 
+                            }}
+                          >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
-                              <div>
-                                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>{a.horario}</span>
-                                <h3 style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || 'Aluno Desconhecido'}</h3>
-                                <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>{a.servico || a.tipo}</span>
+                              <div style={{ flex: 1, minWidth: 0, paddingRight: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)' }}>{a.horario}</span>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: '20px',
+                                    background: meta.badgeBg,
+                                    color: meta.badgeColor,
+                                    border: meta.badgeBorder
+                                  }}>
+                                    <i className={`fa-solid ${meta.icon}`}></i> {meta.label}
+                                  </span>
+                                </div>
+                                <h3 style={{ margin: '2px 0 4px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido'}
+                                </h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                                    {a.servico || a.tipo}
+                                  </span>
+                                  {meta.key !== 'academia' && meta.profNome && (
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                                      • {meta.profNome}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div>
                                 <span className={`badge ${statusClass}`}>{statusText}</span>
