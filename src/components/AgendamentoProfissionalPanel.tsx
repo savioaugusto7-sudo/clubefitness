@@ -162,6 +162,15 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     cor: '#f59e0b',
     descricao: 'Ajuste articular e coluna',
     tipoCredito: 'academia'
+  },
+  {
+    id: 'massagem',
+    nome: 'Massagem',
+    vagasNecessarias: 1,
+    icone: 'fa-spa',
+    cor: '#ec4899',
+    descricao: 'Massoterapia e relaxamento',
+    tipoCredito: 'massagem'
   }
 ];
 

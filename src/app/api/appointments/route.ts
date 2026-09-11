@@ -659,7 +659,7 @@ export async function PUT(request: Request) {
     const _pr = Professional;
     const _a = Appointment;
     const body = await request.json();
-    const { id, status, wellness, profissionalId, observacoes } = body;
+    const { id, status, wellness, profissionalId, observacoes, treinoExecutado } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing appointment ID' }, { status: 400 });
@@ -675,10 +675,28 @@ export async function PUT(request: Request) {
       const obsTrimmed = observacoes?.trim() || '';
       appointment.observacoes = obsTrimmed;
       appointment.observacaoDataHora = obsTrimmed ? new Date() : null;
+    }
+
+    // Suporte para atualizar treinoExecutado
+    if (treinoExecutado !== undefined) {
+      appointment.treinoExecutado = treinoExecutado ? {
+        tipo: treinoExecutado.tipo || 'ficha',
+        fichaId: treinoExecutado.fichaId || '',
+        fichaNome: treinoExecutado.fichaNome || '',
+        categoria: treinoExecutado.categoria || 'fichasMonitorado',
+        observacoes: treinoExecutado.observacoes || '',
+        dataHora: treinoExecutado.dataHora ? new Date(treinoExecutado.dataHora) : new Date(),
+        registradoPor: treinoExecutado.registradoPor || profissionalId || null
+      } : null;
       if (!status) {
         await appointment.save();
         return NextResponse.json({ success: true, data: appointment });
       }
+    }
+
+    if (observacoes !== undefined && !status) {
+      await appointment.save();
+      return NextResponse.json({ success: true, data: appointment });
     }
 
     if (!status) {

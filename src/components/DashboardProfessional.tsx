@@ -534,6 +534,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [exerciseGroup, setExerciseGroup] = useState('');
   const [filaSearch, setFilaSearch] = useState('');
+  const [cardMenuOpenId, setCardMenuOpenId] = useState<string | null>(null);
 
   // Fila dinâmica de alunos pendentes de prescrição de treino
   const filaPendentes = useMemo(() => {
@@ -2365,6 +2366,10 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
           safeFetchJson('/api/appointments?t=' + Date.now())
             .then(res => { if (res?.success && Array.isArray(res.data)) setAppointments(res.data); })
         );
+        promises.push(
+          safeFetchJson('/api/workouts?t=' + Date.now())
+            .then(res => { if (res?.success && Array.isArray(res.data)) setWorkouts(res.data); })
+        );
       } else if (activeTab === 'avaliacoes') {
         promises.push(
           safeFetchJson('/api/assessments?t=' + Date.now())
@@ -3011,7 +3016,40 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }, `${clientName} - ${details}`);
   };
 
-  const handleConfirmWellness = async (wellnessData: { sono: number; fadiga: number; dorMuscular: number }) => {
+  const handleSelectWorkoutForApt = async (apt: any, sheetId: string, sheetNome: string, tipo: 'ficha' | 'livre' = 'ficha') => {
+    const targetClientId = apt?.clienteId?._id || apt?.clienteId || null;
+    const clientName = apt?.clienteId?.dadosPessoais?.nome || apt?.clienteId?.nome || '';
+    const executorProfId = professionalId || (session?.user as any)?.id || null;
+
+    const treinoData = {
+      tipo,
+      fichaId: tipo === 'livre' ? '' : sheetId,
+      fichaNome: tipo === 'livre' ? 'Treino Livre' : (sheetNome || `Ficha ${sheetId}`),
+      categoria: 'fichasMonitorado',
+      dataHora: new Date(),
+      registradoPor: executorProfId
+    };
+
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: apt._id,
+          treinoExecutado: treinoData,
+          profissionalId: executorProfId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAppointments(prev => prev.map(a => a._id === apt._id ? { ...a, treinoExecutado: treinoData } : a));
+      }
+    } catch (err) {
+      console.error('Erro ao registrar treino no agendamento:', err);
+    }
+  };
+
+  const handleConfirmWellness = async (wellnessData: { sono: number; fadiga: number; dorMuscular: number; treinoExecutado?: any }) => {
     if (!wellnessApt) return;
     const targetClientId = wellnessApt.clienteId?._id || wellnessApt.clienteId || null;
     const clientName = wellnessApt.clienteId?.dadosPessoais?.nome || wellnessApt.clienteId?.nome || '';
@@ -3019,15 +3057,23 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     return new Promise<void>((resolve, reject) => {
       executeAction('Confirmou Presença e Preencheu Wellness', targetClientId, async (executorProfId, isCollective) => {
         try {
+          const bodyPayload: any = {
+            id: wellnessApt._id,
+            status: 'presenca',
+            wellness: {
+              sono: wellnessData.sono,
+              fadiga: wellnessData.fadiga,
+              dorMuscular: wellnessData.dorMuscular
+            },
+            profissionalId: executorProfId
+          };
+          if (wellnessData.treinoExecutado) {
+            bodyPayload.treinoExecutado = wellnessData.treinoExecutado;
+          }
           const res = await fetch('/api/appointments', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: wellnessApt._id,
-              status: 'presenca',
-              wellness: wellnessData,
-              profissionalId: executorProfId
-            })
+            body: JSON.stringify(bodyPayload)
           });
           const data = await res.json();
           if (data.success) {
@@ -4853,9 +4899,13 @@ goniometria: {
                 return {
                   key: 'dr_albert',
                   label: 'Dr. Albert',
+                  subLabel: 'Consultório Médico',
                   badgeBg: 'rgba(56, 189, 248, 0.15)',
                   badgeColor: '#38bdf8',
-                  badgeBorder: '1px solid rgba(56, 189, 248, 0.4)',
+                  badgeBorder: '1px solid rgba(56, 189, 248, 0.45)',
+                  cardBorder: '1px solid rgba(56, 189, 248, 0.35)',
+                  cardBg: 'linear-gradient(180deg, rgba(56, 189, 248, 0.06) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                  cardGlow: '0 4px 18px rgba(56, 189, 248, 0.15)',
                   icon: 'fa-user-doctor',
                   showProf: true,
                   profNome: pName || 'Albert Nunes'
@@ -4865,10 +4915,14 @@ goniometria: {
                 return {
                   key: 'dr_guilherme',
                   label: 'Dr. Guilherme',
-                  badgeBg: 'rgba(129, 140, 248, 0.15)',
-                  badgeColor: '#818cf8',
-                  badgeBorder: '1px solid rgba(129, 140, 248, 0.4)',
-                  icon: 'fa-user-doctor',
+                  subLabel: 'Fisioterapia & Avaliação',
+                  badgeBg: 'rgba(168, 85, 247, 0.15)',
+                  badgeColor: '#a855f7',
+                  badgeBorder: '1px solid rgba(168, 85, 247, 0.45)',
+                  cardBorder: '1px solid rgba(168, 85, 247, 0.35)',
+                  cardBg: 'linear-gradient(180deg, rgba(168, 85, 247, 0.06) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                  cardGlow: '0 4px 18px rgba(168, 85, 247, 0.15)',
+                  icon: 'fa-stethoscope',
                   showProf: true,
                   profNome: pName || 'Guilherme José Graciano'
                 };
@@ -4877,23 +4931,100 @@ goniometria: {
                 return {
                   key: 'consultorio',
                   label: 'Consultório',
+                  subLabel: 'Atendimento Individual',
                   badgeBg: 'rgba(244, 63, 94, 0.15)',
                   badgeColor: '#f43f5e',
-                  badgeBorder: '1px solid rgba(244, 63, 94, 0.4)',
-                  icon: 'fa-stethoscope',
+                  badgeBorder: '1px solid rgba(244, 63, 94, 0.45)',
+                  cardBorder: '1px solid rgba(244, 63, 94, 0.35)',
+                  cardBg: 'linear-gradient(180deg, rgba(244, 63, 94, 0.06) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                  cardGlow: '0 4px 18px rgba(244, 63, 94, 0.15)',
+                  icon: 'fa-user-doctor',
                   showProf: true,
                   profNome: pName || 'Consultório'
                 };
               }
               return {
                 key: 'academia',
-                label: 'Academia',
+                label: 'Academia / Salão',
+                subLabel: 'Treinamento & Monitorado',
                 badgeBg: 'rgba(16, 185, 129, 0.15)',
                 badgeColor: '#10b981',
-                badgeBorder: '1px solid rgba(16, 185, 129, 0.4)',
+                badgeBorder: '1px solid rgba(16, 185, 129, 0.45)',
+                cardBorder: '1px solid rgba(16, 185, 129, 0.35)',
+                cardBg: 'linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                cardGlow: '0 4px 18px rgba(16, 185, 129, 0.12)',
                 icon: 'fa-dumbbell',
                 showProf: false,
                 profNome: ''
+              };
+            };
+
+            const getClientContractedFreq = (client: any) => {
+              if (!client) return null;
+              const hasContractedPlan = Boolean(
+                (client.dadosComerciais?.planoId || client.dadosComerciais?.plano) &&
+                client.dadosComerciais?.status !== 'lead'
+              );
+              if (hasContractedPlan && client.dadosComerciais?.frequencia) {
+                return `${client.dadosComerciais.frequencia}x/semana`;
+              }
+              return null;
+            };
+
+            const getClientLastActivity = (clientId: string, currentAptId: string) => {
+              if (!clientId) return { label: 'Primeiro Atendimento', detail: 'Sem histórico anterior', isFirst: true };
+              const cIdStr = String(clientId);
+
+              const pastApts = appointments.filter((a: any) => {
+                const aClientId = String(a.clienteId?._id || a.clienteId || '');
+                if (aClientId !== cIdStr) return false;
+                if (String(a._id) === String(currentAptId)) return false;
+                if (a.data > hojeISO) return false;
+                if (a.data === hojeISO && a.status !== 'presenca' && !a.treinoExecutado) return false;
+                return a.status === 'presenca' || Boolean(a.treinoExecutado);
+              }).sort((a: any, b: any) => {
+                const dateComp = (b.data || '').localeCompare(a.data || '');
+                if (dateComp !== 0) return dateComp;
+                return (b.horario || '').localeCompare(a.horario || '');
+              });
+
+              if (pastApts.length === 0) {
+                return {
+                  label: 'Primeiro Atendimento',
+                  detail: 'Sem histórico anterior',
+                  isFirst: true
+                };
+              }
+
+              const lastApt = pastApts[0];
+              const lastDateFormatted = lastApt.data ? `${lastApt.data.split('-')[2]}/${lastApt.data.split('-')[1]}` : '';
+              
+              let daysAgoStr = '';
+              try {
+                const dLast = new Date(lastApt.data + 'T12:00:00');
+                const dToday = new Date(hojeISO + 'T12:00:00');
+                const diffTime = Math.abs(dToday.getTime() - dLast.getTime());
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays === 0) daysAgoStr = 'hoje';
+                else if (diffDays === 1) daysAgoStr = 'ontem';
+                else daysAgoStr = `há ${diffDays} dias`;
+              } catch (e) {}
+
+              if (lastApt.treinoExecutado) {
+                const te = lastApt.treinoExecutado;
+                const desc = te.tipo === 'livre' ? 'Treino Livre' : (te.fichaNome || `Ficha ${te.fichaId || 'A'}`);
+                return {
+                  label: `Último: ${desc}`,
+                  detail: `${lastDateFormatted}${daysAgoStr ? ` (${daysAgoStr})` : ''}`,
+                  isFirst: false
+                };
+              }
+
+              const servicoDesc = lastApt.servico || lastApt.tipo;
+              return {
+                label: `Último: ${servicoDesc}`,
+                detail: `${lastDateFormatted}${daysAgoStr ? ` (${daysAgoStr})` : ''}`,
+                isFirst: false
               };
             };
 
@@ -4913,10 +5044,6 @@ goniometria: {
               return meta.key === filtroAgendaResumo;
             });
 
-            const totalHoje = todayApts.filter(a => a.status !== 'cancelado').length;
-            const totalAcademia = todayApts.filter(a => a.tipo === 'academia' && a.status !== 'cancelado').length;
-            const totalConsultorio = todayApts.filter(a => a.tipo === 'consultorio' && a.status !== 'cancelado').length;
-
             const urgentes: any[] = [];
             const atuais: any[] = [];
 
@@ -4935,8 +5062,11 @@ goniometria: {
               <>
                 <div className="view-header" style={{ marginBottom: '16px' }}>
                   <div className="view-title-group">
-                    <h1>Cockpit Operacional & Frequência Diária</h1>
-                    <p>Visão executiva, sinalização em tempo real e central de retenção ativa de hoje, {formatLocalDate(hojeISO)}.</p>
+                    <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <i className="fa-solid fa-gauge-high" style={{ color: '#10b981' }}></i>
+                      Cockpit Operacional & Frequência Diária
+                    </h1>
+                    <p>Visão executiva, histórico do último atendimento, registro em tempo real e controle de agendas de hoje, {formatLocalDate(hojeISO)}.</p>
                   </div>
                 </div>
 
@@ -4991,11 +5121,11 @@ goniometria: {
                       borderRadius: '20px',
                       padding: '6px 14px',
                       fontWeight: filtroAgendaResumo === 'dr_guilherme' ? 700 : 500,
-                      borderColor: filtroAgendaResumo === 'dr_guilherme' ? '#818cf8' : undefined,
-                      background: filtroAgendaResumo === 'dr_guilherme' ? '#818cf8' : undefined
+                      borderColor: filtroAgendaResumo === 'dr_guilherme' ? '#a855f7' : undefined,
+                      background: filtroAgendaResumo === 'dr_guilherme' ? '#a855f7' : undefined
                     }}
                   >
-                    <i className="fa-solid fa-user-doctor" style={{ marginRight: '6px', color: filtroAgendaResumo === 'dr_guilherme' ? '#fff' : '#818cf8' }}></i>
+                    <i className="fa-solid fa-stethoscope" style={{ marginRight: '6px', color: filtroAgendaResumo === 'dr_guilherme' ? '#fff' : '#a855f7' }}></i>
                     Dr. Guilherme ({countGuilherme})
                   </button>
                 </div>
@@ -5061,7 +5191,8 @@ goniometria: {
                         <thead>
                           <tr style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.1)' }}>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno & Frequência</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Último Registro</th>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço / Agenda</th>
                             <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar / Ação</th>
                           </tr>
@@ -5070,16 +5201,30 @@ goniometria: {
                           {urgentes.map(a => {
                             const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
                             const meta = getAppointmentMeta(a);
+                            const freqStr = getClientContractedFreq(client);
+                            const lastAct = getClientLastActivity(client._id, a._id);
                             const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
                             const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
                             return (
                               <tr key={a._id} style={{ background: isEmPendente ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.02)' }}>
                                 <td data-label="Horário" style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
                                 <td data-label="Aluno" style={{ padding: '12px 16px' }}>
-                                  <strong>{client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido'}</strong><br />
-                                  <small style={{ color: 'var(--text-dim)' }}>
-                                    {client.dadosComerciais?.frequencia ? `${client.dadosComerciais.frequencia}x/semana` : ''}
-                                  </small>
+                                  <strong style={{ color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido'}</strong><br />
+                                  {freqStr ? (
+                                    <span style={{ fontSize: '0.72rem', color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, display: 'inline-block', marginTop: '2px' }}>
+                                      <i className="fa-solid fa-calendar-check" style={{ marginRight: '4px' }}></i>{freqStr}
+                                    </span>
+                                  ) : (
+                                    <small style={{ color: 'var(--text-dim)' }}>Sem plano contratado</small>
+                                  )}
+                                </td>
+                                <td data-label="Último Registro" style={{ padding: '12px 16px' }}>
+                                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                    {lastAct.label}
+                                  </div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                    {lastAct.detail}
+                                  </div>
                                 </td>
                                 <td data-label="Serviço" style={{ padding: '12px 16px' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -5164,103 +5309,478 @@ goniometria: {
                   </div>
                 )}
 
-                {/* 2. DESTAQUE DO HORÁRIO ATUAL (Janela Ativa) */}
-                <div className="content-panel" style={{ border: '2px solid var(--color-primary)', boxShadow: '0 0 15px rgba(99, 102, 241, 0.12)', marginBottom: '24px', background: 'rgba(99, 102, 241, 0.02)' }}>
-                  <div className="panel-header" style={{ borderBottom: '1px solid rgba(99, 102, 241, 0.1)', paddingBottom: '10px' }}>
-                    <h2 style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-                      <i className="fa-solid fa-circle-play" style={{ color: 'var(--color-primary)' }}></i>
-                      ⭐ ATENDIMENTOS NO HORÁRIO ATUAL (Janela Ativa)
-                    </h2>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados na janela de tempo atual. Sinalize a presença assim que o aluno comparecer.</p>
+                {/* 2. DESTAQUE DO HORÁRIO ATUAL (Janela Ativa) - ULTRA-PREMIUM ATHLETIC & CLINICAL COCKPIT */}
+                <div style={{
+                  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(11, 17, 32, 0.95) 100%)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderTop: '3px solid #10b981',
+                  borderRadius: '18px',
+                  padding: '20px 24px',
+                  marginBottom: '26px',
+                  boxShadow: '0 16px 36px -10px rgba(0, 0, 0, 0.6), 0 0 25px rgba(16, 185, 129, 0.06)'
+                }}>
+                  {/* Cabeçalho do Painel */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.07)', paddingBottom: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.15) 100%)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#10b981',
+                        boxShadow: '0 0 12px rgba(16, 185, 129, 0.2)'
+                      }}>
+                        <i className="fa-solid fa-bolt" style={{ fontSize: '0.95rem' }}></i>
+                      </div>
+                      <div>
+                        <h2 style={{ color: '#fff', fontSize: '1.12rem', fontWeight: 900, margin: 0, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          Horário Atual (Janela Ativa)
+                          <span style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', letterSpacing: '0.5px' }}>
+                            ● Ao Vivo
+                          </span>
+                        </h2>
+                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0, marginTop: '2px', fontWeight: 500 }}>
+                          Orientação imediata de treino e presença com 1 clique para os alunos deste momento.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 800,
+                        color: '#10b981',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        padding: '5px 14px',
+                        borderRadius: '20px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
+                      }}>
+                        <i className="fa-regular fa-clock" style={{ fontSize: '0.85rem' }}></i>
+                        <span>{realTime || '--:--'}</span>
+                        <span style={{ opacity: 0.35 }}>•</span>
+                        <span>{atuais.length} {atuais.length === 1 ? 'agendado' : 'agendados'}</span>
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginTop: '16px', paddingBottom: '8px' }}>
+
+                  {/* Grid de Cards dos Alunos Ativos */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '18px', marginTop: '18px' }}>
                     {atuais.length === 0 ? (
-                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
-                        Nenhum aluno agendado para o horário de hoje na janela atual ({realTime || '--:--'}) {filtroAgendaResumo !== 'todos' ? `no filtro selecionado` : ''}.
+                      <div style={{
+                        gridColumn: '1 / -1',
+                        textAlign: 'center',
+                        color: '#94a3b8',
+                        padding: '40px 20px',
+                        background: 'rgba(255,255,255,0.02)',
+                        borderRadius: '14px',
+                        border: '1px dashed rgba(255,255,255,0.08)'
+                      }}>
+                        <i className="fa-solid fa-clock-rotate-left" style={{ fontSize: '2.2rem', marginBottom: '10px', color: '#64748b', display: 'block' }}></i>
+                        <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>Nenhum aluno agendado para o horário de hoje na janela atual ({realTime || '--:--'}) {filtroAgendaResumo !== 'todos' ? `no filtro selecionado` : ''}.</p>
                       </div>
                     ) : (
                       atuais.map(a => {
                         const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
                         const meta = getAppointmentMeta(a);
-                        const statusClass = a.status === 'presenca' ? 'badge-success' : a.status === 'falta' ? 'badge-danger' : 'badge-warning';
-                        const statusText = a.status === 'presenca' ? 'Presença' : a.status === 'falta' ? 'Falta' : 'Agendado';
+                        const freqStr = getClientContractedFreq(client);
+                        const lastAct = getClientLastActivity(client._id, a._id);
+                        const clientFullName = client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido';
+                        
+                        // Monograma das iniciais
+                        const getInitials = (name: string) => {
+                          const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+                          if (parts.length === 0) return 'CF';
+                          if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+                          return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                        };
+                        const initials = getInitials(clientFullName);
+
+                        // Status visual elegante
+                        const isPresente = a.status === 'presenca';
+                        const isFalta = a.status === 'falta';
+                        const statusBadgeColor = isPresente ? '#10b981' : isFalta ? '#ef4444' : '#f59e0b';
+                        const statusLabel = isPresente ? 'Presente' : isFalta ? 'Falta' : 'Agendado';
+
+                        // Dados de treinos do aluno para a seleção rápida
+                        const userWorkout = workouts.find((w: any) => String(w.clienteId?._id || w.clienteId) === String(client._id));
+                        const availableSheets = (userWorkout?.fichasMonitorado || []).filter((f: any) => f.id);
+                        const todayTreino = a.treinoExecutado;
+                        const activeLetter = todayTreino?.tipo === 'livre' ? 'livre' : (todayTreino?.fichaId || '');
+                        const isMenuOpen = cardMenuOpenId === a._id;
+
                         return (
                           <div 
                             key={a._id} 
-                            className="metric-card" 
                             style={{ 
-                              background: 'var(--bg-card)', 
-                              border: meta.key !== 'academia' ? `1px solid ${meta.badgeColor}40` : '1px solid var(--border-color)', 
+                              background: 'linear-gradient(150deg, #131d31 0%, #0c1322 100%)', 
+                              border: `1px solid ${meta.badgeColor}40`, 
                               borderLeft: `5px solid ${meta.badgeColor}`,
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              justifyContent: 'space-between', 
-                              padding: '16px', 
-                              borderRadius: '8px', 
+                              borderRadius: '16px', 
+                              padding: '18px 20px', 
                               margin: 0, 
-                              boxShadow: meta.key !== 'academia' ? `0 4px 12px ${meta.badgeColor}15` : '0 4px 6px -1px rgba(0,0,0,0.1)' 
+                              boxShadow: `0 12px 30px -6px rgba(0,0,0,0.55), 0 0 16px ${meta.badgeColor}12`,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '14px',
+                              position: 'relative',
+                              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
                             }}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
-                              <div style={{ flex: 1, minWidth: 0, paddingRight: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)' }}>{a.horario}</span>
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    padding: '2px 8px',
-                                    borderRadius: '20px',
-                                    background: meta.badgeBg,
-                                    color: meta.badgeColor,
-                                    border: meta.badgeBorder
-                                  }}>
-                                    <i className={`fa-solid ${meta.icon}`}></i> {meta.label}
-                                  </span>
+                            {/* Linha 1: Top Bar (Horário + Badge Especialidade + Status + Menu ⋯) */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.4px' }}>
+                                  {a.horario}
+                                </span>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontSize: '0.73rem',
+                                  fontWeight: 800,
+                                  padding: '3px 10px',
+                                  borderRadius: '20px',
+                                  background: meta.badgeBg,
+                                  color: meta.badgeColor,
+                                  border: meta.badgeBorder,
+                                  boxShadow: `0 2px 6px ${meta.badgeColor}15`
+                                }}>
+                                  <i className={`fa-solid ${meta.icon}`}></i> {meta.label}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
+                                <div style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontSize: '0.73rem',
+                                  fontWeight: 800,
+                                  color: statusBadgeColor,
+                                  background: `${statusBadgeColor}15`,
+                                  padding: '3px 9px',
+                                  borderRadius: '12px',
+                                  border: `1px solid ${statusBadgeColor}35`
+                                }}>
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusBadgeColor, display: 'inline-block', boxShadow: `0 0 6px ${statusBadgeColor}` }}></span>
+                                  {statusLabel}
                                 </div>
-                                <h3 style={{ margin: '2px 0 4px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido'}
+
+                                {/* Botão de Ações Secundárias ⋯ */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCardMenuOpenId(isMenuOpen ? null : a._id);
+                                  }}
+                                  style={{
+                                    width: '30px',
+                                    height: '30px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    background: isMenuOpen ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                    color: '#cbd5e1',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    fontSize: '0.82rem',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  title="Opções do Agendamento"
+                                >
+                                  <i className="fa-solid fa-ellipsis-vertical"></i>
+                                </button>
+
+                                {/* Dropdown Menu Flutuante */}
+                                {isMenuOpen && (
+                                  <div 
+                                    style={{
+                                      position: 'absolute',
+                                      top: '36px',
+                                      right: '0',
+                                      zIndex: 50,
+                                      background: '#0f172a',
+                                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                                      borderRadius: '12px',
+                                      boxShadow: '0 12px 30px rgba(0,0,0,0.7)',
+                                      padding: '5px',
+                                      minWidth: '180px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '3px'
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCardMenuOpenId(null);
+                                        handleUpdateAptStatus(a._id, 'falta');
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#f87171',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 700,
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        textAlign: 'left'
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                      <i className="fa-solid fa-xmark" style={{ width: '14px' }}></i> Marcar Falta
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCardMenuOpenId(null);
+                                        handleUpdateAptStatus(a._id, 'cancelado');
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#94a3b8',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 700,
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        textAlign: 'left'
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                      <i className="fa-solid fa-ban" style={{ width: '14px' }}></i> Cancelar Agendamento
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCardMenuOpenId(null);
+                                        handleUpdateAptStatus(a._id, 'agendado');
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#38bdf8',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 700,
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        textAlign: 'left'
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                      <i className="fa-solid fa-rotate-left" style={{ width: '14px' }}></i> Reverter para Agendado
+                                    </button>
+                                    {client._id && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCardMenuOpenId(null);
+                                          setDetailClient(client);
+                                          setClientDetailTab('info');
+                                          setShowClientDetailModal(true);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          color: '#e2e8f0',
+                                          fontSize: '0.78rem',
+                                          fontWeight: 700,
+                                          borderRadius: '8px',
+                                          cursor: 'pointer',
+                                          textAlign: 'left',
+                                          borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      >
+                                        <i className="fa-solid fa-user-gear" style={{ width: '14px' }}></i> Perfil do Aluno
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Linha 2: Identidade do Aluno & Tags Integradas */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{
+                                width: '44px',
+                                height: '44px',
+                                borderRadius: '12px',
+                                background: `linear-gradient(135deg, ${meta.badgeColor}30, rgba(255,255,255,0.04))`,
+                                border: `1.5px solid ${meta.badgeColor}50`,
+                                color: '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.88rem',
+                                fontWeight: 900,
+                                flexShrink: 0,
+                                boxShadow: `0 2px 8px ${meta.badgeColor}20`
+                              }}>
+                                {initials}
+                              </div>
+
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <h3 style={{ margin: 0, fontSize: '1.04rem', fontWeight: 900, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.2px' }}>
+                                  {clientFullName}
                                 </h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                  <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
+                                  <span style={{ fontSize: '0.73rem', color: '#94a3b8', fontWeight: 600, background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '6px' }}>
                                     {a.servico || a.tipo}
                                   </span>
-                                  {meta.showProf && meta.profNome && (
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                                      • {meta.profNome}
+                                  {freqStr && (
+                                    <span style={{ fontSize: '0.73rem', fontWeight: 800, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <i className="fa-solid fa-calendar-check" style={{ fontSize: '0.7rem' }}></i> {freqStr}
                                     </span>
                                   )}
                                 </div>
                               </div>
-                              <div>
-                                <span className={`badge ${statusClass}`}>{statusText}</span>
-                              </div>
                             </div>
+
+                            {/* Linha 3: Briefing de Inteligência em Linha (Último Treino) */}
+                            <div style={{
+                              background: 'rgba(255, 255, 255, 0.035)',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              borderRadius: '10px',
+                              padding: '7px 12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              fontSize: '0.76rem'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                                <i className={lastAct.isFirst ? 'fa-solid fa-sparkles' : 'fa-solid fa-clock-rotate-left'} style={{ color: lastAct.isFirst ? '#38bdf8' : meta.badgeColor, fontSize: '0.78rem', flexShrink: 0 }}></i>
+                                <span style={{ fontWeight: 800, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {lastAct.label}
+                                </span>
+                              </div>
+                              <span style={{ color: '#94a3b8', fontSize: '0.72rem', flexShrink: 0, fontWeight: 500 }}>
+                                {lastAct.detail}
+                              </span>
+                            </div>
+
+                            {/* Linha 4: Seletor de Fichas estilo 'Segmented Bar' (Academia) */}
+                            {meta.key === 'academia' && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#64748b' }}>
+                                    Ficha de Hoje:
+                                  </span>
+                                  {todayTreino && (
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: meta.badgeColor }}>
+                                      {todayTreino.tipo === 'livre' ? '● Livre ativa' : `● Ficha ${todayTreino.fichaId} ativa`}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div style={{
+                                  background: 'rgba(0, 0, 0, 0.45)',
+                                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                                  borderRadius: '10px',
+                                  padding: '3px',
+                                  display: 'flex',
+                                  gap: '3px'
+                                }}>
+                                  {(availableSheets.length > 0 ? availableSheets : [{ id: 'A', nome: 'Ficha A' }, { id: 'B', nome: 'Ficha B' }, { id: 'C', nome: 'Ficha C' }]).map((s: any) => {
+                                    const isSelected = activeLetter === s.id;
+                                    return (
+                                      <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'ficha')}
+                                        style={{
+                                          flex: 1,
+                                          padding: '6px 0',
+                                          borderRadius: '7px',
+                                          fontSize: '0.75rem',
+                                          fontWeight: isSelected ? 900 : 600,
+                                          border: 'none',
+                                          background: isSelected ? `linear-gradient(135deg, ${meta.badgeColor}, #059669)` : 'transparent',
+                                          color: isSelected ? '#ffffff' : '#94a3b8',
+                                          cursor: 'pointer',
+                                          boxShadow: isSelected ? `0 2px 10px ${meta.badgeColor}45` : 'none',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                        title={s.nome || `Ficha ${s.id}`}
+                                      >
+                                        {isSelected ? `⭐ ${s.id}` : s.id}
+                                      </button>
+                                    );
+                                  })}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectWorkoutForApt(a, '', 'Treino Livre', 'livre')}
+                                    style={{
+                                      flex: 1,
+                                      padding: '6px 0',
+                                      borderRadius: '7px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: activeLetter === 'livre' ? 900 : 600,
+                                      border: 'none',
+                                      background: activeLetter === 'livre' ? `linear-gradient(135deg, ${meta.badgeColor}, #059669)` : 'transparent',
+                                      color: activeLetter === 'livre' ? '#ffffff' : '#94a3b8',
+                                      cursor: 'pointer',
+                                      boxShadow: activeLetter === 'livre' ? `0 2px 10px ${meta.badgeColor}45` : 'none',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Treino Livre / Salão"
+                                  >
+                                    {activeLetter === 'livre' ? '⭐ Livre' : 'Livre'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Badge Wellness do Dia se preenchido */}
                             {a.wellness?.realizado && (
                               <div style={{
-                                background: a.wellness.status === 'otimo' ? 'rgba(16,185,129,0.12)' : a.wellness.status === 'moderado' ? 'rgba(234,179,8,0.12)' : a.wellness.status === 'ruim' ? 'rgba(249,115,22,0.12)' : 'rgba(239,68,68,0.12)',
-                                border: `1px solid ${a.wellness.statusColor || '#10b981'}`,
-                                borderRadius: '8px',
-                                padding: '8px 10px',
-                                fontSize: '0.76rem',
-                                marginTop: '4px',
-                                marginBottom: '8px',
+                                background: a.wellness.status === 'otimo' ? 'rgba(16,185,129,0.12)' : 'rgba(234,179,8,0.12)',
+                                border: `1px solid ${a.wellness.statusColor || '#10b981'}45`,
+                                borderRadius: '10px',
+                                padding: '6px 12px',
+                                fontSize: '0.74rem',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                                 gap: '6px'
                               }}>
-                                <div>
-                                  <div style={{ fontWeight: 800, color: a.wellness.statusColor || '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <span>🧘</span> Wellness: {a.wellness.score}/30 • {a.wellness.statusLabel}
-                                  </div>
-                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-main, #fff)', marginTop: '2px' }}>
-                                    👉 {a.wellness.conduta}
-                                  </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                  <span>🧘</span>
+                                  <span style={{ fontWeight: 800, color: a.wellness.statusColor || '#10b981' }}>
+                                    Wellness: {a.wellness.score}/30 ({a.wellness.statusLabel})
+                                  </span>
                                 </div>
                                 <button
                                   type="button"
@@ -5268,61 +5788,172 @@ goniometria: {
                                     setWellnessApt(a);
                                     setShowWellnessModal(true);
                                   }}
-                                  title="Ver detalhes do Wellness"
-                                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+                                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '6px', padding: '3px 10px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}
                                 >
                                   Ver
                                 </button>
                               </div>
                             )}
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', width: '100%' }}>
-                              <button className="btn btn-sm" style={{ flex: 1, background: '#10b981', color: 'white', border: '1px solid #10b981', padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                                <i className="fa-solid fa-check"></i> Presença
-                              </button>
-                              <button className="btn btn-danger btn-sm" style={{ flex: 1, padding: '4px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
-                                <i className="fa-solid fa-xmark"></i> Falta
-                              </button>
-                              <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
-                                Cancelar
-                              </button>
-                            </div>
-                            <div style={{ marginTop: '8px', width: '100%' }}>
-                              {(a.servico === 'Emergência' || a.tipo === 'Emergência') && a.status === 'presenca' && !a.finalizado ? (
+
+                            {/* Linha 5: Barra de Ação Unificada (2 Botões Principais) */}
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: 'auto', paddingTop: '4px' }}>
+                              {/* Botão Primário Esquerdo: Abrir Ficha ou Prontuário */}
+                              <div style={{ flex: 1.2 }}>
+                                {(a.servico === 'Emergência' || a.tipo === 'Emergência') && a.status === 'presenca' && !a.finalizado ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      width: '100%',
+                                      padding: '9px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px',
+                                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                      color: 'white',
+                                      border: 'none',
+                                      fontWeight: 800,
+                                      borderRadius: '10px',
+                                      cursor: 'pointer',
+                                      boxShadow: '0 3px 10px rgba(239, 68, 68, 0.35)',
+                                      fontSize: '0.8rem'
+                                    }}
+                                    onClick={() => handleOpenEmergencyFinalization(a)}
+                                  >
+                                    <i className="fa-solid fa-flag-checkered"></i> Finalizar Emergência
+                                  </button>
+                                ) : meta.key === 'dr_albert' ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      width: '100%',
+                                      padding: '9px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px',
+                                      background: 'linear-gradient(135deg, rgba(56,189,248,0.25) 0%, rgba(14,165,233,0.35) 100%)',
+                                      color: '#7dd3fc',
+                                      border: '1px solid rgba(56, 189, 248, 0.45)',
+                                      fontWeight: 800,
+                                      borderRadius: '10px',
+                                      fontSize: '0.8rem',
+                                      cursor: 'pointer',
+                                      boxShadow: '0 2px 8px rgba(56, 189, 248, 0.2)'
+                                    }}
+                                    onClick={() => {
+                                      setDetailClient(client);
+                                      setClientDetailTab('consultas');
+                                      setShowClientDetailModal(true);
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-user-doctor"></i> Prontuário
+                                  </button>
+                                ) : meta.key === 'dr_guilherme' ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      width: '100%',
+                                      padding: '9px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px',
+                                      background: 'linear-gradient(135deg, rgba(168,85,247,0.25) 0%, rgba(147,51,234,0.35) 100%)',
+                                      color: '#c084fc',
+                                      border: '1px solid rgba(168, 85, 247, 0.45)',
+                                      fontWeight: 800,
+                                      borderRadius: '10px',
+                                      fontSize: '0.8rem',
+                                      cursor: 'pointer',
+                                      boxShadow: '0 2px 8px rgba(168, 85, 247, 0.2)'
+                                    }}
+                                    onClick={() => {
+                                      setDetailClient(client);
+                                      setClientDetailTab('avaliacoes');
+                                      setShowClientDetailModal(true);
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-stethoscope"></i> Avaliação
+                                  </button>
+                                ) : client._id ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      width: '100%',
+                                      padding: '9px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px',
+                                      background: 'linear-gradient(135deg, rgba(16,185,129,0.25) 0%, rgba(5,150,105,0.35) 100%)',
+                                      color: '#34d399',
+                                      border: '1px solid rgba(16, 185, 129, 0.5)',
+                                      fontWeight: 900,
+                                      borderRadius: '10px',
+                                      fontSize: '0.8rem',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)'
+                                    }}
+                                    onClick={() => {
+                                      setBuilderClient(client);
+                                      if (todayTreino?.tipo === 'ficha' && todayTreino?.fichaId) {
+                                        setActiveWorkoutSubTab(todayTreino.fichaId as any);
+                                      }
+                                      setShowWorkoutBuilder(true);
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-dumbbell"></i>
+                                    {todayTreino?.tipo === 'ficha' && todayTreino?.fichaId
+                                      ? `Abrir Ficha ${todayTreino.fichaId}`
+                                      : 'Abrir Ficha'}
+                                  </button>
+                                ) : null}
+                              </div>
+
+                              {/* Botão Primário Direito: Presença Rápida */}
+                              <div style={{ flex: 1 }}>
                                 <button
                                   type="button"
                                   className="btn btn-sm"
                                   style={{
                                     width: '100%',
-                                    padding: '7px',
+                                    background: isPresente 
+                                      ? 'rgba(16, 185, 129, 0.2)' 
+                                      : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    color: isPresente ? '#34d399' : '#ffffff',
+                                    border: isPresente ? '1px solid rgba(16, 185, 129, 0.5)' : 'none',
+                                    padding: '9px 12px',
+                                    borderRadius: '10px',
+                                    fontWeight: 900,
+                                    fontSize: '0.8rem',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '6px',
-                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                                    color: 'white',
-                                    border: 'none',
-                                    fontWeight: 800,
-                                    borderRadius: '6px',
                                     cursor: 'pointer',
-                                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)'
+                                    boxShadow: isPresente ? 'none' : '0 3px 12px rgba(16, 185, 129, 0.4)',
+                                    transition: 'all 0.15s ease'
                                   }}
-                                  onClick={() => handleOpenEmergencyFinalization(a)}
-                                >
-                                  <i className="fa-solid fa-flag-checkered"></i> Finalizar Atendimento de Emergência
-                                </button>
-                              ) : client._id && (
-                                <button
-                                  type="button"
-                                  className="btn btn-primary btn-sm"
-                                  style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 700 }}
                                   onClick={() => {
-                                    setBuilderClient(client);
-                                    setShowWorkoutBuilder(true);
+                                    if (isPresente) {
+                                      setWellnessApt(a);
+                                      setShowWellnessModal(true);
+                                    } else {
+                                      handleUpdateAptStatus(a._id, 'presenca');
+                                    }
                                   }}
+                                  title={isPresente ? "Clique para ver questionário Wellness" : "Confirmar Presença e responder Wellness"}
                                 >
-                                  <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
+                                  <i className="fa-solid fa-check"></i>
+                                  <span>{isPresente ? 'Presente' : 'Presença'}</span>
                                 </button>
-                              )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -9751,6 +10382,7 @@ goniometria: {
                           <option value="Teste de Força">Teste de Força</option>
                           <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
                           <option value="Emergência">Atendimento de Emergência</option>
+                          <option value="Terapia Manual">Terapia Manual</option>
                         </>
                       )}
                     </select>
@@ -9806,8 +10438,6 @@ goniometria: {
                   <div className="form-group">
                     <label>Serviço</label>
                     <select className="select-custom" value={fsService} onChange={e => setFsService(e.target.value)} required>
-                      <option value="Atendimento Individual">Atendimento Individual</option>
-                      <option value="Quiropraxia">Quiropraxia</option>
                       <option value="Treino Monitorado">Treino Monitorado</option>
                       <option value="Treino Livre">Treino Livre</option>
                     </select>

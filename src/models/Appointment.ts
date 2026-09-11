@@ -16,6 +16,16 @@ const WellnessSchema = new Schema({
   profissionalId: { type: Schema.Types.ObjectId, ref: 'Professional' }
 }, { _id: false });
 
+const TreinoExecutadoSchema = new Schema({
+  tipo: { type: String, enum: ['ficha', 'livre', 'clinico', 'outro'], default: 'ficha' },
+  fichaId: { type: String, default: '' },       // 'A', 'B', 'C', 'D', 'E', 'F', 'G'
+  fichaNome: { type: String, default: '' },     // ex: 'Ficha A - Peitoral e Tríceps'
+  categoria: { type: String, enum: ['fichasMonitorado', 'fichasLivre', 'clinico'], default: 'fichasMonitorado' },
+  observacoes: { type: String, default: '' },
+  dataHora: { type: Date, default: Date.now },
+  registradoPor: { type: Schema.Types.ObjectId, ref: 'Professional' }
+}, { _id: false });
+
 const AppointmentSchema = new Schema({
   data: { type: String, required: true }, // formato YYYY-MM-DD
   horario: { type: String, required: true }, // formato HH:MM
@@ -35,7 +45,8 @@ const AppointmentSchema = new Schema({
   mesReferencia: { type: String, default: '' }, // formato YYYY-MM
   linkedAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', default: null },
   isBlocoContinuacao: { type: Boolean, default: false },
-  wellness: { type: WellnessSchema, default: null }
+  wellness: { type: WellnessSchema, default: null },
+  treinoExecutado: { type: TreinoExecutadoSchema, default: null }
 }, { timestamps: true });
 
 export default models.Appointment || model('Appointment', AppointmentSchema);

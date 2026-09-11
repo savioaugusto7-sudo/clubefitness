@@ -7,13 +7,14 @@ interface WellnessModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: any;
-  onConfirm: (wellnessData: { sono: number; fadiga: number; dorMuscular: number }) => Promise<void>;
+  onConfirm: (wellnessData: { sono: number; fadiga: number; dorMuscular: number; treinoExecutado?: any }) => Promise<void>;
 }
 
 export default function WellnessModal({ isOpen, onClose, appointment, onConfirm }: WellnessModalProps) {
   const [sono, setSono] = useState<number>(3);
   const [fadiga, setFadiga] = useState<number>(3);
   const [dorMuscular, setDorMuscular] = useState<number>(2);
+  const [selectedFicha, setSelectedFicha] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showSummary, setShowSummary] = useState(false);
@@ -33,6 +34,13 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
           setSono(3);
           setFadiga(3);
           setDorMuscular(2);
+        }
+        if (appointment?.treinoExecutado?.fichaId) {
+          setSelectedFicha(appointment.treinoExecutado.fichaId);
+        } else if (appointment?.treinoExecutado?.tipo === 'livre') {
+          setSelectedFicha('livre');
+        } else {
+          setSelectedFicha('');
         }
         setErrorMessage('');
         setShowSummary(false);
@@ -56,7 +64,17 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
     setIsSaving(true);
     setErrorMessage('');
     try {
-      await onConfirm({ sono, fadiga, dorMuscular });
+      const payload: any = { sono, fadiga, dorMuscular };
+      if (selectedFicha) {
+        payload.treinoExecutado = {
+          tipo: selectedFicha === 'livre' ? 'livre' : 'ficha',
+          fichaId: selectedFicha === 'livre' ? '' : selectedFicha,
+          fichaNome: selectedFicha === 'livre' ? 'Treino Livre' : `Ficha ${selectedFicha}`,
+          categoria: 'fichasMonitorado',
+          dataHora: new Date()
+        };
+      }
+      await onConfirm(payload);
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || 'Erro ao registrar questionário Wellness.');
@@ -388,6 +406,56 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
               </div>
               <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main, #fff)', textAlign: 'right' }}>
                 👉 {currentResult.conduta}
+              </div>
+            </div>
+
+            {/* Seleção do Treino de Hoje (Opcional no momento da presença) */}
+            <div style={{ marginBottom: '16px', background: 'var(--bg-darker, #0f172a)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main, #fff)', display: 'block', marginBottom: '8px' }}>
+                <i className="fa-solid fa-dumbbell" style={{ color: '#10b981', marginRight: '6px' }}></i>
+                Qual treino o aluno irá realizar hoje? (Opcional)
+              </label>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {['A', 'B', 'C', 'D', 'E'].map(letra => {
+                  const isSel = selectedFicha === letra;
+                  return (
+                    <button
+                      key={letra}
+                      type="button"
+                      onClick={() => setSelectedFicha(isSel ? '' : letra)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        borderRadius: '6px',
+                        border: isSel ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                        background: isSel ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
+                        color: isSel ? '#10b981' : 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {isSel && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
+                      Ficha {letra}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setSelectedFicha(selectedFicha === 'livre' ? '' : 'livre')}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: selectedFicha === 'livre' ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                    background: selectedFicha === 'livre' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
+                    color: selectedFicha === 'livre' ? '#10b981' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {selectedFicha === 'livre' && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
+                  Treino Livre
+                </button>
               </div>
             </div>
 

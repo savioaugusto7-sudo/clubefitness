@@ -1126,7 +1126,13 @@ export default function AgendaCompletaPanel({
                             onClick={() => {
                               setSelectedSlot(slot);
                               const isSat = selectedDate ? new Date(selectedDate + 'T12:00:00').getDay() === 6 : false;
-                              setManualService(isSat ? 'Massagem' : 'Treino Monitorado');
+                              if (slot.tipo === 'dr_albert') {
+                                setManualService('Consulta');
+                              } else if (slot.tipo === 'dr_guilherme') {
+                                setManualService('Avaliação Fisioterápica');
+                              } else {
+                                setManualService(isSat ? 'Massagem' : 'Treino Monitorado');
+                              }
                               setShowDetailsModal(true);
                             }}
                           >
@@ -1652,18 +1658,40 @@ export default function AgendaCompletaPanel({
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Serviço</label>
                       <select className="select-custom" value={manualService} onChange={e => setManualService(e.target.value)} style={{ width: '100%', padding: '10px' }}>
-                        {selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 && selectedSlot.tipo === 'academia' ? (
-                          <option value="Massagem">Massagem</option>
-                        ) : selectedSlot.tipo === 'dr_albert' || selectedSlot.tipo === 'dr_guilherme' ? (
+                        {selectedSlot.tipo === 'dr_albert' ? (
                           <>
+                            <option value="Consulta">Consulta / Consulta Médica</option>
+                            <option value="Avaliação Física">Avaliação Física</option>
                             <option value="Atendimento Individual">Atendimento Individual</option>
+                          </>
+                        ) : selectedSlot.tipo === 'dr_guilherme' ? (
+                          <>
+                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                            <option value="Avaliação Física">Avaliação Física</option>
+                            <option value="Teste de Força">Teste de Força</option>
+                            <option value="Sessão de Fisioterapia">Sessão de Fisioterapia</option>
                             <option value="Quiropraxia">Quiropraxia</option>
+                            <option value="Terapia Manual">Terapia Manual</option>
+                            <option value="Atendimento Individual">Atendimento Individual</option>
+                          </>
+                        ) : selectedDate && new Date(selectedDate + 'T12:00:00').getDay() === 6 ? (
+                          <>
+                            <option value="Massagem">Massagem</option>
                             <option value="Treino Monitorado">Treino Monitorado</option>
+                            <option value="Treino Livre">Treino Livre</option>
+                            <option value="Recovery">Recovery</option>
                           </>
                         ) : (
                           <>
                             <option value="Treino Monitorado">Treino Monitorado</option>
                             <option value="Treino Livre">Treino Livre</option>
+                            <option value="Recovery">Recovery</option>
+                            <option value="Avaliação Física">Avaliação Física</option>
+                            <option value="Teste de Força">Teste de Força</option>
+                            <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                            <option value="Emergência">Atendimento de Emergência</option>
+                            <option value="Terapia Manual">Terapia Manual</option>
+                            <option value="Massagem">Massagem</option>
                           </>
                         )}
                       </select>
