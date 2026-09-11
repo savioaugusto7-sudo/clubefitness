@@ -163,7 +163,13 @@ export default function AgendaCompletaPanel({
   onOpenEmergencyFinalization
 }: AgendaCompletaPanelProps) {
   // Aba selecionada: 'academia' | 'dr_albert' | 'dr_guilherme' | 'consultorio' | professionalId
-  const [activeTab, setActiveTab] = useState<string>('academia');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const isGuilherme = (userName || '').toLowerCase().includes('guilherme') || professionals.find(p => p._id === professionalId)?.nome.toLowerCase().includes('guilherme');
+    const isAlbert = (userName || '').toLowerCase().includes('albert') || professionals.find(p => p._id === professionalId)?.nome.toLowerCase().includes('albert');
+    if (isGuilherme) return 'dr_guilherme';
+    if (isAlbert) return 'dr_albert';
+    return 'academia';
+  });
 
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
@@ -1689,9 +1695,13 @@ export default function AgendaCompletaPanel({
                             <option value="Avaliação Física">Avaliação Física</option>
                             <option value="Teste de Força">Teste de Força</option>
                             <option value="Avaliação Fisioterápica">Avaliação Fisioterápica</option>
+                            <option value="Sessão de Fisioterapia">Sessão de Fisioterapia</option>
+                            <option value="Quiropraxia">Quiropraxia</option>
                             <option value="Emergência">Atendimento de Emergência</option>
                             <option value="Terapia Manual">Terapia Manual</option>
+                            <option value="Atendimento Individual">Atendimento Individual</option>
                             <option value="Massagem">Massagem</option>
+                            <option value="Consulta">Consulta / Consulta Médica</option>
                           </>
                         )}
                       </select>

@@ -171,6 +171,24 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     cor: '#ec4899',
     descricao: 'Massoterapia e relaxamento',
     tipoCredito: 'massagem'
+  },
+  {
+    id: 'sessao_fisioterapia',
+    nome: 'Sessão de Fisioterapia',
+    vagasNecessarias: 1,
+    icone: 'fa-user-nurse',
+    cor: '#10b981',
+    descricao: 'Reabilitação e fisioterapia clínica',
+    tipoCredito: 'academia'
+  },
+  {
+    id: 'atendimento_individual',
+    nome: 'Atendimento Individual',
+    vagasNecessarias: 1,
+    icone: 'fa-user-check',
+    cor: '#a855f7',
+    descricao: 'Atendimento clínico individual',
+    tipoCredito: 'academia'
   }
 ];
 
@@ -180,12 +198,59 @@ export default function AgendamentoProfissionalPanel({
   currentProfessionalId,
   onSuccess
 }: AgendamentoProfissionalPanelProps) {
+  // Determinar agenda padrão
+  const currentProfObj = professionals.find(p => p._id === (currentProfessionalId || ''));
+  const isAlbert = currentProfObj?.nome?.toLowerCase().includes('albert');
+  const isGuilherme = currentProfObj?.nome?.toLowerCase().includes('guilherme');
+
+  const [agendaTipo, setAgendaTipo] = useState<'academia' | 'dr_albert' | 'dr_guilherme'>(() => {
+    if (isAlbert) return 'dr_albert';
+    if (isGuilherme) return 'dr_guilherme';
+    return 'academia';
+  });
+
+  const servicosDisponiveisFiltrados = useMemo(() => {
+    if (agendaTipo === 'dr_guilherme') {
+      const allowed = ['Avaliação Fisioterápica', 'Avaliação Física', 'Teste de Força', 'Sessão de Fisioterapia', 'Quiropraxia', 'Terapia Manual', 'Atendimento Individual'];
+      return SERVICOS_DISPONIVEIS.filter(s => allowed.includes(s.nome));
+    }
+    if (agendaTipo === 'dr_albert') {
+      const allowed = ['Consulta', 'Avaliação Física', 'Atendimento Individual'];
+      return SERVICOS_DISPONIVEIS.filter(s => allowed.includes(s.nome));
+    }
+    return SERVICOS_DISPONIVEIS;
+  }, [agendaTipo]);
+
   // Etapa 1: Aluno
   const [searchStudent, setSearchStudent] = useState('');
   const [selectedClient, setSelectedClient] = useState<ClientInfo | null>(null);
 
   // Etapa 2: Serviço
-  const [selectedService, setSelectedService] = useState<ServiceOption>(SERVICOS_DISPONIVEIS[0]);
+  const [selectedService, setSelectedService] = useState<ServiceOption>(() => {
+    if (isGuilherme) {
+      return SERVICOS_DISPONIVEIS.find(s => s.nome === 'Avaliação Fisioterápica') || SERVICOS_DISPONIVEIS[0];
+    }
+    if (isAlbert) {
+      return SERVICOS_DISPONIVEIS.find(s => s.nome === 'Consulta') || SERVICOS_DISPONIVEIS[0];
+    }
+    return SERVICOS_DISPONIVEIS[0];
+  });
+
+  // Atualizar serviço padrão ao trocar de tipo de agenda se não pertencer à lista
+  useEffect(() => {
+    const isServiceAllowed = servicosDisponiveisFiltrados.some(s => s.id === selectedService.id);
+    if (!isServiceAllowed && servicosDisponiveisFiltrados.length > 0) {
+      if (agendaTipo === 'dr_guilherme') {
+        const defaultGuilherme = servicosDisponiveisFiltrados.find(s => s.nome === 'Avaliação Fisioterápica') || servicosDisponiveisFiltrados[0];
+        setSelectedService(defaultGuilherme);
+      } else if (agendaTipo === 'dr_albert') {
+        const defaultAlbert = servicosDisponiveisFiltrados.find(s => s.nome === 'Consulta') || servicosDisponiveisFiltrados[0];
+        setSelectedService(defaultAlbert);
+      } else {
+        setSelectedService(servicosDisponiveisFiltrados[0]);
+      }
+    }
+  }, [agendaTipo, servicosDisponiveisFiltrados, selectedService.id]);
 
   // Etapa 3: Data
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -201,17 +266,6 @@ export default function AgendamentoProfissionalPanel({
   // Etapa 5: Profissional e Observações
   const [selectedProfId, setSelectedProfId] = useState<string>(currentProfessionalId || '');
   const [observacoes, setObservacoes] = useState('');
-
-  // Determinar agenda padrão
-  const currentProfObj = professionals.find(p => p._id === (currentProfessionalId || selectedProfId));
-  const isAlbert = currentProfObj?.nome?.toLowerCase().includes('albert');
-  const isGuilherme = currentProfObj?.nome?.toLowerCase().includes('guilherme');
-
-  const [agendaTipo, setAgendaTipo] = useState<'academia' | 'dr_albert' | 'dr_guilherme'>(() => {
-    if (isAlbert) return 'dr_albert';
-    if (isGuilherme) return 'dr_guilherme';
-    return 'academia';
-  });
 
   // Status de Submissão & Feedback
   const [submitting, setSubmitting] = useState(false);
@@ -697,7 +751,7 @@ export default function AgendamentoProfissionalPanel({
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
-              {SERVICOS_DISPONIVEIS.map(srv => {
+              {servicosDisponiveisFiltrados.map(srv => {
                 const isSelected = selectedService.id === srv.id;
                 return (
                   <div
