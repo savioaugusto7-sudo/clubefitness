@@ -6018,6 +6018,7 @@ export default function GestaoContratosPanel({
                             const isRenovado = c.status === 'renovado' || c.status === 'expirado' || c.status === 'substituido';
                             const isCancelado = c.status === 'cancelado';
                             const cType = c.isHistoricoSnapshot ? 'Histórico' : c.assinaturaPresencialImage ? 'Presencial (Touch)' : c.clicksignDocKey ? 'Clicksign' : 'Manual (Balcão)';
+                            const isPendente = !isSigned && !isRenovado && !isCancelado && !c.isHistoricoSnapshot;
                             const statusLabel = isSigned 
                               ? (c.clicksignDocKey ? '✅ Assinado' : '✅ Ativo / Presencial')
                               : isRenovado 
@@ -6052,7 +6053,7 @@ export default function GestaoContratosPanel({
                                       <i className="fa-solid fa-file-pdf"></i> PDF
                                     </button>
 
-                                    {st === 'pendente' && (
+                                    {isPendente && (
                                       <button
                                         type="button"
                                         className="btn btn-secondary btn-sm"
