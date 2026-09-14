@@ -42,10 +42,11 @@ export async function GET(request: Request) {
       ? '-contratoAnexo -assinaturaPresencialImage'
       : '';
 
-    let contracts = await Contract.find(query)
+    let contracts: any[] = await Contract.find(query)
       .select(selectProjection)
       .populate('planoId')
-      .sort({ versao: -1 });
+      .sort({ versao: -1, dataEmissao: -1 })
+      .lean();
 
     const token = process.env.CLICKSIGN_ACCESS_TOKEN;
     const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
@@ -57,7 +58,41 @@ export async function GET(request: Request) {
         contracts = await Contract.find(query)
           .select(selectProjection)
           .populate('planoId')
-          .sort({ versao: -1 });
+          .sort({ versao: -1, dataEmissao: -1 })
+          .lean();
+      }
+    }
+
+    // Se a consulta for por clientId específico, incluir também snapshots arquivados em client.historicoContratos
+    if (clientId && Array.isArray(contracts)) {
+      const clientDoc = await Client.findById(clientId).populate('historicoContratos.planoId').lean() as any;
+      if (clientDoc && Array.isArray(clientDoc.historicoContratos) && clientDoc.historicoContratos.length > 0) {
+        const existingStartDates = new Set(contracts.map((c: any) => c.dataInicio));
+        for (const [idx, hist] of clientDoc.historicoContratos.entries()) {
+          if (hist.dataInicio && !existingStartDates.has(hist.dataInicio)) {
+            contracts.push({
+              _id: hist._id || `hist_${idx}_${hist.dataInicio}`,
+              clientId: clientDoc._id,
+              planoId: hist.planoId,
+              planoNome: hist.planoNome || hist.planoId?.nome || 'Tratamento Anterior',
+              planoTipo: hist.duracao === 'anual' ? 'Anual' : 'Mensal',
+              valorBruto: hist.valorUnitario || hist.valorLiquido || 0,
+              valorLiquido: hist.valorLiquido || hist.valorUnitario || 0,
+              formaPagamento: hist.formaPagamento || 'Manual',
+              dataInicio: hist.dataInicio,
+              dataFim: hist.dataFim || hist.vencimento || '',
+              vigenciaMeses: hist.duracao === 'anual' ? 12 : (hist.vigenciaQtd || 1),
+              frequencia: hist.frequencia || 3,
+              creditosTotal: hist.creditosTotal || 0,
+              status: hist.status || 'renovado',
+              dataEmissao: hist.dataArquivamento || hist.dataInicio,
+              versao: 1,
+              assinaturaNome: 'Histórico / Registro Anterior',
+              isHistoricoSnapshot: true
+            } as any);
+          }
+        }
+        contracts.sort((a: any, b: any) => (b.dataInicio || '').localeCompare(a.dataInicio || ''));
       }
     }
 
@@ -586,16 +621,24 @@ export async function POST(request: Request) {
 
     const diaVenc = dataPrimeiroVencimento ? parseInt(dataPrimeiroVencimento.split('-')[2] || '5', 10) : new Date().getDate();
 
-    // Se houver contratos ativos assinados, podemos marcá-los como cancelados/inativos ao assinar o novo
-    if (status === 'assinado') {
-      await Contract.updateMany({ clientId, status: 'assinado' }, { status: 'cancelado' });
+    // Determinar se o contrato foi emitido/ativado presencialmente ou assinado
+    const isPresencialOrSigned = status === 'assinado' || status === 'vigente' || (!enviarClicksign && status !== 'pendente');
+    const finalContractStatus = isPresencialOrSigned ? 'assinado' : (status || 'pendente');
+    const finalClicksignStatus = enviarClicksign ? 'pendente' : 'dispensado';
+
+    // Se o novo contrato for ativo/assinado/presencial, marcar os contratos anteriores como 'renovado'
+    if (isPresencialOrSigned) {
+      await Contract.updateMany(
+        { clientId, status: { $in: ['assinado', 'vigente', 'ativo'] } },
+        { status: 'renovado' }
+      );
     }
 
     // Se enviar para clicksign estiver ativo, disparar fluxos da Clicksign API
     let clicksignDocKey = '';
     let clicksignSignerKey = '';
     let clicksignUrl = '';
-    let clicksignStatus = enviarClicksign ? 'pendente' : 'dispensado';
+    let clicksignStatus = finalClicksignStatus;
 
     if (enviarClicksign) {
       const recipientEmail = signerEmail || client.dadosPessoais?.email;
@@ -767,10 +810,10 @@ export async function POST(request: Request) {
       creditosTotal: calcCreditos,
       servicosInclusos: plan.servicosPermitidos || [],
       beneficiosInclusos: plan.beneficiosInclusos || [],
-      status: status || 'pendente',
+      status: finalContractStatus,
       versao,
-      assinaturaNome: status === 'assinado' ? (assinaturaNome || client.dadosPessoais.nome) : '',
-      assinaturaData: status === 'assinado' ? new Date() : undefined,
+      assinaturaNome: isPresencialOrSigned ? (assinaturaNome || client.dadosPessoais?.nome || 'Assinatura Presencial (Balcão)') : '',
+      assinaturaData: isPresencialOrSigned ? new Date() : undefined,
       contratoTexto: finalContratoTexto,
       contratoAnexo: contratoAnexo || '',
       usuarioEmissor: usuarioEmissor || ''
@@ -808,14 +851,14 @@ export async function POST(request: Request) {
     // await Payment.insertMany(paymentRecords);
 
     // 5. Arquivar contrato anterior no historicoContratos se existente (Anti-Sobrescrita)
-    if (client.dadosComerciais && client.dadosComerciais.dataInicio && client.dadosComerciais.vencimento) {
+    if (client.dadosComerciais && client.dadosComerciais.dataInicio && (client.dadosComerciais.vencimento || client.dadosComerciais.dataInicio !== dataInicio)) {
       const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
       const prevSnapshot = buildContractSnapshot(
         client.dadosComerciais, 
         'renovado', 
         `Substituído por novo contrato V${versao} (${plan.nome})`
       );
-      if (prevSnapshot && prevSnapshot.dataInicio && prevSnapshot.dataFim) {
+      if (prevSnapshot && prevSnapshot.dataInicio) {
         if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
         const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
         if (!alreadyArchived) {
@@ -825,7 +868,7 @@ export async function POST(request: Request) {
     }
 
     // 6. Atualizar o perfil comercial do cliente com os dados do contrato emitido
-    const targetClientStatus = (status === 'assinado' || status === 'vigente') ? 'ativo' : 'pendente';
+    const targetClientStatus = isPresencialOrSigned ? 'ativo' : 'pendente';
 
     Object.assign(client.dadosComerciais, {
       planoId: planoId,

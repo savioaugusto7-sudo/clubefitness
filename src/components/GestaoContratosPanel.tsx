@@ -1784,7 +1784,7 @@ export default function GestaoContratosPanel({
       const dataFimCalculada = calculateContractEndDate(msDataInicio, msDuracao, msVigenciaQtd, undefined, msCriarRecorrencia);
       const vigenciaMeses = isAnual ? 12 : (msDuracao === 'semestral' ? 6 : (Number(msVigenciaQtd) || 1));
 
-      // 1. Atualizar dados cadastrais e comerciais do cliente
+      // 1. Atualizar dados cadastrais pessoais do cliente
       const clientUpdatePayload = {
         id: manualSaleClient._id,
         dadosPessoais: {
@@ -1807,27 +1807,6 @@ export default function GestaoContratosPanel({
             email: msRespEmail,
             telefone: msRespTelefone
           } : undefined
-        },
-        dadosComerciais: {
-          ...(manualSaleClient.dadosComerciais || {}),
-          planoId: msPlano,
-          status: actionType === 'presencial' ? 'ativo' : 'pendente',
-          duracao: msDuracao,
-          duracaoQtd: msVigenciaQtd,
-          vigenciaQtd: msVigenciaQtd,
-          dataInicio: msDataInicio,
-          vencimento: dataFimCalculada,
-          dataPrimeiroVencimento: msDataPrimeiroVencimento || msDataInicio,
-          formaPagamento: msFormaPagamento,
-          valorUnitario: msValorUnitario,
-          parcelas: numParcelas,
-          descontoTipo: msDescontoTipo,
-          descontoValor: msDescontoValor,
-          frequencia: msFrequencia,
-          creditosTotal: msCreditosMensais,
-          creditosMassagemTotal: msCreditosMassagem,
-          creditosEmergenciaTotal: msCreditosEmergencia,
-          criarRecorrenciaMensal: msCriarRecorrencia
         },
         bloqueioCadastral: {
           bloqueado: actionType === 'clicksign',
@@ -1896,7 +1875,7 @@ export default function GestaoContratosPanel({
         dataInicio: msDataInicio,
         dataFim: dataFimCalculada,
         vigenciaMeses,
-        status: actionType === 'presencial' ? 'vigente' : 'pendente',
+        status: actionType === 'presencial' ? 'assinado' : 'pendente',
         contratoTexto: unifiedContractText,
         usuarioEmissor: userCargo || 'Administrador',
         unidadeContratada: plan?.unidadeAtendimento || 'Clube Fitness',
@@ -5683,12 +5662,14 @@ export default function GestaoContratosPanel({
                       );
                     }
 
+                    const isLatestSigned = latestContract.status === 'assinado' || latestContract.status === 'vigente' || latestContract.clicksignStatus === 'assinado';
+
                     return (
                       <div style={{
-                        background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado')
+                        background: isLatestSigned
                           ? 'linear-gradient(135deg, rgba(6, 95, 70, 0.4) 0%, rgba(15, 23, 42, 0.95) 100%)'
                           : 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(15, 23, 42, 0.95) 100%)',
-                        border: `1px solid ${(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+                        border: `1px solid ${isLatestSigned ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
                         borderRadius: '16px',
                         padding: '16px 20px',
                         display: 'flex',
@@ -5703,8 +5684,8 @@ export default function GestaoContratosPanel({
                               width: '40px',
                               height: '40px',
                               borderRadius: '10px',
-                              background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                              color: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#34d399' : '#fbbf24',
+                              background: isLatestSigned ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                              color: isLatestSigned ? '#34d399' : '#fbbf24',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -5720,12 +5701,12 @@ export default function GestaoContratosPanel({
                                   padding: '2px 8px',
                                   borderRadius: '6px',
                                   fontWeight: 800,
-                                  background: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#065f46' : 'rgba(245, 158, 11, 0.25)',
-                                  color: (latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#34d399' : '#fbbf24',
-                                  border: `1px solid ${(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado') ? '#10b981' : '#f59e0b'}`
+                                  background: isLatestSigned ? '#065f46' : 'rgba(245, 158, 11, 0.25)',
+                                  color: isLatestSigned ? '#34d399' : '#fbbf24',
+                                  border: `1px solid ${isLatestSigned ? '#10b981' : '#f59e0b'}`
                                 }}>
-                                  {(latestContract.status === 'assinado' || latestContract.clicksignStatus === 'assinado')
-                                    ? '✅ ASSINADO DIGITALMENTE'
+                                  {isLatestSigned
+                                    ? (latestContract.clicksignDocKey ? '✅ ASSINADO DIGITALMENTE' : '✅ ATIVO / PRESENCIAL')
                                     : '⏳ AGUARDANDO ASSINATURA'}
                                 </span>
                               </h4>
@@ -5737,7 +5718,7 @@ export default function GestaoContratosPanel({
 
                           {/* Barra de Ações do Clicksign */}
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {latestContract.clicksignUrl && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                            {latestContract.clicksignUrl && !isLatestSigned && (
                               <a
                                 href={latestContract.clicksignUrl}
                                 target="_blank"
@@ -5749,7 +5730,7 @@ export default function GestaoContratosPanel({
                               </a>
                             )}
 
-                            {latestContract.clicksignDocKey && (latestContract.status !== 'assinado' && latestContract.clicksignStatus !== 'assinado') && (
+                            {latestContract.clicksignDocKey && !isLatestSigned && (
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
@@ -6033,18 +6014,27 @@ export default function GestaoContratosPanel({
                         </thead>
                         <tbody>
                           {contracts.map((c: any) => {
-                            const cType = c.assinaturaPresencialImage ? 'Presencial (Touch)' : c.clicksignDocKey ? 'Clicksign' : 'Manual';
-                            const st = c.status === 'assinado' ? 'assinado' : (c.clicksignStatus || c.status);
-                            const statusColor = st === 'assinado' ? 'var(--color-success)' : st === 'cancelado' ? 'var(--color-danger)' : 'var(--color-warning)';
+                            const isSigned = c.status === 'assinado' || c.status === 'vigente' || c.clicksignStatus === 'assinado';
+                            const isRenovado = c.status === 'renovado' || c.status === 'expirado' || c.status === 'substituido';
+                            const isCancelado = c.status === 'cancelado';
+                            const cType = c.isHistoricoSnapshot ? 'Histórico' : c.assinaturaPresencialImage ? 'Presencial (Touch)' : c.clicksignDocKey ? 'Clicksign' : 'Manual (Balcão)';
+                            const statusLabel = isSigned 
+                              ? (c.clicksignDocKey ? '✅ Assinado' : '✅ Ativo / Presencial')
+                              : isRenovado 
+                              ? '🔄 Renovado' 
+                              : isCancelado 
+                              ? '❌ Cancelado' 
+                              : '⏳ Pendente';
+                            const statusColor = isSigned ? 'var(--color-success)' : isRenovado ? '#38bdf8' : isCancelado ? 'var(--color-danger)' : 'var(--color-warning)';
                             
                             return (
                               <tr key={c._id}>
-                                <td>{new Date(c.dataEmissao).toLocaleDateString('pt-BR')}</td>
+                                <td>{c.dataEmissao ? new Date(c.dataEmissao).toLocaleDateString('pt-BR') : (c.dataInicio ? new Date(c.dataInicio + 'T12:00:00').toLocaleDateString('pt-BR') : '—')}</td>
                                 <td style={{ fontWeight: 700, color: '#fff' }}>{c.planoNome}</td>
                                 <td>{cType}</td>
                                 <td>
                                   <span style={{ color: statusColor, fontWeight: 800 }}>
-                                    {st === 'assinado' ? '✅ Assinado' : st === 'cancelado' ? '❌ Cancelado' : '⏳ Pendente'}
+                                    {statusLabel}
                                   </span>
                                 </td>
                                 <td>
