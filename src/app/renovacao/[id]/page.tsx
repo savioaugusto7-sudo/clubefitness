@@ -266,25 +266,51 @@ export default function RenovacaoPage({ params }: { params: any }) {
 
             <div style={{ background: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.3)', padding: '18px', borderRadius: '14px', marginBottom: '24px', textAlign: 'left' }}>
               <div style={{ fontWeight: 700, color: '#25D366', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-brands fa-whatsapp fa-lg"></i> Receba no WhatsApp
+                <i className="fa-brands fa-whatsapp fa-lg"></i> Assinatura via Clicksign & WhatsApp
               </div>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: 1.4 }}>
-                O link para assinatura eletrônica foi encaminhado para o seu WhatsApp/E-mail. Você pode assinar diretamente pelo celular em menos de 1 minuto!
+                O envelope foi gerado na plataforma oficial <strong>Clicksign</strong>. Você pode assinar agora mesmo abaixo ou abrir diretamente no seu WhatsApp.
               </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {clicksignUrl && (
                 <a 
                   href={clicksignUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="btn btn-primary" 
-                  style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none' }}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)' }}
                 >
                   <i className="fa-solid fa-signature"></i> Assinar Agora no Clicksign
                 </a>
               )}
+
+              {telefone && (
+                <a
+                  href={`https://api.whatsapp.com/send?phone=${telefone.replace(/\D/g, '').startsWith('55') ? telefone.replace(/\D/g, '') : '55' + telefone.replace(/\D/g, '')}&text=${encodeURIComponent(`Olá ${clientName}! Segue o link oficial do seu contrato de renovação no Clicksign para assinatura eletrônica: ${clicksignUrl || window.location.href}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    textDecoration: 'none',
+                    background: 'rgba(37, 211, 102, 0.15)',
+                    color: '#25D366',
+                    border: '1px solid #25D366'
+                  }}
+                >
+                  <i className="fa-brands fa-whatsapp fa-lg"></i> Abrir Contrato no WhatsApp
+                </a>
+              )}
+
               <button 
                 type="button"
                 className="btn btn-secondary" 

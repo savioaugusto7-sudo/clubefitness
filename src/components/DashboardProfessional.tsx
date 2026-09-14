@@ -3016,16 +3016,22 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }, `${clientName} - ${details}`);
   };
 
-  const handleSelectWorkoutForApt = async (apt: any, sheetId: string, sheetNome: string, tipo: 'ficha' | 'livre' = 'ficha') => {
+  const handleSelectWorkoutForApt = async (
+    apt: any, 
+    sheetId: string, 
+    sheetNome: string, 
+    tipo: 'ficha' | 'livre' = 'ficha',
+    categoria: 'fichasMonitorado' | 'fichasLivre' = 'fichasMonitorado'
+  ) => {
     const targetClientId = apt?.clienteId?._id || apt?.clienteId || null;
     const clientName = apt?.clienteId?.dadosPessoais?.nome || apt?.clienteId?.nome || '';
     const executorProfId = professionalId || (session?.user as any)?.id || null;
 
     const treinoData = {
       tipo,
-      fichaId: tipo === 'livre' ? '' : sheetId,
-      fichaNome: tipo === 'livre' ? 'Treino Livre' : (sheetNome || `Ficha ${sheetId}`),
-      categoria: 'fichasMonitorado',
+      fichaId: sheetId,
+      fichaNome: sheetNome || `Ficha ${sheetId}`,
+      categoria,
       dataHora: new Date(),
       registradoPor: executorProfId
     };
@@ -5412,9 +5418,12 @@ goniometria: {
 
                         // Dados de treinos do aluno para a seleção rápida
                         const userWorkout = workouts.find((w: any) => String(w.clienteId?._id || w.clienteId) === String(client._id));
-                        const availableSheets = (userWorkout?.fichasMonitorado || []).filter((f: any) => f.id);
+                        const monitoradoSheets = (userWorkout?.fichasMonitorado || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
+                        const livreSheets = (userWorkout?.fichasLivre || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
+                        const hasAnyWorkout = monitoradoSheets.length > 0 || livreSheets.length > 0;
                         const todayTreino = a.treinoExecutado;
-                        const activeLetter = todayTreino?.tipo === 'livre' ? 'livre' : (todayTreino?.fichaId || '');
+                        const activeFichaId = todayTreino?.fichaId || '';
+                        const activeCategoria = todayTreino?.categoria || (todayTreino?.tipo === 'livre' ? 'fichasLivre' : 'fichasMonitorado');
                         const isMenuOpen = cardMenuOpenId === a._id;
 
                         return (
@@ -5693,73 +5702,151 @@ goniometria: {
 
                             {/* Linha 4: Seletor de Fichas estilo 'Segmented Bar' (Academia) */}
                             {meta.key === 'academia' && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span style={{ fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#64748b' }}>
                                     Ficha de Hoje:
                                   </span>
                                   {todayTreino && (
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: meta.badgeColor }}>
-                                      {todayTreino.tipo === 'livre' ? '● Livre ativa' : `● Ficha ${todayTreino.fichaId} ativa`}
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: activeCategoria === 'fichasLivre' ? '#38bdf8' : '#10b981' }}>
+                                      {activeCategoria === 'fichasLivre' 
+                                        ? `● Livre - Ficha ${todayTreino.fichaId || 'Livre'} ativa`
+                                        : `● Monitorado - Ficha ${todayTreino.fichaId} ativa`}
                                     </span>
                                   )}
                                 </div>
 
-                                <div style={{
-                                  background: 'rgba(0, 0, 0, 0.45)',
-                                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                                  borderRadius: '10px',
-                                  padding: '3px',
-                                  display: 'flex',
-                                  gap: '3px'
-                                }}>
-                                  {(availableSheets.length > 0 ? availableSheets : [{ id: 'A', nome: 'Ficha A' }, { id: 'B', nome: 'Ficha B' }, { id: 'C', nome: 'Ficha C' }]).map((s: any) => {
-                                    const isSelected = activeLetter === s.id;
-                                    return (
-                                      <button
-                                        key={s.id}
-                                        type="button"
-                                        onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'ficha')}
-                                        style={{
+                                {!hasAnyWorkout ? (
+                                  <div style={{
+                                    background: 'rgba(239, 68, 68, 0.08)',
+                                    border: '1px solid rgba(239, 68, 68, 0.22)',
+                                    borderRadius: '10px',
+                                    padding: '8px 12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    color: '#fca5a5',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600
+                                  }}>
+                                    <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', fontSize: '0.85rem' }}></i>
+                                    <span>Aluno sem ficha de treino cadastrada</span>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {/* Grupo Fichas Monitoradas */}
+                                    {monitoradoSheets.length > 0 && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{
+                                          fontSize: '0.62rem',
+                                          fontWeight: 800,
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.5px',
+                                          color: '#10b981',
+                                          background: 'rgba(16, 185, 129, 0.12)',
+                                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                                          padding: '3px 7px',
+                                          borderRadius: '6px',
+                                          flexShrink: 0
+                                        }}>
+                                          Monitorado
+                                        </span>
+                                        <div style={{
                                           flex: 1,
-                                          padding: '6px 0',
-                                          borderRadius: '7px',
-                                          fontSize: '0.75rem',
-                                          fontWeight: isSelected ? 900 : 600,
-                                          border: 'none',
-                                          background: isSelected ? `linear-gradient(135deg, ${meta.badgeColor}, #059669)` : 'transparent',
-                                          color: isSelected ? '#ffffff' : '#94a3b8',
-                                          cursor: 'pointer',
-                                          boxShadow: isSelected ? `0 2px 10px ${meta.badgeColor}45` : 'none',
-                                          transition: 'all 0.15s ease'
-                                        }}
-                                        title={s.nome || `Ficha ${s.id}`}
-                                      >
-                                        {isSelected ? `⭐ ${s.id}` : s.id}
-                                      </button>
-                                    );
-                                  })}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSelectWorkoutForApt(a, '', 'Treino Livre', 'livre')}
-                                    style={{
-                                      flex: 1,
-                                      padding: '6px 0',
-                                      borderRadius: '7px',
-                                      fontSize: '0.75rem',
-                                      fontWeight: activeLetter === 'livre' ? 900 : 600,
-                                      border: 'none',
-                                      background: activeLetter === 'livre' ? `linear-gradient(135deg, ${meta.badgeColor}, #059669)` : 'transparent',
-                                      color: activeLetter === 'livre' ? '#ffffff' : '#94a3b8',
-                                      cursor: 'pointer',
-                                      boxShadow: activeLetter === 'livre' ? `0 2px 10px ${meta.badgeColor}45` : 'none',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    title="Treino Livre / Salão"
-                                  >
-                                    {activeLetter === 'livre' ? '⭐ Livre' : 'Livre'}
-                                  </button>
-                                </div>
+                                          background: 'rgba(0, 0, 0, 0.45)',
+                                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                                          borderRadius: '9px',
+                                          padding: '3px',
+                                          display: 'flex',
+                                          gap: '3px'
+                                        }}>
+                                          {monitoradoSheets.map((s: any) => {
+                                            const isSelected = activeFichaId === s.id && activeCategoria === 'fichasMonitorado';
+                                            return (
+                                              <button
+                                                key={s.id}
+                                                type="button"
+                                                onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'ficha', 'fichasMonitorado')}
+                                                style={{
+                                                  flex: 1,
+                                                  padding: '5px 0',
+                                                  borderRadius: '6px',
+                                                  fontSize: '0.74rem',
+                                                  fontWeight: isSelected ? 900 : 700,
+                                                  border: 'none',
+                                                  background: isSelected ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+                                                  color: isSelected ? '#ffffff' : '#94a3b8',
+                                                  cursor: 'pointer',
+                                                  boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.4)' : 'none',
+                                                  transition: 'all 0.15s ease'
+                                                }}
+                                                title={`Monitorado - ${s.nome || `Ficha ${s.id}`}`}
+                                              >
+                                                {isSelected ? `⭐ ${s.id}` : s.id}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Grupo Fichas Livres */}
+                                    {livreSheets.length > 0 && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{
+                                          fontSize: '0.62rem',
+                                          fontWeight: 800,
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.5px',
+                                          color: '#38bdf8',
+                                          background: 'rgba(56, 189, 248, 0.12)',
+                                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                                          padding: '3px 7px',
+                                          borderRadius: '6px',
+                                          flexShrink: 0
+                                        }}>
+                                          Livre
+                                        </span>
+                                        <div style={{
+                                          flex: 1,
+                                          background: 'rgba(0, 0, 0, 0.45)',
+                                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                                          borderRadius: '9px',
+                                          padding: '3px',
+                                          display: 'flex',
+                                          gap: '3px'
+                                        }}>
+                                          {livreSheets.map((s: any) => {
+                                            const isSelected = activeFichaId === s.id && activeCategoria === 'fichasLivre';
+                                            return (
+                                              <button
+                                                key={s.id}
+                                                type="button"
+                                                onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'livre', 'fichasLivre')}
+                                                style={{
+                                                  flex: 1,
+                                                  padding: '5px 0',
+                                                  borderRadius: '6px',
+                                                  fontSize: '0.74rem',
+                                                  fontWeight: isSelected ? 900 : 700,
+                                                  border: 'none',
+                                                  background: isSelected ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'transparent',
+                                                  color: isSelected ? '#ffffff' : '#94a3b8',
+                                                  cursor: 'pointer',
+                                                  boxShadow: isSelected ? '0 2px 8px rgba(56, 189, 248, 0.4)' : 'none',
+                                                  transition: 'all 0.15s ease'
+                                                }}
+                                                title={`Livre - ${s.nome || `Ficha ${s.id}`}`}
+                                              >
+                                                {isSelected ? `⭐ ${s.id}` : s.id}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
 

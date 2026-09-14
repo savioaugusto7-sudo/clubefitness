@@ -76,9 +76,9 @@ function formatClicksignPhone(phone: string): string {
   if (!phone) return '';
   let digits = phone.replace(/\D/g, '');
   if (!digits) return '';
-  // Se vier com 12 ou 13 dígitos começando com 55 (DDI), remove o 55 para manter os 10 ou 11 dígitos padrão
-  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
-    digits = digits.substring(2);
+  // Se vier com 10 ou 11 dígitos (DDD + número), adiciona o DDI 55
+  if (digits.length === 10 || digits.length === 11) {
+    digits = `55${digits}`;
   }
   return digits;
 }
@@ -197,7 +197,13 @@ export async function createClicksignDocument(
             signature_reminder: 'none',
             document_signed: 'whatsapp'
           }
-        } : {})
+        } : {
+          communicate_events: {
+            signature_request: 'email',
+            signature_reminder: 'none',
+            document_signed: 'email'
+          }
+        })
       }
     }
   };
@@ -237,27 +243,71 @@ export async function createClicksignDocument(
   await handleError(reqQualRes, 'Criar Requisito de Qualificação');
 
   // ──────────────────────────────────────────────────────────
-  // PASSO 4b — Requisito de Autenticação do Aluno (WhatsApp)
-  // action: "provide_evidence", auth: "whatsapp"
+  // PASSO 4b — Requisito de Autenticação do Aluno (WhatsApp / Email Fallback)
   // ──────────────────────────────────────────────────────────
-  const reqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      data: {
-        type: 'requirements',
-        attributes: {
-          action: 'provide_evidence',
-          auth: 'whatsapp'
-        },
-        relationships: {
-          document: { data: { type: 'documents', id: documentId } },
-          signer: { data: { type: 'signers', id: signerId } }
-        }
+  if (formattedPhone) {
+    try {
+      const reqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: 'requirements',
+            attributes: {
+              action: 'provide_evidence',
+              auth: 'whatsapp'
+            },
+            relationships: {
+              document: { data: { type: 'documents', id: documentId } },
+              signer: { data: { type: 'signers', id: signerId } }
+            }
+          }
+        })
+      });
+      if (!reqAuthRes.ok) {
+        console.warn('Clicksign: Autenticação via WhatsApp não autorizada no plano/conta, aplicando fallback para email...');
+        const reqAuthEmailRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            data: {
+              type: 'requirements',
+              attributes: {
+                action: 'provide_evidence',
+                auth: 'email'
+              },
+              relationships: {
+                document: { data: { type: 'documents', id: documentId } },
+                signer: { data: { type: 'signers', id: signerId } }
+              }
+            }
+          })
+        });
+        await handleError(reqAuthEmailRes, 'Criar Requisito de Autenticação via Email (Fallback)');
       }
-    })
-  });
-  await handleError(reqAuthRes, 'Criar Requisito de Autenticação via WhatsApp');
+    } catch (authErr: any) {
+      console.warn('Clicksign: Erro ao registrar requisito de autenticação:', authErr.message);
+    }
+  } else {
+    const reqAuthEmailRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          type: 'requirements',
+          attributes: {
+            action: 'provide_evidence',
+            auth: 'email'
+          },
+          relationships: {
+            document: { data: { type: 'documents', id: documentId } },
+            signer: { data: { type: 'signers', id: signerId } }
+          }
+        }
+      })
+    });
+    await handleError(reqAuthEmailRes, 'Criar Requisito de Autenticação via Email');
+  }
 
   // ──────────────────────────────────────────────────────────
   // PASSO 4c — Adicionar Signatário da Clínica (Auto-Assinatura no Envio)
