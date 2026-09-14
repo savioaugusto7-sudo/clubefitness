@@ -173,15 +173,6 @@ const SERVICOS_DISPONIVEIS: ServiceOption[] = [
     tipoCredito: 'massagem'
   },
   {
-    id: 'sessao_fisioterapia',
-    nome: 'Sessão de Fisioterapia',
-    vagasNecessarias: 1,
-    icone: 'fa-user-nurse',
-    cor: '#10b981',
-    descricao: 'Reabilitação e fisioterapia clínica',
-    tipoCredito: 'academia'
-  },
-  {
     id: 'atendimento_individual',
     nome: 'Atendimento Individual',
     vagasNecessarias: 1,
@@ -210,15 +201,12 @@ export default function AgendamentoProfissionalPanel({
   });
 
   const servicosDisponiveisFiltrados = useMemo(() => {
-    if (agendaTipo === 'dr_guilherme') {
-      const allowed = ['Avaliação Fisioterápica', 'Avaliação Física', 'Teste de Força', 'Sessão de Fisioterapia', 'Quiropraxia', 'Terapia Manual', 'Atendimento Individual'];
-      return SERVICOS_DISPONIVEIS.filter(s => allowed.includes(s.nome));
+    if (agendaTipo === 'dr_guilherme' || agendaTipo === 'dr_albert') {
+      const allowed = ['Atendimento Individual', 'Consulta', 'Avaliação Fisioterápica', 'Avaliação Física', 'Teste de Força', 'Quiropraxia', 'Terapia Manual'];
+      return SERVICOS_DISPONIVEIS.filter(s => allowed.includes(s.nome)).sort((a, b) => allowed.indexOf(a.nome) - allowed.indexOf(b.nome));
     }
-    if (agendaTipo === 'dr_albert') {
-      const allowed = ['Consulta', 'Avaliação Física', 'Atendimento Individual'];
-      return SERVICOS_DISPONIVEIS.filter(s => allowed.includes(s.nome));
-    }
-    return SERVICOS_DISPONIVEIS;
+    const gymAllowed = ['Treino Monitorado', 'Treino Livre', 'Recovery', 'Massagem', 'Avaliação Física', 'Teste de Força', 'Avaliação Fisioterápica', 'Emergência', 'Terapia Manual'];
+    return SERVICOS_DISPONIVEIS.filter(s => gymAllowed.includes(s.nome));
   }, [agendaTipo]);
 
   // Etapa 1: Aluno
@@ -227,11 +215,8 @@ export default function AgendamentoProfissionalPanel({
 
   // Etapa 2: Serviço
   const [selectedService, setSelectedService] = useState<ServiceOption>(() => {
-    if (isGuilherme) {
-      return SERVICOS_DISPONIVEIS.find(s => s.nome === 'Avaliação Fisioterápica') || SERVICOS_DISPONIVEIS[0];
-    }
-    if (isAlbert) {
-      return SERVICOS_DISPONIVEIS.find(s => s.nome === 'Consulta') || SERVICOS_DISPONIVEIS[0];
+    if (isGuilherme || isAlbert) {
+      return SERVICOS_DISPONIVEIS.find(s => s.nome === 'Atendimento Individual') || SERVICOS_DISPONIVEIS[0];
     }
     return SERVICOS_DISPONIVEIS[0];
   });

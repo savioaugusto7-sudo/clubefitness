@@ -20,18 +20,21 @@ const SERVICOS_CONFIG: Record<string, {
   exclusivoPorProfissional: boolean;
   tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
 }> = {
+  // Salão / Academia
   'Treino Monitorado':        { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Treino Livre':             { tipoCredito: 'nenhum',     vagasOcupadas: 0, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Recovery':                 { tipoCredito: 'nenhum',     vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Massagem':                 { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Avaliação Física':         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Teste de Força':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Avaliação Fisioterápica':                { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Avaliação Fisioterápica (Continuação)':  { tipoCredito: 'nenhum',     vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Emergência':                             { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
   'Terapia Manual':                         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Massagem':                               { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
-  'Consulta':                               { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
-  'Quiropraxia':                            { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'   },
+  // Consultórios (Dr. Guilherme e Dr. Albert)
+  'Atendimento Individual':   { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'consultorio' },
+  'Consulta':                 { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'consultorio' },
+  'Quiropraxia':              { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'consultorio' },
 };
 
 export { SERVICOS_CONFIG };
@@ -70,6 +73,7 @@ function getServiceCreditConfig(servico: string, isDynamus: boolean): { tipoCred
       normalized.includes('recovery') ||
       normalized.includes('treino livre') ||
       normalized.includes('consulta') ||
+      normalized.includes('atendimento individual') ||
       normalized.includes('quiro')
     ) {
       return { tipoCredito: 'academia', cost: 1 };

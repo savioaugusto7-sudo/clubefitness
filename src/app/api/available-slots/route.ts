@@ -11,18 +11,16 @@ const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number; tipo: 'academia' 
   'Treino Monitorado':        { vagasOcupadas: 1, tipo: 'academia'    },
   'Treino Livre':             { vagasOcupadas: 0, tipo: 'academia'    },
   'Recovery':                 { vagasOcupadas: 1, tipo: 'academia'    },
+  'Massagem':                 { vagasOcupadas: 1, tipo: 'academia'    },
   'Avaliação Física':         { vagasOcupadas: 3, tipo: 'academia'    },
   'Teste de Força':           { vagasOcupadas: 3, tipo: 'academia'    },
   'Avaliação Fisioterápica':                { vagasOcupadas: 3, tipo: 'academia'    },
   'Avaliação Fisioterápica (Continuação)':  { vagasOcupadas: 3, tipo: 'academia'    },
-  'Sessão de Fisioterapia':                 { vagasOcupadas: 3, tipo: 'academia'    },
-  'Quiropraxia':              { vagasOcupadas: 3, tipo: 'academia'    },
-  'Recovery / Bota':          { vagasOcupadas: 1, tipo: 'academia'    },
-  'Atendimento Individual':   { vagasOcupadas: 3, tipo: 'academia'    },
-  'Pilates':                  { vagasOcupadas: 2, tipo: 'academia'    },
-  'Funcional':                { vagasOcupadas: 2, tipo: 'academia'    },
   'Emergência':               { vagasOcupadas: 3, tipo: 'academia'    },
-  'Massagem':                 { vagasOcupadas: 1, tipo: 'academia'    },
+  'Terapia Manual':           { vagasOcupadas: 3, tipo: 'academia'    },
+  'Atendimento Individual':   { vagasOcupadas: 1, tipo: 'consultorio' },
+  'Consulta':                 { vagasOcupadas: 1, tipo: 'consultorio' },
+  'Quiropraxia':              { vagasOcupadas: 1, tipo: 'consultorio' },
 };
 
 const VALID_WEEKDAYS = ['06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00'];
