@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/dbConnect';
 import Appointment from '@/models/Appointment';
 import AgendaConfig from '@/models/AgendaConfig';
+import Professional from '@/models/Professional';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
 export const maxDuration = 30;
 
-const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number; tipo: 'academia' | 'consultorio' }> = {
+const SERVICOS_CONFIG: Record<string, { vagasOcupadas: number; tipo: 'academia' | 'consultorio' | 'dr_guilherme' | 'dr_albert' }> = {
   'Treino Monitorado':        { vagasOcupadas: 1, tipo: 'academia'    },
   'Treino Livre':             { vagasOcupadas: 0, tipo: 'academia'    },
   'Recovery':                 { vagasOcupadas: 1, tipo: 'academia'    },
@@ -42,6 +43,13 @@ export async function GET(request: Request) {
     }
 
     const servicoConfig = SERVICOS_CONFIG[servico] || { vagasOcupadas: 1, tipo: 'academia' };
+    let resolvedTipo: string = servicoConfig.tipo;
+    if (profissionalId) {
+      const prof = await Professional.findById(profissionalId).lean() as any;
+      const pName = (prof?.nome || '').toLowerCase();
+      if (pName.includes('albert')) resolvedTipo = 'dr_albert';
+      else if (pName.includes('guilherme')) resolvedTipo = 'dr_guilherme';
+    }
 
     // Se a consulta for para múltiplos dias da semana (ex: Horários Fixos)
     if (diasSemanaParam) {
@@ -61,7 +69,10 @@ export async function GET(request: Request) {
 
         const defaultGrade = dayOfWeek === 6 ? VALID_SATURDAYS : VALID_WEEKDAYS;
         const additions = await AgendaConfig.find({
-          tipo: servicoConfig.tipo,
+          $or: [
+            { tipo: resolvedTipo },
+            { tipo: 'servico', servico: servico }
+          ],
           acao: 'adicionar',
           diaSemana: dayOfWeek,
           dataEspecifica: null
@@ -91,7 +102,7 @@ export async function GET(request: Request) {
 
           // Bloqueio geral da grade
           const customRule = await AgendaConfig.findOne({
-            tipo: servicoConfig.tipo,
+            tipo: resolvedTipo,
             horario,
             diaSemana: dayOfWeek,
             dataEspecifica: null
@@ -154,7 +165,10 @@ export async function GET(request: Request) {
 
       const defaultGrade = dayOfWeek === 6 ? VALID_SATURDAYS : VALID_WEEKDAYS;
       const additions = await AgendaConfig.find({
-        tipo: servicoConfig.tipo,
+        $or: [
+          { tipo: resolvedTipo },
+          { tipo: 'servico', servico: servico }
+        ],
         acao: 'adicionar',
         $or: [
           { dataEspecifica: data },
@@ -209,7 +223,7 @@ export async function GET(request: Request) {
 
         // 2. Verificar customRule geral da grade (bloqueio ou capacidade)
         const customRule = await AgendaConfig.findOne({
-          tipo: servicoConfig.tipo,
+          tipo: resolvedTipo,
           horario,
           $or: [
             { dataEspecifica: data },

@@ -282,6 +282,7 @@ export default function HorariosFixosPanel({
           intervaloSemanas: String(effectiveIntervalWeeks)
         });
         if (pIdParam) queryParams.set('profissionalId', pIdParam);
+        if (modalClient) queryParams.set('clienteId', modalClient);
 
         const res = await fetch(`/api/appointments/slots?${queryParams.toString()}`);
         const data = await res.json();

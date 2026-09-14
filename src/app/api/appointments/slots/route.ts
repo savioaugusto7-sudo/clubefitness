@@ -142,13 +142,25 @@ export async function GET(request: Request) {
         data: { $in: dateStrings },
         status: { $ne: 'cancelado' }
       })
-        .populate('profissionalId')
+        .populate({ path: 'profissionalId', strictPopulate: false })
         .lean();
 
       const configs = await AgendaConfig.find({
-        $or: [
-          { dataEspecifica: { $in: dateStrings } },
-          { diaSemana: { $in: selectedDays }, dataEspecifica: null }
+        $and: [
+          {
+            $or: [
+              { tipo: tipoFiltro },
+              { tipo: 'servico', servico: servicoParam },
+              { tipo: null },
+              { tipo: { $exists: false } }
+            ]
+          },
+          {
+            $or: [
+              { dataEspecifica: { $in: dateStrings } },
+              { diaSemana: { $in: selectedDays }, dataEspecifica: null }
+            ]
+          }
         ]
       }).lean();
 
@@ -166,8 +178,14 @@ export async function GET(request: Request) {
         ];
       }
 
+      const isRuleMatchingTipo = (c: any) => {
+        if (c.tipo === 'servico') return c.servico === servicoParam;
+        if (c.tipo) return c.tipo === tipoFiltro;
+        return true;
+      };
+
       // Adições de horários extras
-      const additions = configs.filter((c: any) => c.acao === 'adicionar' && c.tipo === tipoFiltro);
+      const additions = configs.filter((c: any) => c.acao === 'adicionar' && isRuleMatchingTipo(c));
       for (const add of additions) {
         if (!defaultSlots.includes(add.horario)) {
           defaultSlots.push(add.horario);
@@ -179,13 +197,13 @@ export async function GET(request: Request) {
 
       // Helper para calcular vagas ocupadas em um horário específico de uma data
       const getSlotOccupancy = (targetDateStr: string, targetDay: number, checkHour: string) => {
-        const specificBlock = configs.find((c: any) => c.horario === checkHour && c.acao === 'bloquear' && c.dataEspecifica === targetDateStr);
-        const recurringBlock = configs.find((c: any) => c.horario === checkHour && c.acao === 'bloquear' && c.diaSemana === targetDay && !c.dataEspecifica);
+        const specificBlock = configs.find((c: any) => c.horario === checkHour && c.acao === 'bloquear' && c.dataEspecifica === targetDateStr && isRuleMatchingTipo(c));
+        const recurringBlock = configs.find((c: any) => c.horario === checkHour && c.acao === 'bloquear' && c.diaSemana === targetDay && !c.dataEspecifica && isRuleMatchingTipo(c));
         if (specificBlock || recurringBlock) {
           return { bloqueado: true, capacidade: 0, ocupadas: 0, livres: 0 };
         }
 
-        const customCap = configs.find((c: any) => c.horario === checkHour && c.acao === 'alterar_capacidade' && (c.dataEspecifica === targetDateStr || (c.diaSemana === targetDay && !c.dataEspecifica)));
+        const customCap = configs.find((c: any) => c.horario === checkHour && c.acao === 'alterar_capacidade' && isRuleMatchingTipo(c) && (c.dataEspecifica === targetDateStr || (c.diaSemana === targetDay && !c.dataEspecifica)));
         const cap = customCap?.capacidadePersonalizada !== undefined && customCap?.capacidadePersonalizada !== null
           ? customCap.capacidadePersonalizada
           : capacidadeNominal;
@@ -368,14 +386,31 @@ export async function GET(request: Request) {
 
     // 2. Buscar customizações da AgendaConfig
     const configs = await AgendaConfig.find({
-      $or: [
-        { dataEspecifica: date },
-        { diaSemana: dayOfWeek, dataEspecifica: null }
+      $and: [
+        {
+          $or: [
+            { tipo: tipoFiltro },
+            { tipo: 'servico', servico: servicoParam },
+            { tipo: null },
+            { tipo: { $exists: false } }
+          ]
+        },
+        {
+          $or: [
+            { dataEspecifica: date },
+            { diaSemana: dayOfWeek, dataEspecifica: null }
+          ]
+        }
       ]
-    });
+    }).lean();
 
     const resolveSlots = (tipo: string, defaults: string[]) => {
-      const rules = configs.filter(c => c.tipo === tipo);
+      const isMatching = (r: any) => {
+        if (r.tipo === 'servico') return r.servico === servicoParam;
+        if (r.tipo) return r.tipo === tipo;
+        return true;
+      };
+      const rules = configs.filter(isMatching);
       const specificRules = rules.filter(r => r.dataEspecifica === date);
       const recurringRules = rules.filter(r => r.diaSemana === dayOfWeek && !r.dataEspecifica);
 
@@ -421,9 +456,10 @@ export async function GET(request: Request) {
     })
       .populate({
         path: 'clienteId',
-        populate: { path: 'dadosComerciais.planoId', select: 'nome tipo' }
+        strictPopulate: false,
+        populate: { path: 'dadosComerciais.planoId', select: 'nome tipo', strictPopulate: false }
       })
-      .populate('profissionalId');
+      .populate({ path: 'profissionalId', strictPopulate: false });
 
     const rawResult = resolvedSlots.map(slot => {
       const slotsApts = appointments.filter(apt => {
