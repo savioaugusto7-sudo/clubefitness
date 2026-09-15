@@ -57,6 +57,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [exercises, setExercises] = useState<any[]>([]);
   const [selectedMuscle, setSelectedMuscle] = useState('Todos');
   const [search, setSearch] = useState('');
+  const [realClientName, setRealClientName] = useState(clientName && clientName !== 'Aluno' ? clientName : '');
   
   const [activeCategory, setActiveCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
   const [activeTabLetter, setActiveTabLetter] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
@@ -74,15 +75,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [activeObsModalItem, setActiveObsModalItem] = useState<any | null>(null);
   const [tempObsText, setTempObsText] = useState('');
 
+  // Sincronizar prop com estado interno
+  useEffect(() => {
+    if (clientName && clientName !== 'Aluno') {
+      setRealClientName(clientName);
+    }
+  }, [clientName]);
+
   // Atualizar título da aba do navegador com o nome do aluno
   useEffect(() => {
-    const titleName = clientName || 'Aluno';
+    const titleName = realClientName || (clientName && clientName !== 'Aluno' ? clientName : '');
     const prevTitle = document.title;
-    document.title = `${titleName} • Ficha de Treino | Clube Fitness`;
+    document.title = titleName ? `${titleName} • Ficha de Treino | Clube Fitness` : `Ficha de Treino | Clube Fitness`;
     return () => {
       document.title = prevTitle;
     };
-  }, [clientName]);
+  }, [realClientName, clientName]);
 
   useEffect(() => {
     let isMounted = true;
@@ -90,11 +98,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       try {
         setIsLoading(true);
 
-        const [resEx, resWorkouts, resApts] = await Promise.all([
+        const [resEx, resWorkouts, resApts, resClient] = await Promise.all([
           fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })),
           fetch(`/api/workouts?clientId=${clientId}`).then(r => r.json()).catch(() => ({ success: false })),
-          fetch(`/api/appointments?t=${Date.now()}`).then(r => r.json()).catch(() => ({ success: false }))
+          fetch(`/api/appointments?t=${Date.now()}`).then(r => r.json()).catch(() => ({ success: false })),
+          fetch(`/api/clients?id=${clientId}`).then(r => r.json()).catch(() => ({ success: false }))
         ]);
+
+        if (resClient?.success && resClient.data && isMounted) {
+          const raw = resClient.data;
+          const c = Array.isArray(raw) ? raw[0] : raw;
+          const cName = c?.dadosPessoais?.nome || c?.nome || '';
+          if (cName) {
+            setRealClientName(cName);
+            document.title = `${cName} • Ficha de Treino | Clube Fitness`;
+          }
+        }
 
         let loadedExercises: any[] = [];
         if (resEx?.success && Array.isArray(resEx.data)) {

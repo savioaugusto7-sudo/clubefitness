@@ -569,11 +569,18 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [builderClient, setBuilderClient] = useState<any>(null);
 
   // Abertura da Ficha de Treino em Nova Aba com Título Personalizado na rota dedicada
-  const handleOpenWorkoutInNewTab = (client: any, fichaId?: string) => {
-    if (!client?._id) return;
-    const cName = client.dadosPessoais?.nome || client.nome || 'Aluno';
+  const handleOpenWorkoutInNewTab = (clientOrId: any, fichaId?: string) => {
+    const clientObj = typeof clientOrId === 'object' && clientOrId !== null
+      ? (clientOrId._id ? clientOrId : clients.find(c => String(c._id) === String(clientOrId?.clienteId?._id || clientOrId?.clienteId || clientOrId)))
+      : clients.find(c => String(c._id) === String(clientOrId));
+    
+    const clientId = clientObj?._id || (typeof clientOrId === 'string' ? clientOrId : clientOrId?._id);
+    if (!clientId) return;
+
+    const cName = clientObj?.dadosPessoais?.nome || clientObj?.nome || '';
     const fId = fichaId || 'A';
-    const url = `/ficha/${client._id}?studentName=${encodeURIComponent(cName)}&fichaId=${fId}`;
+    const nameParam = cName && cName !== 'Aluno' ? `&studentName=${encodeURIComponent(cName)}` : '';
+    const url = `/ficha/${clientId}?fichaId=${fId}${nameParam}`;
     window.open(url, '_blank');
   };
 
@@ -5475,7 +5482,8 @@ goniometria: {
                       </div>
                     ) : (
                       atuais.map(a => {
-                        const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                        const targetId = a.clienteId?._id || a.clienteId;
+                        const client = clients.find(c => String(c._id) === String(targetId)) || (typeof a.clienteId === 'object' && a.clienteId !== null ? a.clienteId : {}) || {};
                         const meta = getAppointmentMeta(a);
                         const freqStr = getClientContractedFreq(client);
                         const lastAct = getClientLastActivity(client._id, a._id);

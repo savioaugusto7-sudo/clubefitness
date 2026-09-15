@@ -15,14 +15,19 @@ function FichaStandaloneContent() {
   const initialNameParam = searchParams.get('studentName') || searchParams.get('name') || '';
   const initialFichaId = searchParams.get('fichaId') || 'A';
 
-  const [clientName, setClientName] = useState<string>(initialNameParam ? decodeURIComponent(initialNameParam) : '');
-  const [loadingClient, setLoadingClient] = useState(!initialNameParam);
+  const [clientName, setClientName] = useState<string>(
+    initialNameParam && initialNameParam !== 'Aluno' ? decodeURIComponent(initialNameParam) : ''
+  );
+  const [loadingClient, setLoadingClient] = useState(!clientName);
 
   // Definir título da aba imediatamente
   useEffect(() => {
-    const displayName = clientName || (initialNameParam ? decodeURIComponent(initialNameParam) : 'Aluno');
-    document.title = `${displayName} • Ficha de Treino | Clube Fitness`;
-  }, [clientName, initialNameParam]);
+    if (clientName && clientName !== 'Aluno') {
+      document.title = `${clientName} • Ficha de Treino | Clube Fitness`;
+    } else {
+      document.title = `Ficha de Treino | Clube Fitness`;
+    }
+  }, [clientName]);
 
   // Autenticação
   useEffect(() => {
@@ -31,34 +36,36 @@ function FichaStandaloneContent() {
     }
   }, [status, router]);
 
-  // Se o nome não veio na URL, buscar dados do aluno
+  // Buscar dados do aluno no backend para garantir nome real e atualizado
   useEffect(() => {
     if (!clientId) return;
-    if (initialNameParam && !clientName) {
-      setClientName(decodeURIComponent(initialNameParam));
-      setLoadingClient(false);
-      return;
-    }
 
+    let isMounted = true;
     const fetchClient = async () => {
       try {
         const res = await fetch(`/api/clients?id=${clientId}`);
         const data = await res.json();
-        if (data.success && data.data) {
-          const c = data.data;
-          const foundName = c.dadosPessoais?.nome || c.nome || 'Aluno';
-          setClientName(foundName);
-          document.title = `${foundName} • Ficha de Treino | Clube Fitness`;
+        if (data.success && data.data && isMounted) {
+          const raw = data.data;
+          const c = Array.isArray(raw) ? raw[0] : raw;
+          const foundName = c?.dadosPessoais?.nome || c?.nome || '';
+          if (foundName) {
+            setClientName(foundName);
+            document.title = `${foundName} • Ficha de Treino | Clube Fitness`;
+          }
         }
       } catch (err) {
         console.error('Erro ao buscar dados do aluno:', err);
       } finally {
-        setLoadingClient(false);
+        if (isMounted) setLoadingClient(false);
       }
     };
 
     fetchClient();
-  }, [clientId, initialNameParam]);
+    return () => {
+      isMounted = false;
+    };
+  }, [clientId]);
 
   if (status === 'loading' || (loadingClient && !clientName)) {
     return (
@@ -119,7 +126,7 @@ function FichaStandaloneContent() {
   return (
     <WorkoutBuilder
       clientId={clientId}
-      clientName={clientName || 'Aluno'}
+      clientName={clientName || ''}
       initialFichaId={initialFichaId}
       onClose={() => {
         if (typeof window !== 'undefined') {
