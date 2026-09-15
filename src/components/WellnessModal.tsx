@@ -465,6 +465,22 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
               </div>
             )}
 
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '0.82rem',
+              color: 'var(--text-main, #fff)'
+            }}>
+              <i className="fa-solid fa-circle-check" style={{ color: '#10b981', fontSize: '1rem', flexShrink: 0 }}></i>
+              <span>Ao salvar o questionário, a <strong>Presença</strong> de <strong>{clientName}</strong> será confirmada e registrada com sucesso.</span>
+            </div>
+
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
                 type="button"

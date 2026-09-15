@@ -1011,6 +1011,23 @@ export default function GestaoContratosPanel({
         setSelectedClient(data.data);
       }
 
+      // Sincronizar os estados do painel de emissão direta para refletir imediatamente as alterações salvas
+      setDcFormaPag(ecFormaPagamento || 'pix');
+      setDcDataInicio(ecDataInicio);
+      setDcVencimento(finalEndDate);
+      setDcValorUnitario(ecValorUnitario);
+      setDcParcelas(ecParcelas);
+      setDcDescontoTipo(ecDescontoTipo);
+      setDcDescontoValor(ecDescontoValor);
+      setDcDuracao(ecDuracao);
+      setDcVigenciaQtd(ecVigenciaQtd);
+      setDcPlano(ecPlanoId);
+      setDcFrequencia(ecFrequencia);
+      setDcCreditosTotal(ecCreditosTotal);
+      setDcCreditosMassagem(ecCreditosMassagemTotal);
+      setDcCreditosEmergencia(ecCreditosEmergenciaTotal);
+      setDcCriarRecorrencia(ecCriarRecorrenciaMensal);
+
       if (activateAsVigente) {
         alert('✅ Contrato formalizado e ativado como Vigente!');
       } else {
@@ -2895,9 +2912,11 @@ export default function GestaoContratosPanel({
       descontoTipo: dcDescontoTipo,
       descontoValor: dcDescontoValor,
       parcelas: Number(dcParcelas) || 1,
-      formaPagamento: dcFormaPag,
+      formaPagamento: dcFormaPag || com.formaPagamento || 'pix',
       dataInicio: dcDataInicio || com.dataInicio,
-      dataVencimento: dcVencimento || com.vencimento,
+      dataVencimento: com.dataPrimeiroVencimento || dcVencimento || com.vencimento,
+      dataPrimeiroVencimento: com.dataPrimeiroVencimento || dcVencimento || com.vencimento,
+      diaVencimento: com.diaVencimento || (com.dataPrimeiroVencimento ? parseInt(com.dataPrimeiroVencimento.split('-')[2], 10) : undefined),
       observacoesContratuais: dcObservacoesContratuais || com.observacoesContratuais,
       unidadeContratada: dcUnidadeContratada || plan.unidadeAtendimento || 'Clube Fitness',
       creditosMensais: dcCreditosTotal || com.creditosTotal,

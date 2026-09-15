@@ -112,6 +112,8 @@ export interface ContractData {
   formaPagamento?: string;
   dataInicio?: string;
   dataVencimento?: string;
+  dataPrimeiroVencimento?: string;
+  diaVencimento?: number;
   observacoesContratuais?: string;
   unidadeContratada?: string;
   creditosMensais?: number;
@@ -242,17 +244,20 @@ export function generateContractTemplate(data: ContractData): string {
     isRecorrente && isMensalSemVinculo
   );
 
-  const dateVenc = data.dataVencimento || todayStr;
-  const diaVenc = dateVenc.split('-')[2] ? parseInt(dateVenc.split('-')[2], 10) : 5;
+  // Prioritize first installment due date / explicit due day over contract termination date
+  const datePrimeiroVenc = data.dataPrimeiroVencimento || data.dataVencimento || todayStr;
+  const diaVenc = data.diaVencimento || (datePrimeiroVenc.split('-')[2] ? parseInt(datePrimeiroVenc.split('-')[2], 10) : 5);
 
   const formaPag = (() => {
-    const fp = (data.formaPagamento || '').toLowerCase();
-    if (fp.includes('cart') || fp.includes('crédito') || fp.includes('credito')) return 'Cartão de Crédito';
+    const fp = (data.formaPagamento || '').toLowerCase().trim();
     if (fp === 'pix') return 'Pix';
     if (fp === 'boleto') return 'Boleto Bancário';
-    if (fp.includes('boleto') || fp.includes('pix')) return 'Boleto / Pix';
+    if (fp.includes('cart') || fp.includes('crédito') || fp.includes('credito')) return 'Cartão de Crédito';
+    if (fp.includes('boleto') && fp.includes('pix')) return 'Boleto / Pix';
+    if (fp.includes('boleto')) return 'Boleto Bancário';
+    if (fp.includes('pix')) return 'Pix';
     if (fp === 'dinheiro') return 'Dinheiro';
-    return data.formaPagamento || 'Boleto / Pix';
+    return data.formaPagamento || 'Pix';
   })();
 
   // Address

@@ -4977,10 +4977,41 @@ goniometria: {
               return null;
             };
 
-            const getClientLastActivity = (clientId: string, currentAptId: string) => {
-              if (!clientId) return { label: 'Primeiro Atendimento', detail: 'Sem histórico anterior', isFirst: true };
+            const formatRelativeDate = (dateStr: string) => {
+              if (!dateStr) return { formatted: '', relative: '' };
+              const cleanDate = dateStr.split('T')[0];
+              const parts = cleanDate.split('-');
+              const formatted = parts.length === 3 ? `${parts[2]}/${parts[1]}` : cleanDate;
+              let relative = '';
+              try {
+                const dLast = new Date(parts[0] + '-' + parts[1] + '-' + parts[2] + 'T12:00:00');
+                const dToday = new Date(hojeISO + 'T12:00:00');
+                const diffTime = Math.abs(dToday.getTime() - dLast.getTime());
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays === 0) relative = 'hoje';
+                else if (diffDays === 1) relative = 'ontem';
+                else relative = `há ${diffDays} dias`;
+              } catch (e) {}
+              return { formatted, relative };
+            };
+
+            const getClientDualHistory = (clientId: string, currentAptId: string) => {
+              if (!clientId) {
+                return {
+                  isFirst: true,
+                  lastApt: null,
+                  lastWorkout: {
+                    label: 'Nenhuma ficha informada em atendimentos anteriores',
+                    detail: 'Registre a de hoje para o histórico',
+                    date: '',
+                    isFallbackNotice: true
+                  },
+                  isSame: false
+                };
+              }
               const cIdStr = String(clientId);
 
+              // 1. Filtrar agendamentos anteriores com presença ou treino executado
               const pastApts = appointments.filter((a: any) => {
                 const aClientId = String(a.clienteId?._id || a.clienteId || '');
                 if (aClientId !== cIdStr) return false;
@@ -4994,44 +5025,138 @@ goniometria: {
                 return (b.horario || '').localeCompare(a.horario || '');
               });
 
-              if (pastApts.length === 0) {
-                return {
-                  label: 'Primeiro Atendimento',
-                  detail: 'Sem histórico anterior',
-                  isFirst: true
+              // 2. Último atendimento geral
+              let lastAptInfo: { label: string; detail: string; date: string } | null = null;
+              if (pastApts.length > 0) {
+                const lastA = pastApts[0];
+                const dateInfo = formatRelativeDate(lastA.data);
+                const servicoDesc = lastA.servico || lastA.tipo || 'Atendimento';
+                lastAptInfo = {
+                  label: `Último Atendimento: ${servicoDesc}`,
+                  detail: `${dateInfo.formatted}${dateInfo.relative ? ` (${dateInfo.relative})` : ''}`,
+                  date: lastA.data
                 };
               }
 
-              const lastApt = pastApts[0];
-              const lastDateFormatted = lastApt.data ? `${lastApt.data.split('-')[2]}/${lastApt.data.split('-')[1]}` : '';
-              
-              let daysAgoStr = '';
-              try {
-                const dLast = new Date(lastApt.data + 'T12:00:00');
-                const dToday = new Date(hojeISO + 'T12:00:00');
-                const diffTime = Math.abs(dToday.getTime() - dLast.getTime());
-                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays === 0) daysAgoStr = 'hoje';
-                else if (diffDays === 1) daysAgoStr = 'ontem';
-                else daysAgoStr = `há ${diffDays} dias`;
-              } catch (e) {}
+              // 3. Último treino / ficha executada
+              const pastTreinosApts = pastApts.filter((a: any) => Boolean(a.treinoExecutado));
+              let lastWorkoutInfo: { label: string; detail: string; date: string; isFallbackNotice?: boolean } | null = null;
 
-              if (lastApt.treinoExecutado) {
-                const te = lastApt.treinoExecutado;
+              // Consultar documento de clientworkouts para atualizações recentes de fichas
+              const userWorkoutDoc = workouts.find((w: any) => String(w.clienteId?._id || w.clienteId) === cIdStr);
+              let latestWorkoutUpdate: { fichaNome: string; fichaId: string; date: string } | null = null;
+              if (userWorkoutDoc) {
+                const allSheets = [
+                  ...(userWorkoutDoc.fichasMonitorado || []),
+                  ...(userWorkoutDoc.fichasLivre || [])
+                ];
+                for (const s of allSheets) {
+                  if (s.ultimaAtualizacao) {
+                    const sDate = s.ultimaAtualizacao.split('T')[0];
+                    if (!latestWorkoutUpdate || sDate > latestWorkoutUpdate.date) {
+                      latestWorkoutUpdate = {
+                        fichaNome: s.nome || `Ficha ${s.id}`,
+                        fichaId: s.id,
+                        date: sDate
+                      };
+                    }
+                  }
+                }
+                if (!latestWorkoutUpdate && userWorkoutDoc.updatedAt) {
+                  const upDate = new Date(userWorkoutDoc.updatedAt).toISOString().split('T')[0];
+                  const firstSheet = allSheets[0];
+                  if (firstSheet) {
+                    latestWorkoutUpdate = {
+                      fichaNome: firstSheet.nome || `Ficha ${firstSheet.id}`,
+                      fichaId: firstSheet.id,
+                      date: upDate
+                    };
+                  }
+                }
+              }
+
+              if (pastTreinosApts.length > 0) {
+                const lastTApt = pastTreinosApts[0];
+                const te = lastTApt.treinoExecutado;
                 const desc = te.tipo === 'livre' ? 'Treino Livre' : (te.fichaNome || `Ficha ${te.fichaId || 'A'}`);
-                return {
-                  label: `Último: ${desc}`,
-                  detail: `${lastDateFormatted}${daysAgoStr ? ` (${daysAgoStr})` : ''}`,
-                  isFirst: false
+                const dateInfo = formatRelativeDate(lastTApt.data);
+
+                if (latestWorkoutUpdate && latestWorkoutUpdate.date > (lastTApt.data || '')) {
+                  const wDateInfo = formatRelativeDate(latestWorkoutUpdate.date);
+                  lastWorkoutInfo = {
+                    label: `Último Treino: ${latestWorkoutUpdate.fichaNome}`,
+                    detail: `${wDateInfo.formatted}${wDateInfo.relative ? ` (${wDateInfo.relative})` : ''}`,
+                    date: latestWorkoutUpdate.date
+                  };
+                } else {
+                  lastWorkoutInfo = {
+                    label: `Último Treino: ${desc}`,
+                    detail: `${dateInfo.formatted}${dateInfo.relative ? ` (${dateInfo.relative})` : ''}`,
+                    date: lastTApt.data
+                  };
+                }
+              } else if (latestWorkoutUpdate) {
+                const wDateInfo = formatRelativeDate(latestWorkoutUpdate.date);
+                lastWorkoutInfo = {
+                  label: `Último Treino: ${latestWorkoutUpdate.fichaNome}`,
+                  detail: `${wDateInfo.formatted}${wDateInfo.relative ? ` (${wDateInfo.relative})` : ''}`,
+                  date: latestWorkoutUpdate.date
                 };
               }
 
-              const servicoDesc = lastApt.servico || lastApt.tipo;
+              // Se não há nenhum histórico de atendimento nem ficha
+              if (!lastAptInfo && !lastWorkoutInfo) {
+                return {
+                  isFirst: true,
+                  lastApt: null,
+                  lastWorkout: {
+                    label: 'Nenhuma ficha informada em atendimentos anteriores',
+                    detail: 'Registre a de hoje para o histórico',
+                    date: '',
+                    isFallbackNotice: true
+                  },
+                  isSame: false
+                };
+              }
+
+              // Se o último atendimento já foi o próprio treino executado (mesma data)
+              let isSame = false;
+              if (lastAptInfo && lastWorkoutInfo && !lastWorkoutInfo.isFallbackNotice) {
+                if (lastAptInfo.date === lastWorkoutInfo.date && pastApts[0]?.treinoExecutado) {
+                  isSame = true;
+                }
+              }
+
+              // Se teve atendimento anterior mas nunca registrou ficha
+              if (lastAptInfo && !lastWorkoutInfo) {
+                lastWorkoutInfo = {
+                  label: 'Nenhuma ficha informada em atendimentos anteriores',
+                  detail: 'Registre a de hoje para o histórico',
+                  date: '',
+                  isFallbackNotice: true
+                };
+              }
+
               return {
-                label: `Último: ${servicoDesc}`,
-                detail: `${lastDateFormatted}${daysAgoStr ? ` (${daysAgoStr})` : ''}`,
-                isFirst: false
+                isFirst: false,
+                lastApt: lastAptInfo,
+                lastWorkout: lastWorkoutInfo,
+                isSame
               };
+            };
+
+            const getClientLastActivity = (clientId: string, currentAptId: string) => {
+              const dual = getClientDualHistory(clientId, currentAptId);
+              if (dual.isFirst) {
+                return { label: 'Primeiro Atendimento', detail: 'Sem histórico anterior', isFirst: true };
+              }
+              if (dual.lastWorkout && !dual.lastWorkout.isFallbackNotice) {
+                return { label: dual.lastWorkout.label, detail: dual.lastWorkout.detail, isFirst: false };
+              }
+              if (dual.lastApt) {
+                return { label: dual.lastApt.label, detail: dual.lastApt.detail, isFirst: false };
+              }
+              return { label: 'Primeiro Atendimento', detail: 'Sem histórico anterior', isFirst: true };
             };
 
             // Filtrar agendamentos de hoje
@@ -5294,13 +5419,18 @@ goniometria: {
                                     </div>
                                   ) : (
                                     <>
-                                      <button className="btn btn-sm" style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'presenca')}>
-                                        <i className="fa-solid fa-check"></i> Presença
+                                      <button 
+                                        className="btn btn-sm" 
+                                        style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '6px 12px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px' }} 
+                                        onClick={() => handleUpdateAptStatus(a._id, 'presenca')}
+                                        title="Registrar Presença e responder Questionário Wellness"
+                                      >
+                                        <i className="fa-solid fa-heart-pulse"></i> Presença & Wellness
                                       </button>
-                                      <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
+                                      <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '6px 10px', borderRadius: '8px', fontWeight: 700 }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
                                         <i className="fa-solid fa-xmark"></i> Falta
                                       </button>
-                                      <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                      <button className="btn btn-secondary btn-sm" style={{ padding: '6px 10px', borderRadius: '8px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
                                         Cancelar
                                       </button>
                                     </>
@@ -5640,68 +5770,85 @@ goniometria: {
                               </div>
                             </div>
 
-                            {/* Linha 2: Identidade do Aluno & Tags Integradas */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={{
-                                width: '44px',
-                                height: '44px',
-                                borderRadius: '12px',
-                                background: `linear-gradient(135deg, ${meta.badgeColor}30, rgba(255,255,255,0.04))`,
-                                border: `1.5px solid ${meta.badgeColor}50`,
-                                color: '#fff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.88rem',
-                                fontWeight: 900,
-                                flexShrink: 0,
-                                boxShadow: `0 2px 8px ${meta.badgeColor}20`
-                              }}>
-                                {initials}
-                              </div>
-
-                              <div style={{ minWidth: 0, flex: 1 }}>
-                                <h3 style={{ margin: 0, fontSize: '1.04rem', fontWeight: 900, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.2px' }}>
-                                  {clientFullName}
-                                </h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
-                                  <span style={{ fontSize: '0.73rem', color: '#94a3b8', fontWeight: 600, background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '6px' }}>
-                                    {a.servico || a.tipo}
-                                  </span>
-                                  {freqStr && (
-                                    <span style={{ fontSize: '0.73rem', fontWeight: 800, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                      <i className="fa-solid fa-calendar-check" style={{ fontSize: '0.7rem' }}></i> {freqStr}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Linha 3: Briefing de Inteligência em Linha (Último Treino) */}
-                            <div style={{
-                              background: 'rgba(255, 255, 255, 0.035)',
-                              border: '1px solid rgba(255, 255, 255, 0.06)',
-                              borderRadius: '10px',
-                              padding: '7px 12px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '8px',
-                              fontSize: '0.76rem'
-                            }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-                                <i className={lastAct.isFirst ? 'fa-solid fa-sparkles' : 'fa-solid fa-clock-rotate-left'} style={{ color: lastAct.isFirst ? '#38bdf8' : meta.badgeColor, fontSize: '0.78rem', flexShrink: 0 }}></i>
-                                <span style={{ fontWeight: 800, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {lastAct.label}
+                            {/* Linha 2: Identidade do Aluno & Tags Integradas (Sem Avatar) */}
+                            <div style={{ minWidth: 0, width: '100%' }}>
+                              <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 900, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.2px' }}>
+                                {clientFullName}
+                              </h3>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                <span style={{ fontSize: '0.73rem', color: '#94a3b8', fontWeight: 600, background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '6px' }}>
+                                  {a.servico || a.tipo}
                                 </span>
+                                {freqStr && (
+                                  <span style={{ fontSize: '0.73rem', fontWeight: 800, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <i className="fa-solid fa-calendar-check" style={{ fontSize: '0.7rem' }}></i> {freqStr}
+                                  </span>
+                                )}
                               </div>
-                              <span style={{ color: '#94a3b8', fontSize: '0.72rem', flexShrink: 0, fontWeight: 500 }}>
-                                {lastAct.detail}
-                              </span>
                             </div>
 
-                            {/* Linha 4: Seletor de Fichas estilo 'Segmented Bar' (Academia) */}
-                            {meta.key === 'academia' && (
+                            {/* Linha 3: Inteligência Dupla de Histórico (Último Atendimento + Última Ficha) */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                              {/* Se o último atendimento foi diferente do último treino, exibir último atendimento */}
+                              {(() => {
+                                const dualHistory = getClientDualHistory(client._id, a._id);
+                                return (
+                                  <>
+                                    {!dualHistory.isSame && dualHistory.lastApt && (
+                                      <div style={{
+                                        background: 'rgba(255, 255, 255, 0.035)',
+                                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                                        borderRadius: '8px',
+                                        padding: '5px 10px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '8px',
+                                        fontSize: '0.74rem'
+                                      }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                          <i className="fa-solid fa-clock-rotate-left" style={{ color: meta.badgeColor, fontSize: '0.75rem', flexShrink: 0 }}></i>
+                                          <span style={{ fontWeight: 700, color: '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {dualHistory.lastApt.label}
+                                          </span>
+                                        </div>
+                                        <span style={{ color: '#94a3b8', fontSize: '0.71rem', flexShrink: 0, fontWeight: 500 }}>
+                                          {dualHistory.lastApt.detail}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* Linha da Última Ficha / Treino Executado ou Orientação Explicativa */}
+                                    {dualHistory.lastWorkout && (
+                                      <div style={{
+                                        background: dualHistory.lastWorkout.isFallbackNotice ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255, 255, 255, 0.035)',
+                                        border: dualHistory.lastWorkout.isFallbackNotice ? '1px dashed rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.06)',
+                                        borderRadius: '8px',
+                                        padding: '5px 10px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '8px',
+                                        fontSize: '0.74rem'
+                                      }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                          <i className={dualHistory.lastWorkout.isFallbackNotice ? 'fa-solid fa-circle-info' : 'fa-solid fa-dumbbell'} style={{ color: dualHistory.lastWorkout.isFallbackNotice ? '#f59e0b' : '#10b981', fontSize: '0.75rem', flexShrink: 0 }}></i>
+                                          <span style={{ fontWeight: 700, color: dualHistory.lastWorkout.isFallbackNotice ? '#fbbf24' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {dualHistory.lastWorkout.label}
+                                          </span>
+                                        </div>
+                                        <span style={{ color: dualHistory.lastWorkout.isFallbackNotice ? '#fcd34d' : '#94a3b8', fontSize: '0.71rem', flexShrink: 0, fontWeight: dualHistory.lastWorkout.isFallbackNotice ? 600 : 500 }}>
+                                          {dualHistory.lastWorkout.detail}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Linha 4: Seletor de Fichas estilo 'Segmented Bar' (Disponível quando o aluno possuir fichas cadastradas) */}
+                            {hasAnyWorkout && (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span style={{ fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#64748b' }}>
@@ -5716,137 +5863,119 @@ goniometria: {
                                   )}
                                 </div>
 
-                                {!hasAnyWorkout ? (
-                                  <div style={{
-                                    background: 'rgba(239, 68, 68, 0.08)',
-                                    border: '1px solid rgba(239, 68, 68, 0.22)',
-                                    borderRadius: '10px',
-                                    padding: '8px 12px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    color: '#fca5a5',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 600
-                                  }}>
-                                    <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', fontSize: '0.85rem' }}></i>
-                                    <span>Aluno sem ficha de treino cadastrada</span>
-                                  </div>
-                                ) : (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {/* Grupo Fichas Monitoradas */}
-                                    {monitoradoSheets.length > 0 && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span style={{
-                                          fontSize: '0.62rem',
-                                          fontWeight: 800,
-                                          textTransform: 'uppercase',
-                                          letterSpacing: '0.5px',
-                                          color: '#10b981',
-                                          background: 'rgba(16, 185, 129, 0.12)',
-                                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                                          padding: '3px 7px',
-                                          borderRadius: '6px',
-                                          flexShrink: 0
-                                        }}>
-                                          Monitorado
-                                        </span>
-                                        <div style={{
-                                          flex: 1,
-                                          background: 'rgba(0, 0, 0, 0.45)',
-                                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                                          borderRadius: '9px',
-                                          padding: '3px',
-                                          display: 'flex',
-                                          gap: '3px'
-                                        }}>
-                                          {monitoradoSheets.map((s: any) => {
-                                            const isSelected = activeFichaId === s.id && activeCategoria === 'fichasMonitorado';
-                                            return (
-                                              <button
-                                                key={s.id}
-                                                type="button"
-                                                onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'ficha', 'fichasMonitorado')}
-                                                style={{
-                                                  flex: 1,
-                                                  padding: '5px 0',
-                                                  borderRadius: '6px',
-                                                  fontSize: '0.74rem',
-                                                  fontWeight: isSelected ? 900 : 700,
-                                                  border: 'none',
-                                                  background: isSelected ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
-                                                  color: isSelected ? '#ffffff' : '#94a3b8',
-                                                  cursor: 'pointer',
-                                                  boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.4)' : 'none',
-                                                  transition: 'all 0.15s ease'
-                                                }}
-                                                title={`Monitorado - ${s.nome || `Ficha ${s.id}`}`}
-                                              >
-                                                {isSelected ? `⭐ ${s.id}` : s.id}
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {/* Grupo Fichas Monitoradas */}
+                                  {monitoradoSheets.length > 0 && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{
+                                        fontSize: '0.62rem',
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        color: '#10b981',
+                                        background: 'rgba(16, 185, 129, 0.12)',
+                                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                                        padding: '3px 7px',
+                                        borderRadius: '6px',
+                                        flexShrink: 0
+                                      }}>
+                                        Monitorado
+                                      </span>
+                                      <div style={{
+                                        flex: 1,
+                                        background: 'rgba(0, 0, 0, 0.45)',
+                                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                                        borderRadius: '9px',
+                                        padding: '3px',
+                                        display: 'flex',
+                                        gap: '3px'
+                                      }}>
+                                        {monitoradoSheets.map((s: any) => {
+                                          const isSelected = activeFichaId === s.id && activeCategoria === 'fichasMonitorado';
+                                          return (
+                                            <button
+                                              key={s.id}
+                                              type="button"
+                                              onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'ficha', 'fichasMonitorado')}
+                                              style={{
+                                                flex: 1,
+                                                padding: '5px 0',
+                                                borderRadius: '6px',
+                                                fontSize: '0.74rem',
+                                                fontWeight: isSelected ? 900 : 700,
+                                                border: 'none',
+                                                background: isSelected ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+                                                color: isSelected ? '#ffffff' : '#94a3b8',
+                                                cursor: 'pointer',
+                                                boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.4)' : 'none',
+                                                transition: 'all 0.15s ease'
+                                              }}
+                                              title={`Monitorado - ${s.nome || `Ficha ${s.id}`}`}
+                                            >
+                                              {isSelected ? `⭐ ${s.id}` : s.id}
+                                            </button>
+                                          );
+                                        })}
                                       </div>
-                                    )}
+                                    </div>
+                                  )}
 
-                                    {/* Grupo Fichas Livres */}
-                                    {livreSheets.length > 0 && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span style={{
-                                          fontSize: '0.62rem',
-                                          fontWeight: 800,
-                                          textTransform: 'uppercase',
-                                          letterSpacing: '0.5px',
-                                          color: '#38bdf8',
-                                          background: 'rgba(56, 189, 248, 0.12)',
-                                          border: '1px solid rgba(56, 189, 248, 0.3)',
-                                          padding: '3px 7px',
-                                          borderRadius: '6px',
-                                          flexShrink: 0
-                                        }}>
-                                          Livre
-                                        </span>
-                                        <div style={{
-                                          flex: 1,
-                                          background: 'rgba(0, 0, 0, 0.45)',
-                                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                                          borderRadius: '9px',
-                                          padding: '3px',
-                                          display: 'flex',
-                                          gap: '3px'
-                                        }}>
-                                          {livreSheets.map((s: any) => {
-                                            const isSelected = activeFichaId === s.id && activeCategoria === 'fichasLivre';
-                                            return (
-                                              <button
-                                                key={s.id}
-                                                type="button"
-                                                onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'livre', 'fichasLivre')}
-                                                style={{
-                                                  flex: 1,
-                                                  padding: '5px 0',
-                                                  borderRadius: '6px',
-                                                  fontSize: '0.74rem',
-                                                  fontWeight: isSelected ? 900 : 700,
-                                                  border: 'none',
-                                                  background: isSelected ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'transparent',
-                                                  color: isSelected ? '#ffffff' : '#94a3b8',
-                                                  cursor: 'pointer',
-                                                  boxShadow: isSelected ? '0 2px 8px rgba(56, 189, 248, 0.4)' : 'none',
-                                                  transition: 'all 0.15s ease'
-                                                }}
-                                                title={`Livre - ${s.nome || `Ficha ${s.id}`}`}
-                                              >
-                                                {isSelected ? `⭐ ${s.id}` : s.id}
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
+                                  {/* Grupo Fichas Livres */}
+                                  {livreSheets.length > 0 && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{
+                                        fontSize: '0.62rem',
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        color: '#38bdf8',
+                                        background: 'rgba(56, 189, 248, 0.12)',
+                                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                                        padding: '3px 7px',
+                                        borderRadius: '6px',
+                                        flexShrink: 0
+                                      }}>
+                                        Livre
+                                      </span>
+                                      <div style={{
+                                        flex: 1,
+                                        background: 'rgba(0, 0, 0, 0.45)',
+                                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                                        borderRadius: '9px',
+                                        padding: '3px',
+                                        display: 'flex',
+                                        gap: '3px'
+                                      }}>
+                                        {livreSheets.map((s: any) => {
+                                          const isSelected = activeFichaId === s.id && activeCategoria === 'fichasLivre';
+                                          return (
+                                            <button
+                                              key={s.id}
+                                              type="button"
+                                              onClick={() => handleSelectWorkoutForApt(a, s.id, s.nome, 'livre', 'fichasLivre')}
+                                              style={{
+                                                flex: 1,
+                                                padding: '5px 0',
+                                                borderRadius: '6px',
+                                                fontSize: '0.74rem',
+                                                fontWeight: isSelected ? 900 : 700,
+                                                border: 'none',
+                                                background: isSelected ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'transparent',
+                                                color: isSelected ? '#ffffff' : '#94a3b8',
+                                                cursor: 'pointer',
+                                                boxShadow: isSelected ? '0 2px 8px rgba(56, 189, 248, 0.4)' : 'none',
+                                                transition: 'all 0.15s ease'
+                                              }}
+                                              title={`Livre - ${s.nome || `Ficha ${s.id}`}`}
+                                            >
+                                              {isSelected ? `⭐ ${s.id}` : s.id}
+                                            </button>
+                                          );
+                                        })}
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
 
@@ -5882,11 +6011,10 @@ goniometria: {
                               </div>
                             )}
 
-                            {/* Linha 5: Barra de Ação Unificada (2 Botões Principais) */}
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: 'auto', paddingTop: '4px' }}>
-                              {/* Botão Primário Esquerdo: Abrir Ficha ou Prontuário */}
-                              <div style={{ flex: 1.2 }}>
-                                {(a.servico === 'Emergência' || a.tipo === 'Emergência') && a.status === 'presenca' && !a.finalizado ? (
+                            {/* Linha 5: Barra de Ação Unificada (Prontuário + Abrir Ficha + Presença) */}
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: 'auto', paddingTop: '4px', flexWrap: 'wrap' }}>
+                              {(a.servico === 'Emergência' || a.tipo === 'Emergência') && a.status === 'presenca' && !a.finalizado ? (
+                                <div style={{ flex: 1, minWidth: '130px' }}>
                                   <button
                                     type="button"
                                     className="btn btn-sm"
@@ -5910,101 +6038,116 @@ goniometria: {
                                   >
                                     <i className="fa-solid fa-flag-checkered"></i> Finalizar Emergência
                                   </button>
-                                ) : meta.key === 'dr_albert' ? (
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    style={{
-                                      width: '100%',
-                                      padding: '9px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '6px',
-                                      background: 'linear-gradient(135deg, rgba(56,189,248,0.25) 0%, rgba(14,165,233,0.35) 100%)',
-                                      color: '#7dd3fc',
-                                      border: '1px solid rgba(56, 189, 248, 0.45)',
-                                      fontWeight: 800,
-                                      borderRadius: '10px',
-                                      fontSize: '0.8rem',
-                                      cursor: 'pointer',
-                                      boxShadow: '0 2px 8px rgba(56, 189, 248, 0.2)'
-                                    }}
-                                    onClick={() => {
-                                      setDetailClient(client);
-                                      setClientDetailTab('consultas');
-                                      setShowClientDetailModal(true);
-                                    }}
-                                  >
-                                    <i className="fa-solid fa-user-doctor"></i> Prontuário
-                                  </button>
-                                ) : meta.key === 'dr_guilherme' ? (
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    style={{
-                                      width: '100%',
-                                      padding: '9px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '6px',
-                                      background: 'linear-gradient(135deg, rgba(168,85,247,0.25) 0%, rgba(147,51,234,0.35) 100%)',
-                                      color: '#c084fc',
-                                      border: '1px solid rgba(168, 85, 247, 0.45)',
-                                      fontWeight: 800,
-                                      borderRadius: '10px',
-                                      fontSize: '0.8rem',
-                                      cursor: 'pointer',
-                                      boxShadow: '0 2px 8px rgba(168, 85, 247, 0.2)'
-                                    }}
-                                    onClick={() => {
-                                      setDetailClient(client);
-                                      setClientDetailTab('avaliacoes');
-                                      setShowClientDetailModal(true);
-                                    }}
-                                  >
-                                    <i className="fa-solid fa-stethoscope"></i> Avaliação
-                                  </button>
-                                ) : client._id ? (
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    style={{
-                                      width: '100%',
-                                      padding: '9px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '6px',
-                                      background: 'linear-gradient(135deg, rgba(16,185,129,0.25) 0%, rgba(5,150,105,0.35) 100%)',
-                                      color: '#34d399',
-                                      border: '1px solid rgba(16, 185, 129, 0.5)',
-                                      fontWeight: 900,
-                                      borderRadius: '10px',
-                                      fontSize: '0.8rem',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.15s ease',
-                                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)'
-                                    }}
-                                    onClick={() => {
-                                      setBuilderClient(client);
-                                      if (todayTreino?.tipo === 'ficha' && todayTreino?.fichaId) {
-                                        setActiveWorkoutSubTab(todayTreino.fichaId as any);
-                                      }
-                                      setShowWorkoutBuilder(true);
-                                    }}
-                                  >
-                                    <i className="fa-solid fa-dumbbell"></i>
-                                    {todayTreino?.tipo === 'ficha' && todayTreino?.fichaId
-                                      ? `Abrir Ficha ${todayTreino.fichaId}`
-                                      : 'Abrir Ficha'}
-                                  </button>
-                                ) : null}
-                              </div>
+                                </div>
+                              ) : (
+                                <>
+                                  {meta.key === 'dr_albert' && (
+                                    <div style={{ flex: 1, minWidth: '95px' }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        style={{
+                                          width: '100%',
+                                          padding: '9px 8px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '6px',
+                                          background: 'linear-gradient(135deg, rgba(56,189,248,0.2) 0%, rgba(14,165,233,0.3) 100%)',
+                                          color: '#7dd3fc',
+                                          border: '1px solid rgba(56, 189, 248, 0.45)',
+                                          fontWeight: 800,
+                                          borderRadius: '10px',
+                                          fontSize: '0.78rem',
+                                          cursor: 'pointer',
+                                          boxShadow: '0 2px 8px rgba(56, 189, 248, 0.15)'
+                                        }}
+                                        onClick={() => {
+                                          setDetailClient(client);
+                                          setClientDetailTab('consultas');
+                                          setShowClientDetailModal(true);
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-user-doctor"></i> Prontuário
+                                      </button>
+                                    </div>
+                                  )}
 
-                              {/* Botão Primário Direito: Presença Rápida */}
-                              <div style={{ flex: 1 }}>
+                                  {meta.key === 'dr_guilherme' && (
+                                    <div style={{ flex: 1, minWidth: '95px' }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        style={{
+                                          width: '100%',
+                                          padding: '9px 8px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '6px',
+                                          background: 'linear-gradient(135deg, rgba(168,85,247,0.2) 0%, rgba(147,51,234,0.3) 100%)',
+                                          color: '#c084fc',
+                                          border: '1px solid rgba(168, 85, 247, 0.45)',
+                                          fontWeight: 800,
+                                          borderRadius: '10px',
+                                          fontSize: '0.78rem',
+                                          cursor: 'pointer',
+                                          boxShadow: '0 2px 8px rgba(168, 85, 247, 0.15)'
+                                        }}
+                                        onClick={() => {
+                                          setDetailClient(client);
+                                          setClientDetailTab('avaliacoes');
+                                          setShowClientDetailModal(true);
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-stethoscope"></i> Avaliação
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Botão Abrir Ficha (Disponível sempre que o cliente possui fichas cadastradas) */}
+                                  {(hasAnyWorkout || meta.key === 'academia') && client._id && (
+                                    <div style={{ flex: 1, minWidth: '100px' }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        style={{
+                                          width: '100%',
+                                          padding: '9px 8px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '6px',
+                                          background: 'linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(5,150,105,0.3) 100%)',
+                                          color: '#34d399',
+                                          border: '1px solid rgba(16, 185, 129, 0.5)',
+                                          fontWeight: 900,
+                                          borderRadius: '10px',
+                                          fontSize: '0.78rem',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.15s ease',
+                                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
+                                        }}
+                                        onClick={() => {
+                                          setBuilderClient(client);
+                                          if (todayTreino?.tipo === 'ficha' && todayTreino?.fichaId) {
+                                            setActiveWorkoutSubTab(todayTreino.fichaId as any);
+                                          }
+                                          setShowWorkoutBuilder(true);
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-dumbbell"></i>
+                                        {todayTreino?.tipo === 'ficha' && todayTreino?.fichaId
+                                          ? `Ficha ${todayTreino.fichaId}`
+                                          : 'Abrir Ficha'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {/* Botão Primário Direito: Presença Rápida com Wellness */}
+                              <div style={{ flex: 1.1, minWidth: '115px' }}>
                                 <button
                                   type="button"
                                   className="btn btn-sm"
@@ -6015,10 +6158,10 @@ goniometria: {
                                       : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                                     color: isPresente ? '#34d399' : '#ffffff',
                                     border: isPresente ? '1px solid rgba(16, 185, 129, 0.5)' : 'none',
-                                    padding: '9px 12px',
+                                    padding: '9px 10px',
                                     borderRadius: '10px',
                                     fontWeight: 900,
-                                    fontSize: '0.8rem',
+                                    fontSize: '0.78rem',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -6028,17 +6171,13 @@ goniometria: {
                                     transition: 'all 0.15s ease'
                                   }}
                                   onClick={() => {
-                                    if (isPresente) {
-                                      setWellnessApt(a);
-                                      setShowWellnessModal(true);
-                                    } else {
-                                      handleUpdateAptStatus(a._id, 'presenca');
-                                    }
+                                    setWellnessApt(a);
+                                    setShowWellnessModal(true);
                                   }}
-                                  title={isPresente ? "Clique para ver questionário Wellness" : "Confirmar Presença e responder Wellness"}
+                                  title={isPresente ? "Visualizar questionário Wellness já preenchido" : "Registrar Presença e responder Questionário Wellness"}
                                 >
-                                  <i className="fa-solid fa-check"></i>
-                                  <span>{isPresente ? 'Presente' : 'Presença'}</span>
+                                  <i className={isPresente ? "fa-solid fa-circle-check" : "fa-solid fa-heart-pulse"}></i>
+                                  <span>{isPresente ? 'Presente ✓' : 'Presença & Wellness'}</span>
                                 </button>
                               </div>
                             </div>
