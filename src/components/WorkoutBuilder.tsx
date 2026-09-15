@@ -73,6 +73,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
   const [activeObsModalItem, setActiveObsModalItem] = useState<any | null>(null);
   const [tempObsText, setTempObsText] = useState('');
 
+  // Atualizar título da aba do navegador com o nome do aluno
+  useEffect(() => {
+    if (clientName) {
+      const prevTitle = document.title;
+      document.title = `${clientName} • Ficha de Treino | Clube Fitness`;
+      return () => {
+        document.title = prevTitle;
+      };
+    }
+  }, [clientName]);
+
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {

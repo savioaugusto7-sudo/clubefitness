@@ -576,6 +576,38 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [showWorkoutBuilder, setShowWorkoutBuilder] = useState(false);
   const [builderClient, setBuilderClient] = useState<any>(null);
 
+  // Abertura da Ficha de Treino em Nova Aba com Título Personalizado
+  const handleOpenWorkoutInNewTab = (client: any, fichaId?: string) => {
+    if (!client?._id) return;
+    const cName = client.dadosPessoais?.nome || client.nome || 'Aluno';
+    const fId = fichaId || 'A';
+    const url = `/dashboard?tab=treinos&builderClientId=${client._id}&studentName=${encodeURIComponent(cName)}&fichaId=${fId}`;
+    window.open(url, '_blank');
+  };
+
+  // Carregamento automático quando aberto em nova aba via parâmetros de URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const builderClientId = params.get('builderClientId');
+      const studentName = params.get('studentName');
+      const fichaId = params.get('fichaId');
+      if (builderClientId) {
+        const found = clients.find(c => String(c._id) === String(builderClientId));
+        const clientObj = found || {
+          _id: builderClientId,
+          dadosPessoais: { nome: studentName ? decodeURIComponent(studentName) : 'Aluno' },
+          nome: studentName ? decodeURIComponent(studentName) : 'Aluno'
+        };
+        setBuilderClient(clientObj);
+        if (fichaId) {
+          setActiveWorkoutSubTab(fichaId as any);
+        }
+        setShowWorkoutBuilder(true);
+      }
+    }
+  }, [clients]);
+
   // Workout Reader Modal states (Somente Leitura)
   const [showWorkoutReaderModal, setShowWorkoutReaderModal] = useState(false);
   const [readerClient, setReaderClient] = useState<any>(null);
@@ -6129,11 +6161,7 @@ goniometria: {
                                           boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
                                         }}
                                         onClick={() => {
-                                          setBuilderClient(client);
-                                          if (todayTreino?.tipo === 'ficha' && todayTreino?.fichaId) {
-                                            setActiveWorkoutSubTab(todayTreino.fichaId as any);
-                                          }
-                                          setShowWorkoutBuilder(true);
+                                          handleOpenWorkoutInNewTab(client, todayTreino?.fichaId);
                                         }}
                                       >
                                         <i className="fa-solid fa-dumbbell"></i>
@@ -6852,8 +6880,7 @@ goniometria: {
                                           className="btn btn-primary btn-sm" 
                                           style={{ width: '100%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', fontWeight: 700, fontSize: '0.82rem' }} 
                                           onClick={() => {
-                                            setBuilderClient(client);
-                                            setShowWorkoutBuilder(true);
+                                            handleOpenWorkoutInNewTab(client);
                                           }}
                                         >
                                           <i className="fa-solid fa-dumbbell"></i> Abrir Ficha de Treino
