@@ -74,15 +74,16 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
     });
 
     const dateStrings = Array.from(new Set(scheduleDatePairs.map(p => p.dateStr)));
+    const hojeStr = safeFormatYYYYMMDD(new Date());
+    const agoraHora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
 
     const existingAppointments = await Appointment.find({
       $or: [
         { clienteId: { $in: [...idStrings, ...idObjects] } },
         { clientId: { $in: [...idStrings, ...idObjects] } }
       ],
-      data: { $in: dateStrings },
-      status: { $ne: 'cancelado' }
-    }).select('clienteId clientId data horario').lean();
+      data: { $in: dateStrings }
+    }).select('clienteId clientId data horario status').lean();
 
     const existingSet = new Set(
       existingAppointments.map((a: any) => {
@@ -100,6 +101,12 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
     for (const pair of scheduleDatePairs) {
       const cIdStr = String(pair.schedule.clienteId?._id || pair.schedule.clienteId);
       const key = `${cIdStr}_${pair.dateStr}_${pair.schedule.horario}`;
+
+      // Não gerar agendamento retroativo para horários passados de hoje
+      if (pair.dateStr === hojeStr && pair.schedule.horario <= agoraHora) {
+        continue;
+      }
+
       if (!existingSet.has(key)) {
         existingSet.add(key); // Prevenir duplicação intra-lote
 
