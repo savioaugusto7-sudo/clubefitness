@@ -7,13 +7,14 @@ interface WellnessModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: any;
+  clientWorkout?: any;
   onConfirm: (wellnessData: { sono: number; fadiga: number; dorMuscular: number; treinoExecutado?: any }) => Promise<void>;
 }
 
-export default function WellnessModal({ isOpen, onClose, appointment, onConfirm }: WellnessModalProps) {
-  const [sono, setSono] = useState<number>(3);
-  const [fadiga, setFadiga] = useState<number>(3);
-  const [dorMuscular, setDorMuscular] = useState<number>(2);
+export default function WellnessModal({ isOpen, onClose, appointment, clientWorkout, onConfirm }: WellnessModalProps) {
+  const [sono, setSono] = useState<number>(2);
+  const [fadiga, setFadiga] = useState<number>(2);
+  const [dorMuscular, setDorMuscular] = useState<number>(1);
   const [selectedFicha, setSelectedFicha] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -27,13 +28,13 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
       if (loadedAptIdRef.current !== currentId) {
         loadedAptIdRef.current = currentId;
         if (appointment?.wellness?.realizado) {
-          setSono(appointment.wellness.sono || 3);
-          setFadiga(appointment.wellness.fadiga || 3);
-          setDorMuscular(appointment.wellness.dorMuscular || 2);
+          setSono(appointment.wellness.sono ?? 2);
+          setFadiga(appointment.wellness.fadiga ?? 2);
+          setDorMuscular(appointment.wellness.dorMuscular ?? 1);
         } else {
-          setSono(3);
-          setFadiga(3);
-          setDorMuscular(2);
+          setSono(2);
+          setFadiga(2);
+          setDorMuscular(1);
         }
         if (appointment?.treinoExecutado?.fichaId) {
           setSelectedFicha(appointment.treinoExecutado.fichaId);
@@ -68,9 +69,9 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
       if (selectedFicha) {
         payload.treinoExecutado = {
           tipo: selectedFicha === 'livre' ? 'livre' : 'ficha',
-          fichaId: selectedFicha === 'livre' ? '' : selectedFicha,
-          fichaNome: selectedFicha === 'livre' ? 'Treino Livre' : `Ficha ${selectedFicha}`,
-          categoria: 'fichasMonitorado',
+          fichaId: selectedFicha === 'livre' ? '' : selectedFicha.replace(/^livre_/, ''),
+          fichaNome: selectedFicha === 'livre' ? 'Treino Livre' : `Ficha ${selectedFicha.replace(/^livre_/, '')}`,
+          categoria: selectedFicha.startsWith('livre_') ? 'fichasLivre' : 'fichasMonitorado',
           dataHora: new Date()
         };
       }
@@ -86,8 +87,7 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
     value: number, 
     setValue: (val: number) => void, 
     minLabel: string, 
-    maxLabel: string,
-    invertColors = false
+    maxLabel: string
   ) => {
     return (
       <div>
@@ -99,44 +99,23 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
             let borderColor = 'var(--border-color, rgba(255,255,255,0.1))';
 
             if (isSelected) {
-              if (invertColors) {
-                // Para sono: 8-10 é Ótimo (Verde), 6-7 é Moderado (Amarelo), 4-5 é Alerta (Laranja), 1-3 é Crítico (Vermelho)
-                if (num >= 8) {
-                  btnBg = '#10b981';
-                  btnColor = '#fff';
-                  borderColor = '#10b981';
-                } else if (num >= 6) {
-                  btnBg = '#eab308';
-                  btnColor = '#000';
-                  borderColor = '#eab308';
-                } else if (num >= 4) {
-                  btnBg = '#f97316';
-                  btnColor = '#fff';
-                  borderColor = '#f97316';
-                } else {
-                  btnBg = '#ef4444';
-                  btnColor = '#fff';
-                  borderColor = '#ef4444';
-                }
+              // Escala Padronizada: 1-3 é Ótimo/Bom (Verde), 4-6 é Moderado (Amarelo), 7-8 é Alerta/Alto (Laranja), 9-10 é Crítico/Severo (Vermelho)
+              if (num <= 3) {
+                btnBg = '#10b981';
+                btnColor = '#fff';
+                borderColor = '#10b981';
+              } else if (num <= 6) {
+                btnBg = '#eab308';
+                btnColor = '#000';
+                borderColor = '#eab308';
+              } else if (num <= 8) {
+                btnBg = '#f97316';
+                btnColor = '#fff';
+                borderColor = '#f97316';
               } else {
-                // Para fadiga e dor: 1-3 é Bom (Verde), 4-6 é Moderado (Amarelo), 7-8 é Alto (Laranja), 9-10 é Severo (Vermelho)
-                if (num <= 3) {
-                  btnBg = '#10b981';
-                  btnColor = '#fff';
-                  borderColor = '#10b981';
-                } else if (num <= 6) {
-                  btnBg = '#eab308';
-                  btnColor = '#000';
-                  borderColor = '#eab308';
-                } else if (num <= 8) {
-                  btnBg = '#f97316';
-                  btnColor = '#fff';
-                  borderColor = '#f97316';
-                } else {
-                  btnBg = '#ef4444';
-                  btnColor = '#fff';
-                  borderColor = '#ef4444';
-                }
+                btnBg = '#ef4444';
+                btnColor = '#fff';
+                borderColor = '#ef4444';
               }
             }
 
@@ -167,8 +146,8 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
           })}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px', padding: '0 2px' }}>
-          <span>{invertColors ? '🔴 1 = ' + minLabel : '🟢 1 = ' + minLabel}</span>
-          <span>{invertColors ? '🟢 10 = ' + maxLabel : '🔴 10 = ' + maxLabel}</span>
+          <span>{'🟢 1 = ' + minLabel}</span>
+          <span>{'🔴 10 = ' + maxLabel}</span>
         </div>
       </div>
     );
@@ -352,11 +331,11 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
                 <label style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main, #fff)' }}>
                   1. Qualidade do Sono na Noite Anterior:
                 </label>
-                <span style={{ fontSize: '1rem', fontWeight: 800, color: sono >= 8 ? '#10b981' : sono >= 6 ? '#eab308' : sono >= 4 ? '#f97316' : '#ef4444' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 800, color: sono <= 3 ? '#10b981' : sono <= 6 ? '#eab308' : sono <= 8 ? '#f97316' : '#ef4444' }}>
                   {sono}/10
                 </span>
               </div>
-              {renderScaleButtons(sono, setSono, 'Péssimo / Insônia', 'Excelente / Reparador', true)}
+              {renderScaleButtons(sono, setSono, 'Excelente / Reparador', 'Péssimo / Insônia')}
             </div>
 
             {/* Pergunta 2: Fadiga */}
@@ -415,48 +394,118 @@ export default function WellnessModal({ isOpen, onClose, appointment, onConfirm 
                 <i className="fa-solid fa-dumbbell" style={{ color: '#10b981', marginRight: '6px' }}></i>
                 Qual treino o aluno irá realizar hoje? (Opcional)
               </label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {['A', 'B', 'C', 'D', 'E'].map(letra => {
-                  const isSel = selectedFicha === letra;
+              {(() => {
+                const monitoradoSheets = (clientWorkout?.fichasMonitorado || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
+                const livreSheets = (clientWorkout?.fichasLivre || []).filter((f: any) => f.id && Array.isArray(f.exercicios) && f.exercicios.length > 0);
+                const hasAnySheets = monitoradoSheets.length > 0 || livreSheets.length > 0;
+
+                if (!hasAnySheets) {
                   return (
+                    <div style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fca5a5', fontSize: '0.82rem', fontWeight: 600 }}>
+                        <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', fontSize: '0.95rem' }}></i>
+                        <span>Aluno não possui ficha cadastrada</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFicha(selectedFicha === 'livre' ? '' : 'livre')}
+                        style={{
+                          padding: '5px 12px',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          borderRadius: '6px',
+                          border: selectedFicha === 'livre' ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                          background: selectedFicha === 'livre' ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.04)',
+                          color: selectedFicha === 'livre' ? '#38bdf8' : '#94a3b8',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {selectedFicha === 'livre' && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
+                        Treino Livre
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {monitoradoSheets.map((s: any) => {
+                      const isSel = selectedFicha === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setSelectedFicha(isSel ? '' : s.id)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            border: isSel ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                            background: isSel ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
+                            color: isSel ? '#10b981' : 'var(--text-muted)',
+                            cursor: 'pointer'
+                          }}
+                          title={s.nome || `Ficha ${s.id}`}
+                        >
+                          {isSel && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
+                          {s.nome ? (s.nome.toLowerCase().startsWith('ficha') ? s.nome : `Ficha ${s.id} - ${s.nome}`) : `Ficha ${s.id}`}
+                        </button>
+                      );
+                    })}
+                    {livreSheets.map((s: any) => {
+                      const isSel = selectedFicha === `livre_${s.id}`;
+                      return (
+                        <button
+                          key={`livre_${s.id}`}
+                          type="button"
+                          onClick={() => setSelectedFicha(isSel ? '' : `livre_${s.id}`)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            border: isSel ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                            background: isSel ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.03)',
+                            color: isSel ? '#38bdf8' : 'var(--text-muted)',
+                            cursor: 'pointer'
+                          }}
+                          title={`Livre - ${s.nome || `Ficha ${s.id}`}`}
+                        >
+                          {isSel && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
+                          Livre {s.id}
+                        </button>
+                      );
+                    })}
                     <button
-                      key={letra}
                       type="button"
-                      onClick={() => setSelectedFicha(isSel ? '' : letra)}
+                      onClick={() => setSelectedFicha(selectedFicha === 'livre' ? '' : 'livre')}
                       style={{
                         padding: '6px 12px',
                         fontSize: '0.78rem',
                         fontWeight: 700,
                         borderRadius: '6px',
-                        border: isSel ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-                        background: isSel ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
-                        color: isSel ? '#10b981' : 'var(--text-muted)',
+                        border: selectedFicha === 'livre' ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                        background: selectedFicha === 'livre' ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.03)',
+                        color: selectedFicha === 'livre' ? '#38bdf8' : 'var(--text-muted)',
                         cursor: 'pointer'
                       }}
                     >
-                      {isSel && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
-                      Ficha {letra}
+                      {selectedFicha === 'livre' && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
+                      Treino Livre
                     </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => setSelectedFicha(selectedFicha === 'livre' ? '' : 'livre')}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    borderRadius: '6px',
-                    border: selectedFicha === 'livre' ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-                    background: selectedFicha === 'livre' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
-                    color: selectedFicha === 'livre' ? '#10b981' : 'var(--text-muted)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {selectedFicha === 'livre' && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
-                  Treino Livre
-                </button>
-              </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {errorMessage && (

@@ -13,20 +13,17 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
   const f = Math.max(1, Math.min(10, Number(fadiga) || 1));
   const d = Math.max(1, Math.min(10, Number(dorMuscular) || 1));
 
-  // Normalização do Sono:
-  // No formulário, 1 = Péssimo/Insônia e 10 = Excelente/Reparador.
-  // Para cálculo de sobrecarga/estresse fisiológico (1 = ótimo, 10 = crítico):
-  const estresseSono = 11 - s;
-
-  // Pontuação composta de sobrecarga (mínimo 3, máximo 30)
-  const score = estresseSono + f + d;
+  // Escala Padronizada Unificada:
+  // 1 = Ótimo / Excelente (Sem estresse / Sem dor / Sono reparador)
+  // 10 = Crítico / Extremo (Insônia severa / Exaustão / Dor severa)
+  const score = s + f + d;
   const regrasAtivadas: string[] = [];
 
   // =========================================================================
   // 1. NÍVEL CRÍTICO (Prioridade Máxima - Vermelho / Recovery)
   // =========================================================================
-  if (s <= 3 && f >= 7) {
-    regrasAtivadas.push('Insônia Severa (Sono ≤3) + Fadiga Alta (≥7)');
+  if (s >= 7 && f >= 7) {
+    regrasAtivadas.push('Insônia Severa (Sono ≥7) + Fadiga Alta (≥7)');
     return {
       score,
       status: 'critico',
@@ -93,8 +90,8 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
     };
   }
 
-  if (s <= 4 && f >= 6) {
-    regrasAtivadas.push('Sono Ruim (≤4) + Fadiga Elevada (≥6)');
+  if (s >= 6 && f >= 6) {
+    regrasAtivadas.push('Sono Ruim (≥6) + Fadiga Elevada (≥6)');
     return {
       score,
       status: 'ruim',
@@ -135,8 +132,8 @@ export function calculateWellness(sono: number, fadiga: number, dorMuscular: num
     };
   }
 
-  if (s <= 4) {
-    regrasAtivadas.push('Noite de Sono Ruim (≤4)');
+  if (s >= 6) {
+    regrasAtivadas.push('Noite de Sono Ruim / Agitado (≥6)');
     return {
       score,
       status: 'moderado',

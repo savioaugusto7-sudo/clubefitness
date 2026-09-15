@@ -16915,6 +16915,7 @@ goniometria: {
           setWellnessApt(null);
         }}
         appointment={wellnessApt}
+        clientWorkout={workouts.find((w: any) => String(w.clienteId?._id || w.clienteId) === String(wellnessApt?.clienteId?._id || wellnessApt?.clienteId))}
         onConfirm={handleConfirmWellness}
       />
 
