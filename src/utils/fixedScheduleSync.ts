@@ -7,8 +7,16 @@ import Professional from '@/models/Professional';
 import Appointment from '@/models/Appointment';
 import { getContractValidityInfo } from '@/utils/contractValidity';
 
+function safeFormatYYYYMMDD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Helper para gerar agendamentos na grade a partir de regras de horário fixo
+ * vinculando estritamente à AGENDA (tipo) e desacoplando profissionalId.
  */
 export async function generateAppointmentsForSchedulesList(schedules: any[]) {
   try {
@@ -16,23 +24,23 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    const defaultProf = await Professional.findOne();
-    const defaultProfId = defaultProf?._id;
+    const todayStr = safeFormatYYYYMMDD(today);
 
     const allAppointmentsToCreate: any[] = [];
     const scheduleDatePairs: { schedule: any; dateStr: string }[] = [];
 
     for (const schedule of schedules) {
-      const startDate = new Date((schedule.dataInicio || today.toISOString().split('T')[0]) + 'T12:00:00');
+      const parts = (schedule.dataInicio || todayStr).split('-');
+      const startDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
       const effectiveStart = startDate < today ? today : startDate;
 
       let endDate: Date;
       if (schedule.dataFim) {
-        endDate = new Date(schedule.dataFim + 'T23:59:59');
+        const endParts = schedule.dataFim.split('-');
+        endDate = new Date(Number(endParts[0]), Number(endParts[1]) - 1, Number(endParts[2]), 23, 59, 59);
       } else {
         endDate = new Date(effectiveStart);
-        endDate.setDate(endDate.getDate() + 16 * 7); // 16 semanas
+        endDate.setDate(endDate.getDate() + 16 * 7); // 16 semanas à frente
       }
 
       if (endDate < effectiveStart) continue;
@@ -47,7 +55,7 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
       const stepWeeks = Math.max(1, Number(schedule.intervaloSemanas) || (schedule.frequenciaRepeticao === 'quinzenal' ? 2 : schedule.frequenciaRepeticao === 'a_cada_3_semanas' ? 3 : 1));
 
       while (current <= endDate) {
-        const dateStr = current.toISOString().split('T')[0];
+        const dateStr = safeFormatYYYYMMDD(current);
         scheduleDatePairs.push({ schedule, dateStr });
         current.setDate(current.getDate() + 7 * stepWeeks);
       }
@@ -94,50 +102,41 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
       const key = `${cIdStr}_${pair.dateStr}_${pair.schedule.horario}`;
       if (!existingSet.has(key)) {
         existingSet.add(key); // Prevenir duplicação intra-lote
-        const hasSpecificProf = Boolean(pair.schedule.profissionalId);
-        const profId = pair.schedule.profissionalId || defaultProfId;
+
+        const profId = pair.schedule.profissionalId || null;
+        let resolvedTipo: 'academia' | 'dr_albert' | 'dr_guilherme' = 'academia';
+
         if (profId) {
-          let resolvedTipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme' = 'academia';
-
-          if (hasSpecificProf) {
-            const profObj = profMap.get(String(profId?._id || profId));
-            const profName = (profObj?.nome || '').toLowerCase();
-            const serv = (pair.schedule.servico || '').toLowerCase();
-            const isDoctorAlbert = profName.includes('albert');
-            const isDoctorGuilherme = profName.includes('guilherme');
-            const isConsultorio = isDoctorAlbert || isDoctorGuilherme || serv.includes('avalia') || serv.includes('fisioterap') || serv.includes('consulta') || serv.includes('quiroprax') || serv.includes('individual');
-
-            if (isDoctorAlbert) {
-              resolvedTipo = 'dr_albert';
-            } else if (isDoctorGuilherme) {
-              resolvedTipo = 'dr_guilherme';
-            } else if (isConsultorio) {
-              resolvedTipo = 'consultorio';
-            }
-          } else {
-            // Quando não há profissional específico (Treino / Geral - Agenda Geral)
-            resolvedTipo = 'academia';
+          const profObj = profMap.get(String(profId?._id || profId));
+          const profName = (profObj?.nome || '').toLowerCase();
+          if (profName.includes('albert')) {
+            resolvedTipo = 'dr_albert';
+          } else if (profName.includes('guilherme')) {
+            resolvedTipo = 'dr_guilherme';
           }
-
-          allAppointmentsToCreate.push({
-            data: pair.dateStr,
-            horario: pair.schedule.horario,
-            tipo: resolvedTipo,
-            servico: pair.schedule.servico || (resolvedTipo !== 'academia' ? 'Atendimento Individual' : 'Treino Monitorado'),
-            consumeCredito: true,
-            tipoCredito: 'academia',
-            profissionalId: profId,
-            clienteId: pair.schedule.clienteId,
-            status: 'agendado',
-            origemHorarioFixo: true,
-            fixedScheduleId: pair.schedule._id
-          });
+        } else {
+          // Quando não há profissional específico (Treino / Geral - Agenda Geral)
+          resolvedTipo = 'academia';
         }
+
+        allAppointmentsToCreate.push({
+          data: pair.dateStr,
+          horario: pair.schedule.horario,
+          tipo: resolvedTipo,
+          servico: pair.schedule.servico || 'Treino Monitorado',
+          consumeCredito: true,
+          tipoCredito: 'academia',
+          profissionalId: resolvedTipo === 'academia' ? null : profId,
+          clienteId: pair.schedule.clienteId,
+          status: 'agendado',
+          origemHorarioFixo: true,
+          fixedScheduleId: pair.schedule._id
+        });
       }
     }
 
     if (allAppointmentsToCreate.length > 0) {
-      await Appointment.insertMany(allAppointmentsToCreate);
+      await Appointment.insertMany(allAppointmentsToCreate, { ordered: false });
     }
 
     return allAppointmentsToCreate.length;
@@ -149,7 +148,7 @@ export async function generateAppointmentsForSchedulesList(schedules: any[]) {
 
 /**
  * Recalcula e propaga a dataFim oficial do contrato/recorrência para todas as regras
- * de horário fixo do aluno e gera as aulas futuras na grade.
+ * de horário fixo do aluno e gera as aulas futuras na grade (16 semanas garantidas).
  */
 export async function syncClientFixedSchedulesValidity(clientId: string) {
   try {
@@ -171,15 +170,18 @@ export async function syncClientFixedSchedulesValidity(clientId: string) {
     const valInfo = getContractValidityInfo(client, payments, contracts);
     const officialDataFim = valInfo?.dataFim;
 
-    if (!officialDataFim || valInfo.isExpired) {
-      return { success: true, message: 'Cliente sem vigência ativa futura.', updated: 0 };
-    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = safeFormatYYYYMMDD(today);
 
-    // Atualizar todas as regras do cliente que possuem vigência vinculada a contrato
+    // Se o cliente não estiver expirado e a vigência for futura, atualizar dataFim
+    const isFutureActive = officialDataFim && officialDataFim >= todayStr;
+    const targetDataFim = isFutureActive ? officialDataFim : null;
+
     const updatedSchedules: any[] = [];
     for (const sched of schedules) {
-      if (sched.dataFim !== officialDataFim) {
-        sched.dataFim = officialDataFim;
+      if (targetDataFim && sched.dataFim !== targetDataFim) {
+        sched.dataFim = targetDataFim;
         await sched.save();
         updatedSchedules.push(sched);
       } else {
@@ -191,12 +193,81 @@ export async function syncClientFixedSchedulesValidity(clientId: string) {
 
     return {
       success: true,
-      dataFim: officialDataFim,
+      dataFim: targetDataFim,
       schedulesUpdated: updatedSchedules.length,
       appointmentsCreated: createdCount
     };
   } catch (error: any) {
     console.error('Erro ao sincronizar vigência de horários fixos do cliente:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Sincronização em massa de TODOS os horários fixos de todos os alunos ativos,
+ * reparando dataFim defasada e garantindo a grade preenchida nas próximas 16 semanas.
+ */
+export async function syncAllFixedSchedulesValidity() {
+  try {
+    await dbConnect();
+
+    const allSchedules = await FixedSchedule.find({});
+    if (!allSchedules || allSchedules.length === 0) {
+      return { success: true, total: 0, appointmentsCreated: 0 };
+    }
+
+    const clientIds = Array.from(new Set(allSchedules.map(s => String(s.clienteId?._id || s.clienteId))));
+    const [allClients, allContracts, allPayments] = await Promise.all([
+      Client.find({ _id: { $in: clientIds } }).lean(),
+      Contract.find({ clientId: { $in: clientIds } }).lean(),
+      Payment.find({ clientId: { $in: clientIds } }).lean()
+    ]);
+
+    const clientMap = new Map<string, any>();
+    allClients.forEach((c: any) => clientMap.set(String(c._id), c));
+
+    const contractMap = new Map<string, any[]>();
+    allContracts.forEach((ct: any) => {
+      const cId = String(ct.clientId);
+      if (!contractMap.has(cId)) contractMap.set(cId, []);
+      contractMap.get(cId)!.push(ct);
+    });
+
+    const paymentMap = new Map<string, any[]>();
+    allPayments.forEach((p: any) => {
+      const cId = String(p.clientId);
+      if (!paymentMap.has(cId)) paymentMap.set(cId, []);
+      paymentMap.get(cId)!.push(p);
+    });
+
+    const todayStr = safeFormatYYYYMMDD(new Date());
+
+    for (const sched of allSchedules) {
+      const cId = String(sched.clienteId?._id || sched.clienteId);
+      const client = clientMap.get(cId);
+      if (client) {
+        const contracts = contractMap.get(cId) || [];
+        const payments = paymentMap.get(cId) || [];
+        const valInfo = getContractValidityInfo(client, payments, contracts);
+
+        if (valInfo?.dataFim && valInfo.dataFim >= todayStr) {
+          if (sched.dataFim !== valInfo.dataFim) {
+            sched.dataFim = valInfo.dataFim;
+            await sched.save();
+          }
+        }
+      }
+    }
+
+    const createdCount = await generateAppointmentsForSchedulesList(allSchedules);
+
+    return {
+      success: true,
+      totalSchedules: allSchedules.length,
+      appointmentsCreated: createdCount
+    };
+  } catch (error: any) {
+    console.error('Erro na sincronização em massa de horários fixos:', error);
     return { success: false, error: error.message };
   }
 }

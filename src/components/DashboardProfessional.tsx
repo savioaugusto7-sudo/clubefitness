@@ -187,14 +187,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
   const [filtroAgendaResumo, setFiltroAgendaResumo] = useState<'todos' | 'academia' | 'dr_albert' | 'dr_guilherme'>('todos');
 
-  useEffect(() => {
-    if (isAlbert) {
-      setFiltroAgendaResumo('dr_albert');
-    } else if (isGuilherme) {
-      setFiltroAgendaResumo('dr_guilherme');
-    }
-  }, [isAlbert, isGuilherme]);
-
   // PIN verification states
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinModalProf, setPinModalProf] = useState('');
@@ -4965,22 +4957,7 @@ goniometria: {
                   profNome: pName || 'Guilherme José Graciano'
                 };
               }
-              if (a.tipo === 'consultorio') {
-                return {
-                  key: 'consultorio',
-                  label: 'Consultório',
-                  subLabel: 'Atendimento Individual',
-                  badgeBg: 'rgba(244, 63, 94, 0.15)',
-                  badgeColor: '#f43f5e',
-                  badgeBorder: '1px solid rgba(244, 63, 94, 0.45)',
-                  cardBorder: '1px solid rgba(244, 63, 94, 0.35)',
-                  cardBg: 'linear-gradient(180deg, rgba(244, 63, 94, 0.06) 0%, rgba(15, 23, 42, 0.95) 100%)',
-                  cardGlow: '0 4px 18px rgba(244, 63, 94, 0.15)',
-                  icon: 'fa-user-doctor',
-                  showProf: true,
-                  profNome: pName || 'Consultório'
-                };
-              }
+
               return {
                 key: 'academia',
                 label: 'Academia / Salão',

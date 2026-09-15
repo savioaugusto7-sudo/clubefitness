@@ -121,7 +121,7 @@ interface ProfessionalInfo {
 
 interface AgendaConfigRule {
   _id: string;
-  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
+  tipo: 'academia' | 'dr_albert' | 'dr_guilherme';
   horario: string;
   acao: 'bloquear' | 'adicionar' | 'alterar_capacidade';
   diaSemana: number | null;
@@ -132,7 +132,7 @@ interface AgendaConfigRule {
 interface SlotDetails {
   horario: string;
   capacidade: number;
-  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
+  tipo: 'academia' | 'dr_albert' | 'dr_guilherme';
   vagasOcupadas: number;
   appointments: any[];
 }
@@ -298,7 +298,7 @@ export default function AgendaCompletaPanel({
 
   useEffect(() => {
     if (selectedDate) {
-      const isLocalAgenda = activeTab === 'academia' || activeTab === 'dr_albert' || activeTab === 'dr_guilherme' || activeTab === 'consultorio';
+      const isLocalAgenda = activeTab === 'academia' || activeTab === 'dr_albert' || activeTab === 'dr_guilherme';
       if (isLocalAgenda) {
         fetchSlotsAndConfigs();
       } else {
@@ -848,13 +848,11 @@ export default function AgendaCompletaPanel({
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>
             <i className="fa-solid fa-calendar-alt" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i> 
             {activeTab === 'academia' 
-              ? 'Agenda Academia' 
+              ? 'Agenda Academia / Salão' 
               : activeTab === 'dr_albert' 
               ? 'Agenda Dr. Albert' 
               : activeTab === 'dr_guilherme' 
               ? 'Agenda Dr. Guilherme' 
-              : activeTab === 'consultorio' 
-              ? 'Agenda Consultório' 
               : `Google Agenda - ${currentProfessional?.nome}`}
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>

@@ -18,23 +18,23 @@ const SERVICOS_CONFIG: Record<string, {
   tipoCredito: 'academia' | 'massagem' | 'emergencia' | 'nenhum';
   vagasOcupadas: number;
   exclusivoPorProfissional: boolean;
-  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
+  tipo: 'academia' | 'dr_albert' | 'dr_guilherme';
 }> = {
   // Salão / Academia
   'Treino Monitorado':        { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Treino Livre':             { tipoCredito: 'nenhum',     vagasOcupadas: 0, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Recovery':                 { tipoCredito: 'nenhum',     vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
   'Massagem':                 { tipoCredito: 'massagem',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
-  'Avaliação Física':         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Teste de Força':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Avaliação Fisioterápica':                { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Avaliação Fisioterápica (Continuação)':  { tipoCredito: 'nenhum',     vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Emergência':                             { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  'Terapia Manual':                         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: true,  tipo: 'academia'    },
-  // Consultórios (Dr. Guilherme e Dr. Albert)
-  'Atendimento Individual':   { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'consultorio' },
-  'Consulta':                 { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'consultorio' },
-  'Quiropraxia':              { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'consultorio' },
+  'Avaliação Física':         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Teste de Força':           { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Avaliação Fisioterápica':                { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Avaliação Fisioterápica (Continuação)':  { tipoCredito: 'nenhum',     vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Emergência':                             { tipoCredito: 'emergencia', vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Terapia Manual':                         { tipoCredito: 'academia',   vagasOcupadas: 3, exclusivoPorProfissional: false, tipo: 'academia'    },
+  // Especialidades
+  'Atendimento Individual':   { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: false, tipo: 'academia'    },
+  'Consulta':                 { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'    },
+  'Quiropraxia':              { tipoCredito: 'academia',   vagasOcupadas: 1, exclusivoPorProfissional: true,  tipo: 'dr_albert'    },
 };
 
 export { SERVICOS_CONFIG };
@@ -48,7 +48,6 @@ function getNextHour(hourStr: string): string {
 const CAPACIDADE_POR_PROFISSIONAL = 3;
 const CANCELAMENTO_JANELAS: Record<string, number> = {
   academia: 6,
-  consultorio: 2,
   dr_albert: 2,
   dr_guilherme: 2
 };
@@ -437,8 +436,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // --- Atribuição de Profissional ---
-    let finalProfId = requestedProfId;
+    let finalProfId = requestedProfId || null;
     if (!finalProfId) {
       if (tipo === 'dr_albert') {
         const pAlbert = await Professional.findOne({ nome: { $regex: /albert/i } });
@@ -447,10 +445,6 @@ export async function POST(request: Request) {
         const pGuilherme = await Professional.findOne({ nome: { $regex: /guilherme/i } });
         if (pGuilherme) finalProfId = pGuilherme._id;
       }
-    }
-    if (!finalProfId) {
-      const fallbackProf = await Professional.findOne({});
-      finalProfId = fallbackProf?._id || '6668ab030303030303030302';
     }
 
     // --- Validação de Vagas / Capacidade ---

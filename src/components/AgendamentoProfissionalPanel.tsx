@@ -44,7 +44,7 @@ interface SlotInfo {
   horarioFim?: string;
   duracaoHoras?: number;
   capacidade: number;
-  tipo: 'academia' | 'consultorio' | 'dr_albert' | 'dr_guilherme';
+  tipo: 'academia' | 'dr_albert' | 'dr_guilherme';
   vagasOcupadas: number;
   vagasRestantes?: number;
   minVagasLivres?: number;

@@ -211,12 +211,10 @@ export async function GET(request: Request) {
         const slotsApts = appointments.filter((apt: any) => {
           if (apt.data !== targetDateStr || apt.horario !== checkHour) return false;
           if (tipoFiltro === 'dr_albert') {
-            const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-            return apt.tipo === 'dr_albert' || (apt.tipo !== 'academia' && profNome.includes('albert'));
+            return apt.tipo === 'dr_albert';
           }
           if (tipoFiltro === 'dr_guilherme') {
-            const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-            return apt.tipo === 'dr_guilherme' || (apt.tipo !== 'academia' && profNome.includes('guilherme'));
+            return apt.tipo === 'dr_guilherme';
           }
           return (apt.tipo || 'academia') === 'academia';
         });
@@ -465,12 +463,10 @@ export async function GET(request: Request) {
       const slotsApts = appointments.filter(apt => {
         if (apt.horario !== slot.horario) return false;
         if (slot.tipo === 'dr_albert') {
-          const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-          return apt.tipo === 'dr_albert' || (apt.tipo !== 'academia' && profNome.includes('albert'));
+          return apt.tipo === 'dr_albert';
         }
         if (slot.tipo === 'dr_guilherme') {
-          const profNome = (apt.profissionalId?.nome || apt.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-          return apt.tipo === 'dr_guilherme' || (apt.tipo !== 'academia' && profNome.includes('guilherme'));
+          return apt.tipo === 'dr_guilherme';
         }
         return (apt.tipo || 'academia') === 'academia';
       });

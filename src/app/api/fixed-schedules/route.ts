@@ -30,6 +30,13 @@ function getCapacidadeBase(tipo: string): number {
   return 6;
 }
 
+function safeFormatYYYYMMDD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // Helper otimizado para gerar agendamentos reais na grade a partir de regras de horário fixo
 async function generateAppointmentsForFixedSchedules(
   schedules: any[],
@@ -40,9 +47,7 @@ async function generateAppointmentsForFixedSchedules(
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    const defaultProf = await Professional.findOne();
-    const defaultProfId = defaultProf?._id;
+    const todayStr = safeFormatYYYYMMDD(today);
 
     // Mapa de exceções para busca rápida
     const exceptionMap = new Map<string, { acao: 'outro_horario' | 'outro_dia' | 'pular'; novaData?: string; novoHorario?: string }>();
@@ -58,15 +63,17 @@ async function generateAppointmentsForFixedSchedules(
     const scheduleDatePairs: { schedule: any; dateStr: string; horario: string }[] = [];
 
     for (const schedule of schedules) {
-      const startDate = new Date((schedule.dataInicio || today.toISOString().split('T')[0]) + 'T12:00:00');
+      const parts = (schedule.dataInicio || todayStr).split('-');
+      const startDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
       const effectiveStart = startDate < today ? today : startDate;
 
       let endDate: Date;
       if (schedule.dataFim) {
-        endDate = new Date(schedule.dataFim + 'T23:59:59');
+        const endParts = schedule.dataFim.split('-');
+        endDate = new Date(Number(endParts[0]), Number(endParts[1]) - 1, Number(endParts[2]), 23, 59, 59);
       } else {
         endDate = new Date(effectiveStart);
-        endDate.setDate(endDate.getDate() + 16 * 7); // 16 semanas
+        endDate.setDate(endDate.getDate() + 16 * 7); // 16 semanas à frente
       }
 
       const targetDayOfWeek = Number(schedule.diaSemana);
@@ -79,7 +86,7 @@ async function generateAppointmentsForFixedSchedules(
       const stepWeeks = Math.max(1, Number(schedule.intervaloSemanas) || (schedule.frequenciaRepeticao === 'quinzenal' ? 2 : schedule.frequenciaRepeticao === 'a_cada_3_semanas' ? 3 : 1));
 
       while (current <= endDate) {
-        const dateStr = current.toISOString().split('T')[0];
+        const dateStr = safeFormatYYYYMMDD(current);
         const exc = exceptionMap.get(dateStr);
 
         if (exc) {
@@ -158,83 +165,75 @@ async function generateAppointmentsForFixedSchedules(
 
       if (!existingSet.has(key)) {
         existingSet.add(key); // evitar duplicatas dentro do mesmo lote
-        const hasSpecificProf = Boolean(pair.schedule.profissionalId);
-        const profId = pair.schedule.profissionalId || defaultProfId;
+
+        const profId = pair.schedule.profissionalId || null;
+        let resolvedTipo: 'academia' | 'dr_albert' | 'dr_guilherme' = 'academia';
 
         if (profId) {
-          let resolvedTipo: 'academia' | 'dr_albert' | 'dr_guilherme' = 'academia';
-
-          if (hasSpecificProf) {
-            const profObj = profMap.get(String(profId?._id || profId));
-            const profName = (profObj?.nome || '').toLowerCase();
-            if (profName.includes('albert')) {
-              resolvedTipo = 'dr_albert';
-            } else if (profName.includes('guilherme')) {
-              resolvedTipo = 'dr_guilherme';
-            }
+          const profObj = profMap.get(String(profId?._id || profId));
+          const profName = (profObj?.nome || '').toLowerCase();
+          if (profName.includes('albert')) {
+            resolvedTipo = 'dr_albert';
+          } else if (profName.includes('guilherme')) {
+            resolvedTipo = 'dr_guilherme';
           }
+        } else {
+          // Quando não há profissional específico (Treino / Geral - Agenda Geral)
+          resolvedTipo = 'academia';
+        }
 
-          // Resolver capacidade e ocupação do slot para garantir que não haja overbooking
-          const slotKey = `${pair.dateStr}_${pair.horario}_${resolvedTipo}`;
-          const capacidadeBase = getCapacidadeBase(resolvedTipo);
+        // Resolver capacidade e ocupação do slot para garantir que não haja overbooking
+        const slotKey = `${pair.dateStr}_${pair.horario}_${resolvedTipo}`;
+        const capacidadeBase = getCapacidadeBase(resolvedTipo);
 
-          const parts = pair.dateStr.split('-');
-          const dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-          const dayOfW = dObj.getDay();
+        const parts = pair.dateStr.split('-');
+        const dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const dayOfW = dObj.getDay();
 
-          const customCap = configs.find((c: any) => c.horario === pair.horario && c.acao === 'alterar_capacidade' && (c.dataEspecifica === pair.dateStr || (c.diaSemana === dayOfW && !c.dataEspecifica)));
-          const maxCap = customCap?.capacidadePersonalizada !== undefined && customCap?.capacidadePersonalizada !== null
-            ? customCap.capacidadePersonalizada
-            : capacidadeBase;
+        const customCap = configs.find((c: any) => c.horario === pair.horario && c.acao === 'alterar_capacidade' && (c.dataEspecifica === pair.dateStr || (c.diaSemana === dayOfW && !c.dataEspecifica)));
+        const maxCap = customCap?.capacidadePersonalizada !== undefined && customCap?.capacidadePersonalizada !== null
+          ? customCap.capacidadePersonalizada
+          : capacidadeBase;
 
-          // Calcular ocupação existente + novos a criar
-          let existingOccupancy = 0;
-          const matchingExisting = existingAppointments.filter((a: any) => {
-            if (a.data !== pair.dateStr || a.horario !== pair.horario) return false;
-            if (resolvedTipo === 'dr_albert') {
-              const pName = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-              return a.tipo === 'dr_albert' || (a.tipo !== 'academia' && pName.includes('albert'));
-            }
-            if (resolvedTipo === 'dr_guilherme') {
-              const pName = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-              return a.tipo === 'dr_guilherme' || (a.tipo !== 'academia' && pName.includes('guilherme'));
-            }
-            return (a.tipo || 'academia') === 'academia';
+        // Calcular ocupação existente + novos a criar
+        let existingOccupancy = 0;
+        const matchingExisting = existingAppointments.filter((a: any) => {
+          if (a.data !== pair.dateStr || a.horario !== pair.horario) return false;
+          return (a.tipo || 'academia') === resolvedTipo;
+        });
+
+        if (resolvedTipo === 'dr_albert' || resolvedTipo === 'dr_guilherme') {
+          existingOccupancy = matchingExisting.length;
+        } else {
+          existingOccupancy = matchingExisting.reduce((sum: number, apt: any) => {
+            const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
+            return sum + cfg.vagasOcupadas;
+          }, 0);
+        }
+
+        const currentBatchAdded = localOccupancyMap.get(slotKey) || 0;
+        const serviceWeight = resolvedTipo === 'academia'
+          ? (SERVICOS_CONFIG[pair.schedule.servico]?.vagasOcupadas !== undefined ? SERVICOS_CONFIG[pair.schedule.servico].vagasOcupadas : 1)
+          : 1;
+
+        if (existingOccupancy + currentBatchAdded + serviceWeight <= maxCap) {
+          localOccupancyMap.set(slotKey, currentBatchAdded + serviceWeight);
+
+          allAppointmentsToCreate.push({
+            data: pair.dateStr,
+            horario: pair.horario,
+            tipo: resolvedTipo,
+            servico: pair.schedule.servico || 'Treino Monitorado',
+            consumeCredito: true,
+            tipoCredito: 'academia',
+            profissionalId: resolvedTipo === 'academia' ? null : profId,
+            clienteId: pair.schedule.clienteId,
+            status: 'agendado',
+            origemHorarioFixo: true,
+            fixedScheduleId: pair.schedule._id
           });
-
-          if (resolvedTipo === 'dr_albert' || resolvedTipo === 'dr_guilherme') {
-            existingOccupancy = matchingExisting.length;
-          } else {
-            existingOccupancy = matchingExisting.reduce((sum: number, apt: any) => {
-              const cfg = SERVICOS_CONFIG[apt.servico] || { vagasOcupadas: 1 };
-              return sum + cfg.vagasOcupadas;
-            }, 0);
-          }
-
-          const currentBatchAdded = localOccupancyMap.get(slotKey) || 0;
-          const serviceWeight = resolvedTipo === 'academia'
-            ? (SERVICOS_CONFIG[pair.schedule.servico]?.vagasOcupadas !== undefined ? SERVICOS_CONFIG[pair.schedule.servico].vagasOcupadas : 1)
-            : 1;
-
-          if (existingOccupancy + currentBatchAdded + serviceWeight <= maxCap) {
-            localOccupancyMap.set(slotKey, currentBatchAdded + serviceWeight);
-
-            allAppointmentsToCreate.push({
-              data: pair.dateStr,
-              horario: pair.horario,
-              tipo: resolvedTipo,
-              servico: pair.schedule.servico || (resolvedTipo !== 'academia' ? 'Atendimento Individual' : 'Treino Monitorado'),
-              consumeCredito: true,
-              tipoCredito: 'academia',
-              profissionalId: profId,
-              clienteId: pair.schedule.clienteId,
-              status: 'agendado',
-              origemHorarioFixo: true,
-              fixedScheduleId: pair.schedule._id
-            });
-          } else {
-            console.warn(`[FixedSchedules] Slot ${pair.dateStr} às ${pair.horario} (${resolvedTipo}) atingiu capacidade (${existingOccupancy + currentBatchAdded}/${maxCap}). Agendamento excedente bloqueado.`);
-          }
+        } else {
+          console.warn(`[FixedSchedules] Slot ${pair.dateStr} às ${pair.horario} (${resolvedTipo}) atingiu capacidade (${existingOccupancy + currentBatchAdded}/${maxCap}). Agendamento excedente bloqueado.`);
         }
       }
     }
@@ -274,9 +273,9 @@ export async function POST(request: Request) {
 
     // Sincronização em massa de todas as regras existentes
     if (syncAll) {
-      const allSchedules = await FixedSchedule.find({});
-      await generateAppointmentsForFixedSchedules(allSchedules);
-      return NextResponse.json({ success: true, message: 'Todas as regras foram sincronizadas com a grade da agenda.' });
+      const { syncAllFixedSchedulesValidity } = await import('@/utils/fixedScheduleSync');
+      const syncResult = await syncAllFixedSchedulesValidity();
+      return NextResponse.json({ success: true, message: 'Todas as regras foram sincronizadas com a grade da agenda.', result: syncResult });
     }
 
     if (!clienteId || !servico || !dataInicio) {
