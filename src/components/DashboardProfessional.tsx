@@ -5024,83 +5024,54 @@ goniometria: {
                 };
               }
 
-              // 3. Último treino / ficha executada
+              // 3. Checar se o aluno possui fichas cadastradas no documento de clientworkouts
+              const userWorkoutDoc = workouts.find((w: any) => String(w.clienteId?._id || w.clienteId) === cIdStr);
+              const allSheets = [
+                ...(userWorkoutDoc?.fichasMonitorado || []),
+                ...(userWorkoutDoc?.fichasLivre || [])
+              ];
+              const hasRegisteredSheets = allSheets.some((s: any) => Array.isArray(s.exercicios) && s.exercicios.length > 0);
+
+              // 4. Último treino / ficha executada REAL em atendimentos passados (SEM fallbacks de data de edição da ficha)
               const pastTreinosApts = pastApts.filter((a: any) => Boolean(a.treinoExecutado));
               let lastWorkoutInfo: { label: string; detail: string; date: string; isFallbackNotice?: boolean } | null = null;
-
-              // Consultar documento de clientworkouts para atualizações recentes de fichas
-              const userWorkoutDoc = workouts.find((w: any) => String(w.clienteId?._id || w.clienteId) === cIdStr);
-              let latestWorkoutUpdate: { fichaNome: string; fichaId: string; date: string } | null = null;
-              if (userWorkoutDoc) {
-                const allSheets = [
-                  ...(userWorkoutDoc.fichasMonitorado || []),
-                  ...(userWorkoutDoc.fichasLivre || [])
-                ];
-                for (const s of allSheets) {
-                  if (s.ultimaAtualizacao) {
-                    const sDate = s.ultimaAtualizacao.split('T')[0];
-                    if (!latestWorkoutUpdate || sDate > latestWorkoutUpdate.date) {
-                      latestWorkoutUpdate = {
-                        fichaNome: s.nome || `Ficha ${s.id}`,
-                        fichaId: s.id,
-                        date: sDate
-                      };
-                    }
-                  }
-                }
-                if (!latestWorkoutUpdate && userWorkoutDoc.updatedAt) {
-                  const upDate = new Date(userWorkoutDoc.updatedAt).toISOString().split('T')[0];
-                  const firstSheet = allSheets[0];
-                  if (firstSheet) {
-                    latestWorkoutUpdate = {
-                      fichaNome: firstSheet.nome || `Ficha ${firstSheet.id}`,
-                      fichaId: firstSheet.id,
-                      date: upDate
-                    };
-                  }
-                }
-              }
 
               if (pastTreinosApts.length > 0) {
                 const lastTApt = pastTreinosApts[0];
                 const te = lastTApt.treinoExecutado;
-                const desc = te.tipo === 'livre' ? 'Treino Livre' : (te.fichaNome || `Ficha ${te.fichaId || 'A'}`);
+                const desc = te.tipo === 'livre' ? 'Treino Livre' : (te.fichaNome || (te.fichaId ? `Ficha ${te.fichaId}` : 'Treino'));
                 const dateInfo = formatRelativeDate(lastTApt.data);
 
-                if (latestWorkoutUpdate && latestWorkoutUpdate.date > (lastTApt.data || '')) {
-                  const wDateInfo = formatRelativeDate(latestWorkoutUpdate.date);
-                  lastWorkoutInfo = {
-                    label: `Último Treino: ${latestWorkoutUpdate.fichaNome}`,
-                    detail: `${wDateInfo.formatted}${wDateInfo.relative ? ` (${wDateInfo.relative})` : ''}`,
-                    date: latestWorkoutUpdate.date
-                  };
-                } else {
-                  lastWorkoutInfo = {
-                    label: `Último Treino: ${desc}`,
-                    detail: `${dateInfo.formatted}${dateInfo.relative ? ` (${dateInfo.relative})` : ''}`,
-                    date: lastTApt.data
-                  };
-                }
-              } else if (latestWorkoutUpdate) {
-                const wDateInfo = formatRelativeDate(latestWorkoutUpdate.date);
                 lastWorkoutInfo = {
-                  label: `Último Treino: ${latestWorkoutUpdate.fichaNome}`,
-                  detail: `${wDateInfo.formatted}${wDateInfo.relative ? ` (${wDateInfo.relative})` : ''}`,
-                  date: latestWorkoutUpdate.date
+                  label: `Último Treino: ${desc}`,
+                  detail: `${dateInfo.formatted}${dateInfo.relative ? ` (${dateInfo.relative})` : ''}`,
+                  date: lastTApt.data,
+                  isFallbackNotice: false
                 };
-              }
-
-              // Se não há nenhum histórico de atendimento nem ficha
-              if (!lastAptInfo && !lastWorkoutInfo) {
-                return {
-                  isFirst: true,
-                  lastApt: null,
-                  lastWorkout: {
+              } else {
+                if (hasRegisteredSheets) {
+                  lastWorkoutInfo = {
                     label: 'Nenhuma ficha informada em atendimentos anteriores',
                     detail: 'Registre a de hoje para o histórico',
                     date: '',
                     isFallbackNotice: true
-                  },
+                  };
+                } else {
+                  lastWorkoutInfo = {
+                    label: 'Aluno não possui ficha cadastrada',
+                    detail: 'Monte uma ficha no Workout Builder',
+                    date: '',
+                    isFallbackNotice: true
+                  };
+                }
+              }
+
+              // Se não há nenhum histórico de atendimento prévio
+              if (!lastAptInfo) {
+                return {
+                  isFirst: true,
+                  lastApt: null,
+                  lastWorkout: lastWorkoutInfo,
                   isSame: false
                 };
               }
@@ -5113,16 +5084,6 @@ goniometria: {
                 }
               }
 
-              // Se teve atendimento anterior mas nunca registrou ficha
-              if (lastAptInfo && !lastWorkoutInfo) {
-                lastWorkoutInfo = {
-                  label: 'Nenhuma ficha informada em atendimentos anteriores',
-                  detail: 'Registre a de hoje para o histórico',
-                  date: '',
-                  isFallbackNotice: true
-                };
-              }
-
               return {
                 isFirst: false,
                 lastApt: lastAptInfo,
@@ -5133,7 +5094,10 @@ goniometria: {
 
             const getClientLastActivity = (clientId: string, currentAptId: string) => {
               const dual = getClientDualHistory(clientId, currentAptId);
-              if (dual.isFirst) {
+              if (dual.isFirst && !dual.lastApt) {
+                if (dual.lastWorkout?.isFallbackNotice) {
+                  return { label: dual.lastWorkout.label, detail: dual.lastWorkout.detail, isFirst: true };
+                }
                 return { label: 'Primeiro Atendimento', detail: 'Sem histórico anterior', isFirst: true };
               }
               if (dual.lastWorkout && !dual.lastWorkout.isFallbackNotice) {
