@@ -4134,8 +4134,8 @@ goniometria: {
     Object.keys(groups).forEach(key => {
       const { Direito, Esquerdo } = groups[key];
       if (Direito && Esquerdo) {
-        const valD = Direito.forcaN;
-        const valE = Esquerdo.forcaN;
+        const valD = Number(Direito.forcaN ?? Direito.valorObtido ?? 0);
+        const valE = Number(Esquerdo.forcaN ?? Esquerdo.valorObtido ?? 0);
         const minVal = Math.min(valD, valE);
         const maxVal = Math.max(valD, valE);
 
@@ -12177,8 +12177,8 @@ goniometria: {
                                 { label: 'Alcance Anterior D', prevValue: pyd.anterior, currValue: asYAntD, unit: 'cm' },
                                 { label: 'Alcance Anterior E', prevValue: pye.anterior, currValue: asYAntE, unit: 'cm' },
                                 { label: 'Assimetria Anterior', prevValue: prevY?.metricas?.assimetriaAbsoluta, currValue: analysis.assimetriaAnt || undefined, unit: 'cm', isLowerBetter: true },
-                                { label: 'Composite Score D', prevValue: pyd.comprimentoMembro ? (((Number(pyd.anterior||0)+Number(pyd.posteromedial||0)+Number(pyd.posterolateral||0))/(3*pyd.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoD || undefined, unit: '%' },
-                                { label: 'Composite Score E', prevValue: pye.comprimentoMembro ? (((Number(pye.anterior||0)+Number(pye.posteromedial||0)+Number(pye.posterolateral||0))/(3*pye.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoE || undefined, unit: '%' }
+                                { label: 'Composite Score D', prevValue: (pyd.comprimentoMembro && Number(pyd.comprimentoMembro) > 0) ? (((Number(pyd.anterior||0)+Number(pyd.posteromedial||0)+Number(pyd.posterolateral||0))/(3*Number(pyd.comprimentoMembro)))*100).toFixed(1) : undefined, currValue: analysis.compostoD || undefined, unit: '%' },
+                                { label: 'Composite Score E', prevValue: (pye.comprimentoMembro && Number(pye.comprimentoMembro) > 0) ? (((Number(pye.anterior||0)+Number(pye.posteromedial||0)+Number(pye.posterolateral||0))/(3*Number(pye.comprimentoMembro)))*100).toFixed(1) : undefined, currValue: analysis.compostoE || undefined, unit: '%' }
                               ];
                               return (
                                 <div style={{ marginTop: '10px' }}>
@@ -14754,8 +14754,8 @@ goniometria: {
                               { label: 'Alcance Anterior D', prevValue: pyd.anterior, currValue: yAntD, unit: 'cm' },
                               { label: 'Alcance Anterior E', prevValue: pye.anterior, currValue: yAntE, unit: 'cm' },
                               { label: 'Assimetria Anterior', prevValue: prevY?.metricas?.assimetriaAbsoluta, currValue: analysis.assimetriaAnt || undefined, unit: 'cm', isLowerBetter: true },
-                              { label: 'Composite Score D', prevValue: pyd.comprimentoMembro ? (((Number(pyd.anterior||0)+Number(pyd.posteromedial||0)+Number(pyd.posterolateral||0))/(3*pyd.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoD || undefined, unit: '%' },
-                              { label: 'Composite Score E', prevValue: pye.comprimentoMembro ? (((Number(pye.anterior||0)+Number(pye.posteromedial||0)+Number(pye.posterolateral||0))/(3*pye.comprimentoMembro))*100).toFixed(1) : undefined, currValue: analysis.compostoE || undefined, unit: '%' }
+                              { label: 'Composite Score D', prevValue: (pyd.comprimentoMembro && Number(pyd.comprimentoMembro) > 0) ? (((Number(pyd.anterior||0)+Number(pyd.posteromedial||0)+Number(pyd.posterolateral||0))/(3*Number(pyd.comprimentoMembro)))*100).toFixed(1) : undefined, currValue: analysis.compostoD || undefined, unit: '%' },
+                              { label: 'Composite Score E', prevValue: (pye.comprimentoMembro && Number(pye.comprimentoMembro) > 0) ? (((Number(pye.anterior||0)+Number(pye.posteromedial||0)+Number(pye.posterolateral||0))/(3*Number(pye.comprimentoMembro)))*100).toFixed(1) : undefined, currValue: analysis.compostoE || undefined, unit: '%' }
                             ];
                             return (
                               <div style={{ marginTop: '12px' }}>
@@ -15742,9 +15742,9 @@ goniometria: {
                                <td data-label="Movimento">{t.movimento}</td>
                                <td data-label="Lado">{t.lado}</td>
                                <td data-label="Valor">{t.valorObtido} {t.unidade}</td>
-                               <td data-label="Força (N)">{t.forcaN.toFixed(1)} N</td>
-                               <td data-label="%PC">{t.pcPercent.toFixed(1)}%</td>
-                               <td data-label="% Ref">{t.pctRef.toFixed(1)}%</td>
+                               <td data-label="Força (N)">{Number(t.forcaN ?? t.valorObtido ?? 0).toFixed(1)} N</td>
+                               <td data-label="%PC">{Number(t.pcPercent ?? 0).toFixed(1)}%</td>
+                               <td data-label="% Ref">{Number(t.pctRef ?? 0).toFixed(1)}%</td>
                                <td data-label="Classificação">
                                  <span className={`badge ${
                                    t.classificacao === 'FORÇA NORMAL' ? 'badge-success' : 
@@ -15792,10 +15792,10 @@ goniometria: {
                               <tr key={idx}>
                                 <td data-label="Articulação">{c.articulacao}</td>
                                 <td data-label="Movimento">{c.movimento}</td>
-                                <td data-label="Dir (N)">{c.valorD.toFixed(1)} N</td>
-                                <td data-label="Esq (N)">{c.valorE.toFixed(1)} N</td>
-                                <td data-label="Symmetry (%)">{c.simetria.toFixed(1)}%</td>
-                                <td data-label="Déficit (%)">{c.deficit.toFixed(1)}%</td>
+                                <td data-label="Dir (N)">{Number(c.valorD ?? 0).toFixed(1)} N</td>
+                                <td data-label="Esq (N)">{Number(c.valorE ?? 0).toFixed(1)} N</td>
+                                <td data-label="Symmetry (%)">{Number(c.simetria ?? 0).toFixed(1)}%</td>
+                                <td data-label="Déficit (%)">{Number(c.deficit ?? 0).toFixed(1)}%</td>
                                 <td data-label="Status">
                                   <span className={`badge ${
                                     c.classificacaoSimetria === 'Excelente' ? 'badge-success' : 
@@ -15880,10 +15880,12 @@ goniometria: {
                   const prevTests = prevSt?.dados?.testesRealizados || prevSt?.dados?.exercicios || [];
                   const items: ComparativeItem[] = stTestesList.map(currT => {
                     const match = prevTests.find((pt: any) => pt.articulacao === currT.articulacao && pt.movimento === currT.movimento && pt.lado === currT.lado);
+                    const prevVal = match ? (match.forcaN != null ? Number(Number(match.forcaN).toFixed(1)) : (match.valorObtido != null ? Number(match.valorObtido) : undefined)) : undefined;
+                    const currVal = currT.forcaN != null ? Number(Number(currT.forcaN).toFixed(1)) : (currT.valorObtido != null ? Number(currT.valorObtido) : 0);
                     return {
                       label: `${currT.articulacao} - ${currT.movimento} (${currT.lado})`,
-                      prevValue: match ? (match.forcaN ? Number(match.forcaN.toFixed(1)) : match.valorObtido) : undefined,
-                      currValue: Number(currT.forcaN.toFixed(1)),
+                      prevValue: prevVal,
+                      currValue: currVal,
                       unit: 'N'
                     };
                   });
