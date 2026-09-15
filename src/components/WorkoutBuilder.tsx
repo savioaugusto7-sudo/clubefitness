@@ -50,9 +50,10 @@ interface WorkoutBuilderProps {
   onClose: () => void;
   clientId: string;
   clientName: string;
+  initialFichaId?: string;
 }
 
-export default function WorkoutBuilder({ onClose, clientId, clientName }: WorkoutBuilderProps) {
+export default function WorkoutBuilder({ onClose, clientId, clientName, initialFichaId }: WorkoutBuilderProps) {
   const [exercises, setExercises] = useState<any[]>([]);
   const [selectedMuscle, setSelectedMuscle] = useState('Todos');
   const [search, setSearch] = useState('');
@@ -75,13 +76,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
 
   // Atualizar título da aba do navegador com o nome do aluno
   useEffect(() => {
-    if (clientName) {
-      const prevTitle = document.title;
-      document.title = `${clientName} • Ficha de Treino | Clube Fitness`;
-      return () => {
-        document.title = prevTitle;
-      };
-    }
+    const titleName = clientName || 'Aluno';
+    const prevTitle = document.title;
+    document.title = `${titleName} • Ficha de Treino | Clube Fitness`;
+    return () => {
+      document.title = prevTitle;
+    };
   }, [clientName]);
 
   useEffect(() => {
@@ -116,11 +116,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName }: Workou
 
           setActiveCategory(chosenCategory);
           const activeSheets = w[chosenCategory] || [];
-          const initialSheet = activeSheets.find((s: any) => s.id === 'A') || activeSheets[0] || { id: 'A', nome: 'Ficha A', exercicios: [] };
+          const targetFichaLetter = initialFichaId ? initialFichaId.toUpperCase() : 'A';
+          const initialSheet = activeSheets.find((s: any) => s.id === targetFichaLetter) || activeSheets.find((s: any) => s.id === 'A') || activeSheets[0] || { id: targetFichaLetter, nome: `Ficha ${targetFichaLetter}`, exercicios: [] };
 
           if (initialSheet) {
-            setActiveTabLetter(initialSheet.id || 'A');
-            setWorkoutName(initialSheet.nome || `Ficha ${initialSheet.id || 'A'}`);
+            setActiveTabLetter(initialSheet.id || (targetFichaLetter as any) || 'A');
+            setWorkoutName(initialSheet.nome || `Ficha ${initialSheet.id || targetFichaLetter || 'A'}`);
             setWorkoutGoal(initialSheet.observacoesGerais || '');
             
             const items = (initialSheet.exercicios || []).map((ex: any, idx: number) => {

@@ -568,12 +568,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [showWorkoutBuilder, setShowWorkoutBuilder] = useState(false);
   const [builderClient, setBuilderClient] = useState<any>(null);
 
-  // Abertura da Ficha de Treino em Nova Aba com Título Personalizado
+  // Abertura da Ficha de Treino em Nova Aba com Título Personalizado na rota dedicada
   const handleOpenWorkoutInNewTab = (client: any, fichaId?: string) => {
     if (!client?._id) return;
     const cName = client.dadosPessoais?.nome || client.nome || 'Aluno';
     const fId = fichaId || 'A';
-    const url = `/dashboard?tab=treinos&builderClientId=${client._id}&studentName=${encodeURIComponent(cName)}&fichaId=${fId}`;
+    const url = `/ficha/${client._id}?studentName=${encodeURIComponent(cName)}&fichaId=${fId}`;
     window.open(url, '_blank');
   };
 

@@ -48,9 +48,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const tab = params.get('activeTab');
+      const tab = params.get('activeTab') || params.get('tab');
       if (tab) {
-        setActiveTab(tab);
+        if (tab === 'treinos' || tab === 'fichas' || tab === 'fichas_treino') {
+          setActiveTab('treinos_prof');
+        } else {
+          setActiveTab(tab);
+        }
       }
     }
   }, []);

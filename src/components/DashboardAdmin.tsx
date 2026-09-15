@@ -410,6 +410,20 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [selectedClientForWorkout, setSelectedClientForWorkout] = useState<any>(null);
   const [workoutSearchAdmin, setWorkoutSearchAdmin] = useState('');
 
+  // Carregar ficha de treino se especificado na URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const bClientId = params.get('builderClientId');
+      if (bClientId && clients.length > 0) {
+        const found = clients.find(c => String(c._id) === String(bClientId));
+        if (found) {
+          setSelectedClientForWorkout(found);
+        }
+      }
+    }
+  }, [clients]);
+
   // Appointment Edit Modal States
   const [showEditAptModal, setShowEditAptModal] = useState(false);
   const [editAptItem, setEditAptItem] = useState<any>(null);
@@ -441,7 +455,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
       const pName = (pObj?.nome || '').toLowerCase();
       if (pName.includes('guilherme')) agendaTipo = 'dr_guilherme';
       else if (pName.includes('albert')) agendaTipo = 'dr_albert';
-      else agendaTipo = 'consultorio';
+      else agendaTipo = 'academia';
     }
 
     const dateToQuery = fsDate || new Date().toISOString().split('T')[0];
@@ -6236,14 +6250,28 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
                               </span>
                             </td>
                             <td style={{ textAlign: 'center' }}>
-                              <button
-                                className="btn btn-primary btn-sm"
-                                style={{ padding: '6px 12px', fontSize: '0.82rem' }}
-                                onClick={() => setSelectedClientForWorkout(c)}
-                              >
-                                <i className="fa-solid fa-dumbbell" style={{ marginRight: '6px' }}></i>
-                                Abrir / Criar Ficha
-                              </button>
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                                  onClick={() => setSelectedClientForWorkout(c)}
+                                >
+                                  <i className="fa-solid fa-dumbbell" style={{ marginRight: '6px' }}></i>
+                                  Abrir
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+                                  title="Abrir em Nova Aba"
+                                  onClick={() => {
+                                    const cName = c.dadosPessoais?.nome || c.nome || 'Aluno';
+                                    window.open(`/ficha/${c._id}?studentName=${encodeURIComponent(cName)}`, '_blank');
+                                  }}
+                                >
+                                  <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
