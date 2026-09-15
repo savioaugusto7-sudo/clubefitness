@@ -577,29 +577,6 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     window.open(url, '_blank');
   };
 
-  // Carregamento automático quando aberto em nova aba via parâmetros de URL
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const builderClientId = params.get('builderClientId');
-      const studentName = params.get('studentName');
-      const fichaId = params.get('fichaId');
-      if (builderClientId) {
-        const found = clients.find(c => String(c._id) === String(builderClientId));
-        const clientObj = found || {
-          _id: builderClientId,
-          dadosPessoais: { nome: studentName ? decodeURIComponent(studentName) : 'Aluno' },
-          nome: studentName ? decodeURIComponent(studentName) : 'Aluno'
-        };
-        setBuilderClient(clientObj);
-        if (fichaId) {
-          setActiveWorkoutSubTab(fichaId as any);
-        }
-        setShowWorkoutBuilder(true);
-      }
-    }
-  }, [clients]);
-
   // Workout Reader Modal states (Somente Leitura)
   const [showWorkoutReaderModal, setShowWorkoutReaderModal] = useState(false);
   const [readerClient, setReaderClient] = useState<any>(null);

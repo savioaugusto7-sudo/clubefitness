@@ -410,20 +410,6 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
   const [selectedClientForWorkout, setSelectedClientForWorkout] = useState<any>(null);
   const [workoutSearchAdmin, setWorkoutSearchAdmin] = useState('');
 
-  // Carregar ficha de treino se especificado na URL
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const bClientId = params.get('builderClientId');
-      if (bClientId && clients.length > 0) {
-        const found = clients.find(c => String(c._id) === String(bClientId));
-        if (found) {
-          setSelectedClientForWorkout(found);
-        }
-      }
-    }
-  }, [clients]);
-
   // Appointment Edit Modal States
   const [showEditAptModal, setShowEditAptModal] = useState(false);
   const [editAptItem, setEditAptItem] = useState<any>(null);

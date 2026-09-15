@@ -48,13 +48,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      const builderClientId = params.get('builderClientId');
       const tab = params.get('activeTab') || params.get('tab');
-      if (tab) {
-        if (tab === 'treinos' || tab === 'fichas' || tab === 'fichas_treino') {
-          setActiveTab('treinos_prof');
-        } else {
-          setActiveTab(tab);
-        }
+      
+      // Se a URL possuir parâmetros residuais de ficha/treinos, higienizar a barra de endereços
+      if (builderClientId || tab === 'treinos' || tab === 'fichas' || tab === 'fichas_treino' || params.has('studentName') || params.has('fichaId')) {
+        window.history.replaceState(null, '', '/dashboard');
+        setActiveTab('dashboard');
+      } else if (tab) {
+        setActiveTab(tab);
       }
     }
   }, []);
