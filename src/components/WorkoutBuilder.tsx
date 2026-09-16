@@ -46,6 +46,17 @@ const TECHNIQUE_PRESETS = [
   'Repetições parciais'
 ];
 
+export const calculateDropSuggestions = (baseCarga: number, tipo: 'none' | 'single' | 'double' | 'triple'): number[] => {
+  if (!baseCarga || tipo === 'none') return [];
+  const drop1 = Math.round(baseCarga * 0.75);
+  if (tipo === 'single') return [drop1];
+  const drop2 = Math.round(drop1 * 0.75);
+  if (tipo === 'double') return [drop1, drop2];
+  const drop3 = Math.round(drop2 * 0.75);
+  if (tipo === 'triple') return [drop1, drop2, drop3];
+  return [];
+};
+
 interface WorkoutBuilderProps {
   onClose: () => void;
   clientId: string;
@@ -128,7 +139,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         descanso: it.descanso,
         observacao: it.observacao,
         ritmo: it.ritmo,
-        combinaGrupo: it.combinaGrupo
+        combinaGrupo: it.combinaGrupo,
+        dropSet: it.dropSet
       }))
     });
   };
@@ -357,7 +369,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
               observacao: ex.observacao || ex.observacoes || '',
               ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
-              combinaGrupo: ex.combinaGrupo || ''
+              combinaGrupo: ex.combinaGrupo || '',
+              dropSet: ex.dropSet ? {
+                tipo: ex.dropSet.tipo || 'none',
+                escopo: ex.dropSet.escopo || 'ultima_serie',
+                drops: Array.isArray(ex.dropSet.drops) ? ex.dropSet.drops.map((d: any) => Number(d) || 0) : []
+              } : undefined
             };
           });
           setWorkoutItems(items);
@@ -479,7 +496,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
           observacao: ex.observacao || ex.observacoes || '',
           ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
-          combinaGrupo: ex.combinaGrupo || ''
+          combinaGrupo: ex.combinaGrupo || '',
+          dropSet: ex.dropSet ? {
+            tipo: ex.dropSet.tipo || 'none',
+            escopo: ex.dropSet.escopo || 'ultima_serie',
+            drops: Array.isArray(ex.dropSet.drops) ? ex.dropSet.drops.map((d: any) => Number(d) || 0) : []
+          } : undefined
         };
       });
       setWorkoutItems(items);
@@ -592,6 +614,59 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     setWorkoutItems(newItems);
   };
 
+  const handleSetDropTipo = (id: string, newTipo: 'none' | 'single' | 'double' | 'triple') => {
+    setWorkoutItems(prev => prev.map(item => {
+      if (item.id === id) {
+        if (newTipo === 'none') {
+          return { ...item, dropSet: undefined };
+        }
+        const baseCarga = parseFloat(String(item.carga)) || 0;
+        const drops = calculateDropSuggestions(baseCarga, newTipo);
+        return {
+          ...item,
+          dropSet: {
+            tipo: newTipo,
+            escopo: item.dropSet?.escopo || 'ultima_serie',
+            drops
+          }
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleUpdateDropValue = (id: string, dropIndex: number, val: number) => {
+    setWorkoutItems(prev => prev.map(item => {
+      if (item.id === id && item.dropSet) {
+        const newDrops = [...(item.dropSet.drops || [])];
+        newDrops[dropIndex] = val;
+        return {
+          ...item,
+          dropSet: {
+            ...item.dropSet,
+            drops: newDrops
+          }
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleToggleDropEscopo = (id: string, escopo: 'ultima_serie' | 'todas_series') => {
+    setWorkoutItems(prev => prev.map(item => {
+      if (item.id === id && item.dropSet) {
+        return {
+          ...item,
+          dropSet: {
+            ...item.dropSet,
+            escopo
+          }
+        };
+      }
+      return item;
+    }));
+  };
+
   const metrics = useMemo(() => {
     let volume = 0;
     let series = 0;
@@ -599,8 +674,25 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       const s = Number(it.series) || 0;
       const r = parseInt(String(it.reps).match(/\d+/)?.[0] || '10', 10);
       const c = parseFloat(String(it.carga)) || 0;
-      volume += s * r * c;
       series += s;
+
+      const dropSet = it.dropSet;
+      const hasDrop = dropSet && dropSet.tipo && dropSet.tipo !== 'none' && Array.isArray(dropSet.drops) && dropSet.drops.length > 0;
+
+      if (!hasDrop) {
+        volume += s * r * c;
+      } else {
+        const dropSum = dropSet.drops.reduce((acc: number, d: number) => acc + (Number(d) || 0), 0);
+        const volumeUmaSerieComDrop = (r * c) + (r * dropSum);
+
+        if (dropSet.escopo === 'todas_series') {
+          volume += s * volumeUmaSerieComDrop;
+        } else {
+          // 'ultima_serie'
+          const seriesNormais = Math.max(0, s - 1);
+          volume += (seriesNormais * r * c) + volumeUmaSerieComDrop;
+        }
+      }
     });
     return {
       volumeTotal: Math.round(volume),
@@ -627,7 +719,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           descanso: `${item.descanso}s`,
           observacao: item.observacao || '',
           ritmo: item.ritmo || '',
-          combinaGrupo: item.combinaGrupo || ''
+          combinaGrupo: item.combinaGrupo || '',
+          dropSet: (item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none') ? {
+            tipo: item.dropSet.tipo,
+            escopo: item.dropSet.escopo || 'ultima_serie',
+            drops: item.dropSet.drops || []
+          } : undefined
         }))
       };
 
@@ -1679,7 +1776,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               {workoutItems.length > 0 && !isLoading && (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(200px, 2fr) 65px 75px 85px 75px 75px 55px 105px 65px',
+                  gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 80px 85px 70px 50px 105px 65px',
                   gap: '8px',
                   padding: '10px 20px',
                   background: 'rgba(0, 0, 0, 0.25)',
@@ -1719,277 +1816,431 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   workoutItems.map((item, index) => {
                     const groupColor = getGroupColor(item.combinaGrupo);
                     const isGrouped = Boolean(item.combinaGrupo);
+                    const hasDrop = item.dropSet && item.dropSet.tipo && item.dropSet.tipo !== 'none' && Array.isArray(item.dropSet.drops) && item.dropSet.drops.length > 0;
 
                     return (
                       <div
                         key={item.id}
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'minmax(200px, 2fr) 65px 75px 85px 75px 75px 55px 105px 65px',
-                          gap: '8px',
-                          alignItems: 'center',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px',
                           padding: '10px 14px',
-                          background: isGrouped ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.015)',
+                          background: isGrouped ? 'rgba(255, 255, 255, 0.03)' : hasDrop ? 'rgba(245, 158, 11, 0.02)' : 'rgba(255, 255, 255, 0.015)',
                           borderRadius: '10px',
-                          border: '1px solid rgba(255, 255, 255, 0.05)',
-                          borderLeft: isGrouped ? `4px solid ${groupColor}` : '4px solid transparent',
+                          border: hasDrop ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
+                          borderLeft: isGrouped ? `4px solid ${groupColor}` : hasDrop ? '4px solid #f59e0b' : '4px solid transparent',
                           transition: 'all 0.2s'
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                          <span style={{ 
-                            fontSize: '0.8rem', 
-                            fontWeight: 800, 
-                            color: '#64748b', 
-                            width: '18px' 
-                          }}>
-                            {index + 1}
-                          </span>
-                          <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>
-                                {item.nome}
-                              </span>
-                              {item.combinaGrupo && (
-                                <span style={{
-                                  background: groupColor,
-                                  color: item.combinaGrupo === 'G5' ? '#000' : '#fff',
-                                  fontSize: '0.65rem',
-                                  fontWeight: 900,
-                                  padding: '1px 6px',
-                                  borderRadius: '4px'
-                                }}>
-                                  {item.combinaGrupo}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 80px 85px 70px 50px 105px 65px',
+                            gap: '8px',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                            <span style={{ 
+                              fontSize: '0.8rem', 
+                              fontWeight: 800, 
+                              color: '#64748b', 
+                              width: '18px' 
+                            }}>
+                              {index + 1}
+                            </span>
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>
+                                  {item.nome}
                                 </span>
-                              )}
+                                {item.combinaGrupo && (
+                                  <span style={{
+                                    background: groupColor,
+                                    color: item.combinaGrupo === 'G5' ? '#000' : '#fff',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 900,
+                                    padding: '1px 6px',
+                                    borderRadius: '4px'
+                                  }}>
+                                    {item.combinaGrupo}
+                                  </span>
+                                )}
+                                {hasDrop && (
+                                  <span style={{
+                                    background: '#f59e0b',
+                                    color: '#000',
+                                    fontSize: '0.62rem',
+                                    fontWeight: 900,
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
+                                    textTransform: 'uppercase'
+                                  }}>
+                                    {item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
+                                {item.grupo}
+                              </div>
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
-                              {item.grupo}
-                            </div>
+                          </div>
+
+                          <div>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={item.series}
+                              onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
+                              style={{
+                                width: '100%',
+                                textAlign: 'center',
+                                padding: '4px',
+                                background: '#070b14',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#fff',
+                                borderRadius: '6px',
+                                fontWeight: 700
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              value={item.reps}
+                              onChange={e => updateItem(item.id, 'reps', e.target.value)}
+                              placeholder="12"
+                              style={{
+                                width: '100%',
+                                textAlign: 'center',
+                                padding: '4px',
+                                background: '#070b14',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#fff',
+                                borderRadius: '6px',
+                                fontWeight: 700
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              value={item.ritmo || ''}
+                              onChange={e => updateItem(item.id, 'ritmo', e.target.value)}
+                              placeholder="Ritmo..."
+                              title="Ritmo / Cadência: livre escrita (Ex: 2-0-2-0, Controlado, Isometria...)"
+                              style={{
+                                width: '100%',
+                                textAlign: 'center',
+                                padding: '4px',
+                                background: '#070b14',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                color: '#38bdf8',
+                                borderRadius: '6px',
+                                fontWeight: 700,
+                                fontSize: '0.78rem'
+                              }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={item.carga}
+                              onChange={e => {
+                                const newCarga = Number(e.target.value);
+                                updateItem(item.id, 'carga', newCarga);
+                                if (item.dropSet && item.dropSet.tipo !== 'none') {
+                                  const drops = calculateDropSuggestions(newCarga, item.dropSet.tipo);
+                                  setWorkoutItems(prev => prev.map(it => it.id === item.id ? { ...it, carga: newCarga, dropSet: { ...it.dropSet!, drops } } : it));
+                                }
+                              }}
+                              placeholder="10"
+                              style={{
+                                width: '100%',
+                                textAlign: 'center',
+                                padding: '4px',
+                                background: '#070b14',
+                                border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
+                                color: hasDrop ? '#f59e0b' : '#10b981',
+                                borderRadius: '6px',
+                                fontWeight: 700
+                              }}
+                            />
+                            <select
+                              value={item.dropSet?.tipo || 'none'}
+                              onChange={e => handleSetDropTipo(item.id, e.target.value as any)}
+                              title="Configurar Drop-set"
+                              style={{
+                                width: '100%',
+                                fontSize: '0.62rem',
+                                fontWeight: 700,
+                                padding: '1px 2px',
+                                background: hasDrop ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                                color: hasDrop ? '#f59e0b' : '#94a3b8',
+                                border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                              }}
+                            >
+                              <option value="none">S/ Drop</option>
+                              <option value="single">1 Drop</option>
+                              <option value="double">2 Drops</option>
+                              <option value="triple">3 Drops</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={item.descanso}
+                              onChange={e => updateItem(item.id, 'descanso', Number(e.target.value))}
+                              placeholder="60"
+                              style={{
+                                width: '100%',
+                                textAlign: 'center',
+                                padding: '4px',
+                                background: '#070b14',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#fff',
+                                borderRadius: '6px',
+                                fontWeight: 700
+                              }}
+                            />
+                          </div>
+
+                          <div style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveObsModalItem(item);
+                                setTempObsText(item.observacao || '');
+                              }}
+                              title={item.observacao ? `Obs: ${item.observacao}` : 'Adicionar observação técnica'}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: item.observacao ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                                color: item.observacao ? '#38bdf8' : '#94a3b8',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <i className="fa-solid fa-comment-dots"></i>
+                            </button>
+                          </div>
+
+                          <div>
+                            {(() => {
+                              const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
+                              let maxGroupNum = 0;
+                              usedGroups.forEach((g: string) => {
+                                const match = g.match(/^G(\d+)$/i);
+                                if (match) {
+                                  const num = parseInt(match[1], 10);
+                                  if (num > maxGroupNum) maxGroupNum = num;
+                                }
+                              });
+                              const dynamicOptions = [
+                                { id: '', label: 'Individual' },
+                                ...Array.from({ length: Math.max(1, maxGroupNum + 1) }, (_, i) => {
+                                  const id = `G${i + 1}`;
+                                  const p = GROUP_PALETTE[i % GROUP_PALETTE.length];
+                                  return { id, label: `${id} (${p.name})` };
+                                })
+                              ];
+
+                              return (
+                                <select
+                                  value={item.combinaGrupo || ''}
+                                  onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    padding: '4px 6px',
+                                    borderRadius: '6px',
+                                    border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
+                                    background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
+                                    color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {dynamicOptions.map(g => (
+                                    <option key={g.id} value={g.id} style={{ background: '#0d1322', color: '#fff' }}>
+                                      {g.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              );
+                            })()}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => moveItem(index, 'up')}
+                              disabled={index === 0}
+                              title="Subir"
+                              style={{
+                                padding: '3px 6px',
+                                background: 'transparent',
+                                border: 'none',
+                                color: index === 0 ? '#334155' : '#94a3b8',
+                                cursor: index === 0 ? 'default' : 'pointer',
+                                fontSize: '0.74rem'
+                              }}
+                            >
+                              <i className="fa-solid fa-chevron-up"></i>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => moveItem(index, 'down')}
+                              disabled={index === workoutItems.length - 1}
+                              title="Descer"
+                              style={{
+                                padding: '3px 6px',
+                                background: 'transparent',
+                                border: 'none',
+                                color: index === workoutItems.length - 1 ? '#334155' : '#94a3b8',
+                                cursor: index === workoutItems.length - 1 ? 'default' : 'pointer',
+                                fontSize: '0.74rem'
+                              }}
+                            >
+                              <i className="fa-solid fa-chevron-down"></i>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.id)}
+                              title="Excluir Exercício"
+                              style={{
+                                padding: '3px 6px',
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem'
+                              }}
+                            >
+                              <i className="fa-solid fa-trash-can"></i>
+                            </button>
                           </div>
                         </div>
 
-                        <div>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            value={item.series}
-                            onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
-                            style={{
-                              width: '100%',
-                              textAlign: 'center',
-                              padding: '4px',
-                              background: '#070b14',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              color: '#fff',
-                              borderRadius: '6px',
-                              fontWeight: 700
-                            }}
-                          />
-                        </div>
+                        {/* Drop-set Sub-Row if active */}
+                        {hasDrop && item.dropSet && (
+                          <div style={{
+                            marginTop: '4px',
+                            padding: '6px 12px',
+                            background: 'rgba(245, 158, 11, 0.08)',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '8px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <i className="fa-solid fa-layer-group"></i> {item.dropSet.tipo === 'single' ? 'Single Drop' : item.dropSet.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}:
+                              </span>
+                              
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Base: <strong style={{ color: '#fff' }}>{item.carga}kg</strong></span>
+                              
+                              {item.dropSet.drops.map((dropVal, dIdx) => (
+                                <div key={dIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 800 }}>→</span>
+                                  <label style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 700 }}>Drop {dIdx + 1}:</label>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                    <input
+                                      type="number"
+                                      value={dropVal}
+                                      onChange={e => handleUpdateDropValue(item.id, dIdx, Number(e.target.value))}
+                                      style={{
+                                        width: '54px',
+                                        padding: '2px 4px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 800,
+                                        textAlign: 'center',
+                                        background: '#070b14',
+                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                        color: '#fbbf24',
+                                        borderRadius: '4px'
+                                      }}
+                                    />
+                                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginLeft: '3px' }}>kg</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
 
-                        <div>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            value={item.reps}
-                            onChange={e => updateItem(item.id, 'reps', e.target.value)}
-                            placeholder="12"
-                            style={{
-                              width: '100%',
-                              textAlign: 'center',
-                              padding: '4px',
-                              background: '#070b14',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              color: '#fff',
-                              borderRadius: '6px',
-                              fontWeight: 700
-                            }}
-                          />
-                        </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleDropEscopo(item.id, 'ultima_serie')}
+                                  style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: item.dropSet.escopo === 'ultima_serie' ? 800 : 500,
+                                    background: item.dropSet.escopo === 'ultima_serie' ? '#f59e0b' : 'rgba(255,255,255,0.05)',
+                                    color: item.dropSet.escopo === 'ultima_serie' ? '#000' : '#94a3b8',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Última série
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleDropEscopo(item.id, 'todas_series')}
+                                  style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: item.dropSet.escopo === 'todas_series' ? 800 : 500,
+                                    background: item.dropSet.escopo === 'todas_series' ? '#f59e0b' : 'rgba(255,255,255,0.05)',
+                                    color: item.dropSet.escopo === 'todas_series' ? '#000' : '#94a3b8',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Todas as séries
+                                </button>
+                              </div>
 
-                        <div>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            value={item.ritmo || ''}
-                            onChange={e => updateItem(item.id, 'ritmo', e.target.value)}
-                            placeholder="Ritmo..."
-                            title="Ritmo / Cadência: livre escrita (Ex: 2-0-2-0, Controlado, Isometria...)"
-                            style={{
-                              width: '100%',
-                              textAlign: 'center',
-                              padding: '4px',
-                              background: '#070b14',
-                              border: '1px solid rgba(56, 189, 248, 0.3)',
-                              color: '#38bdf8',
-                              borderRadius: '6px',
-                              fontWeight: 700,
-                              fontSize: '0.78rem'
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            value={item.carga}
-                            onChange={e => updateItem(item.id, 'carga', Number(e.target.value))}
-                            placeholder="10"
-                            style={{
-                              width: '100%',
-                              textAlign: 'center',
-                              padding: '4px',
-                              background: '#070b14',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              color: '#10b981',
-                              borderRadius: '6px',
-                              fontWeight: 700
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            value={item.descanso}
-                            onChange={e => updateItem(item.id, 'descanso', Number(e.target.value))}
-                            placeholder="60"
-                            style={{
-                              width: '100%',
-                              textAlign: 'center',
-                              padding: '4px',
-                              background: '#070b14',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              color: '#fff',
-                              borderRadius: '6px',
-                              fontWeight: 700
-                            }}
-                          />
-                        </div>
-
-                        <div style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveObsModalItem(item);
-                              setTempObsText(item.observacao || '');
-                            }}
-                            title={item.observacao ? `Obs: ${item.observacao}` : 'Adicionar observação técnica'}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                              background: item.observacao ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                              color: item.observacao ? '#38bdf8' : '#94a3b8',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <i className="fa-solid fa-comment-dots"></i>
-                          </button>
-                        </div>
-
-                        <div>
-                          {(() => {
-                            const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
-                            let maxGroupNum = 0;
-                            usedGroups.forEach((g: string) => {
-                              const match = g.match(/^G(\d+)$/i);
-                              if (match) {
-                                const num = parseInt(match[1], 10);
-                                if (num > maxGroupNum) maxGroupNum = num;
-                              }
-                            });
-                            const dynamicOptions = [
-                              { id: '', label: 'Individual' },
-                              ...Array.from({ length: Math.max(1, maxGroupNum + 1) }, (_, i) => {
-                                const id = `G${i + 1}`;
-                                const p = GROUP_PALETTE[i % GROUP_PALETTE.length];
-                                return { id, label: `${id} (${p.name})` };
-                              })
-                            ];
-
-                            return (
-                              <select
-                                value={item.combinaGrupo || ''}
-                                onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
+                              <button
+                                type="button"
+                                onClick={() => handleSetDropTipo(item.id, 'none')}
+                                title="Remover Drop-set"
                                 style={{
-                                  width: '100%',
-                                  padding: '4px 6px',
-                                  borderRadius: '6px',
-                                  border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
-                                  background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
-                                  color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
-                                  fontSize: '0.74rem',
-                                  fontWeight: 800,
-                                  cursor: 'pointer'
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#ef4444',
+                                  cursor: 'pointer',
+                                  fontSize: '0.78rem',
+                                  padding: '2px 4px'
                                 }}
                               >
-                                {dynamicOptions.map(g => (
-                                  <option key={g.id} value={g.id} style={{ background: '#0d1322', color: '#fff' }}>
-                                    {g.label}
-                                  </option>
-                                ))}
-                              </select>
-                            );
-                          })()}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => moveItem(index, 'up')}
-                            disabled={index === 0}
-                            title="Subir"
-                            style={{
-                              padding: '3px 6px',
-                              background: 'transparent',
-                              border: 'none',
-                              color: index === 0 ? '#334155' : '#94a3b8',
-                              cursor: index === 0 ? 'default' : 'pointer',
-                              fontSize: '0.74rem'
-                            }}
-                          >
-                            <i className="fa-solid fa-chevron-up"></i>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => moveItem(index, 'down')}
-                            disabled={index === workoutItems.length - 1}
-                            title="Descer"
-                            style={{
-                              padding: '3px 6px',
-                              background: 'transparent',
-                              border: 'none',
-                              color: index === workoutItems.length - 1 ? '#334155' : '#94a3b8',
-                              cursor: index === workoutItems.length - 1 ? 'default' : 'pointer',
-                              fontSize: '0.74rem'
-                            }}
-                          >
-                            <i className="fa-solid fa-chevron-down"></i>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => removeItem(item.id)}
-                            title="Excluir Exercício"
-                            style={{
-                              padding: '3px 6px',
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#ef4444',
-                              cursor: 'pointer',
-                              fontSize: '0.78rem'
-                            }}
-                          >
-                            <i className="fa-solid fa-trash-can"></i>
-                          </button>
-                        </div>
+                                <i className="fa-solid fa-xmark"></i>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })

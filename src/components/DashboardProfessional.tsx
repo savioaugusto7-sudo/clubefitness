@@ -17275,6 +17275,27 @@ goniometria: {
                                           <span style={{ fontSize: '0.84rem', fontWeight: 750, color: '#f59e0b' }}>{(ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? ex.ritmo : ex.metodo}</span>
                                         </div>
                                       )}
+                                      {ex.dropSet && ex.dropSet.tipo && ex.dropSet.tipo !== 'none' && Array.isArray(ex.dropSet.drops) && ex.dropSet.drops.length > 0 && (
+                                        <div style={{
+                                          gridColumn: 'span 2',
+                                          background: 'rgba(245, 158, 11, 0.08)',
+                                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                                          padding: '5px 8px',
+                                          borderRadius: '6px',
+                                          textAlign: 'center',
+                                          marginTop: '4px'
+                                        }}>
+                                          <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#f59e0b' }}>
+                                            ⚡ {ex.dropSet.tipo === 'single' ? 'Single Drop' : ex.dropSet.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}
+                                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 600, marginLeft: '4px' }}>
+                                              ({ex.dropSet.escopo === 'todas_series' ? 'Todas as séries' : 'Última série'})
+                                            </span>
+                                          </div>
+                                          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', marginTop: '1px' }}>
+                                            {ex.carga} → {ex.dropSet.drops.map((d: any) => `${d}kg`).join(' → ')}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
 
                                     {ex.observacoes && (

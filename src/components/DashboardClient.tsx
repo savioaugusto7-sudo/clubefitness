@@ -279,6 +279,27 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                       <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.ritmo}</span>
                     </div>
                   )}
+                  {ex.dropSet && ex.dropSet.tipo && ex.dropSet.tipo !== 'none' && Array.isArray(ex.dropSet.drops) && ex.dropSet.drops.length > 0 && (
+                    <div style={{
+                      gridColumn: 'span 2',
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                      marginTop: '4px'
+                    }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b' }}>
+                        ⚡ {ex.dropSet.tipo === 'single' ? 'Single Drop' : ex.dropSet.tipo === 'double' ? 'Double Drop' : 'Triple Drop'}
+                        <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600, marginLeft: '4px' }}>
+                          ({ex.dropSet.escopo === 'todas_series' ? 'Todas as séries' : 'Última série'})
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
+                        {ex.carga} → {ex.dropSet.drops.map((d: any) => `${d}kg`).join(' → ')}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {ex.observacao && (
