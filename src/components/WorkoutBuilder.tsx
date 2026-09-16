@@ -135,14 +135,46 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     };
   }, [realClientName, clientName]);
 
-  // Horário atual no formato HH:00
+  // Função de data local (Brasil UTC-3)
+  const getLocalDateISO = (d = new Date()) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Verificação de janela de 60 minutos do agendamento
+  const getAptTimeState = (horarioStr: string, currentStr: string) => {
+    if (!horarioStr || !currentStr) return 'future';
+    const [hA, mA] = horarioStr.split(':').map(Number);
+    const [hC, mC] = currentStr.split(':').map(Number);
+    const minApt = hA * 60 + (mA || 0);
+    const minCurr = hC * 60 + (mC || 0);
+    
+    if (minCurr >= minApt && minCurr < minApt + 60) {
+      return 'current';
+    } else if (minCurr >= minApt + 60) {
+      return 'past';
+    } else {
+      return 'future';
+    }
+  };
+
+  // Horário atual no formato HH:00 e HH:MM
   const currentHourStr = useMemo(() => {
     const d = new Date();
     const h = String(d.getHours()).padStart(2, '0');
     return `${h}:00`;
   }, []);
 
-  // Lista de alunos agendados para hoje
+  const currentRealTimeStr = useMemo(() => {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  }, []);
+
+  // Lista de alunos agendados para hoje (data local)
   const todayStudents = useMemo(() => {
     const map = new Map<string, any>();
     todayAppointments.forEach(a => {
@@ -165,15 +197,27 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     return Array.from(map.values());
   }, [todayAppointments, allClients]);
 
-  // Alunos do horário atual
+  // Alunos da janela de horário atual (ou do mesmo horário do aluno aberto)
   const currentHourStudents = useMemo(() => {
-    const filtered = todayStudents.filter(s => s.horario === currentHourStr);
-    if (currentClientId && !filtered.some(s => String(s.id) === String(currentClientId))) {
-      const activeObj = todayStudents.find(s => String(s.id) === String(currentClientId));
-      if (activeObj) return [activeObj, ...filtered];
+    const activeStudentObj = todayStudents.find(s => String(s.id) === String(currentClientId));
+    const targetSlot = activeStudentObj?.horario;
+
+    const filtered = todayStudents.filter(s => {
+      if (targetSlot && s.horario === targetSlot) return true;
+      return getAptTimeState(s.horario, currentRealTimeStr) === 'current';
+    });
+
+    if (activeStudentObj && !filtered.some(s => String(s.id) === String(currentClientId))) {
+      return [activeStudentObj, ...filtered];
     }
-    return filtered.length > 0 ? filtered : todayStudents;
-  }, [todayStudents, currentHourStr, currentClientId]);
+    return filtered;
+  }, [todayStudents, currentRealTimeStr, currentClientId]);
+
+  // Horário ativo para exibição no badge
+  const displaySlotStr = useMemo(() => {
+    const activeStudentObj = todayStudents.find(s => String(s.id) === String(currentClientId));
+    return activeStudentObj?.horario || currentHourStr;
+  }, [todayStudents, currentClientId, currentHourStr]);
 
   // Função centralizada para carregar dados do treino de um aluno
   const loadDataForClient = async (targetClientId: string, targetClientName?: string, isInitial = false) => {
@@ -203,7 +247,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       }
 
       if (resApts?.success && Array.isArray(resApts.data)) {
-        const hojeISO = new Date().toISOString().split('T')[0];
+        const hojeISO = getLocalDateISO();
         const todays = resApts.data.filter((a: any) => a.data === hojeISO && a.status !== 'cancelado');
         setTodayAppointments(todays);
       }
@@ -660,7 +704,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             fontWeight: 800
           }}>
             <i className="fa-regular fa-clock" style={{ fontSize: '0.85rem' }}></i>
-            <span>{currentHourFilter === 'current' ? `Horário ${currentHourStr}` : 'Hoje'}</span>
+            <span>{currentHourFilter === 'current' ? `Horário ${displaySlotStr}` : 'Hoje'}</span>
           </div>
 
           <div style={{
