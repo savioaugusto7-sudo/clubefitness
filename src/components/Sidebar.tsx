@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
-import { useTheme } from '@/contexts/ThemeContext';
 
 interface TabConfig {
   id: string;
@@ -213,7 +212,6 @@ const bottomNavConfigs: Record<string, TabConfig[]> = {
 };
 
 export default function Sidebar({ role, activeTab, setActiveTab, userName, userCargo, activeRoles, onChangeRole }: SidebarProps) {
-  const { theme, isLight, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
@@ -311,7 +309,7 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
         {/* Menu Search Bar */}
         <div style={{ padding: '0 8px 16px 8px' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}></i>
+            <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}></i>
             <input
               type="text"
               placeholder="Buscar no menu..."
@@ -322,20 +320,20 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
                 padding: '8px 12px 8px 32px',
                 fontSize: '0.78rem',
                 borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                background: 'var(--input-bg)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.02)',
                 color: 'var(--text-main)',
                 outline: 'none',
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
               }}
               onFocus={e => {
                 e.target.style.borderColor = 'var(--color-primary)';
-                e.target.style.background = 'var(--bg-card)';
+                e.target.style.background = 'rgba(255,255,255,0.04)';
                 e.target.style.boxShadow = '0 0 12px rgba(13, 148, 136, 0.15)';
               }}
               onBlur={e => {
-                e.target.style.borderColor = 'var(--border-color)';
-                e.target.style.background = 'var(--input-bg)';
+                e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                e.target.style.background = 'rgba(255,255,255,0.02)';
                 e.target.style.boxShadow = 'none';
               }}
             />
@@ -577,46 +575,6 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
             </div>
           )}
 
-          {/* Theme Mode Toggle Button */}
-          <div style={{ padding: '0 0 10px 0', width: '100%' }}>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              title={isLight ? 'Mudar para Modo Escuro' : 'Mudar para Modo Claro (Alta Legibilidade)'}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '7px 12px',
-                borderRadius: '8px',
-                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.08)',
-                background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.03)',
-                color: isLight ? '#0f172a' : '#94a3b8',
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className={`fa-solid ${isLight ? 'fa-sun text-amber-500' : 'fa-moon text-sky-400'}`} style={{ fontSize: '0.85rem' }}></i>
-                <span>{isLight ? 'Modo Claro' : 'Modo Escuro'}</span>
-              </div>
-              <span style={{
-                fontSize: '0.65rem',
-                padding: '2px 7px',
-                borderRadius: '100px',
-                background: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)',
-                color: isLight ? '#059669' : '#38bdf8',
-                textTransform: 'uppercase',
-                fontWeight: 800
-              }}>
-                {isLight ? 'Claro' : 'Escuro'}
-              </span>
-            </button>
-          </div>
-
           <div className="user-badge" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
               <div className="user-avatar" style={{ flexShrink: 0 }}>
@@ -769,14 +727,6 @@ export default function Sidebar({ role, activeTab, setActiveTab, userName, userC
                     <span>{tab.label}</span>
                   </div>
                 ))}
-              <div 
-                className="drawer-grid-item" 
-                onClick={toggleTheme}
-                style={{ color: isLight ? '#d97706' : '#38bdf8' }}
-              >
-                <i className={`fa-solid ${isLight ? 'fa-moon' : 'fa-sun'}`}></i>
-                <span>{isLight ? 'Modo Escuro' : 'Modo Claro'}</span>
-              </div>
               <div className="drawer-grid-item text-danger" onClick={() => signOut({ callbackUrl: '/login?from=logout' })}>
                 <i className="fa-solid fa-right-from-bracket"></i>
                 <span>Sair da Conta</span>
