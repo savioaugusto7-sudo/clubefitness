@@ -1242,7 +1242,7 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                 {workout.fichasLivre?.filter((f: any) => f.exercicios?.length > 0).map((f: any) => (
                   <div key={f.id} style={{ marginBottom: '32px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.04)', padding: '20px', borderRadius: '12px' }}>
                     <h3 style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
-                      {f.nome} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
+                      {f.nome && !f.nome.toLowerCase().startsWith('ficha') ? (f.nome.toUpperCase().startsWith('TREINO LIVRE') ? f.nome : `TREINO LIVRE ${f.id} - ${f.nome}`) : `TREINO LIVRE ${f.id}`} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Atualizado em: {f.ultimaAtualizacao || '-'}</span>
                     </h3>
                     {f.observacoesGerais && (
                       <p style={{ margin: '8px 0 16px 0', fontSize: '0.84rem', fontStyle: 'italic', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid var(--color-secondary)', border: '1px solid rgba(255,255,255,0.03)', borderLeftColor: 'var(--color-secondary)' }}>

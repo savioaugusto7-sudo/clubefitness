@@ -67,11 +67,27 @@ export default function WellnessModal({ isOpen, onClose, appointment, clientWork
     try {
       const payload: any = { sono, fadiga, dorMuscular };
       if (selectedFicha) {
+        const isLivre = selectedFicha.startsWith('livre_') || selectedFicha === 'livre';
+        const cleanId = selectedFicha.replace(/^livre_/, '');
+        
+        let customNome = '';
+        if (isLivre) {
+          const s = (clientWorkout?.fichasLivre || []).find((f: any) => f.id === cleanId);
+          customNome = s?.nome && !s.nome.toLowerCase().startsWith('treino livre') && !s.nome.toLowerCase().startsWith('ficha')
+            ? `TREINO LIVRE ${cleanId} - ${s.nome}`
+            : `TREINO LIVRE ${cleanId}`;
+        } else {
+          const s = (clientWorkout?.fichasMonitorado || []).find((f: any) => f.id === cleanId);
+          customNome = s?.nome && !s.nome.toLowerCase().startsWith('ficha')
+            ? `Ficha ${cleanId} - ${s.nome}`
+            : (s?.nome || `Ficha ${cleanId}`);
+        }
+
         payload.treinoExecutado = {
-          tipo: selectedFicha === 'livre' ? 'livre' : 'ficha',
-          fichaId: selectedFicha === 'livre' ? '' : selectedFicha.replace(/^livre_/, ''),
-          fichaNome: selectedFicha === 'livre' ? 'Treino Livre' : `Ficha ${selectedFicha.replace(/^livre_/, '')}`,
-          categoria: selectedFicha.startsWith('livre_') ? 'fichasLivre' : 'fichasMonitorado',
+          tipo: isLivre ? 'livre' : 'ficha',
+          fichaId: cleanId,
+          fichaNome: customNome,
+          categoria: isLivre ? 'fichasLivre' : 'fichasMonitorado',
           dataHora: new Date()
         };
       }
@@ -405,104 +421,84 @@ export default function WellnessModal({ isOpen, onClose, appointment, clientWork
                       background: 'rgba(239, 68, 68, 0.08)',
                       border: '1px solid rgba(239, 68, 68, 0.25)',
                       borderRadius: '8px',
-                      padding: '10px 12px',
+                      padding: '10px 14px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px'
+                      gap: '8px',
+                      color: '#fca5a5',
+                      fontSize: '0.82rem',
+                      fontWeight: 600
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fca5a5', fontSize: '0.82rem', fontWeight: 600 }}>
-                        <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', fontSize: '0.95rem' }}></i>
-                        <span>Aluno não possui ficha cadastrada</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedFicha(selectedFicha === 'livre' ? '' : 'livre')}
-                        style={{
-                          padding: '5px 12px',
-                          fontSize: '0.76rem',
-                          fontWeight: 700,
-                          borderRadius: '6px',
-                          border: selectedFicha === 'livre' ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
-                          background: selectedFicha === 'livre' ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.04)',
-                          color: selectedFicha === 'livre' ? '#38bdf8' : '#94a3b8',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {selectedFicha === 'livre' && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
-                        Treino Livre
-                      </button>
+                      <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', fontSize: '0.95rem' }}></i>
+                      <span>Aluno não possui ficha com exercícios cadastrados</span>
                     </div>
                   );
                 }
 
                 return (
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {monitoradoSheets.map((s: any) => {
                       const isSel = selectedFicha === s.id;
+                      const label = s.nome && !s.nome.toLowerCase().startsWith('ficha')
+                        ? `FICHA ${s.id} - ${s.nome}`
+                        : (s.nome ? s.nome.toUpperCase() : `FICHA ${s.id}`);
                       return (
                         <button
                           key={s.id}
                           type="button"
                           onClick={() => setSelectedFicha(isSel ? '' : s.id)}
                           style={{
-                            padding: '6px 12px',
+                            padding: '6px 14px',
                             fontSize: '0.78rem',
-                            fontWeight: 700,
-                            borderRadius: '6px',
-                            border: isSel ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-                            background: isSel ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
-                            color: isSel ? '#10b981' : 'var(--text-muted)',
-                            cursor: 'pointer'
+                            fontWeight: 800,
+                            borderRadius: '7px',
+                            border: isSel ? '1.5px solid #10b981' : '1px solid var(--border-color, rgba(255,255,255,0.1))',
+                            background: isSel ? 'rgba(16,185,129,0.2)' : 'var(--bg-card, rgba(255,255,255,0.03))',
+                            color: isSel ? '#10b981' : 'var(--text-main)',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.15s ease'
                           }}
-                          title={s.nome || `Ficha ${s.id}`}
+                          title={label}
                         >
-                          {isSel && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
-                          {s.nome ? (s.nome.toLowerCase().startsWith('ficha') ? s.nome : `Ficha ${s.id} - ${s.nome}`) : `Ficha ${s.id}`}
+                          {isSel && <i className="fa-solid fa-check" style={{ fontSize: '0.7rem' }}></i>}
+                          {label}
                         </button>
                       );
                     })}
                     {livreSheets.map((s: any) => {
                       const isSel = selectedFicha === `livre_${s.id}`;
+                      const label = s.nome && !s.nome.toLowerCase().startsWith('treino livre') && !s.nome.toLowerCase().startsWith('ficha')
+                        ? `TREINO LIVRE ${s.id} - ${s.nome}`
+                        : `TREINO LIVRE ${s.id}`;
                       return (
                         <button
                           key={`livre_${s.id}`}
                           type="button"
                           onClick={() => setSelectedFicha(isSel ? '' : `livre_${s.id}`)}
                           style={{
-                            padding: '6px 12px',
+                            padding: '6px 14px',
                             fontSize: '0.78rem',
-                            fontWeight: 700,
-                            borderRadius: '6px',
-                            border: isSel ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
-                            background: isSel ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.03)',
-                            color: isSel ? '#38bdf8' : 'var(--text-muted)',
-                            cursor: 'pointer'
+                            fontWeight: 800,
+                            borderRadius: '7px',
+                            border: isSel ? '1.5px solid #38bdf8' : '1px solid var(--border-color, rgba(255,255,255,0.1))',
+                            background: isSel ? 'rgba(56,189,248,0.2)' : 'var(--bg-card, rgba(255,255,255,0.03))',
+                            color: isSel ? '#38bdf8' : 'var(--text-main)',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.15s ease'
                           }}
-                          title={`Livre - ${s.nome || `Ficha ${s.id}`}`}
+                          title={label}
                         >
-                          {isSel && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
-                          Livre {s.id}
+                          {isSel && <i className="fa-solid fa-check" style={{ fontSize: '0.7rem' }}></i>}
+                          {label}
                         </button>
                       );
                     })}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFicha(selectedFicha === 'livre' ? '' : 'livre')}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                        borderRadius: '6px',
-                        border: selectedFicha === 'livre' ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
-                        background: selectedFicha === 'livre' ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.03)',
-                        color: selectedFicha === 'livre' ? '#38bdf8' : 'var(--text-muted)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {selectedFicha === 'livre' && <i className="fa-solid fa-check" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>}
-                      Treino Livre
-                    </button>
                   </div>
                 );
               })()}

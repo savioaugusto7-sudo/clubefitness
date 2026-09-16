@@ -488,7 +488,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     const sheets = rawWorkoutDoc?.[cat] || [];
     const sheet = sheets.find((s: any) => s.id?.toUpperCase() === targetLetter);
     if (sheet) {
-      setWorkoutName(sheet.nome || `Ficha ${targetLetter}`);
+      setWorkoutName(sheet.nome || (cat === 'fichasLivre' ? `TREINO LIVRE ${targetLetter}` : `Ficha ${targetLetter}`));
       setWorkoutGoal(sheet.observacoesGerais || '');
       const items = (sheet.exercicios || []).map((ex: any, idx: number) => {
         const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
@@ -514,7 +514,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       });
       setWorkoutItems(items);
     } else {
-      setWorkoutName(`Ficha ${targetLetter}`);
+      setWorkoutName(cat === 'fichasLivre' ? `TREINO LIVRE ${targetLetter}` : `Ficha ${targetLetter}`);
       setWorkoutGoal('');
       setWorkoutItems([]);
     }
@@ -536,7 +536,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
     const newSheet = {
       id: letter,
-      nome: `Ficha ${letter}`,
+      nome: activeCategory === 'fichasLivre' ? `TREINO LIVRE ${letter}` : `Ficha ${letter}`,
       exercicios: [],
       observacoesGerais: ''
     };

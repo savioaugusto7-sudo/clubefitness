@@ -900,7 +900,7 @@ export default function AgendaCompletaPanel({
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '8px' }}>
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-              <span key={d} style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: 600 }}>{d}</span>
+              <span key={d} style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.3px', textTransform: 'uppercase' }}>{d}</span>
             ))}
           </div>
 

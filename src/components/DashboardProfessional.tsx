@@ -5047,7 +5047,7 @@ goniometria: {
               if (pastTreinosApts.length > 0) {
                 const lastTApt = pastTreinosApts[0];
                 const te = lastTApt.treinoExecutado;
-                const desc = te.tipo === 'livre' ? 'Treino Livre' : (te.fichaNome || (te.fichaId ? `Ficha ${te.fichaId}` : 'Treino'));
+                const desc = te.fichaNome || (te.tipo === 'livre' ? (te.fichaId ? `TREINO LIVRE ${te.fichaId}` : 'Treino Livre') : (te.fichaId ? `Ficha ${te.fichaId}` : 'Treino'));
                 const dateInfo = formatRelativeDate(lastTApt.data);
 
                 lastWorkoutInfo = {
@@ -5593,7 +5593,7 @@ goniometria: {
 
                             {/* Linha 2: Identidade do Aluno & Tags Integradas (Sem Avatar) */}
                             <div style={{ minWidth: 0, width: '100%' }}>
-                              <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 900, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.2px' }}>
+                              <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 900, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.2px' }}>
                                 {clientFullName}
                               </h3>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
@@ -7121,7 +7121,7 @@ goniometria: {
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
                                         <div style={{ flex: '1 1 55%', minWidth: 0 }}>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                            <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: '#ffffff', wordBreak: 'break-word' }}>
+                                            <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: 'var(--text-main)', wordBreak: 'break-word' }}>
                                               {c.dadosPessoais?.nome}
                                             </h3>
                                             {isMyStudent ? (
@@ -7880,7 +7880,9 @@ goniometria: {
                               style={{ border: 'none', background: 'transparent', color: activeWorkoutSubTab === sheet.id ? 'var(--color-primary)' : 'var(--text-muted)' }} 
                               onClick={() => setActiveWorkoutSubTab(sheet.id)}
                             >
-                              {sheet.nome || `Ficha ${sheet.id}`}
+                              {sheet.nome && !sheet.nome.toLowerCase().startsWith('ficha') && !sheet.nome.toLowerCase().startsWith('treino livre')
+                                ? (activeWorkoutCategory === 'fichasLivre' ? `TREINO LIVRE ${sheet.id} - ${sheet.nome}` : `Ficha ${sheet.id} - ${sheet.nome}`)
+                                : (activeWorkoutCategory === 'fichasLivre' ? `TREINO LIVRE ${sheet.id}` : (sheet.nome || `Ficha ${sheet.id}`))}
                             </button>
                             {currentSheets.length > 1 && (
                               <button
@@ -17140,7 +17142,11 @@ goniometria: {
                                   transition: 'all 0.2s'
                                 }}
                               >
-                                <span>{s.nome || `Ficha ${s.id}`}</span>
+                                <span>
+                                  {s.nome && !s.nome.toLowerCase().startsWith('ficha') && !s.nome.toLowerCase().startsWith('treino livre')
+                                    ? (readerCategory === 'fichasLivre' ? `TREINO LIVRE ${s.id} - ${s.nome}` : `Ficha ${s.id} - ${s.nome}`)
+                                    : (readerCategory === 'fichasLivre' ? `TREINO LIVRE ${s.id}` : (s.nome || `Ficha ${s.id}`))}
+                                </span>
                                 <span style={{
                                   background: isSelected ? '#3b82f6' : 'rgba(255,255,255,0.1)',
                                   color: isSelected ? '#fff' : 'var(--text-dim)',

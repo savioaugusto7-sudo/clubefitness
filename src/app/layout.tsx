@@ -57,6 +57,29 @@ export default function RootLayout({
           crossOrigin="anonymous" 
           referrerPolicy="no-referrer" 
         />
+        {/* Script Anti-Flicker de Tema */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var t = localStorage.getItem('clube_theme');
+                  var m = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+                  var resolved = t === 'light' || (t === 'auto' && m) ? 'light' : 'dark';
+                  if (resolved === 'light') {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    document.documentElement.classList.add('theme-light');
+                    document.documentElement.style.colorScheme = 'light';
+                  } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    document.documentElement.classList.add('theme-dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
       </head>
       <body suppressHydrationWarning>
         <PwaRegister />

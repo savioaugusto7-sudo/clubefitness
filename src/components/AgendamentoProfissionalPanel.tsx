@@ -493,12 +493,12 @@ export default function AgendamentoProfissionalPanel({
 
       {/* Hero Header */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(20, 30, 48, 0.9) 0%, rgba(10, 17, 30, 0.95) 100%)',
+        background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
         padding: '24px 28px',
         marginBottom: '24px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+        boxShadow: 'var(--shadow-card)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -794,17 +794,17 @@ export default function AgendamentoProfissionalPanel({
                     {/* Service Name & Subtitle */}
                     <div>
                       <div style={{
-                        fontWeight: 750,
-                        fontSize: '0.88rem',
-                        color: isSelected ? '#ffffff' : 'var(--text-main)',
+                        fontWeight: 800,
+                        fontSize: '0.9rem',
+                        color: 'var(--text-main)',
                         lineHeight: '1.25',
                         marginBottom: '3px'
                       }}>
                         {srv.nome}
                       </div>
                       <div style={{
-                        fontSize: '0.7rem',
-                        color: isSelected ? 'rgba(255,255,255,0.7)' : 'var(--text-dim)',
+                        fontSize: '0.72rem',
+                        color: 'var(--text-muted)',
                         lineHeight: '1.2'
                       }}>
                         {srv.descricao}
