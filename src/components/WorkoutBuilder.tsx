@@ -599,6 +599,8 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     setWorkoutItems(prev => [...prev, newItem]);
   };
 
+  const addToWorkout = addExercise;
+
   const removeItem = (id: string) => {
     setWorkoutItems(prev => prev.filter(item => item.id !== id));
   };
@@ -1538,7 +1540,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
                 <button
                   type="button"
-                  onClick={() => addToWorkout(ex)}
+                  onClick={() => addExercise(ex)}
                   title="Adicionar à Ficha"
                   style={{
                     width: '32px',
