@@ -1,9 +1,8 @@
 // Clube Fitness Fisio - Service Worker Inteligente
-// Versão: 1.0.1
-const CACHE_NAME = 'clubefitness-cache-v2';
+// Versão: 1.0.2 - Resiliente e Blindado contra falhas de rede
+const CACHE_NAME = 'clubefitness-cache-v3';
 
 const STATIC_PRECACHE = [
-  '/',
   '/offline.html',
   '/manifest.json',
   '/favicon.ico',
@@ -30,14 +29,17 @@ const safeMatch = async (req) => {
   }
 };
 
-// Instalação: Pré-cache dos ativos fundamentais do App Shell
+// Instalação: Pré-cache dos ativos fundamentais estáticos (sem rotas SSR)
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    safeOpenCache().then((cache) => {
-      if (cache) {
-        return cache.addAll(STATIC_PRECACHE).catch(() => {});
-      }
-    }).catch(() => {})
+    (async () => {
+      try {
+        const cache = await safeOpenCache();
+        if (cache) {
+          await cache.addAll(STATIC_PRECACHE).catch(() => {});
+        }
+      } catch (e) {}
+    })()
   );
   self.skipWaiting();
 });
@@ -64,46 +66,52 @@ self.addEventListener('activate', (event) => {
 // Interceptação de requisições de rede
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
-
-  // 1. Ignorar requisições não-GET
-  if (request.method !== 'GET') {
+  
+  // 1. Ignorar requisições não-GET e esquemas não-HTTP
+  if (request.method !== 'GET' || !request.url.startsWith('http')) {
     return;
   }
 
-  // 2. Rotas de API e Autenticação: SEMPRE NETWORK-ONLY
-  if (url.pathname.startsWith('/api/') || url.pathname.includes('/api/auth/')) {
-    event.respondWith(fetch(request).catch(() => new Response(JSON.stringify({ success: false, error: 'Offline' }), { status: 503, headers: { 'Content-Type': 'application/json' } })));
+  const url = new URL(request.url);
+
+  // 2. Rotas de API, Autenticação e Queries Dinâmicas do Next.js:
+  // NUNCA interceptar com respondWith. Deixar o navegador executar a rede nativa.
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.includes('/api/auth/') ||
+    url.searchParams.has('_rsc') ||
+    request.headers.get('RSC') ||
+    request.headers.get('Next-Router-State-Tree') ||
+    request.headers.get('Next-Action')
+  ) {
     return;
   }
 
   // 3. Navegação de Páginas HTML (ex: /dashboard, /ficha, /login): NETWORK-FIRST com fallback OFFLINE
-  if (request.mode === 'navigate' || request.destination === 'document') {
+  if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            safeOpenCache().then((cache) => cache && cache.put(request, copy).catch(() => {})).catch(() => {});
-          }
-          return response;
-        })
-        .catch(async () => {
+      (async () => {
+        try {
+          const networkResponse = await fetch(request);
+          return networkResponse;
+        } catch (err) {
           const cachedResponse = await safeMatch(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
+          if (cachedResponse) return cachedResponse;
+
           const offlinePage = await safeMatch('/offline.html');
-          return offlinePage || new Response('Você está offline.', {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-          });
-        })
+          if (offlinePage) return offlinePage;
+
+          return new Response(
+            '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Offline - Clube Fitness</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;background:#080b11;color:#f8fafc;"><h2>Você está offline</h2><p>Verifique sua conexão e recarregue a página.</p></body></html>',
+            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        }
+      })()
     );
     return;
   }
 
-  // 4. Ativos Estáticos (_next/static, icons, fontes, css, imagens): CACHE-FIRST com revalidação
+  // 4. Ativos Estáticos (_next/static, icons, fontes, css, imagens): STALE-WHILE-REVALIDATE seguro
   const isStatic = 
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.startsWith('/icons/') ||
@@ -117,29 +125,41 @@ self.addEventListener('fetch', (event) => {
 
   if (isStatic) {
     event.respondWith(
-      safeMatch(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request)
-          .then((networkResponse) => {
+      (async () => {
+        const cachedResponse = await safeMatch(request);
+        
+        const fetchPromise = (async () => {
+          try {
+            const networkResponse = await fetch(request);
             if (networkResponse && networkResponse.status === 200) {
-              const copy = networkResponse.clone();
-              safeOpenCache().then((cache) => cache && cache.put(request, copy).catch(() => {})).catch(() => {});
+              const cache = await safeOpenCache();
+              if (cache) {
+                await cache.put(request, networkResponse.clone()).catch(() => {});
+              }
             }
             return networkResponse;
-          })
-          .catch(() => cachedResponse);
+          } catch (err) {
+            return null;
+          }
+        })();
 
-        return cachedResponse || fetchPromise;
-      }).catch(() => fetch(request))
+        // Retorna o cache imediatamente se houver, ou aguarda a rede sem quebrar
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        const res = await fetchPromise;
+        if (res) return res;
+
+        // Fallback limpo sem disparar unhandled promise rejection
+        return new Response('', { status: 408, statusText: 'Request Timeout' });
+      })()
     );
     return;
   }
 
-  // 5. Padrão para os demais recursos
-  event.respondWith(
-    safeMatch(request).then((cachedResponse) => {
-      return cachedResponse || fetch(request);
-    }).catch(() => fetch(request))
-  );
+  // 5. Demais recursos: Não interceptar, deixar o navegador tratar normalmente
+  return;
 });
 
 // Atualização sob demanda caso o cliente solicite
