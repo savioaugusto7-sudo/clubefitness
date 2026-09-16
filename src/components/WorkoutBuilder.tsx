@@ -54,11 +54,17 @@ interface WorkoutBuilderProps {
 }
 
 export default function WorkoutBuilder({ onClose, clientId, clientName, initialFichaId }: WorkoutBuilderProps) {
+  const [currentClientId, setCurrentClientId] = useState<string>(clientId);
+  const [realClientName, setRealClientName] = useState(clientName && clientName !== 'Aluno' ? clientName : '');
+  
   const [exercises, setExercises] = useState<any[]>([]);
   const [selectedMuscle, setSelectedMuscle] = useState('Todos');
   const [search, setSearch] = useState('');
-  const [realClientName, setRealClientName] = useState(clientName && clientName !== 'Aluno' ? clientName : '');
   
+  const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
+  const [allClients, setAllClients] = useState<any[]>([]);
+  const [currentHourFilter, setCurrentHourFilter] = useState<'current' | 'all'>('current');
+
   const [activeCategory, setActiveCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
   const [activeTabLetter, setActiveTabLetter] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
   const [workoutName, setWorkoutName] = useState('Ficha A');
@@ -72,15 +78,52 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [justSaved, setJustSaved] = useState(false);
   const [saveToast, setSaveToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Unsaved changes protection
+  const [initialSnapshot, setInitialSnapshot] = useState<string>('');
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingTargetClient, setPendingTargetClient] = useState<{ id: string; name: string } | null>(null);
+
+  // Quick Client Search Dropdown
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [clientSearchText, setClientSearchText] = useState('');
+
   const [activeObsModalItem, setActiveObsModalItem] = useState<any | null>(null);
   const [tempObsText, setTempObsText] = useState('');
 
+  // Snapshot calculator
+  const computeSnapshot = (items = workoutItems, name = workoutName, goal = workoutGoal, cat = activeCategory, tab = activeTabLetter) => {
+    return JSON.stringify({
+      cat,
+      tab,
+      name,
+      goal,
+      items: items.map(it => ({
+        nome: it.nome,
+        series: it.series,
+        reps: it.reps,
+        carga: it.carga,
+        descanso: it.descanso,
+        observacao: it.observacao,
+        ritmo: it.ritmo,
+        combinaGrupo: it.combinaGrupo
+      }))
+    });
+  };
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialSnapshot) return false;
+    return initialSnapshot !== computeSnapshot();
+  }, [initialSnapshot, workoutItems, workoutName, workoutGoal, activeCategory, activeTabLetter]);
+
   // Sincronizar prop com estado interno
   useEffect(() => {
+    if (clientId && clientId !== currentClientId) {
+      setCurrentClientId(clientId);
+    }
     if (clientName && clientName !== 'Aluno') {
       setRealClientName(clientName);
     }
-  }, [clientName]);
+  }, [clientId, clientName]);
 
   // Atualizar título da aba do navegador com o nome do aluno
   useEffect(() => {
@@ -92,102 +135,228 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     };
   }, [realClientName, clientName]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
+  // Horário atual no formato HH:00
+  const currentHourStr = useMemo(() => {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2, '0');
+    return `${h}:00`;
+  }, []);
 
-        const [resEx, resWorkouts, resApts, resClient] = await Promise.all([
-          fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })),
-          fetch(`/api/workouts?clientId=${clientId}`).then(r => r.json()).catch(() => ({ success: false })),
-          fetch(`/api/appointments?t=${Date.now()}`).then(r => r.json()).catch(() => ({ success: false })),
-          fetch(`/api/clients?id=${clientId}`).then(r => r.json()).catch(() => ({ success: false }))
-        ]);
+  // Lista de alunos agendados para hoje
+  const todayStudents = useMemo(() => {
+    const map = new Map<string, any>();
+    todayAppointments.forEach(a => {
+      const sId = String(a.clienteId?._id || a.clienteId);
+      if (!sId || sId === 'undefined') return;
+      const cl = allClients.find(c => String(c._id) === sId) || (typeof a.clienteId === 'object' ? a.clienteId : {});
+      const name = cl?.dadosPessoais?.nome || cl?.nome || a.clienteNome || 'Aluno';
+      if (!map.has(sId)) {
+        map.set(sId, {
+          id: sId,
+          name,
+          horario: a.horario,
+          status: a.status || 'agendado',
+          servico: a.servico || a.tipo || 'Treino Monitorado',
+          treinoExecutado: a.treinoExecutado,
+          wellness: a.wellness
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [todayAppointments, allClients]);
 
-        if (resClient?.success && resClient.data && isMounted) {
-          const raw = resClient.data;
-          const c = Array.isArray(raw) ? raw[0] : raw;
-          const cName = c?.dadosPessoais?.nome || c?.nome || '';
-          if (cName) {
-            setRealClientName(cName);
-            document.title = `${cName} • Ficha de Treino | Clube Fitness`;
-          }
+  // Alunos do horário atual
+  const currentHourStudents = useMemo(() => {
+    const filtered = todayStudents.filter(s => s.horario === currentHourStr);
+    if (currentClientId && !filtered.some(s => String(s.id) === String(currentClientId))) {
+      const activeObj = todayStudents.find(s => String(s.id) === String(currentClientId));
+      if (activeObj) return [activeObj, ...filtered];
+    }
+    return filtered.length > 0 ? filtered : todayStudents;
+  }, [todayStudents, currentHourStr, currentClientId]);
+
+  // Função centralizada para carregar dados do treino de um aluno
+  const loadDataForClient = async (targetClientId: string, targetClientName?: string, isInitial = false) => {
+    try {
+      setIsLoading(true);
+
+      const fetchPromises: Promise<any>[] = [
+        fetch(`/api/workouts?clientId=${targetClientId}`).then(r => r.json()).catch(() => ({ success: false })),
+        fetch(`/api/clients?id=${targetClientId}`).then(r => r.json()).catch(() => ({ success: false }))
+      ];
+
+      if (isInitial || exercises.length === 0 || allClients.length === 0) {
+        fetchPromises.push(fetch('/api/exercises').then(r => r.json()).catch(() => ({ success: false })));
+        fetchPromises.push(fetch(`/api/appointments?t=${Date.now()}`).then(r => r.json()).catch(() => ({ success: false })));
+        fetchPromises.push(fetch('/api/clients').then(r => r.json()).catch(() => ({ success: false })));
+      }
+
+      const results = await Promise.all(fetchPromises);
+      const resWorkouts = results[0];
+      const resClient = results[1];
+      const resEx = results[2];
+      const resApts = results[3];
+      const resAllClients = results[4];
+
+      if (resAllClients?.success && Array.isArray(resAllClients.data)) {
+        setAllClients(resAllClients.data);
+      }
+
+      if (resApts?.success && Array.isArray(resApts.data)) {
+        const hojeISO = new Date().toISOString().split('T')[0];
+        const todays = resApts.data.filter((a: any) => a.data === hojeISO && a.status !== 'cancelado');
+        setTodayAppointments(todays);
+      }
+
+      let loadedExercises = exercises;
+      if (resEx?.success && Array.isArray(resEx.data)) {
+        loadedExercises = resEx.data;
+        setExercises(loadedExercises);
+      }
+
+      let resolvedName = targetClientName || realClientName;
+      if (resClient?.success && resClient.data) {
+        const raw = resClient.data;
+        const c = Array.isArray(raw) ? raw[0] : raw;
+        const cName = c?.dadosPessoais?.nome || c?.nome || '';
+        if (cName) {
+          resolvedName = cName;
+          setRealClientName(cName);
+          document.title = `${cName} • Ficha de Treino | Clube Fitness`;
         }
+      }
 
-        let loadedExercises: any[] = [];
-        if (resEx?.success && Array.isArray(resEx.data)) {
-          loadedExercises = resEx.data;
-          if (isMounted) setExercises(loadedExercises);
-        }
+      if (resWorkouts?.success && resWorkouts.data) {
+        const w = resWorkouts.data;
+        setRawWorkoutDoc(w);
 
-        if (resWorkouts?.success && resWorkouts.data && isMounted) {
-          const w = resWorkouts.data;
-          setRawWorkoutDoc(w);
+        const monitorado = w.fichasMonitorado || [];
+        const livre = w.fichasLivre || [];
+        const chosenCategory = (monitorado.length > 0 && monitorado.some((s: any) => s.exercicios?.length > 0))
+          ? 'fichasMonitorado'
+          : (livre.length > 0 && livre.some((s: any) => s.exercicios?.length > 0))
+          ? 'fichasLivre'
+          : 'fichasMonitorado';
 
-          const monitorado = w.fichasMonitorado || [];
-          const livre = w.fichasLivre || [];
-          const chosenCategory = (monitorado.length > 0 && monitorado.some((s: any) => s.exercicios?.length > 0))
-            ? 'fichasMonitorado'
-            : (livre.length > 0 && livre.some((s: any) => s.exercicios?.length > 0))
-            ? 'fichasLivre'
-            : 'fichasMonitorado';
+        setActiveCategory(chosenCategory);
+        const activeSheets = w[chosenCategory] || [];
+        const targetFichaLetter = initialFichaId ? initialFichaId.toUpperCase() : 'A';
+        const initialSheet = activeSheets.find((s: any) => s.id === targetFichaLetter) || activeSheets.find((s: any) => s.id === 'A') || activeSheets[0] || { id: targetFichaLetter, nome: `Ficha ${targetFichaLetter}`, exercicios: [] };
 
-          setActiveCategory(chosenCategory);
-          const activeSheets = w[chosenCategory] || [];
-          const targetFichaLetter = initialFichaId ? initialFichaId.toUpperCase() : 'A';
-          const initialSheet = activeSheets.find((s: any) => s.id === targetFichaLetter) || activeSheets.find((s: any) => s.id === 'A') || activeSheets[0] || { id: targetFichaLetter, nome: `Ficha ${targetFichaLetter}`, exercicios: [] };
+        if (initialSheet) {
+          const sheetTab = (initialSheet.id || targetFichaLetter || 'A') as 'A' | 'B' | 'C' | 'D' | 'E';
+          const sheetName = initialSheet.nome || `Ficha ${sheetTab}`;
+          const sheetGoal = initialSheet.observacoesGerais || '';
 
-          if (initialSheet) {
-            setActiveTabLetter(initialSheet.id || (targetFichaLetter as any) || 'A');
-            setWorkoutName(initialSheet.nome || `Ficha ${initialSheet.id || targetFichaLetter || 'A'}`);
-            setWorkoutGoal(initialSheet.observacoesGerais || '');
+          setActiveTabLetter(sheetTab);
+          setWorkoutName(sheetName);
+          setWorkoutGoal(sheetGoal);
+          
+          const items = (initialSheet.exercicios || []).map((ex: any, idx: number) => {
+            const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
+            const matchedDbEx = loadedExercises.find(e => e.nome === exName || e._id === exName);
+            const grupo = matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral';
             
-            const items = (initialSheet.exercicios || []).map((ex: any, idx: number) => {
-              const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
-              const matchedDbEx = loadedExercises.find(e => e.nome === exName || e._id === exName);
-              const grupo = matchedDbEx?.grupo || matchedDbEx?.grupo_muscular || 'Geral';
-              
-              return {
-                _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
-                id: String(Date.now() + idx + Math.random()),
-                nome: exName || 'Exercício',
-                grupo,
-                series: Number(ex.series) || 3,
-                reps: String(ex.repeticoes || '12'),
-                carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
-                descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
-                observacao: ex.observacao || ex.observacoes || '',
-                ritmo: ex.ritmo || '2-0-2-0',
-                combinaGrupo: ex.combinaGrupo || ''
-              };
-            });
-            setWorkoutItems(items);
-          }
+            return {
+              _id: matchedDbEx?._id || ex._id || `ex_${idx}`,
+              id: String(Date.now() + idx + Math.random()),
+              nome: exName || 'Exercício',
+              grupo,
+              series: Number(ex.series) || 3,
+              reps: String(ex.repeticoes || '12'),
+              carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
+              descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
+              observacao: ex.observacao || ex.observacoes || '',
+              ritmo: ex.ritmo || '2-0-2-0',
+              combinaGrupo: ex.combinaGrupo || ''
+            };
+          });
+          setWorkoutItems(items);
+          setInitialSnapshot(computeSnapshot(items, sheetName, sheetGoal, chosenCategory, sheetTab));
         }
+      } else {
+        setWorkoutItems([]);
+        setInitialSnapshot(computeSnapshot([], 'Ficha A', '', 'fichasMonitorado', 'A'));
+      }
 
-        if (resApts?.success && Array.isArray(resApts.data) && isMounted) {
-          const hojeISO = new Date().toISOString().split('T')[0];
-          const studentApts = resApts.data.filter((a: any) => 
-            String(a.clienteId?._id || a.clienteId) === String(clientId)
-          );
-          const withWellness = studentApts.find((a: any) => a.data === hojeISO && a.wellness?.realizado) ||
-                               studentApts.find((a: any) => a.wellness?.realizado);
-          if (withWellness?.wellness) {
-            setTodayWellness(withWellness.wellness);
-          }
+      const clientApt = (resApts?.data || todayAppointments).find((a: any) => String(a.clienteId?._id || a.clienteId) === String(targetClientId));
+      if (clientApt?.wellness?.realizado) {
+        setTodayWellness(clientApt.wellness);
+      } else {
+        setTodayWellness(null);
+      }
+
+    } catch (err) {
+      console.error('Erro ao carregar dados do treino:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDataForClient(currentClientId, realClientName, true);
+  }, []);
+
+  const requestSwitchClient = (targetId: string, targetName: string) => {
+    if (String(targetId) === String(currentClientId)) return;
+    if (hasUnsavedChanges) {
+      setPendingTargetClient({ id: targetId, name: targetName });
+      setShowUnsavedModal(true);
+    } else {
+      executeSwitchClient(targetId, targetName);
+    }
+  };
+
+  const executeSwitchClient = async (targetId: string, targetName: string) => {
+    setCurrentClientId(targetId);
+    setRealClientName(targetName);
+    setShowUnsavedModal(false);
+    setPendingTargetClient(null);
+    setShowSearchDropdown(false);
+    setClientSearchText('');
+
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `/ficha/${targetId}?studentName=${encodeURIComponent(targetName)}`);
+      document.title = `${targetName} • Ficha de Treino | Clube Fitness`;
+    }
+
+    await loadDataForClient(targetId, targetName, false);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      const activeList = currentHourFilter === 'current' ? currentHourStudents : todayStudents;
+      if (activeList.length === 0) return;
+
+      if (e.ctrlKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        const currentIndex = activeList.findIndex(s => String(s.id) === String(currentClientId));
+        if (e.key === 'ArrowRight') {
+          const nextIndex = (currentIndex + 1) % activeList.length;
+          requestSwitchClient(activeList[nextIndex].id, activeList[nextIndex].name);
+        } else if (e.key === 'ArrowLeft') {
+          const prevIndex = (currentIndex - 1 + activeList.length) % activeList.length;
+          requestSwitchClient(activeList[prevIndex].id, activeList[prevIndex].name);
         }
+      }
 
-      } catch (err) {
-        console.error('Erro ao carregar dados do treino:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
+      if (e.altKey && e.key >= '1' && e.key <= '9') {
+        const num = parseInt(e.key, 10) - 1;
+        if (activeList[num]) {
+          e.preventDefault();
+          requestSwitchClient(activeList[num].id, activeList[num].name);
+        }
       }
     };
 
-    loadData();
-    return () => { isMounted = false; };
-  }, [clientId]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentClientId, currentHourFilter, currentHourStudents, todayStudents, hasUnsavedChanges]);
 
   const handleChangeSheet = (letter: 'A' | 'B' | 'C' | 'D' | 'E', categoryOverride?: 'fichasMonitorado' | 'fichasLivre') => {
     setActiveTabLetter(letter);
@@ -226,7 +395,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
   const filteredExercises = useMemo(() => {
     const rawSearch = normalizeText(search).trim();
-    const stopWords = new Set(['no', 'na', 'nos', 'nas', 'de', 'da', 'do', 'dos', 'das', 'em', 'com', 'e', 'a', 'o', 'as', 'os']);
+    const stopWords = new Set(['no', 'na', 'nos', 'nas', 'de', 'da', 'do', 'dos', 'das', 'em', 'with', 'com', 'e', 'a', 'o', 'as', 'os']);
     
     const searchTokens = rawSearch
       ? rawSearch.split(/\s+/).filter(t => t.length > 0 && !stopWords.has(t))
@@ -243,96 +412,67 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         const exGrupoNorm = normalizeText(g);
         const fullText = `${exNomeNorm} ${exGrupoNorm}`;
 
-        // 1. Match contíguo completo
         if (exNomeNorm.includes(rawSearch) || fullText.includes(rawSearch)) return true;
-
-        // 2. Todos os tokens presentes
         const matchesAllTokens = searchTokens.every(token => fullText.includes(token));
-        if (matchesAllTokens) return true;
-
-        // 3. Pelo menos 1 token presente para buscas com múltiplos termos
-        if (searchTokens.length > 1) {
-          const matchedCount = searchTokens.filter(token => fullText.includes(token)).length;
-          return matchedCount >= 1;
-        }
-
-        return false;
+        return matchesAllTokens;
       })
-      .sort((a, b) => {
-        if (searchTokens.length === 0) return 0;
-        const aNome = normalizeText(a.nome);
-        const bNome = normalizeText(b.nome);
-        const aFull = `${aNome} ${normalizeText(a.grupo || a.grupo_muscular || '')}`;
-        const bFull = `${bNome} ${normalizeText(b.grupo || b.grupo_muscular || '')}`;
-
-        const aExact = aNome.startsWith(rawSearch) ? 100 : (aNome.includes(rawSearch) ? 80 : 0);
-        const bExact = bNome.startsWith(rawSearch) ? 100 : (bNome.includes(rawSearch) ? 80 : 0);
-
-        const aTokenScore = searchTokens.reduce((acc, t) => acc + (aFull.includes(t) ? 20 : 0), 0);
-        const bTokenScore = searchTokens.reduce((acc, t) => acc + (bFull.includes(t) ? 20 : 0), 0);
-
-        return (bExact + bTokenScore) - (aExact + aTokenScore);
-      });
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
   }, [exercises, selectedMuscle, search]);
 
-  const addToWorkout = (ex: any) => {
-    const newEx = {
+  const addExercise = (ex: any) => {
+    const newItem = {
       _id: ex._id,
       id: String(Date.now() + Math.random()),
       nome: ex.nome,
       grupo: ex.grupo || ex.grupo_muscular || 'Geral',
       series: 3,
       reps: '12',
-      carga: 10,
+      carga: parseFloat(String(ex.carga_sugerida || '10').replace('kg', '')) || 10,
       descanso: 60,
       observacao: '',
       ritmo: '2-0-2-0',
       combinaGrupo: ''
     };
-    setWorkoutItems(prev => [...prev, newEx]);
-  };
-
-  const updateItem = (id: string, field: string, val: any) => {
-    setWorkoutItems(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item));
+    setWorkoutItems(prev => [...prev, newItem]);
   };
 
   const removeItem = (id: string) => {
     setWorkoutItems(prev => prev.filter(item => item.id !== id));
   };
 
+  const updateItem = (id: string, field: string, value: any) => {
+    setWorkoutItems(prev => prev.map(item => {
+      if (item.id === id) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    }));
+  };
+
   const moveItem = (index: number, direction: 'up' | 'down') => {
-    const targetIdx = direction === 'up' ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= workoutItems.length) return;
     const newItems = [...workoutItems];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newItems.length) return;
     const temp = newItems[index];
-    newItems[index] = newItems[targetIdx];
-    newItems[targetIdx] = temp;
+    newItems[index] = newItems[targetIndex];
+    newItems[targetIndex] = temp;
     setWorkoutItems(newItems);
   };
 
   const metrics = useMemo(() => {
-    let volumeTotal = 0;
-    let totalSeries = 0;
-    let totalTempoSegundos = 0;
-
-    workoutItems.forEach(item => {
-      const s = Number(item.series) || 0;
-      const c = parseFloat(item.carga) || 0;
-      const r = parseFloat(String(item.reps).replace(/[^0-9.]/g, '')) || 10;
-      const d = parseInt(String(item.descanso).replace(/[^0-9]/g, '')) || 60;
-
-      volumeTotal += (s * r * c);
-      totalSeries += s;
-      totalTempoSegundos += (s * (30 + d));
+    let volume = 0;
+    let series = 0;
+    workoutItems.forEach(it => {
+      const s = Number(it.series) || 0;
+      const r = parseInt(String(it.reps).match(/\d+/)?.[0] || '10', 10);
+      const c = parseFloat(String(it.carga)) || 0;
+      volume += s * r * c;
+      series += s;
     });
-
-    const tempoMinutos = Math.max(15, Math.round(totalTempoSegundos / 60));
-
     return {
-      volumeTotal: Math.round(volumeTotal),
-      totalSeries,
-      totalExercicios: workoutItems.length,
-      tempoMinutos
+      volumeTotal: Math.round(volume),
+      totalSeries: series,
+      totalExercicios: workoutItems.length
     };
   }, [workoutItems]);
 
@@ -373,7 +513,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       }
 
       const payload = {
-        clientId,
+        clientId: currentClientId,
         category: activeCategory,
         workoutData: updatedSheets,
         [activeCategory]: updatedSheets
@@ -392,12 +532,14 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           [activeCategory]: updatedSheets
         }));
 
+        setInitialSnapshot(computeSnapshot(workoutItems, workoutName, workoutGoal, activeCategory, activeTabLetter));
+
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         
         setJustSaved(true);
         setSaveToast({
-          message: `✨ ${workoutName} salva com sucesso às ${timeStr}! As alterações estão sincronizadas.`,
+          message: `✨ ${workoutName} de ${realClientName || 'Aluno'} salva com sucesso às ${timeStr}!`,
           type: 'success'
         });
 
@@ -423,6 +565,22 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveAndSwitch = async () => {
+    if (!pendingTargetClient) return;
+    await handleSave();
+    await executeSwitchClient(pendingTargetClient.id, pendingTargetClient.name);
+  };
+
+  const handleDiscardAndSwitch = async () => {
+    if (!pendingTargetClient) return;
+    await executeSwitchClient(pendingTargetClient.id, pendingTargetClient.name);
+  };
+
+  const handleCancelSwitch = () => {
+    setShowUnsavedModal(false);
+    setPendingTargetClient(null);
   };
 
   return (
@@ -473,6 +631,343 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </button>
         </div>
       )}
+
+      {/* 🌟 Barra Superior de Navegação Rápida entre Alunos Presentes/Agendados (Desktop PWA) */}
+      <div style={{
+        background: '#090e1a',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        padding: '8px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        zIndex: 100,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+        flexShrink: 0
+      }}>
+        {/* Lado Esquerdo: Identificador de Horário & Alternador */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            padding: '4px 10px',
+            borderRadius: '8px',
+            color: '#34d399',
+            fontSize: '0.78rem',
+            fontWeight: 800
+          }}>
+            <i className="fa-regular fa-clock" style={{ fontSize: '0.85rem' }}></i>
+            <span>{currentHourFilter === 'current' ? `Horário ${currentHourStr}` : 'Hoje'}</span>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '8px',
+            padding: '2px'
+          }}>
+            <button
+              type="button"
+              onClick={() => setCurrentHourFilter('current')}
+              style={{
+                background: currentHourFilter === 'current' ? '#10b981' : 'transparent',
+                color: currentHourFilter === 'current' ? '#fff' : '#94a3b8',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '3px 9px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Filtrar apenas alunos da janela atual"
+            >
+              Atual ({currentHourStudents.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentHourFilter('all')}
+              style={{
+                background: currentHourFilter === 'all' ? '#10b981' : 'transparent',
+                color: currentHourFilter === 'all' ? '#fff' : '#94a3b8',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '3px 9px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Ver todos os alunos agendados para hoje"
+            >
+              Todos ({todayStudents.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Centro: Carrossel Horizontal de Alunos */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          padding: '2px 4px',
+          flex: 1,
+          justifyContent: 'flex-start'
+        }}>
+          {(currentHourFilter === 'current' ? currentHourStudents : todayStudents).length === 0 ? (
+            <span style={{ fontSize: '0.76rem', color: '#64748b', fontStyle: 'italic' }}>
+              Nenhum outro aluno agendado para este horário.
+            </span>
+          ) : (
+            (currentHourFilter === 'current' ? currentHourStudents : todayStudents).map((s, idx) => {
+              const isActive = String(s.id) === String(currentClientId);
+              const isPresente = s.status === 'presenca';
+              const isFalta = s.status === 'falta';
+              const statusDotColor = isPresente ? '#10b981' : isFalta ? '#ef4444' : '#f59e0b';
+              const fichaLetter = s.treinoExecutado?.fichaId || '';
+
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => requestSwitchClient(s.id, s.name)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: isActive ? '5px 14px' : '5px 10px',
+                    borderRadius: '10px',
+                    border: isActive ? '1.5px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: isActive
+                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(6, 182, 212, 0.15) 100%)'
+                      : 'rgba(255, 255, 255, 0.035)',
+                    color: isActive ? '#ffffff' : '#cbd5e1',
+                    fontSize: '0.78rem',
+                    fontWeight: isActive ? 800 : 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    boxShadow: isActive ? '0 0 14px rgba(16, 185, 129, 0.35)' : 'none',
+                    transition: 'all 0.15s ease',
+                    flexShrink: 0
+                  }}
+                  title={`Alternar para ${s.name} (Alt+${idx + 1})`}
+                >
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: statusDotColor,
+                    boxShadow: isPresente ? '0 0 8px #10b981' : 'none',
+                    display: 'inline-block'
+                  }}></span>
+
+                  <span>{s.name}</span>
+
+                  {fichaLetter && (
+                    <span style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 800,
+                      background: isActive ? '#10b981' : 'rgba(255,255,255,0.1)',
+                      color: isActive ? '#000' : '#34d399',
+                      padding: '1px 5px',
+                      borderRadius: '4px'
+                    }}>
+                      Ficha {fichaLetter}
+                    </span>
+                  )}
+
+                  {s.wellness?.realizado && (
+                    <span style={{ fontSize: '0.7rem' }} title="Wellness preenchido hoje">
+                      ⚡
+                    </span>
+                  )}
+
+                  {idx < 9 && (
+                    <span style={{
+                      fontSize: '0.62rem',
+                      color: '#64748b',
+                      background: 'rgba(0,0,0,0.3)',
+                      padding: '1px 4px',
+                      borderRadius: '3px',
+                      marginLeft: '2px'
+                    }}>
+                      Alt+{idx + 1}
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Lado Direito: Setas de Navegação & Busca de Alunos */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, position: 'relative' }}>
+          {/* Navegação Anterior / Próximo */}
+          <div style={{ display: 'flex', gap: '3px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const list = currentHourFilter === 'current' ? currentHourStudents : todayStudents;
+                if (list.length <= 1) return;
+                const idx = list.findIndex(s => String(s.id) === String(currentClientId));
+                const prevIdx = (idx - 1 + list.length) % list.length;
+                requestSwitchClient(list[prevIdx].id, list[prevIdx].name);
+              }}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '0.74rem'
+              }}
+              title="Aluno Anterior (Ctrl + ←)"
+            >
+              <i className="fa-solid fa-chevron-left"></i>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const list = currentHourFilter === 'current' ? currentHourStudents : todayStudents;
+                if (list.length <= 1) return;
+                const idx = list.findIndex(s => String(s.id) === String(currentClientId));
+                const nextIdx = (idx + 1) % list.length;
+                requestSwitchClient(list[nextIdx].id, list[nextIdx].name);
+              }}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '0.74rem'
+              }}
+              title="Próximo Aluno (Ctrl + →)"
+            >
+              <i className="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          {/* Botão Buscar Outro Aluno */}
+          <button
+            type="button"
+            onClick={() => setShowSearchDropdown(prev => !prev)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '8px',
+              border: showSearchDropdown ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.12)',
+              background: showSearchDropdown ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+              color: showSearchDropdown ? '#34d399' : '#e2e8f0',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            <i className="fa-solid fa-magnifying-glass"></i>
+            <span>Buscar Aluno</span>
+          </button>
+
+          {/* Dropdown de Busca Rápida de Alunos */}
+          {showSearchDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '36px',
+              right: '0',
+              width: '280px',
+              background: '#0f172a',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '12px',
+              boxShadow: '0 12px 35px rgba(0,0,0,0.8)',
+              padding: '10px',
+              zIndex: 2000000,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  autoFocus
+                  value={clientSearchText}
+                  onChange={(e) => setClientSearchText(e.target.value)}
+                  placeholder="Nome do aluno..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    paddingLeft: '30px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    background: '#070b14',
+                    color: '#fff',
+                    fontSize: '0.82rem'
+                  }}
+                />
+                <i className="fa-solid fa-search" style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b', fontSize: '0.75rem' }}></i>
+              </div>
+
+              <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                {allClients
+                  .filter(c => {
+                    const cNome = normalizeText(c.dadosPessoais?.nome || c.nome || '');
+                    return cNome.includes(normalizeText(clientSearchText));
+                  })
+                  .slice(0, 8)
+                  .map(c => {
+                    const cId = String(c._id);
+                    const cNome = c.dadosPessoais?.nome || c.nome || 'Aluno';
+                    const isSelected = cId === String(currentClientId);
+
+                    return (
+                      <button
+                        key={cId}
+                        type="button"
+                        onClick={() => requestSwitchClient(cId, cNome)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: isSelected ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                          color: isSelected ? '#34d399' : '#cbd5e1',
+                          fontSize: '0.78rem',
+                          fontWeight: isSelected ? 800 : 500,
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = isSelected ? 'rgba(16, 185, 129, 0.2)' : 'transparent')}
+                      >
+                        <span>{cNome}</span>
+                        {isSelected && <i className="fa-solid fa-check" style={{ color: '#10b981', fontSize: '0.7rem' }}></i>}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div style={{
         padding: '14px 28px',
@@ -1471,6 +1966,132 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 }}
               >
                 Salvar Observação
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚠️ Modal de Confirmação para Alterações Não Salvas */}
+      {showUnsavedModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 20000000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(150deg, #131d31 0%, #0c1322 100%)',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            borderRadius: '16px',
+            padding: '24px 28px',
+            maxWidth: '520px',
+            width: '100%',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 25px rgba(245, 158, 11, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#f59e0b',
+                fontSize: '1.4rem',
+                flexShrink: 0
+              }}>
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.15rem', fontWeight: 800 }}>
+                  Alterações não salvas na Ficha
+                </h3>
+                <p style={{ margin: '3px 0 0 0', color: '#94a3b8', fontSize: '0.84rem' }}>
+                  Você editou a ficha de <strong>{realClientName || 'Aluno'}</strong> e ainda não salvou.
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              fontSize: '0.84rem',
+              color: '#cbd5e1'
+            }}>
+              Deseja salvar as alterações de <strong>{workoutName}</strong> antes de alternar para a ficha de <strong>{pendingTargetClient?.name}</strong>?
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCancelSwitch}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#cbd5e1',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDiscardAndSwitch}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  color: '#f87171',
+                  cursor: 'pointer'
+                }}
+              >
+                <i className="fa-solid fa-trash" style={{ marginRight: '6px' }}></i> Descartar
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSaveAndSwitch}
+                disabled={isSaving}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '10px',
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  border: 'none',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+                }}
+              >
+                <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i> {isSaving ? 'Salvando...' : 'Salvar e Trocar'}
               </button>
             </div>
           </div>
