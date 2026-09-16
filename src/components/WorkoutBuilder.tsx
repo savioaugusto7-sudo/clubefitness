@@ -925,11 +925,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     </span>
                   )}
 
-                  {s.wellness?.realizado && (
-                    <span style={{ fontSize: '0.7rem' }} title="Wellness preenchido hoje">
-                      ⚡
-                    </span>
-                  )}
 
                   {idx < 9 && (
                     <span style={{
