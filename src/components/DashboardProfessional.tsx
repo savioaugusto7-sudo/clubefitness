@@ -17274,7 +17274,18 @@ goniometria: {
                                           <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Ritmo / Método</span>
                                           <span style={{ fontSize: '0.84rem', fontWeight: 750, color: '#f59e0b' }}>{(ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? ex.ritmo : ex.metodo}</span>
                                         </div>
-                                      )}}
+                                      )}
+                                    </div>
+
+                                    {ex.observacoes && (
+                                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '6px', borderLeft: '2px solid var(--color-primary)' }}>
+                                        <strong>Obs:</strong> {ex.observacoes}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
