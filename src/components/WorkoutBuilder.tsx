@@ -1704,7 +1704,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
               <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {isLoading ? (
-                  <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
+                  <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                     <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '16px', display: 'block' }}></i>
                     <p style={{ margin: 0, fontWeight: 800, color: '#ffffff', fontSize: '1rem' }}>Carregando ficha de treino do aluno...</p>
                     <small style={{ color: '#64748b' }}>Sincronizando exercícios, cargas e Wellness</small>
