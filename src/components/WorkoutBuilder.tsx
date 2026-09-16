@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FastTextarea } from './FastFormField';
 
 const normalizeText = (str: string) => {
@@ -89,6 +89,23 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
   const [activeObsModalItem, setActiveObsModalItem] = useState<any | null>(null);
   const [tempObsText, setTempObsText] = useState('');
+
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const displayName = realClientName || (clientName && clientName !== 'Aluno' ? clientName : 'Aluno');
+
+  const scrollCarousel = (direction: 'left' | 'right') => {
+    if (!carouselRef.current) return;
+    const offset = direction === 'left' ? -260 : 260;
+    carouselRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (!carouselRef.current || !currentClientId) return;
+    const activeBtn = carouselRef.current.querySelector(`[data-client-id="${currentClientId}"]`) as HTMLElement;
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [currentClientId]);
 
   // Snapshot calculator
   const computeSnapshot = (items = workoutItems, name = workoutName, goal = workoutGoal, cat = activeCategory, tab = activeTabLetter) => {
@@ -754,16 +771,25 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
 
         {/* Centro: Carrossel Horizontal de Alunos */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          overflowX: 'auto',
-          scrollbarWidth: 'none',
-          padding: '2px 4px',
-          flex: 1,
-          justifyContent: 'flex-start'
-        }}>
+        <div 
+          ref={carouselRef}
+          onWheel={(e) => {
+            if (carouselRef.current && e.deltaY !== 0) {
+              carouselRef.current.scrollLeft += e.deltaY;
+            }
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            padding: '2px 4px',
+            flex: 1,
+            justifyContent: 'flex-start',
+            scrollBehavior: 'smooth'
+          }}
+        >
           {(currentHourFilter === 'current' ? currentHourStudents : todayStudents).length === 0 ? (
             <span style={{ fontSize: '0.76rem', color: '#64748b', fontStyle: 'italic' }}>
               Nenhum outro aluno agendado para este horário.
@@ -779,6 +805,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               return (
                 <button
                   key={s.id}
+                  data-client-id={s.id}
                   type="button"
                   onClick={() => requestSwitchClient(s.id, s.name)}
                   style={{
@@ -850,19 +877,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           )}
         </div>
 
-        {/* Lado Direito: Setas de Navegação & Busca de Alunos */}
+        {/* Lado Direito: Setas de Rolagem da Barra & Busca de Alunos */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, position: 'relative' }}>
-          {/* Navegação Anterior / Próximo */}
+          {/* Navegação de Rolagem Horizontal */}
           <div style={{ display: 'flex', gap: '3px' }}>
             <button
               type="button"
-              onClick={() => {
-                const list = currentHourFilter === 'current' ? currentHourStudents : todayStudents;
-                if (list.length <= 1) return;
-                const idx = list.findIndex(s => String(s.id) === String(currentClientId));
-                const prevIdx = (idx - 1 + list.length) % list.length;
-                requestSwitchClient(list[prevIdx].id, list[prevIdx].name);
-              }}
+              onClick={() => scrollCarousel('left')}
               style={{
                 width: '28px',
                 height: '28px',
@@ -876,19 +897,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 cursor: 'pointer',
                 fontSize: '0.74rem'
               }}
-              title="Aluno Anterior (Ctrl + ←)"
+              title="Rolar lista para a esquerda"
             >
               <i className="fa-solid fa-chevron-left"></i>
             </button>
             <button
               type="button"
-              onClick={() => {
-                const list = currentHourFilter === 'current' ? currentHourStudents : todayStudents;
-                if (list.length <= 1) return;
-                const idx = list.findIndex(s => String(s.id) === String(currentClientId));
-                const nextIdx = (idx + 1) % list.length;
-                requestSwitchClient(list[nextIdx].id, list[nextIdx].name);
-              }}
+              onClick={() => scrollCarousel('right')}
               style={{
                 width: '28px',
                 height: '28px',
@@ -902,7 +917,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 cursor: 'pointer',
                 fontSize: '0.74rem'
               }}
-              title="Próximo Aluno (Ctrl + →)"
+              title="Rolar lista para a direita"
             >
               <i className="fa-solid fa-chevron-right"></i>
             </button>
@@ -1046,29 +1061,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             <i className="fa-solid fa-arrow-left"></i> Voltar para Lista
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #10b981, #06b6d4)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '1.15rem',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
-            }}>
-              {(clientName || 'A').charAt(0).toUpperCase()}
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, color: '#ffffff', fontSize: '1.4rem', fontWeight: 900, letterSpacing: '-0.3px' }}>
-                  {clientName}
-                </h2>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0, color: '#ffffff', fontSize: '1.4rem', fontWeight: 900, letterSpacing: '-0.3px' }}>
+                {displayName}
+              </h2>
                 <span style={{ 
                   background: 'rgba(16, 185, 129, 0.18)', 
                   color: '#10b981', 
@@ -1088,7 +1085,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               </div>
             </div>
           </div>
-        </div>
 
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           
