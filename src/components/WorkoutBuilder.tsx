@@ -1571,7 +1571,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', background: '#070b14' }}>
+        <div style={{ flex: 1, padding: '24px 32px 140px 32px', overflowY: 'auto', background: '#070b14' }}>
           <div style={{ maxWidth: '1050px', margin: '0 auto' }}>
             
             <div style={{
@@ -1750,7 +1750,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               background: '#0d1322',
               borderRadius: '16px',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              overflow: 'hidden',
+              overflow: 'visible',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)'
             }}>
               
@@ -2027,124 +2027,128 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               )}
                             </button>
 
-                            {activeDropMenuId === item.id && (
-                              <div
-                                onClick={(e) => e.stopPropagation()}
-                                style={{
-                                  position: 'absolute',
-                                  top: '40px',
-                                  right: 0,
-                                  zIndex: 9999,
-                                  background: '#0a0f1d',
-                                  border: '1px solid rgba(245, 158, 11, 0.35)',
-                                  boxShadow: '0 12px 30px rgba(0,0,0,0.85)',
-                                  borderRadius: '8px',
-                                  padding: '4px',
-                                  minWidth: '145px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '2px',
-                                  backdropFilter: 'blur(12px)'
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleSetDropTipo(item.id, 'none');
-                                    setActiveDropMenuId(null);
-                                  }}
+                            {activeDropMenuId === item.id && (() => {
+                              const openUpwards = workoutItems.length <= 3 || index >= workoutItems.length - 2;
+                              return (
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{
-                                    textAlign: 'left',
-                                    padding: '6px 10px',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    borderRadius: '5px',
-                                    background: (!item.dropSet || item.dropSet.tipo === 'none') ? 'rgba(255,255,255,0.08)' : 'transparent',
-                                    color: '#94a3b8',
-                                    border: 'none',
-                                    cursor: 'pointer',
+                                    position: 'absolute',
+                                    top: openUpwards ? 'auto' : '40px',
+                                    bottom: openUpwards ? '42px' : 'auto',
+                                    right: 0,
+                                    zIndex: 99999,
+                                    background: '#0a0f1d',
+                                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                                    boxShadow: '0 16px 36px rgba(0,0,0,0.95), 0 0 15px rgba(245, 158, 11, 0.15)',
+                                    borderRadius: '8px',
+                                    padding: '4px',
+                                    minWidth: '150px',
                                     display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    backdropFilter: 'blur(12px)'
                                   }}
                                 >
-                                  <i className="fa-solid fa-ban" style={{ fontSize: '0.7rem', color: '#64748b' }}></i>
-                                  Sem Drop-set
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSetDropTipo(item.id, 'none');
+                                      setActiveDropMenuId(null);
+                                    }}
+                                    style={{
+                                      textAlign: 'left',
+                                      padding: '6px 10px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      borderRadius: '5px',
+                                      background: (!item.dropSet || item.dropSet.tipo === 'none') ? 'rgba(255,255,255,0.08)' : 'transparent',
+                                      color: '#94a3b8',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-ban" style={{ fontSize: '0.7rem', color: '#64748b' }}></i>
+                                    Sem Drop-set
+                                  </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleSetDropTipo(item.id, 'single');
-                                    setActiveDropMenuId(null);
-                                  }}
-                                  style={{
-                                    textAlign: 'left',
-                                    padding: '6px 10px',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    borderRadius: '5px',
-                                    background: item.dropSet?.tipo === 'single' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                                    color: item.dropSet?.tipo === 'single' ? '#fbbf24' : '#f8fafc',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                  }}
-                                >
-                                  <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 1</span> Drop (Single)
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSetDropTipo(item.id, 'single');
+                                      setActiveDropMenuId(null);
+                                    }}
+                                    style={{
+                                      textAlign: 'left',
+                                      padding: '6px 10px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      borderRadius: '5px',
+                                      background: item.dropSet?.tipo === 'single' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                                      color: item.dropSet?.tipo === 'single' ? '#fbbf24' : '#f8fafc',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 1</span> Drop (Single)
+                                  </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleSetDropTipo(item.id, 'double');
-                                    setActiveDropMenuId(null);
-                                  }}
-                                  style={{
-                                    textAlign: 'left',
-                                    padding: '6px 10px',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    borderRadius: '5px',
-                                    background: item.dropSet?.tipo === 'double' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                                    color: item.dropSet?.tipo === 'double' ? '#fbbf24' : '#f8fafc',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                  }}
-                                >
-                                  <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 2</span> Drops (Double)
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSetDropTipo(item.id, 'double');
+                                      setActiveDropMenuId(null);
+                                    }}
+                                    style={{
+                                      textAlign: 'left',
+                                      padding: '6px 10px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      borderRadius: '5px',
+                                      background: item.dropSet?.tipo === 'double' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                                      color: item.dropSet?.tipo === 'double' ? '#fbbf24' : '#f8fafc',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 2</span> Drops (Double)
+                                  </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleSetDropTipo(item.id, 'triple');
-                                    setActiveDropMenuId(null);
-                                  }}
-                                  style={{
-                                    textAlign: 'left',
-                                    padding: '6px 10px',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    borderRadius: '5px',
-                                    background: item.dropSet?.tipo === 'triple' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                                    color: item.dropSet?.tipo === 'triple' ? '#fbbf24' : '#f8fafc',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                  }}
-                                >
-                                  <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 3</span> Drops (Triple)
-                                </button>
-                              </div>
-                            )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSetDropTipo(item.id, 'triple');
+                                      setActiveDropMenuId(null);
+                                    }}
+                                    style={{
+                                      textAlign: 'left',
+                                      padding: '6px 10px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      borderRadius: '5px',
+                                      background: item.dropSet?.tipo === 'triple' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                                      color: item.dropSet?.tipo === 'triple' ? '#fbbf24' : '#f8fafc',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 3</span> Drops (Triple)
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div>
