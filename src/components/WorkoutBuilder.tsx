@@ -106,6 +106,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
 
   const [activeObsModalItem, setActiveObsModalItem] = useState<any | null>(null);
   const [tempObsText, setTempObsText] = useState('');
+  const [activeDropMenuId, setActiveDropMenuId] = useState<string | null>(null);
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const displayName = realClientName || (clientName && clientName !== 'Aluno' ? clientName : 'Aluno');
@@ -123,6 +124,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
   }, [currentClientId]);
+
+  useEffect(() => {
+    if (!activeDropMenuId) return;
+    const handleGlobalClick = () => setActiveDropMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, [activeDropMenuId]);
 
   // Snapshot calculator
   const computeSnapshot = (items = workoutItems, name = workoutName, goal = workoutGoal, cat = activeCategory, tab = activeTabLetter) => {
@@ -1776,7 +1784,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               {workoutItems.length > 0 && !isLoading && (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 80px 85px 70px 50px 105px 65px',
+                  gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 130px 65px 50px 110px 65px',
                   gap: '8px',
                   padding: '10px 20px',
                   background: 'rgba(0, 0, 0, 0.25)',
@@ -1836,7 +1844,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                         <div
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 80px 85px 70px 50px 105px 65px',
+                            gridTemplateColumns: 'minmax(200px, 2fr) 60px 70px 85px 130px 65px 50px 110px 65px',
                             gap: '8px',
                             alignItems: 'center'
                           }}
@@ -1895,13 +1903,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               onChange={e => updateItem(item.id, 'series', Number(e.target.value))}
                               style={{
                                 width: '100%',
+                                height: '36px',
                                 textAlign: 'center',
-                                padding: '4px',
+                                padding: '0 4px',
                                 background: '#070b14',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#fff',
-                                borderRadius: '6px',
-                                fontWeight: 700
+                                borderRadius: '7px',
+                                fontWeight: 700,
+                                fontSize: '0.85rem'
                               }}
                             />
                           </div>
@@ -1915,13 +1925,15 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               placeholder="12"
                               style={{
                                 width: '100%',
+                                height: '36px',
                                 textAlign: 'center',
-                                padding: '4px',
+                                padding: '0 4px',
                                 background: '#070b14',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#fff',
-                                borderRadius: '6px',
-                                fontWeight: 700
+                                borderRadius: '7px',
+                                fontWeight: 700,
+                                fontSize: '0.85rem'
                               }}
                             />
                           </div>
@@ -1936,19 +1948,20 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               title="Ritmo / Cadência: livre escrita (Ex: 2-0-2-0, Controlado, Isometria...)"
                               style={{
                                 width: '100%',
+                                height: '36px',
                                 textAlign: 'center',
-                                padding: '4px',
+                                padding: '0 6px',
                                 background: '#070b14',
                                 border: '1px solid rgba(56, 189, 248, 0.3)',
                                 color: '#38bdf8',
-                                borderRadius: '6px',
+                                borderRadius: '7px',
                                 fontWeight: 700,
                                 fontSize: '0.78rem'
                               }}
                             />
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '5px', width: '100%', height: '36px' }}>
                             <input
                               type="number"
                               className="form-control form-control-sm"
@@ -1963,38 +1976,175 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               placeholder="10"
                               style={{
-                                width: '100%',
+                                width: '56px',
+                                height: '36px',
                                 textAlign: 'center',
-                                padding: '4px',
+                                padding: '0 2px',
                                 background: '#070b14',
                                 border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
                                 color: hasDrop ? '#f59e0b' : '#10b981',
-                                borderRadius: '6px',
-                                fontWeight: 700
+                                borderRadius: '7px',
+                                fontWeight: 700,
+                                fontSize: '0.85rem'
                               }}
                             />
-                            <select
-                              value={item.dropSet?.tipo || 'none'}
-                              onChange={e => handleSetDropTipo(item.id, e.target.value as any)}
-                              title="Configurar Drop-set"
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropMenuId(activeDropMenuId === item.id ? null : item.id);
+                              }}
+                              title={hasDrop ? "Alterar ou remover Drop-set" : "Configurar Drop-set"}
                               style={{
-                                width: '100%',
-                                fontSize: '0.62rem',
-                                fontWeight: 700,
-                                padding: '1px 2px',
-                                background: hasDrop ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                                color: hasDrop ? '#f59e0b' : '#94a3b8',
-                                border: hasDrop ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: '4px',
+                                flex: 1,
+                                height: '36px',
+                                padding: '0 4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '3px',
+                                borderRadius: '7px',
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
                                 cursor: 'pointer',
-                                textAlign: 'center'
+                                transition: 'all 0.15s ease',
+                                background: hasDrop ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                                border: hasDrop ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                color: hasDrop ? '#fbbf24' : '#94a3b8',
+                                whiteSpace: 'nowrap'
                               }}
                             >
-                              <option value="none">S/ Drop</option>
-                              <option value="single">1 Drop</option>
-                              <option value="double">2 Drops</option>
-                              <option value="triple">3 Drops</option>
-                            </select>
+                              {hasDrop ? (
+                                <>
+                                  <i className="fa-solid fa-bolt" style={{ fontSize: '0.65rem' }}></i>
+                                  <span>{item.dropSet!.tipo === 'single' ? '1 Drop' : item.dropSet!.tipo === 'double' ? '2 Drops' : '3 Drops'}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fa-solid fa-plus" style={{ fontSize: '0.6rem', opacity: 0.7 }}></i>
+                                  <span>Drop</span>
+                                </>
+                              )}
+                            </button>
+
+                            {activeDropMenuId === item.id && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  position: 'absolute',
+                                  top: '40px',
+                                  right: 0,
+                                  zIndex: 9999,
+                                  background: '#0a0f1d',
+                                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                                  boxShadow: '0 12px 30px rgba(0,0,0,0.85)',
+                                  borderRadius: '8px',
+                                  padding: '4px',
+                                  minWidth: '145px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '2px',
+                                  backdropFilter: 'blur(12px)'
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleSetDropTipo(item.id, 'none');
+                                    setActiveDropMenuId(null);
+                                  }}
+                                  style={{
+                                    textAlign: 'left',
+                                    padding: '6px 10px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    borderRadius: '5px',
+                                    background: (!item.dropSet || item.dropSet.tipo === 'none') ? 'rgba(255,255,255,0.08)' : 'transparent',
+                                    color: '#94a3b8',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-ban" style={{ fontSize: '0.7rem', color: '#64748b' }}></i>
+                                  Sem Drop-set
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleSetDropTipo(item.id, 'single');
+                                    setActiveDropMenuId(null);
+                                  }}
+                                  style={{
+                                    textAlign: 'left',
+                                    padding: '6px 10px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    borderRadius: '5px',
+                                    background: item.dropSet?.tipo === 'single' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                                    color: item.dropSet?.tipo === 'single' ? '#fbbf24' : '#f8fafc',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}
+                                >
+                                  <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 1</span> Drop (Single)
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleSetDropTipo(item.id, 'double');
+                                    setActiveDropMenuId(null);
+                                  }}
+                                  style={{
+                                    textAlign: 'left',
+                                    padding: '6px 10px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    borderRadius: '5px',
+                                    background: item.dropSet?.tipo === 'double' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                                    color: item.dropSet?.tipo === 'double' ? '#fbbf24' : '#f8fafc',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}
+                                >
+                                  <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 2</span> Drops (Double)
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleSetDropTipo(item.id, 'triple');
+                                    setActiveDropMenuId(null);
+                                  }}
+                                  style={{
+                                    textAlign: 'left',
+                                    padding: '6px 10px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    borderRadius: '5px',
+                                    background: item.dropSet?.tipo === 'triple' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                                    color: item.dropSet?.tipo === 'triple' ? '#fbbf24' : '#f8fafc',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}
+                                >
+                                  <span style={{ color: '#f59e0b', fontWeight: 900 }}>⚡ 3</span> Drops (Triple)
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -2006,18 +2156,20 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               placeholder="60"
                               style={{
                                 width: '100%',
+                                height: '36px',
                                 textAlign: 'center',
-                                padding: '4px',
+                                padding: '0 4px',
                                 background: '#070b14',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#fff',
-                                borderRadius: '6px',
-                                fontWeight: 700
+                                borderRadius: '7px',
+                                fontWeight: 700,
+                                fontSize: '0.85rem'
                               }}
                             />
                           </div>
 
-                          <div style={{ textAlign: 'center' }}>
+                          <div style={{ textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '36px' }}>
                             <button
                               type="button"
                               onClick={() => {
@@ -2026,21 +2178,25 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               }}
                               title={item.observacao ? `Obs: ${item.observacao}` : 'Adicionar observação técnica'}
                               style={{
-                                padding: '4px 8px',
-                                borderRadius: '6px',
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '7px',
                                 border: item.observacao ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
                                 background: item.observacao ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
                                 color: item.observacao ? '#38bdf8' : '#94a3b8',
-                                fontSize: '0.72rem',
+                                fontSize: '0.82rem',
                                 fontWeight: 700,
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                               }}
                             >
                               <i className="fa-solid fa-comment-dots"></i>
                             </button>
                           </div>
 
-                          <div>
+                          <div style={{ display: 'flex', alignItems: 'center', height: '36px' }}>
                             {(() => {
                               const usedGroups = workoutItems.map(w => w.combinaGrupo).filter(Boolean);
                               let maxGroupNum = 0;
@@ -2066,8 +2222,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                                   onChange={e => updateItem(item.id, 'combinaGrupo', e.target.value)}
                                   style={{
                                     width: '100%',
-                                    padding: '4px 6px',
-                                    borderRadius: '6px',
+                                    height: '36px',
+                                    padding: '0 6px',
+                                    borderRadius: '7px',
                                     border: item.combinaGrupo ? `1.5px solid ${groupColor}` : '1px solid rgba(255, 255, 255, 0.1)',
                                     background: item.combinaGrupo ? `${groupColor}22` : '#070b14',
                                     color: item.combinaGrupo ? '#ffffff' : '#94a3b8',
@@ -2086,19 +2243,24 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                             })()}
                           </div>
 
-                          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+                          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center', height: '36px' }}>
                             <button
                               type="button"
                               onClick={() => moveItem(index, 'up')}
                               disabled={index === 0}
                               title="Subir"
                               style={{
-                                padding: '3px 6px',
+                                width: '24px',
+                                height: '36px',
+                                padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: index === 0 ? '#334155' : '#94a3b8',
                                 cursor: index === 0 ? 'default' : 'pointer',
-                                fontSize: '0.74rem'
+                                fontSize: '0.75rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                               }}
                             >
                               <i className="fa-solid fa-chevron-up"></i>
@@ -2110,12 +2272,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               disabled={index === workoutItems.length - 1}
                               title="Descer"
                               style={{
-                                padding: '3px 6px',
+                                width: '24px',
+                                height: '36px',
+                                padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: index === workoutItems.length - 1 ? '#334155' : '#94a3b8',
                                 cursor: index === workoutItems.length - 1 ? 'default' : 'pointer',
-                                fontSize: '0.74rem'
+                                fontSize: '0.75rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                               }}
                             >
                               <i className="fa-solid fa-chevron-down"></i>
@@ -2126,12 +2293,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               onClick={() => removeItem(item.id)}
                               title="Excluir Exercício"
                               style={{
-                                padding: '3px 6px',
+                                width: '24px',
+                                height: '36px',
+                                padding: 0,
                                 background: 'transparent',
                                 border: 'none',
                                 color: '#ef4444',
                                 cursor: 'pointer',
-                                fontSize: '0.78rem'
+                                fontSize: '0.8rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                               }}
                             >
                               <i className="fa-solid fa-trash-can"></i>
