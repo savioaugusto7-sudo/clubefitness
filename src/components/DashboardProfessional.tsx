@@ -569,7 +569,7 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [builderClient, setBuilderClient] = useState<any>(null);
 
   // Abertura da Ficha de Treino em Nova Aba com Título Personalizado na rota dedicada
-  const handleOpenWorkoutInNewTab = (clientOrId: any, fichaId?: string) => {
+  const handleOpenWorkoutInNewTab = (clientOrId: any, fichaId?: string, categoria?: string) => {
     const clientObj = typeof clientOrId === 'object' && clientOrId !== null
       ? (clientOrId._id ? clientOrId : clients.find(c => String(c._id) === String(clientOrId?.clienteId?._id || clientOrId?.clienteId || clientOrId)))
       : clients.find(c => String(c._id) === String(clientOrId));
@@ -579,8 +579,9 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
     const cName = clientObj?.dadosPessoais?.nome || clientObj?.nome || '';
     const fId = fichaId || 'A';
+    const catParam = categoria ? `&category=${encodeURIComponent(categoria)}` : '';
     const nameParam = cName && cName !== 'Aluno' ? `&studentName=${encodeURIComponent(cName)}` : '';
-    const url = `/ficha/${clientId}?fichaId=${fId}${nameParam}`;
+    const url = `/ficha/${clientId}?fichaId=${fId}${catParam}${nameParam}`;
     window.open(url, '_blank');
   };
 
@@ -6087,7 +6088,7 @@ goniometria: {
                                           boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
                                         }}
                                         onClick={() => {
-                                          handleOpenWorkoutInNewTab(client, todayTreino?.fichaId);
+                                          handleOpenWorkoutInNewTab(client, todayTreino?.fichaId, activeCategoria);
                                         }}
                                       >
                                         <i className="fa-solid fa-dumbbell"></i>

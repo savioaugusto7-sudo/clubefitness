@@ -51,9 +51,10 @@ interface WorkoutBuilderProps {
   clientId: string;
   clientName: string;
   initialFichaId?: string;
+  initialCategory?: 'fichasMonitorado' | 'fichasLivre';
 }
 
-export default function WorkoutBuilder({ onClose, clientId, clientName, initialFichaId }: WorkoutBuilderProps) {
+export default function WorkoutBuilder({ onClose, clientId, clientName, initialFichaId, initialCategory }: WorkoutBuilderProps) {
   const [currentClientId, setCurrentClientId] = useState<string>(clientId);
   const [realClientName, setRealClientName] = useState(clientName && clientName !== 'Aluno' ? clientName : '');
   
@@ -65,14 +66,19 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const [allClients, setAllClients] = useState<any[]>([]);
   const [currentHourFilter, setCurrentHourFilter] = useState<'current' | 'all'>('current');
 
-  const [activeCategory, setActiveCategory] = useState<'fichasMonitorado' | 'fichasLivre'>('fichasMonitorado');
-  const [activeTabLetter, setActiveTabLetter] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
-  const [workoutName, setWorkoutName] = useState('Ficha A');
+  const [activeCategory, setActiveCategory] = useState<'fichasMonitorado' | 'fichasLivre'>(initialCategory || 'fichasMonitorado');
+  const [activeTabLetter, setActiveTabLetter] = useState<string>(initialFichaId?.toUpperCase() || 'A');
+  const [workoutName, setWorkoutName] = useState(`Ficha ${initialFichaId?.toUpperCase() || 'A'}`);
   const [workoutGoal, setWorkoutGoal] = useState('');
   const [workoutItems, setWorkoutItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [rawWorkoutDoc, setRawWorkoutDoc] = useState<any>(null);
   const [todayWellness, setTodayWellness] = useState<any>(null);
+
+  // New Ficha modal states
+  const [showAddFichaModal, setShowAddFichaModal] = useState(false);
+  const [newFichaLetter, setNewFichaLetter] = useState('');
+  const [addFichaError, setAddFichaError] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -287,25 +293,47 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         }
       }
 
+      const allTodayApts = (resApts?.success && Array.isArray(resApts.data)) ? resApts.data : todayAppointments;
+      const clientApt = allTodayApts.find((a: any) => String(a.clienteId?._id || a.clienteId) === String(targetClientId));
+
       if (resWorkouts?.success && resWorkouts.data) {
         const w = resWorkouts.data;
         setRawWorkoutDoc(w);
 
         const monitorado = w.fichasMonitorado || [];
         const livre = w.fichasLivre || [];
-        const chosenCategory = (monitorado.length > 0 && monitorado.some((s: any) => s.exercicios?.length > 0))
-          ? 'fichasMonitorado'
-          : (livre.length > 0 && livre.some((s: any) => s.exercicios?.length > 0))
-          ? 'fichasLivre'
-          : 'fichasMonitorado';
+
+        // 🌟 Identificar se o aluno tem ficha/categoria informada na presença ou agendamento de hoje
+        const aptTreino = clientApt?.treinoExecutado;
+        const aptFichaId = aptTreino?.fichaId ? String(aptTreino.fichaId).toUpperCase() : '';
+        const aptCategoria = aptTreino?.categoria 
+          || (aptTreino?.tipo === 'livre' || clientApt?.servico === 'Treino Livre' ? 'fichasLivre' : (aptTreino?.tipo === 'ficha' || clientApt?.servico === 'Treino Monitorado' ? 'fichasMonitorado' : null));
+
+        let chosenCategory: 'fichasMonitorado' | 'fichasLivre' = 'fichasMonitorado';
+        if (isInitial && initialCategory) {
+          chosenCategory = initialCategory;
+        } else if (aptCategoria) {
+          chosenCategory = aptCategoria;
+        } else if (monitorado.some((s: any) => s.exercicios?.length > 0)) {
+          chosenCategory = 'fichasMonitorado';
+        } else if (livre.some((s: any) => s.exercicios?.length > 0)) {
+          chosenCategory = 'fichasLivre';
+        } else {
+          chosenCategory = (clientApt?.servico === 'Treino Livre' ? 'fichasLivre' : 'fichasMonitorado');
+        }
 
         setActiveCategory(chosenCategory);
         const activeSheets = w[chosenCategory] || [];
-        const targetFichaLetter = initialFichaId ? initialFichaId.toUpperCase() : 'A';
-        const initialSheet = activeSheets.find((s: any) => s.id === targetFichaLetter) || activeSheets.find((s: any) => s.id === 'A') || activeSheets[0] || { id: targetFichaLetter, nome: `Ficha ${targetFichaLetter}`, exercicios: [] };
+
+        // Determinar a ficha inicial: prioridade da presença confirmada > initialFichaId > primeira com exercícios > 'A'
+        let targetFichaLetter = (isInitial && initialFichaId) ? initialFichaId.toUpperCase() : (aptFichaId || '');
+        let initialSheet = targetFichaLetter ? activeSheets.find((s: any) => s.id?.toUpperCase() === targetFichaLetter) : null;
+        if (!initialSheet) {
+          initialSheet = activeSheets.find((s: any) => s.exercicios?.length > 0) || activeSheets[0] || { id: targetFichaLetter || 'A', nome: `Ficha ${targetFichaLetter || 'A'}`, exercicios: [] };
+        }
 
         if (initialSheet) {
-          const sheetTab = (initialSheet.id || targetFichaLetter || 'A') as 'A' | 'B' | 'C' | 'D' | 'E';
+          const sheetTab = (initialSheet.id || targetFichaLetter || 'A').toUpperCase();
           const sheetName = initialSheet.nome || `Ficha ${sheetTab}`;
           const sheetGoal = initialSheet.observacoesGerais || '';
 
@@ -340,7 +368,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         setInitialSnapshot(computeSnapshot([], 'Ficha A', '', 'fichasMonitorado', 'A'));
       }
 
-      const clientApt = (resApts?.data || todayAppointments).find((a: any) => String(a.clienteId?._id || a.clienteId) === String(targetClientId));
       if (clientApt?.wellness?.realizado) {
         setTodayWellness(clientApt.wellness);
       } else {
@@ -419,13 +446,24 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentClientId, currentHourFilter, currentHourStudents, todayStudents, hasUnsavedChanges]);
 
-  const handleChangeSheet = (letter: 'A' | 'B' | 'C' | 'D' | 'E', categoryOverride?: 'fichasMonitorado' | 'fichasLivre') => {
-    setActiveTabLetter(letter);
+  // Lista dinâmica de fichas da categoria ativa (somente as que têm exercícios ou a ficha atualmente aberta/criada)
+  const visibleSheets = useMemo(() => {
+    const sheets = rawWorkoutDoc?.[activeCategory] || [];
+    const valid = sheets.filter((s: any) => (s.exercicios && s.exercicios.length > 0) || s.id?.toUpperCase() === activeTabLetter?.toUpperCase());
+    if (valid.length === 0) {
+      return [{ id: 'A', nome: 'Ficha A', exercicios: [] }];
+    }
+    return valid;
+  }, [rawWorkoutDoc, activeCategory, activeTabLetter]);
+
+  const handleChangeSheet = (letter: string, categoryOverride?: 'fichasMonitorado' | 'fichasLivre') => {
+    const targetLetter = (letter || 'A').toUpperCase();
+    setActiveTabLetter(targetLetter);
     const cat = categoryOverride || activeCategory;
     const sheets = rawWorkoutDoc?.[cat] || [];
-    const sheet = sheets.find((s: any) => s.id === letter);
+    const sheet = sheets.find((s: any) => s.id?.toUpperCase() === targetLetter);
     if (sheet) {
-      setWorkoutName(sheet.nome || `Ficha ${letter}`);
+      setWorkoutName(sheet.nome || `Ficha ${targetLetter}`);
       setWorkoutGoal(sheet.observacoesGerais || '');
       const items = (sheet.exercicios || []).map((ex: any, idx: number) => {
         const exName = typeof ex.exercicioId === 'object' ? ex.exercicioId?.nome : ex.exercicioId;
@@ -446,10 +484,44 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       });
       setWorkoutItems(items);
     } else {
-      setWorkoutName(`Ficha ${letter}`);
+      setWorkoutName(`Ficha ${targetLetter}`);
       setWorkoutGoal('');
       setWorkoutItems([]);
     }
+  };
+
+  const handleAddCustomFicha = () => {
+    const letter = newFichaLetter.trim().toUpperCase();
+    if (!letter || !/^[A-Z]$/.test(letter)) {
+      setAddFichaError('Digite exatamente 1 letra maiúscula (A-Z).');
+      return;
+    }
+
+    const currentSheets = rawWorkoutDoc?.[activeCategory] || [];
+    const exists = currentSheets.some((s: any) => s.id?.toUpperCase() === letter);
+    if (exists) {
+      setAddFichaError(`A Ficha ${letter} já existe em ${activeCategory === 'fichasLivre' ? 'Treino Livre' : 'Treino Monitorado'}. Escolha outra letra.`);
+      return;
+    }
+
+    const newSheet = {
+      id: letter,
+      nome: `Ficha ${letter}`,
+      exercicios: [],
+      observacoesGerais: ''
+    };
+
+    const updatedSheets = [...currentSheets, newSheet];
+    setRawWorkoutDoc((prev: any) => ({
+      ...(prev || {}),
+      [activeCategory]: updatedSheets
+    }));
+
+    setShowAddFichaModal(false);
+    setNewFichaLetter('');
+    setAddFichaError('');
+
+    handleChangeSheet(letter, activeCategory);
   };
 
   const muscles = ['Todos', 'Peito', 'Costas', 'Pernas', 'Ombros', 'Braços', 'Core', 'Cardio'];
@@ -565,7 +637,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         { id: 'C', nome: 'Ficha C', exercicios: [] }
       ];
 
-      const sheetIdx = existingSheets.findIndex((s: any) => s.id === activeTabLetter);
+      const sheetIdx = existingSheets.findIndex((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
       let updatedSheets = [...existingSheets];
       if (sheetIdx !== -1) {
         updatedSheets[sheetIdx] = currentSheetPayload;
@@ -1414,12 +1486,13 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               borderRadius: '14px',
               border: '1px solid rgba(255, 255, 255, 0.06)'
             }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>
                   FICHAS:
                 </span>
-                {(['A', 'B', 'C', 'D', 'E'] as const).map(letter => {
-                  const isSelected = activeTabLetter === letter;
+                {visibleSheets.map(sheet => {
+                  const letter = (sheet.id || 'A').toUpperCase();
+                  const isSelected = activeTabLetter?.toUpperCase() === letter;
                   return (
                     <button
                       key={letter}
@@ -1438,10 +1511,38 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                         transition: 'all 0.2s'
                       }}
                     >
-                      Ficha {letter}
+                      {sheet.nome || `Ficha ${letter}`}
                     </button>
                   );
                 })}
+
+                {/* Botão + para Adicionar Nova Ficha com Letra */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddFichaModal(true);
+                    setNewFichaLetter('');
+                    setAddFichaError('');
+                  }}
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    border: '1px dashed rgba(16, 185, 129, 0.5)',
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    color: '#34d399',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.2s'
+                  }}
+                  title="Criar nova ficha com letra personalizada"
+                >
+                  <i className="fa-solid fa-plus"></i>
+                  <span>Ficha</span>
+                </button>
               </div>
 
               <div style={{
@@ -1453,7 +1554,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               }}>
                 <button
                   type="button"
-                  onClick={() => { setActiveCategory('fichasMonitorado'); handleChangeSheet(activeTabLetter, 'fichasMonitorado'); }}
+                  onClick={() => {
+                    setActiveCategory('fichasMonitorado');
+                    const sheets = rawWorkoutDoc?.['fichasMonitorado'] || [];
+                    const firstWithEx = sheets.find((s: any) => s.exercicios?.length > 0) || sheets[0] || { id: 'A' };
+                    handleChangeSheet(firstWithEx.id || 'A', 'fichasMonitorado');
+                  }}
                   style={{
                     padding: '6px 14px',
                     borderRadius: '7px',
@@ -1471,7 +1577,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setActiveCategory('fichasLivre'); handleChangeSheet(activeTabLetter, 'fichasLivre'); }}
+                  onClick={() => {
+                    setActiveCategory('fichasLivre');
+                    const sheets = rawWorkoutDoc?.['fichasLivre'] || [];
+                    const firstWithEx = sheets.find((s: any) => s.exercicios?.length > 0) || sheets[0] || { id: 'A' };
+                    handleChangeSheet(firstWithEx.id || 'A', 'fichasLivre');
+                  }}
                   style={{
                     padding: '6px 14px',
                     borderRadius: '7px',
@@ -2132,6 +2243,132 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 }}
               >
                 <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i> {isSaving ? 'Salvando...' : 'Salvar e Trocar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 Modal para Adicionar Nova Ficha com Letra Personalizada */}
+      {showAddFichaModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 10000000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(150deg, #131d31 0%, #0c1322 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '16px',
+            padding: '24px 28px',
+            width: '100%',
+            maxWidth: '400px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 25px rgba(16, 185, 129, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-plus-circle" style={{ color: '#10b981' }}></i> Nova Ficha
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddFichaModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
+              Categoria: <strong style={{ color: activeCategory === 'fichasLivre' ? '#38bdf8' : '#10b981' }}>{activeCategory === 'fichasLivre' ? 'Treino Livre' : 'Treino Monitorado'}</strong>
+            </p>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                Letra da Ficha (Obrigatório, A-Z):
+              </label>
+              <input
+                type="text"
+                autoFocus
+                maxLength={1}
+                value={newFichaLetter}
+                placeholder="Ex: G, C, T..."
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+                  setNewFichaLetter(val);
+                  setAddFichaError('');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddCustomFicha();
+                }}
+                style={{
+                  width: '100%',
+                  textAlign: 'center',
+                  fontSize: '1.6rem',
+                  fontWeight: 900,
+                  letterSpacing: '2px',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: addFichaError ? '1.5px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.2)',
+                  background: '#070b14',
+                  color: '#10b981',
+                  outline: 'none'
+                }}
+              />
+              {addFichaError && (
+                <span style={{ display: 'block', color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', fontWeight: 600 }}>
+                  <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i>
+                  {addFichaError}
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setShowAddFichaModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  color: '#94a3b8',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleAddCustomFicha}
+                disabled={!newFichaLetter}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: newFichaLetter ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.1)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  cursor: newFichaLetter ? 'pointer' : 'not-allowed',
+                  opacity: newFichaLetter ? 1 : 0.6,
+                  boxShadow: newFichaLetter ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none'
+                }}
+              >
+                Criar Ficha
               </button>
             </div>
           </div>
