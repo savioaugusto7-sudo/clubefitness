@@ -356,7 +356,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
               descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
               observacao: ex.observacao || ex.observacoes || '',
-              ritmo: ex.ritmo !== undefined && ex.ritmo !== null ? String(ex.ritmo) : '',
+              ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
               combinaGrupo: ex.combinaGrupo || ''
             };
           });
@@ -478,7 +478,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
           descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
           observacao: ex.observacao || ex.observacoes || '',
-          ritmo: ex.ritmo !== undefined && ex.ritmo !== null ? String(ex.ritmo) : '',
+          ritmo: (ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? String(ex.ritmo) : '',
           combinaGrupo: ex.combinaGrupo || ''
         };
       });

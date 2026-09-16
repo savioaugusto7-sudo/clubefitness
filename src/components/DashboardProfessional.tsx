@@ -8076,7 +8076,7 @@ goniometria: {
                                         </div>
                                         <div>
                                           <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Ritmo</label>
-                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.ritmo || ''} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="Ritmo..." />
+                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={(ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? ex.ritmo : ''} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="Ritmo..." />
                                         </div>
                                         <div>
                                           <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Carga</label>
@@ -17269,23 +17269,12 @@ goniometria: {
                                         <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Descanso</span>
                                         <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
                                       </div>
-                                      {(ex.ritmo || ex.metodo) && (
+                                      {((ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') || ex.metodo) && (
                                         <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
                                           <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Ritmo / Método</span>
-                                          <span style={{ fontSize: '0.84rem', fontWeight: 750, color: '#f59e0b' }}>{ex.ritmo || ex.metodo}</span>
+                                          <span style={{ fontSize: '0.84rem', fontWeight: 750, color: '#f59e0b' }}>{(ex.ritmo && String(ex.ritmo).trim() !== '2-0-2-0') ? ex.ritmo : ex.metodo}</span>
                                         </div>
-                                      )}
-                                    </div>
-
-                                    {ex.observacoes && (
-                                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '6px', borderLeft: '2px solid var(--color-primary)' }}>
-                                        <strong>Obs:</strong> {ex.observacoes}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                      )}}
                           </div>
                         )}
                       </div>
