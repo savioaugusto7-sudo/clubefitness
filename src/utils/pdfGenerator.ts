@@ -3873,7 +3873,7 @@ export async function downloadStrengthTestPDF(st: any, client: any, prof: any) {
 
   const [logoBase64, splitAtlasBase64] = await Promise.all([
     getLogoBase64(),
-    getDynamicStrengthAtlasBase64(atlasKey)
+    getDynamicStrengthAtlasBase64(atlasKey, testedJoints)
   ]);
 
   const pdfWrapper = document.createElement('div');
