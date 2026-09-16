@@ -5265,144 +5265,6 @@ goniometria: {
                   </div>
                 )}
 
-                {/* 1. TOPO ABSOLUTO: Alertas quando o card não é respondido (Horários Passados Sem Sinalização ou Pendentes de Finalização) */}
-                {urgentes.length > 0 && (
-                  <div className="content-panel" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', borderLeft: '5px solid var(--color-danger)', padding: '16px', borderRadius: '8px' }}>
-                    <div className="panel-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: '10px' }}>
-                      <h2 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-                        <i className="fa-solid fa-triangle-exclamation" style={{ animation: 'pulse 1.5s infinite' }}></i> 
-                        🚨 ATENÇÃO: Horários Passados Sem Sinalização ou Pendentes ({urgentes.length})
-                      </h2>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados em horários passados sem sinalização ou atendimentos de emergência aguardando finalização clínica.</p>
-                    </div>
-                    <div className="table-responsive" style={{ marginTop: '12px' }}>
-                      <table className="data-table" style={{ width: '100%' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.1)' }}>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno & Frequência</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Último Registro</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço / Agenda</th>
-                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar / Ação</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {urgentes.map(a => {
-                            const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
-                            const meta = getAppointmentMeta(a);
-                            const freqStr = getClientContractedFreq(client);
-                            const lastAct = getClientLastActivity(client._id, a._id);
-                            const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
-                            const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
-                            return (
-                              <tr key={a._id} style={{ background: isEmPendente ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.02)' }}>
-                                <td data-label="Horário" style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
-                                <td data-label="Aluno" style={{ padding: '12px 16px' }}>
-                                  <strong style={{ color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido'}</strong><br />
-                                  {freqStr ? (
-                                    <span style={{ fontSize: '0.72rem', color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, display: 'inline-block', marginTop: '2px' }}>
-                                      <i className="fa-solid fa-calendar-check" style={{ marginRight: '4px' }}></i>{freqStr}
-                                    </span>
-                                  ) : (
-                                    <small style={{ color: 'var(--text-dim)' }}>Sem plano contratado</small>
-                                  )}
-                                </td>
-                                <td data-label="Último Registro" style={{ padding: '12px 16px' }}>
-                                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                                    {lastAct.label}
-                                  </div>
-                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                    {lastAct.detail}
-                                  </div>
-                                </td>
-                                <td data-label="Serviço" style={{ padding: '12px 16px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                    <span className={`badge ${isEm ? 'badge-danger' : 'badge-info'}`}>{a.servico || a.tipo}</span>
-                                    <span style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      fontSize: '0.7rem',
-                                      fontWeight: 700,
-                                      padding: '1px 6px',
-                                      borderRadius: '12px',
-                                      background: meta.badgeBg,
-                                      color: meta.badgeColor,
-                                      border: meta.badgeBorder
-                                    }}>
-                                      <i className={`fa-solid ${meta.icon}`}></i> {meta.label}
-                                    </span>
-                                  </div>
-                                  {isEmPendente && (
-                                    <div style={{ marginTop: '4px' }}>
-                                      <span className="badge" style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', fontSize: '0.72rem', fontWeight: 700 }}>
-                                        ⏳ Pendente de Finalização
-                                      </span>
-                                    </div>
-                                  )}
-                                </td>
-                                <td data-label="Sinalizar / Ação" style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
-                                  {isEmPendente ? (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                                      <button 
-                                        type="button"
-                                        className="btn btn-sm" 
-                                        style={{ 
-                                          background: 'linear-gradient(135deg, #ef4444, #dc2626)', 
-                                          color: 'white', 
-                                          border: 'none', 
-                                          padding: '6px 14px', 
-                                          borderRadius: '8px', 
-                                          fontWeight: 800, 
-                                          fontSize: '0.8rem', 
-                                          display: 'inline-flex', 
-                                          alignItems: 'center', 
-                                          gap: '6px', 
-                                          cursor: 'pointer', 
-                                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)' 
-                                        }} 
-                                        onClick={() => handleOpenEmergencyFinalization(a)}
-                                      >
-                                        <i className="fa-solid fa-flag-checkered"></i> Finalizar atendimento
-                                      </button>
-                                      <button 
-                                        type="button"
-                                        className="btn btn-secondary btn-sm" 
-                                        style={{ padding: '6px 10px', fontSize: '0.75rem' }} 
-                                        title="Reverter para Agendado"
-                                        onClick={() => handleUpdateAptStatus(a._id, 'agendado')}
-                                      >
-                                        <i className="fa-solid fa-rotate-left"></i>
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <button 
-                                        className="btn btn-sm" 
-                                        style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '6px 12px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px' }} 
-                                        onClick={() => handleUpdateAptStatus(a._id, 'presenca')}
-                                        title="Registrar Presença e responder Questionário Wellness"
-                                      >
-                                        <i className="fa-solid fa-heart-pulse"></i> Presença & Wellness
-                                      </button>
-                                      <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '6px 10px', borderRadius: '8px', fontWeight: 700 }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
-                                        <i className="fa-solid fa-xmark"></i> Falta
-                                      </button>
-                                      <button className="btn btn-secondary btn-sm" style={{ padding: '6px 10px', borderRadius: '8px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
-                                        Cancelar
-                                      </button>
-                                    </>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
                 {/* 2. DESTAQUE DO HORÁRIO ATUAL (Janela Ativa) - ULTRA-PREMIUM ATHLETIC & CLINICAL COCKPIT */}
                 <div style={{
                   background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(11, 17, 32, 0.95) 100%)',
@@ -6142,6 +6004,144 @@ goniometria: {
                     )}
                   </div>
                 </div>
+
+                {/* 1. TOPO ABSOLUTO: Alertas quando o card não é respondido (Horários Passados Sem Sinalização ou Pendentes de Finalização) */}
+                {urgentes.length > 0 && (
+                  <div className="content-panel" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', borderLeft: '5px solid var(--color-danger)', padding: '16px', borderRadius: '8px' }}>
+                    <div className="panel-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: '10px' }}>
+                      <h2 style={{ color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ animation: 'pulse 1.5s infinite' }}></i> 
+                        🚨 ATENÇÃO: Horários Passados Sem Sinalização ou Pendentes ({urgentes.length})
+                      </h2>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px', marginBottom: 0 }}>Alunos agendados em horários passados sem sinalização ou atendimentos de emergência aguardando finalização clínica.</p>
+                    </div>
+                    <div className="table-responsive" style={{ marginTop: '12px' }}>
+                      <table className="data-table" style={{ width: '100%' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Horário</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Aluno & Frequência</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Último Registro</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px' }}>Serviço / Agenda</th>
+                            <th style={{ color: 'var(--text-muted)', padding: '12px 16px', textAlign: 'center' }}>Sinalizar / Ação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {urgentes.map(a => {
+                            const client = clients.find(c => c._id === (a.clienteId?._id || a.clienteId)) || a.clienteId || {};
+                            const meta = getAppointmentMeta(a);
+                            const freqStr = getClientContractedFreq(client);
+                            const lastAct = getClientLastActivity(client._id, a._id);
+                            const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
+                            const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
+                            return (
+                              <tr key={a._id} style={{ background: isEmPendente ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.02)' }}>
+                                <td data-label="Horário" style={{ padding: '12px 16px' }}><strong style={{ color: 'var(--color-danger)' }}>{a.horario}</strong></td>
+                                <td data-label="Aluno" style={{ padding: '12px 16px' }}>
+                                  <strong style={{ color: 'var(--text-main)' }}>{client.dadosPessoais?.nome || client.nome || 'Aluno Desconhecido'}</strong><br />
+                                  {freqStr ? (
+                                    <span style={{ fontSize: '0.72rem', color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, display: 'inline-block', marginTop: '2px' }}>
+                                      <i className="fa-solid fa-calendar-check" style={{ marginRight: '4px' }}></i>{freqStr}
+                                    </span>
+                                  ) : (
+                                    <small style={{ color: 'var(--text-dim)' }}>Sem plano contratado</small>
+                                  )}
+                                </td>
+                                <td data-label="Último Registro" style={{ padding: '12px 16px' }}>
+                                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                    {lastAct.label}
+                                  </div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                    {lastAct.detail}
+                                  </div>
+                                </td>
+                                <td data-label="Serviço" style={{ padding: '12px 16px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <span className={`badge ${isEm ? 'badge-danger' : 'badge-info'}`}>{a.servico || a.tipo}</span>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      padding: '1px 6px',
+                                      borderRadius: '12px',
+                                      background: meta.badgeBg,
+                                      color: meta.badgeColor,
+                                      border: meta.badgeBorder
+                                    }}>
+                                      <i className={`fa-solid ${meta.icon}`}></i> {meta.label}
+                                    </span>
+                                  </div>
+                                  {isEmPendente && (
+                                    <div style={{ marginTop: '4px' }}>
+                                      <span className="badge" style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', fontSize: '0.72rem', fontWeight: 700 }}>
+                                        ⏳ Pendente de Finalização
+                                      </span>
+                                    </div>
+                                  )}
+                                </td>
+                                <td data-label="Sinalizar / Ação" style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '12px 16px' }}>
+                                  {isEmPendente ? (
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                      <button 
+                                        type="button"
+                                        className="btn btn-sm" 
+                                        style={{ 
+                                          background: 'linear-gradient(135deg, #ef4444, #dc2626)', 
+                                          color: 'white', 
+                                          border: 'none', 
+                                          padding: '6px 14px', 
+                                          borderRadius: '8px', 
+                                          fontWeight: 800, 
+                                          fontSize: '0.8rem', 
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          gap: '6px', 
+                                          cursor: 'pointer', 
+                                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)' 
+                                        }} 
+                                        onClick={() => handleOpenEmergencyFinalization(a)}
+                                      >
+                                        <i className="fa-solid fa-flag-checkered"></i> Finalizar atendimento
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        className="btn btn-secondary btn-sm" 
+                                        style={{ padding: '6px 10px', fontSize: '0.75rem' }} 
+                                        title="Reverter para Agendado"
+                                        onClick={() => handleUpdateAptStatus(a._id, 'agendado')}
+                                      >
+                                        <i className="fa-solid fa-rotate-left"></i>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <button 
+                                        className="btn btn-sm" 
+                                        style={{ background: '#10b981', color: 'white', border: '1px solid #10b981', marginRight: '6px', padding: '6px 12px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px' }} 
+                                        onClick={() => handleUpdateAptStatus(a._id, 'presenca')}
+                                        title="Registrar Presença e responder Questionário Wellness"
+                                      >
+                                        <i className="fa-solid fa-heart-pulse"></i> Presença & Wellness
+                                      </button>
+                                      <button className="btn btn-danger btn-sm" style={{ marginRight: '6px', padding: '6px 10px', borderRadius: '8px', fontWeight: 700 }} onClick={() => handleUpdateAptStatus(a._id, 'falta')}>
+                                        <i className="fa-solid fa-xmark"></i> Falta
+                                      </button>
+                                      <button className="btn btn-secondary btn-sm" style={{ padding: '6px 10px', borderRadius: '8px' }} onClick={() => handleUpdateAptStatus(a._id, 'cancelado')}>
+                                        Cancelar
+                                      </button>
+                                    </>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
                 {/* 3. TERMÔMETRO OPERACIONAL DA CLÍNICA (HOJE) & CENTRAL DE RETENÇÃO */}
                 {(() => {
