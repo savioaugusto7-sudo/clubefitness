@@ -199,7 +199,8 @@ export async function getDynamicStrengthAtlasBase64(
 ): Promise<string> {
   const toBase64 = async (url: string): Promise<string> => {
     try {
-      const res = await fetch(url);
+      const cacheBustUrl = url.includes('?') ? `${url}&v=${Date.now()}` : `${url}?v=${Date.now()}`;
+      const res = await fetch(cacheBustUrl, { cache: 'no-store' });
       if (!res.ok) return url;
       const blob = await res.blob();
       return new Promise((resolve) => {
