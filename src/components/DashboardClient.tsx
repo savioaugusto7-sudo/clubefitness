@@ -273,10 +273,12 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Descanso</span>
                     <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.descanso || '60s'}</span>
                   </div>
-                  <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Ritmo de Execução</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.ritmo || '2-0-2-0'}</span>
-                  </div>
+                  {ex.ritmo && (
+                    <div style={{ gridColumn: 'span 2', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Ritmo de Execução</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{ex.ritmo}</span>
+                    </div>
+                  )}
                 </div>
 
                 {ex.observacao && (

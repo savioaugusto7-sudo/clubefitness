@@ -4658,7 +4658,7 @@ goniometria: {
         carga: '10kg',
         descanso: '60s',
         observacao: '',
-        ritmo: '2-0-2-0',
+        ritmo: '',
         combinaGrupo: ''
       });
       setEditingWorkoutData(updated);
@@ -8076,7 +8076,7 @@ goniometria: {
                                         </div>
                                         <div>
                                           <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Ritmo</label>
-                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.ritmo || '2-0-2-0'} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="2-0-2-0" />
+                                          <input type="text" className="form-control" style={{ padding: '4px 8px', height: '32px', textAlign: 'center', fontSize: '0.85rem' }} value={ex.ritmo || ''} onChange={e => handleUpdateExerciseField(idx, 'ritmo', e.target.value)} placeholder="Ritmo..." />
                                         </div>
                                         <div>
                                           <label style={{ fontSize: '0.66rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', display: 'block' }}>Carga</label>

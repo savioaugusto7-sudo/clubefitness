@@ -356,7 +356,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
               carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
               descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
               observacao: ex.observacao || ex.observacoes || '',
-              ritmo: ex.ritmo || '2-0-2-0',
+              ritmo: ex.ritmo !== undefined && ex.ritmo !== null ? String(ex.ritmo) : '',
               combinaGrupo: ex.combinaGrupo || ''
             };
           });
@@ -478,7 +478,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           carga: parseFloat(String(ex.carga || ex.carga_sugerida || '10').replace('kg', '')) || 0,
           descanso: parseInt(String(ex.descanso || '60').replace('s', '')) || 60,
           observacao: ex.observacao || ex.observacoes || '',
-          ritmo: ex.ritmo || '2-0-2-0',
+          ritmo: ex.ritmo !== undefined && ex.ritmo !== null ? String(ex.ritmo) : '',
           combinaGrupo: ex.combinaGrupo || ''
         };
       });
@@ -563,7 +563,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       carga: parseFloat(String(ex.carga_sugerida || '10').replace('kg', '')) || 10,
       descanso: 60,
       observacao: '',
-      ritmo: '2-0-2-0',
+      ritmo: '',
       combinaGrupo: ''
     };
     setWorkoutItems(prev => [...prev, newItem]);
@@ -626,7 +626,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           carga: `${item.carga}kg`,
           descanso: `${item.descanso}s`,
           observacao: item.observacao || '',
-          ritmo: item.ritmo || '2-0-2-0',
+          ritmo: item.ritmo || '',
           combinaGrupo: item.combinaGrupo || ''
         }))
       };
@@ -1817,10 +1817,10 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                           <input
                             type="text"
                             className="form-control form-control-sm"
-                            value={item.ritmo || '2-0-2-0'}
+                            value={item.ritmo || ''}
                             onChange={e => updateItem(item.id, 'ritmo', e.target.value)}
-                            placeholder="2-0-2-0"
-                            title="Ritmo / Cadência: Excêntrica-Isometria-Concêntrica-Pausa"
+                            placeholder="Ritmo..."
+                            title="Ritmo / Cadência: livre escrita (Ex: 2-0-2-0, Controlado, Isometria...)"
                             style={{
                               width: '100%',
                               textAlign: 'center',
