@@ -181,9 +181,19 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
 
 
   const currentProf = professionals.find(p => p._id === professionalId);
+  const sessionUserName = (session?.user as any)?.name || '';
+  const sessionUserEmail = (session?.user as any)?.email || '';
   const isColetivo = (session?.user as any)?.email === 'coletivo@clube.com' || currentProf?.userId?.email === 'coletivo@clube.com' || currentProf?.nome?.toLowerCase().includes('coletivo');
-  const isAlbert = currentProf?.nome?.toLowerCase().includes('albert');
-  const isGuilherme = currentProf?.nome?.toLowerCase().includes('guilherme');
+  const isAlbert = Boolean(
+    sessionUserName.toLowerCase().includes('albert') ||
+    sessionUserEmail.toLowerCase().includes('albert') ||
+    currentProf?.nome?.toLowerCase().includes('albert') ||
+    currentProf?.userId?.email?.toLowerCase().includes('albert')
+  );
+  const isGuilherme = Boolean(
+    sessionUserName.toLowerCase().includes('guilherme') ||
+    currentProf?.nome?.toLowerCase().includes('guilherme')
+  );
 
   const [filtroAgendaResumo, setFiltroAgendaResumo] = useState<'todos' | 'academia' | 'dr_albert' | 'dr_guilherme'>('todos');
 
@@ -5137,6 +5147,14 @@ goniometria: {
             const atuais: any[] = [];
 
             todayApts.forEach(a => {
+              const meta = getAppointmentMeta(a);
+              const isAlbertAgenda = a.tipo === 'dr_albert' || meta.key === 'dr_albert' || (a.profissionalNome || '').toLowerCase().includes('albert') || (a.profissionalId?.nome || '').toLowerCase().includes('albert');
+
+              // Regra de Negócio: Clientes na agenda do Albert só aparecem em "Horário Atual" e "Urgentes/Pendentes" para o próprio Albert
+              if (isAlbertAgenda && !isAlbert) {
+                return;
+              }
+
               const isEm = a.servico === 'Emergência' || a.tipo === 'Emergência';
               const isEmPendente = isEm && a.status === 'presenca' && !a.finalizado;
               const timeState = getAptTimeState(a.horario, realTime || '00:00');
