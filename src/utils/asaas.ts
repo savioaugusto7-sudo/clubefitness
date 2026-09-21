@@ -60,21 +60,24 @@ export async function configureAsaasCustomerWhatsAppOnly(customerId: string) {
     const data = await res.json();
     const notifications = Array.isArray(data?.data) ? data.data : [];
 
-    for (const notif of notifications) {
-      await fetch(`${baseUrl}/notifications/${notif.id}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({
-          emailEnabledForCustomer: false,
-          smsEnabledForCustomer: false,
-          phoneCallEnabledForCustomer: false,
-          whatsappEnabledForCustomer: true
-        }),
-        signal: AbortSignal.timeout(8000)
-      }).catch((e: any) => {
-        console.warn(`[Asaas Notifications] Erro ao atualizar notificação ${notif.id}:`, e?.message);
-      });
-    }
+    // Executar atualizações em paralelo para resposta rápida (< 2 segundos)
+    await Promise.allSettled(
+      notifications.map((notif: any) =>
+        fetch(`${baseUrl}/notifications/${notif.id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({
+            emailEnabledForCustomer: false,
+            smsEnabledForCustomer: false,
+            phoneCallEnabledForCustomer: false,
+            whatsappEnabledForCustomer: true
+          }),
+          signal: AbortSignal.timeout(5000)
+        }).catch((e: any) => {
+          console.warn(`[Asaas Notifications] Erro ao atualizar notificação ${notif.id}:`, e?.message);
+        })
+      )
+    );
 
     console.log(`[Asaas Notifications] Cliente ${customerId} configurado exclusivamente para WhatsApp (${notifications.length} notificações).`);
     return true;

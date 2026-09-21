@@ -288,16 +288,16 @@ export async function POST(request: Request) {
           const keep = installments[0];
           keptInstallmentIds.push(keep.id);
 
-          // Excluir os 9 duplicados no Asaas
-          for (let i = 1; i < installments.length; i++) {
-            const inst = installments[i];
+          // Excluir os 9 duplicados no Asaas em paralelo para execução em ~1-2 segundos
+          const deletePromises = installments.slice(1).map(async (inst: any) => {
             try {
               await deleteAsaasInstallment(inst.id);
               deletedInstallmentIds.push(inst.id);
             } catch (errDel: any) {
               console.warn(`[Cleanup Duplicates] Erro ao deletar parcelamento duplicado ${inst.id}:`, errDel?.message);
             }
-          }
+          });
+          await Promise.allSettled(deletePromises);
         } else if (installments.length === 1) {
           keptInstallmentIds.push(installments[0].id);
         }
