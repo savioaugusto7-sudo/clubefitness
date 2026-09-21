@@ -125,12 +125,12 @@ export default function AdvertenciasAdminPanel({ onRefresh }: AdvertenciasAdminP
 
     const ptsNum = parseFloat(String(formPontos).replace(',', '.'));
     if (isNaN(ptsNum) || ptsNum <= 0) {
-      setErrorMsg('Informe uma quantidade válida de pontos a debitar (maior que zero).');
+      setErrorMsg('Informe uma quantidade válida de pontos a debitar (número livre maior que zero).');
       return;
     }
 
     if (!formDescricao.trim()) {
-      setErrorMsg('Descreva detalhadamente a ocorrência / motivo da advertência.');
+      setErrorMsg('Descreva detalhadamente o ocorrido / motivo da advertência.');
       return;
     }
 
@@ -236,44 +236,69 @@ export default function AdvertenciasAdminPanel({ onRefresh }: AdvertenciasAdminP
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      {/* HEADER EXECUTIVO */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-rose-950/40 rounded-2xl border border-rose-500/20 shadow-xl backdrop-blur-md">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400">
-              <i className="fa-solid fa-triangle-exclamation text-xl"></i>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                Advertências & Débitos Disciplinares
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  Gestão Administrativa
-                </span>
-              </h1>
-              <p className="text-sm text-slate-400">
-                Lançamento de penalidades com débito direto no extrato de pontuação e ranking dos profissionais.
-              </p>
-            </div>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', paddingBottom: '30px' }}>
+      
+      {/* 1. CABEÇALHO EXECUTIVO */}
+      <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', margin: 0 }}>
+        <div className="view-title-group">
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.45rem', fontWeight: 700 }}>
+            <i className="fa-solid fa-triangle-exclamation" style={{ color: '#ef4444' }}></i> Advertências & Débitos Disciplinares
+            <span style={{
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: '20px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              color: '#f87171',
+              border: '1px solid rgba(239, 68, 68, 0.3)'
+            }}>
+              Gestão Administrativa
+            </span>
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+            Lançamento de penalidades com débito direto no extrato de pontuação e ranking dos profissionais.
+          </p>
         </div>
 
-        {/* CONTROLES RÁPIDOS */}
-        <div className="flex items-center gap-3 self-end md:self-auto">
-          <div className="flex items-center gap-2 bg-slate-950/60 border border-slate-700/60 rounded-xl px-3 py-2">
-            <i className="fa-regular fa-calendar text-rose-400 text-sm"></i>
+        {/* CONTROLES DO CABEÇALHO */}
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'var(--bg-card)',
+            padding: '6px 12px',
+            borderRadius: '10px',
+            border: '1px solid var(--border-color)'
+          }}>
+            <i className="fa-regular fa-calendar-days" style={{ color: '#ef4444' }}></i>
+            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 600 }}>Mês:</span>
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent text-white text-sm outline-none cursor-pointer"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-main)',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
             />
             {selectedMonth && (
               <button
                 type="button"
                 onClick={() => setSelectedMonth('')}
-                title="Ver todos os meses"
-                className="text-xs text-slate-400 hover:text-white ml-1"
+                title="Limpar filtro de mês (ver todos)"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  padding: '2px 4px'
+                }}
               >
                 <i className="fa-solid fa-xmark"></i>
               </button>
@@ -281,134 +306,163 @@ export default function AdvertenciasAdminPanel({ onRefresh }: AdvertenciasAdminP
           </div>
 
           <button
+            type="button"
+            className="btn btn-secondary btn-sm"
             onClick={() => {
               fetchAdvertencias();
               fetchProfessionals();
             }}
             disabled={loading}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-sm text-slate-200 transition-all active:scale-95 disabled:opacity-50"
-            title="Atualizar dados"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
           >
-            <i className={`fa-solid fa-rotate ${loading ? 'animate-spin' : ''}`}></i>
-            <span className="hidden sm:inline">Atualizar</span>
+            <i className={`fa-solid fa-rotate ${loading ? 'fa-spin' : ''}`}></i>
+            <span>Atualizar</span>
           </button>
         </div>
       </div>
 
       {/* FEEDBACK ALERTS */}
       {errorMsg && (
-        <div className="p-4 bg-rose-950/50 border border-rose-500/40 rounded-xl flex items-center justify-between text-rose-200 text-sm">
-          <div className="flex items-center gap-3">
-            <i className="fa-solid fa-circle-exclamation text-rose-400 text-base"></i>
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          borderRadius: '10px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          color: '#fca5a5',
+          fontSize: '0.88rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444', fontSize: '1.1rem' }}></i>
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-rose-400 hover:text-white">
+          <button
+            onClick={() => setErrorMsg(null)}
+            style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer' }}
+          >
             <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-4 bg-emerald-950/50 border border-emerald-500/40 rounded-xl flex items-center justify-between text-emerald-200 text-sm">
-          <div className="flex items-center gap-3">
-            <i className="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <div style={{
+          background: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid rgba(16, 185, 129, 0.4)',
+          borderRadius: '10px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          color: '#6ee7b7',
+          fontSize: '0.88rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <i className="fa-solid fa-circle-check" style={{ color: '#10b981', fontSize: '1.1rem' }}></i>
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)} className="text-emerald-400 hover:text-white">
+          <button
+            onClick={() => setSuccessMsg(null)}
+            style={{ background: 'none', border: 'none', color: '#6ee7b7', cursor: 'pointer' }}
+          >
             <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
       )}
 
-      {/* CARDS DE RESUMO / KPIS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 backdrop-blur-md relative overflow-hidden">
-          <div className="absolute right-3 top-3 w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400">
+      {/* 2. CARDS DE RESUMO / KPIS */}
+      <div className="metrics-grid">
+        {/* Card 1: Advertências Ativas */}
+        <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(185, 28, 28, 0.16) 100%)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+          <div className="metric-info">
+            <h3 style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Advertências Ativas</h3>
+            <div className="value" style={{ color: '#f87171' }}>{kpis.totalAtivas}</div>
+            <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+              {selectedMonth ? `No mês ${selectedMonth}` : 'No período geral'}
+            </small>
+          </div>
+          <div className="metric-icon danger">
             <i className="fa-solid fa-shield-halved"></i>
           </div>
-          <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
-            Advertências Ativas
-          </p>
-          <p className="text-3xl font-extrabold text-white tracking-tight">
-            {kpis.totalAtivas}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {selectedMonth ? `No mês ${selectedMonth}` : 'No período geral'}
-          </p>
         </div>
 
-        <div className="bg-slate-900/60 border border-rose-900/30 rounded-2xl p-4 backdrop-blur-md relative overflow-hidden">
-          <div className="absolute right-3 top-3 w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-300">
+        {/* Card 2: Pontos Debitados */}
+        <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(153, 27, 27, 0.25) 100%)', border: '1px solid rgba(239, 68, 68, 0.45)' }}>
+          <div className="metric-info">
+            <h3 style={{ fontSize: '0.75rem', color: '#fca5a5' }}>Total Pontos Debitados</h3>
+            <div className="value" style={{ color: '#ef4444', fontWeight: 800 }}>
+              -{kpis.totalPontosDebito.toFixed(1)} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>pts</span>
+            </div>
+            <small style={{ color: '#fca5a5', fontSize: '0.74rem' }}>
+              Impactando ranking e metas
+            </small>
+          </div>
+          <div className="metric-icon danger">
             <i className="fa-solid fa-arrow-trend-down"></i>
           </div>
-          <p className="text-xs uppercase tracking-wider text-rose-300 font-semibold mb-1">
-            Total Pontos Debitados
-          </p>
-          <p className="text-3xl font-extrabold text-rose-400 tracking-tight">
-            -{kpis.totalPontosDebito.toFixed(1)} <span className="text-base font-medium text-rose-300">pts</span>
-          </p>
-          <p className="text-xs text-rose-400/70 mt-1">
-            Impactando metas individuais
-          </p>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 backdrop-blur-md relative overflow-hidden">
-          <div className="absolute right-3 top-3 w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+        {/* Card 3: Profissionais Notificados */}
+        <div className="metric-card" style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.16) 100%)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+          <div className="metric-info">
+            <h3 style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Profissionais Notificados</h3>
+            <div className="value" style={{ color: '#fbbf24' }}>{kpis.profsPenalizados}</div>
+            <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+              Com penalidade individual
+            </small>
+          </div>
+          <div className="metric-icon warning">
             <i className="fa-solid fa-user-xmark"></i>
           </div>
-          <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
-            Profissionais Notificados
-          </p>
-          <p className="text-3xl font-extrabold text-white tracking-tight">
-            {kpis.profsPenalizados}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Com débito no ranking
-          </p>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 backdrop-blur-md relative overflow-hidden">
-          <div className="absolute right-3 top-3 w-10 h-10 rounded-xl bg-slate-700/20 flex items-center justify-center text-slate-400">
+        {/* Card 4: Advertências Revogadas */}
+        <div className="metric-card">
+          <div className="metric-info">
+            <h3 style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Advertências Revogadas</h3>
+            <div className="value" style={{ color: '#cbd5e1' }}>{kpis.totalCanceladas}</div>
+            <small style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+              Pontos restituídos à equipe
+            </small>
+          </div>
+          <div className="metric-icon">
             <i className="fa-solid fa-ban"></i>
           </div>
-          <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
-            Advertências Revogadas
-          </p>
-          <p className="text-3xl font-extrabold text-slate-300 tracking-tight">
-            {kpis.totalCanceladas}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Pontos restituídos
-          </p>
         </div>
       </div>
 
-      {/* FORMULÁRIO DE LANÇAMENTO */}
-      <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md shadow-xl">
-        <div className="flex items-center gap-3 pb-4 mb-5 border-b border-slate-800">
-          <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-sm">
-            <i className="fa-solid fa-pen-to-square"></i>
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-white">Lançar Advertência Disciplinar</h2>
-            <p className="text-xs text-slate-400">
-              Selecione o profissional, defina a pontuação a debitar livremente e registre o motivo detalhado.
-            </p>
-          </div>
+      {/* 3. FORMULÁRIO DE LANÇAMENTO */}
+      <div className="content-panel" style={{ margin: 0, padding: '22px' }}>
+        <div className="panel-header" style={{ marginBottom: '18px' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', margin: 0, fontSize: '1.15rem' }}>
+            <i className="fa-solid fa-pen-to-square" style={{ color: '#ef4444' }}></i>
+            Lançar Advertência Disciplinar
+          </h2>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Selecione o profissional, defina os pontos livremente e registre o motivo detalhado.
+          </span>
         </div>
 
-        <form onSubmit={handleSubmitAdvertencia} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form onSubmit={handleSubmitAdvertencia}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '16px',
+            marginBottom: '16px'
+          }}>
             {/* SELEÇÃO DO PROFISSIONAL (SEM AVATAR) */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Profissional <span className="text-rose-400">*</span>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                Profissional <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <select
+                className="form-control"
                 value={formProfId}
                 onChange={(e) => setFormProfId(e.target.value)}
                 required
-                className="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-rose-500 transition-colors"
+                style={{ cursor: 'pointer' }}
               >
                 <option value="">Selecione o profissional...</option>
                 {professionals.map((p) => (
@@ -420,95 +474,118 @@ export default function AdvertenciasAdminPanel({ onRefresh }: AdvertenciasAdminP
             </div>
 
             {/* PONTOS A DEBITAR (NUMERO LIVRE - SEM BLOQUEIO DE 5 EM 5) */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Pontos a Debitar <span className="text-rose-400">*</span>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                Pontos a Debitar <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <div className="relative">
+              <div style={{ position: 'relative' }}>
                 <input
                   type="number"
                   min="0.1"
                   step="any"
+                  className="form-control"
                   value={formPontos}
                   onChange={(e) => setFormPontos(e.target.value)}
                   placeholder="Ex: 5, 8, 12.5, 20..."
                   required
-                  className="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-rose-500 transition-colors pr-14"
+                  style={{ paddingRight: '55px' }}
                 />
-                <span className="absolute right-3.5 top-2.5 text-xs font-bold text-rose-400">
+                <span style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontWeight: 700,
+                  color: '#ef4444',
+                  fontSize: '0.85rem'
+                }}>
                   -pts
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Entrada livre: digite qualquer valor que desejar debitar.
-              </p>
+              <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                Entrada livre: digite qualquer valor numérico que desejar debitar.
+              </small>
             </div>
 
             {/* DATA DA OCORRÊNCIA */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Data da Ocorrência <span className="text-rose-400">*</span>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                Data da Ocorrência <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="date"
+                className="form-control"
                 value={formDataOcorrencia}
                 onChange={(e) => setFormDataOcorrencia(e.target.value)}
                 required
-                className="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-rose-500 transition-colors"
               />
             </div>
           </div>
 
           {/* DESCRIÇÃO / MOTIVO */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Descrição do Ocorrido / Justificativa <span className="text-rose-400">*</span>
+          <div className="form-group" style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+              Descrição do Ocorrido / Justificativa <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <textarea
+              className="form-control"
+              rows={3}
               value={formDescricao}
               onChange={(e) => setFormDescricao(e.target.value)}
-              placeholder="Descreva detalhadamente o ocorrido, processo descumprido ou conduta que gerou a advertência..."
-              rows={3}
+              placeholder="Descreva detalhadamente a ocorrência, processo descumprido ou conduta que gerou a penalidade..."
               required
-              className="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-rose-500 transition-colors resize-none"
+              style={{ resize: 'vertical' }}
             />
           </div>
 
-          <div className="flex justify-end pt-2">
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               type="submit"
+              className="btn btn-danger"
               disabled={submitting}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-sm font-semibold shadow-lg shadow-rose-900/30 transition-all active:scale-95 disabled:opacity-50"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', fontSize: '0.9rem' }}
             >
-              <i className={`fa-solid fa-triangle-exclamation ${submitting ? 'animate-spin' : ''}`}></i>
-              <span>{submitting ? 'Registrando...' : 'Lançar Advertência e Debitar'}</span>
+              <i className={`fa-solid fa-triangle-exclamation ${submitting ? 'fa-spin' : ''}`}></i>
+              <span>{submitting ? 'Registrando...' : 'Lançar Advertência e Debitar Pontos'}</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* HISTÓRICO DE ADVERTÊNCIAS */}
-      <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-sm">
+      {/* 4. HISTÓRICO DE ADVERTÊNCIAS */}
+      <div className="content-panel" style={{ margin: 0, padding: '22px' }}>
+        <div className="panel-header" style={{ marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)'
+            }}>
               <i className="fa-solid fa-list-check"></i>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Histórico de Advertências Registradas</h2>
-              <p className="text-xs text-slate-400">
-                Total de {advertencias.length} registros no filtro selecionado.
-              </p>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-main)' }}>
+                Histórico de Advertências Registradas
+              </h2>
+              <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                Total de {advertencias.length} registros no filtro selecionado
+              </small>
             </div>
           </div>
 
           {/* FILTROS ADICIONAIS DA TABELA */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {/* FILTRAR POR PROFISSIONAL */}
             <select
+              className="form-control"
               value={selectedProfFilter}
               onChange={(e) => setSelectedProfFilter(e.target.value)}
-              className="bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500"
+              style={{ width: 'auto', padding: '6px 12px', fontSize: '0.82rem', height: 'auto' }}
             >
               <option value="todos">Todos os Profissionais</option>
               {professionals.map((p) => (
@@ -520,9 +597,10 @@ export default function AdvertenciasAdminPanel({ onRefresh }: AdvertenciasAdminP
 
             {/* FILTRAR POR STATUS */}
             <select
+              className="form-control"
               value={selectedStatusFilter}
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500"
+              style={{ width: 'auto', padding: '6px 12px', fontSize: '0.82rem', height: 'auto' }}
             >
               <option value="todos">Todos os Status</option>
               <option value="ativa">Apenas Ativas</option>
@@ -533,120 +611,171 @@ export default function AdvertenciasAdminPanel({ onRefresh }: AdvertenciasAdminP
 
         {/* TABELA DE REGISTROS */}
         {loading ? (
-          <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-            <i className="fa-solid fa-circle-notch fa-spin text-2xl text-rose-500"></i>
-            <span className="text-sm">Carregando advertências...</span>
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+            <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: '1.8rem', color: '#ef4444', marginBottom: '10px' }}></i>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>Carregando advertências...</p>
           </div>
         ) : advertencias.length === 0 ? (
-          <div className="py-12 text-center text-slate-500 bg-slate-950/30 rounded-xl border border-slate-800/40">
-            <i className="fa-solid fa-circle-check text-3xl text-slate-600 mb-2"></i>
-            <p className="text-sm font-medium text-slate-400">Nenhuma advertência encontrada</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Não há registros para os filtros selecionados.
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            background: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: '10px',
+            border: '1px solid var(--border-color)'
+          }}>
+            <i className="fa-solid fa-circle-check" style={{ fontSize: '2rem', color: '#64748b', marginBottom: '10px' }}></i>
+            <h4 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1rem' }}>Nenhuma advertência encontrada</h4>
+            <p style={{ margin: '6px 0 0 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+              Não há penalidades cadastradas para os filtros selecionados.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-950/60 text-slate-400 uppercase text-[11px] font-semibold tracking-wider border-b border-slate-800">
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="py-3 px-4">Data</th>
-                  <th className="py-3 px-4">Profissional</th>
-                  <th className="py-3 px-4">Descrição / Motivo</th>
-                  <th className="py-3 px-4 text-center">Débito</th>
-                  <th className="py-3 px-4">Registrado Por</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Ações</th>
+                  <th style={{ width: '110px' }}>Data</th>
+                  <th style={{ width: '220px' }}>Profissional</th>
+                  <th>Descrição / Motivo</th>
+                  <th style={{ textAlign: 'center', width: '110px' }}>Débito</th>
+                  <th style={{ width: '140px' }}>Registrado Por</th>
+                  <th style={{ textAlign: 'center', width: '100px' }}>Status</th>
+                  <th style={{ textAlign: 'right', width: '110px' }}>Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody>
                 {advertencias.map((item) => {
                   const isCancelada = item.status === 'cancelada';
                   return (
                     <tr
                       key={item._id}
-                      className={`hover:bg-slate-800/30 transition-colors ${
-                        isCancelada ? 'opacity-60 bg-slate-950/20' : ''
-                      }`}
+                      style={{
+                        opacity: isCancelada ? 0.6 : 1,
+                        background: isCancelada ? 'rgba(0, 0, 0, 0.2)' : 'transparent'
+                      }}
                     >
                       {/* DATA */}
-                      <td className="py-3.5 px-4 font-mono text-xs text-slate-300 whitespace-nowrap">
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--text-main)' }}>
                         {item.data}
                       </td>
 
                       {/* PROFISSIONAL (SEM AVATAR) */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="font-semibold text-white">
+                      <td>
+                        <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.88rem' }}>
                           {getProfNome(item)}
-                        </div>
+                        </strong>
                         {getProfEspecialidade(item) && (
-                          <div className="text-xs text-slate-400">
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {getProfEspecialidade(item)}
-                          </div>
+                          </span>
                         )}
                       </td>
 
                       {/* DESCRIÇÃO */}
-                      <td className="py-3.5 px-4 max-w-md">
-                        <p className="text-slate-200 text-xs leading-relaxed whitespace-pre-line">
+                      <td>
+                        <div style={{ color: 'var(--text-main)', fontSize: '0.84rem', lineHeight: '1.4' }}>
                           {item.descricao}
-                        </p>
+                        </div>
                         {isCancelada && item.motivoCancelamento && (
-                          <div className="mt-1.5 p-2 bg-slate-950/60 border border-slate-800 rounded-lg text-[11px] text-slate-400">
-                            <span className="font-semibold text-rose-300">Revogado:</span> {item.motivoCancelamento}
+                          <div style={{
+                            marginTop: '6px',
+                            padding: '4px 8px',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            fontSize: '0.74rem',
+                            color: '#fca5a5'
+                          }}>
+                            <strong>Revogado:</strong> {item.motivoCancelamento}
                           </div>
                         )}
                       </td>
 
                       {/* PONTOS DEBITO */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                            isCancelada
-                              ? 'bg-slate-800 text-slate-400 line-through'
-                              : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                          }`}
-                        >
+                      <td style={{ textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '3px 10px',
+                          borderRadius: '20px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          background: isCancelada ? 'rgba(255, 255, 255, 0.06)' : 'rgba(239, 68, 68, 0.15)',
+                          color: isCancelada ? '#94a3b8' : '#f87171',
+                          border: isCancelada ? '1px solid var(--border-color)' : '1px solid rgba(239, 68, 68, 0.3)',
+                          textDecoration: isCancelada ? 'line-through' : 'none'
+                        }}>
                           -{item.pontosDebito} pts
                         </span>
                       </td>
 
                       {/* REGISTRADO POR */}
-                      <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                         {item.criadoPorNome || 'Administrador'}
                       </td>
 
                       {/* STATUS */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <td style={{ textAlign: 'center' }}>
                         {isCancelada ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
-                            <i className="fa-solid fa-ban text-[10px]"></i>
-                            Revogada
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '20px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            color: '#94a3b8',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            <i className="fa-solid fa-ban" style={{ fontSize: '0.65rem' }}></i> Revogada
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            <i className="fa-solid fa-circle text-[8px] animate-pulse"></i>
-                            Ativa
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '20px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            color: '#fbbf24',
+                            border: '1px solid rgba(245, 158, 11, 0.3)'
+                          }}>
+                            <i className="fa-solid fa-circle" style={{ fontSize: '0.5rem' }}></i> Ativa
                           </span>
                         )}
                       </td>
 
                       {/* AÇÕES */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <td style={{ textAlign: 'right' }}>
                         {!isCancelada ? (
                           <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
                             onClick={() => {
                               setRevokingItem(item);
                               setMotivoRevogacao('');
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-500/40 text-xs text-slate-300 hover:text-rose-200 transition-colors"
                             title="Revogar advertência e estornar pontos"
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '4px 10px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              color: '#f87171',
+                              borderColor: 'rgba(239, 68, 68, 0.3)'
+                            }}
                           >
-                            <i className="fa-solid fa-undo text-xs text-rose-400"></i>
+                            <i className="fa-solid fa-rotate-left"></i>
                             <span>Revogar</span>
                           </button>
                         ) : (
-                          <span className="text-xs text-slate-500 italic">Sem ações</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                            Sem ações
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -658,70 +787,95 @@ export default function AdvertenciasAdminPanel({ onRefresh }: AdvertenciasAdminP
         )}
       </div>
 
-      {/* MODAL DE REVOGAÇÃO */}
+      {/* 5. MODAL DE REVOGAÇÃO */}
       {revokingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5 text-rose-400">
-                <i className="fa-solid fa-rotate-left text-lg"></i>
-                <h3 className="text-base font-bold text-white">Revogar Advertência</h3>
-              </div>
+        <div
+          className="modal-overlay"
+          style={{ display: 'flex' }}
+          onClick={() => setRevokingItem(null)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '500px', width: '90%' }}
+          >
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, color: 'var(--text-main)' }}>
+                <i className="fa-solid fa-rotate-left" style={{ color: '#ef4444' }}></i>
+                Revogar Advertência Disciplinar
+              </h3>
               <button
+                type="button"
+                className="modal-close"
                 onClick={() => setRevokingItem(null)}
-                className="text-slate-400 hover:text-white"
               >
-                <i className="fa-solid fa-xmark"></i>
+                &times;
               </button>
             </div>
 
-            <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5 text-xs text-slate-300">
-              <p>
-                <strong className="text-white">Profissional:</strong> {getProfNome(revokingItem)}
-              </p>
-              <p>
-                <strong className="text-white">Data:</strong> {revokingItem.data}
-              </p>
-              <p>
-                <strong className="text-white">Pontuação:</strong> -{revokingItem.pontosDebito} pts
-              </p>
-              <p className="text-slate-400 italic">
-                &quot;{revokingItem.descricao}&quot;
-              </p>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '12px',
+                fontSize: '0.84rem'
+              }}>
+                <p style={{ margin: '0 0 6px 0' }}>
+                  <strong style={{ color: 'var(--text-main)' }}>Profissional:</strong> {getProfNome(revokingItem)}
+                </p>
+                <p style={{ margin: '0 0 6px 0' }}>
+                  <strong style={{ color: 'var(--text-main)' }}>Data:</strong> {revokingItem.data}
+                </p>
+                <p style={{ margin: '0 0 6px 0' }}>
+                  <strong style={{ color: 'var(--text-main)' }}>Pontos a Estornar:</strong>{' '}
+                  <span style={{ color: '#34d399', fontWeight: 700 }}>+{revokingItem.pontosDebito} pts</span>
+                </p>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  &quot;{revokingItem.descricao}&quot;
+                </p>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Motivo / Justificativa da Revogação <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  value={motivoRevogacao}
+                  onChange={(e) => setMotivoRevogacao(e.target.value)}
+                  placeholder="Informe o motivo da revogação (ex: recurso aceito pela coordenação, erro material comprobado...)"
+                  required
+                />
+                <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                  Ao confirmar, a advertência é inativada e a pontuação é imediatamente restituída.
+                </small>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Motivo / Justificativa da Revogação <span className="text-rose-400">*</span>
-              </label>
-              <textarea
-                value={motivoRevogacao}
-                onChange={(e) => setMotivoRevogacao(e.target.value)}
-                placeholder="Informe o motivo da anulação desta advertência (ex: engano comprovado, justificativa aceita pela coordenação...)"
-                rows={3}
-                required
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-rose-500 resize-none"
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Ao confirmar, a advertência será inativada e os pontos serão imediatamente restituídos.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              padding: '14px 20px',
+              borderTop: '1px solid var(--border-color)'
+            }}>
               <button
                 type="button"
+                className="btn btn-secondary btn-sm"
                 onClick={() => setRevokingItem(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="button"
+                className="btn btn-danger btn-sm"
                 onClick={handleConfirmRevogacao}
                 disabled={revokingLoading || !motivoRevogacao.trim()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <i className={`fa-solid fa-check ${revokingLoading ? 'animate-spin' : ''}`}></i>
+                <i className={`fa-solid fa-check ${revokingLoading ? 'fa-spin' : ''}`}></i>
                 <span>{revokingLoading ? 'Revogando...' : 'Confirmar Revogação'}</span>
               </button>
             </div>
