@@ -15,6 +15,7 @@ function FichaStandaloneContent() {
   const initialNameParam = searchParams.get('studentName') || searchParams.get('name') || '';
   const initialFichaId = searchParams.get('fichaId') || 'A';
   const initialCategoryParam = (searchParams.get('category') || searchParams.get('categoria') || '') as 'fichasMonitorado' | 'fichasLivre' | '';
+  const initialSlotTime = searchParams.get('horario') || searchParams.get('time') || '';
 
   const [clientName, setClientName] = useState<string>(
     initialNameParam && initialNameParam !== 'Aluno' ? decodeURIComponent(initialNameParam) : ''
@@ -148,6 +149,7 @@ function FichaStandaloneContent() {
       clientName={clientName || ''}
       initialFichaId={initialFichaId}
       initialCategory={initialCategoryParam || undefined}
+      initialSlotTime={initialSlotTime || undefined}
       onClose={() => {
         if (typeof window !== 'undefined') {
           if (window.opener || window.history.length <= 1) {

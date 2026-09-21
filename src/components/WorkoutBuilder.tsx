@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FastTextarea } from './FastFormField';
+import WellnessModal from './WellnessModal';
+import { calculateWellness } from '@/utils/wellnessHelper';
 
 const normalizeText = (str: string) => {
   return (str || '')
@@ -63,11 +65,15 @@ interface WorkoutBuilderProps {
   clientName: string;
   initialFichaId?: string;
   initialCategory?: 'fichasMonitorado' | 'fichasLivre';
+  initialSlotTime?: string;
 }
 
-export default function WorkoutBuilder({ onClose, clientId, clientName, initialFichaId, initialCategory }: WorkoutBuilderProps) {
+export default function WorkoutBuilder({ onClose, clientId, clientName, initialFichaId, initialCategory, initialSlotTime }: WorkoutBuilderProps) {
   const [currentClientId, setCurrentClientId] = useState<string>(clientId);
   const [realClientName, setRealClientName] = useState(clientName && clientName !== 'Aluno' ? clientName : '');
+  const [activeSlotTime, setActiveSlotTime] = useState<string | null>(initialSlotTime || null);
+  const [activeAppointment, setActiveAppointment] = useState<any | null>(null);
+  const [showWellnessModal, setShowWellnessModal] = useState(false);
   
   const [exercises, setExercises] = useState<any[]>([]);
   const [selectedMuscle, setSelectedMuscle] = useState('Todos');
@@ -98,7 +104,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   // Unsaved changes protection
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
-  const [pendingTargetClient, setPendingTargetClient] = useState<{ id: string; name: string } | null>(null);
+  const [pendingTargetClient, setPendingTargetClient] = useState<{ id: string; name: string; horario?: string } | null>(null);
 
   // Quick Client Search Dropdown
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -217,10 +223,28 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     return `${h}:${m}`;
   }, []);
 
-  // Lista de alunos agendados para hoje (data local)
-  const todayStudents = useMemo(() => {
+  // Horário ativo para exibição no badge
+  const displaySlotStr = useMemo(() => {
+    if (activeSlotTime) return activeSlotTime;
+    // Se não há slot explícito, verificar se o aluno ativo possui agendamento na janela atual
+    const clientApts = todayAppointments.filter(a => String(a.clienteId?._id || a.clienteId) === String(currentClientId) && a.status !== 'cancelado');
+    const currentApt = clientApts.find(a => getAptTimeState(a.horario, currentRealTimeStr) === 'current');
+    if (currentApt) return currentApt.horario;
+    if (clientApts.length > 0) return clientApts[0].horario;
+    return currentHourStr;
+  }, [activeSlotTime, todayAppointments, currentClientId, currentRealTimeStr, currentHourStr]);
+
+  // Alunos da janela de horário atual (filtra direto por agendamento do slot ativo)
+  const currentHourStudents = useMemo(() => {
+    const targetSlot = displaySlotStr;
+    const aptsInSlot = todayAppointments.filter(a => {
+      if (a.status === 'cancelado') return false;
+      if (targetSlot) return a.horario === targetSlot;
+      return getAptTimeState(a.horario, currentRealTimeStr) === 'current';
+    });
+
     const map = new Map<string, any>();
-    todayAppointments.forEach(a => {
+    aptsInSlot.forEach(a => {
       const sId = String(a.clienteId?._id || a.clienteId);
       if (!sId || sId === 'undefined') return;
       const cl = allClients.find(c => String(c._id) === sId) || (typeof a.clienteId === 'object' ? a.clienteId : {});
@@ -233,37 +257,51 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
           status: a.status || 'agendado',
           servico: a.servico || a.tipo || 'Treino Monitorado',
           treinoExecutado: a.treinoExecutado,
-          wellness: a.wellness
+          wellness: a.wellness,
+          appointment: a
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [todayAppointments, displaySlotStr, currentRealTimeStr, allClients]);
+
+  // Lista de todos os alunos agendados para hoje (data local)
+  const todayStudents = useMemo(() => {
+    const map = new Map<string, any>();
+    // Prioriza agendamentos no horário ativo ou confirmados para alunos com múltiplos horários
+    const sorted = [...todayAppointments].sort((a, b) => {
+      if (a.horario === displaySlotStr && b.horario !== displaySlotStr) return -1;
+      if (b.horario === displaySlotStr && a.horario !== displaySlotStr) return 1;
+      if (a.status === 'presenca' && b.status !== 'presenca') return -1;
+      if (b.status === 'presenca' && a.status !== 'presenca') return 1;
+      return (a.horario || '').localeCompare(b.horario || '');
+    });
+
+    sorted.forEach(a => {
+      if (a.status === 'cancelado') return;
+      const sId = String(a.clienteId?._id || a.clienteId);
+      if (!sId || sId === 'undefined') return;
+      const cl = allClients.find(c => String(c._id) === sId) || (typeof a.clienteId === 'object' ? a.clienteId : {});
+      const name = cl?.dadosPessoais?.nome || cl?.nome || a.clienteNome || 'Aluno';
+      if (!map.has(sId)) {
+        map.set(sId, {
+          id: sId,
+          name,
+          horario: a.horario,
+          status: a.status || 'agendado',
+          servico: a.servico || a.tipo || 'Treino Monitorado',
+          treinoExecutado: a.treinoExecutado,
+          wellness: a.wellness,
+          appointment: a
         });
       }
     });
     return Array.from(map.values());
-  }, [todayAppointments, allClients]);
-
-  // Alunos da janela de horário atual (ou do mesmo horário do aluno aberto)
-  const currentHourStudents = useMemo(() => {
-    const activeStudentObj = todayStudents.find(s => String(s.id) === String(currentClientId));
-    const targetSlot = activeStudentObj?.horario;
-
-    const filtered = todayStudents.filter(s => {
-      if (targetSlot && s.horario === targetSlot) return true;
-      return getAptTimeState(s.horario, currentRealTimeStr) === 'current';
-    });
-
-    if (activeStudentObj && !filtered.some(s => String(s.id) === String(currentClientId))) {
-      return [activeStudentObj, ...filtered];
-    }
-    return filtered;
-  }, [todayStudents, currentRealTimeStr, currentClientId]);
-
-  // Horário ativo para exibição no badge
-  const displaySlotStr = useMemo(() => {
-    const activeStudentObj = todayStudents.find(s => String(s.id) === String(currentClientId));
-    return activeStudentObj?.horario || currentHourStr;
-  }, [todayStudents, currentClientId, currentHourStr]);
+  }, [todayAppointments, displaySlotStr, allClients]);
 
   // Função centralizada para carregar dados do treino de um aluno
-  const loadDataForClient = async (targetClientId: string, targetClientName?: string, isInitial = false) => {
+  const loadDataForClient = async (targetClientId: string, targetClientName?: string, isInitial = false, targetSlot?: string) => {
     try {
       setIsLoading(true);
 
@@ -289,10 +327,11 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         setAllClients(resAllClients.data);
       }
 
+      let currentTodayApts = todayAppointments;
       if (resApts?.success && Array.isArray(resApts.data)) {
         const hojeISO = getLocalDateISO();
-        const todays = resApts.data.filter((a: any) => a.data === hojeISO && a.status !== 'cancelado');
-        setTodayAppointments(todays);
+        currentTodayApts = resApts.data.filter((a: any) => a.data === hojeISO && a.status !== 'cancelado');
+        setTodayAppointments(currentTodayApts);
       }
 
       let loadedExercises = exercises;
@@ -313,8 +352,18 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         }
       }
 
-      const allTodayApts = (resApts?.success && Array.isArray(resApts.data)) ? resApts.data : todayAppointments;
-      const clientApt = allTodayApts.find((a: any) => String(a.clienteId?._id || a.clienteId) === String(targetClientId));
+      const effectiveSlot = targetSlot || activeSlotTime || displaySlotStr;
+      const clientApts = currentTodayApts.filter((a: any) => String(a.clienteId?._id || a.clienteId) === String(targetClientId));
+      
+      // 🌟 Regra Estrita SEM FALLBACK: Buscar estritamente o agendamento do horário ativo
+      const clientApt = clientApts.find((a: any) => a.horario === effectiveSlot) || null;
+      setActiveAppointment(clientApt);
+
+      if (clientApt && clientApt.wellness?.realizado) {
+        setTodayWellness(clientApt.wellness);
+      } else {
+        setTodayWellness(null);
+      }
 
       if (resWorkouts?.success && resWorkouts.data) {
         const w = resWorkouts.data;
@@ -393,12 +442,6 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         setInitialSnapshot(computeSnapshot([], 'Ficha A', '', 'fichasMonitorado', 'A'));
       }
 
-      if (clientApt?.wellness?.realizado) {
-        setTodayWellness(clientApt.wellness);
-      } else {
-        setTodayWellness(null);
-      }
-
     } catch (err) {
       console.error('Erro ao carregar dados do treino:', err);
     } finally {
@@ -407,20 +450,20 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   };
 
   useEffect(() => {
-    loadDataForClient(currentClientId, realClientName, true);
+    loadDataForClient(currentClientId, realClientName, true, initialSlotTime || undefined);
   }, []);
 
-  const requestSwitchClient = (targetId: string, targetName: string) => {
+  const requestSwitchClient = (targetId: string, targetName: string, targetHorario?: string) => {
     if (String(targetId) === String(currentClientId)) return;
     if (hasUnsavedChanges) {
-      setPendingTargetClient({ id: targetId, name: targetName });
+      setPendingTargetClient({ id: targetId, name: targetName, horario: targetHorario });
       setShowUnsavedModal(true);
     } else {
-      executeSwitchClient(targetId, targetName);
+      executeSwitchClient(targetId, targetName, targetHorario);
     }
   };
 
-  const executeSwitchClient = async (targetId: string, targetName: string) => {
+  const executeSwitchClient = async (targetId: string, targetName: string, targetHorario?: string) => {
     setCurrentClientId(targetId);
     setRealClientName(targetName);
     setShowUnsavedModal(false);
@@ -428,12 +471,70 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
     setShowSearchDropdown(false);
     setClientSearchText('');
 
+    if (targetHorario) {
+      setActiveSlotTime(targetHorario);
+    }
+
     if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', `/ficha/${targetId}?studentName=${encodeURIComponent(targetName)}`);
+      const slotParam = targetHorario ? `&horario=${encodeURIComponent(targetHorario)}` : '';
+      window.history.pushState(null, '', `/ficha/${targetId}?studentName=${encodeURIComponent(targetName)}${slotParam}`);
       document.title = `${targetName} • Ficha de Treino | Clube Fitness`;
     }
 
-    await loadDataForClient(targetId, targetName, false);
+    await loadDataForClient(targetId, targetName, false, targetHorario || activeSlotTime || displaySlotStr);
+  };
+
+  const handleConfirmWellness = async (wellnessData: { sono: number; fadiga: number; dorMuscular: number; treinoExecutado?: any }) => {
+    if (!activeAppointment) return;
+    try {
+      const bodyPayload: any = {
+        id: activeAppointment._id,
+        status: 'presenca',
+        wellness: {
+          sono: wellnessData.sono,
+          fadiga: wellnessData.fadiga,
+          dorMuscular: wellnessData.dorMuscular
+        }
+      };
+      if (wellnessData.treinoExecutado) {
+        bodyPayload.treinoExecutado = wellnessData.treinoExecutado;
+      }
+      const res = await fetch('/api/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        const calc = calculateWellness(wellnessData.sono, wellnessData.fadiga, wellnessData.dorMuscular);
+        const updatedWellness = {
+          realizado: true,
+          sono: wellnessData.sono,
+          fadiga: wellnessData.fadiga,
+          dorMuscular: wellnessData.dorMuscular,
+          score: calc.score,
+          status: calc.status,
+          statusLabel: calc.statusLabel,
+          statusColor: calc.statusColor,
+          conduta: calc.conduta,
+          regrasAtivadas: calc.regrasAtivadas
+        };
+        setTodayWellness(updatedWellness);
+        setActiveAppointment((prev: any) => prev ? { ...prev, status: 'presenca', wellness: updatedWellness } : null);
+        setTodayAppointments((prev: any[]) => prev.map(a => String(a._id) === String(activeAppointment._id) ? { ...a, status: 'presenca', wellness: updatedWellness } : a));
+        setShowWellnessModal(false);
+        setSaveToast({
+          message: `✨ Presença e Teste Wellness registrados para ${realClientName}!`,
+          type: 'success'
+        });
+        setTimeout(() => setSaveToast(null), 4000);
+      } else {
+        alert(data.error || 'Erro ao registrar presença com wellness.');
+      }
+    } catch (err: any) {
+      console.error('Erro ao salvar wellness:', err);
+      alert('Erro de conexão ao salvar wellness.');
+    }
   };
 
   useEffect(() => {
@@ -810,12 +911,12 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
   const handleSaveAndSwitch = async () => {
     if (!pendingTargetClient) return;
     await handleSave();
-    await executeSwitchClient(pendingTargetClient.id, pendingTargetClient.name);
+    await executeSwitchClient(pendingTargetClient.id, pendingTargetClient.name, pendingTargetClient.horario);
   };
 
   const handleDiscardAndSwitch = async () => {
     if (!pendingTargetClient) return;
-    await executeSwitchClient(pendingTargetClient.id, pendingTargetClient.name);
+    await executeSwitchClient(pendingTargetClient.id, pendingTargetClient.name, pendingTargetClient.horario);
   };
 
   const handleCancelSwitch = () => {
@@ -986,7 +1087,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                   key={s.id}
                   data-client-id={s.id}
                   type="button"
-                  onClick={() => requestSwitchClient(s.id, s.name)}
+                  onClick={() => requestSwitchClient(s.id, s.name, s.horario)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1006,7 +1107,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                     transition: 'all 0.15s ease',
                     flexShrink: 0
                   }}
-                  title={`Alternar para ${s.name} (Alt+${idx + 1})`}
+                  title={`Alternar para ${s.name}${s.horario ? ` (${s.horario})` : ''} (Alt+${idx + 1})`}
                 >
                   <span style={{
                     width: '8px',
@@ -1337,6 +1438,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         </div>
       </div>
 
+      {/* 🌟 Banner Wellness Respondido */}
       {todayWellness && (
         <div style={{
           background: todayWellness.status === 'otimo' 
@@ -1347,87 +1449,180 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             ? 'linear-gradient(90deg, rgba(249, 115, 22, 0.15) 0%, rgba(124, 45, 18, 0.25) 100%)' 
             : 'linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(127, 29, 29, 0.25) 100%)',
           borderBottom: `2px solid ${todayWellness.statusColor || '#10b981'}`,
-          padding: '12px 28px',
+          padding: '10px 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '16px',
+          gap: '12px',
           boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-            
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
+              gap: '8px',
               background: 'rgba(0, 0, 0, 0.3)',
-              padding: '6px 14px',
+              padding: '5px 12px',
               borderRadius: '100px',
               border: `1.5px solid ${todayWellness.statusColor || '#10b981'}`
             }}>
-              <span style={{ fontSize: '1.2rem' }}>🧘</span>
+              <span style={{ fontSize: '1.1rem' }}>🧘</span>
               <div>
                 <span style={{ 
                   color: todayWellness.statusColor || '#10b981', 
                   fontWeight: 900, 
-                  fontSize: '0.86rem',
+                  fontSize: '0.84rem',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px'
                 }}>
                   {todayWellness.statusLabel || 'Wellness'}
                 </span>
-                <span style={{ color: '#ffffff', fontWeight: 800, fontSize: '0.92rem', marginLeft: '6px' }}>
+                <span style={{ color: '#ffffff', fontWeight: 800, fontSize: '0.88rem', marginLeft: '6px' }}>
                   ({todayWellness.score}/30 pts)
                 </span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.80rem' }}>
                 <span style={{ color: '#94a3b8' }}>🌙 Sono:</span>
                 <strong style={{ color: '#ffffff' }}>{todayWellness.sono}/10</strong>
-                <div style={{ width: '45px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: '40px', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
                   <div style={{ width: `${(todayWellness.sono / 10) * 100}%`, height: '100%', background: '#38bdf8' }}></div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.80rem' }}>
                 <span style={{ color: '#94a3b8' }}>⚡ Fadiga:</span>
                 <strong style={{ color: '#ffffff' }}>{todayWellness.fadiga}/10</strong>
-                <div style={{ width: '45px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: '40px', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
                   <div style={{ width: `${(todayWellness.fadiga / 10) * 100}%`, height: '100%', background: '#f59e0b' }}></div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.80rem' }}>
                 <span style={{ color: '#94a3b8' }}>🩺 Dor:</span>
                 <strong style={{ color: '#ffffff' }}>{todayWellness.dorMuscular}/10</strong>
-                <div style={{ width: '45px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: '40px', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
                   <div style={{ width: `${(todayWellness.dorMuscular / 10) * 100}%`, height: '100%', background: '#ef4444' }}></div>
                 </div>
               </div>
-
             </div>
           </div>
 
-          <div style={{
-            background: 'rgba(0, 0, 0, 0.4)',
-            border: `1px solid ${todayWellness.statusColor || '#10b981'}`,
-            color: '#ffffff',
-            padding: '6px 16px',
-            borderRadius: '10px',
-            fontSize: '0.86rem',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: `0 0 15px ${todayWellness.statusColor ? todayWellness.statusColor + '33' : 'rgba(16,185,129,0.2)'}`
-          }}>
-            <span>👉 Conduta:</span>
-            <span style={{ color: todayWellness.statusColor || '#10b981' }}>{todayWellness.conduta || 'Treino Liberado'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: `1px solid ${todayWellness.statusColor || '#10b981'}`,
+              color: '#ffffff',
+              padding: '5px 14px',
+              borderRadius: '8px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: `0 0 12px ${todayWellness.statusColor ? todayWellness.statusColor + '33' : 'rgba(16,185,129,0.2)'}`
+            }}>
+              <span>👉 Conduta:</span>
+              <span style={{ color: todayWellness.statusColor || '#10b981' }}>{todayWellness.conduta || 'Treino Liberado'}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowWellnessModal(true)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#cbd5e1',
+                padding: '5px 10px',
+                borderRadius: '8px',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Revisar questionário Wellness deste atendimento"
+            >
+              <i className="fa-solid fa-pen-to-square" style={{ marginRight: '4px' }}></i>
+              Editar
+            </button>
           </div>
+        </div>
+      )}
+
+      {/* ⚠️ Banner Alerta de Wellness Pendente (Apenas se o aluno tem agendamento ativo no horário) */}
+      {!todayWellness && activeAppointment && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.18) 0%, rgba(180, 83, 9, 0.28) 100%)',
+          borderBottom: '2px solid #f59e0b',
+          padding: '10px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          boxShadow: '0 2px 10px rgba(245, 158, 11, 0.15)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'rgba(245, 158, 11, 0.25)',
+              border: '1.5px solid #f59e0b',
+              color: '#fbbf24',
+              fontSize: '1rem'
+            }}>
+              <i className="fa-solid fa-heart-pulse"></i>
+            </span>
+            <div>
+              <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#fef3c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>Wellness Pendente para o Atendimento das {activeAppointment.horario}</span>
+                <span style={{
+                  fontSize: '0.68rem',
+                  background: 'rgba(245, 158, 11, 0.3)',
+                  color: '#fbbf24',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(245, 158, 11, 0.5)',
+                  fontWeight: 700
+                }}>
+                  {activeAppointment.servico || 'Treino'}
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.76rem', color: '#fde68a' }}>
+                O questionário diário de prontidão ainda não foi respondido para este horário. Registre para balizar carga, fadiga e dor muscular.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowWellnessModal(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: '#ffffff',
+              border: 'none',
+              padding: '7px 16px',
+              borderRadius: '8px',
+              fontWeight: 800,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(245, 158, 11, 0.4)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <i className="fa-solid fa-heart-pulse"></i>
+            <span>Responder Teste Wellness</span>
+          </button>
         </div>
       )}
 
@@ -1592,7 +1787,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                 <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#94a3b8', marginRight: '4px' }}>
                   FICHAS:
                 </span>
-                {visibleSheets.map(sheet => {
+                {visibleSheets.map((sheet: any) => {
                   const letter = (sheet.id || 'A').toUpperCase();
                   const isSelected = activeTabLetter?.toUpperCase() === letter;
                   return (
@@ -2338,7 +2533,7 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
                               
                               <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Base: <strong style={{ color: '#fff' }}>{item.carga}kg</strong></span>
                               
-                              {item.dropSet.drops.map((dropVal, dIdx) => (
+                              {item.dropSet.drops.map((dropVal: any, dIdx: number) => (
                                 <div key={dIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                   <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 800 }}>→</span>
                                   <label style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 700 }}>Drop {dIdx + 1}:</label>
@@ -2797,6 +2992,17 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
             </div>
           </div>
         </div>
+      )}
+
+      {/* 🌟 Modal Wellness Integrado na Ficha de Treino */}
+      {showWellnessModal && activeAppointment && (
+        <WellnessModal
+          isOpen={showWellnessModal}
+          onClose={() => setShowWellnessModal(false)}
+          appointment={activeAppointment}
+          clientWorkout={rawWorkoutDoc}
+          onConfirm={handleConfirmWellness}
+        />
       )}
 
     </div>
