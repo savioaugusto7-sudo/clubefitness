@@ -128,7 +128,7 @@ export async function POST(request: Request) {
           await client.save();
 
           // Se a forma de pagamento for BOLETO e ainda não possuir cobrança/assinatura Asaas gerada, criar automaticamente
-          if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && !contract.asaasSubscriptionId && process.env.ASAAS_API_KEY) {
+          if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && !contract.asaasSubscriptionId && contract.asaasBillingStatus !== 'gerada' && process.env.ASAAS_API_KEY) {
             try {
               let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
               const { createAsaasCustomer, updateAsaasCustomer, createAsaasPayment, createAsaasSubscription } = await import('@/utils/asaas');
@@ -164,7 +164,8 @@ export async function POST(request: Request) {
                   value: valorParcela,
                   nextDueDate: dueDate,
                   cycle: 'MONTHLY',
-                  description: `Contrato Recorrente ${plan?.nome || 'Plano'} - Clube Fitness`
+                  description: `Contrato Recorrente ${plan?.nome || 'Plano'} - Clube Fitness`,
+                  externalReference: String(contract._id)
                 });
 
                 if (asaasResult && asaasResult.subscriptionId) {
@@ -183,7 +184,8 @@ export async function POST(request: Request) {
                   value: totalLiquido,
                   dueDate: dueDate,
                   description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
-                  parcelas: numParcelas
+                  parcelas: numParcelas,
+                  externalReference: String(contract._id)
                 });
 
                 if (asaasResult && asaasResult.paymentId) {

@@ -176,22 +176,48 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date');
+    const date = searchParams.get('date') || searchParams.get('data');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const mes = searchParams.get('mes');
+    const all = searchParams.get('all') === 'true';
     const clientId = searchParams.get('clientId');
     const professionalId = searchParams.get('professionalId');
+    const status = searchParams.get('status');
 
     // Make sure models are registered
     const _client = Client;
     const _prof = Professional;
 
     let query: any = {};
-    if (date) query.data = date;
     if (clientId) query.clienteId = clientId;
     if (professionalId) query.profissionalId = professionalId;
+    if (status) query.status = status;
+
+    if (date) {
+      query.data = date;
+    } else if (startDate && endDate) {
+      query.data = { $gte: startDate, $lte: endDate };
+    } else if (startDate) {
+      query.data = { $gte: startDate };
+    } else if (endDate) {
+      query.data = { $lte: endDate };
+    } else if (mes) {
+      query.data = new RegExp('^' + mes);
+    } else if (!all && !clientId) {
+      // Otimização crítica: se não foi especificada data nem clientId, limitar aos últimos 60 dias em diante
+      // para evitar transferir 6.000+ registros históricos sem necessidade e causar timeout 504 no Vercel
+      const d = new Date();
+      d.setDate(d.getDate() - 60);
+      const defaultMinDate = d.toISOString().split('T')[0];
+      query.data = { $gte: defaultMinDate };
+    }
 
     const appointments = await Appointment.find(query)
-      .populate('clienteId')
-      .populate('profissionalId');
+      .populate('clienteId', 'dadosPessoais dadosComerciais.frequencia dadosComerciais.vencimento dadosComerciais.planoId status')
+      .populate('profissionalId', 'nome email especialidade')
+      .sort({ data: 1, horario: 1 })
+      .lean();
 
     return NextResponse.json({ success: true, data: appointments });
   } catch (error: any) {

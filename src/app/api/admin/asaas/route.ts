@@ -8,10 +8,13 @@ import {
   getAsaasPixQrCode, 
   createAsaasCustomer, 
   updateAsaasCustomer,
+  configureAsaasCustomerWhatsAppOnly,
   createAsaasPayment, 
   createAsaasSubscription, 
   getAsaasInstallmentPayments, 
   getAsaasSubscriptionPayments,
+  listAsaasCustomerInstallments,
+  deleteAsaasInstallment,
   getAsaasBalance,
   deleteAsaasPayment,
   pauseAsaasSubscription
@@ -242,6 +245,87 @@ export async function POST(request: Request) {
           }
         }
         return NextResponse.json({ success: true, message: 'Assinatura de boletos pausada no Asaas com sucesso.' });
+      }
+
+      if (action === 'configure_whatsapp_only') {
+        const targetCustomerId = body.customerId || clientId;
+        if (!targetCustomerId) {
+          return NextResponse.json({ success: false, error: 'customerId não fornecido.' }, { status: 400 });
+        }
+        const configured = await configureAsaasCustomerWhatsAppOnly(targetCustomerId);
+        return NextResponse.json({ success: configured, message: `Notificações configuradas para somente WhatsApp no cliente ${targetCustomerId}` });
+      }
+
+      if (action === 'cleanup_filipe_duplicates' || action === 'cleanup_customer_duplicates') {
+        let targetCpf = body.cpf || '01439152667';
+        let targetCustomerId = body.customerId || 'cus_000201657304';
+        const client = await Client.findOne({
+          $or: [
+            { 'dadosComerciais.asaasCustomerId': targetCustomerId },
+            { 'dadosPessoais.cpf': { $regex: targetCpf.replace(/\D/g, '') } },
+            { 'dadosPessoais.nome': { $regex: 'Filipe Oliveira Mota', $options: 'i' } }
+          ]
+        });
+
+        if (client?.dadosComerciais?.asaasCustomerId) {
+          targetCustomerId = client.dadosComerciais.asaasCustomerId;
+        }
+
+        // 1. Garantir que as notificações desse cliente sejam SOMENTE WhatsApp
+        await configureAsaasCustomerWhatsAppOnly(targetCustomerId);
+
+        // 2. Buscar todos os parcelamentos desse cliente no Asaas
+        const installments = await listAsaasCustomerInstallments(targetCustomerId);
+
+        const deletedInstallmentIds: string[] = [];
+        const keptInstallmentIds: string[] = [];
+
+        if (installments.length > 1) {
+          // Ordenar por data de criação descrescente (mais recente primeiro)
+          installments.sort((a: any, b: any) => (b.dateCreated || '').localeCompare(a.dateCreated || ''));
+          
+          // Manter o primeiro (mais recente)
+          const keep = installments[0];
+          keptInstallmentIds.push(keep.id);
+
+          // Excluir os 9 duplicados no Asaas
+          for (let i = 1; i < installments.length; i++) {
+            const inst = installments[i];
+            try {
+              await deleteAsaasInstallment(inst.id);
+              deletedInstallmentIds.push(inst.id);
+            } catch (errDel: any) {
+              console.warn(`[Cleanup Duplicates] Erro ao deletar parcelamento duplicado ${inst.id}:`, errDel?.message);
+            }
+          }
+        } else if (installments.length === 1) {
+          keptInstallmentIds.push(installments[0].id);
+        }
+
+        // 3. Atualizar/limpar pagamentos duplicados no MongoDB para esse cliente
+        if (client) {
+          const payments = await Payment.find({ clientId: client._id, formaPagamento: 'Asaas' }).sort({ createdAt: 1 });
+          const seenParcelas = new Set<number>();
+          for (const p of payments) {
+            if (p.parcelaNumero && seenParcelas.has(p.parcelaNumero)) {
+              await Payment.findByIdAndUpdate(p._id, { status: 'Cancelado', observacoes: 'Cancelado - Duplicata removida' });
+            } else if (p.parcelaNumero) {
+              seenParcelas.add(p.parcelaNumero);
+            }
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: `Limpeza concluída para ${targetCustomerId}: ${deletedInstallmentIds.length} parcelamentos duplicados removidos no Asaas. WhatsApp configurado como canal exclusivo.`,
+          data: {
+            customerId: targetCustomerId,
+            totalFound: installments.length,
+            kept: keptInstallmentIds,
+            deleted: deletedInstallmentIds,
+            whatsappOnly: true
+          }
+        });
       }
 
       if (action === 'normalize_anna_luiza') {
@@ -485,7 +569,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    if (contract.asaasPaymentId) {
+    if (contract.asaasPaymentId || contract.asaasBillingStatus === 'gerada') {
       return NextResponse.json({ success: false, error: 'Este contrato já possui uma cobrança Asaas gerada' }, { status: 400 });
     }
 
@@ -514,7 +598,8 @@ export async function POST(request: Request) {
       value: contract.valorLiquido,
       dueDate: contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0],
       description: `Contrato: ${plan.nome}`,
-      parcelas: contract.parcelas
+      parcelas: contract.parcelas,
+      externalReference: String(contract._id)
     });
 
     contract.asaasPaymentId = paymentResult.paymentId;

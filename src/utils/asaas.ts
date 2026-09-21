@@ -41,6 +41,49 @@ const handleError = async (res: Response, label: string) => {
   return res.json();
 };
 
+export async function configureAsaasCustomerWhatsAppOnly(customerId: string) {
+  try {
+    const baseUrl = getBaseUrl();
+    const headers = getHeaders();
+
+    const res = await fetch(`${baseUrl}/customers/${customerId}/notifications`, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (!res.ok) {
+      console.warn(`[Asaas Notifications] Falha ao consultar notificações de ${customerId}: HTTP ${res.status}`);
+      return false;
+    }
+
+    const data = await res.json();
+    const notifications = Array.isArray(data?.data) ? data.data : [];
+
+    for (const notif of notifications) {
+      await fetch(`${baseUrl}/notifications/${notif.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          emailEnabledForCustomer: false,
+          smsEnabledForCustomer: false,
+          phoneCallEnabledForCustomer: false,
+          whatsappEnabledForCustomer: true
+        }),
+        signal: AbortSignal.timeout(8000)
+      }).catch((e: any) => {
+        console.warn(`[Asaas Notifications] Erro ao atualizar notificação ${notif.id}:`, e?.message);
+      });
+    }
+
+    console.log(`[Asaas Notifications] Cliente ${customerId} configurado exclusivamente para WhatsApp (${notifications.length} notificações).`);
+    return true;
+  } catch (err: any) {
+    console.warn(`[Asaas Notifications] Erro ao configurar WhatsApp para ${customerId}:`, err?.message);
+    return false;
+  }
+}
+
 export async function createAsaasCustomer(client: any) {
   const baseUrl = getBaseUrl();
   const headers = getHeaders();
@@ -68,7 +111,16 @@ export async function createAsaasCustomer(client: any) {
   });
 
   const data = await handleError(res, 'Criar Cliente');
-  return data.id;
+  const customerId = data.id;
+
+  // Garantir contato exclusivo via WhatsApp
+  try {
+    await configureAsaasCustomerWhatsAppOnly(customerId);
+  } catch (e: any) {
+    console.warn('[Asaas Notifications] Falha não impeditiva ao configurar WhatsApp:', e?.message);
+  }
+
+  return customerId;
 }
 
 export async function updateAsaasCustomer(customerId: string, client: any) {
@@ -98,6 +150,14 @@ export async function updateAsaasCustomer(customerId: string, client: any) {
   });
 
   const data = await handleError(res, 'Atualizar Cliente');
+
+  // Garantir contato exclusivo via WhatsApp
+  try {
+    await configureAsaasCustomerWhatsAppOnly(customerId);
+  } catch (e: any) {
+    console.warn('[Asaas Notifications] Falha não impeditiva ao configurar WhatsApp:', e?.message);
+  }
+
   return data.id;
 }
 
@@ -108,9 +168,39 @@ export async function createAsaasPayment(params: {
   dueDate: string;
   description: string;
   parcelas?: number;
+  externalReference?: string;
 }) {
   const baseUrl = getBaseUrl();
   const headers = getHeaders();
+
+  // Se tiver externalReference, checar se já existe cobrança gerada para evitar cobranças duplicadas
+  if (params.externalReference) {
+    try {
+      const resCheck = await fetch(`${baseUrl}/payments?externalReference=${encodeURIComponent(params.externalReference)}&limit=10`, {
+        method: 'GET',
+        headers,
+        signal: AbortSignal.timeout(6000)
+      });
+      if (resCheck.ok) {
+        const dataCheck = await resCheck.json();
+        const paymentsList = Array.isArray(dataCheck?.data) ? dataCheck.data : [];
+        const activePayment = paymentsList.find((p: any) => p.status !== 'CANCELLED' && p.status !== 'DELETED') || paymentsList[0];
+        if (activePayment) {
+          console.log(`[Asaas Idempotency] Cobrança existente encontrada para ref ${params.externalReference}: ${activePayment.id}`);
+          return {
+            paymentId: activePayment.id,
+            invoiceUrl: activePayment.invoiceUrl,
+            bankSlipUrl: activePayment.bankSlipUrl || '',
+            billingStatus: activePayment.status,
+            installmentId: activePayment.installment || '',
+            netValue: activePayment.netValue || activePayment.value
+          };
+        }
+      }
+    } catch (e: any) {
+      console.warn('[Asaas Idempotency] Aviso na checagem de duplicidade:', e?.message);
+    }
+  }
 
   // Mapeia forma de pagamento para Asaas
   let billingType = 'UNDEFINED';
@@ -126,6 +216,10 @@ export async function createAsaasPayment(params: {
     description: params.description,
     postalService: false
   };
+
+  if (params.externalReference) {
+    body.externalReference = params.externalReference;
+  }
 
   const numParcelas = Number(params.parcelas) || 1;
   if (numParcelas > 1) {
@@ -198,9 +292,60 @@ export async function createAsaasSubscription(params: {
   nextDueDate: string;
   cycle: string;
   description: string;
+  externalReference?: string;
 }) {
   const baseUrl = getBaseUrl();
   const headers = getHeaders();
+
+  // Se tiver externalReference, checar assinatura existente para evitar duplicação
+  if (params.externalReference) {
+    try {
+      const resCheck = await fetch(`${baseUrl}/subscriptions?externalReference=${encodeURIComponent(params.externalReference)}&limit=10`, {
+        method: 'GET',
+        headers,
+        signal: AbortSignal.timeout(6000)
+      });
+      if (resCheck.ok) {
+        const dataCheck = await resCheck.json();
+        const subsList = Array.isArray(dataCheck?.data) ? dataCheck.data : [];
+        const activeSub = subsList.find((s: any) => s.status !== 'INACTIVE' && s.status !== 'DELETED') || subsList[0];
+        if (activeSub) {
+          console.log(`[Asaas Idempotency] Assinatura existente encontrada para ref ${params.externalReference}: ${activeSub.id}`);
+          let firstPaymentId = '';
+          let invoiceUrl = '';
+          let bankSlipUrl = '';
+          try {
+            const resPayments = await fetch(`${baseUrl}/subscriptions/${activeSub.id}/payments`, {
+              method: 'GET',
+              headers,
+              signal: AbortSignal.timeout(6000)
+            });
+            if (resPayments.ok) {
+              const dataPayments = await resPayments.json();
+              const firstPayment = Array.isArray(dataPayments.data) && dataPayments.data.length > 0 ? dataPayments.data[0] : null;
+              if (firstPayment) {
+                firstPaymentId = firstPayment.id;
+                invoiceUrl = firstPayment.invoiceUrl || '';
+                bankSlipUrl = firstPayment.bankSlipUrl || '';
+              }
+            }
+          } catch {}
+
+          return {
+            subscriptionId: activeSub.id,
+            paymentId: firstPaymentId,
+            invoiceUrl,
+            bankSlipUrl,
+            billingStatus: activeSub.status,
+            description: activeSub.description,
+            cycle: activeSub.cycle
+          };
+        }
+      }
+    } catch (e: any) {
+      console.warn('[Asaas Idempotency] Aviso na checagem de assinatura existente:', e?.message);
+    }
+  }
 
   let billingType = 'UNDEFINED';
   const fp = (params.formaPagamento || '').toLowerCase();
@@ -208,7 +353,7 @@ export async function createAsaasSubscription(params: {
   else if (fp === 'boleto') billingType = 'BOLETO';
   else if (fp === 'cartao') billingType = 'CREDIT_CARD';
 
-  const body = {
+  const body: any = {
     customer: params.customerId,
     billingType,
     value: params.value,
@@ -216,6 +361,10 @@ export async function createAsaasSubscription(params: {
     cycle: params.cycle.toUpperCase(),
     description: params.description
   };
+
+  if (params.externalReference) {
+    body.externalReference = params.externalReference;
+  }
 
   const res = await fetch(`${baseUrl}/subscriptions`, {
     method: 'POST',
@@ -423,5 +572,33 @@ export async function getAsaasSubscription(subscriptionId: string) {
 
   return handleError(res, 'Consultar Assinatura');
 }
+
+export async function listAsaasCustomerInstallments(customerId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/installments?customer=${customerId}&limit=50`, {
+    method: 'GET',
+    headers,
+    signal: AbortSignal.timeout(8000)
+  });
+
+  const data = await handleError(res, 'Listar Parcelamentos do Cliente');
+  return data.data || [];
+}
+
+export async function deleteAsaasInstallment(installmentId: string) {
+  const baseUrl = getBaseUrl();
+  const headers = getHeaders();
+
+  const res = await fetch(`${baseUrl}/installments/${installmentId}`, {
+    method: 'DELETE',
+    headers,
+    signal: AbortSignal.timeout(8000)
+  });
+
+  return handleError(res, 'Cancelar Parcelamento');
+}
+
 
 

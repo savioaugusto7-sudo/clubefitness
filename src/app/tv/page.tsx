@@ -182,8 +182,9 @@ export default function TVDashboard() {
   // Fetch data periodically
   const fetchData = async () => {
     try {
+      const todayStr = new Date().toLocaleDateString('en-CA'); // formato YYYY-MM-DD local
       const [resApts, resClients] = await Promise.all([
-        fetch('/api/appointments'),
+        fetch(`/api/appointments?date=${todayStr}`),
         fetch('/api/clients')
       ]);
       const jsonApts = await resApts.json();

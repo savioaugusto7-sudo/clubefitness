@@ -270,6 +270,38 @@ export default function AsaasPanel() {
     }
   };
 
+  const handleCleanupDuplicates = async (clientId?: string, customerId?: string) => {
+    if (!confirm('Deseja executar a verificação e exclusão de parcelamentos duplicados no Asaas, além de configurar as notificações para SOMENTE WhatsApp?')) {
+      return;
+    }
+    try {
+      setSyncingId('cleanup');
+      const res = await fetch('/api/admin/asaas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cleanup_customer_duplicates',
+          clientId,
+          customerId
+        })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Erro na limpeza de duplicidades');
+      }
+      setMessage({
+        text: `✓ ${json.message || 'Limpeza de duplicidades realizada com sucesso!'}`,
+        type: 'success'
+      });
+      fetchPayments(false);
+      fetchStandalonePayments();
+    } catch (e: any) {
+      setMessage({ text: e.message, type: 'danger' });
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
   const handleCancelPayment = async (paymentId?: string, paymentDbId?: string) => {
     if (!confirm('Deseja realmente cancelar este boleto no Asaas? Esta ação não pode ser desfeita.')) {
       return;
@@ -498,6 +530,16 @@ export default function AsaasPanel() {
             >
               <i className={`fa-solid fa-arrows-rotate ${loading ? 'fa-spin' : ''}`}></i>
               Atualizar Dados
+            </button>
+            <button
+              onClick={() => handleCleanupDuplicates()}
+              disabled={syncingId === 'cleanup'}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', borderColor: '#0284c7' }}
+              title="Exclui parcelamentos duplicados no Asaas e garante que o contato ativo seja SOMENTE via WhatsApp"
+            >
+              <i className="fa-brands fa-whatsapp" style={{ color: '#22c55e' }}></i>
+              {syncingId === 'cleanup' ? 'Limpando...' : 'Limpar Duplicidades & Ativar WhatsApp'}
             </button>
             <a
               href={isProduction ? 'https://www.asaas.com' : 'https://sandbox.asaas.com'}

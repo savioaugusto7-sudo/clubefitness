@@ -690,6 +690,7 @@ export async function POST(request: Request) {
     }
 
     // Asaas integration
+    const pendingContractId = new mongoose.Types.ObjectId();
     let asaasPaymentId = '';
     let asaasInvoiceUrl = '';
     let asaasBoletoPdf = '';
@@ -714,7 +715,8 @@ export async function POST(request: Request) {
           value: valorLiquido,
           dueDate: dataPrimeiroVencimento || dataInicio,
           description: `Contrato de Plano: ${plan.nome}`,
-          parcelas: numParcelas
+          parcelas: numParcelas,
+          externalReference: pendingContractId.toString()
         });
 
         asaasPaymentId = paymentResult.paymentId;
@@ -776,6 +778,7 @@ export async function POST(request: Request) {
     }
 
     const newContract = await Contract.create({
+      _id: pendingContractId,
       clicksignDocKey,
       clicksignSignerKey,
       clicksignUrl,
@@ -987,7 +990,7 @@ export async function PUT(request: Request) {
       await client.save();
 
       // Se formaPagamento for BOLETO e não possuir cobrança/assinatura Asaas, gerar no Asaas
-      if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && !contract.asaasSubscriptionId && process.env.ASAAS_API_KEY) {
+      if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && !contract.asaasSubscriptionId && contract.asaasBillingStatus !== 'gerada' && process.env.ASAAS_API_KEY) {
         try {
           let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
           if (!asaasCustomerId) {
@@ -1021,7 +1024,8 @@ export async function PUT(request: Request) {
               value: valorParcela,
               nextDueDate: dueDate,
               cycle: 'MONTHLY',
-              description: `Contrato Recorrente ${plan?.nome || 'Plano'} - Clube Fitness`
+              description: `Contrato Recorrente ${plan?.nome || 'Plano'} - Clube Fitness`,
+              externalReference: String(contract._id)
             });
 
             if (asaasResult && asaasResult.subscriptionId) {
@@ -1040,7 +1044,8 @@ export async function PUT(request: Request) {
               value: totalLiquido,
               dueDate: dueDate,
               description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
-              parcelas: numParcelas
+              parcelas: numParcelas,
+              externalReference: String(contract._id)
             });
 
             if (asaasResult && asaasResult.paymentId) {
