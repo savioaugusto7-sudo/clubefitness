@@ -9,6 +9,7 @@ import ClientWorkout from '@/models/ClientWorkout';
 import Appointment from '@/models/Appointment';
 import Prontuario from '@/models/Prontuario';
 import PontoRecord from '@/models/PontoRecord';
+import Advertencia from '@/models/Advertencia';
 
 export const maxDuration = 30;
 
@@ -56,8 +57,8 @@ export async function GET(request: Request) {
     const sixMonthsAgoDate = new Date(selYear, selMonth - 6, 1);
     const sixMonthsAgoFirstDayStr = `${sixMonthsAgoDate.getFullYear()}-${String(sixMonthsAgoDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios, Atendimentos, Prontuários e Registros de Ponto
-    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments, periodProntuarios, monthPontoRecords] = await Promise.all([
+    // 3. Buscar Avaliações Físicas, Testes de Força, Relatórios, Atendimentos, Prontuários, Registros de Ponto e Advertências
+    const [monthAssessments, monthStrengthTests, monthReports, allWorkouts, monthAppointments, sixMonthsEmergencyAppointments, periodProntuarios, monthPontoRecords, monthAdvertencias] = await Promise.all([
       PhysicalAssessment.find({
         data: { $gte: firstDayStr, $lte: lastDayStr }
       }).lean(),
@@ -85,6 +86,10 @@ export async function GET(request: Request) {
       PontoRecord.find({
         data: { $gte: firstDayStr, $lte: lastDayStr },
         status: 'valido'
+      }).lean(),
+      Advertencia.find({
+        mesReferencia: mesParam,
+        status: { $ne: 'cancelada' }
       }).lean()
     ]);
 
@@ -164,6 +169,8 @@ export async function GET(request: Request) {
         emergenciaExtraDebito: number;
         totalAtrasosMinutos: number;
         atrasosPontoDebito: number;
+        advertenciasCount: number;
+        advertenciasDebito: number;
       };
       extratoCreditos: Array<{
         tipo: string;
@@ -219,7 +226,9 @@ export async function GET(request: Request) {
           emergenciaExtraAlunos: 0,
           emergenciaExtraDebito: 0,
           totalAtrasosMinutos: 0,
-          atrasosPontoDebito: 0
+          atrasosPontoDebito: 0,
+          advertenciasCount: 0,
+          advertenciasDebito: 0
         },
         extratoCreditos: [],
         extratoDebitos: []
@@ -450,6 +459,28 @@ export async function GET(request: Request) {
           motivo: `Entrada às ${ponto.horario} (esperado ${ponto.horarioEsperado || '08:00'}) - ${minutos} min de atraso`,
           alunoNome: '-',
           data: ponto.data,
+          pontosDebito: ptsDebito
+        });
+      }
+    });
+
+    // =========================================================================
+    // 5.2 PROCESSAR ADVERTÊNCIAS ADMINISTRATIVAS
+    // =========================================================================
+    monthAdvertencias.forEach((adv: any) => {
+      const pId = String(adv.profissionalId?._id || adv.profissionalId);
+      const targetScore = profScoresMap.get(pId);
+      const ptsDebito = Number(adv.pontosDebito) || 0;
+
+      if (targetScore && ptsDebito > 0) {
+        targetScore.detalhes.advertenciasCount = (targetScore.detalhes.advertenciasCount || 0) + 1;
+        targetScore.detalhes.advertenciasDebito = (targetScore.detalhes.advertenciasDebito || 0) + ptsDebito;
+        targetScore.debitosIndividuais += ptsDebito;
+        targetScore.extratoDebitos.push({
+          tipo: 'Advertência Administrativa',
+          motivo: adv.descricao || 'Advertência disciplinar administrativa',
+          alunoNome: '-',
+          data: adv.data,
           pontosDebito: ptsDebito
         });
       }

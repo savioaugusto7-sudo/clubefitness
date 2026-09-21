@@ -23,6 +23,7 @@ import MoneyInput from './MoneyInput';
 import MetasProfissionaisPanel from './MetasProfissionaisPanel';
 import GestaoPontoAdminPanel from './GestaoPontoAdminPanel';
 import AgendaConfigPanel from './AgendaConfigPanel';
+import AdvertenciasAdminPanel from './AdvertenciasAdminPanel';
 
 
 export const normalizeText = (str: string) => {
@@ -4121,6 +4122,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         <GestaoPontoAdminPanel onRefresh={fetchData} />
       )}
 
+      {/* View: Advertências & Débitos Disciplinares */}
+      {activeTab === 'advertencias' && (
+        <AdvertenciasAdminPanel onRefresh={fetchData} />
+      )}
+
       {/* View: Movimentos Realizados via Link */}
       {activeTab === 'movimentos_links' && (() => {
         const q = getSearchQuery('movimentos_links');
@@ -6277,7 +6283,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
         </div>
       )}
 
-      {!['dashboard', 'profissionais', 'gestao_ponto', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'gestao_contratos', 'asaas', 'trancamentos_admin', 'config_agenda', 'log_atividades', 'dados_clinicos', 'vincular_alunos', 'treinos_prof', 'fichas_treino', 'dynamus', 'movimentos_links', 'metas_profissionais'].includes(activeTab) && (
+      {!['dashboard', 'profissionais', 'gestao_ponto', 'clientes', 'usuarios', 'controle_creditos', 'planos', 'agenda_completa', 'agenda_fixa', 'testes_forca', 'financeiro', 'medicamentos', 'tv_panel', 'solicitacoes_exercicios', 'configuracoes', 'gestao_contratos', 'asaas', 'trancamentos_admin', 'config_agenda', 'log_atividades', 'dados_clinicos', 'vincular_alunos', 'treinos_prof', 'fichas_treino', 'dynamus', 'movimentos_links', 'metas_profissionais', 'advertencias'].includes(activeTab) && (
         <div className="content-panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>Aba em Desenvolvimento</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>

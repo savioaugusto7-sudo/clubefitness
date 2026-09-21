@@ -1318,7 +1318,7 @@ export default function GestaoContratosPanel({
   const [dcPlano, setDcPlano] = useState('');
   const [dcStatus, setDcStatus] = useState<string>('ativo');
   const [dcFormaPag, setDcFormaPag] = useState('pix');
-  const [dcDuracao, setDcDuracao] = useState<'mensal' | 'anual' | 'semana' | 'indeterminado'>('mensal');
+  const [dcDuracao, setDcDuracao] = useState<'mensal' | 'anual' | 'semestral' | 'semana' | 'indeterminado'>('mensal');
   const [dcVigenciaQtd, setDcVigenciaQtd] = useState(1);
   const [dcValorUnitario, setDcValorUnitario] = useState(0);
   const [dcVencimento, setDcVencimento] = useState('');

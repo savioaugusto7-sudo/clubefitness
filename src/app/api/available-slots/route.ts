@@ -165,14 +165,20 @@ export async function GET(request: Request) {
 
       const defaultGrade = dayOfWeek === 6 ? VALID_SATURDAYS : VALID_WEEKDAYS;
       const additions = await AgendaConfig.find({
-        $or: [
-          { tipo: resolvedTipo },
-          { tipo: 'servico', servico: servico }
-        ],
-        acao: 'adicionar',
-        $or: [
-          { dataEspecifica: data },
-          { diaSemana: dayOfWeek, dataEspecifica: null }
+        $and: [
+          {
+            $or: [
+              { tipo: resolvedTipo },
+              { tipo: 'servico', servico: servico }
+            ]
+          },
+          { acao: 'adicionar' },
+          {
+            $or: [
+              { dataEspecifica: data },
+              { diaSemana: dayOfWeek, dataEspecifica: null }
+            ]
+          }
         ]
       });
 

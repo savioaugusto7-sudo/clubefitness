@@ -45,6 +45,7 @@ const categoryConfigs: Record<string, SidebarCategory[]> = {
         { id: 'profissionais', label: 'Profissionais', icon: 'fa-user-md' },
         { id: 'gestao_ponto', label: 'Controle de Ponto & Escalas', icon: 'fa-user-clock' },
         { id: 'metas_profissionais', label: 'Metas dos Profissionais', icon: 'fa-trophy' },
+        { id: 'advertencias', label: 'Advertências & Débitos', icon: 'fa-triangle-exclamation' },
         { id: 'clientes', label: 'Clientes', icon: 'fa-users' },
         { id: 'vincular_alunos', label: 'Vincular Alunos', icon: 'fa-link' },
         { id: 'dados_clinicos', label: 'Dados Clínicos', icon: 'fa-notes-medical' }
