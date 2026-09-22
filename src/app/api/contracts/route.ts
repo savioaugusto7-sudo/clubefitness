@@ -220,144 +220,7 @@ export async function createClicksignDocument(
   if (!documentId) throw new Error('Clicksign não retornou o ID do Documento.');
 
   // ──────────────────────────────────────────────────────────
-  // PASSO 3 — Adicionar Signatário ao Envelope
-  // POST /api/v3/envelopes/:envelope_id/signers
-  // ──────────────────────────────────────────────────────────
-  let formattedCpf = '';
-  const digits = signerCpf.replace(/\D/g, '');
-  if (digits.length === 11) {
-    formattedCpf = `${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9, 11)}`;
-  } else {
-    formattedCpf = signerCpf;
-  }
-  const formattedPhone = formatClicksignPhone(signerPhone || '');
-  const signerBody: any = {
-    data: {
-      type: 'signers',
-      attributes: {
-        name: signerName,
-        email: signerEmail,
-        ...(formattedPhone ? {
-          phone_number: formattedPhone,
-          communicate_events: {
-            signature_request: 'whatsapp',
-            signature_reminder: 'none',
-            document_signed: 'whatsapp'
-          }
-        } : {
-          communicate_events: {
-            signature_request: 'email',
-            signature_reminder: 'none',
-            document_signed: 'email'
-          }
-        })
-      }
-    }
-  };
-  if (formattedCpf) signerBody.data.attributes.documentation = formattedCpf;
-
-  const signerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(signerBody)
-  });
-  const signerData = await handleError(signerRes, 'Adicionar Signatário');
-  const signerId: string = signerData.data?.id;
-  if (!signerId) throw new Error('Clicksign não retornou o ID do Signatário.');
-
-  // ──────────────────────────────────────────────────────────
-  // ──────────────────────────────────────────────────────────
-  // PASSO 4a — Requisito de Qualificação do Aluno (Contratante)
-  // action: "agree", role: "contractor" (Contratante)
-  // ──────────────────────────────────────────────────────────
-  const reqQualRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      data: {
-        type: 'requirements',
-        attributes: {
-          action: 'agree',
-          role: 'contractor'
-        },
-        relationships: {
-          document: { data: { type: 'documents', id: documentId } },
-          signer: { data: { type: 'signers', id: signerId } }
-        }
-      }
-    })
-  });
-  await handleError(reqQualRes, 'Criar Requisito de Qualificação');
-
-  // ──────────────────────────────────────────────────────────
-  // PASSO 4b — Requisito de Autenticação do Aluno (WhatsApp / Email Fallback)
-  // ──────────────────────────────────────────────────────────
-  if (formattedPhone) {
-    try {
-      const reqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          data: {
-            type: 'requirements',
-            attributes: {
-              action: 'provide_evidence',
-              auth: 'whatsapp'
-            },
-            relationships: {
-              document: { data: { type: 'documents', id: documentId } },
-              signer: { data: { type: 'signers', id: signerId } }
-            }
-          }
-        })
-      });
-      if (!reqAuthRes.ok) {
-        console.warn('Clicksign: Autenticação via WhatsApp não autorizada no plano/conta, aplicando fallback para email...');
-        const reqAuthEmailRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            data: {
-              type: 'requirements',
-              attributes: {
-                action: 'provide_evidence',
-                auth: 'email'
-              },
-              relationships: {
-                document: { data: { type: 'documents', id: documentId } },
-                signer: { data: { type: 'signers', id: signerId } }
-              }
-            }
-          })
-        });
-        await handleError(reqAuthEmailRes, 'Criar Requisito de Autenticação via Email (Fallback)');
-      }
-    } catch (authErr: any) {
-      console.warn('Clicksign: Erro ao registrar requisito de autenticação:', authErr.message);
-    }
-  } else {
-    const reqAuthEmailRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        data: {
-          type: 'requirements',
-          attributes: {
-            action: 'provide_evidence',
-            auth: 'email'
-          },
-          relationships: {
-            document: { data: { type: 'documents', id: documentId } },
-            signer: { data: { type: 'signers', id: signerId } }
-          }
-        }
-      })
-    });
-    await handleError(reqAuthEmailRes, 'Criar Requisito de Autenticação via Email');
-  }
-
-  // ──────────────────────────────────────────────────────────
-  // PASSO 4c — Adicionar Signatário da Clínica (Dr. Albert Nunes Queiroz dos Santos)
+  // PASSO 3 — Adicionar Signatário da Clínica (Grupo 1 — Auto-Assinatura Imediata)
   // ──────────────────────────────────────────────────────────
   const adminName = process.env.CLICKSIGN_ADMIN_NAME || 'Albert Nunes Queiroz dos Santos';
   const adminEmail = process.env.CLICKSIGN_ADMIN_EMAIL || 'clubefitnessbh@gmail.com';
@@ -372,6 +235,7 @@ export async function createClicksignDocument(
     documentation: adminCpf,
     birthday: adminBirthday,
     has_documentation: true,
+    group: 1, // Grupo 1: Assinatura Automática Imediata no Envio
     communicate_events: {
       signature_request: 'none',
       signature_reminder: 'none',
@@ -391,7 +255,7 @@ export async function createClicksignDocument(
         }
       })
     });
-    const adminSignerData = await handleError(adminSignerRes, 'Adicionar Signatário da Clínica');
+    const adminSignerData = await handleError(adminSignerRes, 'Adicionar Signatário da Clínica (Grupo 1)');
     adminSignerId = adminSignerData.data?.id;
   } catch (signerErr: any) {
     console.warn('Clicksign: Tentativa com dados completos falhou, tentando fallback com dados básicos:', signerErr.message);
@@ -405,6 +269,7 @@ export async function createClicksignDocument(
             attributes: {
               name: adminName,
               email: adminEmail,
+              group: 1,
               communicate_events: {
                 signature_request: 'email',
                 signature_reminder: 'none',
@@ -517,6 +382,137 @@ export async function createClicksignDocument(
       });
       await handleError(clinicAuthRes, 'Criar Requisito de Autenticação da Clínica (Fallback Email)');
     }
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // PASSO 4 — Adicionar Signatário do Aluno (Grupo 2 — WhatsApp após a Clínica)
+  // ──────────────────────────────────────────────────────────
+  let formattedCpf = '';
+  const digits = signerCpf.replace(/\D/g, '');
+  if (digits.length === 11) {
+    formattedCpf = `${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9, 11)}`;
+  } else {
+    formattedCpf = signerCpf;
+  }
+  const formattedPhone = formatClicksignPhone(signerPhone || '');
+  const signerBody: any = {
+    data: {
+      type: 'signers',
+      attributes: {
+        name: signerName,
+        email: signerEmail,
+        group: 2, // Grupo 2: Assina após o Grupo 1 (Clínica) já estar assinado
+        ...(formattedPhone ? {
+          phone_number: formattedPhone,
+          communicate_events: {
+            signature_request: 'whatsapp',
+            signature_reminder: 'none',
+            document_signed: 'whatsapp'
+          }
+        } : {
+          communicate_events: {
+            signature_request: 'email',
+            signature_reminder: 'none',
+            document_signed: 'email'
+          }
+        })
+      }
+    }
+  };
+  if (formattedCpf) signerBody.data.attributes.documentation = formattedCpf;
+
+  const signerRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/signers`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(signerBody)
+  });
+  const signerData = await handleError(signerRes, 'Adicionar Signatário do Aluno (Grupo 2)');
+  const signerId: string = signerData.data?.id;
+  if (!signerId) throw new Error('Clicksign não retornou o ID do Signatário do Aluno.');
+
+  // Requisito de Qualificação do Aluno (Contratante)
+  const reqQualRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      data: {
+        type: 'requirements',
+        attributes: {
+          action: 'agree',
+          role: 'contractor'
+        },
+        relationships: {
+          document: { data: { type: 'documents', id: documentId } },
+          signer: { data: { type: 'signers', id: signerId } }
+        }
+      }
+    })
+  });
+  await handleError(reqQualRes, 'Criar Requisito de Qualificação do Aluno');
+
+  // Requisito de Autenticação do Aluno (WhatsApp / Email Fallback)
+  if (formattedPhone) {
+    try {
+      const reqAuthRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: 'requirements',
+            attributes: {
+              action: 'provide_evidence',
+              auth: 'whatsapp'
+            },
+            relationships: {
+              document: { data: { type: 'documents', id: documentId } },
+              signer: { data: { type: 'signers', id: signerId } }
+            }
+          }
+        })
+      });
+      if (!reqAuthRes.ok) {
+        console.warn('Clicksign: Autenticação via WhatsApp não autorizada no plano/conta, aplicando fallback para email...');
+        const reqAuthEmailRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            data: {
+              type: 'requirements',
+              attributes: {
+                action: 'provide_evidence',
+                auth: 'email'
+              },
+              relationships: {
+                document: { data: { type: 'documents', id: documentId } },
+                signer: { data: { type: 'signers', id: signerId } }
+              }
+            }
+          })
+        });
+        await handleError(reqAuthEmailRes, 'Criar Requisito de Autenticação do Aluno via Email (Fallback)');
+      }
+    } catch (authErr: any) {
+      console.warn('Clicksign: Erro ao registrar requisito de autenticação do aluno:', authErr.message);
+    }
+  } else {
+    const reqAuthEmailRes = await fetch(`${baseUrl}/api/v3/envelopes/${envelopeId}/requirements`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          type: 'requirements',
+          attributes: {
+            action: 'provide_evidence',
+            auth: 'email'
+          },
+          relationships: {
+            document: { data: { type: 'documents', id: documentId } },
+            signer: { data: { type: 'signers', id: signerId } }
+          }
+        }
+      })
+    });
+    await handleError(reqAuthEmailRes, 'Criar Requisito de Autenticação do Aluno via Email');
   }
 
   // ──────────────────────────────────────────────────────────
