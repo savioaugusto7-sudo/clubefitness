@@ -846,6 +846,20 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
       ];
 
       const sheetIdx = existingSheets.findIndex((s: any) => s.id?.toUpperCase() === activeTabLetter.toUpperCase());
+      const prevExCount = (sheetIdx !== -1 && existingSheets[sheetIdx].exercicios) ? existingSheets[sheetIdx].exercicios.length : 0;
+
+      let confirmEmpty = false;
+      if (prevExCount > 0 && workoutItems.length === 0) {
+        const ok = window.confirm(
+          `⚠️ ATENÇÃO: A ${workoutName || ('Ficha ' + activeTabLetter)} de ${realClientName || 'Aluno'} continha ${prevExCount} exercício(s) e agora está totalmente vazia.\n\nSalvar agora apagará todos os exercícios do aluno.\n\nDeseja realmente salvar a ficha vazia?`
+        );
+        if (!ok) {
+          setIsSaving(false);
+          return;
+        }
+        confirmEmpty = true;
+      }
+
       let updatedSheets = [...existingSheets];
       if (sheetIdx !== -1) {
         updatedSheets[sheetIdx] = currentSheetPayload;
@@ -857,7 +871,9 @@ export default function WorkoutBuilder({ onClose, clientId, clientName, initialF
         clientId: currentClientId,
         category: activeCategory,
         workoutData: updatedSheets,
-        [activeCategory]: updatedSheets
+        [activeCategory]: updatedSheets,
+        confirmEmpty,
+        profissionalNome: realClientName ? `Edição: ${displayName}` : ''
       };
 
       const res = await fetch('/api/workouts', {

@@ -538,6 +538,12 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [filaSearch, setFilaSearch] = useState('');
   const [cardMenuOpenId, setCardMenuOpenId] = useState<string | null>(null);
 
+  // Histórico de Versões da Ficha de Treino
+  const [showWorkoutHistoryModal, setShowWorkoutHistoryModal] = useState(false);
+  const [workoutHistoryList, setWorkoutHistoryList] = useState<any[]>([]);
+  const [loadingWorkoutHistory, setLoadingWorkoutHistory] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<any | null>(null);
+
   // Fila dinâmica de alunos pendentes de prescrição de treino
   const filaPendentes = useMemo(() => {
     return clients.filter(c => {
@@ -4719,6 +4725,23 @@ goniometria: {
     if (!editingWorkoutData || !selectedClientForWorkout) return;
     const clientName = selectedClientForWorkout.dadosPessoais?.nome || '';
 
+    const origList = originalWorkoutData?.[activeWorkoutCategory] || [];
+    const origSheet = origList.find((f: any) => f.id === activeWorkoutSubTab);
+    const origCount = origSheet?.exercicios?.length || 0;
+
+    const currList = editingWorkoutData?.[activeWorkoutCategory] || [];
+    const currSheet = currList.find((f: any) => f.id === activeWorkoutSubTab);
+    const currCount = currSheet?.exercicios?.length || 0;
+
+    let confirmEmpty = false;
+    if (origCount > 0 && currCount === 0) {
+      const ok = window.confirm(
+        `⚠️ ATENÇÃO: A Ficha ${activeWorkoutSubTab} de ${clientName} continha ${origCount} exercício(s) cadastrado(s) e agora está totalmente vazia.\n\nSalvar agora apagará permanentemente o treino do aluno.\n\nDeseja realmente salvar a ficha sem nenhum exercício?`
+      );
+      if (!ok) return;
+      confirmEmpty = true;
+    }
+
     executeAction('Salvou Ficha de Treino', selectedClientForWorkout._id, async (executorProfId, isCollective) => {
       try {
         setLoading(true);
@@ -4738,7 +4761,10 @@ goniometria: {
           body: JSON.stringify({
             clientId: selectedClientForWorkout._id,
             fichasMonitorado: updatedData.fichasMonitorado,
-            fichasLivre: updatedData.fichasLivre
+            fichasLivre: updatedData.fichasLivre,
+            confirmEmpty,
+            profissionalId: executorProfId,
+            profissionalNome: sessionUserName || currentProf?.nome || 'Profissional'
           })
         });
         const data = await res.json();
@@ -4757,6 +4783,63 @@ goniometria: {
         setLoading(false);
       }
     }, `${clientName} - Categoria: ${activeWorkoutCategory}`);
+  };
+
+  const handleOpenWorkoutHistory = async () => {
+    if (!selectedClientForWorkout) return;
+    try {
+      setLoadingWorkoutHistory(true);
+      setShowWorkoutHistoryModal(true);
+      setSelectedHistoryItem(null);
+      const res = await fetch(`/api/workouts?clientId=${selectedClientForWorkout._id}&history=true`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setWorkoutHistoryList(data.data);
+      } else {
+        setWorkoutHistoryList([]);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar histórico:', e);
+      setWorkoutHistoryList([]);
+    } finally {
+      setLoadingWorkoutHistory(false);
+    }
+  };
+
+  const handleRestoreWorkoutVersion = async (historyId: string) => {
+    if (!selectedClientForWorkout || !historyId) return;
+    const ok = window.confirm(
+      'Tem certeza que deseja restaurar esta versão histórica da ficha de treino? O estado atual será salvo como backup antes da restauração.'
+    );
+    if (!ok) return;
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'restore',
+          clientId: selectedClientForWorkout._id,
+          historyId,
+          profissionalNome: sessionUserName || currentProf?.nome || 'Profissional'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setEditingWorkoutData(data.data);
+        setOriginalWorkoutData(JSON.parse(JSON.stringify(data.data)));
+        setShowWorkoutHistoryModal(false);
+        alert('✨ Ficha de treino restaurada com sucesso a partir do histórico!');
+        fetchData();
+      } else {
+        alert('Erro ao restaurar: ' + (data.error || 'Falha na resposta'));
+      }
+    } catch (e) {
+      alert('Erro ao restaurar versão.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -7865,14 +7948,25 @@ goniometria: {
           ) : (
             // Full screen Workout Editor inside professional view
             <div className="content-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                  <h2 style={{ fontFamily: 'var(--font-title)' }}>Ficha de Treino — {selectedClientForWorkout.dadosPessoais?.nome}</h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Plano: {selectedClientForWorkout.dadosComerciais?.planoId?.nome}</p>
+                  <h2 style={{ fontFamily: 'var(--font-title)', margin: 0 }}>Ficha de Treino — {selectedClientForWorkout.dadosPessoais?.nome}</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '4px 0 0 0' }}>Plano: {selectedClientForWorkout.dadosComerciais?.planoId?.nome}</p>
                 </div>
-                <button className="btn btn-secondary" onClick={() => setSelectedClientForWorkout(null)}>
-                  <i className="fa-solid fa-arrow-left"></i> Voltar
-                </button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleOpenWorkoutHistory}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '0.84rem' }}
+                    title="Ver versões salvas e histórico de auditoria desta ficha"
+                  >
+                    <i className="fa-solid fa-clock-rotate-left"></i> Histórico de Versões
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => setSelectedClientForWorkout(null)}>
+                    <i className="fa-solid fa-arrow-left"></i> Voltar
+                  </button>
+                </div>
               </div>
 
               {editingWorkoutData && (
@@ -17374,6 +17468,144 @@ goniometria: {
                   <i className="fa-solid fa-dumbbell"></i> Atualizar / Editar Ficha
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. Modal de Histórico de Versões de Ficha */}
+      {showWorkoutHistoryModal && (
+        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div className="modal-content" style={{ maxWidth: '850px', width: '92%', maxHeight: '85vh', background: 'var(--bg-card, #1e293b)', borderRadius: '16px', border: '1px solid var(--border-color, #334155)', padding: '24px', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-clock-rotate-left"></i> Histórico de Versões da Ficha
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: '#94a3b8' }}>
+                  Aluno: <strong style={{ color: '#fff' }}>{selectedClientForWorkout?.dadosPessoais?.nome}</strong> • Backups automáticos criados a cada alteração
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWorkoutHistoryModal(false);
+                  setSelectedHistoryItem(null);
+                }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.3rem', cursor: 'pointer' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '6px' }}>
+              {loadingWorkoutHistory ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+                  <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
+                  <p>Carregando histórico de versões...</p>
+                </div>
+              ) : workoutHistoryList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 16px', color: '#94a3b8' }}>
+                  <i className="fa-solid fa-box-open" style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '12px', display: 'block' }}></i>
+                  <p style={{ fontWeight: 600, margin: 0 }}>Nenhuma versão histórica anterior registrada ainda para este aluno.</p>
+                  <small style={{ color: '#64748b' }}>A partir de agora, toda modificação de ficha gerará um snapshot automático de segurança.</small>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {workoutHistoryList.map((hist: any, hIdx: number) => {
+                    const dt = new Date(hist.createdAt);
+                    const dtStr = dt.toLocaleString('pt-BR');
+                    const totalExMon = (hist.snapshot?.fichasMonitorado || []).reduce((acc: number, f: any) => acc + (f.exercicios?.length || 0), 0);
+                    const totalExLiv = (hist.snapshot?.fichasLivre || []).reduce((acc: number, f: any) => acc + (f.exercicios?.length || 0), 0);
+                    const isSelected = selectedHistoryItem?._id === hist._id;
+
+                    return (
+                      <div
+                        key={hist._id || hIdx}
+                        style={{
+                          background: isSelected ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                          border: isSelected ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '12px',
+                          padding: '14px 16px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <strong style={{ fontSize: '0.95rem', color: '#fff' }}>Versão de {dtStr}</strong>
+                              <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(255,255,255,0.08)', color: '#94a3b8' }}>
+                                {hist.motivo || 'Atualização'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
+                              Profissional: <strong style={{ color: '#cbd5e1' }}>{hist.profissionalNome || 'Não registrado'}</strong> • Total de Exercícios: <span style={{ color: '#38bdf8', fontWeight: 700 }}>{totalExMon} monitorado / {totalExLiv} livre</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setSelectedHistoryItem(isSelected ? null : hist)}
+                              style={{ fontSize: '0.78rem', padding: '5px 10px' }}
+                            >
+                              <i className={isSelected ? "fa-solid fa-chevron-up" : "fa-solid fa-eye"}></i> {isSelected ? 'Ocultar' : 'Ver Fichas'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleRestoreWorkoutVersion(hist._id)}
+                              style={{ fontSize: '0.78rem', padding: '5px 12px', background: '#0284c7', borderColor: '#0284c7' }}
+                            >
+                              <i className="fa-solid fa-rotate-left"></i> Restaurar Versão
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Detalhes expandidos da versão */}
+                        {isSelected && (
+                          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8', marginBottom: '8px' }}>
+                              Exercícios da Versão ({hist.snapshot?.fichasMonitorado?.length || 0} fichas monitoradas):
+                            </div>
+                            {(hist.snapshot?.fichasMonitorado || []).map((f: any) => (
+                              <div key={f.id} style={{ marginBottom: '8px', padding: '8px 12px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px' }}>
+                                <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{f.nome || ('Ficha ' + f.id)}</strong>
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '8px' }}>({f.exercicios?.length || 0} exercícios)</span>
+                                {f.exercicios && f.exercicios.length > 0 ? (
+                                  <ul style={{ margin: '6px 0 0', paddingLeft: '18px', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                                    {f.exercicios.map((ex: any, eIdx: number) => (
+                                      <li key={eIdx}>
+                                        {ex.exercicioId} — {ex.series}x{ex.repeticoes} ({ex.carga || '10kg'}) {ex.observacao ? `[${ex.observacao}]` : ''}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>Sem exercícios cadastrados nesta ficha</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', marginTop: '14px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowWorkoutHistoryModal(false);
+                  setSelectedHistoryItem(null);
+                }}
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
