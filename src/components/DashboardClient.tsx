@@ -441,12 +441,13 @@ export default function DashboardClient({ activeTab, setActiveTab, clientId }: D
   useEffect(() => {
     if (!bookDate || !bookService) return;
     setLoadingSlots(true);
-    fetch(`/api/available-slots?data=${bookDate}&servico=${encodeURIComponent(bookService)}`)
+    const clientParam = profileId ? `&clienteId=${profileId}` : '';
+    fetch(`/api/available-slots?data=${bookDate}&servico=${encodeURIComponent(bookService)}${clientParam}`)
       .then(r => r.json())
       .then(d => { if (d.success) setAvailableSlots(d.data); })
       .catch(() => setAvailableSlots([]))
       .finally(() => setLoadingSlots(false));
-  }, [bookDate, bookService]);
+  }, [bookDate, bookService, profileId]);
 
   const normalizeToISO = (dateStr: string | undefined): string => {
     if (!dateStr) return '';
