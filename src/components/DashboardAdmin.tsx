@@ -2003,6 +2003,11 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           alert('Erro ao salvar cliente: ' + data.error);
         }
       } else if (modalType === 'professional') {
+        const cleanPin = (pin || '1234').trim();
+        if (!/^\d{4}$/.test(cleanPin)) {
+          alert('O PIN de Acesso Coletivo deve conter exatamente 4 dígitos numéricos (ex: 1234).');
+          return;
+        }
         const payload = {
           id: editingItem?._id,
           email,
@@ -2011,7 +2016,7 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
           registro,
           cargo: especialidade,
           isEstagiario,
-          pin
+          pin: cleanPin
         };
         const method = editingItem ? 'PUT' : 'POST';
         const res = await fetch('/api/professionals', {
@@ -6537,7 +6542,17 @@ export default function DashboardAdmin({ activeTab, setActiveTab }: DashboardAdm
 
                     <div className="form-group">
                       <label>PIN de Acesso Coletivo (Senha Curta de 4 Dígitos)</label>
-                      <input type="text" className="form-control" value={pin} onChange={e => setPin(e.target.value)} maxLength={6} placeholder="Ex: 1234" required />
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={pin}
+                        onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        maxLength={4}
+                        placeholder="Ex: 1234"
+                        pattern="\d{4}"
+                        title="O PIN deve conter exatamente 4 dígitos numéricos"
+                        required
+                      />
                     </div>
                   </>
                 )}

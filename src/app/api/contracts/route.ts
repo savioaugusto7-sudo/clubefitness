@@ -49,10 +49,13 @@ export async function GET(request: Request) {
       .lean();
 
     const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com';
 
     if (token) {
-      const pendingClicksign = contracts.filter((c: any) => c.clicksignDocKey && (c.status === 'pendente' || c.clicksignStatus === 'pendente'));
+      const pendingClicksign = contracts.filter((c: any) => 
+        c.clicksignDocKey && 
+        (c.status === 'pendente' || c.status === 'aguardando_assinatura' || c.clicksignStatus === 'pendente' || c.clicksignStatus === 'enviado')
+      );
       if (pendingClicksign.length > 0) {
         await Promise.all(pendingClicksign.map(c => syncContractStatus(c, token, baseUrl)));
         contracts = await Contract.find(query)
@@ -140,7 +143,7 @@ export async function createClicksignDocument(
   signerPhone?: string
 ) {
   const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-  const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com').replace(/\/$/, '');
+  const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com').replace(/\/$/, '');
 
   if (!token) {
     throw new Error('CLICKSIGN_ACCESS_TOKEN não configurado nas variáveis de ambiente.');
@@ -1212,7 +1215,7 @@ export async function DELETE(request: Request) {
     // Se for clicksign pendente e tiver docKey, tentar cancelar na Clicksign
     if (contract.clicksignDocKey && contract.status !== 'assinado') {
       const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-      const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com').replace(/\/$/, '');
+      const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com').replace(/\/$/, '');
       if (token) {
         try {
           await fetch(`${baseUrl}/api/v3/envelopes/${contract.clicksignDocKey}/cancel`, {

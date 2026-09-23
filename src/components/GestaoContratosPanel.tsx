@@ -698,14 +698,24 @@ export default function GestaoContratosPanel({
 
       if (contractsRes.success && Array.isArray(contractsRes.data)) {
         const cMap: Record<string, any> = {};
+        let shouldRefreshClients = false;
+
         contractsRes.data.forEach((c: any) => {
           const rawId = c.clientId?._id || c.clientId;
           const cId = rawId ? String(rawId) : '';
           if (cId && (!cMap[cId] || new Date(c.createdAt || c.dataEmissao) > new Date(cMap[cId].createdAt || cMap[cId].dataEmissao))) {
             cMap[cId] = c;
+            const prev = allContractsMap[cId];
+            if (prev && prev.status !== 'assinado' && c.status === 'assinado') {
+              shouldRefreshClients = true;
+            }
           }
         });
         setAllContractsMap(cMap);
+
+        if (shouldRefreshClients && typeof fetchData === 'function') {
+          fetchData(true);
+        }
       }
 
       if (proposalsRes.success && Array.isArray(proposalsRes.data)) {
@@ -1050,6 +1060,25 @@ export default function GestaoContratosPanel({
   useEffect(() => {
     loadContractsAndProposalsOverview();
   }, [clients]);
+
+  // Polling automático suave em segundo plano quando existirem contratos aguardando assinatura Clicksign
+  useEffect(() => {
+    const contractsList = Object.values(allContractsMap);
+    const hasPendingSignatures = contractsList.some((c: any) => 
+      c?.clicksignDocKey && 
+      c?.status !== 'assinado' && 
+      c?.status !== 'cancelado' && 
+      c?.status !== 'finalizado'
+    );
+
+    if (!hasPendingSignatures) return;
+
+    const intervalId = setInterval(() => {
+      loadContractsAndProposalsOverview();
+    }, 30000); // Consulta suave a cada 30 segundos
+
+    return () => clearInterval(intervalId);
+  }, [allContractsMap]);
 
   const handleSyncClicksignForClient = async (client: any) => {
     const contract = allContractsMap[client._id];

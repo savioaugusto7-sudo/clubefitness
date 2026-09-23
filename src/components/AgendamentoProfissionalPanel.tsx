@@ -60,6 +60,13 @@ interface AgendamentoProfissionalPanelProps {
   professionals: ProfessionalInfo[];
   currentProfessionalId?: string;
   onSuccess?: () => void;
+  isColetivo?: boolean;
+  onExecuteAction?: (
+    actionName: string,
+    targetClientId: string | null,
+    callback: (executorProfId: string, isCollective: boolean) => void,
+    actionDetails?: string
+  ) => void;
 }
 
 interface ServiceOption {
@@ -187,7 +194,9 @@ export default function AgendamentoProfissionalPanel({
   clients,
   professionals,
   currentProfessionalId,
-  onSuccess
+  onSuccess,
+  isColetivo,
+  onExecuteAction
 }: AgendamentoProfissionalPanelProps) {
   // Determinar agenda padrão
   const currentProfObj = professionals.find(p => p._id === (currentProfessionalId || ''));
@@ -361,19 +370,17 @@ export default function AgendamentoProfissionalPanel({
     return availableSlots.filter(s => s.isAvailable).length;
   }, [availableSlots]);
 
-  // Helper para formatar data em Português
+  const handleSelectClient = (c: ClientInfo) => {
+    setSelectedClient(c);
+    setSearchStudent('');
+  };
+
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-');
     const dt = new Date(Number(y), Number(m) - 1, Number(d));
     const dayName = dt.toLocaleDateString('pt-BR', { weekday: 'long' });
-    const capDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-    return `${d}/${m}/${y} (${capDayName})`;
-  };
-
-  const handleSelectClient = (c: ClientInfo) => {
-    setSelectedClient(c);
-    setSearchStudent('');
+    return `${d}/${m}/${y} (${dayName.charAt(0).toUpperCase() + dayName.slice(1)})`;
   };
 
   const handleSubmitAppointment = async (e?: React.FormEvent, remanejarDeAptId?: string) => {
@@ -391,61 +398,82 @@ export default function AgendamentoProfissionalPanel({
       return;
     }
 
-    setSubmitting(true);
-    setFeedback(null);
+    const clientName = selectedClient.dadosPessoais?.nome || selectedClient.nome || 'Aluno';
+    const actionDesc = remanejarDeAptId
+      ? `Remanejamento de ${selectedService.nome} para ${formatDateDisplay(selectedDate)} às ${selectedHour}`
+      : `Novo agendamento de ${selectedService.nome} para ${formatDateDisplay(selectedDate)} às ${selectedHour}`;
 
-    try {
-      const payload: any = {
-        clienteId: selectedClient._id,
-        profissionalId: selectedProfId || professionals[0]?._id || '',
-        servico: selectedService.nome,
-        data: selectedDate,
-        horario: selectedHour,
-        tipo: agendaTipo,
-        observacoes: observacoes.trim() || undefined,
-        status: 'agendado',
-        bypassRestrictions: true // Profissional autenticado tem autorização de encaixe
-      };
+    const processSubmit = async (executorProfId: string) => {
+      setSubmitting(true);
+      setFeedback(null);
 
-      if (remanejarDeAptId) {
-        payload.remanejarDeAptId = remanejarDeAptId;
-      }
+      try {
+        const payload: any = {
+          clienteId: selectedClient._id,
+          profissionalId: selectedProfId || executorProfId || professionals[0]?._id || '',
+          servico: selectedService.nome,
+          data: selectedDate,
+          horario: selectedHour,
+          tipo: agendaTipo,
+          observacoes: observacoes.trim() || undefined,
+          status: 'agendado',
+          bypassRestrictions: true // Profissional autenticado tem autorização de encaixe
+        };
 
-      const res = await fetch('/api/appointments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        const successMsg = remanejarDeAptId
-          ? `🔄 Horário remanejado com sucesso para ${selectedClient.dadosPessoais?.nome || selectedClient.nome} em ${formatDateDisplay(selectedDate)} às ${selectedHour}!`
-          : `✅ Agendamento de ${selectedService.nome} para ${selectedClient.dadosPessoais?.nome || selectedClient.nome} em ${formatDateDisplay(selectedDate)} às ${selectedHour} realizado com sucesso!`;
-
-        setFeedback({
-          text: successMsg,
-          type: 'success'
-        });
-        setSelectedHour('');
-        setObservacoes('');
-        if (onSuccess) onSuccess();
-        
-        // Atualizar lista de agendamentos do dia
-        if (selectedClient?._id && selectedDate) {
-          const resDay = await fetch(`/api/appointments?clientId=${selectedClient._id}&date=${selectedDate}`);
-          const jsonDay = await resDay.json();
-          if (jsonDay.success) {
-            setExistingDayAppointments((jsonDay.data || []).filter((a: any) => a.status === 'agendado'));
-          }
+        if (remanejarDeAptId) {
+          payload.remanejarDeAptId = remanejarDeAptId;
         }
-      } else {
-        setFeedback({ text: data.error || 'Erro ao realizar agendamento.', type: 'danger' });
+
+        const res = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          const successMsg = remanejarDeAptId
+            ? `🔄 Horário remanejado com sucesso para ${clientName} em ${formatDateDisplay(selectedDate)} às ${selectedHour}!`
+            : `✅ Agendamento de ${selectedService.nome} para ${clientName} em ${formatDateDisplay(selectedDate)} às ${selectedHour} realizado com sucesso!`;
+
+          setFeedback({
+            text: successMsg,
+            type: 'success'
+          });
+          setSelectedHour('');
+          setObservacoes('');
+          if (onSuccess) onSuccess();
+          
+          // Atualizar lista de agendamentos do dia
+          if (selectedClient?._id && selectedDate) {
+            const resDay = await fetch(`/api/appointments?clientId=${selectedClient._id}&date=${selectedDate}`);
+            const jsonDay = await resDay.json();
+            if (jsonDay.success) {
+              setExistingDayAppointments((jsonDay.data || []).filter((a: any) => a.status === 'agendado'));
+            }
+          }
+        } else {
+          setFeedback({ text: data.error || 'Erro ao realizar agendamento.', type: 'danger' });
+        }
+      } catch (err: any) {
+        setFeedback({ text: 'Erro de comunicação ao salvar agendamento: ' + err.message, type: 'danger' });
+      } finally {
+        setSubmitting(false);
       }
-    } catch (err: any) {
-      setFeedback({ text: 'Erro de conexão: ' + err.message, type: 'danger' });
-    } finally {
-      setSubmitting(false);
+    };
+
+    // 🔐 Trava no Computador Coletivo: Exigir PIN do profissional antes de agendar
+    if (isColetivo && onExecuteAction) {
+      onExecuteAction(
+        remanejarDeAptId ? 'Remanejou Horário de Agendamento' : 'Agendou Aluno',
+        selectedClient._id,
+        (executorProfId: string) => {
+          processSubmit(executorProfId);
+        },
+        `${clientName} - ${actionDesc}`
+      );
+    } else {
+      processSubmit(currentProfessionalId || '');
     }
   };
 

@@ -21,13 +21,17 @@ export async function POST(request: Request) {
       payload.data?.attributes?.event ||     // evento v3 JSON:API
       payload.event?.type ||                  // alternativa v3 / sandbox
       payload.event?.name ||                  // legado / v1
+      (typeof payload.event === 'string' ? payload.event : '') ||
       '';
 
     const docKey: string | null =
       payload.data?.attributes?.data?.envelope_id ||  // ID do envelope v3
       payload.data?.attributes?.data?.document_id ||  // ID do documento v3
+      payload.data?.id ||                             // ID do envelope ou doc v3
       payload.event?.data?.envelope?.id ||            // alternativa v3
       payload.event?.data?.document?.key ||           // legado / v1
+      payload.document?.key ||                        // legado raiz
+      payload.envelope?.id ||                         // v3 raiz
       null;
 
     // Retornar 200 para qualquer evento sem docKey para evitar reenvios desnecessários
@@ -36,11 +40,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    const isSignEvent = ['envelope.finished', 'envelope.closed', 'signatory.signed', 'signer.signed', 'document.signed', 'sign', 'close']
-      .some(e => eventType.toLowerCase().includes(e));
+    const isSignEvent = [
+      'envelope.finished',
+      'envelope.closed',
+      'signatory.signed',
+      'signer.signed',
+      'document.signed',
+      'document_closed',
+      'auto_close',
+      'sign',
+      'close',
+      'closed'
+    ].some(e => eventType.toLowerCase().includes(e));
 
-    const isCancelEvent = ['envelope.canceled', 'cancel', 'closed_canceled']
-      .some(e => eventType.toLowerCase().includes(e));
+    const isCancelEvent = [
+      'envelope.canceled',
+      'cancel',
+      'closed_canceled',
+      'canceled',
+      'cancelled'
+    ].some(e => eventType.toLowerCase().includes(e));
 
     if (isSignEvent) {
       // ── EVENTO DE ASSINATURA / CONCLUSÃO ──────────────────

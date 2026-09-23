@@ -204,6 +204,59 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
   const [pinModalError, setPinModalError] = useState('');
   const [pinModalCallback, setPinModalCallback] = useState<((authenticatedProfId: string) => void) | null>(null);
 
+  // States for Self PIN Change (exclusivo para conta individual)
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
+  const [myPinCurrent, setMyPinCurrent] = useState('');
+  const [myPinNew, setMyPinNew] = useState('');
+  const [myPinConfirm, setMyPinConfirm] = useState('');
+  const [myPinSubmitting, setMyPinSubmitting] = useState(false);
+  const [myPinError, setMyPinError] = useState('');
+  const [myPinSuccess, setMyPinSuccess] = useState('');
+
+  const handleChangeMyPinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMyPinError('');
+    setMyPinSuccess('');
+
+    if (myPinNew.length !== 4 || !/^\d{4}$/.test(myPinNew)) {
+      setMyPinError('O novo PIN deve conter exatamente 4 dígitos numéricos.');
+      return;
+    }
+
+    if (myPinNew !== myPinConfirm) {
+      setMyPinError('A confirmação do novo PIN não confere.');
+      return;
+    }
+
+    setMyPinSubmitting(true);
+    try {
+      const res = await fetch('/api/professionals/my-pin', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPin: myPinCurrent,
+          newPin: myPinNew
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMyPinSuccess('PIN de acesso coletivo atualizado com sucesso!');
+        if (currentProf) {
+          currentProf.pin = myPinNew;
+        }
+        setTimeout(() => {
+          setShowChangePinModal(false);
+        }, 1500);
+      } else {
+        setMyPinError(data.error || 'Erro ao atualizar PIN.');
+      }
+    } catch (err: any) {
+      setMyPinError('Erro de comunicação ao atualizar PIN.');
+    } finally {
+      setMyPinSubmitting(false);
+    }
+  };
+
   const executeAction = (actionName: string, targetClientId: string | null, callback: (executorProfId: string, isCollective: boolean) => void, actionDetails: string = '') => {
     const logActivity = async (profId: string, isCollective: boolean) => {
       try {
@@ -283,7 +336,8 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
       setPinModalError('Profissional não encontrado.');
       return;
     }
-    if (prof.pin === pinModalValue) {
+    const expectedPin = (prof.pin || '1234').trim();
+    if (expectedPin === pinModalValue.trim()) {
       setShowPinModal(false);
       if (pinModalCallback) {
         pinModalCallback(prof._id);
@@ -2923,34 +2977,39 @@ export default function DashboardProfessional({ activeTab, setActiveTab, profess
     }
   }, [asWeight, asHeight, asAge, asSex, asDobras]);
 
-  // Handle CRUD submissions
+  // Handle CRUD submissions (com trava de PIN e auditoria no terminal coletivo)
   const handleCreateApt = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const payload = {
-        data: aptDate,
-        horario: aptTime,
-        tipo: aptType,
-        servico: aptService,
-        consumeCredito: aptService === 'Treino Monitorado',
-        profissionalId: '6668ab030303030303030302', // Camila Lima
-        clienteId: selectedClient
-      };
-      const res = await fetch('/api/appointments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowAptModal(false);
-        fetchData();
-      } else {
-        alert('Erro ao agendar: ' + data.error);
+    const clientObj = clients.find(c => (c._id || c.id) === selectedClient);
+    const clientName = clientObj?.dadosPessoais?.nome || clientObj?.nome || 'Aluno';
+
+    executeAction('Agendou Aluno', selectedClient, async (executorProfId) => {
+      try {
+        const payload = {
+          data: aptDate,
+          horario: aptTime,
+          tipo: aptType,
+          servico: aptService,
+          consumeCredito: aptService === 'Treino Monitorado',
+          profissionalId: executorProfId || professionalId || '',
+          clienteId: selectedClient
+        };
+        const res = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          setShowAptModal(false);
+          fetchData();
+        } else {
+          alert('Erro ao agendar: ' + data.error);
+        }
+      } catch (err: any) {
+        alert('Erro na requisição: ' + err.message);
       }
-    } catch (err: any) {
-      alert('Erro na requisição: ' + err.message);
-    }
+    }, `${clientName} - ${aptService} em ${aptDate} às ${aptTime}`);
   };
 
   const fetchEmergencySlots = async (dateStr: string, tipoOverride?: 'academia' | 'dr_guilherme') => {
@@ -4764,7 +4823,7 @@ goniometria: {
             fichasLivre: updatedData.fichasLivre,
             confirmEmpty,
             profissionalId: executorProfId,
-            profissionalNome: sessionUserName || currentProf?.nome || 'Profissional'
+            profissionalNome: professionals.find(p => p._id === executorProfId)?.nome || sessionUserName || currentProf?.nome || 'Profissional'
           })
         });
         const data = await res.json();
@@ -4962,6 +5021,65 @@ goniometria: {
 
   return (
     <div>
+      {/* 🌟 Top Bar: Identificação do Terminal e Acesso Seguro a PIN */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '10px 16px',
+        marginBottom: '16px',
+        background: isColetivo ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+        border: `1px solid ${isColetivo ? 'rgba(59, 130, 246, 0.25)' : 'var(--border-color)'}`,
+        borderRadius: '10px',
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <i className={`fa-solid ${isColetivo ? 'fa-desktop' : 'fa-user-check'}`} style={{ color: isColetivo ? '#38bdf8' : '#10b981', fontSize: '1.1rem' }}></i>
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              {isColetivo ? 'Terminal Coletivo (Computador Compartilhado)' : `Perfil Profissional: ${currentProf?.nome || sessionUserName || 'Profissional'}`}
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+              {isColetivo 
+                ? 'Operações clínicas, treinos e agendamentos exigem seleção de nome e PIN de 4 dígitos'
+                : 'Acesso individual direto autenticado'}
+            </div>
+          </div>
+        </div>
+
+        {!isColetivo && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              setShowChangePinModal(true);
+              setMyPinCurrent('');
+              setMyPinNew('');
+              setMyPinConfirm('');
+              setMyPinError('');
+              setMyPinSuccess('');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              color: 'var(--text-main)',
+              cursor: 'pointer'
+            }}
+          >
+            <i className="fa-solid fa-key" style={{ color: '#eab308' }}></i>
+            <span>Alterar Meu PIN Coletivo</span>
+          </button>
+        )}
+      </div>
+
       {/* View: Registro de Ponto */}
       {activeTab === 'registro_ponto' && (
         <RegistroPontoPanel professionalId={professionalId} />
@@ -6973,6 +7091,8 @@ goniometria: {
           onSuccess={() => {
             fetchData();
           }}
+          isColetivo={isColetivo}
+          onExecuteAction={executeAction}
         />
       )}
 
@@ -16949,14 +17069,14 @@ goniometria: {
                   </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>PIN de Acesso Rápido</label>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>PIN de Acesso Rápido (4 Dígitos)</label>
                   <input
                     type="password"
-                    maxLength={6}
+                    maxLength={4}
                     className="form-control"
                     placeholder="Digite seu PIN de 4 dígitos"
                     value={pinModalValue}
-                    onChange={e => setPinModalValue(e.target.value)}
+                    onChange={e => setPinModalValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     required
                     autoFocus
                   />
@@ -16971,6 +17091,86 @@ goniometria: {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowPinModal(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">
                   <i className="fa-solid fa-key"></i> Confirmar PIN
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🔐 Modal de Alteração de PIN Pessoal (Disponível EXCLUSIVAMENTE na conta individual) */}
+      {showChangePinModal && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 10001 }}>
+          <div className="modal-content" style={{ maxWidth: '420px', width: '92%' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-key" style={{ color: '#eab308' }}></i>
+                Meu PIN de Acesso Coletivo
+              </h3>
+              <button className="modal-close" onClick={() => setShowChangePinModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleChangeMyPinSubmit}>
+              <div className="modal-body">
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.4 }}>
+                  Este PIN de 4 dígitos é a sua assinatura eletrônica rápida ao utilizar o terminal compartilhado da recepção ou do salão de treinamento.
+                </p>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>PIN Atual</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    className="form-control"
+                    placeholder="Digite seu PIN atual (padrão inicial: 1234)"
+                    value={myPinCurrent}
+                    onChange={e => setMyPinCurrent(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Novo PIN (4 Dígitos Numéricos)</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    className="form-control"
+                    placeholder="Ex: 5821"
+                    value={myPinNew}
+                    onChange={e => setMyPinNew(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Confirmar Novo PIN</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    className="form-control"
+                    placeholder="Repita os 4 dígitos"
+                    value={myPinConfirm}
+                    onChange={e => setMyPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    required
+                  />
+                </div>
+
+                {myPinError && (
+                  <div style={{ color: 'var(--color-danger)', fontSize: '0.85rem', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-triangle-exclamation"></i> {myPinError}
+                  </div>
+                )}
+
+                {myPinSuccess && (
+                  <div style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-circle-check"></i> {myPinSuccess}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowChangePinModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={myPinSubmitting}>
+                  {myPinSubmitting ? 'Salvando...' : 'Salvar Novo PIN'}
                 </button>
               </div>
             </form>

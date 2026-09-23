@@ -15,6 +15,13 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
   const actualEnvelopeId = envelopeId;
   const actualDocumentId = documentId || envelopeId;
 
+  // Garantir que temos uma instância do Mongoose Model para executar .save() com segurança
+  let contractDoc = contract;
+  if (!contractDoc || typeof contractDoc.save !== 'function') {
+    contractDoc = await Contract.findById(contract._id);
+    if (!contractDoc) return;
+  }
+
   try {
     let clicksignStatus = 'pendente';
     let finishedAt: any = null;
@@ -54,7 +61,7 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
             if (signersRes.ok) {
               const signersData = await signersRes.json();
               const signersList = signersData.data || [];
-              const studentSigner = signersList.find((s: any) => s.id === contract.clicksignSignerKey) || signersList[0];
+              const studentSigner = signersList.find((s: any) => s.id === contractDoc.clicksignSignerKey) || signersList[0];
               if (studentSigner) {
                 const sStatus = studentSigner.attributes?.status;
                 const sSigned = studentSigner.attributes?.has_signed || studentSigner.attributes?.signed_at;
@@ -88,50 +95,79 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
       }
     }
 
-    if (clicksignStatus !== contract.clicksignStatus) {
+    if (clicksignStatus !== contractDoc.clicksignStatus) {
       // Cancelar qualquer outro contrato assinado anterior do mesmo cliente se esse foi assinado
       if (clicksignStatus === 'assinado') {
         await Contract.updateMany(
-          { clientId: contract.clientId, _id: { $ne: contract._id }, status: 'assinado' },
+          { clientId: contractDoc.clientId, _id: { $ne: contractDoc._id }, status: 'assinado' },
           { status: 'cancelado' }
         );
       }
 
-      contract.clicksignStatus = clicksignStatus;
-      contract.status = clicksignStatus;
+      contractDoc.clicksignStatus = clicksignStatus;
+      contractDoc.status = clicksignStatus;
+      if (contract !== contractDoc) {
+        contract.clicksignStatus = clicksignStatus;
+        contract.status = clicksignStatus;
+      }
 
       if (clicksignStatus === 'assinado') {
-        contract.assinaturaNome = contract.assinaturaNome || 'Assinatura Eletrônica Clicksign';
-        contract.assinaturaData = finishedAt ? new Date(finishedAt) : new Date();
+        contractDoc.assinaturaNome = contractDoc.assinaturaNome || 'Assinatura Eletrônica Clicksign';
+        contractDoc.assinaturaData = finishedAt ? new Date(finishedAt) : new Date();
+        if (contract !== contractDoc) {
+          contract.assinaturaNome = contractDoc.assinaturaNome;
+          contract.assinaturaData = contractDoc.assinaturaData;
+        }
 
-        const client = await Client.findById(contract.clientId);
+        const client = await Client.findById(contractDoc.clientId);
         if (client) {
-          const plan = await Plan.findById(contract.planoId);
-          const isAnual = contract.planoTipo === 'Anual' || contract.vigenciaMeses >= 12;
+          const plan = await Plan.findById(contractDoc.planoId);
+          const isAnual = contractDoc.planoTipo === 'Anual' || (contractDoc.vigenciaMeses || 1) >= 12;
 
-          let finalEndDate = contract.dataFim;
+          let finalEndDate = contractDoc.dataFim;
           if (!finalEndDate) {
-            const startD = new Date(contract.dataInicio || new Date());
+            const startD = new Date(contractDoc.dataInicio || new Date());
             const endD = new Date(startD);
-            endD.setMonth(endD.getMonth() + (contract.vigenciaMeses || 1));
+            endD.setMonth(endD.getMonth() + (contractDoc.vigenciaMeses || 1));
             finalEndDate = endD.toISOString().split('T')[0];
+          }
+
+          // Arquivar contrato anterior se existente (Anti-Sobrescrita)
+          if (client.dadosComerciais && client.dadosComerciais.status === 'ativo' && client.dadosComerciais.dataInicio && client.dadosComerciais.vencimento) {
+            try {
+              const { buildContractSnapshot } = await import('@/utils/contractLifecycle');
+              const prevSnapshot = buildContractSnapshot(
+                client.dadosComerciais,
+                'renovado',
+                `Ativação de novo contrato via Clicksign (${contractDoc.planoNome || plan?.nome})`
+              );
+              if (prevSnapshot && prevSnapshot.dataInicio && prevSnapshot.dataFim) {
+                if (!Array.isArray(client.historicoContratos)) client.historicoContratos = [];
+                const alreadyArchived = client.historicoContratos.some((h: any) => h.dataInicio === prevSnapshot.dataInicio && String(h.planoId) === String(prevSnapshot.planoId));
+                if (!alreadyArchived) {
+                  client.historicoContratos.push(prevSnapshot);
+                }
+              }
+            } catch (snapErr) {
+              console.warn('Erro ao arquivar contrato anterior em historicoContratos:', snapErr);
+            }
           }
 
           client.dadosComerciais = {
             ...client.dadosComerciais,
             status: 'ativo',
-            planoId: contract.planoId,
-            planoNome: plan?.nome || contract.planoNome,
-            dataInicio: contract.dataInicio || client.dadosComerciais?.dataInicio,
+            planoId: contractDoc.planoId,
+            planoNome: plan?.nome || contractDoc.planoNome,
+            dataInicio: contractDoc.dataInicio || client.dadosComerciais?.dataInicio,
             dataFim: finalEndDate,
             vencimento: finalEndDate,
-            formaPagamento: contract.formaPagamento || client.dadosComerciais?.formaPagamento,
-            valorUnitario: contract.valorLiquido || contract.valorBruto || client.dadosComerciais?.valorUnitario,
-            parcelas: contract.parcelas || client.dadosComerciais?.parcelas,
-            descontoValor: contract.descontoValor,
-            descontoTipo: contract.descontoTipo,
-            frequencia: contract.frequencia !== undefined ? contract.frequencia : client.dadosComerciais?.frequencia,
-            creditosTotal: contract.creditosTotal || plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0),
+            formaPagamento: contractDoc.formaPagamento || client.dadosComerciais?.formaPagamento,
+            valorUnitario: contractDoc.valorLiquido || contractDoc.valorBruto || client.dadosComerciais?.valorUnitario,
+            parcelas: contractDoc.parcelas || client.dadosComerciais?.parcelas,
+            descontoValor: contractDoc.descontoValor,
+            descontoTipo: contractDoc.descontoTipo,
+            frequencia: contractDoc.frequencia !== undefined ? contractDoc.frequencia : client.dadosComerciais?.frequencia,
+            creditosTotal: contractDoc.creditosTotal || plan?.creditosTotal || (contractDoc.valorBruto > 0 ? 12 : 0),
             creditosUsados: 0,
             creditosReservados: 0,
             creditosMassagemTotal: isAnual ? 1 : 0,
@@ -150,7 +186,7 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
           await client.save();
 
           // Se a forma de pagamento for BOLETO e ainda não possuir cobrança/assinatura Asaas gerada, criar automaticamente
-          if (contract.formaPagamento === 'boleto' && !contract.asaasPaymentId && !contract.asaasSubscriptionId && contract.asaasBillingStatus !== 'gerada' && process.env.ASAAS_API_KEY) {
+          if (contractDoc.formaPagamento === 'boleto' && !contractDoc.asaasPaymentId && !contractDoc.asaasSubscriptionId && contractDoc.asaasBillingStatus !== 'gerada' && process.env.ASAAS_API_KEY) {
             try {
               let asaasCustomerId = client.dadosComerciais?.asaasCustomerId;
               if (!asaasCustomerId) {
@@ -164,18 +200,18 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
 
               const isRecorrente = Boolean(
                 client.dadosComerciais?.criarRecorrenciaMensal ||
-                contract.criarRecorrenciaMensal ||
-                (contract.parcelas === 1 && contract.vigenciaMeses && contract.vigenciaMeses > 1)
+                contractDoc.criarRecorrenciaMensal ||
+                (contractDoc.parcelas === 1 && contractDoc.vigenciaMeses && contractDoc.vigenciaMeses > 1)
               );
 
-              const numParcelas = Number(contract.parcelas) || 1;
-              let totalLiquido = Number(contract.valorLiquido) || Number(contract.valorBruto) || 0;
+              const numParcelas = Number(contractDoc.parcelas) || 1;
+              let totalLiquido = Number(contractDoc.valorLiquido) || Number(contractDoc.valorBruto) || 0;
               // Trava de segurança: se o contrato for parcelado e o valorLiquido for compatível com uma única parcela, usar valorBruto
-              if (numParcelas > 1 && contract.valorBruto && totalLiquido < (contract.valorBruto * 0.75) && (!contract.descontoValor || contract.descontoValor === 0)) {
-                totalLiquido = Number(contract.valorBruto);
+              if (numParcelas > 1 && contractDoc.valorBruto && totalLiquido < (contractDoc.valorBruto * 0.75) && (!contractDoc.descontoValor || contractDoc.descontoValor === 0)) {
+                totalLiquido = Number(contractDoc.valorBruto);
               }
               const valorParcela = numParcelas > 1 ? Number((totalLiquido / numParcelas).toFixed(2)) : totalLiquido;
-              const dueDate = contract.dataPrimeiroVencimento || contract.dataInicio || new Date().toISOString().split('T')[0];
+              const dueDate = contractDoc.dataPrimeiroVencimento || contractDoc.dataInicio || new Date().toISOString().split('T')[0];
 
               if (isRecorrente) {
                 // CRIAÇÃO DE ASSINATURA RECORRENTE NO ASAAS
@@ -186,15 +222,22 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
                   nextDueDate: dueDate,
                   cycle: 'MONTHLY',
                   description: `Contrato Recorrente ${plan?.nome || 'Plano'} - Clube Fitness`,
-                  externalReference: String(contract._id)
+                  externalReference: String(contractDoc._id)
                 });
 
                 if (asaasResult && asaasResult.subscriptionId) {
-                  contract.asaasSubscriptionId = asaasResult.subscriptionId;
-                  contract.asaasPaymentId = asaasResult.paymentId || '';
-                  contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
-                  contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
-                  contract.asaasBillingStatus = 'gerada';
+                  contractDoc.asaasSubscriptionId = asaasResult.subscriptionId;
+                  contractDoc.asaasPaymentId = asaasResult.paymentId || '';
+                  contractDoc.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+                  contractDoc.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+                  contractDoc.asaasBillingStatus = 'gerada';
+                  if (contract !== contractDoc) {
+                    contract.asaasSubscriptionId = contractDoc.asaasSubscriptionId;
+                    contract.asaasPaymentId = contractDoc.asaasPaymentId;
+                    contract.asaasInvoiceUrl = contractDoc.asaasInvoiceUrl;
+                    contract.asaasBoletoPdf = contractDoc.asaasBoletoPdf;
+                    contract.asaasBillingStatus = contractDoc.asaasBillingStatus;
+                  }
                 }
               } else {
                 // CRIAÇÃO DE COBRANÇA AVULSA / PARCELADA NO ASAAS
@@ -205,14 +248,20 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
                   dueDate: dueDate,
                   description: `Contrato ${plan?.nome || 'Plano'} - ${numParcelas > 1 ? `${numParcelas}x` : 'À vista'}`,
                   parcelas: numParcelas,
-                  externalReference: String(contract._id)
+                  externalReference: String(contractDoc._id)
                 });
 
                 if (asaasResult && asaasResult.paymentId) {
-                  contract.asaasPaymentId = asaasResult.paymentId;
-                  contract.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
-                  contract.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
-                  contract.asaasBillingStatus = 'gerada';
+                  contractDoc.asaasPaymentId = asaasResult.paymentId;
+                  contractDoc.asaasInvoiceUrl = asaasResult.invoiceUrl || '';
+                  contractDoc.asaasBoletoPdf = asaasResult.bankSlipUrl || '';
+                  contractDoc.asaasBillingStatus = 'gerada';
+                  if (contract !== contractDoc) {
+                    contract.asaasPaymentId = contractDoc.asaasPaymentId;
+                    contract.asaasInvoiceUrl = contractDoc.asaasInvoiceUrl;
+                    contract.asaasBoletoPdf = contractDoc.asaasBoletoPdf;
+                    contract.asaasBillingStatus = contractDoc.asaasBillingStatus;
+                  }
                 }
               }
             } catch (asaasErr: any) {
@@ -223,43 +272,43 @@ export async function syncContractStatus(contract: any, token: string, baseUrl: 
           console.log(`Sync status: Client ${client.dadosPessoais?.nome} activated via clicksign sync with vencimento ${client.dadosComerciais?.vencimento}.`);
         }
       } else if (clicksignStatus === 'cancelado') {
-        const client = await Client.findById(contract.clientId);
-        if (client && client.dadosComerciais?.planoId?.toString() === contract.planoId?.toString()) {
+        const client = await Client.findById(contractDoc.clientId);
+        if (client && client.dadosComerciais?.planoId?.toString() === contractDoc.planoId?.toString()) {
           client.dadosComerciais.status = 'inativo';
           await client.save();
           console.log(`Sync status: Client ${client.dadosPessoais?.nome} inactivated via clicksign cancel sync.`);
         }
       }
-      await contract.save();
-    } else if (contract.status === 'assinado' || clicksignStatus === 'assinado') {
+      await contractDoc.save();
+    } else if (contractDoc.status === 'assinado' || clicksignStatus === 'assinado') {
       // Reconciliação caso o contrato já esteja assinado mas o perfil do cliente mantivesse 'lead' ou dados desatualizados
-      const client = await Client.findById(contract.clientId);
+      const client = await Client.findById(contractDoc.clientId);
       if (client && (client.dadosComerciais?.status !== 'ativo' || !client.dadosComerciais?.planoId)) {
-        const plan = await Plan.findById(contract.planoId);
-        const isAnual = contract.planoTipo === 'Anual' || (contract.vigenciaMeses || 1) >= 12;
+        const plan = await Plan.findById(contractDoc.planoId);
+        const isAnual = contractDoc.planoTipo === 'Anual' || (contractDoc.vigenciaMeses || 1) >= 12;
 
         Object.assign(client.dadosComerciais, {
-          planoId: contract.planoId,
-          vencimento: contract.dataFim || contract.dataPrimeiroVencimento || contract.dataInicio,
+          planoId: contractDoc.planoId,
+          vencimento: contractDoc.dataFim || contractDoc.dataPrimeiroVencimento || contractDoc.dataInicio,
           status: 'ativo',
-          parcelas: contract.parcelas,
-          descontoValor: contract.descontoValor,
-          descontoTipo: contract.descontoTipo,
+          parcelas: contractDoc.parcelas,
+          descontoValor: contractDoc.descontoValor,
+          descontoTipo: contractDoc.descontoTipo,
           duracao: isAnual ? 'anual' : 'mensal',
-          duracaoQtd: isAnual ? 1 : (contract.vigenciaMeses || 1),
-          formaPagamento: contract.formaPagamento,
-          dataInicio: contract.dataInicio,
-          responsavelVenda: contract.responsavelVenda || '',
-          observacoesContratuais: contract.observacoesContratuais || '',
-          frequencia: contract.frequencia !== undefined ? contract.frequencia : client.dadosComerciais?.frequencia,
-          creditosTotal: contract.creditosTotal || plan?.creditosTotal || (contract.valorBruto > 0 ? 12 : 0)
+          duracaoQtd: isAnual ? 1 : (contractDoc.vigenciaMeses || 1),
+          formaPagamento: contractDoc.formaPagamento,
+          dataInicio: contractDoc.dataInicio,
+          responsavelVenda: contractDoc.responsavelVenda || '',
+          observacoesContratuais: contractDoc.observacoesContratuais || '',
+          frequencia: contractDoc.frequencia !== undefined ? contractDoc.frequencia : client.dadosComerciais?.frequencia,
+          creditosTotal: contractDoc.creditosTotal || plan?.creditosTotal || (contractDoc.valorBruto > 0 ? 12 : 0)
         });
         await client.save();
         console.log(`Sync status: Reconciled client ${client.dadosPessoais?.nome} to 'ativo' for signed contract.`);
       }
     }
   } catch (error) {
-    console.error(`Erro ao sincronizar contrato ${contract._id}:`, error);
+    console.error(`Erro ao sincronizar contrato ${contractDoc?._id || contract?._id}:`, error);
   }
 }
 
@@ -273,7 +322,7 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
 
     const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com';
 
     if (contractId) {
       const contract = await Contract.findById(contractId);
@@ -297,7 +346,12 @@ export async function GET(request: Request) {
       .limit(200);
 
     if (token) {
-      const pendingContracts = contracts.filter((c: any) => c.status === 'pendente' || c.clicksignStatus === 'pendente');
+      const pendingContracts = contracts.filter((c: any) => 
+        c.status === 'pendente' || 
+        c.status === 'aguardando_assinatura' || 
+        c.clicksignStatus === 'pendente' || 
+        c.clicksignStatus === 'enviado'
+      );
       await Promise.all(pendingContracts.map(c => syncContractStatus(c, token, baseUrl)));
     }
 
@@ -365,7 +419,7 @@ export async function DELETE(request: Request) {
     }
 
     const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com';
 
     if (contract.clicksignDocKey && token) {
       const [envelopeId, documentId] = contract.clicksignDocKey.split(':');
@@ -438,7 +492,7 @@ export async function PUT(request: Request) {
     }
 
     const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+    const baseUrl = process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com';
 
     if (!token) {
       return NextResponse.json({ success: false, error: 'CLICKSIGN_ACCESS_TOKEN não configurado' }, { status: 500 });
@@ -527,7 +581,7 @@ export async function POST(request: Request) {
       }
 
       const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-      const baseUrl = process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com';
+      const baseUrl = process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com';
       if (token) {
         await syncContractStatus(contract, token, baseUrl);
       }

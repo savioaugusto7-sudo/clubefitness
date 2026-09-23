@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const token = process.env.CLICKSIGN_ACCESS_TOKEN;
-    const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com').replace(/\/$/, '');
+    const baseUrl = (process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com').replace(/\/$/, '');
 
     if (!token) {
       return NextResponse.json({
