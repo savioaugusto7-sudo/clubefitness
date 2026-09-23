@@ -5583,7 +5583,6 @@ goniometria: {
                               const hasAptToday = clientApts.length > 0;
                               const aptToday = hasAptToday ? clientApts[0] : null;
                               const cName = (item.client.dadosPessoais?.nome || item.client.nome || 'Aluno').trim();
-                              const cInitial = cName.charAt(0).toUpperCase();
                               const status = item.client.dadosComerciais?.status || 'ativo';
 
                               return (
@@ -5601,72 +5600,54 @@ goniometria: {
                                     boxShadow: '0 4px 15px rgba(245, 158, 11, 0.08)'
                                   }}
                                 >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                                    <div style={{
-                                      width: '38px',
-                                      height: '38px',
-                                      borderRadius: '10px',
-                                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                                      color: '#111827',
-                                      fontWeight: 900,
-                                      fontSize: '1.05rem',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flexShrink: 0,
-                                      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
-                                    }}>
-                                      {cInitial}
+                                  <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                      <strong style={{ fontSize: '0.94rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {cName}
+                                      </strong>
+                                      {status !== 'ativo' && (
+                                        <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1' }}>
+                                          {status}
+                                        </span>
+                                      )}
                                     </div>
-                                    <div style={{ minWidth: 0 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                        <strong style={{ fontSize: '0.92rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                          {cName}
-                                        </strong>
-                                        {status !== 'ativo' && (
-                                          <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1' }}>
-                                            {status}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div style={{ fontSize: '0.78rem', color: '#fef3c7', marginTop: '2px', fontWeight: 600 }}>
-                                        🎂 {item.turningAge ? `Completa ${item.turningAge} anos hoje!` : 'Aniversário hoje!'}
-                                      </div>
+                                    <div style={{ fontSize: '0.78rem', color: '#fef3c7', marginTop: '2px', fontWeight: 600 }}>
+                                      🎂 {item.turningAge ? `Completa ${item.turningAge} anos hoje!` : 'Aniversário hoje!'}
+                                    </div>
 
-                                      {/* Status de Treino no Dia */}
-                                      <div style={{ marginTop: '5px' }}>
-                                        {hasAptToday && aptToday ? (
-                                          <span style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '5px',
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            background: 'rgba(16, 185, 129, 0.2)',
-                                            color: '#34d399',
-                                            border: '1px solid rgba(16, 185, 129, 0.4)',
-                                            fontSize: '0.74rem',
-                                            fontWeight: 700
-                                          }}>
-                                            <i className="fa-solid fa-bolt"></i> Treina hoje às {aptToday.horario} • {aptToday.servico}
-                                          </span>
-                                        ) : (
-                                          <span style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '5px',
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            background: 'rgba(148, 163, 184, 0.12)',
-                                            color: '#cbd5e1',
-                                            border: '1px solid rgba(148, 163, 184, 0.2)',
-                                            fontSize: '0.74rem',
-                                            fontWeight: 500
-                                          }}>
-                                            <i className="fa-regular fa-calendar-xmark"></i> Sem agendamento hoje
-                                          </span>
-                                        )}
-                                      </div>
+                                    {/* Status de Treino no Dia */}
+                                    <div style={{ marginTop: '5px' }}>
+                                      {hasAptToday && aptToday ? (
+                                        <span style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '5px',
+                                          padding: '2px 8px',
+                                          borderRadius: '6px',
+                                          background: 'rgba(16, 185, 129, 0.2)',
+                                          color: '#34d399',
+                                          border: '1px solid rgba(16, 185, 129, 0.4)',
+                                          fontSize: '0.74rem',
+                                          fontWeight: 700
+                                        }}>
+                                          <i className="fa-solid fa-bolt"></i> Treina hoje às {aptToday.horario} • {aptToday.servico}
+                                        </span>
+                                      ) : (
+                                        <span style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '5px',
+                                          padding: '2px 8px',
+                                          borderRadius: '6px',
+                                          background: 'rgba(148, 163, 184, 0.12)',
+                                          color: '#cbd5e1',
+                                          border: '1px solid rgba(148, 163, 184, 0.2)',
+                                          fontSize: '0.74rem',
+                                          fontWeight: 500
+                                        }}>
+                                          <i className="fa-regular fa-calendar-xmark"></i> Sem agendamento hoje
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
 
@@ -5725,7 +5706,6 @@ goniometria: {
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
                             {bdaySummary.upcoming.map((item, idx) => {
                               const cName = (item.client.dadosPessoais?.nome || item.client.nome || 'Aluno').trim();
-                              const cInitial = cName.charAt(0).toUpperCase();
 
                               return (
                                 <div
@@ -5741,29 +5721,12 @@ goniometria: {
                                     gap: '10px'
                                   }}
                                 >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                                    <div style={{
-                                      width: '32px',
-                                      height: '32px',
-                                      borderRadius: '8px',
-                                      background: item.isTomorrow ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                                      color: item.isTomorrow ? '#38bdf8' : '#cbd5e1',
-                                      fontWeight: 800,
-                                      fontSize: '0.9rem',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flexShrink: 0
-                                    }}>
-                                      {cInitial}
-                                    </div>
-                                    <div style={{ minWidth: 0 }}>
-                                      <strong style={{ fontSize: '0.85rem', color: '#e2e8f0', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {cName}
-                                      </strong>
-                                      <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '1px' }}>
-                                        {item.turningAge ? `Fará ${item.turningAge} anos` : `Data: ${item.formattedDayMonth}`}
-                                      </div>
+                                  <div style={{ minWidth: 0, flex: 1 }}>
+                                    <strong style={{ fontSize: '0.86rem', color: '#e2e8f0', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {cName}
+                                    </strong>
+                                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '1px' }}>
+                                      {item.turningAge ? `Fará ${item.turningAge} anos` : `Data: ${item.formattedDayMonth}`}
                                     </div>
                                   </div>
 
