@@ -5373,7 +5373,11 @@ goniometria: {
 
             todayApts.forEach(a => {
               const meta = getAppointmentMeta(a);
-              const isAlbertAgenda = a.tipo === 'dr_albert' || meta.key === 'dr_albert' || (a.profissionalNome || '').toLowerCase().includes('albert') || (a.profissionalId?.nome || '').toLowerCase().includes('albert');
+              const isAlbertAgenda = a.tipo === 'dr_albert' || (a.tipo !== 'academia' && (
+                meta.key === 'dr_albert' || 
+                (a.profissionalNome || '').toLowerCase().includes('albert') || 
+                (a.profissionalId?.nome || '').toLowerCase().includes('albert')
+              ));
 
               // Regra de Negócio: Clientes na agenda do Albert só aparecem em "Horário Atual" e "Urgentes/Pendentes" para o próprio Albert
               if (isAlbertAgenda && !isAlbert) {
@@ -6539,6 +6543,40 @@ goniometria: {
                                         }}
                                       >
                                         <i className="fa-solid fa-stethoscope"></i> Avaliação
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {a.servico === 'Teste de Força' && client._id && (
+                                    <div style={{ flex: 1, minWidth: '115px' }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        style={{
+                                          width: '100%',
+                                          padding: '9px 8px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '6px',
+                                          background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.2) 0%, rgba(219, 39, 119, 0.3) 100%)',
+                                          color: '#f472b6',
+                                          border: '1px solid rgba(236, 72, 153, 0.45)',
+                                          fontWeight: 800,
+                                          borderRadius: '10px',
+                                          fontSize: '0.78rem',
+                                          cursor: 'pointer',
+                                          boxShadow: '0 2px 8px rgba(236, 72, 153, 0.15)'
+                                        }}
+                                        onClick={() => {
+                                          setStClient(client._id);
+                                          setStDraftSavedAt(null);
+                                          setStDate(a.data || new Date().toISOString().split('T')[0]);
+                                          setShowStModal(true);
+                                        }}
+                                        title="Registrar ou Visualizar Teste de Força"
+                                      >
+                                        <i className="fa-solid fa-bolt"></i> Teste de Força
                                       </button>
                                     </div>
                                   )}

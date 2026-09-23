@@ -517,8 +517,8 @@ export async function POST(request: Request) {
 
       const onlyGymApts = allGymApts.filter(a => {
         const profNome = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-        if (a.tipo === 'dr_albert' || profNome.includes('albert')) return false;
-        if (a.tipo === 'dr_guilherme' || profNome.includes('guilherme')) return false;
+        if (a.tipo === 'dr_albert' || (a.tipo !== 'academia' && profNome.includes('albert'))) return false;
+        if (a.tipo === 'dr_guilherme' || (a.tipo !== 'academia' && profNome.includes('guilherme'))) return false;
         return true;
       });
 
@@ -583,8 +583,8 @@ export async function POST(request: Request) {
 
         const nextOnlyGymApts = nextAllGymApts.filter(a => {
           const profNome = (a.profissionalId?.nome || a.profissionalId?.dadosPessoais?.nome || '').toLowerCase();
-          if (a.tipo === 'dr_albert' || profNome.includes('albert')) return false;
-          if (a.tipo === 'dr_guilherme' || profNome.includes('guilherme')) return false;
+          if (a.tipo === 'dr_albert' || (a.tipo !== 'academia' && profNome.includes('albert'))) return false;
+          if (a.tipo === 'dr_guilherme' || (a.tipo !== 'academia' && profNome.includes('guilherme'))) return false;
           return true;
         });
 
